@@ -1,4 +1,4 @@
-from task_input.base_input import BaseInput
+from ..task_input.base_input import BaseInput
 
 
 class StrInput(BaseInput):

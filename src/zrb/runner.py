@@ -1,3 +1,3 @@
-from action.runner import Runner
+from .action.runner import Runner
 
 runner = Runner()

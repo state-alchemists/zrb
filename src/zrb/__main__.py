@@ -1,4 +1,4 @@
-from cli_creator import create_cli
+from .cli_creator import create_cli
 import logging
 
 logging.basicConfig(level=logging.INFO)

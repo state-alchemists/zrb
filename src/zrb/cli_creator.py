@@ -1,5 +1,5 @@
-from runner import runner
-from script_loader import load_script
+from .runner import runner
+from .script_loader import load_script
 import click
 import os
 

@@ -1,4 +1,4 @@
-from action.base_action import BaseAction
+from ..action.base_action import BaseAction
 import click
 
 

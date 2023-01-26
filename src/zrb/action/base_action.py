@@ -1,5 +1,5 @@
 from typing import List
-from task.base_task import BaseTask
+from ..task.base_task import BaseTask
 
 
 class BaseAction():

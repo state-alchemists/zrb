@@ -1,6 +1,6 @@
 from typing import Any, List, TypeVar
 from pydantic import BaseModel
-from task_input.base_input import BaseInput
+from ..task_input.base_input import BaseInput
 
 import logging
 
