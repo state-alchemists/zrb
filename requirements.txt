@@ -1,0 +1,4 @@
+flake8==6.0.0 # Linter
+build==0.10.0 # Builder
+twine==4.0.2  # Pip uploader
+keyring==23.13.1 # For twine authentication
