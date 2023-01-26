@@ -22,4 +22,4 @@ classifiers = [
 "Bug Tracker" = "https://github.com/state-alchemists/zaruba/issues"
 
 [project.scripts]
-foo = "command_line:cli"
+foo = "zrb.command_line:cli"
