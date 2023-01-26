@@ -1,65 +1,92 @@
-__CURRENT_DIR=$(pwd)
+if [ -z "$__PROJECT_DIR" ]
+then
+    __PROJECT_DIR=$(pwd)
+fi
 
 __prepare() {
-    cd $__CURRENT_DIR
-    source venv/bin/activate
+    echo "🤖 Activate zrb venv"
+    source ${__PROJECT_DIR}/venv/bin/activate
+}
+
+reload-toolkit() {
+    source ${__PROJECT_DIR}/toolkit.sh
 }
 
 prepare() {
     __prepare
-    pip install -r requirements.txt
+    echo "🤖 Upgrade pip"
+    pip install --upgrade pip
+    echo "🤖 Install zrb dependencies"
+    pip install -r ${__PROJECT_DIR}/requirements.txt
 }
 
 build-zrb() {
     prepare
-    rm -Rf dist
+    echo "🤖 Build zrb distribution"
+    rm -Rf ${__PROJECT_DIR}/dist
+    cd ${__PROJECT_DIR}
     flit build
 }
 
 publish-zrb() {
     prepare
+    echo "🤖 Publish zrb to pypi"
+    cd ${__PROJECT_DIR}
     flit publish --repository pypi
 }
 
 test-publish-zrb() {
     prepare
+    echo "🤖 Publish zrb to testpypi"
+    cd ${__PROJECT_DIR}
     flit publish --repository testpypi
 }
 
 prepare-playground() {
-    echo "Build zrb"
     build-zrb
     if [ ! -d playground ]
     then
-        echo "Create playground"
-        cp -r playground-template playground
+        echo "🤖 Create playground"
+        cp -r ${__PROJECT_DIR}/playground-template ${__PROJECT_DIR}/playground
     fi
-    echo "Copy zrb wheel file"
-    cp dist/zrb-*.whl playground/zrb-0.0.1-py3-none-any.whl
-    cd playground
+    echo "🤖 Copy zrb distribution"
+    cp ${__PROJECT_DIR}/dist/zrb-*.tar.gz ${__PROJECT_DIR}/playground/zrb-0.0.1-py3-none-any.tar.gz
+    cd ${__PROJECT_DIR}/playground
     deactivate
-    echo "Activate playground venv"
+    echo "🤖 Activate playground venv"
     python -m venv venv
     source venv/bin/activate
-    echo "Install requirements"
+    echo "🤖 Upgrade pip"
+    pip install --upgrade pip
+    echo "🤖 Install playground dependencies"
     pip install -r requirements.txt
-    echo "Install zrb"
-    pip install zrb-0.0.1-py3-none-any.whl --no-deps
-    echo "Deactivate playground venv"
+    echo "🤖 Install zrb into playground"
+    pip install zrb-0.0.1-py3-none-any.tar.gz
+    echo "🤖 Deactivate playground venv"
     deactivate
-    cd $__CURRENT_DIR
+    cd ${__PROJECT_DIR}
     __prepare
 }
 
 reset-playground() {
-    echo "Remove playground"
-    rm -Rf playground
+    echo "🤖 Remove playground"
+    rm -Rf ${__PROJECT_DIR}/playground
     prepare-playground
+}
+
+play() {
+    __prepare
+    echo "🤖 Deactivate zrb venv"
+    deactivate
+    cd ${__PROJECT_DIR}/playground
+    echo "🤖 Activate playground venv"
+    source ${__PROJECT_DIR}/playground/venv/bin/activate
 }
 
 
 cheat-sheet() {
     echo "Available commands:"
+    echo "- reload-tookit"
     echo "- prepare"
     echo "- build-zrb"
     echo "- publish-zrb"

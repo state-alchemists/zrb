@@ -79,10 +79,67 @@ export FASTAPI_PORT=8080
 zrb run-fastapi -reload=yes -installrequirements=yes
 ```
 
-# For developer
+# For contributors
 
-There is a toolkit to help you manage zrb
+There is a toolkit you can use to test whether Zrb is working as intended.
+
+To use the toolkit, you can invoke the following:
+
+```bash
+source ./toolkit.sh
+
+# Build Zrb
+build-zrb
+
+# Test zrb in playground
+prepare-playground
+cd playground
+source venv/bin/activate
+# Start testing/creating use cases...
+```
+
+
+# For maintainers
+
+To publish Zrb, you need a `Pypi` account:
+
+- Log in or register to [https://pypi.org/](https://pypi.org/)
+- Create an API token
+
+You can also create a `TestPypi` account:
+
+- Log in or register to [https://test.pypi.org/](https://test.pypi.org/)
+- Create an API token
+
+Once you have your API token, you need to create a `~/.pypirc` file:
 
 ```
+[distutils]
+index-servers =
+   pypi
+   testpypi
+
+[pypi]
+  repository = https://upload.pypi.org/legacy/
+  username = __token__
+  password = pypi-xxx-xxx
+[testpypi]
+  repository = https://test.pypi.org/legacy/
+  username = __token__
+  password = pypi-xxx-xxx
+```
+
+To publish Zrb, you can do the following:
+
+```bash
 source ./toolkit.sh
+
+# Build Zrb
+build-zrb
+
+# Publish Zrb to TestPypi
+test-publish-zrb
+
+# Publish Zrb to Pypi
+publish-zrb
 ```

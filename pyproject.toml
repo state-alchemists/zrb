@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "zrb"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
   { name="Go Frendi Gunawan", email="gofrendiasgard@gmail.com" },
 ]
@@ -16,10 +16,13 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "click == 8.1.3",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/state-alchemists/zaruba"
 "Bug Tracker" = "https://github.com/state-alchemists/zaruba/issues"
 
 [project.scripts]
-foo = "zrb.command_line:cli"
+zrb = "zrb.__main__:cli"
