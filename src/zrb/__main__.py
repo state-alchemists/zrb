@@ -1,9 +1,8 @@
-import click
+from cli_creator import create_cli
+import logging
 
-
-@click.command()
-def cli():
-    print('hello world')
+logging.basicConfig(level=logging.INFO)
+cli = create_cli()
 
 
 if __name__ == '__main__':

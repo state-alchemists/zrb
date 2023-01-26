@@ -20,13 +20,13 @@ zrb <task> [arguments]
 
 Zrb will automatically load:
 
-- `zrb.py` in your current directory.
-- or any Python file defined in `ZRB_SCRIPTS` environment.
+- `zrb_init.py` in your current directory.
+- or any Python file defined in `ZRB_INIT_SCRIPTS` environment.
 
-You can use a colon separator (`:`) to define multiple scripts in `ZRB_SCRIPTS`. For example:
+You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
 
 ```bash
-ZRB_SCRIPTS=~/personal/zrb.py:~/work/zrb.py
+ZRB_SCRIPTS=~/personal/zrb.py:~/work/zrb_init.py
 ```
 
 Your Zrb script should contain your tak definitions. For example:
