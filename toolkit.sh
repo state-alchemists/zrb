@@ -13,17 +13,17 @@ prepare() {
 build-zrb() {
     prepare
     rm -Rf dist
-    python -m build
+    flit build
 }
 
-upload-zrb() {
+publish-zrb() {
     prepare
-    python -m twine upload --repository pypi dist/*
+    flit publish --repository pypi
 }
 
-test-upload-zrb() {
+test-publish-zrb() {
     prepare
-    python -m twine upload --repository testpypi dist/*
+    flit publish --repository testpypi
 }
 
 prepare-playground() {
@@ -62,8 +62,8 @@ cheat-sheet() {
     echo "Available commands:"
     echo "- prepare"
     echo "- build-zrb"
-    echo "- upload-zrb"
-    echo "- test-upload-zrb"
+    echo "- publish-zrb"
+    echo "- test-publish-zrb"
     echo "- prepare-playground"
     echo "- reset-playground"
 }

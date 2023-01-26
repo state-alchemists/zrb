@@ -1,4 +1,4 @@
 flake8==6.0.0 # Linter
-build==0.10.0 # Builder
+flit==3.8.0 # better builder
 twine==4.0.2  # Pip uploader
 keyring==23.13.1 # For twine authentication
