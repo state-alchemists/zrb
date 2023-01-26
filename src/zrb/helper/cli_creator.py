@@ -23,4 +23,3 @@ def create_cli() -> click.Group:
     # Serve all tasks registered to runner
     cli = runner.serve(cli)
     return cli
-
