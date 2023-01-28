@@ -7,8 +7,6 @@ import asyncio
 import datetime
 import logging
 import os
-import random
-import string
 import sys
 
 Task = TypeVar('Task', bound='BaseTask')
@@ -25,7 +23,7 @@ class BaseTask(BaseModel):
     retry_interval: int = 1
 
     def __init__(self, **data: Any) -> None:
-        super(BaseModel).__init__(**data)
+        super(BaseModel, self).__init__(**data)
         self._is_done: bool = False
         self._attempt: int = 1
         self._task_pid: int = os.getpid()
