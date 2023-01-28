@@ -1,5 +1,5 @@
 from typing import Any, List, Optional, TypeVar
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from ..task_input.base_input import BaseInput
 from ..helper.random_maker import get_random_icon, get_random_name
 
@@ -21,12 +21,9 @@ class BaseTask(BaseModel):
     checking_interval: int = 1
     retry: int = 2
     retry_interval: int = 1
-
-    def __init__(self, **data: Any) -> None:
-        super(BaseModel, self).__init__(**data)
-        self._is_done: bool = False
-        self._attempt: int = 1
-        self._task_pid: int = os.getpid()
+    _is_done: Field(default=False)
+    _attempt: Field(default=1)
+    _task_pid: Field(default=os.getpid)
 
     def get_icon(self) -> str:
         '''
