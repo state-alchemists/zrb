@@ -1,5 +1,5 @@
 from typing import Any, List, Optional, TypeVar
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from ..task_input.base_input import BaseInput
 from ..helper.random_maker import get_random_icon, get_random_name
 
@@ -21,9 +21,12 @@ class BaseTask(BaseModel):
     checking_interval: int = 1
     retry: int = 2
     retry_interval: int = 1
-    _is_done: False
-    _attempt: 1
-    _task_pid: os.getpid()
+
+    def __init__(self, **data: Any) -> None:
+        super().__init__(**data)
+        self.is_done: bool = False
+        self.attempt: int = 1
+        self.task_pid: int = os.getpid()
 
     def get_icon(self) -> str:
         '''
@@ -80,8 +83,8 @@ class BaseTask(BaseModel):
         '''
         if len(self.readiness_probes) == 0:
             # There is no readiness probes defined
-            # Just wait for self._is_done signal
-            return self._is_done
+            # Just wait for self.is_done signal
+            return self.is_done
         # There are readiness probes
         check_runners: List[asyncio.Task] = []
         for readiness_task in self.readiness_probes:
@@ -115,30 +118,30 @@ class BaseTask(BaseModel):
     async def _run_with_retry(self, *args, **kwargs):
         max_attempt = self.retry + 1
         retrying = True
-        while self._attempt <= max_attempt:
+        while self.attempt <= max_attempt:
             try:
                 await self.run(*args, **kwargs)
                 retrying = False
             except Exception:
                 logging.error(' '.join([
                     f'Error while running {self.name}, ',
-                    f'attempt {self._attempt} of {max_attempt}'
+                    f'attempt {self.attempt} of {max_attempt}'
                 ]), exc_info=True)
-                if self._attempt == max_attempt:
+                if self.attempt == max_attempt:
                     raise
-                self._attempt += 1
+                self.attempt += 1
                 await asyncio.sleep(self.retry_interval)
             if not retrying:
                 break
-        # By default, self.check() will return the value of __is_done property
+        # By default, self.check() will return the value of is_done property
         # Here we indicate that the task has been successfully performed
-        self._is_done = True
+        self.is_done = True
 
     def _get_log_prefix(self) -> str:
-        attempt = self._attempt
+        attempt = self.attempt
         max_attempt = self.retry + 1
         now = datetime.datetime.now().isoformat()
-        pid = self._task_pid
+        pid = self.task_pid
         info_prefix = f'{now} PID={pid}, attempt {attempt} of {max_attempt}'
         icon = self.get_icon()
         name = self.get_name()
