@@ -6,7 +6,7 @@ import importlib.util
 pattern = re.compile('[^a-zA-Z0-9]')
 
 
-def load_script(script_path: str):
+def load_module(script_path: str):
     if os.path.isfile(script_path):
         logging.info(f'loading {script_path}')
         module_name = pattern.sub('', script_path)
