@@ -10,7 +10,11 @@ def get_random_icon() -> str:
     return random.choice(icons)
 
 
-def get_random_name() -> str:
+def get_random_name(
+    separator: str = '-',
+    add_random_digit: bool = True,
+    digit_count: int = 3
+) -> str:
     prefixes = [
         "aurum", "argentum", "platinum", "mercurius", "sulfur", "sal",
         "luna", "sol", "ferrum", "cuprum"
@@ -21,5 +25,10 @@ def get_random_name() -> str:
     ]
     prefix = random.choice(prefixes)
     suffix = random.choice(suffixes)
-    code = ''.join(random.choices(string.ascii_lowercase, k=4))
-    return '-'.join([prefix, suffix, code])
+    parts = [prefix, suffix]
+    if add_random_digit:
+        random_digit = ''.join(
+            random.choices(string.ascii_lowercase, k=digit_count)
+        )
+        parts.append(random_digit)
+    return separator.join(parts)

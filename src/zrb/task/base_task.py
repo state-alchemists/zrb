@@ -21,9 +21,9 @@ class BaseTask(BaseModel):
     checking_interval: int = 1
     retry: int = 2
     retry_interval: int = 1
-    _is_done: Field(default=False)
-    _attempt: Field(default=1)
-    _task_pid: Field(default=os.getpid)
+    _is_done: False
+    _attempt: 1
+    _task_pid: os.getpid()
 
     def get_icon(self) -> str:
         '''
@@ -38,7 +38,7 @@ class BaseTask(BaseModel):
         Getting task name
         '''
         if self.name is None or self.name == '':
-            self.name = get_random_name()
+            self.name = get_random_name(separator='_')
         return self.name
 
     def get_upstreams(self) -> List[Task]:
