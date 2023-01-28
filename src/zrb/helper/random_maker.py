@@ -10,6 +10,15 @@ def get_random_icon() -> str:
     return random.choice(icons)
 
 
+def get_random_color():
+    colors = [
+        'green', 'yellow', 'blue', 'magenta', 'cyan',
+        'light_grey', 'dark_grey', 'light_green', 'light_yellow',
+        'light_blue', 'light_magenta', 'light_cyan'
+    ]
+    return random.choice(colors)
+
+
 def get_random_name(
     separator: str = '-',
     add_random_digit: bool = True,

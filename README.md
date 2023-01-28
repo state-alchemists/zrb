@@ -29,13 +29,13 @@ You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRI
 ZRB_SCRIPTS=~/personal/zrb.py:~/work/zrb_init.py
 ```
 
-Your Zrb script should contain your tak definitions. For example:
+Your Zrb script should contain your task definitions. For example:
 
 ```python
 from zrb import runner
 
 install_venv = CmdTask(
-    name='install-venv',
+    name='install_venv',
     inputs=[
         StrInput(name='dir', default='venv', prompt='Venv directory'),
         BooleanInput(
@@ -44,7 +44,7 @@ install_venv = CmdTask(
             prompt='Install requirements (y/n)'
         )
     ],
-    command='''
+    cmd='''
         pip -m venv {{ input.dir }}
         source {{ input.dir}}/bin/activate
         {% if input.installrequirements %}pip install -r requirements.txt{% endif %}
@@ -52,18 +52,18 @@ install_venv = CmdTask(
 )
 
 run_fastapi = CmdProcess(
-    name='run-fastapi',
+    name='run_fastapi',
     directory='./fastapi',
     envs=[
-        Env(name='PORT', global_name='FASTAPI_PORT', default='3000')
+        Env(name='PORT', sys_name='FASTAPI_PORT', default='3000')
     ],
     inputs=[
         BooleanInput(name='reload', default=False, prompt='Auto reload (y/n)')
     ],
     upstream=[install_venv],
-    command='uvicorn main:app {% if input.reload %}--reload{% endif %}',
+    cmd='uvicorn main:app {% if input.reload %}--reload{% endif %}',
     check=[
-        HttpPortCheck('{{env.PORT}}'),
+        HttpPortCheck(port='{{env.PORT}}'),
     ]
 )
 
@@ -76,7 +76,7 @@ Once you register your tasks, they will be accessible from the terminal:
 ```bash
 # Invoke `run-fastapi` and make sure `install-venv` has been already performed
 export FASTAPI_PORT=8080
-zrb run-fastapi -reload=yes -installrequirements=yes
+zrb run_fastapi -reload=yes -installrequirements=yes
 ```
 
 # For contributors

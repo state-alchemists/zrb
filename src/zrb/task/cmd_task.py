@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable
 from .base_task import BaseTask
 
 import asyncio
@@ -7,13 +7,13 @@ import asyncio
 class CmdTask(BaseTask):
     cmd: str
 
-    async def run(self):
+    async def run(self, *args: Any, **kwargs: Any):
         process = await asyncio.create_subprocess_shell(
             self.cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        self.task_pid = process.pid
+        self.zrb_task_pid = process.pid
         # Create queue
         stdout_queue = asyncio.Queue()
         stderr_queue = asyncio.Queue()
@@ -29,7 +29,7 @@ class CmdTask(BaseTask):
             self._stream_logger(self.print_out, stdout_queue)
         )
         stderr_logger_task = asyncio.create_task(
-            self._stream_logger(self.print_err, stdout_queue)
+            self._stream_logger(self.print_err, stderr_queue)
         )
         # wait process
         await process.wait()
@@ -59,4 +59,4 @@ class CmdTask(BaseTask):
             line = await queue.get()
             if not line:
                 break
-            print_log(line.decode())
+            print_log(line.decode().rstrip())

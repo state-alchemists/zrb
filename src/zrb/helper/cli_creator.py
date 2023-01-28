@@ -1,5 +1,6 @@
 from .runner import runner
 from .module_loader import load_module
+from ..config.config import init_scripts
 import click
 import os
 
@@ -11,7 +12,6 @@ def create_cli() -> click.Group:
         pass
 
     # load from ZRB_INIT_SCRIPTS environment
-    init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
     for init_script in init_scripts:
         load_module(script_path=init_script)
 

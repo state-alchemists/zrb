@@ -3,9 +3,11 @@ from ..task.base_task import BaseTask
 
 import click
 import asyncio
+import os
 
 
 class Runner(BaseAction):
+    env_prefix: str = ''
 
     def serve(self, cli: click.core.Group) -> click.core.Group:
         for task in self.tasks:
@@ -35,7 +37,7 @@ class Runner(BaseAction):
             '''
             task_inputs = task.get_inputs()
             runner = self._get_task_runner(task)
-            runner = click.command(name=task.get_name())(runner)
+            runner = click.command(name=task.get_cmd_name())(runner)
             for task_input in task_inputs:
                 args = task_input.get_args()
                 kwargs = task_input.get_kwargs()
@@ -51,8 +53,13 @@ class Runner(BaseAction):
 
     def _get_async_task_runner(self, task: BaseTask):
         async def async_runner(*args, **kwargs):
-            await asyncio.gather(*[
+            task._set_map(
+                input_map=kwargs,
+                sys_env_map=os.environ(),
+                env_prefix=self.env_prefix
+            )
+            await asyncio.gather(
                 task._run(*args, **kwargs),
                 task._check()
-            ])
+            )
         return async_runner
