@@ -1,4 +1,4 @@
-from zrb import CmdTask, StrInput, runner
+from zrb import CmdTask, HTTPChecker, StrInput, runner
 
 cmd_template = '''
 for i in 1 2 3 4 5
@@ -34,6 +34,16 @@ dingdong = CmdTask(
     cmd=cmd_template.format(word='ding dong')
 )
 
+run_server = CmdTask(
+    name='runserver',
+    upstreams=[ding, dong],
+    cmd='python -m http.server',
+    checkers=[
+        HTTPChecker(port=8000)
+    ]
+)
+
 runner.register(ding)
 runner.register(dong)
 runner.register(dingdong)
+runner.register(run_server)

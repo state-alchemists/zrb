@@ -10,6 +10,7 @@ import datetime
 import logging
 import os
 import sys
+import time
 
 Task = TypeVar('Task', bound='BaseTask')
 
@@ -21,12 +22,14 @@ class BaseTask(BaseModel):
     inputs: List[BaseInput] = []
     envs: List[Env] = []
     upstreams: List[Task] = []
-    readiness_probes: List[Task] = []
+    checkers: List[Task] = []
     checking_interval: int = 1
     retry: int = 2
     retry_interval: int = 1
 
     # internal private values
+    zrb_start_time: float = 0
+    zrb_end_time: float = 0
     zrb_attempt: int = 1
     zrb_is_done: bool = False
     zrb_task_pid: int = os.getpid()
@@ -115,23 +118,31 @@ class BaseTask(BaseModel):
         # return zrb._is_done signal
         return self.zrb_is_done
 
-    async def _check(self) -> bool:
+    async def _check(self, show_popper: bool = False) -> bool:
         while not await self._check_current_task():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self.checking_interval)
-        self.log_debug('Task is ready')
+        self.zrb_end_time = time.time()
+        self.log_info('Task is ready')
+        if show_popper:
+            task_name = self.name
+            elapsed_time = self.zrb_end_time - self.zrb_start_time
+            print('🤖 🎉🎉🎉')
+            print(f'🤖 {task_name} completed in {elapsed_time} seconds')
+            print('🤖 🎉🎉🎉')
         return True
 
     async def _check_current_task(self) -> bool:
-        if len(self.readiness_probes) == 0:
+        if len(self.checkers) == 0:
             # There is no readiness probes defined
             # Just wait for self.check to be completed
             return await self.check()
         # There are readiness probes
         processes: List[asyncio.Task] = []
-        for readiness_task in self.readiness_probes:
-            processes.append(readiness_task.run())
+        for checker_task in self.checkers:
+            processes.append(checker_task.run())
         await asyncio.gather(*processes)
+        return True
 
     async def _run(self, *args: Any, **kwargs: Any):
         processes: List[asyncio.Task] = []
@@ -141,6 +152,7 @@ class BaseTask(BaseModel):
         await asyncio.gather(*processes)
 
     async def _run_current_task(self, *args, **kwargs: Any):
+        self.zrb_start_time = time.time()
         await self._check_upstream()
         await self._run_with_retry(*args, **kwargs)
 
@@ -189,8 +201,8 @@ class BaseTask(BaseModel):
                 env_prefix=env_prefix
             )
         # share zrb_input_map and zrb_sys_env_map to readiness_probes
-        for readiness_task in self.readiness_probes:
-            readiness_task._set_map(
+        for checker_task in self.checkers:
+            checker_task._set_map(
                 input_map=input_map,
                 sys_env_map=sys_env_map,
                 env_prefix=env_prefix

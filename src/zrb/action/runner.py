@@ -4,6 +4,7 @@ from ..task.base_task import BaseTask
 import click
 import asyncio
 import os
+import sys
 
 
 class Runner(BaseAction):
@@ -55,11 +56,11 @@ class Runner(BaseAction):
         async def async_runner(*args, **kwargs):
             task._set_map(
                 input_map=kwargs,
-                sys_env_map=os.environ(),
+                sys_env_map=os.environ,
                 env_prefix=self.env_prefix
             )
             await asyncio.gather(
                 task._run(*args, **kwargs),
-                task._check()
+                task._check(show_popper=True)
             )
         return async_runner
