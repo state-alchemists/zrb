@@ -1,21 +1,35 @@
-from zrb import BaseTask, StrInput, runner
+from zrb import CmdTask, StrInput, runner
 
-task_1 = BaseTask(
-    name='task-1',
+cmd_template = '''
+for i in 1 2 3 4 5
+do
+    echo "{word} $i"
+done
+'''
+
+ding = CmdTask(
+    name='ding',
     inputs=[
         StrInput(name='satu', shortcut='s', default='1', prompt='satu'),
         StrInput(name='dua', shortcut='d', default='2', prompt='dua'),
     ],
+    cmd=cmd_template.format(word='ding')
 )
 
-task_2 = BaseTask(
-    name='task-2',
+dong = CmdTask(
+    name='dong',
     inputs=[
         StrInput(name='tiga', shortcut='t', default='3', prompt='tiga'),
         StrInput(name='empat', shortcut='e', default='4', prompt='empat'),
     ],
-    upstreams=[task_1]
+    cmd=cmd_template.format(word='dong')
 )
 
-runner.register(task_1)
-runner.register(task_2)
+dingdong = CmdTask(
+    upstreams=[ding, dong],
+    cmd=cmd_template.format(word='ding dong')
+)
+
+runner.register(ding)
+runner.register(dong)
+runner.register(dingdong)
