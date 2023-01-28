@@ -24,9 +24,9 @@ class BaseTask(BaseModel):
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
-        self.is_done: bool = False
-        self.attempt: int = 1
-        self.task_pid: int = os.getpid()
+        self._is_done: bool = False
+        self._attempt: int = 1
+        self._task_pid: int = os.getpid()
 
     def get_icon(self) -> str:
         '''
@@ -84,7 +84,7 @@ class BaseTask(BaseModel):
         if len(self.readiness_probes) == 0:
             # There is no readiness probes defined
             # Just wait for self.is_done signal
-            return self.is_done
+            return self._is_done
         # There are readiness probes
         check_runners: List[asyncio.Task] = []
         for readiness_task in self.readiness_probes:
@@ -118,30 +118,30 @@ class BaseTask(BaseModel):
     async def _run_with_retry(self, *args, **kwargs):
         max_attempt = self.retry + 1
         retrying = True
-        while self.attempt <= max_attempt:
+        while self._attempt <= max_attempt:
             try:
                 await self.run(*args, **kwargs)
                 retrying = False
             except Exception:
                 logging.error(' '.join([
                     f'Error while running {self.name}, ',
-                    f'attempt {self.attempt} of {max_attempt}'
+                    f'attempt {self._attempt} of {max_attempt}'
                 ]), exc_info=True)
-                if self.attempt == max_attempt:
+                if self._attempt == max_attempt:
                     raise
-                self.attempt += 1
+                self._attempt += 1
                 await asyncio.sleep(self.retry_interval)
             if not retrying:
                 break
         # By default, self.check() will return the value of is_done property
         # Here we indicate that the task has been successfully performed
-        self.is_done = True
+        self._is_done = True
 
     def _get_log_prefix(self) -> str:
-        attempt = self.attempt
+        attempt = self._attempt
         max_attempt = self.retry + 1
         now = datetime.datetime.now().isoformat()
-        pid = self.task_pid
+        pid = self._task_pid
         info_prefix = f'{now} PID={pid}, attempt {attempt} of {max_attempt}'
         icon = self.get_icon()
         name = self.get_name()
