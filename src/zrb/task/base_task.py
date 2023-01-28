@@ -21,12 +21,33 @@ class BaseTask(BaseModel):
     checking_interval: int = 1
     retry: int = 2
     retry_interval: int = 1
+    _is_done: bool = False
+    _attempt: int = 1
+    _task_pid: int = os.getpid()
 
-    def __init__(self, **data: Any) -> None:
-        super().__init__(**data)
-        self._is_done: bool = False
-        self._attempt: int = 1
-        self._task_pid: int = os.getpid()
+    @property
+    def is_done(self) -> bool:
+        return self._is_done
+
+    @is_done.setter
+    def is_done(self, value: bool):
+        self._is_done = value
+
+    @property
+    def attempt(self) -> int:
+        return self._attempt
+
+    @attempt.setter
+    def attempt(self, value: int):
+        self._attempt = value
+
+    @property
+    def task_pid(self) -> int:
+        return self._task_pid
+
+    @task_pid.setter
+    def task_pid(self, value: int):
+        self._task_pid = value
 
     def get_icon(self) -> str:
         '''
@@ -73,8 +94,9 @@ class BaseTask(BaseModel):
         '''
         Override task running logic
         '''
+        prefix = self._get_log_prefix()
         logging.info(
-            f'Running {self.name} with args {args} and kwargs {kwargs}'
+            f'{prefix} Run with args {args} and kwargs {kwargs}'
         )
 
     async def check(self) -> bool:
@@ -84,7 +106,7 @@ class BaseTask(BaseModel):
         if len(self.readiness_probes) == 0:
             # There is no readiness probes defined
             # Just wait for self.is_done signal
-            return self._is_done
+            return self.is_done
         # There are readiness probes
         check_runners: List[asyncio.Task] = []
         for readiness_task in self.readiness_probes:
@@ -93,9 +115,11 @@ class BaseTask(BaseModel):
 
     async def _check(self) -> bool:
         while not await self.check():
-            logging.info(f'Task {self.name} is not ready')
-            asyncio.sleep(self.checking_interval)
-        logging.info(f'Task {self.name} is ready')
+            prefix = self._get_log_prefix()
+            logging.info(f'{prefix} Task is not ready')
+            await asyncio.sleep(self.checking_interval)
+        prefix = self._get_log_prefix()
+        logging.info(f'{prefix} Task is ready')
         return True
 
     async def _run(self, *args, **kwargs: Any):
@@ -118,30 +142,31 @@ class BaseTask(BaseModel):
     async def _run_with_retry(self, *args, **kwargs):
         max_attempt = self.retry + 1
         retrying = True
-        while self._attempt <= max_attempt:
+        while self.attempt <= max_attempt:
             try:
                 await self.run(*args, **kwargs)
                 retrying = False
             except Exception:
-                logging.error(' '.join([
-                    f'Error while running {self.name}, ',
-                    f'attempt {self._attempt} of {max_attempt}'
-                ]), exc_info=True)
-                if self._attempt == max_attempt:
+                prefix = self._get_log_prefix()
+                logging.error(
+                    f'{prefix} Encounter error',
+                    exc_info=True
+                )
+                if self.attempt == max_attempt:
                     raise
-                self._attempt += 1
+                self.attempt += 1
                 await asyncio.sleep(self.retry_interval)
             if not retrying:
                 break
         # By default, self.check() will return the value of is_done property
         # Here we indicate that the task has been successfully performed
-        self._is_done = True
+        self.is_done = True
 
     def _get_log_prefix(self) -> str:
-        attempt = self._attempt
+        attempt = self.attempt
         max_attempt = self.retry + 1
         now = datetime.datetime.now().isoformat()
-        pid = self._task_pid
+        pid = self.task_pid
         info_prefix = f'{now} PID={pid}, attempt {attempt} of {max_attempt}'
         icon = self.get_icon()
         name = self.get_name()

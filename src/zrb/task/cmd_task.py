@@ -13,7 +13,7 @@ class CmdTask(BaseTask):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        self._task_pid = process.pid
+        self.task_pid = process.pid
         # Create queue
         stdout_queue = asyncio.Queue()
         stderr_queue = asyncio.Queue()
