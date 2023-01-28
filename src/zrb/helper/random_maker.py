@@ -19,7 +19,7 @@ def get_random_name() -> str:
         "philosophorum", "spiritus", "tinctura", "essentia", "elixir",
         "praeparatum", "aether", "vitae", "lapis", "metallum"
     ]
-    prefix = random.choices(prefixes)
-    suffix = random.choices(suffixes)
+    prefix = random.choice(prefixes)
+    suffix = random.choice(suffixes)
     code = ''.join(random.choices(string.ascii_lowercase, k=4))
     return '-'.join([prefix, suffix, code])
