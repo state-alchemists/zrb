@@ -56,7 +56,12 @@ class BaseTask(TaskModel):
                     self._run_with_upstreams(*args, **kwargs),
                     self._loop_check(celebrate=True)
                 )
-            return asyncio.run(run_and_check_all_async())
+            try:
+                return asyncio.run(run_and_check_all_async())
+            except Exception:
+                self.log_error('Encounter error')
+            finally:
+                self.play_bell()
         return main_loop
 
     async def _loop_check(self, celebrate: bool = False) -> bool:

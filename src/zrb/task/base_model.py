@@ -141,6 +141,9 @@ class AccessoriesModel(BaseModel):
     def colored(self, text: str) -> str:
         return colored(text, color=self.get_color())
 
+    def play_bell(self):
+        print('\a')
+
     def _get_colored_log_prefix(self) -> str:
         return self.colored(self._get_log_prefix())
 
@@ -230,3 +233,4 @@ class TaskModel(
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
         print(f'🤖 {task_name} completed in {elapsed_time} seconds')
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
+        self.play_bell()
