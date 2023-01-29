@@ -1,21 +1,14 @@
 from typing import Any, List, Mapping, Optional, TypeVar
-from pydantic import BaseModel
+from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
-from ..helper.random_maker import get_random_icon, get_random_color
-from termcolor import colored, COLORS
 
 import asyncio
-import datetime
-import logging
-import os
-import sys
-import time
 
 Task = TypeVar('Task', bound='BaseTask')
 
 
-class BaseTask(BaseModel):
+class BaseTask(TaskModel):
     name: str
     icon: Optional[str] = None
     color: Optional[str] = None
@@ -26,82 +19,6 @@ class BaseTask(BaseModel):
     checking_interval: int = 1
     retry: int = 2
     retry_interval: int = 1
-
-    # internal private values
-    zrb_start_time: float = 0
-    zrb_end_time: float = 0
-    zrb_attempt: int = 1
-    zrb_is_done: bool = False
-    zrb_task_pid: int = os.getpid()
-    zrb_input_map: Mapping[str, Any] = {}  # suppose to set once
-    zrb_env_map: Mapping[str, str] = {}  # suppose to be set once
-    zrb_sys_env_map: Mapping[str, str] = {}
-
-    def get_icon(self) -> str:
-        '''
-        Getting task icon
-        '''
-        if self.icon is None or self.icon == '':
-            self.icon = get_random_icon()
-        return self.icon
-
-    def get_color(self) -> str:
-        if self.color is None or self.color not in COLORS:
-            self.color = get_random_color()
-        return self.color
-
-    def get_cmd_name(self) -> str:
-        '''
-        Getting task cmd name
-        '''
-        return self.name
-
-    def get_inputs(self) -> List[BaseInput]:
-        ''''
-        Getting inputs of this task
-        '''
-        inputs: List[BaseInput] = []
-        for upstream in self.upstreams:
-            upstream_inputs = upstream.get_inputs()
-            inputs = inputs + upstream_inputs
-        inputs = inputs + self.inputs
-        return inputs
-
-    def log_debug(self, message: Any) -> str:
-        prefix = self._get_log_prefix()
-        colored_message = colored(
-            f'{prefix}: {message}', attrs=['dark']
-        )
-        logging.debug(colored_message)
-
-    def log_warn(self, message: Any) -> str:
-        prefix = self._get_log_prefix()
-        colored_message = colored(
-            f'{prefix}: {message}', attrs=['dark']
-        )
-        logging.warn(colored_message)
-
-    def log_info(self, message: Any) -> str:
-        prefix = self._get_log_prefix()
-        colored_message = colored(
-            f'{prefix}: {message}', attrs=['dark']
-        )
-        logging.info(colored_message)
-
-    def log_error(self, message: Any) -> str:
-        prefix = self._get_log_prefix()
-        colored_message = colored(
-            f'{prefix}: {message}', color='red', attrs=['bold']
-        )
-        logging.error(colored_message, exc_info=True)
-
-    def print_out(self, msg: Any):
-        prefix = self._get_colored_log_prefix()
-        print(f'🤖 ➜ {prefix} {msg}'.rstrip())
-
-    def print_err(self, msg: Any):
-        prefix = self._get_colored_log_prefix()
-        print(f'🤖 ⚠ {prefix} {msg}'.rstrip(), file=sys.stderr)
 
     async def run(self, *args: Any, **kwargs: Any):
         '''
@@ -115,108 +32,101 @@ class BaseTask(BaseModel):
         '''
         Override task checking logic
         '''
-        # return zrb._is_done signal
-        return self.zrb_is_done
+        return self.is_done()
 
-    async def _check(self, show_popper: bool = False) -> bool:
-        while not await self._check_current_task():
+    def get_all_inputs(self) -> List[BaseInput]:
+        ''''
+        Getting inputs of this task
+        '''
+        inputs: List[BaseInput] = []
+        for upstream in self.upstreams:
+            upstream_inputs = upstream.get_all_inputs()
+            inputs = inputs + upstream_inputs
+        inputs = inputs + self.inputs
+        return inputs
+
+    def create_main_loop(self, env_prefix: str):
+        def main_loop(*args, **kwargs):
+            '''
+            Task main loop.
+            '''
+            async def run_and_check_all_async():
+                self._set_keyval(input_map=kwargs, env_prefix=env_prefix)
+                await asyncio.gather(
+                    self._run_with_upstreams(*args, **kwargs),
+                    self._loop_check(celebrate=True)
+                )
+            return asyncio.run(run_and_check_all_async())
+        return main_loop
+
+    async def _loop_check(self, celebrate: bool = False) -> bool:
+        while not await self._check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self.checking_interval)
-        self.zrb_end_time = time.time()
+        self.end_timer()
         self.log_info('Task is ready')
-        if show_popper:
-            task_name = self.name
-            elapsed_time = self.zrb_end_time - self.zrb_start_time
-            print('🤖 🎉🎉🎉')
-            print(f'🤖 {task_name} completed in {elapsed_time} seconds')
-            print('🤖 🎉🎉🎉')
+        if celebrate:
+            self.show_celebration()
         return True
 
-    async def _check_current_task(self) -> bool:
+    async def _check(self) -> bool:
+        '''
+        Check current task readiness.
+        - If self.checkers is defined, 
+          this will return True once every self.checkers is completed
+        - Otherwise, this will return check method's return value.
+        '''
         if len(self.checkers) == 0:
-            # There is no readiness probes defined
-            # Just wait for self.check to be completed
             return await self.check()
-        # There are readiness probes
-        processes: List[asyncio.Task] = []
+        check_processes: List[asyncio.Task] = []
         for checker_task in self.checkers:
-            processes.append(checker_task.run())
-        await asyncio.gather(*processes)
+            check_processes.append(checker_task.run())
+        await asyncio.gather(*check_processes)
         return True
 
-    async def _run(self, *args: Any, **kwargs: Any):
+    async def _run_with_upstreams(self, *args: Any, **kwargs: Any):
         processes: List[asyncio.Task] = []
+        # Add upstream tasks to processes
         for upstream_task in self.upstreams:
-            processes.append(upstream_task._run(*args, **kwargs))
-        processes.append(self._run_current_task(*args, **kwargs))
+            processes.append(
+                upstream_task._run_with_upstreams(*args, **kwargs)
+            )
+        # Add current task to processes
+        processes.append(self._run(*args, **kwargs))
+        # Wait everything to complete
         await asyncio.gather(*processes)
 
-    async def _run_current_task(self, *args, **kwargs: Any):
-        self.zrb_start_time = time.time()
-        await self._check_upstream()
-        await self._run_with_retry(*args, **kwargs)
-
-    async def _check_upstream(self):
-        processes: List[asyncio.Task] = []
+    async def _run(self, *args, **kwargs: Any):
+        self.start_timer()
+        # get upstream checker
+        upstream_check_processes: List[asyncio.Task] = []
         for upstream_task in self.upstreams:
-            processes.append(upstream_task._check())
-        await asyncio.gather(*processes)
-
-    async def _run_with_retry(self, *args, **kwargs):
-        max_attempt = self.retry + 1
-        retrying = True
-        while self.zrb_attempt <= max_attempt:
+            upstream_check_processes.append(upstream_task._loop_check())
+        # wait all upstream checkers to complete
+        await asyncio.gather(*upstream_check_processes)
+        # start running task
+        while self.should_attempt():
             try:
                 await self.run(*args, **kwargs)
-                retrying = False
+                break
             except Exception:
                 self.log_error('Encounter error')
-                if self.zrb_attempt == max_attempt:
+                if self.is_last_attempt():
                     raise
-                self.zrb_attempt = self.zrb_attempt + 1
+                self.increase_attempt()
                 await asyncio.sleep(self.retry_interval)
-            if not retrying:
-                break
-        # By default, self.check() will return the value of is_done property
-        # Here we indicate that the task has been successfully performed
-        self.zrb_is_done = True
+        self.mark_as_done()
 
-    def _set_map(
-        self, input_map: Mapping[str, Any],
-        sys_env_map: Mapping[str, str],
-        env_prefix: str
-    ):
-        self.zrb_input_map = dict(input_map)
-        self.zrb_sys_env_map = dict(sys_env_map)
-        # set zrb_env_map
-        for task_env in self.envs:
-            env_name = task_env.name
-            env_value = task_env.get(env_prefix)
-            self.zrb_env_map[env_name] = env_value
-        # share zrb_input_map and zrb_sys_env_map to upstreams
+    def _set_keyval(self, input_map: Mapping[str, Any], env_prefix: str):
+        self.set_local_keyval(input_map=input_map, env_prefix=env_prefix)
         for upstream_task in self.upstreams:
-            upstream_task._set_map(
-                input_map=input_map,
-                sys_env_map=sys_env_map,
-                env_prefix=env_prefix
+            upstream_task._set_keyval(
+                input_map=input_map, env_prefix=env_prefix
             )
-        # share zrb_input_map and zrb_sys_env_map to readiness_probes
+        local_env_map = self.get_env_map()
         for checker_task in self.checkers:
-            checker_task._set_map(
-                input_map=input_map,
-                sys_env_map=sys_env_map,
-                env_prefix=env_prefix
+            checker_task._set_keyval(
+                input_map=input_map, env_prefix=env_prefix
             )
-
-    def _get_colored_log_prefix(self) -> str:
-        return colored(self._get_log_prefix(), color=self.get_color())
-
-    def _get_log_prefix(self) -> str:
-        attempt = self.zrb_attempt
-        max_attempt = self.retry + 1
-        now = datetime.datetime.now().isoformat()
-        pid = self.zrb_task_pid
-        info = f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
-        icon = self.get_icon()
-        name = self.name
-        return f'{info} | {icon} {name}'
+            # Checker task should be able to read local env
+            checker_task.inject_env_map(local_env_map)

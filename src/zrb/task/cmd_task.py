@@ -5,15 +5,28 @@ import asyncio
 
 
 class CmdTask(BaseTask):
-    cmd: str
+    cmd: str = ''
+    cmd_path: str = ''
+
+    def get_cmd(self) -> str:
+        if self.cmd_path != '':
+            cmd_path = self.render_str(self.cmd_path)
+            with open(cmd_path, 'r') as file:
+                return self.render_str(file.read())
+        return self.render_str(self.cmd)
 
     async def run(self, *args: Any, **kwargs: Any):
+        cmd = self.get_cmd()
+        env = self.get_env_map()
+        self.log_debug(f'Run command: {cmd}\nwith env: {env}')
         process = await asyncio.create_subprocess_shell(
-            self.cmd,
+            cmd,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+            shell=True
         )
-        self.zrb_task_pid = process.pid
+        self.set_task_pid(process.pid)
         # Create queue
         stdout_queue = asyncio.Queue()
         stderr_queue = asyncio.Queue()
@@ -43,6 +56,7 @@ class CmdTask(BaseTask):
         # get return code
         return_code = process.returncode
         if return_code != 0:
+            self.log_debug(f'Exit status: {return_code}')
             raise Exception(f'Process {self.name} exited ({return_code})')
 
     async def _stream_reader(self, stream, queue: asyncio.Queue):

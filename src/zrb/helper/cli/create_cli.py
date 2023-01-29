@@ -1,6 +1,6 @@
-from .runner import runner
-from .module_loader import load_module
-from ..config.config import init_scripts
+from ..runner import runner
+from ..loader.load_module import load_module
+from ...config.config import init_scripts
 import click
 import os
 

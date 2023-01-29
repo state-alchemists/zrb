@@ -8,18 +8,18 @@ import asyncio
 class HTTPChecker(BaseTask):
     name: str = 'http_checker'
     host: str = 'localhost'
-    port: int
-    timeout: int = 5
+    port: Union[int, str]
+    timeout: Union[int, str] = 5
     method: str = 'HEAD'
     url: str = '/'
     is_https: bool = False
 
     async def run(self, *args, **kwargs):
-        method = self.method
-        host = self.host
-        port = self.port
-        url = self.url
-        timeout = self.timeout
+        method = self.render_str(self.method)
+        host = self.render_str(self.host)
+        port = self.render_int(self.port)
+        url = self.render_str(self.url)
+        timeout = self.render_int(self.timeout)
         while not self._check_connection(method, host, port, url, timeout):
             await asyncio.sleep(self.checking_interval)
 

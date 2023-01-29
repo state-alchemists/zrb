@@ -1,3 +1,4 @@
+from typing import Union
 from .base_task import BaseTask
 
 import socket
@@ -7,13 +8,13 @@ import asyncio
 class PortChecker(BaseTask):
     name: str = 'port_checker'
     host: str = 'localhost'
-    port: int
-    timeout: int = 5
+    port: Union[int, str]
+    timeout: Union[int, str] = 5
 
     async def run(self, *args, **kwargs):
-        host = self.host
-        port = self.port
-        timeout = self.timeout
+        host = self.render_str(self.host)
+        port = self.render_int(self.port)
+        timeout = self.render_int(self.timeout)
         while not self._check_port(host, port, timeout):
             await asyncio.sleep(self.checking_interval)
 
