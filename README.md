@@ -46,7 +46,7 @@ install_venv = CmdTask(
     ],
     cmd='''
         pip -m venv {{ input.dir }}
-        source {{ input.dir}}/bin/activate
+        source {{ input.dir }}/bin/activate
         {% if input.installrequirements %}pip install -r requirements.txt{% endif %}
     '''
 )
@@ -55,12 +55,12 @@ run_fastapi = CmdProcess(
     name='run_fastapi',
     directory='./fastapi',
     envs=[
-        Env(name='PORT', sys_name='FASTAPI_PORT', default='3000')
+        Env(name='PORT', os_name='FASTAPI_PORT', default='3000')
     ],
     inputs=[
         BooleanInput(name='reload', default=False, prompt='Auto reload (y/n)')
     ],
-    upstream=[install_venv],
+    upstreams=[install_venv],
     cmd='uvicorn main:app {% if input.reload %}--reload{% endif %}',
     check=[
         HttpPortCheck(port='{{env.PORT}}'),
