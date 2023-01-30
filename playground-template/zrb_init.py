@@ -1,4 +1,6 @@
-from zrb import CmdTask, Env, HTTPChecker, StrInput, runner
+from zrb import (
+    Group, CmdTask, Env, HTTPChecker, StrInput, runner
+)
 
 cmd_template = '''
 for i in 1 2 3
@@ -33,8 +35,10 @@ dingdong = CmdTask(
     cmd=cmd_template.format(word='{{input.ding1}} {{input.dong}}')
 )
 
+server = Group(name='server', description='Server related tasks')
 run_server = CmdTask(
-    name='runserver',
+    name='run',
+    group=server,
     upstreams=[ding, dong, dingdong],
     cmd='python -m http.server ${PORT}',
     envs=[
@@ -45,7 +49,48 @@ run_server = CmdTask(
     ]
 )
 
+greeting = Group(name='greeting', description='Greeting')
+
+greeting_id = Group(
+    name='id', description='Indonesian greeting', parent=greeting
+)
+
+
+selamat_pagi = CmdTask(
+    name='good-morning',
+    group=greeting_id,
+    cmd='echo Selamat Pagi'
+)
+
+selamat_malam = CmdTask(
+    name='good-night',
+    group=greeting_id,
+    cmd='echo Selamat Malam'
+)
+
+greeting_jp = Group(
+    name='jp', description='Japanese greeting', parent=greeting
+)
+
+
+ohayou = CmdTask(
+    name='good-morning',
+    group=greeting_jp,
+    cmd='echo Ohayou'
+)
+
+oyasumi = CmdTask(
+    name='good-night',
+    group=greeting_jp,
+    cmd='echo Oyasumi'
+)
+
+
 runner.register(ding)
 runner.register(dong)
 runner.register(dingdong)
 runner.register(run_server)
+runner.register(selamat_pagi)
+runner.register(selamat_malam)
+runner.register(ohayou)
+runner.register(oyasumi)

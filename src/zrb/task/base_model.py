@@ -6,6 +6,7 @@ from ..helper.accessories.color import (
 )
 from ..helper.accessories.icon import get_random_icon
 from ..helper.keyval.get_object_from_keyval import get_object_from_keyval
+from ..helper.string.string import get_cmd_name
 from ..task_env.env import Env
 
 import datetime
@@ -100,7 +101,7 @@ class AccessoriesModel(BaseModel):
         return self.color
 
     def get_cmd_name(self) -> str:
-        return self.name.lower()
+        return get_cmd_name(self.name)
 
     def log_debug(self, message: Any) -> str:
         prefix = self._get_log_prefix()

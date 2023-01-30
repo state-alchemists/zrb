@@ -15,7 +15,7 @@ class CmdTask(BaseTask):
                 return self.render_str(file.read())
         return self.render_str(self.cmd)
 
-    async def run(self, *args: Any, **kwargs: Any):
+    async def run(self, **kwargs: Any):
         cmd = self.get_cmd()
         env = self.get_env_map()
         self.log_debug(f'Run command: {cmd}\nwith env: {env}')
@@ -46,11 +46,11 @@ class CmdTask(BaseTask):
         )
         # wait process
         await process.wait()
-        await stdout_queue.put(None)
-        await stderr_queue.put(None)
         # wait reader and logger
         await stdout_task
         await stderr_task
+        await stdout_queue.put(None)
+        await stderr_queue.put(None)
         await stdout_logger_task
         await stderr_logger_task
         # get return code

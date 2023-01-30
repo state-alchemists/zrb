@@ -2,37 +2,39 @@ from typing import Any, List, Mapping, Optional, TypeVar
 from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
+from ..task_group.group import Group
 from ..helper.list.append_unique import append_unique
 
 import asyncio
 
-Task = TypeVar('Task', bound='BaseTask')
+TTask = TypeVar('TTask', bound='BaseTask')
 
 
 class BaseTask(TaskModel):
     name: str
+    group: Optional[Group]
     icon: Optional[str] = None
     description: str = ''
     color: Optional[str] = None
     inputs: List[BaseInput] = []
     envs: List[Env] = []
-    upstreams: List[Task] = []
-    checkers: List[Task] = []
-    checking_interval: int = 1
+    upstreams: List[TTask] = []
+    checkers: List[TTask] = []
+    checking_interval: float = 0.3
     retry: int = 2
-    retry_interval: int = 1
+    retry_interval: float = 1
 
     # flag whehther checking has been success or not
     zrb_is_checked: bool = False
     # flag whehther execution has been done or not
     zrb_is_executed: bool = False
 
-    async def run(self, *args: Any, **kwargs: Any):
+    async def run(self, **kwargs: Any):
         '''
         Override task running logic
         '''
         self.log_debug(
-            f'Run with args {args} and kwargs {kwargs}'
+            f'Run with kwargs: {kwargs}'
         )
 
     async def check(self) -> bool:
@@ -58,7 +60,7 @@ class BaseTask(TaskModel):
         return self.name
 
     def create_main_loop(self, env_prefix: str):
-        def main_loop(*args, **kwargs):
+        def main_loop(**kwargs: Any):
             '''
             Task main loop.
             '''
@@ -66,7 +68,7 @@ class BaseTask(TaskModel):
                 self._set_keyval(input_map=kwargs, env_prefix=env_prefix)
                 processes = [
                     asyncio.create_task(
-                        self._run_with_upstreams(*args, **kwargs)
+                        self._run_with_upstreams(**kwargs)
                     ),
                     asyncio.create_task(self._loop_check(celebrate=True))
                 ]
@@ -114,19 +116,19 @@ class BaseTask(TaskModel):
         await asyncio.gather(*check_processes)
         return True
 
-    async def _run_with_upstreams(self, *args: Any, **kwargs: Any):
+    async def _run_with_upstreams(self, **kwargs: Any):
         processes: List[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
             processes.append(asyncio.create_task(
-                upstream_task._run_with_upstreams(*args, **kwargs)
+                upstream_task._run_with_upstreams(**kwargs)
             ))
         # Add current task to processes
-        processes.append(self._run(*args, **kwargs))
+        processes.append(self._run(**kwargs))
         # Wait everything to complete
         await asyncio.gather(*processes)
 
-    async def _run(self, *args, **kwargs: Any):
+    async def _run(self, **kwargs: Any):
         if self.zrb_is_executed:
             self.log_debug('Skip running, because execution flag has been set')
             return
@@ -144,7 +146,7 @@ class BaseTask(TaskModel):
         # start running task
         while self.should_attempt():
             try:
-                await self.run(*args, **kwargs)
+                await self.run(**kwargs)
                 break
             except Exception:
                 self.log_error('Encounter error')

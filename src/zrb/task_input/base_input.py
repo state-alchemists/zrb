@@ -12,10 +12,10 @@ class BaseInput(BaseModel):
     def get_name(self) -> str:
         return self.name
 
-    def get_args(self) -> List[str]:
+    def get_param_decl(self) -> List[str]:
         return [f'--{self.name}', f'-{self.shortcut}']
 
-    def get_kwargs(self) -> Mapping[str, Any]:
+    def get_options(self) -> Mapping[str, Any]:
         return {
             'default': self.default,
             'help': self.help,

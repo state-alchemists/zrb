@@ -1,49 +1,59 @@
+from typing import List, Mapping, Union
 from ..action.base_action import BaseAction
-import click
+from ..task.base_task import BaseTask
+from ..task_group.group import Group as TaskGroup
+from click import Group as CliGroup, Command as CliCommand, Option as CliOption
 import copy
+
+CliSubcommand = Union[CliGroup, CliCommand]
 
 
 class Runner(BaseAction):
     env_prefix: str = ''
+    registered_groups: Mapping[str, CliGroup] = {}
+    top_levels: List[CliSubcommand] = []
 
-    def serve(self, cli: click.core.Group) -> click.core.Group:
+    def serve(self, cli: CliGroup) -> CliGroup:
         for original_task in self.tasks:
-            '''
-            We want to use click this way:
-
-            @click.command(name='subcommand')
-            @click.option('--one', 'one', default='one', prompt='First')
-            @click.option('--two', 'two', default='two', prompt='Two')
-            def my_function(one, two):
-                print(one, two)
-            cli.add_command(my_function)
-
-            But since we need to do this for every task and inputs,
-            we need to modify code a little bit:
-
-            def my_function(one, two):
-                print(one, two)
-            runner = click.command(name='subcommand')(runner)
-            runner = click.option(
-                '--one', 'one', default='one', prompt='First')(runner)
-            runner = click.option(
-                '--two', 'two', default='two', prompt='Two')(my_function)
-            cli.add_command(runner)
-
-            That was what we do here.
-            '''
             task = copy.deepcopy(original_task)
-            task_inputs = task.get_all_inputs()
-            task_cmd_name = task.get_cmd_name()
-            task_description = task.get_description()
-            task_main_loop = task.create_main_loop(env_prefix=self.env_prefix)
-            runner = click.command(
-                name=task_cmd_name,
-                help=task_description,
-            )(task_main_loop)
-            for task_input in task_inputs:
-                args = task_input.get_args()
-                kwargs = task_input.get_kwargs()
-                runner = click.option(*args, **kwargs)(runner)
-            cli.add_command(runner)
+            subcommand = self._create_subcommand(task)
+            if subcommand not in self.top_levels:
+                self.top_levels.append(subcommand)
+                cli.add_command(subcommand)
         return cli
+
+    def _create_subcommand(self, task: BaseTask) -> CliGroup:
+        subcommand: CliSubcommand = self._create_task_command(task)
+        task_group = task.group
+        while task_group is not None:
+            group = self._get_group(task_group)
+            group.add_command(subcommand)
+            if task_group.parent is None:
+                return group
+            subcommand = group
+            task_group = task_group.parent
+        return subcommand
+
+    def _get_group(self, task_group: TaskGroup) -> CliGroup:
+        task_group_id = task_group.get_id()
+        if task_group_id in self.registered_groups:
+            return self.registered_groups[task_group_id]
+        group_cmd_name = task_group.get_cmd_name()
+        group_description = task_group.description
+        group = CliGroup(name=group_cmd_name, help=group_description)
+        self.registered_groups[task_group_id] = group
+        return group
+
+    def _create_task_command(self, task: BaseTask) -> CliCommand:
+        task_inputs = task.get_all_inputs()
+        task_cmd_name = task.get_cmd_name()
+        task_description = task.get_description()
+        task_main_loop = task.create_main_loop(env_prefix=self.env_prefix)
+        command = CliCommand(
+            callback=task_main_loop, name=task_cmd_name, help=task_description
+        )
+        for task_input in task_inputs:
+            param_decl = task_input.get_param_decl()
+            options = task_input.get_options()
+            command.params.append(CliOption(param_decl, **options))
+        return command

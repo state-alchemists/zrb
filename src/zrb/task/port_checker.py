@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Union
 from .base_task import BaseTask
 
 import socket
@@ -11,7 +11,7 @@ class PortChecker(BaseTask):
     port: Union[int, str]
     timeout: Union[int, str] = 5
 
-    async def run(self, *args, **kwargs):
+    async def run(self, **kwargs: Any):
         host = self.render_str(self.host)
         port = self.render_int(self.port)
         timeout = self.render_int(self.timeout)

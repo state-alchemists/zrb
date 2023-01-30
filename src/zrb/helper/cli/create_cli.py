@@ -1,4 +1,4 @@
-from ..runner import runner
+from ...runner import runner
 from ..loader.load_module import load_module
 from ...config.config import init_scripts
 import click
@@ -6,10 +6,7 @@ import os
 
 
 def create_cli() -> click.Group:
-    # Create cli
-    @click.group(name='zrb', help='Your faithful sidekick')
-    def cli():
-        pass
+    cli = click.Group(name='zrb', help='Your faithful sidekick.')
 
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:

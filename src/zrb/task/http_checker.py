@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Union
 from .base_task import BaseTask
 from http.client import HTTPConnection, HTTPSConnection
 
@@ -14,7 +14,7 @@ class HTTPChecker(BaseTask):
     url: str = '/'
     is_https: bool = False
 
-    async def run(self, *args, **kwargs):
+    async def run(self, **kwargs: Any):
         method = self.render_str(self.method)
         host = self.render_str(self.host)
         port = self.render_int(self.port)
