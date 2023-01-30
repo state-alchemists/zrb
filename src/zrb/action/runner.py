@@ -1,12 +1,13 @@
 from ..action.base_action import BaseAction
 import click
+import copy
 
 
 class Runner(BaseAction):
     env_prefix: str = ''
 
     def serve(self, cli: click.core.Group) -> click.core.Group:
-        for task in self.tasks:
+        for original_task in self.tasks:
             '''
             We want to use click this way:
 
@@ -31,6 +32,7 @@ class Runner(BaseAction):
 
             That was what we do here.
             '''
+            task = copy.deepcopy(original_task)
             task_inputs = task.get_all_inputs()
             task_cmd_name = task.get_cmd_name()
             task_main_loop = task.create_main_loop(env_prefix=self.env_prefix)

@@ -35,7 +35,7 @@ dingdong = CmdTask(
 
 run_server = CmdTask(
     name='runserver',
-    upstreams=[ding, dong],
+    upstreams=[ding, dong, dingdong],
     cmd='python -m http.server ${PORT}',
     envs=[
         Env(name='PORT', os_name='MY_PORT', default='3000')

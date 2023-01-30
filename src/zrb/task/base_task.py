@@ -2,6 +2,7 @@ from typing import Any, List, Mapping, Optional, TypeVar
 from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
+from ..helper.list.append_unique import append_unique
 
 import asyncio
 
@@ -20,6 +21,11 @@ class BaseTask(TaskModel):
     retry: int = 2
     retry_interval: int = 1
 
+    # flag whehther checking has been success or not
+    zrb_is_checked: bool = False
+    # flag whehther execution has been done or not
+    zrb_is_executed: bool = False
+
     async def run(self, *args: Any, **kwargs: Any):
         '''
         Override task running logic
@@ -36,13 +42,13 @@ class BaseTask(TaskModel):
 
     def get_all_inputs(self) -> List[BaseInput]:
         ''''
-        Getting inputs of this task
+        Getting all inputs of this task and all its upstream, non-duplicated.
         '''
         inputs: List[BaseInput] = []
         for upstream in self.upstreams:
             upstream_inputs = upstream.get_all_inputs()
-            inputs = inputs + upstream_inputs
-        inputs = inputs + self.inputs
+            append_unique(inputs, *upstream_inputs)
+        append_unique(inputs, *self.inputs)
         return inputs
 
     def create_main_loop(self, env_prefix: str):
@@ -52,10 +58,13 @@ class BaseTask(TaskModel):
             '''
             async def run_and_check_all_async():
                 self._set_keyval(input_map=kwargs, env_prefix=env_prefix)
-                await asyncio.gather(
-                    self._run_with_upstreams(*args, **kwargs),
-                    self._loop_check(celebrate=True)
-                )
+                processes = [
+                    asyncio.create_task(
+                        self._run_with_upstreams(*args, **kwargs)
+                    ),
+                    asyncio.create_task(self._loop_check(celebrate=True))
+                ]
+                await asyncio.gather(*processes)
             try:
                 return asyncio.run(run_and_check_all_async())
             except Exception:
@@ -74,10 +83,20 @@ class BaseTask(TaskModel):
             self.show_celebration()
         return True
 
+    async def _check_with_flag(self) -> bool:
+        if self.zrb_is_checked:
+            self.log_debug('Skip checking, because checking flag has been set')
+            return True
+        check_result = await self._check()
+        if check_result:
+            self.zrb_is_checked = True
+            self.log_debug('Set checking flag')
+        return check_result
+
     async def _check(self) -> bool:
         '''
         Check current task readiness.
-        - If self.checkers is defined, 
+        - If self.checkers is defined,
           this will return True once every self.checkers is completed
         - Otherwise, this will return check method's return value.
         '''
@@ -85,7 +104,7 @@ class BaseTask(TaskModel):
             return await self.check()
         check_processes: List[asyncio.Task] = []
         for checker_task in self.checkers:
-            check_processes.append(checker_task.run())
+            check_processes.append(asyncio.create_task(checker_task.run()))
         await asyncio.gather(*check_processes)
         return True
 
@@ -93,20 +112,27 @@ class BaseTask(TaskModel):
         processes: List[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
-            processes.append(
+            processes.append(asyncio.create_task(
                 upstream_task._run_with_upstreams(*args, **kwargs)
-            )
+            ))
         # Add current task to processes
         processes.append(self._run(*args, **kwargs))
         # Wait everything to complete
         await asyncio.gather(*processes)
 
     async def _run(self, *args, **kwargs: Any):
+        if self.zrb_is_executed:
+            self.log_debug('Skip running, because execution flag has been set')
+            return
+        self.zrb_is_executed = True
+        self.log_debug('Set execution flag and running')
         self.start_timer()
         # get upstream checker
         upstream_check_processes: List[asyncio.Task] = []
         for upstream_task in self.upstreams:
-            upstream_check_processes.append(upstream_task._loop_check())
+            upstream_check_processes.append(asyncio.create_task(
+                upstream_task._loop_check()
+            ))
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
         # start running task

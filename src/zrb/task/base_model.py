@@ -164,6 +164,7 @@ class TaskModel(
 
     zrb_input_map: Mapping[str, Any] = {}
     zrb_env_map: Mapping[str, str] = {}
+    zrb_is_keyval_set = False  # Flag
 
     def get_input_map(self) -> Mapping[str, Any]:
         return self.zrb_input_map
@@ -184,9 +185,9 @@ class TaskModel(
             'env': get_object_from_keyval(self.zrb_env_map),
             'input': get_object_from_keyval(self.zrb_input_map),
         }
-        self.log_debug(f'Render template:\n{text}\nWith data: {data}')
+        self.log_debug(f'Render template: {text}\nWith data: {data}')
         rendered_text = template.render(data)
-        self.log_debug(f'Rendered text:\n{rendered_text}')
+        self.log_debug(f'Rendered text: {rendered_text}')
         return rendered_text
 
     def render_float(self, val: Union[str, float]) -> float:
@@ -204,6 +205,9 @@ class TaskModel(
         input_map: Mapping[str, Any],
         env_prefix: str = ''
     ):
+        if self.zrb_is_keyval_set:
+            return True
+        self.zrb_is_keyval_set = True
         self.zrb_input_map = dict(input_map)
         self.log_debug(f'Input map: {self.zrb_input_map}')
         self.zrb_env_map = {}

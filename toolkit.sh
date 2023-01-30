@@ -25,6 +25,7 @@ build-zrb() {
     echo "🤖 Build zrb distribution"
     rm -Rf ${__PROJECT_DIR}/dist
     cd ${__PROJECT_DIR}
+    git add . -A
     flit build
 }
 
@@ -93,5 +94,6 @@ cheat-sheet() {
     echo "- test-publish-zrb"
     echo "- prepare-playground"
     echo "- reset-playground"
+    echo "- play"
 }
 cheat-sheet
