@@ -12,6 +12,7 @@ Task = TypeVar('Task', bound='BaseTask')
 class BaseTask(TaskModel):
     name: str
     icon: Optional[str] = None
+    description: str = ''
     color: Optional[str] = None
     inputs: List[BaseInput] = []
     envs: List[Env] = []
@@ -50,6 +51,11 @@ class BaseTask(TaskModel):
             append_unique(inputs, *upstream_inputs)
         append_unique(inputs, *self.inputs)
         return inputs
+
+    def get_description(self) -> str:
+        if self.description != '':
+            return self.description
+        return self.name
 
     def create_main_loop(self, env_prefix: str):
         def main_loop(*args, **kwargs):

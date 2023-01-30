@@ -26,7 +26,7 @@ Zrb will automatically load:
 You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
 
 ```bash
-ZRB_SCRIPTS=~/personal/zrb.py:~/work/zrb_init.py
+ZRB_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
 ```
 
 Your Zrb script should contain your task definitions. For example:
@@ -78,6 +78,34 @@ Once you register your tasks, they will be accessible from the terminal:
 export FASTAPI_PORT=8080
 zrb run_fastapi -reload=yes -installrequirements=yes
 ```
+
+# Configuration
+
+The following configurations are available:
+
+- `ZRB_LOGGING_LEVEL`: Logging verbosity.
+    - Default: `WARNING`
+    - Possible values:
+        - `CRITICAL`
+        - `ERROR`
+        - `WARNING`
+        - `WARN` (The same as `WARNING`)
+        - `INFO`
+        - `DEBUG`
+        - `NOTSET`
+- `ZRB_INIT_SCRIPTS`: List of task registration script that should be loaded by default.
+    - Default: Empty
+    - Possible values: List of script paths, separated by colons(`:`).
+    - Example: `~/personal/zrb_init.py:~/work/zrb_init.py`
+- `ZRB_ENV`: Environment prefix that will be used when loading Operating System's environment.
+    - Default: Empty
+    - Possible values: Any combination of alpha-numeric and underscore
+    - Example: `DEV`
+- `ZRB_LOAD_DEFAULT`: Whether load default tasks or not
+    - Default: `1`
+    - Possible values:
+        - `1`
+        - `0`
 
 # For contributors
 

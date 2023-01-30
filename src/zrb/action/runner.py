@@ -35,8 +35,12 @@ class Runner(BaseAction):
             task = copy.deepcopy(original_task)
             task_inputs = task.get_all_inputs()
             task_cmd_name = task.get_cmd_name()
+            task_description = task.get_description()
             task_main_loop = task.create_main_loop(env_prefix=self.env_prefix)
-            runner = click.command(name=task_cmd_name)(task_main_loop)
+            runner = click.command(
+                name=task_cmd_name,
+                help=task_description,
+            )(task_main_loop)
             for task_input in task_inputs:
                 args = task_input.get_args()
                 kwargs = task_input.get_kwargs()
