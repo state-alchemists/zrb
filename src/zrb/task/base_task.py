@@ -12,7 +12,7 @@ TTask = TypeVar('TTask', bound='BaseTask')
 
 class BaseTask(TaskModel):
     name: str
-    group: Optional[Group]
+    group: Optional[Group] = None
     icon: Optional[str] = None
     description: str = ''
     color: Optional[str] = None
