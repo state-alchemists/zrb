@@ -1,11 +1,11 @@
-from typing import Any, Callable
+from typing import Any, Callable, Iterable, Union
 from .base_task import BaseTask
 
 import asyncio
 
 
 class CmdTask(BaseTask):
-    cmd: str = ''
+    cmd: Union[str, Iterable[str]] = ''
     cmd_path: str = ''
 
     def get_cmd(self) -> str:
@@ -13,7 +13,9 @@ class CmdTask(BaseTask):
             cmd_path = self.render_str(self.cmd_path)
             with open(cmd_path, 'r') as file:
                 return self.render_str(file.read())
-        return self.render_str(self.cmd)
+        if isinstance(self.cmd, str):
+            return self.render_str(self.cmd)
+        return self.render_str('\n'.join(self.cmd))
 
     async def run(self, **kwargs: Any):
         cmd = self.get_cmd()

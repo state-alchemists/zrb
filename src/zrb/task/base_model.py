@@ -172,6 +172,7 @@ class TaskModel(
 
     def get_env_map(self) -> Mapping[str, str]:
         env_map = os.environ
+        env_map['PYTHONUNBUFFERED'] = '1'
         env_map.update(self.zrb_env_map)
         return env_map
 
@@ -236,6 +237,7 @@ class TaskModel(
         task_name = self.name
         elapsed_time = self.get_elapsed_time()
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
-        print(f'🤖 {task_name} completed in {elapsed_time} seconds')
+        print(f'🤖 {task_name} completed in')
+        print(f'🤖 {elapsed_time} seconds')
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
         self.play_bell()
