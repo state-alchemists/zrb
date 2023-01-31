@@ -8,6 +8,7 @@ from ..helper.accessories.icon import get_random_icon
 from ..helper.keyval.get_object_from_keyval import get_object_from_keyval
 from ..helper.string.string import get_cmd_name
 from ..task_env.env import Env
+from ..task_group.group import Group
 
 import datetime
 import logging
@@ -133,11 +134,11 @@ class AccessoriesModel(BaseModel):
 
     def print_out(self, msg: Any):
         prefix = self._get_colored_log_prefix()
-        print(f'🤖 ➜ {prefix} {msg}'.rstrip())
+        print(f'🤖 ➜ {prefix} • {msg}'.rstrip())
 
     def print_err(self, msg: Any):
         prefix = self._get_colored_log_prefix()
-        print(f'🤖 ⚠ {prefix} {msg}'.rstrip(), file=sys.stderr)
+        print(f'🤖 ⚠ {prefix} • {msg}'.rstrip(), file=sys.stderr)
 
     def colored(self, text: str) -> str:
         return colored(text, color=self.get_color())
@@ -161,6 +162,7 @@ class TaskModel(
     AccessoriesModel
 ):
 
+    group: Optional[Group]
     envs: List[Env] = []
 
     zrb_input_map: Mapping[str, Any] = {}
@@ -230,14 +232,22 @@ class TaskModel(
         pid = self.get_task_pid()
         info = f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
         icon = self.get_icon()
-        name = self.name
-        return f'{info} | {icon} {name}'
+        name = self._get_complete_name()
+        filled_name = name.rjust(13, ' ')
+        return f'{info} • {icon} {filled_name}'
+
+    def _get_complete_name(self):
+        cmd_name = self.get_cmd_name()
+        if self.group is None:
+            return cmd_name
+        group_cmd_name = self.group.get_complete_name()
+        return f'{group_cmd_name} {cmd_name}'
 
     def show_celebration(self):
         task_name = self.name
         elapsed_time = self.get_elapsed_time()
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
-        print(f'🤖 {task_name} completed in')
-        print(f'🤖 {elapsed_time} seconds')
+        print(self.colored(f'🤖 {task_name} completed in'))
+        print(self.colored(f'🤖 {elapsed_time} seconds'))
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
         self.play_bell()

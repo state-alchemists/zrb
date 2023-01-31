@@ -13,6 +13,13 @@ class Group(BaseModel):
     def get_cmd_name(self) -> str:
         return get_cmd_name(self.name)
 
+    def get_complete_name(self) -> str:
+        cmd_name = self.get_cmd_name()
+        if self.parent is None:
+            return cmd_name
+        parent_cmd_name = self.parent.get_complete_name()
+        return f'{parent_cmd_name} {cmd_name}'
+
     def get_id(self) -> str:
         group_id = self.get_cmd_name()
         if self.parent is None:
