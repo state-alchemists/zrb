@@ -25,6 +25,7 @@ class PortChecker(BaseTask):
         port: Union[int, str] = 80,
         timeout: Union[int, str] = 5,
         upstreams: List[BaseTask] = [],
+        checking_interval: float = 0.1,
     ):
         BaseTask.__init__(
             self,
@@ -37,7 +38,7 @@ class PortChecker(BaseTask):
             description=description,
             upstreams=upstreams,
             checkers=[],
-            checking_interval=0,
+            checking_interval=checking_interval,
             retry=0,
             retry_interval=0
         )

@@ -28,6 +28,7 @@ class HTTPChecker(BaseTask):
         url: str = '/',
         is_https: bool = False,
         upstreams: List[BaseTask] = [],
+        checking_interval: float = 0.1,
     ):
         BaseTask.__init__(
             self,
@@ -40,7 +41,7 @@ class HTTPChecker(BaseTask):
             description=description,
             upstreams=upstreams,
             checkers=[],
-            checking_interval=0,
+            checking_interval=checking_interval,
             retry=0,
             retry_interval=0
         )
