@@ -14,7 +14,7 @@ class HTTPChecker(BaseTask):
 
     def __init__(
         self,
-        name: str = 'http_checker',
+        name: str = 'http_check',
         group: Optional[Group] = None,
         inputs: List[BaseInput] = [],
         envs: List[Env] = [],
@@ -29,7 +29,7 @@ class HTTPChecker(BaseTask):
         is_https: bool = False,
         upstreams: List[BaseTask] = [],
         checkers: List[BaseTask] = [],
-        checking_interval: float = 0.3,
+        checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
     ):

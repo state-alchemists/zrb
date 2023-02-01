@@ -14,7 +14,7 @@ class PortChecker(BaseTask):
 
     def __init__(
         self,
-        name: str = 'http_checker',
+        name: str = 'port_check',
         group: Optional[Group] = None,
         inputs: List[BaseInput] = [],
         envs: List[Env] = [],
@@ -26,7 +26,7 @@ class PortChecker(BaseTask):
         timeout: Union[int, str] = 5,
         upstreams: List[BaseTask] = [],
         checkers: List[BaseTask] = [],
-        checking_interval: float = 0.3,
+        checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
     ):

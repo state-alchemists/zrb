@@ -52,7 +52,7 @@ class CmdTask(BaseTask):
         cmd_path: str = '',
         upstreams: List[BaseTask] = [],
         checkers: List[BaseTask] = [],
-        checking_interval: float = 0.3,
+        checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
     ):

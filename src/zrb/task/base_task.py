@@ -11,6 +11,11 @@ import copy
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
+def sanitize_interval(interval: float) -> float:
+    if interval <=0:
+        return 0.1
+    return interval
+
 
 @typechecked
 class BaseTask(TaskModel):
@@ -30,7 +35,7 @@ class BaseTask(TaskModel):
         description: str = '',
         upstreams: List[TTask] = [],
         checkers: List[TTask] = [],
-        checking_interval: float = 0.3,
+        checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
     ):
@@ -45,10 +50,10 @@ class BaseTask(TaskModel):
         )
         self.inputs = inputs
         self.description = description
-        self.retry_interval = retry_interval
+        self.retry_interval = sanitize_interval(retry_interval)
         self.upstreams = upstreams
         self.checkers = checkers
-        self.checking_interval = checking_interval
+        self.checking_interval = sanitize_interval(checking_interval)
         self._is_checked: bool = False
         self._is_executed: bool = False
 
