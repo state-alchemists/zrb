@@ -1,13 +1,13 @@
 from typing import List
-from pydantic import BaseModel
+from typeguard import typechecked
 from ..task.base_task import BaseTask
 
 
-class BaseAction(BaseModel):
-    tasks: List[BaseTask] = []
+@typechecked
+class BaseAction():
 
-    class Config:
-        arbitrary_types_allowed = True
+    def __init__(self):
+        self._tasks: List[BaseTask] = []
 
     def register(self, task: BaseTask):
-        self.tasks.append(task)
+        self._tasks.append(task)

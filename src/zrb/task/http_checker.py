@@ -1,18 +1,59 @@
-from typing import Any, Union
-from .base_task import BaseTask
+from typing import Any, List, Optional, Union
+from typeguard import typechecked
 from http.client import HTTPConnection, HTTPSConnection
+from .base_task import BaseTask
+from ..task_env.env import Env
+from ..task_group.group import Group
+from ..task_input.base_input import BaseInput
 
 import asyncio
 
 
+@typechecked
 class HTTPChecker(BaseTask):
-    name: str = 'http_checker'
-    host: str = 'localhost'
-    port: Union[int, str]
-    timeout: Union[int, str] = 5
-    method: str = 'HEAD'
-    url: str = '/'
-    is_https: bool = False
+
+    def __init__(
+        self,
+        name: str = 'http_checker',
+        group: Optional[Group] = None,
+        inputs: List[BaseInput] = [],
+        envs: List[Env] = [],
+        icon: Optional[str] = None,
+        color: Optional[str] = None,
+        description: str = '',
+        host: str = 'localhost',
+        port: Union[int, str] = 80,
+        timeout: Union[int, str] = 5,
+        method: str = 'HEAD',
+        url: str = '/',
+        is_https: bool = False,
+        upstreams: List[BaseTask] = [],
+        checkers: List[BaseTask] = [],
+        checking_interval: float = 0.3,
+        retry: int = 2,
+        retry_interval: float = 1,
+    ):
+        BaseTask.__init__(
+            self,
+            name=name,
+            group=group,
+            inputs=inputs,
+            envs=envs,
+            icon=icon,
+            color=color,
+            description=description,
+            upstreams=upstreams,
+            checkers=checkers,
+            checking_interval=checking_interval,
+            retry=retry,
+            retry_interval=retry_interval
+        )
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.method = method
+        self.url = url
+        self.is_https = is_https
 
     async def run(self, **kwargs: Any):
         method = self.render_str(self.method)

@@ -1,14 +1,22 @@
 from typing import Optional, TypeVar
-from pydantic import BaseModel
+from typeguard import typechecked
 from ..helper.string.string import get_cmd_name
 
 TGroup = TypeVar('TGroup', bound='Group')
 
 
-class Group(BaseModel):
-    name: str
-    description: str = ''
-    parent: Optional[TGroup] = None
+@typechecked
+class Group():
+
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        parent: Optional[TGroup] = None
+    ):
+        self.name = name
+        self.description = description
+        self.parent = parent
 
     def get_cmd_name(self) -> str:
         return get_cmd_name(self.name)

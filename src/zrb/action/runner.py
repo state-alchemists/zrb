@@ -9,17 +9,24 @@ CliSubcommand = Union[CliGroup, CliCommand]
 
 
 class Runner(BaseAction):
-    env_prefix: str = ''
-    zrb_registered_groups: Mapping[str, CliGroup] = {}
-    zrb_top_levels: List[CliSubcommand] = []
-    zrb_subcommands: Mapping[str, List[CliGroup]] = {}
+    '''
+    Runner class.
+    Any tasks registered to the runner will be accessible from the terminal
+    '''
+
+    def __init__(self, env_prefix: str = ''):
+        BaseAction.__init__(self)
+        self.env_prefix = env_prefix
+        self._registered_groups: Mapping[str, CliGroup] = {}
+        self._top_levels: List[CliSubcommand] = []
+        self._subcommands: Mapping[str, List[CliGroup]] = {}
 
     def serve(self, cli: CliGroup) -> CliGroup:
-        for original_task in self.tasks:
+        for original_task in self._tasks:
             task = copy.deepcopy(original_task)
             subcommand = self._create_cli_subcommand(task)
-            if subcommand not in self.zrb_top_levels:
-                self.zrb_top_levels.append(subcommand)
+            if subcommand not in self._top_levels:
+                self._top_levels.append(subcommand)
                 cli.add_command(subcommand)
         return cli
 
@@ -39,21 +46,21 @@ class Runner(BaseAction):
     ) -> CliGroup:
         task_group_id = task_group.get_id()
         group = self._get_cli_group(task_group)
-        if task_group_id not in self.zrb_subcommands:
-            self.zrb_subcommands[task_group_id] = []
-        if subcommand not in self.zrb_subcommands[task_group_id]:
+        if task_group_id not in self._subcommands:
+            self._subcommands[task_group_id] = []
+        if subcommand not in self._subcommands[task_group_id]:
             group.add_command(subcommand)
-            self.zrb_subcommands[task_group_id].append(subcommand)
+            self._subcommands[task_group_id].append(subcommand)
         return group
 
     def _get_cli_group(self, task_group: TaskGroup) -> CliGroup:
         task_group_id = task_group.get_id()
-        if task_group_id in self.zrb_registered_groups:
-            return self.zrb_registered_groups[task_group_id]
+        if task_group_id in self._registered_groups:
+            return self._registered_groups[task_group_id]
         group_cmd_name = task_group.get_cmd_name()
         group_description = task_group.description
         group = CliGroup(name=group_cmd_name, help=group_description)
-        self.zrb_registered_groups[task_group_id] = group
+        self._registered_groups[task_group_id] = group
         return group
 
     def _create_cli_command(self, task: BaseTask) -> CliCommand:

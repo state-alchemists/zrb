@@ -5,6 +5,10 @@ fi
 
 __prepare() {
     echo "🤖 Activate zrb venv"
+    if [ ! -d "${__PROJECT_DIR}/venv/bin/activate" ]
+    then
+        python -m venv venv
+    fi
     source ${__PROJECT_DIR}/venv/bin/activate
 }
 
@@ -96,4 +100,5 @@ cheat-sheet() {
     echo "- reset-playground"
     echo "- play"
 }
+__prepare
 cheat-sheet

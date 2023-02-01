@@ -1,4 +1,5 @@
 from typing import Any, List, Mapping, Optional, TypeVar
+from typeguard import typechecked
 from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
@@ -10,28 +11,50 @@ import asyncio
 TTask = TypeVar('TTask', bound='BaseTask')
 
 
+@typechecked
 class BaseTask(TaskModel):
-    name: str
-    group: Optional[Group] = None
-    icon: Optional[str] = None
-    description: str = ''
-    color: Optional[str] = None
-    inputs: List[BaseInput] = []
-    envs: List[Env] = []
-    upstreams: List[TTask] = []
-    checkers: List[TTask] = []
-    checking_interval: float = 0.3
-    retry: int = 2
-    retry_interval: float = 1
+    '''
+    Base class for all tasks.
+    Every task definition should be extended from this class.
+    '''
 
-    # flag whehther checking has been success or not
-    zrb_is_checked: bool = False
-    # flag whehther execution has been done or not
-    zrb_is_executed: bool = False
+    def __init__(
+        self,
+        name: str,
+        group: Optional[Group] = None,
+        inputs: List[BaseInput] = [],
+        envs: List[Env] = [],
+        icon: Optional[str] = None,
+        color: Optional[str] = None,
+        description: str = '',
+        upstreams: List[TTask] = [],
+        checkers: List[TTask] = [],
+        checking_interval: float = 0.3,
+        retry: int = 2,
+        retry_interval: float = 1,
+    ):
+        TaskModel.__init__(
+            self,
+            name=name,
+            group=group,
+            envs=envs,
+            icon=icon,
+            color=color,
+            retry=retry
+        )
+        self.inputs = inputs
+        self.description = description
+        self.retry_interval = retry_interval
+        self.upstreams = upstreams
+        self.checkers = checkers
+        self.checking_interval = checking_interval
+        self._is_checked: bool = False
+        self._is_executed: bool = False
 
     async def run(self, **kwargs: Any):
         '''
-        Override task running logic
+        Do task execution
+        Please override this method.
         '''
         self.log_debug(
             f'Run with kwargs: {kwargs}'
@@ -39,7 +62,9 @@ class BaseTask(TaskModel):
 
     async def check(self) -> bool:
         '''
-        Override task checking logic
+        Return true when task is considered completed.
+        By default, this will wait the task execution to be completed.
+        You can override this method.
         '''
         return self.is_done()
 
@@ -92,12 +117,12 @@ class BaseTask(TaskModel):
         return True
 
     async def _check_with_flag(self) -> bool:
-        if self.zrb_is_checked:
+        if self._is_checked:
             self.log_debug('Skip checking, because checking flag has been set')
             return True
         check_result = await self._check()
         if check_result:
-            self.zrb_is_checked = True
+            self._is_checked = True
             self.log_debug('Set checking flag')
         return check_result
 
@@ -129,10 +154,10 @@ class BaseTask(TaskModel):
         await asyncio.gather(*processes)
 
     async def _run(self, **kwargs: Any):
-        if self.zrb_is_executed:
+        if self._is_executed:
             self.log_debug('Skip running, because execution flag has been set')
             return
-        self.zrb_is_executed = True
+        self._is_executed = True
         self.log_debug('Set execution flag and running')
         self.start_timer()
         # get upstream checker

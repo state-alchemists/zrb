@@ -33,22 +33,24 @@ Your Zrb script should contain your task definitions. For example:
 
 ```python
 from zrb import (
-    Group, CmdTask, Env, HTTPChecker, StrInput, runner
+    runner, Env, StrInput, Group, CmdTask, HTTPChecker
 )
 
-# zrb hello
+'''
+Simple task, read input and show output
+'''
 hello = CmdTask(
     name='hello',
-    inputs=[
-        StrInput(name='name', shortcut='n', default='world', prompt='Name')
-    ],
+    inputs=[StrInput(name='name', description='Name', default='world')],
     cmd='echo Hello {{input.name}}'
 )
 runner.register(hello)
 
 make = Group(name='make', description='Make things')
 
-# zrb make coffee
+'''
+Simple task, part of 'make' group
+'''
 make_coffee = CmdTask(
     name='coffee',
     group=make,
@@ -57,7 +59,9 @@ make_coffee = CmdTask(
 )
 runner.register(make_coffee)
 
-# zrb make beer
+'''
+Simple task, part of 'make' group
+'''
 make_beer = CmdTask(
     name='beer',
     group=make,
@@ -66,11 +70,17 @@ make_beer = CmdTask(
 )
 runner.register(make_beer)
 
+'''
+Sub group of 'make'
+'''
 make_gitignore = Group(
     name='gitignore', description='Make gitignore', parent=make
 )
 
-# zrb make gitignore python
+'''
+Simple task, part of 'make_gitignore' group.
+Having multiline cmd
+'''
 make_gitignore_python = CmdTask(
     name='node',
     group=make_gitignore,
@@ -82,7 +92,10 @@ make_gitignore_python = CmdTask(
 )
 runner.register(make_gitignore_python)
 
-# zrb make gitignore nodejs
+'''
+Simple task, part of 'make_gitignore' group.
+Having multiline cmd
+'''
 make_gitignore_nodejs = CmdTask(
     name='node',
     group=make_gitignore,
@@ -97,23 +110,21 @@ server = Group(
     name='server', description='Server related commands'
 )
 
-# zrb server run
+'''
+Long running task.
+Run a server and waiting for the port to be ready.
+'''
 run_server = CmdTask(
     name='run',
     group=server,
     upstreams=[make_coffee, make_beer],
-    inputs=[
-        StrInput(name='dir', shortcut='d', default='.', prompt='Directory')
-    ],
-    envs=[
-        Env(name='PORT', os_name='WEB_PORT', default='3000')
-    ],
+    inputs=[StrInput(name='dir', description='Directory', default='.')],
+    envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
     cmd='python -m http.server $PORT --directory {{input.dir}}',
-    checkers=[
-        HTTPChecker(port='{{env.PORT}}')
-    ]
+    checkers=[HTTPChecker(port='{{env.PORT}}')]
 )
 runner.register(run_server)
+
 ```
 
 Once registered, your task will be accessible from the terminal:
@@ -163,7 +174,7 @@ The following configurations are available:
     - Default: Empty
     - Possible values: Any combination of alpha-numeric and underscore
     - Example: `DEV`
-- `ZRB_LOAD_DEFAULT`: Whether load default tasks or not
+- `ZRB_SHOULD_LOAD_DEFAULT`: Whether load default tasks or not
     - Default: `1`
     - Possible values:
         - `1`

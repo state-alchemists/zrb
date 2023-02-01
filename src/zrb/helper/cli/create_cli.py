@@ -1,6 +1,8 @@
 from ...runner import runner
 from ..loader.load_module import load_module
-from ...config.config import init_scripts
+from ...config.config import init_scripts, should_load_default
+from ...default.load_default import load_default
+
 import click
 import os
 
@@ -16,6 +18,9 @@ def create_cli() -> click.Group:
     project_script = os.path.join(os.getcwd(), 'zrb_init.py')
     if os.path.isfile(project_script):
         load_module(script_path=project_script)
+
+    if should_load_default:
+        load_default()
 
     # Serve all tasks registered to runner
     cli = runner.serve(cli)
