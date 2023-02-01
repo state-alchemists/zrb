@@ -11,8 +11,9 @@ import copy
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
+
 def sanitize_interval(interval: float) -> float:
-    if interval <=0:
+    if interval <= 0:
         return 0.1
     return interval
 
