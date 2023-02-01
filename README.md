@@ -1,6 +1,6 @@
 # Zrb (WIP)
 
-Your faithful sidekick
+Your faithful companion.
 
 # How to install
 
@@ -29,7 +29,7 @@ You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRI
 ZRB_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
 ```
 
-Your Zrb script should contain your task definitions. For example:
+Your Zrb script (e.g: `./zrb_init.py`) should contain your task definitions. For example:
 
 ```python
 from zrb import (

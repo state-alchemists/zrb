@@ -7,6 +7,7 @@ from ..task_group.group import Group
 from ..helper.list.append_unique import append_unique
 
 import asyncio
+import copy
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
@@ -84,30 +85,33 @@ class BaseTask(TaskModel):
             return self.description
         return self.name
 
-    def create_main_loop(self, env_prefix: str):
+    def create_main_loop(self, env_prefix: str = ''):
+        self_cp = copy.deepcopy(self)
+
         def main_loop(**kwargs: Any):
             '''
             Task main loop.
             '''
             async def run_and_check_all_async():
-                self._set_keyval(input_map=kwargs, env_prefix=env_prefix)
+                self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
                 processes = [
                     asyncio.create_task(
-                        self._run_with_upstreams(**kwargs)
+                        self_cp._run_all(**kwargs)
                     ),
-                    asyncio.create_task(self._loop_check(celebrate=True))
+                    asyncio.create_task(self_cp._loop_check(celebrate=True))
                 ]
                 await asyncio.gather(*processes)
             try:
                 return asyncio.run(run_and_check_all_async())
             except Exception:
-                self.log_error('Encounter error')
+                self_cp.log_error('Encounter error')
+                raise
             finally:
-                self.play_bell()
+                self_cp.play_bell()
         return main_loop
 
     async def _loop_check(self, celebrate: bool = False) -> bool:
-        while not await self._check():
+        while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self.checking_interval)
         self.end_timer()
@@ -116,7 +120,7 @@ class BaseTask(TaskModel):
             self.show_celebration()
         return True
 
-    async def _check_with_flag(self) -> bool:
+    async def _cached_check(self) -> bool:
         if self._is_checked:
             self.log_debug('Skip checking, because checking flag has been set')
             return True
@@ -141,19 +145,19 @@ class BaseTask(TaskModel):
         await asyncio.gather(*check_processes)
         return True
 
-    async def _run_with_upstreams(self, **kwargs: Any):
+    async def _run_all(self, **kwargs: Any):
         processes: List[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
             processes.append(asyncio.create_task(
-                upstream_task._run_with_upstreams(**kwargs)
+                upstream_task._run_all(**kwargs)
             ))
         # Add current task to processes
-        processes.append(self._run(**kwargs))
+        processes.append(self._cached_run(**kwargs))
         # Wait everything to complete
         await asyncio.gather(*processes)
 
-    async def _run(self, **kwargs: Any):
+    async def _cached_run(self, **kwargs: Any):
         if self._is_executed:
             self.log_debug('Skip running, because execution flag has been set')
             return

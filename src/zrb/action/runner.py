@@ -3,7 +3,6 @@ from ..action.base_action import BaseAction
 from ..task.base_task import BaseTask
 from ..task_group.group import Group as TaskGroup
 from click import Group as CliGroup, Command as CliCommand, Option as CliOption
-import copy
 
 CliSubcommand = Union[CliGroup, CliCommand]
 
@@ -22,8 +21,7 @@ class Runner(BaseAction):
         self._subcommands: Mapping[str, List[CliGroup]] = {}
 
     def serve(self, cli: CliGroup) -> CliGroup:
-        for original_task in self._tasks:
-            task = copy.deepcopy(original_task)
+        for task in self._tasks:
             subcommand = self._create_cli_subcommand(task)
             if subcommand not in self._top_levels:
                 self._top_levels.append(subcommand)

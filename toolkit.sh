@@ -3,6 +3,11 @@ then
     __PROJECT_DIR=$(pwd)
 fi
 
+if [ -z "$__TEST_COVERAGE_PORT" ]
+then
+    __TEST_COVERAGE_PORT=3000
+fi
+
 __prepare() {
     echo "🤖 Activate zrb venv"
     if [ ! -d "${__PROJECT_DIR}/venv/bin/activate" ]
@@ -88,6 +93,17 @@ play() {
     source ${__PROJECT_DIR}/playground/venv/bin/activate
 }
 
+test() {
+    prepare
+    cd ${__PROJECT_DIR}
+    echo "🤖 Install zrb"
+    flit install --symlink
+    echo "🤖 Perform test"
+    pytest --cov=zrb --cov-report html
+    echo "🤖 Serve coverage report"
+    python -m http.server $__TEST_COVERAGE_PORT --directory ${__PROJECT_DIR}/htmlcov
+}
+
 
 cheat-sheet() {
     echo "Available commands:"
@@ -99,6 +115,7 @@ cheat-sheet() {
     echo "- prepare-playground"
     echo "- reset-playground"
     echo "- play"
+    echo "- test"
 }
 __prepare
 cheat-sheet

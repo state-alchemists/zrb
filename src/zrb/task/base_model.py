@@ -250,11 +250,12 @@ class TaskDataModel():
         return f'{group_cmd_name} {cmd_name}'
 
     def show_celebration(self):
-        task_name = self.name
+        complete_name = self._get_complete_name()
         elapsed_time = self.get_elapsed_time()
+        icon = self.get_icon()
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
-        print(self.colored(f'🤖 {task_name} completed in'))
-        print(self.colored(f'🤖 {elapsed_time} seconds'))
+        print(self.colored(f'🤖 {icon} {complete_name} completed in'))
+        print(self.colored(f'🤖 {icon} {elapsed_time} seconds'))
         print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
         self.play_bell()
 

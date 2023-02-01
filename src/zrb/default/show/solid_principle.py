@@ -1,11 +1,9 @@
-from ..task_group.group import Group
-from ..task.cmd_task import CmdTask
+from ._group import show_group
+from ...task.cmd_task import CmdTask
 
-
-show = Group(name='show')
 show_solid_principle = CmdTask(
     name='solid-principle',
-    group=show,
+    group=show_group,
     cmd=[
         'echo S - Single Responsibility Principle',
         'echo O - Open/Closed Principle',

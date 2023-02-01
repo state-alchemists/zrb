@@ -2,3 +2,6 @@ venv
 __pycache__
 dist
 playground
+.pytest_cache
+.coverage
+htmlcov

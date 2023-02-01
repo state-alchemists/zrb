@@ -1,6 +1,4 @@
-# Build/development dependencies
-autopep8==2.0.1     # Autoformatter
-flake8==6.0.0       # Linter
+# Build dependencies
 flit==3.8.0         # better builder
 twine==4.0.2        # pip package uploader
 keyring==23.13.1    # authenticator (used by twine)
@@ -10,3 +8,9 @@ click==8.1.3        # CLI framework
 typeguard==2.13.3
 termcolor==2.2.0
 Jinja2==3.1.2
+
+# Zrb dev dependencies (should be copied to `pyproject.toml`)
+autopep8==2.0.1     # Autoformatter
+flake8==6.0.0       # Linter
+pytest==7.2.1
+pytest-cov==4.0.0
