@@ -41,4 +41,4 @@ class Env():
     def _get_prefixed_name(self, name: str, prefix: str):
         if prefix is None or prefix == '':
             return name
-        return '_'.join(prefix, name)
+        return '_'.join([prefix, name])
