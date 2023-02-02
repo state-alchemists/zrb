@@ -36,7 +36,7 @@ class Env():
         ```
         '''
         prefixed_name = self._get_prefixed_name(self.os_name, prefix)
-        return os.getenv(prefixed_name, self.default)
+        return os.getenv(prefixed_name, os.getenv(self.os_name, self.default))
 
     def _get_prefixed_name(self, name: str, prefix: str):
         if prefix is None or prefix == '':
