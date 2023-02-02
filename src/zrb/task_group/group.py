@@ -1,6 +1,6 @@
 from typing import Optional, TypeVar
 from typeguard import typechecked
-from ..helper.string.string import get_cmd_name
+from ..helper.string.get_cmd_name import get_cmd_name
 
 TGroup = TypeVar('TGroup', bound='Group')
 

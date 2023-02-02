@@ -6,7 +6,7 @@ from ..helper.accessories.color import (
 )
 from ..helper.accessories.icon import get_random_icon
 from ..helper.keyval.get_object_from_keyval import get_object_from_keyval
-from ..helper.string.string import get_cmd_name
+from ..helper.string.get_cmd_name import get_cmd_name
 from ..task_env.env import Env
 from ..task_group.group import Group
 

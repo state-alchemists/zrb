@@ -4,6 +4,7 @@ from .task.task import Task
 from .task.cmd_task import CmdTask
 from .task.http_checker import HTTPChecker
 from .task.port_checker import PortChecker
+from .task.code_maker import CodeMaker
 from .task_input.str_input import StrInput
 from .task_env.env import Env
 from .task_group.group import Group

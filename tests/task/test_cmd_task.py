@@ -2,6 +2,7 @@ from zrb.task.cmd_task import CmdTask
 import pathlib
 import os
 
+
 def test_simple_with_no_error():
     cmd_task = CmdTask(
         name='simple-no-error',

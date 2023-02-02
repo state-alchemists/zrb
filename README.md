@@ -138,19 +138,38 @@ The output will be similar to this:
 
 ```
 Name [world]: Go Frendi
-Directory [.]:
-🤖 ➜ 2023-01-31T13:00:46.960990 ⚙ 13321 ➤ 1 of 3 • 🍈         hello • Hello Go Frendi
-🤖 ➜ 2023-01-31T13:00:47.266618 ⚙ 13323 ➤ 1 of 3 • 🐯   make coffee • Coffee for you ☕
-🤖 ➜ 2023-01-31T13:00:47.266753 ⚙ 13325 ➤ 1 of 3 • 🦁     make beer • Cheers 🍺
-🤖 ➜ 2023-01-31T13:00:47.601470 ⚙ 13327 ➤ 1 of 3 • 🦁    server run • Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
-🤖 ➜ 2023-01-31T13:00:47.864159 ⚙ 13320 ➤ 1 of 3 • 🐨  http_checker • HEAD http://localhost:8080/ 200 (OK)
+Dir [.]:
+🤖 ➜ 2023-02-02T07:17:35.384284 ⚙ 6095 ➤ 1 of 3 • 🍊         hello • Hello Go Frendi
+🤖 ➜ 2023-02-02T07:17:35.491491 ⚙ 6097 ➤ 1 of 3 • 🐷   make coffee • Coffee for you ☕
+🤖 ➜ 2023-02-02T07:17:35.492019 ⚙ 6099 ➤ 1 of 3 • 🦁     make beer • Cheers 🍺
+🤖 ➜ 2023-02-02T07:17:35.618819 ⚙ 6101 ➤ 1 of 3 • 🍒    server run • Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...
+🤖 ➜ 2023-02-02T07:17:35.684434 ⚙ 6094 ➤ 1 of 1 • 🍇    http_check • HEAD http://localhost:3000/ 200 (OK)
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
-🤖 run completed in
-🤖 0.9100210666656494 seconds
+🤖 🍒 server run completed in
+🤖 🍒 0.31129932403564453 seconds
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
 
-🤖 ⚠ 2023-01-31T13:00:47.864545 ⚙ 13327 ➤ 1 of 3 • 🦁    server run • 127.0.0.1 - - [31/Jan/2023 13:00:47] "HEAD / HTTP/1.1" 200 -
+🤖 ⚠ 2023-02-02T07:17:35.685651 ⚙ 6101 ➤ 1 of 3 • 🍒    server run • 127.0.0.1 - - [02/Feb/2023 07:17:35] "HEAD / HTTP/1.1" 200 -
 ```
+
+# How to run tasks programmatically
+
+To run a task programmatically, you need to create a `main loop`.
+
+For example:
+
+```python
+from zrb import CmdTask
+
+
+cmd_task = CmdTask(
+    name='sample',
+    cmd='echo hello'
+)
+main_loop = cmd_task.create_main_loop(env_prefix='')
+main_loop() # This run the task
+```
+
 
 # Configuration
 
@@ -192,11 +211,16 @@ source ./toolkit.sh
 # Build Zrb
 build-zrb
 
+# Run test and show coverage.
+# You can access the coverage report by visiting http://localhost:9000
+# You can also change the port by setting __TEST_COVERAGE_PORT variable
+test-zrb
+
 # Test zrb in playground
 prepare-playground
-cd playground
-source venv/bin/activate
+play
 # Start testing/creating use cases...
+zrb server run
 ```
 
 

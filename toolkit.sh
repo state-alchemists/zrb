@@ -5,7 +5,7 @@ fi
 
 if [ -z "$__TEST_COVERAGE_PORT" ]
 then
-    __TEST_COVERAGE_PORT=3000
+    __TEST_COVERAGE_PORT=9000
 fi
 
 __prepare() {
@@ -93,7 +93,7 @@ play() {
     source ${__PROJECT_DIR}/playground/venv/bin/activate
 }
 
-test() {
+test-zrb() {
     prepare
     cd ${__PROJECT_DIR}
     echo "🤖 Install zrb"
@@ -115,7 +115,7 @@ cheat-sheet() {
     echo "- prepare-playground"
     echo "- reset-playground"
     echo "- play"
-    echo "- test"
+    echo "- test-zrb"
 }
 __prepare
 cheat-sheet
