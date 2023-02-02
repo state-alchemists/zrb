@@ -9,12 +9,8 @@ def test_simple_with_no_error():
         cmd='echo hello'
     )
     main_loop = cmd_task.create_main_loop(env_prefix='')
-    is_error: bool = False
-    try:
-        main_loop()
-    except Exception:
-        is_error = True
-    assert not is_error
+    result = main_loop()
+    assert result.output == 'hello'
 
 
 def test_simple_with_error():
@@ -40,27 +36,19 @@ def test_multiline_cmd():
         ]
     )
     main_loop = cmd_task.create_main_loop(env_prefix='')
-    is_error: bool = False
-    try:
-        main_loop()
-    except Exception:
-        is_error = True
-    assert not is_error
+    result = main_loop()
+    assert result.output == '\n'.join(['hello', 'hello again'])
 
 
 def test_cmd_path():
     dir_path = pathlib.Path(__file__).parent.absolute()
     cmd_task = CmdTask(
         name='simple-no-error',
-        cmd_path=os.path.join(dir_path, 'sample_cmd', 'hello.sh')
+        cmd_path=os.path.join(dir_path, 'hello.sh')
     )
     main_loop = cmd_task.create_main_loop(env_prefix='')
-    is_error: bool = False
-    try:
-        main_loop()
-    except Exception:
-        is_error = True
-    assert not is_error
+    result = main_loop()
+    assert result.output == 'hello'
 
 
 def test_upstream_with_no_error():
@@ -74,12 +62,8 @@ def test_upstream_with_no_error():
         upstreams=[upstream_task]
     )
     main_loop = cmd_task.create_main_loop(env_prefix='')
-    is_error: bool = False
-    try:
-        main_loop()
-    except Exception:
-        is_error = True
-    assert not is_error
+    result = main_loop()
+    assert result.output == 'hello'
 
 
 def test_upstream_with_error():
@@ -122,12 +106,8 @@ def test_diamond_upstream():
         upstreams=[upstream_1, upstream_2]
     )
     main_loop = cmd_task.create_main_loop(env_prefix='')
-    is_error: bool = False
-    try:
-        main_loop()
-    except Exception:
-        is_error = True
-    assert not is_error
+    result = main_loop()
+    assert result.output == 'hello'
 
 
 def test_checker_with_no_error():
@@ -141,12 +121,8 @@ def test_checker_with_no_error():
         checkers=[checker]
     )
     main_loop = cmd_task.create_main_loop(env_prefix='')
-    is_error: bool = False
-    try:
-        main_loop()
-    except Exception:
-        is_error = True
-    assert not is_error
+    result = main_loop()
+    assert result.output == 'hello'
 
 
 def test_checker_with_error():

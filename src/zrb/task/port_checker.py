@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 from typeguard import typechecked
 from .base_task import BaseTask
 from ..task_env.env import Env
@@ -46,12 +46,18 @@ class PortChecker(BaseTask):
         self.port = port
         self.timeout = timeout
 
-    async def run(self, **kwargs: Any):
+    def create_main_loop(
+        self, env_prefix: str = ''
+    ) -> Callable[..., bool]:
+        return super().create_main_loop(env_prefix)
+
+    async def run(self, **kwargs: Any) -> bool:
         host = self.render_str(self.host)
         port = self.render_int(self.port)
         timeout = self.render_int(self.timeout)
         while not self._check_port(host, port, timeout):
             await asyncio.sleep(self.checking_interval)
+        return True
 
     def _check_port(
         self, host: str, port: int, url: str, timeout: int

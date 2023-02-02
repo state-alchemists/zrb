@@ -195,7 +195,6 @@ class TaskDataModel():
 
     def get_env_map(self) -> Mapping[str, str]:
         env_map = os.environ
-        env_map['PYTHONUNBUFFERED'] = '1'
         env_map.update(self._env_map)
         return env_map
 
@@ -235,7 +234,7 @@ class TaskDataModel():
         self._is_keyval_set = True
         self._input_map = dict(input_map)
         self.log_debug(f'Input map: {self._input_map}')
-        self._env_map = {}
+        self._env_map = os.environ
         for task_env in self.envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)

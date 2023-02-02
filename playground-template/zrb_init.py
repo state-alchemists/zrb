@@ -90,3 +90,10 @@ run_server = CmdTask(
     checkers=[HTTPChecker(port='{{env.PORT}}')]
 )
 runner.register(run_server)
+
+
+trigger_error = CmdTask(
+    name='trigger-error',
+    cmd='takada'
+)
+runner.register(trigger_error)

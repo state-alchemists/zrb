@@ -8,6 +8,12 @@ from ..task_group.group import Group
 import asyncio
 
 
+class CmdResult():
+    def __init__(self, output: str, error: str):
+        self.output = output
+        self.error = error
+
+
 @typechecked
 class CmdTask(BaseTask):
     '''
@@ -55,6 +61,8 @@ class CmdTask(BaseTask):
         checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
+        max_output_line: int = 1000,
+        max_error_line: int = 1000
     ):
         BaseTask.__init__(
             self,
@@ -73,11 +81,22 @@ class CmdTask(BaseTask):
         )
         self.cmd = cmd
         self.cmd_path = cmd_path
+        self.max_output_size = max_output_line
+        self.max_error_size = max_error_line
+        self._output_buffer: List[str] = []
+        self._error_buffer: List[str] = []
 
-    async def run(self, **kwargs: Any):
-        cmd = self.get_cmd()
+    def create_main_loop(
+        self, env_prefix: str = ''
+    ) -> Callable[..., CmdResult]:
+        return super().create_main_loop(env_prefix)
+
+    async def run(self, **kwargs: Any) -> CmdResult:
+        cmd = self._get_cmd_str()
         env = self.get_env_map()
         self.log_debug(f'Run command: {cmd}\nwith env: {env}')
+        self._output_buffer = []
+        self._error_buffer = []
         process = await asyncio.create_subprocess_shell(
             cmd,
             stdout=asyncio.subprocess.PIPE,
@@ -86,39 +105,50 @@ class CmdTask(BaseTask):
             shell=True
         )
         self.set_task_pid(process.pid)
-        # Create queue
-        stdout_queue = asyncio.Queue()
-        stderr_queue = asyncio.Queue()
-        # Create reader task
-        stdout_task = asyncio.create_task(self._stream_reader(
-            process.stdout, stdout_queue
-        ))
-        stderr_task = asyncio.create_task(self._stream_reader(
-            process.stderr, stderr_queue
-        ))
-        # Create logger task
-        stdout_logger_task = asyncio.create_task(
-            self._stream_logger(self.print_out, stdout_queue)
-        )
-        stderr_logger_task = asyncio.create_task(
-            self._stream_logger(self.print_err, stderr_queue)
-        )
-        # wait process
-        await process.wait()
-        # wait reader and logger
-        await stdout_task
-        await stderr_task
-        await stdout_queue.put(None)
-        await stderr_queue.put(None)
-        await stdout_logger_task
-        await stderr_logger_task
+        await self._wait_process(process)
+        # get output and error
+        output = '\n'.join(self._output_buffer)
+        error = '\n'.join(self._error_buffer)
         # get return code
         return_code = process.returncode
         if return_code != 0:
             self.log_debug(f'Exit status: {return_code}')
-            raise Exception(f'Process {self.name} exited ({return_code})')
+            raise Exception(
+                f'Process {self.name} exited ({return_code}): {error}'
+            )
+        return CmdResult(output, error)
 
-    def get_cmd(self) -> str:
+    async def _wait_process(self, process: asyncio.subprocess.Process):
+        # Create queue
+        stdout_queue = asyncio.Queue()
+        stderr_queue = asyncio.Queue()
+        # Read from streams and put into queue
+        stdout_process = asyncio.create_task(self._queue_stream(
+            process.stdout, stdout_queue
+        ))
+        stderr_process = asyncio.create_task(self._queue_stream(
+            process.stderr, stderr_queue
+        ))
+        # Handle messages in queue
+        stdout_log_process = asyncio.create_task(self._log_from_queue(
+            stdout_queue, self.print_out,
+            self._output_buffer, self.max_output_size
+        ))
+        stderr_log_process = asyncio.create_task(self._log_from_queue(
+            stderr_queue, self.print_err,
+            self._error_buffer, self.max_error_size
+        ))
+        # wait process
+        await process.wait()
+        # wait reader and logger
+        await stdout_process
+        await stderr_process
+        await stdout_queue.put(None)
+        await stderr_queue.put(None)
+        await stdout_log_process
+        await stderr_log_process
+
+    def _get_cmd_str(self) -> str:
         if self.cmd_path != '':
             cmd_path = self.render_str(self.cmd_path)
             with open(cmd_path, 'r') as file:
@@ -127,18 +157,31 @@ class CmdTask(BaseTask):
             return self.render_str(self.cmd)
         return self.render_str('\n'.join(self.cmd))
 
-    async def _stream_reader(self, stream, queue: asyncio.Queue):
+    async def _queue_stream(self, stream, queue: asyncio.Queue):
         while True:
             line = await stream.readline()
             if not line:
                 break
             await queue.put(line)
 
-    async def _stream_logger(
-        self, print_log: Callable[[str], None], queue: asyncio.Queue
+    async def _log_from_queue(
+        self,
+        queue: asyncio.Queue,
+        print_log: Callable[[str], None],
+        buffer: List[str],
+        max_size: int
     ):
         while True:
             line = await queue.get()
             if not line:
                 break
-            print_log(line.decode().rstrip())
+            line_str = line.decode().rstrip()
+            self._add_to_buffer(buffer, max_size, line_str)
+            print_log(line_str)
+
+    def _add_to_buffer(
+        self, buffer: List[str], max_size: int, new_line: str
+    ):
+        if len(buffer) >= max_size:
+            buffer.pop(0)
+        buffer.append(new_line)

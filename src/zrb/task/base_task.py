@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping, Optional, TypeVar
+from typing import Any, Callable, List, Mapping, Optional, TypeVar
 from typeguard import typechecked
 from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
@@ -58,7 +58,7 @@ class BaseTask(TaskModel):
         self._is_checked: bool = False
         self._is_executed: bool = False
 
-    async def run(self, **kwargs: Any):
+    async def run(self, **kwargs: Any) -> Any:
         '''
         Do task execution
         Please override this method.
@@ -66,6 +66,7 @@ class BaseTask(TaskModel):
         self.log_debug(
             f'Run with kwargs: {kwargs}'
         )
+        return True
 
     async def check(self) -> bool:
         '''
@@ -91,26 +92,25 @@ class BaseTask(TaskModel):
             return self.description
         return self.name
 
-    def create_main_loop(self, env_prefix: str = ''):
+    def create_main_loop(self, env_prefix: str = '') -> Callable[..., Any]:
         self_cp = copy.deepcopy(self)
 
-        def main_loop(**kwargs: Any):
+        def main_loop(**kwargs: Any) -> Any:
             '''
             Task main loop.
             '''
-            async def run_and_check_all_async():
+            async def run_and_check_all_async() -> Any:
                 self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
                 processes = [
-                    asyncio.create_task(
-                        self_cp._run_all(**kwargs)
-                    ),
-                    asyncio.create_task(self_cp._loop_check(celebrate=True))
+                    asyncio.create_task(self_cp._loop_check(celebrate=True)),
+                    asyncio.create_task(self_cp._run_all(**kwargs))
                 ]
-                await asyncio.gather(*processes)
+                results = await asyncio.gather(*processes)
+                return results[-1]
             try:
                 return asyncio.run(run_and_check_all_async())
             except Exception:
-                self_cp.log_error('Encounter error')
+                self_cp.log_error('Failed')
                 raise
             finally:
                 self_cp.play_bell()
@@ -151,7 +151,7 @@ class BaseTask(TaskModel):
         await asyncio.gather(*check_processes)
         return True
 
-    async def _run_all(self, **kwargs: Any):
+    async def _run_all(self, **kwargs: Any) -> Any:
         processes: List[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
@@ -161,9 +161,10 @@ class BaseTask(TaskModel):
         # Add current task to processes
         processes.append(self._cached_run(**kwargs))
         # Wait everything to complete
-        await asyncio.gather(*processes)
+        results = await asyncio.gather(*processes)
+        return results[-1]
 
-    async def _cached_run(self, **kwargs: Any):
+    async def _cached_run(self, **kwargs: Any) -> Any:
         if self._is_executed:
             self.log_debug('Skip running, because execution flag has been set')
             return
@@ -179,17 +180,20 @@ class BaseTask(TaskModel):
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
         # start running task
+        result: Any
         while self.should_attempt():
             try:
-                await self.run(**kwargs)
+                result = await self.run(**kwargs)
                 break
             except Exception:
-                self.log_error('Encounter error')
                 if self.is_last_attempt():
                     raise
+                attempt = self.get_attempt()
+                self.log_error(f'Encounter error on attempt {attempt}')
                 self.increase_attempt()
                 await asyncio.sleep(self.retry_interval)
         self.mark_as_done()
+        return result
 
     def _set_keyval(self, input_map: Mapping[str, Any], env_prefix: str):
         self.set_local_keyval(input_map=input_map, env_prefix=env_prefix)

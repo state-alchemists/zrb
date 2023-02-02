@@ -25,8 +25,8 @@ class Env():
 
         Example:
         ```python
-        os.setenv('DEV_SERVER', 'localhost')
-        os.setenv('PROD_SERVER', 'example.com')
+        os.environ['DEV_SERVER'] = 'localhost'
+        os.environ['PROD_SERVER'] = 'example.com'
 
         env = Env(name='HOST', os_name='SERVER', default='0.0.0.0')
 

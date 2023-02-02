@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 from typeguard import typechecked
 from http.client import HTTPConnection, HTTPSConnection
 from .base_task import BaseTask
@@ -52,7 +52,12 @@ class HTTPChecker(BaseTask):
         self.url = url
         self.is_https = is_https
 
-    async def run(self, **kwargs: Any):
+    def create_main_loop(
+        self, env_prefix: str = ''
+    ) -> Callable[..., bool]:
+        return super().create_main_loop(env_prefix)
+
+    async def run(self, **kwargs: Any) -> bool:
         method = self.render_str(self.method)
         host = self.render_str(self.host)
         port = self.render_int(self.port)
@@ -60,6 +65,7 @@ class HTTPChecker(BaseTask):
         timeout = self.render_int(self.timeout)
         while not self._check_connection(method, host, port, url, timeout):
             await asyncio.sleep(self.checking_interval)
+        return True
 
     def _check_connection(
         self, method: str, host: str, port: int, url: str, timeout: int

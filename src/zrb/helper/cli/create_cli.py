@@ -10,6 +10,9 @@ import os
 def create_cli() -> click.Group:
     cli = click.Group(name='zrb', help='Your faithful companion.')
 
+    if 'PYTHONUNBUFFERED' not in os.environ:
+        os.environ['PYTHONUNBUFFERED'] = '1'
+
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:
         load_module(script_path=init_script)

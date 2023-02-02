@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping, Optional
+from typing import Any, Callable, List, Mapping, Optional
 from typeguard import typechecked
 from .base_task import BaseTask
 from ..task_env.env import Env
@@ -42,13 +42,23 @@ class CodeMaker(BaseTask):
         )
         self.template_path = template_path
         self.destination_path = destination_path
-        self.replacements = replacements
         self.excudeds = excludes
+        rendered_replacements: Mapping[str, str] = {
+            old: self.render_str(new)
+            for old, new in replacements.items()
+        }
+        self.replacements = rendered_replacements
 
-    async def run(self, **kwargs: Any):
+    def create_main_loop(
+        self, env_prefix: str = ''
+    ) -> Callable[..., bool]:
+        return super().create_main_loop(env_prefix)
+
+    async def run(self, **kwargs: Any) -> bool:
         copy_tree(
             src=self.template_path,
             dst=self.destination_path,
             replacements=self.replacements,
             excludes=self.excudeds
         )
+        return True
