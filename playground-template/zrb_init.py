@@ -1,9 +1,26 @@
+from typing import Any
 from zrb import (
-    runner, Env, StrInput, Group, CmdTask, HTTPChecker
+    runner, Env, StrInput, Group, Task, CmdTask, HTTPChecker
 )
 
 '''
-Simple task, read input and show output
+Simple Python task, concatenate words
+'''
+concat = Task(
+    name='concat',
+    inputs=[StrInput(name='separator', description='Separator', default=' ')],
+)
+runner.register(concat)
+
+
+@concat.runner
+def run(*args: str, **kwargs: Any) -> str:
+    separator = kwargs.get('separator', ' ')
+    return separator.join(args)
+
+
+'''
+Simple CLI task, read input and show output
 '''
 hello = CmdTask(
     name='hello',
@@ -15,7 +32,7 @@ runner.register(hello)
 make = Group(name='make', description='Make things')
 
 '''
-Simple task, part of 'make' group
+Simple CLI task, part of 'make' group
 '''
 make_coffee = CmdTask(
     name='coffee',
@@ -26,7 +43,7 @@ make_coffee = CmdTask(
 runner.register(make_coffee)
 
 '''
-Simple task, part of 'make' group
+Simple CLI task, part of 'make' group
 '''
 make_beer = CmdTask(
     name='beer',
@@ -44,7 +61,7 @@ make_gitignore = Group(
 )
 
 '''
-Simple task, part of 'make_gitignore' group.
+Simple CLI task, part of 'make_gitignore' group.
 Having multiline cmd
 '''
 make_gitignore_python = CmdTask(
@@ -59,7 +76,7 @@ make_gitignore_python = CmdTask(
 runner.register(make_gitignore_python)
 
 '''
-Simple task, part of 'make_gitignore' group.
+Simple CLI task, part of 'make_gitignore' group.
 Having multiline cmd
 '''
 make_gitignore_nodejs = CmdTask(
@@ -77,7 +94,7 @@ server = Group(
 )
 
 '''
-Long running task.
+Long running CLI task.
 Run a server and waiting for the port to be ready.
 '''
 run_server = CmdTask(
@@ -90,10 +107,3 @@ run_server = CmdTask(
     checkers=[HTTPChecker(port='{{env.PORT}}')]
 )
 runner.register(run_server)
-
-
-trigger_error = CmdTask(
-    name='trigger-error',
-    cmd='takada'
-)
-runner.register(trigger_error)

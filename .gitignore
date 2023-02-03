@@ -5,3 +5,5 @@ playground
 .pytest_cache
 .coverage
 htmlcov
+
+tests/task/code_maker/app

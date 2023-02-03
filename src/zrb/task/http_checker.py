@@ -57,12 +57,12 @@ class HTTPChecker(BaseTask):
     ) -> Callable[..., bool]:
         return super().create_main_loop(env_prefix)
 
-    async def run(self, **kwargs: Any) -> bool:
+    async def run(self, *args: Any, **kwargs: Any) -> bool:
         method = self.render_str(self.method)
         host = self.render_str(self.host)
-        port = self.render_int(self.port)
+        port = self.get_int(self.port)
         url = self.render_str(self.url)
-        timeout = self.render_int(self.timeout)
+        timeout = self.get_int(self.timeout)
         while not self._check_connection(method, host, port, url, timeout):
             await asyncio.sleep(self.checking_interval)
         return True

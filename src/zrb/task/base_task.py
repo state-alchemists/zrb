@@ -8,14 +8,9 @@ from ..helper.list.append_unique import append_unique
 
 import asyncio
 import copy
+import inspect
 
 TTask = TypeVar('TTask', bound='BaseTask')
-
-
-def sanitize_interval(interval: float) -> float:
-    if interval <= 0:
-        return 0.1
-    return interval
 
 
 @typechecked
@@ -51,21 +46,37 @@ class BaseTask(TaskModel):
         )
         self.inputs = inputs
         self.description = description
-        self.retry_interval = sanitize_interval(retry_interval)
+        self.retry_interval = self.sanitize_interval(
+            retry_interval, 'retry'
+        )
         self.upstreams = upstreams
         self.checkers = checkers
-        self.checking_interval = sanitize_interval(checking_interval)
+        self.checking_interval = self.sanitize_interval(
+            checking_interval, 'checking'
+        )
         self._is_checked: bool = False
         self._is_executed: bool = False
+        self._runner: Optional[Callable[..., Any]] = None
 
-    async def run(self, **kwargs: Any) -> Any:
+    def runner(self, runner: Callable[..., Any]):
+        self._runner = runner
+
+    async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
         Do task execution
         Please override this method.
         '''
         self.log_debug(
-            f'Run with kwargs: {kwargs}'
+            f'Run with args: {args} and kwargs: {kwargs}'
         )
+        if self._runner is not None:
+            result = self._runner(*args, **kwargs)
+            if inspect.isawaitable(result):
+                sync_result = await result
+                self.print_out(sync_result)
+                return sync_result
+            self.print_out(result)
+            return result
         return True
 
     async def check(self) -> bool:
@@ -91,6 +102,15 @@ class BaseTask(TaskModel):
         if self.description != '':
             return self.description
         return self.name
+
+    def sanitize_interval(self, interval: float, label: str) -> float:
+        if interval < 0:
+            name = self._get_complete_name()
+            self.log_warn(
+                f'Find negative {label} interval for {name}: {interval}'
+            )
+            return 0
+        return interval
 
     def create_main_loop(self, env_prefix: str = '') -> Callable[..., Any]:
         self_cp = copy.deepcopy(self)
@@ -179,11 +199,13 @@ class BaseTask(TaskModel):
             ))
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
+        # initiate args
+        args: List[Any] = [] if '_args' not in kwargs else kwargs['_args']
         # start running task
         result: Any
         while self.should_attempt():
             try:
-                result = await self.run(**kwargs)
+                result = await self.run(*args, **kwargs)
                 break
             except Exception:
                 if self.is_last_attempt():

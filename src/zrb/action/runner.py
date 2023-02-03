@@ -2,9 +2,9 @@ from typing import List, Mapping, Union
 from ..action.base_action import BaseAction
 from ..task.base_task import BaseTask
 from ..task_group.group import Group as TaskGroup
-from click import Group as CliGroup, Command as CliCommand, Option as CliOption
+import click
 
-CliSubcommand = Union[CliGroup, CliCommand]
+CliSubcommand = Union[click.Group, click.Command]
 
 
 class Runner(BaseAction):
@@ -16,11 +16,11 @@ class Runner(BaseAction):
     def __init__(self, env_prefix: str = ''):
         BaseAction.__init__(self)
         self.env_prefix = env_prefix
-        self._registered_groups: Mapping[str, CliGroup] = {}
+        self._registered_groups: Mapping[str, click.Group] = {}
         self._top_levels: List[CliSubcommand] = []
-        self._subcommands: Mapping[str, List[CliGroup]] = {}
+        self._subcommands: Mapping[str, List[click.Group]] = {}
 
-    def serve(self, cli: CliGroup) -> CliGroup:
+    def serve(self, cli: click.Group) -> click.Group:
         for task in self._tasks:
             subcommand = self._create_cli_subcommand(task)
             if subcommand not in self._top_levels:
@@ -28,7 +28,7 @@ class Runner(BaseAction):
                 cli.add_command(subcommand)
         return cli
 
-    def _create_cli_subcommand(self, task: BaseTask) -> CliGroup:
+    def _create_cli_subcommand(self, task: BaseTask) -> click.Group:
         subcommand: CliSubcommand = self._create_cli_command(task)
         task_group = task.group
         while task_group is not None:
@@ -41,7 +41,7 @@ class Runner(BaseAction):
 
     def _register_sub_command(
         self, task_group: TaskGroup, subcommand: CliSubcommand
-    ) -> CliGroup:
+    ) -> click.Group:
         task_group_id = task_group.get_id()
         group = self._get_cli_group(task_group)
         if task_group_id not in self._subcommands:
@@ -51,26 +51,29 @@ class Runner(BaseAction):
             self._subcommands[task_group_id].append(subcommand)
         return group
 
-    def _get_cli_group(self, task_group: TaskGroup) -> CliGroup:
+    def _get_cli_group(self, task_group: TaskGroup) -> click.Group:
         task_group_id = task_group.get_id()
         if task_group_id in self._registered_groups:
             return self._registered_groups[task_group_id]
         group_cmd_name = task_group.get_cmd_name()
         group_description = task_group.description
-        group = CliGroup(name=group_cmd_name, help=group_description)
+        group = click.Group(name=group_cmd_name, help=group_description)
         self._registered_groups[task_group_id] = group
         return group
 
-    def _create_cli_command(self, task: BaseTask) -> CliCommand:
+    def _create_cli_command(self, task: BaseTask) -> click.Command:
         task_inputs = task.get_all_inputs()
         task_cmd_name = task.get_cmd_name()
         task_description = task.get_description()
         task_main_loop = task.create_main_loop(env_prefix=self.env_prefix)
-        command = CliCommand(
+        command = click.Command(
             callback=task_main_loop, name=task_cmd_name, help=task_description
         )
+        # by default, add an argument named _args
+        command.params.append(click.Argument(['_args'], nargs=-1))
+        # add task inputs
         for task_input in task_inputs:
             param_decl = task_input.get_param_decl()
             options = task_input.get_options()
-            command.params.append(CliOption(param_decl, **options))
+            command.params.append(click.Option(param_decl, **options))
         return command

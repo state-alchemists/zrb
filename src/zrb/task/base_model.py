@@ -1,6 +1,5 @@
 from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
-from jinja2 import Template
 from ..helper.accessories.color import (
     get_random_color, is_valid_color, colored
 )
@@ -15,6 +14,18 @@ import logging
 import os
 import sys
 import time
+import jinja2
+
+
+class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
+    def get_source(self, environment, template):
+        for search_dir in self.searchpath:
+            file_path = os.path.join(search_dir, template)
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as file:
+                    contents = file.read()
+                    return contents, file_path, lambda: False
+        raise jinja2.TemplateNotFound(template)
 
 
 @typechecked
@@ -142,7 +153,7 @@ class TaskDataModel():
         colored_message = colored(
             f'{prefix}: {message}', attrs=['dark']
         )
-        logging.warn(colored_message)
+        logging.warning(colored_message)
 
     def log_info(self, message: Any):
         prefix = self._get_log_prefix()
@@ -194,35 +205,51 @@ class TaskDataModel():
         return self._input_map
 
     def get_env_map(self) -> Mapping[str, str]:
-        env_map = os.environ
-        env_map.update(self._env_map)
-        return env_map
+        return self._env_map
 
-    def inject_env_map(self, env_map: Mapping[str, str]):
+    def inject_env_map(
+        self, env_map: Mapping[str, str], override: bool = False
+    ):
         for key, val in env_map.items():
-            if key not in self._env_map:
+            if override or key not in self._env_map:
                 self._env_map[key] = val
 
-    def render_str(self, text: str) -> str:
-        template = Template(text)
-        data = {
-            'env': get_object_from_keyval(self._env_map),
-            'input': get_object_from_keyval(self._input_map),
-        }
-        self.log_debug(f'Render template: {text}\nWith data: {data}')
-        rendered_text = template.render(data)
-        self.log_debug(f'Rendered text: {rendered_text}')
-        return rendered_text
-
-    def render_float(self, val: Union[str, float]) -> float:
+    def get_float(self, val: Union[str, float]) -> float:
         if isinstance(val, str):
             return float(self.render_str(val))
         return val
 
-    def render_int(self, val: Union[str, int]) -> int:
+    def get_int(self, val: Union[str, int]) -> int:
         if isinstance(val, str):
             return int(self.render_str(val))
         return val
+
+    def render_str(self, val: str) -> str:
+        template = jinja2.Template(val)
+        data = self._get_default_render_data()
+        self.log_debug(f'Render string template: {val}\nWith data: {data}')
+        rendered_text = template.render(data)
+        self.log_debug(f'Rendered result: {rendered_text}')
+        return rendered_text
+
+    def render_file(self, location: str) -> str:
+        location_dir = os.path.dirname(location)
+        env = jinja2.Environment(
+            loader=AnyExtensionFileSystemLoader([location_dir])
+        )
+        template = env.get_template(location)
+        data = self._get_default_render_data()
+        data['TEMPLATE_DIR'] = location_dir
+        self.log_debug(f'Render template: {location}\nWith data: {data}')
+        rendered_text = template.render(data)
+        self.log_debug(f'Rendered result: {rendered_text}')
+        return rendered_text
+
+    def _get_default_render_data(self) -> Mapping[str, Any]:
+        return {
+            'env': get_object_from_keyval(self._env_map),
+            'input': get_object_from_keyval(self._input_map),
+        }
 
     def set_local_keyval(
         self,

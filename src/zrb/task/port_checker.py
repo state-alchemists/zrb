@@ -51,10 +51,10 @@ class PortChecker(BaseTask):
     ) -> Callable[..., bool]:
         return super().create_main_loop(env_prefix)
 
-    async def run(self, **kwargs: Any) -> bool:
+    async def run(self, *args: Any, **kwargs: Any) -> bool:
         host = self.render_str(self.host)
-        port = self.render_int(self.port)
-        timeout = self.render_int(self.timeout)
+        port = self.get_int(self.port)
+        timeout = self.get_int(self.timeout)
         while not self._check_port(host, port, timeout):
             await asyncio.sleep(self.checking_interval)
         return True

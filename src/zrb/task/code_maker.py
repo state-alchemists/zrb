@@ -54,7 +54,7 @@ class CodeMaker(BaseTask):
     ) -> Callable[..., bool]:
         return super().create_main_loop(env_prefix)
 
-    async def run(self, **kwargs: Any) -> bool:
+    async def run(self, *args: Any, **kwargs: Any) -> bool:
         copy_tree(
             src=self.template_path,
             dst=self.destination_path,

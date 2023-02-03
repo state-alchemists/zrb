@@ -42,6 +42,7 @@ class CmdTask(BaseTask):
         cmd='python -m http.server $PORT --directory {{input.dir}}',
         checkers=[HTTPChecker(port='{{env.PORT}}')]
     )
+    runner.register(run_server)
     ```
     '''
 
@@ -91,7 +92,7 @@ class CmdTask(BaseTask):
     ) -> Callable[..., CmdResult]:
         return super().create_main_loop(env_prefix)
 
-    async def run(self, **kwargs: Any) -> CmdResult:
+    async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
         env = self.get_env_map()
         self.log_debug(f'Run command: {cmd}\nwith env: {env}')
@@ -150,9 +151,7 @@ class CmdTask(BaseTask):
 
     def _get_cmd_str(self) -> str:
         if self.cmd_path != '':
-            cmd_path = self.render_str(self.cmd_path)
-            with open(cmd_path, 'r') as file:
-                return self.render_str(file.read())
+            return self.render_file(self.cmd_path)
         if isinstance(self.cmd, str):
             return self.render_str(self.cmd)
         return self.render_str('\n'.join(self.cmd))
