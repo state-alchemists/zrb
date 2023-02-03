@@ -218,6 +218,13 @@ The following configurations are available:
     - Possible values:
         - `1`
         - `0`
+- `ZRB_SHELL`: Default shell for running cmdTask
+    - Default: empty, indicating the system's default (usually `/usr/bin/bash` or `/usr/bin/sh`)
+    - Possible value:
+        - `/usr/bin/bash`
+        - `/usr/bin/sh` 
+        - `node`
+        - `python`
 
 # For contributors
 

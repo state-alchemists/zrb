@@ -4,6 +4,7 @@ from .base_task import BaseTask
 from ..task_env.env import Env
 from ..task_input.base_input import BaseInput
 from ..task_group.group import Group
+from ..config.config import default_shell
 
 import asyncio
 
@@ -55,6 +56,7 @@ class CmdTask(BaseTask):
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
+        executable: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
         cmd_path: str = '',
         upstreams: List[BaseTask] = [],
@@ -86,6 +88,9 @@ class CmdTask(BaseTask):
         self.max_error_size = max_error_line
         self._output_buffer: List[str] = []
         self._error_buffer: List[str] = []
+        if executable is None and default_shell != '':
+            executable = default_shell
+        self.executable = executable
 
     def create_main_loop(
         self, env_prefix: str = ''
@@ -103,7 +108,8 @@ class CmdTask(BaseTask):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
-            shell=True
+            shell=True,
+            executable=self.executable
         )
         self.set_task_pid(process.pid)
         await self._wait_process(process)
