@@ -20,7 +20,7 @@ zrb <task> [arguments]
 
 Zrb will automatically load:
 
-- `zrb_init.py` in your current directory.
+- `zrb_init.py` in your current directory (or parent directories).
 - or any Python file defined in `ZRB_INIT_SCRIPTS` environment.
 
 You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
@@ -225,6 +225,14 @@ The following configurations are available:
         - `/usr/bin/sh` 
         - `node`
         - `python`
+
+# Quirks
+
+- Zrb name is as is, no one is sure how to pronounce it.
+- Once `zrb_init.py` is loaded, Zrb will automatically set `ZRB_PROJECT_DIR` to `zrb_init.py`'s parent directory.
+Zrb passes several keyword arguments that will be accessible from the task's run method:
+    - `_args`: Shell argument when the task is invoked.
+    - `_task`: Reference to the current task.
 
 # For contributors
 

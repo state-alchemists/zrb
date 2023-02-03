@@ -144,38 +144,38 @@ class TaskDataModel():
     def log_debug(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
-            f'{prefix}: {message}', attrs=['dark']
+            f'{prefix} • {message}', attrs=['dark']
         )
         logging.debug(colored_message)
 
     def log_warn(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
-            f'{prefix}: {message}', attrs=['dark']
+            f'{prefix} • {message}', attrs=['dark']
         )
         logging.warning(colored_message)
 
     def log_info(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
-            f'{prefix}: {message}', attrs=['dark']
+            f'{prefix} • {message}', attrs=['dark']
         )
         logging.info(colored_message)
 
     def log_error(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
-            f'{prefix}: {message}', color='red', attrs=['bold']
+            f'{prefix} • {message}', color='red', attrs=['bold']
         )
         logging.error(colored_message, exc_info=True)
 
     def print_out(self, msg: Any):
-        prefix = self._get_colored_log_prefix()
-        print(f'🤖 ➜ {prefix} • {msg}'.rstrip())
+        prefix = self._get_colored_print_prefix()
+        print(f'🤖 ➜  {prefix} • {msg}'.rstrip(), file=sys.stderr)
 
     def print_err(self, msg: Any):
-        prefix = self._get_colored_log_prefix()
-        print(f'🤖 ⚠ {prefix} • {msg}'.rstrip(), file=sys.stderr)
+        prefix = self._get_colored_print_prefix()
+        print(f'🤖 ⚠  {prefix} • {msg}'.rstrip(), file=sys.stderr)
 
     def colored(self, text: str) -> str:
         return colored(text, color=self.get_color())
@@ -183,19 +183,25 @@ class TaskDataModel():
     def play_bell(self):
         print('\a')
 
-    def _get_colored_log_prefix(self) -> str:
-        return self.colored(self._get_log_prefix())
+    def _get_colored_print_prefix(self) -> str:
+        return self.colored(self._get_print_prefix())
 
-    def _get_log_prefix(self) -> str:
-        '''
-        Return log prefix representing current task.
-        This implementation override AccessoriesModel.get_log_prefix.
-        '''
+    def _get_print_prefix(self) -> str:
         attempt = self.get_attempt()
         max_attempt = self.get_max_attempt()
         now = datetime.datetime.now().isoformat()
         pid = self.get_task_pid()
         info = f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
+        icon = self.get_icon()
+        name = self._get_complete_name()
+        filled_name = name.rjust(13, ' ')
+        return f'{info} • {icon} {filled_name}'
+
+    def _get_log_prefix(self) -> str:
+        attempt = self.get_attempt()
+        max_attempt = self.get_max_attempt()
+        pid = self.get_task_pid()
+        info = f'⚙ {pid} ➤ {attempt} of {max_attempt}'
         icon = self.get_icon()
         name = self._get_complete_name()
         filled_name = name.rjust(13, ' ')
@@ -227,9 +233,9 @@ class TaskDataModel():
     def render_str(self, val: str) -> str:
         template = jinja2.Template(val)
         data = self._get_default_render_data()
-        self.log_debug(f'Render string template: {val}\nWith data: {data}')
+        self.log_debug(f'Render string template:\n{val}\nWith data: {data}')
         rendered_text = template.render(data)
-        self.log_debug(f'Rendered result: {rendered_text}')
+        self.log_debug(f'Rendered result:\n{rendered_text}')
         return rendered_text
 
     def render_file(self, location: str) -> str:
@@ -242,7 +248,7 @@ class TaskDataModel():
         data['TEMPLATE_DIR'] = location_dir
         self.log_debug(f'Render template: {location}\nWith data: {data}')
         rendered_text = template.render(data)
-        self.log_debug(f'Rendered result: {rendered_text}')
+        self.log_debug(f'Rendered result:\n{rendered_text}')
         return rendered_text
 
     def _get_default_render_data(self) -> Mapping[str, Any]:

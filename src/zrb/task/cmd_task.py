@@ -93,14 +93,14 @@ class CmdTask(BaseTask):
         self.executable = executable
 
     def create_main_loop(
-        self, env_prefix: str = ''
+        self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., CmdResult]:
-        return super().create_main_loop(env_prefix)
+        return super().create_main_loop(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
         env = self.get_env_map()
-        self.log_debug(f'Run command: {cmd}\nwith env: {env}')
+        self.log_debug(f'Run command:\n{cmd}\nwith env: {env}')
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(

@@ -1,5 +1,5 @@
 from .runner import runner
-from .task.base_task import BaseTask
+from .helper.loader.load_module import load_module
 from .task.task import Task
 from .task.cmd_task import CmdTask
 from .task.http_checker import HTTPChecker
@@ -8,3 +8,15 @@ from .task.code_maker import CodeMaker
 from .task_input.str_input import StrInput
 from .task_env.env import Env
 from .task_group.group import Group
+
+
+assert runner
+assert load_module
+assert Task
+assert CmdTask
+assert HTTPChecker
+assert PortChecker
+assert CodeMaker
+assert StrInput
+assert Env
+assert Group

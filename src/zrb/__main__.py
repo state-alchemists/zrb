@@ -5,8 +5,12 @@ import logging
 
 logging.basicConfig(
     level=logging_level,
-    format=colored('%(levelname)s', attrs=['dark']) + ' %(message)s'
+    format=colored(
+        '%(levelname)-8s %(asctime)s', attrs=['dark']
+    ) + ' %(message)s'
 )
+
+logging.info('Creating CLI instance')
 cli = create_cli()
 
 

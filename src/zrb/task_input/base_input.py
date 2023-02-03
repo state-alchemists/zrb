@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Mapping, Optional, Type, Union
+from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
 
 

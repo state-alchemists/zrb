@@ -47,9 +47,9 @@ class PortChecker(BaseTask):
         self.timeout = timeout
 
     def create_main_loop(
-        self, env_prefix: str = ''
+        self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., bool]:
-        return super().create_main_loop(env_prefix)
+        return super().create_main_loop(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         host = self.render_str(self.host)

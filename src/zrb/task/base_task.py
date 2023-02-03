@@ -73,9 +73,11 @@ class BaseTask(TaskModel):
             result = self._runner(*args, **kwargs)
             if inspect.isawaitable(result):
                 sync_result = await result
-                self.print_out(sync_result)
+                if sync_result is not None:
+                    self.print_out(sync_result)
                 return sync_result
-            self.print_out(result)
+            if result is not None:
+                self.print_out(result)
             return result
         return True
 
@@ -112,7 +114,9 @@ class BaseTask(TaskModel):
             return 0
         return interval
 
-    def create_main_loop(self, env_prefix: str = '') -> Callable[..., Any]:
+    def create_main_loop(
+        self, env_prefix: str = '', raise_error: bool = True
+    ) -> Callable[..., Any]:
         self_cp = copy.deepcopy(self)
 
         def main_loop(**kwargs: Any) -> Any:
@@ -120,6 +124,7 @@ class BaseTask(TaskModel):
             Task main loop.
             '''
             async def run_and_check_all_async() -> Any:
+                kwargs['_task'] = self_cp
                 self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
                 processes = [
                     asyncio.create_task(self_cp._loop_check(celebrate=True)),
@@ -131,7 +136,8 @@ class BaseTask(TaskModel):
                 return asyncio.run(run_and_check_all_async())
             except Exception:
                 self_cp.log_error('Failed')
-                raise
+                if raise_error:
+                    raise
             finally:
                 self_cp.play_bell()
         return main_loop
