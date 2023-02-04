@@ -21,5 +21,5 @@ def get_logging_level():
 default_shell = os.getenv('ZRB_SHELL', '')
 init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
 logging_level = get_logging_level()
-should_load_default = os.getenv('ZRB_SHOULD_LOAD_DEFAULT', '1') != '0'
+should_load_builtin = os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1') != '0'
 env_prefix = os.getenv('ZRB_ENV', '')

@@ -1,14 +1,12 @@
+from ._group import install_ubuntu, update
 from ..task.cmd_task import CmdTask
-from ..task.task import Task
-from ..task_group.group import Group
 from ..runner import runner
 
 
-ubuntu_group = Group(name='ubuntu', description='Ubuntu related commands')
-
-ubuntu_update = CmdTask(
-    name='update',
-    group=ubuntu_group,
+# Update ubuntu
+update_ubuntu = CmdTask(
+    name='ubuntu',
+    group=update,
     description='Update ubuntu',
     cmd=[
         'sudo apt-get update',
@@ -16,30 +14,27 @@ ubuntu_update = CmdTask(
     ],
     checking_interval=3
 )
-runner.register(ubuntu_update)
+runner.register(update_ubuntu)
 
 
-ubuntu_install_group = Group(
-    name='install', description='Install stuffs on ubuntu', parent=ubuntu_group
-)
-
-
-ubuntu_install_toys = CmdTask(
+# Install ubuntu toys
+install_ubuntu_toys = CmdTask(
     name='toys',
-    group=ubuntu_install_group,
+    group=install_ubuntu,
     description='Install toy packages',
     cmd=[
         'sudo apt-get install -y lolcat cowsay figlet',
     ],
-    upstreams=[ubuntu_update],
+    upstreams=[update_ubuntu],
     checking_interval=3
 )
-runner.register(ubuntu_install_toys)
+runner.register(install_ubuntu_toys)
 
 
-ubuntu_install_packages = CmdTask(
+# Install ubuntu packages
+install_ubuntu_packages = CmdTask(
     name='packages',
-    group=ubuntu_install_group,
+    group=install_ubuntu,
     description='Install packages',
     cmd=[
         'sudo apt-get install -y \\',
@@ -50,17 +45,7 @@ ubuntu_install_packages = CmdTask(
         'gfortran rustc fd-find ripgrep wget curl git ncat cmake make tree \\',
         'tmux zsh neovim xdotool xsel'
     ],
-    upstreams=[ubuntu_update],
+    upstreams=[update_ubuntu],
     checking_interval=3
 )
-runner.register(ubuntu_install_packages)
-
-
-ubuntu_install_all = Task(
-    name='all',
-    group=ubuntu_install_group,
-    description='Install all',
-    upstreams=[ubuntu_install_packages, ubuntu_install_toys],
-    checking_interval=3
-)
-runner.register(ubuntu_install_all)
+runner.register(install_ubuntu_packages)

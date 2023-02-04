@@ -285,10 +285,16 @@ class TaskDataModel():
         complete_name = self._get_complete_name()
         elapsed_time = self.get_elapsed_time()
         icon = self.get_icon()
-        print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
-        print(self.colored(f'🤖 {icon} {complete_name} completed in'))
-        print(self.colored(f'🤖 {icon} {elapsed_time} seconds'))
-        print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉')
+        completed_in_str = self.colored(
+            f'🤖 {icon} {complete_name} completed in'
+        )
+        elapsed_time_str = self.colored(
+            f'🤖 {icon} {elapsed_time} seconds'
+        )
+        print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉', file=sys.stderr)
+        print(completed_in_str, file=sys.stderr)
+        print(elapsed_time_str, file=sys.stderr)
+        print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉', file=sys.stderr)
         self.play_bell()
 
 

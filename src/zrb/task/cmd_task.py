@@ -97,6 +97,9 @@ class CmdTask(BaseTask):
     ) -> Callable[..., CmdResult]:
         return super().create_main_loop(env_prefix, raise_error)
 
+    def _print_result(self, result: CmdResult):
+        print(result.output)
+
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
         env = self.get_env_map()

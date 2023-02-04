@@ -34,11 +34,14 @@ Your Zrb script (e.g: `./zrb_init.py`) should contain your task definitions. For
 ```python
 from typing import Any
 from zrb import (
-    runner, Env, StrInput, Group, Task, CmdTask, HTTPChecker
+    runner,
+    Env, StrInput,
+    Group, Task, CmdTask, HTTPChecker,
+    builtin_group
 )
 
 '''
-Simple Python task, concatenate words
+Simple Python task to concatenate words
 '''
 concat = Task(
     name='concat',
@@ -47,7 +50,6 @@ concat = Task(
 runner.register(concat)
 
 
-# set concat's runner
 @concat.runner
 def run(*args: str, **kwargs: Any) -> str:
     separator = kwargs.get('separator', ' ')
@@ -59,11 +61,15 @@ Simple CLI task, read input and show output
 '''
 hello = CmdTask(
     name='hello',
+    group=builtin_group.show,
     inputs=[StrInput(name='name', description='Name', default='world')],
     cmd='echo Hello {{input.name}}'
 )
 runner.register(hello)
 
+'''
+A new group: make
+'''
 make = Group(name='make', description='Make things')
 
 '''
@@ -124,24 +130,21 @@ make_gitignore_nodejs = CmdTask(
 )
 runner.register(make_gitignore_nodejs)
 
-server = Group(
-    name='server', description='Server related commands'
-)
-
 '''
 Long running CLI task.
 Run a server and waiting for the port to be ready.
 '''
-run_server = CmdTask(
-    name='run',
-    group=server,
+start_server = CmdTask(
+    name='server',
+    group=builtin_group.start,
     upstreams=[make_coffee, make_beer],
     inputs=[StrInput(name='dir', description='Directory', default='.')],
     envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
     cmd='python -m http.server $PORT --directory {{input.dir}}',
     checkers=[HTTPChecker(port='{{env.PORT}}')]
 )
-runner.register(run_server)
+runner.register(start_server)
+
 ```
 
 Once registered, your task will be accessible from the terminal.
@@ -150,7 +153,7 @@ For example, you can run a server by performing:
 
 ```bash
 export WEB_PORT=8080
-zrb server run
+zrb start server
 ```
 
 The output will be similar to this:
@@ -158,17 +161,17 @@ The output will be similar to this:
 ```
 Name [world]: Go Frendi
 Dir [.]:
-🤖 ➜ 2023-02-02T07:17:35.384284 ⚙ 6095 ➤ 1 of 3 • 🍊         hello • Hello Go Frendi
-🤖 ➜ 2023-02-02T07:17:35.491491 ⚙ 6097 ➤ 1 of 3 • 🐷   make coffee • Coffee for you ☕
-🤖 ➜ 2023-02-02T07:17:35.492019 ⚙ 6099 ➤ 1 of 3 • 🦁     make beer • Cheers 🍺
-🤖 ➜ 2023-02-02T07:17:35.618819 ⚙ 6101 ➤ 1 of 3 • 🍒    server run • Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...
-🤖 ➜ 2023-02-02T07:17:35.684434 ⚙ 6094 ➤ 1 of 1 • 🍇    http_check • HEAD http://localhost:3000/ 200 (OK)
+🤖 ➜  2023-02-04T11:08:11.921472 ⚙ 12264 ➤ 1 of 3 • 🍊    show hello • Hello Go Frendi
+🤖 ➜  2023-02-04T11:08:12.039529 ⚙ 12266 ➤ 1 of 3 • 🐹   make coffee • Coffee for you ☕
+🤖 ➜  2023-02-04T11:08:12.040651 ⚙ 12268 ➤ 1 of 3 • 🐶     make beer • Cheers 🍺
+🤖 ➜  2023-02-04T11:08:12.160402 ⚙ 12270 ➤ 1 of 3 • 🍒  start server • Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
+🤖 ➜  2023-02-04T11:08:12.224660 ⚙ 12263 ➤ 1 of 1 • 🍇    http_check • HEAD http://localhost:8080/ 200 (OK)
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
-🤖 🍒 server run completed in
-🤖 🍒 0.31129932403564453 seconds
+🤖 🍒 start server completed in
+🤖 🍒 0.311281681060791 seconds
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
 
-🤖 ⚠ 2023-02-02T07:17:35.685651 ⚙ 6101 ➤ 1 of 3 • 🍒    server run • 127.0.0.1 - - [02/Feb/2023 07:17:35] "HEAD / HTTP/1.1" 200 -
+🤖 ⚠  2023-02-04T11:08:12.228542 ⚙ 12270 ➤ 1 of 3 • 🍒  start server • 127.0.0.1 - - [04/Feb/2023 11:08:12] "HEAD / HTTP/1.1" 200 -
 ```
 
 # How to run tasks programmatically
@@ -213,7 +216,7 @@ The following configurations are available:
     - Default: Empty
     - Possible values: Any combination of alpha-numeric and underscore
     - Example: `DEV`
-- `ZRB_SHOULD_LOAD_DEFAULT`: Whether load default tasks or not
+- `ZRB_SHOULD_LOAD_BUILTIN`: Whether load builtin tasks or not
     - Default: `1`
     - Possible values:
         - `1`
@@ -228,11 +231,15 @@ The following configurations are available:
 
 # Quirks
 
-- Zrb name is as is, no one is sure how to pronounce it.
-- Once `zrb_init.py` is loaded, Zrb will automatically set `ZRB_PROJECT_DIR` to `zrb_init.py`'s parent directory.
-Zrb passes several keyword arguments that will be accessible from the task's run method:
+- No one is sure how to pronounce Zrb. Let's keep it that way.
+- If not set, `PYTHONUNBUFFERED` will be set to `1`.
+- Once `zrb_init.py` is loaded, Zrb will automatically:
+    - Set `ZRB_PROJECT_DIR` to `zrb_init.py`'s parent directory.
+    - Adding `ZRB_PROJECT_DIR` to `PYTHONPATH`.
+- Zrb passes several keyword arguments that will be accessible from the task's run method:
     - `_args`: Shell argument when the task is invoked.
     - `_task`: Reference to the current task.
+- You can access the built-in command groups by importing `zrb.builtin_group`.
 
 # For contributors
 

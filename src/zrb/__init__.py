@@ -8,6 +8,7 @@ from .task.code_maker import CodeMaker
 from .task_input.str_input import StrInput
 from .task_env.env import Env
 from .task_group.group import Group
+from .builtin import _group as builtin_group
 
 
 assert runner
@@ -20,3 +21,4 @@ assert CodeMaker
 assert StrInput
 assert Env
 assert Group
+assert builtin_group

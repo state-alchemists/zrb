@@ -1,6 +1,6 @@
 from ...runner import runner
 from ..loader.load_module import load_module
-from ...config.config import init_scripts, should_load_default
+from ...config.config import init_scripts, should_load_builtin
 
 import click
 import logging
@@ -18,16 +18,16 @@ def create_cli() -> click.Group:
         load_module(script_path=init_script)
 
     # Load default tasks
-    if should_load_default:
-        from ... import default
-        assert default
+    if should_load_builtin:
+        from ... import builtin
+        assert builtin
 
     # Load zrb_init.py
     try:
         project_dir = os.getcwd()
         load_zrb_init(project_dir)
     except Exception:
-        logging.debug('Cannot find zrb_init.py')
+        logging.debug('Error while loading zrb_init.py')
 
     # Serve all tasks registered to runner
     cli = runner.serve(cli)
@@ -39,8 +39,23 @@ def load_zrb_init(project_dir: str):
     if os.path.isfile(project_script):
         load_module(script_path=project_script)
         os.environ['ZRB_PROJECT_DIR'] = project_dir
+        add_project_dir_to_python_path(project_dir)
         return
+    # zrb_init.py not found, look for it on the parent directory
     parent_project_dir = os.path.dirname(project_dir)
     if parent_project_dir == project_dir:
+        # giving up, already on the root level directory
+        logging.debug('Cannot find zrb_init.py')
         return
+    # do the same thing again
     load_zrb_init(parent_project_dir)
+
+
+def add_project_dir_to_python_path(project_dir: str):
+    current_python_path = os.getenv('PYTHONPATH')
+    if current_python_path is None or current_python_path == '':
+        os.environ['PYTHONPATH'] = project_dir
+        return
+    os.environ['PYTHONPATH'] = ':'.join([
+        current_python_path, project_dir
+    ])

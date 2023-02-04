@@ -70,15 +70,7 @@ class BaseTask(TaskModel):
             f'Run with args: {args} and kwargs: {kwargs}'
         )
         if self._runner is not None:
-            result = self._runner(*args, **kwargs)
-            if inspect.isawaitable(result):
-                sync_result = await result
-                if sync_result is not None:
-                    self.print_out(sync_result)
-                return sync_result
-            if result is not None:
-                self.print_out(result)
-            return result
+            return self._runner(*args, **kwargs)
         return True
 
     async def check(self) -> bool:
@@ -133,7 +125,9 @@ class BaseTask(TaskModel):
                 results = await asyncio.gather(*processes)
                 return results[-1]
             try:
-                return asyncio.run(run_and_check_all_async())
+                result = asyncio.run(run_and_check_all_async())
+                self._print_result(result)
+                return result
             except Exception:
                 self_cp.log_error('Failed')
                 if raise_error:
@@ -141,6 +135,10 @@ class BaseTask(TaskModel):
             finally:
                 self_cp.play_bell()
         return main_loop
+
+    def _print_result(self, result: Any):
+        self.print_out(result)
+        print(result)
 
     async def _loop_check(self, celebrate: bool = False) -> bool:
         while not await self._cached_check():

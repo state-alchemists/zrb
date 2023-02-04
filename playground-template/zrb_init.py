@@ -1,10 +1,13 @@
 from typing import Any
 from zrb import (
-    runner, Env, StrInput, Group, Task, CmdTask, HTTPChecker
+    runner,
+    Env, StrInput,
+    Group, Task, CmdTask, HTTPChecker,
+    builtin_group
 )
 
 '''
-Simple Python task, concatenate words
+Simple Python task to concatenate words
 '''
 concat = Task(
     name='concat',
@@ -24,11 +27,15 @@ Simple CLI task, read input and show output
 '''
 hello = CmdTask(
     name='hello',
+    group=builtin_group.show,
     inputs=[StrInput(name='name', description='Name', default='world')],
     cmd='echo Hello {{input.name}}'
 )
 runner.register(hello)
 
+'''
+A new group: make
+'''
 make = Group(name='make', description='Make things')
 
 '''
@@ -89,21 +96,17 @@ make_gitignore_nodejs = CmdTask(
 )
 runner.register(make_gitignore_nodejs)
 
-server = Group(
-    name='server', description='Server related commands'
-)
-
 '''
 Long running CLI task.
 Run a server and waiting for the port to be ready.
 '''
-run_server = CmdTask(
-    name='run',
-    group=server,
+start_server = CmdTask(
+    name='server',
+    group=builtin_group.start,
     upstreams=[make_coffee, make_beer],
     inputs=[StrInput(name='dir', description='Directory', default='.')],
     envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
     cmd='python -m http.server $PORT --directory {{input.dir}}',
     checkers=[HTTPChecker(port='{{env.PORT}}')]
 )
-runner.register(run_server)
+runner.register(start_server)
