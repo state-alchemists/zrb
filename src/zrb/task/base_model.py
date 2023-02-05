@@ -9,11 +9,11 @@ from ..helper.string.conversion import (
     to_cmd_name, to_variable_name
 )
 from ..helper.render_data.default_render_data import DEFAULT_RENDER_DATA
+from ..helper.log import logger
 from ..task_env.env import Env
 from ..task_group.group import Group
 
 import datetime
-import logging
 import os
 import sys
 import time
@@ -153,28 +153,28 @@ class TaskDataModel():
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
         )
-        logging.debug(colored_message)
+        logger.debug(colored_message)
 
     def log_warn(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
         )
-        logging.warning(colored_message)
+        logger.warning(colored_message)
 
     def log_info(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
         )
-        logging.info(colored_message)
+        logger.info(colored_message)
 
     def log_error(self, message: Any):
         prefix = self._get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', color='red', attrs=['bold']
         )
-        logging.error(colored_message, exc_info=True)
+        logger.error(colored_message, exc_info=True)
 
     def print_out(self, msg: Any):
         prefix = self._get_colored_print_prefix()

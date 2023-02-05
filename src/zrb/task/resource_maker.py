@@ -58,24 +58,30 @@ class ResourceMaker(BaseTask):
         # render parameters
         template_path = self.render_str(self.template_path)
         destination_path = self.render_str(self.destination_path)
+        self.log_debug(f'Render excludes: {self.excludes}')
         excludes = [
             self.render_str(exclude)
             for exclude in self.excludes
         ]
+        self.log_debug(f'Rendered excludes: {excludes}')
+        self.log_debug(f'Render replacements: {self.replacements}')
         replacements: Mapping[str, str] = {
             old: self.render_str(new)
             for old, new in self.replacements.items()
         }
+        self.log_debug(f'Rendered replacements: {replacements}')
         # check scaffold locks
         for scaffold_lock in self.scaffold_locks:
+            self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
             rendered_scaffold_lock = self.render_str(scaffold_lock)
+            self.log_debug(f'Rendered scaaffold lock: {rendered_scaffold_lock}')
             if not os.path.exists(rendered_scaffold_lock):
                 continue
             raise Exception(' '.join([
                 'Operation cancelled since resource already exists:',
                 f'{rendered_scaffold_lock},',
             ]))
-        self.print_out('\n'.join([
+        self.print_out('    \n'.join([
             f'Create resource: {destination_path}',
             f'Template: {template_path}',
             f'Replacements: {replacements}',

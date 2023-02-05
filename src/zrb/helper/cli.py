@@ -1,9 +1,10 @@
-from ...runner import runner
-from ..loader.load_module import load_module
-from ...config.config import init_scripts, should_load_builtin
+from ..runner import runner
+from .loader.load_module import load_module
+from ..config.config import init_scripts, should_load_builtin
+from .log import logger
+from .accessories.color import colored
 
 import click
-import logging
 import os
 
 
@@ -19,7 +20,8 @@ def create_cli() -> click.Group:
 
     # Load default tasks
     if should_load_builtin:
-        from ... import builtin
+        logger.info(colored('Loading builtins', attrs=['dark']))
+        from .. import builtin
         assert builtin
 
     # Load zrb_init.py
@@ -36,13 +38,16 @@ def load_zrb_init(project_dir: str):
     if os.path.isfile(project_script):
         load_module(script_path=project_script)
         os.environ['ZRB_PROJECT_DIR'] = project_dir
+        logger.info(colored(f'ZRB_PROJECT_DIR={project_dir}', attrs=['dark']))
         add_project_dir_to_python_path(project_dir)
+        python_path = os.getenv('PYTHONPATH')
+        logger.info(colored(f'PYTHONPATH={python_path}', attrs=['dark']))
         return
     # zrb_init.py not found, look for it on the parent directory
     parent_project_dir = os.path.dirname(project_dir)
     if parent_project_dir == project_dir:
         # giving up, already on the root level directory
-        logging.debug('Cannot find zrb_init.py')
+        logger.debug('Cannot find zrb_init.py')
         return
     # do the same thing again
     load_zrb_init(parent_project_dir)

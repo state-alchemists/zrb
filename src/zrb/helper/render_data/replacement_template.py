@@ -1,6 +1,5 @@
 from typing import Union, Mapping, List, TypeVar
 from ..common import to_pascal_case
-import logging
 
 
 def tpl(val: str) -> str:
@@ -54,7 +53,6 @@ class Replacement():
         }
 
     def get(self) -> Mapping[str, str]:
-        logging.debug(f'Rendered replacements: {self.replacements}')
         return self.replacements
 
     def add_key_val(
