@@ -1,6 +1,6 @@
-from .helper.cli.create_cli import create_cli
 from .config.config import logging_level
-from termcolor import colored
+from .helper.accessories.color import colored
+from .helper.cli.create_cli import create_cli
 import logging
 
 logging.basicConfig(
@@ -9,6 +9,7 @@ logging.basicConfig(
         '%(levelname)-8s %(asctime)s', attrs=['dark']
     ) + ' %(message)s'
 )
+
 
 logging.info('Creating CLI instance')
 cli = create_cli()

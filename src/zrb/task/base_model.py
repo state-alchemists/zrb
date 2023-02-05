@@ -5,7 +5,10 @@ from ..helper.accessories.color import (
 )
 from ..helper.accessories.icon import get_random_icon
 from ..helper.keyval.get_object_from_keyval import get_object_from_keyval
-from ..helper.string.get_cmd_name import get_cmd_name
+from ..helper.string.conversion import (
+    to_cmd_name, to_variable_name
+)
+from ..helper.render_data.default_render_data import DEFAULT_RENDER_DATA
 from ..task_env.env import Env
 from ..task_group.group import Group
 
@@ -15,6 +18,10 @@ import os
 import sys
 import time
 import jinja2
+
+
+MAX_NAME_LENGTH = 20
+MULTILINE_INDENT = ' ' * 8
 
 
 class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
@@ -139,7 +146,7 @@ class TaskDataModel():
         return self.color
 
     def get_cmd_name(self) -> str:
-        return get_cmd_name(self.name)
+        return to_cmd_name(self.name)
 
     def log_debug(self, message: Any):
         prefix = self._get_log_prefix()
@@ -187,25 +194,34 @@ class TaskDataModel():
         return self.colored(self._get_print_prefix())
 
     def _get_print_prefix(self) -> str:
-        attempt = self.get_attempt()
-        max_attempt = self.get_max_attempt()
-        now = datetime.datetime.now().isoformat()
-        pid = self.get_task_pid()
-        info = f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
+        common_prefix = self._get_common_prefix(show_time=True)
         icon = self.get_icon()
-        name = self._get_complete_name()
-        filled_name = name.rjust(13, ' ')
-        return f'{info} • {icon} {filled_name}'
+        truncated_name = self._get_truncated_complete_name()
+        return f'{common_prefix} • {icon} {truncated_name}'
 
     def _get_log_prefix(self) -> str:
+        common_prefix = self._get_common_prefix(show_time=False)
+        icon = self.get_icon()
+        filled_name = self._get_filled_complete_name()
+        return f'{common_prefix} • {icon} {filled_name}'
+
+    def _get_common_prefix(self, show_time: bool) -> str:
         attempt = self.get_attempt()
         max_attempt = self.get_max_attempt()
         pid = self.get_task_pid()
-        info = f'⚙ {pid} ➤ {attempt} of {max_attempt}'
-        icon = self.get_icon()
-        name = self._get_complete_name()
-        filled_name = name.rjust(13, ' ')
-        return f'{info} • {icon} {filled_name}'
+        if show_time:
+            now = datetime.datetime.now().isoformat()
+            return f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
+        return f'⚙ {pid} ➤ {attempt} of {max_attempt}'
+
+    def _get_filled_complete_name(self) -> str:
+        return self._get_complete_name().rjust(MAX_NAME_LENGTH, ' ')
+
+    def _get_truncated_complete_name(self):
+        filled_name = self._get_filled_complete_name()
+        if len(filled_name) > MAX_NAME_LENGTH:
+            return '..' + filled_name[-(MAX_NAME_LENGTH-2):]
+        return filled_name
 
     def get_input_map(self) -> Mapping[str, Any]:
         return self._input_map
@@ -232,10 +248,18 @@ class TaskDataModel():
 
     def render_str(self, val: str) -> str:
         template = jinja2.Template(val)
-        data = self._get_default_render_data()
-        self.log_debug(f'Render string template:\n{val}\nWith data: {data}')
+        data = self._get_render_data()
+        self.log_debug('\n'.join([
+            'Render string template:',
+            self._get_multiline_repr(val),
+            'With data:',
+            self._get_map_repr(data)
+        ]))
         rendered_text = template.render(data)
-        self.log_debug(f'Rendered result:\n{rendered_text}')
+        self.log_debug('\n'.join([
+            'Get rendered result:',
+            self._get_multiline_repr(rendered_text),
+        ]))
         return rendered_text
 
     def render_file(self, location: str) -> str:
@@ -244,18 +268,40 @@ class TaskDataModel():
             loader=AnyExtensionFileSystemLoader([location_dir])
         )
         template = env.get_template(location)
-        data = self._get_default_render_data()
+        data = self._get_render_data()
         data['TEMPLATE_DIR'] = location_dir
-        self.log_debug(f'Render template: {location}\nWith data: {data}')
+        self.log_debug('\n'.join([
+            f'Render template file: {template}',
+            'With data:',
+            self._get_map_repr(data)
+        ]))
         rendered_text = template.render(data)
-        self.log_debug(f'Rendered result:\n{rendered_text}')
+        self.log_debug('\n'.join([
+            'Get rendered result:',
+            self._get_multiline_repr(rendered_text),
+        ]))
         return rendered_text
 
-    def _get_default_render_data(self) -> Mapping[str, Any]:
-        return {
+    def _get_render_data(self) -> Mapping[str, Any]:
+        render_data = dict(DEFAULT_RENDER_DATA)
+        render_data.update({
             'env': get_object_from_keyval(self._env_map),
             'input': get_object_from_keyval(self._input_map),
-        }
+        })
+        return render_data
+
+    def _get_multiline_repr(self, text: str) -> str:
+        lines_repr: List[str] = []
+        for index, line in enumerate(text.split('\n')):
+            line_number_repr = str(index + 1).rjust(4, '0')
+            lines_repr.append(f'{MULTILINE_INDENT}{line_number_repr} | {line}')
+        return '\n'.join(lines_repr)
+
+    def _get_map_repr(self, data: Mapping[str, Any]) -> str:
+        lines_repr: List[str] = []
+        for key, val in data.items():
+            lines_repr.append(f'{MULTILINE_INDENT}{key}: {val}')
+        return '\n'.join(lines_repr)
 
     def set_local_keyval(
         self,
@@ -265,16 +311,24 @@ class TaskDataModel():
         if self._is_keyval_set:
             return True
         self._is_keyval_set = True
-        self._input_map = dict(input_map)
-        self.log_debug(f'Input map: {self._input_map}')
+        self._input_map: Mapping[str, Any]
+        for input_name, val in input_map.items():
+            self._input_map[to_variable_name(input_name)] = val
+        self.log_debug('\n'.join([
+            'Set input map:',
+            self._get_map_repr(self._input_map)
+        ]))
         self._env_map = os.environ
         for task_env in self.envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
             self._env_map[env_name] = env_value
-        self.log_debug(f'Env map: {self._env_map}')
+        self.log_debug('\n'.join([
+            'Set env map:',
+            self._get_map_repr(self._env_map)
+        ]))
 
-    def _get_complete_name(self):
+    def _get_complete_name(self) -> str:
         cmd_name = self.get_cmd_name()
         if self.group is None:
             return cmd_name
@@ -285,16 +339,13 @@ class TaskDataModel():
         complete_name = self._get_complete_name()
         elapsed_time = self.get_elapsed_time()
         icon = self.get_icon()
-        completed_in_str = self.colored(
-            f'🤖 {icon} {complete_name} completed in'
-        )
-        elapsed_time_str = self.colored(
-            f'🤖 {icon} {elapsed_time} seconds'
-        )
-        print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉', file=sys.stderr)
-        print(completed_in_str, file=sys.stderr)
-        print(elapsed_time_str, file=sys.stderr)
-        print('🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉', file=sys.stderr)
+        message = '\n'.join([
+            '🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉',
+            f'🤖 {icon} {complete_name} completed in',
+            f'🤖 {icon} {elapsed_time} seconds',
+            '🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉'
+        ])
+        print(message, file=sys.stderr)
         self.play_bell()
 
 

@@ -246,24 +246,20 @@ The following configurations are available:
 
 There is a toolkit you can use to test whether Zrb is working as intended.
 
-To use the toolkit, you can invoke the following:
+To use the toolkit, you can invoke the following command:
 
 ```bash
-source ./toolkit.sh
+source ./project.sh
+```
 
-# Build Zrb
-build-zrb
+Once you load the toolkit, you can start playing around.
 
-# Run test and show coverage.
-# You can access the coverage report by visiting http://localhost:9000
-# You can also change the port by setting __TEST_COVERAGE_PORT variable
-test-zrb
+```bash
+# Run test and serve coverage.
+zrb test
 
 # Test zrb in playground
-prepare-playground
-play
-# Start testing/creating use cases...
-zrb server run
+zrb prepare-playground
 ```
 
 
@@ -300,14 +296,11 @@ index-servers =
 To publish Zrb, you can do the following:
 
 ```bash
-source ./toolkit.sh
-
-# Build Zrb
-build-zrb
+source ./project.sh
 
 # Publish Zrb to TestPypi
-test-publish-zrb
+zrb publish-test
 
 # Publish Zrb to Pypi
-publish-zrb
+zrb publish
 ```

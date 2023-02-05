@@ -21,9 +21,9 @@ runner.register(update_ubuntu)
 install_ubuntu_toys = CmdTask(
     name='toys',
     group=install_ubuntu,
-    description='Install toy packages',
+    description='Install ubuntu toy packages',
     cmd=[
-        'sudo apt-get install -y lolcat cowsay figlet',
+        'sudo apt-get install -y lolcat cowsay figlet neofetch',
     ],
     upstreams=[update_ubuntu],
     checking_interval=3
@@ -35,7 +35,7 @@ runner.register(install_ubuntu_toys)
 install_ubuntu_packages = CmdTask(
     name='packages',
     group=install_ubuntu,
-    description='Install packages',
+    description='Install ubuntu packages',
     cmd=[
         'sudo apt-get install -y \\',
         'build-essential python3-distutils libssl-dev zlib1g-dev \\'

@@ -4,6 +4,5 @@ dist
 playground
 .pytest_cache
 .coverage
+.env
 htmlcov
-
-tests/task/code_maker/app

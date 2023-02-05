@@ -14,7 +14,7 @@ class HTTPChecker(BaseTask):
 
     def __init__(
         self,
-        name: str = 'http_check',
+        name: str = 'http-check',
         group: Optional[Group] = None,
         inputs: List[BaseInput] = [],
         envs: List[Env] = [],

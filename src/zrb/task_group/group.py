@@ -1,6 +1,6 @@
 from typing import Optional, TypeVar
 from typeguard import typechecked
-from ..helper.string.get_cmd_name import get_cmd_name
+from ..helper.string.conversion import to_cmd_name
 
 TGroup = TypeVar('TGroup', bound='Group')
 
@@ -19,7 +19,7 @@ class Group():
         self.parent = parent
 
     def get_cmd_name(self) -> str:
-        return get_cmd_name(self.name)
+        return to_cmd_name(self.name)
 
     def get_complete_name(self) -> str:
         cmd_name = self.get_cmd_name()

@@ -103,7 +103,12 @@ class CmdTask(BaseTask):
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
         env = self.get_env_map()
-        self.log_debug(f'Run command:\n{cmd}\nwith env: {env}')
+        self.log_debug('\n'.join([
+            'Run script:',
+            self._get_multiline_repr(cmd),
+            'With env:',
+            self._get_map_repr(env)
+        ]))
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(

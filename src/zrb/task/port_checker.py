@@ -14,7 +14,7 @@ class PortChecker(BaseTask):
 
     def __init__(
         self,
-        name: str = 'port_check',
+        name: str = 'port-check',
         group: Optional[Group] = None,
         inputs: List[BaseInput] = [],
         envs: List[Env] = [],

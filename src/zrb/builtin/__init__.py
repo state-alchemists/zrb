@@ -1,7 +1,10 @@
-from . import env_task
-from . import fun_task
-from . import ubuntu_task
+from . import env
+from . import fun
+from . import ubuntu
+from .project import create_project
+from .task import create_task
 
-assert env_task
-assert fun_task
-assert ubuntu_task
+assert env
+assert fun
+assert ubuntu
+assert create_project

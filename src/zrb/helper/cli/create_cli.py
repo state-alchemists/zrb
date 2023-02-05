@@ -23,11 +23,8 @@ def create_cli() -> click.Group:
         assert builtin
 
     # Load zrb_init.py
-    try:
-        project_dir = os.getcwd()
-        load_zrb_init(project_dir)
-    except Exception:
-        logging.debug('Error while loading zrb_init.py')
+    project_dir = os.getcwd()
+    load_zrb_init(project_dir)
 
     # Serve all tasks registered to runner
     cli = runner.serve(cli)

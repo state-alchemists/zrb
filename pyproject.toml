@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "zrb"
-version = "0.0.11"
+version = "0.0.12"
 authors = [
   { name="Go Frendi Gunawan", email="gofrendiasgard@gmail.com" },
 ]
@@ -23,11 +23,15 @@ dependencies = [
   "Jinja2==3.1.2",
   "libcst==0.4.9"
 ]
-dev-dependencies = [
-  "autopep8=2.0.1",
-  "flake8=6.0.0",
-  "pytest=7.2.1",
-  "pytest-cov=4.0.0"
+
+[project.optional-dependencies]
+dev = [
+  "autopep8==2.0.1",
+  "flake8==6.0.0",
+]
+test = [
+  "pytest==7.2.1",
+  "pytest-cov==4.0.0"
 ]
 
 [project.urls]

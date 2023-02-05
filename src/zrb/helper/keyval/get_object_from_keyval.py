@@ -1,12 +1,5 @@
 from typing import Any, Mapping
-
-
-class DynamicModel:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-    def __repr__(self) -> str:
-        return str(self.__dict__)
+from ..dynamic_model import DynamicModel
 
 
 def get_object_from_keyval(map: Mapping[str, Any]) -> DynamicModel:

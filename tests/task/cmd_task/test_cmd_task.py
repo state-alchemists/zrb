@@ -1,9 +1,10 @@
 from zrb.task.cmd_task import CmdTask
+from zrb.task_input.str_input import StrInput
 import pathlib
 import os
 
 
-def test_simple_with_no_error():
+def test_cmd_task():
     cmd_task = CmdTask(
         name='simple-no-error',
         cmd='echo hello'
@@ -13,7 +14,7 @@ def test_simple_with_no_error():
     assert result.output == 'hello'
 
 
-def test_simple_with_error():
+def test_cmd_task_with_error():
     cmd_task = CmdTask(
         name='simple-error',
         cmd='forbidden command'
@@ -27,7 +28,7 @@ def test_simple_with_error():
     assert is_error
 
 
-def test_multiline_cmd():
+def test_cmd_task_with_multiline_command():
     cmd_task = CmdTask(
         name='simple-no-error',
         cmd=[
@@ -40,7 +41,7 @@ def test_multiline_cmd():
     assert result.output == '\n'.join(['hello', 'hello again'])
 
 
-def test_cmd_path():
+def test_cmd_task_with_cmd_path():
     dir_path = pathlib.Path(__file__).parent.absolute()
     cmd_task = CmdTask(
         name='simple-no-error',
@@ -51,7 +52,7 @@ def test_cmd_path():
     assert result.output == 'Hello, World!'
 
 
-def test_upstream_with_no_error():
+def test_cmd_task_with_upstream_with_no_error():
     upstream_task = CmdTask(
         name='upstream-no-error',
         cmd='echo upstream'
@@ -66,7 +67,7 @@ def test_upstream_with_no_error():
     assert result.output == 'hello'
 
 
-def test_upstream_with_error():
+def test_cmd_task_with_upstream_with_error():
     upstream_task = CmdTask(
         name='upstream-error',
         cmd='forbidden command'
@@ -85,7 +86,24 @@ def test_upstream_with_error():
     assert is_error
 
 
-def test_diamond_upstream():
+def test_cmd_task_with_upstream_containing_inputs():
+    upstream = CmdTask(
+        name='ask-name',
+        inputs=[
+            StrInput(name='name')
+        ]
+    )
+    cmd_task = CmdTask(
+        name='hello',
+        cmd='echo hello {{input.name}}',
+        upstreams=[upstream]
+    )
+    main_loop = cmd_task.create_main_loop()
+    result = main_loop(name='Dumbledore')
+    assert result.output == 'hello Dumbledore'
+
+
+def test_cmd_task_with_diamond_upstream():
     upstream_0 = CmdTask(
         name='upstream-no-error',
         cmd='echo upstream 0'
@@ -110,7 +128,7 @@ def test_diamond_upstream():
     assert result.output == 'hello'
 
 
-def test_checker_with_no_error():
+def test_cmd_task_with_checker_with_no_error():
     checker = CmdTask(
         name='check',
         cmd='echo checked'
@@ -125,7 +143,7 @@ def test_checker_with_no_error():
     assert result.output == 'hello'
 
 
-def test_checker_with_error():
+def test_cmd_task_with_checker_with_error():
     checker = CmdTask(
         name='check',
         cmd='forbidden command'
@@ -144,7 +162,7 @@ def test_checker_with_error():
     assert is_error
 
 
-def test_long_output():
+def test_cmd_task_with_long_output():
     cmd_task = CmdTask(
         name='long-output',
         cmd=[

@@ -8,7 +8,6 @@ from ..helper.list.append_unique import append_unique
 
 import asyncio
 import copy
-import inspect
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
@@ -128,8 +127,8 @@ class BaseTask(TaskModel):
                 result = asyncio.run(run_and_check_all_async())
                 self._print_result(result)
                 return result
-            except Exception:
-                self_cp.log_error('Failed')
+            except Exception as exception:
+                self_cp.log_error(f'{exception}')
                 if raise_error:
                     raise
             finally:
@@ -137,6 +136,15 @@ class BaseTask(TaskModel):
         return main_loop
 
     def _print_result(self, result: Any):
+        '''
+        Print result to stdout so that it can be processed further.
+        e.g.: echo $(zrb show principle solid) > solid-principle.txt
+
+        You need to override this method
+        if you want to show the result differently.
+        '''
+        if result is None:
+            return
         self.print_out(result)
         print(result)
 
@@ -157,7 +165,7 @@ class BaseTask(TaskModel):
         check_result = await self._check()
         if check_result:
             self._is_checked = True
-            self.log_debug('Set checking flag')
+            self.log_debug('Set checking flag to True')
         return check_result
 
     async def _check(self) -> bool:
@@ -192,8 +200,9 @@ class BaseTask(TaskModel):
         if self._is_executed:
             self.log_debug('Skip running, because execution flag has been set')
             return
+        self.log_debug('Set execution flag to True')
         self._is_executed = True
-        self.log_debug('Set execution flag and running')
+        self.log_debug('Start running')
         self.start_timer()
         # get upstream checker
         upstream_check_processes: List[asyncio.Task] = []
