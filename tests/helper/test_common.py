@@ -8,7 +8,7 @@ def test_coalesce():
     assert coalesce('a', 'b', 'c') == 'a'
     assert coalesce(None, 'b', 'c') == 'b'
     assert coalesce(None, None, 'c') == 'c'
-    assert coalesce(None, None, None) is None
+    assert coalesce(None, None, None) == ''
 
 
 def test_to_camel_case():

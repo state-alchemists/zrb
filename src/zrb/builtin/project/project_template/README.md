@@ -1,27 +1,27 @@
-# ProjectName
+# PascalProjectName
 
 This is a Zrb project.
 
 To learn more about Zrb, please visit the [Zrb homepage](https://pypi.org/project/zrb/).
 
 
-# How to Start ProjectName
+# How to Start PascalProjectName
 
 ```bash
 source ./project.sh
 zrb
 ```
 
-Once you invoke the command, ProjectName virtual environment will be created.
+Once you invoke the command, PascalProjectName virtual environment will be created.
 
-# ProjectName Configurations
+# PascalProjectName Configurations
 
 See [template.env](template.env)
 
 To make your configuration, please copy `template.env` to `.env`
 
 
-# Reloading ProjectName Configurations
+# Reloading PascalProjectName Configurations
 
 To reload your configurations, you can invoke the following command:
 
@@ -29,4 +29,4 @@ To reload your configurations, you can invoke the following command:
 reload
 ```
 
-Please note that ProjectName's virtual environment has to be activated first.
+Please note that PascalProjectName's virtual environment has to be activated first.

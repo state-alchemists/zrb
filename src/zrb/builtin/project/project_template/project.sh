@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 if [ -z "$PROJECT_DIR" ]
 then
