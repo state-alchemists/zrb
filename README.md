@@ -240,7 +240,6 @@ The following configurations are available:
     - `_args`: Shell argument when the task is invoked.
     - `_task`: Reference to the current task.
 - You can access the built-in command groups by importing `zrb.builtin_group`.
-- Zrb uses flat-command-structure since it is more ergonomic. For example, `zrb get pod` is preferable than `zrb pod get`.
 
 # For contributors
 
