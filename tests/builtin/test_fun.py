@@ -1,34 +1,34 @@
-from zrb.builtin.fun import (
-    show_dry_principle, show_kiss_principle, show_pancasila,
-    show_solid_principle, show_yagni_principle
+from zrb.builtin.principle import (
+    principle_show_dry, principle_show_kiss, principle_show_pancasila,
+    principle_show_solid, principle_show_yagni
 )
 
 
 def test_show_dry_principle():
-    main_loop = show_dry_principle.create_main_loop()
+    main_loop = principle_show_dry.create_main_loop()
     result = main_loop()
     assert result is None
 
 
 def test_show_kiss_principle():
-    main_loop = show_kiss_principle.create_main_loop()
+    main_loop = principle_show_kiss.create_main_loop()
     result = main_loop()
     assert result is None
 
 
 def test_show_pancasila():
-    main_loop = show_pancasila.create_main_loop()
+    main_loop = principle_show_pancasila.create_main_loop()
     result = main_loop()
     assert result is None
 
 
 def test_show_solid_principle():
-    main_loop = show_solid_principle.create_main_loop()
+    main_loop = principle_show_solid.create_main_loop()
     result = main_loop()
     assert result is None
 
 
 def test_show_yagni_principle():
-    main_loop = show_yagni_principle.create_main_loop()
+    main_loop = principle_show_yagni.create_main_loop()
     result = main_loop()
     assert result is None

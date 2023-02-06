@@ -74,7 +74,7 @@ class ResourceMaker(BaseTask):
         for scaffold_lock in self.scaffold_locks:
             self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
             rendered_scaffold_lock = self.render_str(scaffold_lock)
-            self.log_debug(f'Rendered scaaffold lock: {rendered_scaffold_lock}')
+            self.log_debug(f'Rendered scaffold lock: {rendered_scaffold_lock}')
             if not os.path.exists(rendered_scaffold_lock):
                 continue
             raise Exception(' '.join([

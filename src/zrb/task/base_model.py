@@ -129,6 +129,8 @@ class TaskDataModel():
         self.name = name
         self.group = group
         self.envs = envs
+        for key in os.environ:
+            self.envs.append(Env(name=key, os_name=key))
         self.icon = icon
         self.color = color
         self._input_map: Mapping[str, Any] = {}

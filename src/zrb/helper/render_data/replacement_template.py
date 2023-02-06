@@ -1,4 +1,4 @@
-from typing import Union, Mapping, List, TypeVar
+from typing import List, Mapping, Optional, TypeVar, Union
 from ..common import to_pascal_case
 
 
@@ -42,8 +42,8 @@ class Replacement():
     HUMAN = 'human'
     ALL = ['camel', 'pascal', 'kebab', 'snake', 'human']
 
-    def __init__(self, replacements: Mapping[str, str] = {}):
-        self.replacements = replacements
+    def __init__(self, replacements: Optional[Mapping[str, str]] = None):
+        self.replacements = replacements if replacements is not None else {}
         self.tpl_map = {
             Replacement.CAMEL: camel,
             Replacement.PASCAL: pascal,

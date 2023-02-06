@@ -1,4 +1,4 @@
-from zrb.builtin.project.create_project import create_project
+from zrb.builtin.project.project_create import project_create
 import os
 import pathlib
 import shutil
@@ -13,7 +13,7 @@ def test_create_project():
         shutil.rmtree(destination_path)
 
     # first attempt should success
-    first_attempt_loop = create_project.create_main_loop()
+    first_attempt_loop = project_create.create_main_loop()
     result = first_attempt_loop(project_dir=destination_path)
     assert result
 
@@ -27,7 +27,7 @@ def test_create_project():
     # second attempt should success
     is_error = False
     try:
-        second_attempt_loop = create_project.create_main_loop()
+        second_attempt_loop = project_create.create_main_loop()
         result = second_attempt_loop(project_dir=destination_path)
     except Exception:
         is_error = True

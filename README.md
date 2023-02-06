@@ -40,21 +40,21 @@ from zrb import (
     builtin_group
 )
 
+
+def _concat(*args: str, **kwargs: Any) -> str:
+    separator = kwargs.get('separator', ' ')
+    return separator.join(args)
+
+
 '''
 Simple Python task to concatenate words
 '''
 concat = Task(
     name='concat',
     inputs=[StrInput(name='separator', description='Separator', default=' ')],
+    runner=_concat
 )
 runner.register(concat)
-
-
-@concat.runner
-def run(*args: str, **kwargs: Any) -> str:
-    separator = kwargs.get('separator', ' ')
-    return separator.join(args)
-
 
 '''
 Simple CLI task, read input and show output

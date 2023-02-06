@@ -1,30 +1,23 @@
 from ..task_group.group import Group
 
-show = Group(
-    name='show', description='Show things (usually visual matter only)'
+project_group = Group(
+    name='project', description='Project related commands'
 )
-show_principle = Group(
-    name='principle',
-    parent=show,
-    description='Show principle'
+task_group = Group(
+    name='task', description='Task related commands'
 )
-get = Group(
-    name='get', description='Return things into stdout'
+env_group = Group(
+    name='env', description='Env related commands'
 )
-create = Group(
-    name='create', description='Create things'
+ubuntu_group = Group(
+    name='ubuntu', description='Ubuntu related commands'
 )
-update = Group(
-    name='update', description='Update things'
+ubuntu_install_group = Group(
+    name='install', description='Install things on ubuntu', parent=ubuntu_group
 )
-install = Group(
-    name='install', description='Install things'
+principle_group = Group(
+    name='principle', description='Principle related commands'
 )
-install_ubuntu = Group(
-    name='ubuntu',
-    parent=install,
-    description='Install things on ubuntu'
-)
-start = Group(
-    name='start', description='Starting long running processes'
+principle_show_group = Group(
+    name='show', description='Showing principles', parent=principle_group
 )

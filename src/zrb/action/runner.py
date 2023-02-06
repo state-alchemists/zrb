@@ -73,7 +73,8 @@ class Runner(BaseAction):
         )
         # by default, add an argument named _args
         command.params.append(click.Argument(['_args'], nargs=-1))
-        # add task inputs, if there are inputs with the same name, choose the first.
+        # add task inputs,
+        # if there are inputs with the same name, choose the first.
         registered_input: Mapping[str, bool] = {}
         for task_input in task_inputs:
             if task_input.name in registered_input:

@@ -1,12 +1,11 @@
-from ._group import install_ubuntu, update
+from ._group import ubuntu_group, ubuntu_install_group
 from ..task.cmd_task import CmdTask
 from ..runner import runner
 
 
-# Update ubuntu
-update_ubuntu = CmdTask(
+ubuntu_update = CmdTask(
     name='ubuntu',
-    group=update,
+    group=ubuntu_group,
     description='Update ubuntu',
     cmd=[
         'sudo apt-get update',
@@ -14,27 +13,23 @@ update_ubuntu = CmdTask(
     ],
     checking_interval=3
 )
-runner.register(update_ubuntu)
+runner.register(ubuntu_update)
 
-
-# Install ubuntu toys
-install_ubuntu_toys = CmdTask(
+ubuntu_install_toys = CmdTask(
     name='toys',
-    group=install_ubuntu,
+    group=ubuntu_install_group,
     description='Install ubuntu toy packages',
     cmd=[
         'sudo apt-get install -y lolcat cowsay figlet neofetch',
     ],
-    upstreams=[update_ubuntu],
+    upstreams=[ubuntu_update],
     checking_interval=3
 )
-runner.register(install_ubuntu_toys)
+runner.register(ubuntu_install_toys)
 
-
-# Install ubuntu packages
-install_ubuntu_packages = CmdTask(
+ubuntu_install_packages = CmdTask(
     name='packages',
-    group=install_ubuntu,
+    group=ubuntu_install_group,
     description='Install ubuntu packages',
     cmd=[
         'sudo apt-get install -y \\',
@@ -45,7 +40,7 @@ install_ubuntu_packages = CmdTask(
         'gfortran rustc fd-find ripgrep wget curl git ncat cmake make tree \\',
         'tmux zsh neovim xdotool xsel'
     ],
-    upstreams=[update_ubuntu],
+    upstreams=[ubuntu_update],
     checking_interval=3
 )
-runner.register(install_ubuntu_packages)
+runner.register(ubuntu_install_packages)

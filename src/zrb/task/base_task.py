@@ -33,6 +33,7 @@ class BaseTask(TaskModel):
         checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
+        runner: Optional[Callable[..., Any]] = None
     ):
         TaskModel.__init__(
             self,
@@ -55,10 +56,7 @@ class BaseTask(TaskModel):
         )
         self._is_checked: bool = False
         self._is_executed: bool = False
-        self._runner: Optional[Callable[..., Any]] = None
-
-    def runner(self, runner: Callable[..., Any]):
-        self._runner = runner
+        self._runner: Optional[Callable[..., Any]] = runner
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''

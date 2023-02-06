@@ -1,7 +1,7 @@
 import libcst as cst
 
 
-def add_assertion(code: str, module_path: str) -> str:
+def add_assert_module(code: str, module_path: str) -> str:
     module = cst.parse_module(code)
 
     # Create the new assertion statement
