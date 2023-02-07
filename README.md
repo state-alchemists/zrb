@@ -16,28 +16,29 @@ To run a task, you can invoke the following command:
 zrb <task> [arguments]
 ```
 
+# Autoloaded tasks
+
+Zrb will automatically load the following tasks:
+
+- Every task defined in `ZRB_INIT_SCRIPTS`.
+    - You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
+        ```bash
+        ZRB_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
+        ```
+- Every task defined in `zrb_init.py` in your current directory.
+    - If Zrb cannot find `zrb_init.py`, it will look at the parent directories until it finds one.
+- Every built-in task if `ZRB_SHOULD_LOAD_BUILTIN=1`.
+
 # How to define tasks
 
-Zrb will automatically load:
-
-- `zrb_init.py` in your current directory (or parent directories).
-- or any Python file defined in `ZRB_INIT_SCRIPTS` environment.
-
-You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
-
-```bash
-ZRB_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
-```
-
-Your Zrb script (e.g: `./zrb_init.py`) should contain your task definitions. For example:
+You can write your task definitions in Python. For example:
 
 ```python
 from typing import Any
 from zrb import (
     runner,
     Env, StrInput,
-    Group, Task, CmdTask, HTTPChecker,
-    builtin_group
+    Group, Task, CmdTask, HTTPChecker
 )
 
 
@@ -61,7 +62,6 @@ Simple CLI task, read input and show output
 '''
 hello = CmdTask(
     name='hello',
-    group=builtin_group.show,
     inputs=[StrInput(name='name', description='Name', default='world')],
     cmd='echo Hello {{input.name}}'
 )
@@ -136,7 +136,6 @@ Run a server and waiting for the port to be ready.
 '''
 start_server = CmdTask(
     name='server',
-    group=builtin_group.start,
     upstreams=[make_coffee, make_beer],
     inputs=[StrInput(name='dir', description='Directory', default='.')],
     envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
@@ -144,6 +143,18 @@ start_server = CmdTask(
     checkers=[HTTPChecker(port='{{env.PORT}}')]
 )
 runner.register(start_server)
+
+'''
+A task that depends on start_server and having non-zero exit code.
+When this task ended, start_server should be killed as well
+'''
+test_error = CmdTask(
+    name='test-error',
+    upstreams=[start_server],
+    cmd='sleep 3 && exit 1',
+    retry=0
+)
+runner.register(test_error)
 
 ```
 
