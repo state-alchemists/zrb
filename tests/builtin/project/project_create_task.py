@@ -1,10 +1,10 @@
-from zrb.builtin.project.project_create import project_create
+from zrb.builtin.project.project_create_task import project_create
 import os
 import pathlib
 import shutil
 
 
-def test_create_project():
+def test_project_create():
     # prepare path
     dir_path = pathlib.Path(__file__).parent.absolute()
     destination_path = os.path.join(dir_path, 'app')

@@ -21,3 +21,10 @@ principle_group = Group(
 principle_show_group = Group(
     name='show', description='Showing principles', parent=principle_group
 )
+base64_group = Group(
+    name='base64', description='Base64 related commands'
+)
+md5_group = Group(
+    name='md5', description='MD5 related commands'
+)
+
