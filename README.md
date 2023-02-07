@@ -18,16 +18,16 @@ zrb <task> [arguments]
 
 # Autoloaded tasks
 
-Zrb will automatically load the following tasks:
+Zrb will automatically load the following task definitions:
 
-- Every task defined in `ZRB_INIT_SCRIPTS`.
+- Every task definition in `ZRB_INIT_SCRIPTS`.
     - You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
         ```bash
         ZRB_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
         ```
-- Every task defined in `zrb_init.py` in your current directory.
-    - If Zrb cannot find `zrb_init.py`, it will look at the parent directories until it finds one.
-- Every built-in task if `ZRB_SHOULD_LOAD_BUILTIN=1`.
+- Every task definition in `zrb_init.py` in your current directory.
+    - If Zrb cannot find any in your current directory, it will look at the parent directories until it finds one.
+- Every built-in task definition given `ZRB_SHOULD_LOAD_BUILTIN` equals `1` or unset.
 
 # How to define tasks
 
