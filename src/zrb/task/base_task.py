@@ -44,16 +44,18 @@ class BaseTask(TaskModel):
             color=color,
             retry=retry
         )
+        retry_interval = self.ensure_non_negative(
+            retry_interval, 'Find negative retry_interval'
+        )
+        checking_interval = self.ensure_non_negative(
+            checking_interval, 'Find negative checking_interval'
+        )
         self.inputs = inputs
         self.description = description
-        self.retry_interval = self.sanitize_interval(
-            retry_interval, 'retry'
-        )
+        self.retry_interval = retry_interval
         self.upstreams = upstreams
         self.checkers = checkers
-        self.checking_interval = self.sanitize_interval(
-            checking_interval, 'checking'
-        )
+        self.checking_interval = checking_interval
         self._is_checked: bool = False
         self._is_executed: bool = False
         self._runner: Optional[Callable[..., Any]] = runner
@@ -93,15 +95,6 @@ class BaseTask(TaskModel):
         if self.description != '':
             return self.description
         return self.name
-
-    def sanitize_interval(self, interval: float, label: str) -> float:
-        if interval < 0:
-            name = self._get_complete_name()
-            self.log_warn(
-                f'Find negative {label} interval for {name}: {interval}'
-            )
-            return 0
-        return interval
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True

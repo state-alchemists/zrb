@@ -7,6 +7,8 @@ from ..task_group.group import Group
 from ..config.config import default_shell
 
 import asyncio
+import psutil
+import atexit
 
 
 class CmdResult():
@@ -82,6 +84,12 @@ class CmdTask(BaseTask):
             retry=retry,
             retry_interval=retry_interval
         )
+        max_output_line = self.ensure_non_negative(
+            max_output_line, 'Find negative max_output_line'
+        )
+        max_error_line = self.ensure_non_negative(
+            max_error_line, 'Find negative max_error_line'
+        )
         self.cmd = cmd
         self.cmd_path = cmd_path
         self.max_output_size = max_output_line
@@ -91,6 +99,7 @@ class CmdTask(BaseTask):
         if executable is None and default_shell != '':
             executable = default_shell
         self.executable = executable
+        self._process: Optional[asyncio.subprocess.Process]
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -117,9 +126,12 @@ class CmdTask(BaseTask):
             stderr=asyncio.subprocess.PIPE,
             env=env,
             shell=True,
-            executable=self.executable
+            executable=self.executable,
+            close_fds=True
         )
         self.set_task_pid(process.pid)
+        self._process = process
+        atexit.register(self._atexit)
         await self._wait_process(process)
         # get output and error
         output = '\n'.join(self._output_buffer)
@@ -127,11 +139,37 @@ class CmdTask(BaseTask):
         # get return code
         return_code = process.returncode
         if return_code != 0:
-            self.log_debug(f'Exit status: {return_code}')
+            self.log_info(f'Exit status: {return_code}')
             raise Exception(
                 f'Process {self.name} exited ({return_code}): {error}'
             )
         return CmdResult(output, error)
+
+    def _atexit(self):
+        self.retry = 0
+        if self._process.returncode is None:
+            self.log_debug(f'Get child processes of {self._process.pid}')
+            p = psutil.Process(self._process.pid)
+            children = p.children(recursive=True)
+            # Terminate all child processes
+            for child in children:
+                self.log_debug(f'Terminate child process: {child.pid}')
+                self._kill_process(child, 'Failed terminating child process')
+            # Terminate the process
+            self.log_debug(f'Terminate main process: {self._process.pid}')
+            self._kill_process(
+                self._process, 'Failed terminating main process'
+            )
+
+    def _kill_process(
+        self,
+        process: Union[asyncio.subprocess.Process, psutil.Process],
+        error_label: str
+    ):
+        try:
+            process.terminate()
+        except Exception:
+            self.log_error(f'{error_label}: {process.pid}')
 
     async def _wait_process(self, process: asyncio.subprocess.Process):
         # Create queue

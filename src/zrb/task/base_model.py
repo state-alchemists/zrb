@@ -383,7 +383,16 @@ class TaskModel(
             icon=icon,
             color=color
         )
+        retry = self.ensure_non_negative(retry, 'Find negative retry')
         PidModel.__init__(self)
         FinishTracker.__init__(self)
         AttemptTracker.__init__(self, retry=retry)
         TimeTracker.__init__(self)
+
+    def ensure_non_negative(self, value: float, error_label: str) -> float:
+        if value < 0:
+            self.log_warn(
+                f'{error_label}: {value}'
+            )
+            return 0
+        return value
