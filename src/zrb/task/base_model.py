@@ -248,6 +248,16 @@ class TaskDataModel():
             return int(self.render_str(val))
         return val
 
+    def get_bool(self, val: Union[str, bool]) -> bool:
+        if isinstance(val, str):
+            str_val = self.render_str(val)
+            if str_val.lower() in ['true', '1', 'yes', 'y', 'active']:
+                return True
+            if str_val.lower() in ['false', '0', 'no', 'n', 'inactive']:
+                return False
+            raise Exception(f'Cannot infer boolean value from {str_val}')
+        return val
+
     def render_str(self, val: str) -> str:
         template = jinja2.Template(val)
         data = self._get_render_data()

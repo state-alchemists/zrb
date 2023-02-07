@@ -26,7 +26,7 @@ class HTTPChecker(BaseTask):
         timeout: Union[int, str] = 5,
         method: str = 'HEAD',
         url: str = '/',
-        is_https: bool = False,
+        is_https: Union[bool, str] = False,
         upstreams: List[BaseTask] = [],
         checking_interval: float = 0.1,
     ):
@@ -58,20 +58,29 @@ class HTTPChecker(BaseTask):
         return super().create_main_loop(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
+        is_https = self.get_bool(self.is_https)
         method = self.render_str(self.method)
         host = self.render_str(self.host)
         port = self.get_int(self.port)
         url = self.render_str(self.url)
         timeout = self.get_int(self.timeout)
-        while not self._check_connection(method, host, port, url, timeout):
+        while not self._check_connection(
+            method, host, port, url, is_https, timeout
+        ):
             await asyncio.sleep(self.checking_interval)
         return True
 
     def _check_connection(
-        self, method: str, host: str, port: int, url: str, timeout: int
+        self,
+        method: str,
+        host: str,
+        port: int,
+        url: str,
+        is_https: bool,
+        timeout: int
     ) -> bool:
-        label = self._get_label(method, host, port, url)
-        conn = self._get_connection(host, port, timeout)
+        label = self._get_label(method, host, port, is_https, url)
+        conn = self._get_connection(host, port, is_https, timeout)
         try:
             conn.request(method, url)
             res = conn.getresponse()
@@ -86,13 +95,15 @@ class HTTPChecker(BaseTask):
             conn.close()
         return False
 
-    def _get_label(self, method: str, host: str, port: int, url: str) -> str:
-        protocol = 'https' if self.is_https else 'http'
+    def _get_label(
+        self, method: str, host: str, port: int, is_https: bool, url: str
+    ) -> str:
+        protocol = 'https' if is_https else 'http'
         return f'{method} {protocol}://{host}:{port}{url}'
 
     def _get_connection(
-        self, host: str, port: int, timeout: int
+        self, host: str, port: int, is_https: bool, timeout: int
     ) -> Union[HTTPConnection, HTTPSConnection]:
-        if self.is_https:
+        if is_https:
             return HTTPSConnection(host, port, timeout=timeout)
         return HTTPConnection(host, port, timeout=timeout)
