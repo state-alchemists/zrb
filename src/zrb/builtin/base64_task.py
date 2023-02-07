@@ -9,7 +9,12 @@ import base64
 # Common definitions
 
 inputs = [
-    StrInput(name='text', description='Text', default='')
+    StrInput(
+        name='text',
+        shortcut='t',
+        description='Text',
+        default=''
+    )
 ]
 
 

@@ -9,7 +9,12 @@ import hashlib
 # Common definitions
 
 inputs = [
-    StrInput(name='text', description='Text', default='')
+    StrInput(
+        name='text',
+        shortcut='t',
+        description='Text',
+        default=''
+    )
 ]
 
 
@@ -33,7 +38,12 @@ md5_hash = Task(
     name='hash',
     group=md5_group,
     inputs=[
-        StrInput(name='text', description='Text', default='')
+        StrInput(
+            name='text',
+            shortcut='t',
+            description='Text',
+            default=''
+        )
     ],
     runner=_md5_hash,
     description='Encode md5 task',
@@ -45,7 +55,12 @@ md5_sum = Task(
     name='decode',
     group=md5_group,
     inputs=[
-        StrInput(name='file', description='File', default='')
+        StrInput(
+            name='file',
+            shortcut='f',
+            description='File',
+            default=''
+        )
     ],
     runner=_md5_sum,
     description='Decode md5 task',

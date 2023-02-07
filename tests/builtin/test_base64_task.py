@@ -3,7 +3,7 @@ from zrb.builtin.base64_task import base64_encode, base64_decode
 
 def test_base64_encode():
     main_loop = base64_encode.create_main_loop()
-    result = main_loop(text='md5_test_sum.txt')
+    result = main_loop(text='Philosopher Stone')
     assert result == 'UGhpbG9zb3BoZXIgU3RvbmU='
 
 
