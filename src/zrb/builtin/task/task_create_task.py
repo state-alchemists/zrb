@@ -120,7 +120,7 @@ task_copy_resource = ResourceMaker(
 )
 
 task_create = Task(
-    name='task',
+    name='create',
     group=task_group,
     inputs=inputs,
     runner=_task_create,

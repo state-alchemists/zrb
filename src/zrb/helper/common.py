@@ -1,51 +1,71 @@
-from typing import Any
+from typing import Any, Optional
 import re
+import jinja2
+
+
+def _is_undefined(value: Any) -> bool:
+    return value is None or isinstance(value, jinja2.Undefined)
 
 
 def coalesce(value: Any, *alternatives: Any) -> Any:
-    if value is not None and value != '':
+    if not _is_undefined(value):
         return value
     for alternative in alternatives:
-        if alternative is not None and value != '':
+        if not _is_undefined(alternative):
             return alternative
+    return None
+
+
+def coalesce_str(value: Any, *alternatives: Any) -> Any:
+    if not _is_undefined(value) and value != '':
+        return str(value)
+    for alternative in alternatives:
+        if not _is_undefined(alternative) and alternative != '':
+            return str(alternative)
     return ''
 
 
-def to_camel_case(string: str) -> str:
-    pascal = to_pascal_case(string)
+def to_camel_case(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    pascal = to_pascal_case(text)
     if len(pascal) == 0:
         return pascal
     return pascal[0].lower() + pascal[1:]
 
 
-def to_pascal_case(string: str) -> str:
-    string = _to_alphanum(string)
+def to_pascal_case(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    text = _to_alphanum(text)
     return ''.join([
-        x.lower().capitalize() for x in to_human_readable(string).split(' ')
+        x.lower().capitalize() for x in to_human_readable(text).split(' ')
     ])
 
 
-def to_kebab_case(string: str) -> str:
-    string = _to_alphanum(string)
+def to_kebab_case(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    text = _to_alphanum(text)
     return '-'.join([
-        x.lower() for x in to_human_readable(string).split(' ')
+        x.lower() for x in to_human_readable(text).split(' ')
     ])
 
 
-def to_snake_case(string: str) -> str:
-    string = _to_alphanum(string)
+def to_snake_case(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    text = _to_alphanum(text)
     return '_'.join([
-        x.lower() for x in to_human_readable(string).split(' ')
+        x.lower() for x in to_human_readable(text).split(' ')
     ])
 
 
-def _to_alphanum(string: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9]+', ' ', string)
+def _to_alphanum(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    return re.sub(r'[^a-zA-Z0-9]+', ' ', text)
 
 
-def to_human_readable(string: str) -> str:
-    string = string.replace('-', ' ').replace('_', ' ')
-    parts = string.split(' ')
+def to_human_readable(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    text = text.replace('-', ' ').replace('_', ' ')
+    parts = text.split(' ')
     new_parts = []
     for part in parts:
         new_part = ''

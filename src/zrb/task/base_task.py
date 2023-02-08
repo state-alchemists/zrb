@@ -65,9 +65,6 @@ class BaseTask(TaskModel):
         Do task execution
         Please override this method.
         '''
-        self.log_debug(
-            f'Run with args: {args} and kwargs: {kwargs}'
-        )
         if self._runner is not None:
             return self._runner(*args, **kwargs)
         return True
@@ -209,6 +206,9 @@ class BaseTask(TaskModel):
         result: Any
         while self.should_attempt():
             try:
+                self.log_debug(
+                    f'Invoke run with args: {args} and kwargs: {kwargs}'
+                )
                 result = await self.run(*args, **kwargs)
                 break
             except Exception:
@@ -222,7 +222,7 @@ class BaseTask(TaskModel):
         return result
 
     def _set_keyval(self, input_map: Mapping[str, Any], env_prefix: str):
-        self.set_local_keyval(input_map=input_map, env_prefix=env_prefix)
+        self._set_local_keyval(input_map=input_map, env_prefix=env_prefix)
         for upstream_task in self.upstreams:
             upstream_task._set_keyval(
                 input_map=input_map, env_prefix=env_prefix
@@ -233,4 +233,4 @@ class BaseTask(TaskModel):
                 input_map=input_map, env_prefix=env_prefix
             )
             # Checker task should be able to read local env
-            checker_task.inject_env_map(local_env_map)
+            checker_task._inject_env_map(local_env_map)

@@ -7,7 +7,8 @@ from ..task_group.group import Group
 from ..config.config import default_shell
 
 import asyncio
-import psutil
+import os
+import signal
 import atexit
 
 
@@ -127,12 +128,14 @@ class CmdTask(BaseTask):
             env=env,
             shell=True,
             executable=self.executable,
-            close_fds=True
+            # close_fds=True,
+            preexec_fn=os.setsid
         )
         self.set_task_pid(process.pid)
         self._process = process
-        atexit.register(self._atexit)
+        atexit.register(self._at_exit)
         await self._wait_process(process)
+        atexit.unregister(self._at_exit)
         # get output and error
         output = '\n'.join(self._output_buffer)
         error = '\n'.join(self._error_buffer)
@@ -145,31 +148,16 @@ class CmdTask(BaseTask):
             )
         return CmdResult(output, error)
 
-    def _atexit(self):
+    def _at_exit(self):
         self.retry = 0
         if self._process.returncode is None:
-            self.log_debug(f'Get child processes of {self._process.pid}')
-            p = psutil.Process(self._process.pid)
-            children = p.children(recursive=True)
-            # Terminate all child processes
-            for child in children:
-                self.log_debug(f'Terminate child process: {child.pid}')
-                self._kill_process(child, 'Failed terminating child process')
-            # Terminate the process
-            self.log_debug(f'Terminate main process: {self._process.pid}')
-            self._kill_process(
-                self._process, 'Failed terminating main process'
-            )
-
-    def _kill_process(
-        self,
-        process: Union[asyncio.subprocess.Process, psutil.Process],
-        error_label: str
-    ):
-        try:
-            process.terminate()
-        except Exception:
-            self.log_error(f'{error_label}: {process.pid}')
+            try:
+                self.log_info(f'Send SIGTERM to process {self._process.pid}')
+                os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
+            except Exception:
+                self.log_error(
+                    f'Cannot send SIGTERM to process {self._process.pid}'
+                )
 
     async def _wait_process(self, process: asyncio.subprocess.Process):
         # Create queue

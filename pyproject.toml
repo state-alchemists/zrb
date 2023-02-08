@@ -22,7 +22,6 @@ dependencies = [
   "termcolor==2.2.0",
   "Jinja2==3.1.2",
   "libcst==0.4.9",
-  "psutil==5.9.4"
 ]
 
 [project.optional-dependencies]

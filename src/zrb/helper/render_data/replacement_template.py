@@ -11,6 +11,11 @@ def coalesce(val: str, *alternatives: str) -> str:
     return f'zrb.coalesce({values})'
 
 
+def coalesce_str(val: str, *alternatives: str) -> str:
+    values = ', '.join([val] + list(alternatives))
+    return f'zrb.coalesce_str({values})'
+
+
 def camel(val: str) -> str:
     return f'zrb.to_camel_case({val})'
 
@@ -58,14 +63,14 @@ class Replacement():
     def add_key_val(
         self, key: str, value: Union[str, List[str]]
     ) -> TReplacement:
-        val = self._get_val(value)
+        val = self._get_str_value(value)
         self.replacements[key] = tpl(val)
         return self
 
-    def _get_val(self, value: Union[str, List[str]]) -> str:
+    def _get_str_value(self, value: Union[str, List[str]]) -> str:
         if isinstance(value, str):
             return value
-        return coalesce(*value)
+        return coalesce_str(*value)
 
     def add_transformed_key_val(self, transformations: List[str]):
         def add_key_val(
@@ -89,7 +94,7 @@ class Replacement():
                 raise Exception(f'Invalid transformation {trans_name}')
             tpl_transformer = self.tpl_map[trans_name]
             new_key = to_pascal_case(f'{trans_name} {key}')
-            new_val = tpl_transformer(self._get_val(value))
+            new_val = tpl_transformer(self._get_str_value(value))
             self.add_key_val(new_key, new_val)
         self.add_key_val(key, value)
         return self

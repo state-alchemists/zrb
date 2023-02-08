@@ -4,7 +4,6 @@ from ..helper.accessories.color import (
     get_random_color, is_valid_color, colored
 )
 from ..helper.accessories.icon import get_random_icon
-from ..helper.keyval.get_object_from_keyval import get_object_from_keyval
 from ..helper.string.conversion import (
     to_cmd_name, to_variable_name
 )
@@ -129,7 +128,7 @@ class TaskDataModel():
         self.name = name
         self.group = group
         self.envs = envs
-        for key in os.environ:
+        for key in dict(os.environ):
             self.envs.append(Env(name=key, os_name=key))
         self.icon = icon
         self.color = color
@@ -231,7 +230,7 @@ class TaskDataModel():
     def get_env_map(self) -> Mapping[str, str]:
         return self._env_map
 
-    def inject_env_map(
+    def _inject_env_map(
         self, env_map: Mapping[str, str], override: bool = False
     ):
         for key, val in env_map.items():
@@ -297,8 +296,8 @@ class TaskDataModel():
     def _get_render_data(self) -> Mapping[str, Any]:
         render_data = dict(DEFAULT_RENDER_DATA)
         render_data.update({
-            'env': get_object_from_keyval(self._env_map),
-            'input': get_object_from_keyval(self._input_map),
+            'env': self._env_map,
+            'input': self._input_map,
         })
         return render_data
 
@@ -315,7 +314,7 @@ class TaskDataModel():
             lines_repr.append(f'{MULTILINE_INDENT}{key}: {val}')
         return '\n'.join(lines_repr)
 
-    def set_local_keyval(
+    def _set_local_keyval(
         self,
         input_map: Mapping[str, Any],
         env_prefix: str = ''
@@ -330,7 +329,7 @@ class TaskDataModel():
             'Set input map:',
             self._get_map_repr(self._input_map)
         ]))
-        self._env_map = os.environ
+        self._env_map = dict(os.environ)
         for task_env in self.envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
