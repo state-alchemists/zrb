@@ -41,15 +41,16 @@ from zrb import (
     Group, Task, CmdTask, HTTPChecker
 )
 
+'''
+Simple Python task to concatenate words
+'''
+
 
 def _concat(*args: str, **kwargs: Any) -> str:
     separator = kwargs.get('separator', ' ')
     return separator.join(args)
 
 
-'''
-Simple Python task to concatenate words
-'''
 concat = Task(
     name='concat',
     inputs=[StrInput(name='separator', description='Separator', default=' ')],

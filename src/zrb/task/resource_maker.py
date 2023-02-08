@@ -65,12 +65,10 @@ class ResourceMaker(BaseTask):
         ]
         self.log_debug(f'Rendered excludes: {excludes}')
         self.log_debug(f'Render replacements: {self.replacements}')
-        print('GUK sebelum', self.replacements)
         replacements: Mapping[str, str] = {
             old: self.render_str(new)
             for old, new in self.replacements.items()
         }
-        print('GUK sesudah', replacements)
         self.log_debug(f'Rendered replacements: {replacements}')
         # check scaffold locks
         for scaffold_lock in self.scaffold_locks:
