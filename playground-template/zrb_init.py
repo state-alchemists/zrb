@@ -99,7 +99,7 @@ Long running CLI task.
 Run a server and waiting for the port to be ready.
 '''
 start_server = CmdTask(
-    name='server',
+    name='start-server',
     upstreams=[make_coffee, make_beer],
     inputs=[StrInput(name='dir', description='Directory', default='.')],
     envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
