@@ -47,7 +47,7 @@ def load_zrb_init(project_dir: str):
     parent_project_dir = os.path.dirname(project_dir)
     if parent_project_dir == project_dir:
         # giving up, already on the root level directory
-        logger.debug('Cannot find zrb_init.py')
+        logger.debug(colored('Cannot find zrb_init.py', attrs=['dark']))
         return
     # do the same thing again
     load_zrb_init(parent_project_dir)

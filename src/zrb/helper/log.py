@@ -18,7 +18,5 @@ formatter = logging.Formatter(
 # add formatter to ch
 ch.setFormatter(formatter)
 
-logger.debug('anu')
-
 # add ch to logger
 logger.addHandler(ch)
