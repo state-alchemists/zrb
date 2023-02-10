@@ -17,7 +17,7 @@ Simple Python task to concatenate words
 concat = Task(
     name='concat',
     inputs=[StrInput(name='separator', description='Separator', default=' ')],
-    runner=_concat
+    run=_concat
 )
 runner.register(concat)
 

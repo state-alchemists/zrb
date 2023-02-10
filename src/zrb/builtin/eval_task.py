@@ -23,7 +23,7 @@ evaluate = Task(
             description='Python expression',
         )
     ],
-    runner=_evaluate,
+    run=_evaluate,
     description='Evaluate Python expression',
     retry=0
 )

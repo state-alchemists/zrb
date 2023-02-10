@@ -45,7 +45,7 @@ md5_hash = Task(
             default=''
         )
     ],
-    runner=_md5_hash,
+    run=_md5_hash,
     description='Encode md5 task',
     retry=0
 )
@@ -62,7 +62,7 @@ md5_sum = Task(
             default=''
         )
     ],
-    runner=_md5_sum,
+    run=_md5_sum,
     description='Decode md5 task',
     retry=0
 )

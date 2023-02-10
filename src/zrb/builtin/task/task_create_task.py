@@ -106,7 +106,7 @@ def _task_create(*args: Any, **kwargs: Any):
 task_validate_create = Task(
     name='task-validate-create',
     inputs=inputs,
-    runner=_task_validate_create
+    run=_task_validate_create
 )
 
 task_copy_resource = ResourceMaker(
@@ -123,7 +123,7 @@ task_create = Task(
     name='create',
     group=task_group,
     inputs=inputs,
-    runner=_task_create,
+    run=_task_create,
     upstreams=[task_copy_resource]
 )
 runner.register(task_create)

@@ -16,7 +16,7 @@ def test_task_with_predefined_runner():
         return 'hello'
     task = Task(
         name='hello',
-        runner=_run
+        run=_run
     )
     main_loop = task.create_main_loop()
     result = main_loop()
@@ -28,7 +28,7 @@ def test_task_with_decorated_runner():
         name='hello',
     )
 
-    @task.runner
+    @task.should
     def _run(*args, **kwargs) -> str:
         return 'hello'
 
@@ -42,13 +42,13 @@ def test_task_with_predefined_and_decorated_runner():
         return 'hello'
     task = Task(
         name='hello',
-        runner=_run
+        run=_run
     )
     # should throw error when add decorated runner
     # to a task with pre-existing runner
     is_error = False
     try:
-        @task.runner
+        @task.should
         def _run(*args, **kwargs) -> str:
             return 'not-hello'
     except Exception:
@@ -70,7 +70,7 @@ def test_task_with_input():
             StrInput(name='name'),
             StrInput(name='favorite-drink')
         ],
-        runner=_run
+        run=_run
     )
     main_loop = task.create_main_loop()
     result = main_loop(name='Dumbledore', favorite_drink='Elixir')

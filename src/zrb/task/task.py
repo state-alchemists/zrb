@@ -10,7 +10,7 @@ class Task(BaseTask):
     Exactly the same as BaseTask
     '''
 
-    def runner(self, runner: Callable[..., Any]):
+    def should(self, runner: Callable[..., Any]):
         if self._runner is not None:
             raise Exception('Cannot set multiple runners for a single task.')
         self._runner = runner

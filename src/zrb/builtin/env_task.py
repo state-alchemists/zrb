@@ -32,7 +32,7 @@ def _env_get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
 env_show = Task(
     name='show',
     group=env_group,
-    runner=_env_show,
+    run=_env_show,
     description='Show environment values'
 )
 runner.register(env_show)
@@ -40,7 +40,7 @@ runner.register(env_show)
 env_get = Task(
     name='get',
     group=env_group,
-    runner=_env_get,
+    run=_env_get,
     description='get environment values'
 )
 runner.register(env_get)

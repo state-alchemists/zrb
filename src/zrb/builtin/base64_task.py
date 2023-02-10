@@ -36,7 +36,7 @@ base64_encode = Task(
     name='encode',
     group=base64_group,
     inputs=inputs,
-    runner=_base64_encode,
+    run=_base64_encode,
     description='Encode base64 task',
     retry=0
 )
@@ -46,7 +46,7 @@ base64_decode = Task(
     name='decode',
     group=base64_group,
     inputs=inputs,
-    runner=_base64_decode,
+    run=_base64_decode,
     description='Decode base64 task',
     retry=0
 )
