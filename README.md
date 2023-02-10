@@ -42,12 +42,12 @@ from zrb import (
 )
 
 
-# A regular python function
+# A regular Python function
 def _concat(*args: str, **kwargs: Any) -> str:
     separator = kwargs.get('separator', ' ')
     return separator.join(args)
 
-# Simple Python task.
+# Simple Python task, running a Python function.
 # Usage example: zrb concat --separator=' '
 concat = Task(
     name='concat',  # Task name
