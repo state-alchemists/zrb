@@ -42,12 +42,12 @@ from zrb import (
 )
 
 
-# A regular Python function
+# A regular Python function to concat words
 def _concat(*args: str, **kwargs: Any) -> str:
     separator = kwargs.get('separator', ' ')
     return separator.join(args)
 
-# Simple Python task, running a Python function.
+# Simple Python task, running a Python function to concat words.
 # Usage example: zrb concat --separator=' '
 concat = Task(
     name='concat',  # Task name
@@ -56,7 +56,7 @@ concat = Task(
 )
 runner.register(concat) 
 
-# Simple command task.
+# Simple command task to show hello.
 # Usage example: zrb hello --name='world'
 hello = CmdTask(
     name='hello',
@@ -68,7 +68,7 @@ runner.register(hello)
 # Command group: zrb make
 make = Group(name='make', description='Make things')
 
-# Command task, part of `zrb make` group, depends on `hello`
+# Command task, part of `zrb make` group, depends on `hello`, making coffee
 # Usage example: zrb make coffee
 make_coffee = CmdTask(
     name='coffee',
@@ -78,7 +78,7 @@ make_coffee = CmdTask(
 )
 runner.register(make_coffee)
 
-# Command task, part of `zrb make` group, depends on `hello`
+# Command task, part of `zrb make` group, depends on `hello`, making beer
 # Usage example: zrb make beer
 make_beer = CmdTask(
     name='beer',
@@ -93,8 +93,8 @@ make_gitignore = Group(
     name='gitignore', description='Make gitignore', parent=make
 )
 
-# Command task, part of `zrb make gitignore` troup
-# Usage example: zrb make gitignore python
+# Command task, part of `zrb make gitignore` group, making .gitignore for Python project
+# Usage example: zrb make gitignore Python
 make_gitignore_python = CmdTask(
     name='python',
     group=make_gitignore,
@@ -106,7 +106,7 @@ make_gitignore_python = CmdTask(
 )
 runner.register(make_gitignore_python)
 
-# Command task, part of `zrb make gitignore` troup
+# Command task, part of `zrb make gitignore` group, making .gitignore for Node.js project
 # Usage example: zrb make gitignore node
 make_gitignore_nodejs = CmdTask(
     name='node',
@@ -118,7 +118,7 @@ make_gitignore_nodejs = CmdTask(
 )
 runner.register(make_gitignore_nodejs)
 
-# Long running command task
+# Long running command task, serve static directory.
 # Usage example: zrb start-server dir='.'
 start_server = CmdTask(
     name='start-server',
@@ -130,7 +130,7 @@ start_server = CmdTask(
 )
 runner.register(start_server)
 
-# Command task, depends on long running task
+# Command task, depends on long running task, simulating error
 # Usage example: zrb test-error
 test_error = CmdTask(
     name='test-error',
@@ -139,6 +139,7 @@ test_error = CmdTask(
     retry=0
 )
 runner.register(test_error)
+
 ```
 
 Once registered, your task will be accessible from the terminal.
