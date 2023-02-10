@@ -23,7 +23,7 @@ Zrb will automatically load the following task definitions:
 - Every task definition in `ZRB_INIT_SCRIPTS`.
     - You can use a colon separator (`:`) to define multiple scripts in `ZRB_INIT_SCRIPTS`. For example:
         ```bash
-        ZRB_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
+        ZRB_INIT_SCRIPTS=~/personal/zrb_init.py:~/work/zrb_init.py
         ```
 - Every task definition in `zrb_init.py` in your current directory.
     - If Zrb cannot find any in your current directory, it will look at the parent directories until it finds one.
@@ -41,26 +41,23 @@ from zrb import (
     Group, Task, CmdTask, HTTPChecker
 )
 
-'''
-Simple Python task to concatenate words
-'''
 
-
+# A regular python function
 def _concat(*args: str, **kwargs: Any) -> str:
     separator = kwargs.get('separator', ' ')
     return separator.join(args)
 
-
+# Simple Python task.
+# Usage example: zrb concat --separator=' '
 concat = Task(
-    name='concat',
+    name='concat',  # Task name
     inputs=[StrInput(name='separator', description='Separator', default=' ')],
-    run=_concat
+    run=_concat  # Function to be executed
 )
-runner.register(concat)
+runner.register(concat) 
 
-'''
-Simple CLI task, read input and show output
-'''
+# Simple command task.
+# Usage example: zrb hello --name='world'
 hello = CmdTask(
     name='hello',
     inputs=[StrInput(name='name', description='Name', default='world')],
@@ -68,14 +65,11 @@ hello = CmdTask(
 )
 runner.register(hello)
 
-'''
-A new group: make
-'''
+# Command group: zrb make
 make = Group(name='make', description='Make things')
 
-'''
-Simple CLI task, part of 'make' group
-'''
+# Command task, part of `zrb make` group, depends on `hello`
+# Usage example: zrb make coffee
 make_coffee = CmdTask(
     name='coffee',
     group=make,
@@ -84,9 +78,8 @@ make_coffee = CmdTask(
 )
 runner.register(make_coffee)
 
-'''
-Simple CLI task, part of 'make' group
-'''
+# Command task, part of `zrb make` group, depends on `hello`
+# Usage example: zrb make beer
 make_beer = CmdTask(
     name='beer',
     group=make,
@@ -95,19 +88,15 @@ make_beer = CmdTask(
 )
 runner.register(make_beer)
 
-'''
-Sub group of 'make'
-'''
+# Command group: zrb make gitignore
 make_gitignore = Group(
     name='gitignore', description='Make gitignore', parent=make
 )
 
-'''
-Simple CLI task, part of 'make_gitignore' group.
-Having multiline cmd
-'''
+# Command task, part of `zrb make gitignore` troup
+# Usage example: zrb make gitignore python
 make_gitignore_python = CmdTask(
-    name='node',
+    name='python',
     group=make_gitignore,
     cmd=[
         'echo "node_modules/" >> .gitignore'
@@ -117,10 +106,8 @@ make_gitignore_python = CmdTask(
 )
 runner.register(make_gitignore_python)
 
-'''
-Simple CLI task, part of 'make_gitignore' group.
-Having multiline cmd
-'''
+# Command task, part of `zrb make gitignore` troup
+# Usage example: zrb make gitignore node
 make_gitignore_nodejs = CmdTask(
     name='node',
     group=make_gitignore,
@@ -131,10 +118,8 @@ make_gitignore_nodejs = CmdTask(
 )
 runner.register(make_gitignore_nodejs)
 
-'''
-Long running CLI task.
-Run a server and waiting for the port to be ready.
-'''
+# Long running command task
+# Usage example: zrb start-server dir='.'
 start_server = CmdTask(
     name='start-server',
     upstreams=[make_coffee, make_beer],
@@ -145,10 +130,8 @@ start_server = CmdTask(
 )
 runner.register(start_server)
 
-'''
-A task that depends on start_server and having non-zero exit code.
-When this task ended, start_server should be killed as well
-'''
+# Command task, depends on long running task
+# Usage example: zrb test-error
 test_error = CmdTask(
     name='test-error',
     upstreams=[start_server],
@@ -156,7 +139,6 @@ test_error = CmdTask(
     retry=0
 )
 runner.register(test_error)
-
 ```
 
 Once registered, your task will be accessible from the terminal.
@@ -165,7 +147,7 @@ For example, you can run a server by performing:
 
 ```bash
 export WEB_PORT=8080
-zrb start server
+zrb start-server
 ```
 
 The output will be similar to this:
@@ -176,14 +158,14 @@ Dir [.]:
 🤖 ➜  2023-02-04T11:08:11.921472 ⚙ 12264 ➤ 1 of 3 • 🍊    show hello • Hello Go Frendi
 🤖 ➜  2023-02-04T11:08:12.039529 ⚙ 12266 ➤ 1 of 3 • 🐹   make coffee • Coffee for you ☕
 🤖 ➜  2023-02-04T11:08:12.040651 ⚙ 12268 ➤ 1 of 3 • 🐶     make beer • Cheers 🍺
-🤖 ➜  2023-02-04T11:08:12.160402 ⚙ 12270 ➤ 1 of 3 • 🍒  start server • Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
+🤖 ➜  2023-02-04T11:08:12.160402 ⚙ 12270 ➤ 1 of 3 • 🍒  start-server • Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
 🤖 ➜  2023-02-04T11:08:12.224660 ⚙ 12263 ➤ 1 of 1 • 🍇    http_check • HEAD http://localhost:8080/ 200 (OK)
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
-🤖 🍒 start server completed in
+🤖 🍒 start-server completed in
 🤖 🍒 0.311281681060791 seconds
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
 
-🤖 ⚠  2023-02-04T11:08:12.228542 ⚙ 12270 ➤ 1 of 3 • 🍒  start server • 127.0.0.1 - - [04/Feb/2023 11:08:12] "HEAD / HTTP/1.1" 200 -
+🤖 ⚠  2023-02-04T11:08:12.228542 ⚙ 12270 ➤ 1 of 3 • 🍒  start-server • 127.0.0.1 - - [04/Feb/2023 11:08:12] "HEAD / HTTP/1.1" 200 -
 ```
 
 # How to run tasks programmatically
