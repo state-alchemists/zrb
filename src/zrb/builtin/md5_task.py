@@ -46,13 +46,13 @@ md5_hash = Task(
         )
     ],
     run=_md5_hash,
-    description='Encode md5 task',
+    description='Hash md5',
     retry=0
 )
 runner.register(md5_hash)
 
 md5_sum = Task(
-    name='decode',
+    name='sum',
     group=md5_group,
     inputs=[
         StrInput(
@@ -63,7 +63,7 @@ md5_sum = Task(
         )
     ],
     run=_md5_sum,
-    description='Decode md5 task',
+    description='Sum md5',
     retry=0
 )
 runner.register(md5_sum)

@@ -189,7 +189,7 @@ class TaskDataModel():
         return colored(text, color=self.get_color())
 
     def play_bell(self):
-        print('\a')
+        print('\a', end='', file=sys.stderr)
 
     def _get_colored_print_prefix(self) -> str:
         return self.colored(self._get_print_prefix())
