@@ -5,8 +5,6 @@ from ..config.config import version
 
 
 def _version(*args: Any, **kwargs: Any) -> str:
-    task: Task = kwargs['_task']
-    task.print_out(version)
     return version
 
 
