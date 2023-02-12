@@ -13,7 +13,7 @@ def _evaluate(*args: str, **kwargs: Any):
 
 # Task definitions
 
-evaluate = Task(
+eval_task = Task(
     name='eval',
     inputs=[
         StrInput(
@@ -27,4 +27,4 @@ evaluate = Task(
     description='Evaluate Python expression',
     retry=0
 )
-runner.register(evaluate)
+runner.register(eval_task)

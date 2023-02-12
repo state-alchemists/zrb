@@ -1,16 +1,18 @@
-from typing import List, Mapping
+from typing import Iterable, Mapping
 from ..string.parse_replacement import parse_replacement
+from typeguard import typechecked
 
 import os
 import shutil
 import fnmatch
 
 
+@typechecked
 def copy_tree(
     src: str,
     dst: str,
     replacements: Mapping[str, str],
-    excludes: List[str] = []
+    excludes: Iterable[str] = []
 ):
     names = os.listdir(src)
     new_dst = parse_replacement(dst, replacements)

@@ -1,10 +1,11 @@
-from typing import Any, Callable, List, Mapping, Optional
+from typing import Any, Callable, Iterable, Mapping, Optional
 from typeguard import typechecked
 from .base_task import BaseTask
 from ..task_env.env import Env
 from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.file.copy_tree import copy_tree
+from ..helper.middlewares.replacement import Replacement, ReplacementMiddleware
 
 import os
 
@@ -17,16 +18,17 @@ class ResourceMaker(BaseTask):
         name: str,
         template_path: str,
         destination_path: str,
-        replacements: Mapping[str, str] = {},
-        excludes: List[str] = [],
+        replacements: Replacement = {},
+        replacement_middlewares: Iterable[ReplacementMiddleware] = [],
+        excludes: Iterable[str] = [],
         group: Optional[Group] = None,
-        inputs: List[BaseInput] = [],
-        envs: List[Env] = [],
+        inputs: Iterable[BaseInput] = [],
+        envs: Iterable[Env] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        upstreams: List[BaseTask] = [],
-        scaffold_locks: List[str] = []
+        upstreams: Iterable[BaseTask] = [],
+        scaffold_locks: Iterable[str] = []
     ):
         BaseTask.__init__(
             self,
@@ -47,6 +49,7 @@ class ResourceMaker(BaseTask):
         self.destination_path = destination_path
         self.excludes = excludes
         self.replacements = replacements
+        self.replacement_middlewares = replacement_middlewares
         self.scaffold_locks = scaffold_locks
 
     def create_main_loop(
@@ -58,6 +61,18 @@ class ResourceMaker(BaseTask):
         # render parameters
         template_path = self.render_str(self.template_path)
         destination_path = self.render_str(self.destination_path)
+        # check scaffold locks
+        for scaffold_lock in self.scaffold_locks:
+            self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
+            rendered_scaffold_lock = self.render_str(scaffold_lock)
+            self.log_debug(f'Rendered scaffold lock: {rendered_scaffold_lock}')
+            if not os.path.exists(rendered_scaffold_lock):
+                continue
+            raise Exception(' '.join([
+                'Operation cancelled since resource already exists:',
+                f'{rendered_scaffold_lock},',
+            ]))
+        # render excludes
         self.log_debug(f'Render excludes: {self.excludes}')
         excludes = [
             self.render_str(exclude)
@@ -70,18 +85,13 @@ class ResourceMaker(BaseTask):
             for old, new in self.replacements.items()
         }
         self.log_debug(f'Rendered replacements: {replacements}')
-        # check scaffold locks
-        for scaffold_lock in self.scaffold_locks:
-            self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
-            rendered_scaffold_lock = self.render_str(scaffold_lock)
-            self.log_debug(f'Rendered scaffold lock: {rendered_scaffold_lock}')
-            if not os.path.exists(rendered_scaffold_lock):
-                continue
-            raise Exception(' '.join([
-                'Operation cancelled since resource already exists:',
-                f'{rendered_scaffold_lock},',
-            ]))
-        self.print_out('    \n'.join([
+        # apply replacement middleware
+        self.log_debug('Apply replacement middlewares')
+        for index, middleware in enumerate(self.replacement_middlewares):
+            self.log_debug(f'Apply middleware #{index}')
+            replacements = middleware(self, replacements)
+        self.log_debug(f'Final replacement: {replacements}')
+        self.print_out('\n    '.join([
             f'Create resource: {destination_path}',
             f'Template: {template_path}',
             f'Replacements: {replacements}',

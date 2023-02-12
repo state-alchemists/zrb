@@ -1,10 +1,13 @@
-from typing import Any, Callable, List, Mapping, Optional, TypeVar
+from typing import (
+    Any, Callable, Iterable, Mapping, Optional, Tuple, TypeVar
+)
 from typeguard import typechecked
 from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
 from ..task_group.group import Group
 from ..helper.list.append_unique import append_unique
+from ..helper.string.conversion import to_variable_name
 
 import asyncio
 import copy
@@ -23,13 +26,13 @@ class BaseTask(TaskModel):
         self,
         name: str,
         group: Optional[Group] = None,
-        inputs: List[BaseInput] = [],
-        envs: List[Env] = [],
+        inputs: Iterable[BaseInput] = [],
+        envs: Iterable[Env] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        upstreams: List[TTask] = [],
-        checkers: List[TTask] = [],
+        upstreams: Iterable[TTask] = [],
+        checkers: Iterable[TTask] = [],
         checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
@@ -77,11 +80,11 @@ class BaseTask(TaskModel):
         '''
         return self.is_done()
 
-    def get_all_inputs(self) -> List[BaseInput]:
+    def get_all_inputs(self) -> Iterable[BaseInput]:
         ''''
         Getting all inputs of this task and all its upstream, non-duplicated.
         '''
-        inputs: List[BaseInput] = []
+        inputs: Iterable[BaseInput] = []
         for upstream in self.upstreams:
             upstream_inputs = upstream.get_all_inputs()
             append_unique(inputs, *upstream_inputs)
@@ -96,18 +99,19 @@ class BaseTask(TaskModel):
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., Any]:
-        self_cp = copy.deepcopy(self)
-
-        def main_loop(**kwargs: Any) -> Any:
+        def main_loop(*args: Any, **kwargs: Any) -> Any:
             '''
             Task main loop.
             '''
+            self_cp, args, kwargs = self._get_main_loop_variables(
+                env_prefix=env_prefix, args=args, kwargs=kwargs
+            )
+
             async def run_and_check_all_async() -> Any:
-                kwargs['_task'] = self_cp
-                self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
+                # initiate args
                 processes = [
                     asyncio.create_task(self_cp._loop_check(celebrate=True)),
-                    asyncio.create_task(self_cp._run_all(**kwargs))
+                    asyncio.create_task(self_cp._run_all(*args, **kwargs))
                 ]
                 results = await asyncio.gather(*processes)
                 return results[-1]
@@ -122,6 +126,28 @@ class BaseTask(TaskModel):
             finally:
                 self_cp.play_bell()
         return main_loop
+
+    def _get_main_loop_variables(
+        self, env_prefix: str, args: Iterable[Any], kwargs: Mapping[str, Any]
+    ) -> Tuple[TTask, Iterable[str], Mapping[str, Any]]:
+        self_cp = copy.deepcopy(self)
+        kwargs = {
+            self._get_normalized_input_key(key): value
+            for key, value in kwargs.items()
+        }
+        # ensure args and kwargs[_args] has the same value
+        if len(args) == 0 and '_args' in kwargs:
+            args = kwargs['_args']
+        kwargs['_args'] = args
+        # ensure kwargs are complete
+        for task_input in self.inputs:
+            kwarg_key = to_variable_name(task_input.name)
+            if kwarg_key not in kwargs:
+                kwargs[kwarg_key] = task_input.default
+        # inject kwargs[_task]
+        kwargs['_task'] = self_cp
+        self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
+        return self_cp, args, kwargs
 
     def _print_result(self, result: Any):
         '''
@@ -165,26 +191,26 @@ class BaseTask(TaskModel):
         '''
         if len(self.checkers) == 0:
             return await self.check()
-        check_processes: List[asyncio.Task] = []
+        check_processes: Iterable[asyncio.Task] = []
         for checker_task in self.checkers:
             check_processes.append(asyncio.create_task(checker_task.run()))
         await asyncio.gather(*check_processes)
         return True
 
-    async def _run_all(self, **kwargs: Any) -> Any:
-        processes: List[asyncio.Task] = []
+    async def _run_all(self, *args: Any, **kwargs: Any) -> Any:
+        processes: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
             processes.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
         # Add current task to processes
-        processes.append(self._cached_run(**kwargs))
+        processes.append(self._cached_run(*args, **kwargs))
         # Wait everything to complete
         results = await asyncio.gather(*processes)
         return results[-1]
 
-    async def _cached_run(self, **kwargs: Any) -> Any:
+    async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self._is_executed:
             self.log_debug('Skip running, because execution flag has been set')
             return
@@ -193,15 +219,13 @@ class BaseTask(TaskModel):
         self.log_debug('Start running')
         self.start_timer()
         # get upstream checker
-        upstream_check_processes: List[asyncio.Task] = []
+        upstream_check_processes: Iterable[asyncio.Task] = []
         for upstream_task in self.upstreams:
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
             ))
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
-        # initiate args
-        args: List[Any] = [] if '_args' not in kwargs else kwargs['_args']
         # start running task
         result: Any
         while self.should_attempt():

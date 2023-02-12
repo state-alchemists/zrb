@@ -1,4 +1,4 @@
-from zrb.helper.common import (
+from zrb.helper.util import (
     coalesce, to_camel_case, to_pascal_case, to_kebab_case,
     to_snake_case, to_human_readable
 )

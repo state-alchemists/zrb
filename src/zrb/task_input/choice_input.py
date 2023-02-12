@@ -1,17 +1,18 @@
-from typing import Any, Optional, Union
+from typing import Any, Optional, Iterable, Union
 from typeguard import typechecked
-
-from ..task_input.base_input import BaseInput
+from .base_input import BaseInput
+import click
 
 
 @typechecked
-class StrInput(BaseInput):
+class ChoiceInput(BaseInput):
 
     def __init__(
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[str] = None,
+        choices: Iterable[Any] = [],
+        default: Any = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -44,7 +45,7 @@ class StrInput(BaseInput):
             multiple=multiple,
             count=count,
             allow_from_autoenv=allow_from_autoenv,
-            type=str,
+            type=click.Choice(choices),
             hidden=hidden,
             show_choices=show_choices,
             show_envvar=show_envvar,

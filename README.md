@@ -34,29 +34,40 @@ Zrb will automatically load the following task definitions:
 You can write your task definitions in Python. For example:
 
 ```python
-from typing import Any
 from zrb import (
-    runner,
-    Env, StrInput,
+    runner, Env,
+    StrInput, ChoiceInput, IntInput, BoolInput, FloatInput, PasswordInput,
     Group, Task, CmdTask, HTTPChecker
 )
 
-
-# A regular Python function to concat words
-def _concat(*args: str, **kwargs: Any) -> str:
-    separator = kwargs.get('separator', ' ')
-    return separator.join(args)
-
-# Simple Python task, running a Python function to concat words.
+# Simple Python task.
 # Usage example: zrb concat --separator=' '
 concat = Task(
     name='concat',  # Task name
     inputs=[StrInput(name='separator', description='Separator', default=' ')],
-    run=_concat  # Function to be executed
+    run=lambda *args, **kwargs: kwargs.get('separator', ' ').join(args)
 )
-runner.register(concat) 
+runner.register(concat)
 
-# Simple command task to show hello.
+# Simple Python with multiple inputs.
+register_trainer = Task(
+    name='register-trainer',
+    inputs=[
+        StrInput(name='name', default=''),
+        PasswordInput(name='password', default=''),
+        IntInput(name='age', default=0),
+        BoolInput(name='employed', default=False),
+        FloatInput(name='salary', default=0.0),
+        ChoiceInput(
+            name='starter-pokemon',
+            choices=['bulbasaur', 'charmender', 'squirtle']
+        )
+    ],
+    run=lambda *args, **kwargs: kwargs
+)
+runner.register(register_trainer)
+
+# Simple CLI task.
 # Usage example: zrb hello --name='world'
 hello = CmdTask(
     name='hello',
@@ -68,7 +79,7 @@ runner.register(hello)
 # Command group: zrb make
 make = Group(name='make', description='Make things')
 
-# Command task, part of `zrb make` group, depends on `hello`, making coffee
+# CLI task, part of `zrb make` group, depends on `hello`
 # Usage example: zrb make coffee
 make_coffee = CmdTask(
     name='coffee',
@@ -78,7 +89,7 @@ make_coffee = CmdTask(
 )
 runner.register(make_coffee)
 
-# Command task, part of `zrb make` group, depends on `hello`, making beer
+# CLI task, part of `zrb make` group, depends on `hello`
 # Usage example: zrb make beer
 make_beer = CmdTask(
     name='beer',
@@ -93,8 +104,9 @@ make_gitignore = Group(
     name='gitignore', description='Make gitignore', parent=make
 )
 
-# Command task, part of `zrb make gitignore` group, making .gitignore for Python project
-# Usage example: zrb make gitignore Python
+# CLI task, part of `zrb make gitignore` group,
+# making .gitignore for Python project
+# Usage example: zrb make gitignore python
 make_gitignore_python = CmdTask(
     name='python',
     group=make_gitignore,
@@ -106,7 +118,8 @@ make_gitignore_python = CmdTask(
 )
 runner.register(make_gitignore_python)
 
-# Command task, part of `zrb make gitignore` group, making .gitignore for Node.js project
+# CLI task, part of `zrb make gitignore` group,
+# making .gitignore for Node.js project
 # Usage example: zrb make gitignore node
 make_gitignore_nodejs = CmdTask(
     name='node',
@@ -118,7 +131,7 @@ make_gitignore_nodejs = CmdTask(
 )
 runner.register(make_gitignore_nodejs)
 
-# Long running command task, serve static directory.
+# Long running CLI task
 # Usage example: zrb start-server dir='.'
 start_server = CmdTask(
     name='start-server',
@@ -130,7 +143,7 @@ start_server = CmdTask(
 )
 runner.register(start_server)
 
-# Command task, depends on long running task, simulating error
+# CLI task, depends on `start-server`, throw error
 # Usage example: zrb test-error
 test_error = CmdTask(
     name='test-error',
@@ -160,7 +173,7 @@ Dir [.]:
 🤖 ➜  2023-02-04T11:08:12.039529 ⚙ 12266 ➤ 1 of 3 • 🐹   make coffee • Coffee for you ☕
 🤖 ➜  2023-02-04T11:08:12.040651 ⚙ 12268 ➤ 1 of 3 • 🐶     make beer • Cheers 🍺
 🤖 ➜  2023-02-04T11:08:12.160402 ⚙ 12270 ➤ 1 of 3 • 🍒  start-server • Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
-🤖 ➜  2023-02-04T11:08:12.224660 ⚙ 12263 ➤ 1 of 1 • 🍇    http_check • HEAD http://localhost:8080/ 200 (OK)
+🤖 ➜  2023-02-04T11:08:12.224660 ⚙ 12263 ➤ 1 of 1 • 🍇    http-check • HEAD http://localhost:8080/ 200 (OK)
 🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
 🤖 🍒 start-server completed in
 🤖 🍒 0.311281681060791 seconds
@@ -188,6 +201,31 @@ result = main_loop() # This run the task
 print(result.output) # Should be "hello"
 ```
 
+
+# Enable shell completion
+
+To enable shell completion, you need to set `_ZRB_COMPLETE` variable.
+
+For `bash`:
+
+```bash
+eval $(_ZRB_COMPLETE=bash_source zrb)
+```
+
+For `zsh`:
+
+```bash
+eval $(_ZRB_COMPLETE=zsh_source zrb)
+```
+
+Once set, you will have a shell completion in your session:
+
+```bash
+zrb <TAB>
+zrb md5 hash -<TAB>
+```
+
+Visit [click shell completion](https://click.palletsprojects.com/en/8.1.x/shell-completion/) for more information.
 
 # Configuration
 

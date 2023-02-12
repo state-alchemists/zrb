@@ -4,18 +4,19 @@ from ..runner import runner
 
 
 ubuntu_update = CmdTask(
-    name='ubuntu',
+    name='update',
     group=ubuntu_group,
     description='Update ubuntu',
     cmd=[
-        'sudo apt-get update',
+        'sudo apt-get update -y',
         'sudo apt-get upgrade -y',
     ],
-    checking_interval=3
+    checking_interval=3,
+    preexec_fn=None
 )
 runner.register(ubuntu_update)
 
-ubuntu_install_toys = CmdTask(
+ubuntu_install_toys_task = CmdTask(
     name='toys',
     group=ubuntu_install_group,
     description='Install ubuntu toy packages',
@@ -23,14 +24,15 @@ ubuntu_install_toys = CmdTask(
         'sudo apt-get install -y lolcat cowsay figlet neofetch',
     ],
     upstreams=[ubuntu_update],
-    checking_interval=3
+    checking_interval=3,
+    preexec_fn=None
 )
-runner.register(ubuntu_install_toys)
+runner.register(ubuntu_install_toys_task)
 
-ubuntu_install_packages = CmdTask(
-    name='packages',
+ubuntu_install_default_task = CmdTask(
+    name='default',
     group=ubuntu_install_group,
-    description='Install ubuntu packages',
+    description='Install essential ubuntu packages',
     cmd=[
         'sudo apt-get install -y \\',
         'build-essential python3-distutils libssl-dev zlib1g-dev \\'
@@ -41,6 +43,7 @@ ubuntu_install_packages = CmdTask(
         'tmux zsh neovim xdotool xsel'
     ],
     upstreams=[ubuntu_update],
-    checking_interval=3
+    checking_interval=3,
+    preexec_fn=None
 )
-runner.register(ubuntu_install_packages)
+runner.register(ubuntu_install_default_task)

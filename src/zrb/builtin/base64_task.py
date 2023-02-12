@@ -32,7 +32,7 @@ def _base64_decode(*args: str, **kwargs: Any):
 
 # Task definitions
 
-base64_encode = Task(
+base64_encode_task = Task(
     name='encode',
     group=base64_group,
     inputs=inputs,
@@ -40,9 +40,9 @@ base64_encode = Task(
     description='Encode base64 task',
     retry=0
 )
-runner.register(base64_encode)
+runner.register(base64_encode_task)
 
-base64_decode = Task(
+base64_decode_task = Task(
     name='decode',
     group=base64_group,
     inputs=inputs,
@@ -50,4 +50,4 @@ base64_decode = Task(
     description='Decode base64 task',
     retry=0
 )
-runner.register(base64_decode)
+runner.register(base64_decode_task)

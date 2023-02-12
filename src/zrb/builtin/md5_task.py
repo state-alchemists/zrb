@@ -34,7 +34,7 @@ def _md5_sum(*args: str, **kwargs: Any):
 
 # Task definitions
 
-md5_hash = Task(
+md5_hash_task = Task(
     name='hash',
     group=md5_group,
     inputs=[
@@ -49,9 +49,9 @@ md5_hash = Task(
     description='Hash md5',
     retry=0
 )
-runner.register(md5_hash)
+runner.register(md5_hash_task)
 
-md5_sum = Task(
+md5_sum_task = Task(
     name='sum',
     group=md5_group,
     inputs=[
@@ -63,7 +63,7 @@ md5_sum = Task(
         )
     ],
     run=_md5_sum,
-    description='Sum md5',
+    description='Sum md5 file',
     retry=0
 )
-runner.register(md5_sum)
+runner.register(md5_sum_task)

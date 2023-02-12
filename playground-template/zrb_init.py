@@ -1,26 +1,37 @@
-from typing import Any
 from zrb import (
-    runner,
-    Env, StrInput,
+    runner, Env,
+    StrInput, ChoiceInput, IntInput, BoolInput, FloatInput, PasswordInput,
     Group, Task, CmdTask, HTTPChecker
 )
-
-
-# A regular python function
-def _concat(*args: str, **kwargs: Any) -> str:
-    separator = kwargs.get('separator', ' ')
-    return separator.join(args)
 
 # Simple Python task.
 # Usage example: zrb concat --separator=' '
 concat = Task(
     name='concat',  # Task name
     inputs=[StrInput(name='separator', description='Separator', default=' ')],
-    run=_concat  # Function to be executed
+    run=lambda *args, **kwargs: kwargs.get('separator', ' ').join(args)
 )
-runner.register(concat) 
+runner.register(concat)
 
-# Simple command task.
+# Simple Python with multiple inputs.
+register_trainer = Task(
+    name='register-trainer',
+    inputs=[
+        StrInput(name='name', default=''),
+        PasswordInput(name='password', default=''),
+        IntInput(name='age', default=0),
+        BoolInput(name='employed', default=False),
+        FloatInput(name='salary', default=0.0),
+        ChoiceInput(
+            name='starter-pokemon',
+            choices=['bulbasaur', 'charmender', 'squirtle']
+        )
+    ],
+    run=lambda *args, **kwargs: kwargs
+)
+runner.register(register_trainer)
+
+# Simple CLI task.
 # Usage example: zrb hello --name='world'
 hello = CmdTask(
     name='hello',
@@ -32,7 +43,7 @@ runner.register(hello)
 # Command group: zrb make
 make = Group(name='make', description='Make things')
 
-# Command task, part of `zrb make` group, depends on `hello`
+# CLI task, part of `zrb make` group, depends on `hello`
 # Usage example: zrb make coffee
 make_coffee = CmdTask(
     name='coffee',
@@ -42,7 +53,7 @@ make_coffee = CmdTask(
 )
 runner.register(make_coffee)
 
-# Command task, part of `zrb make` group, depends on `hello`
+# CLI task, part of `zrb make` group, depends on `hello`
 # Usage example: zrb make beer
 make_beer = CmdTask(
     name='beer',
@@ -57,7 +68,8 @@ make_gitignore = Group(
     name='gitignore', description='Make gitignore', parent=make
 )
 
-# Command task, part of `zrb make gitignore` troup
+# CLI task, part of `zrb make gitignore` group,
+# making .gitignore for Python project
 # Usage example: zrb make gitignore python
 make_gitignore_python = CmdTask(
     name='python',
@@ -70,7 +82,8 @@ make_gitignore_python = CmdTask(
 )
 runner.register(make_gitignore_python)
 
-# Command task, part of `zrb make gitignore` troup
+# CLI task, part of `zrb make gitignore` group,
+# making .gitignore for Node.js project
 # Usage example: zrb make gitignore node
 make_gitignore_nodejs = CmdTask(
     name='node',
@@ -82,7 +95,7 @@ make_gitignore_nodejs = CmdTask(
 )
 runner.register(make_gitignore_nodejs)
 
-# Long running command task
+# Long running CLI task
 # Usage example: zrb start-server dir='.'
 start_server = CmdTask(
     name='start-server',
@@ -94,7 +107,7 @@ start_server = CmdTask(
 )
 runner.register(start_server)
 
-# Command task, depends on long running task
+# CLI task, depends on `start-server`, throw error
 # Usage example: zrb test-error
 test_error = CmdTask(
     name='test-error',

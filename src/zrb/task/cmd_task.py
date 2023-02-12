@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union
 from typeguard import typechecked
 from .base_task import BaseTask
 from ..task_env.env import Env
@@ -54,21 +54,22 @@ class CmdTask(BaseTask):
         self,
         name: str,
         group: Optional[Group] = None,
-        inputs: List[BaseInput] = [],
-        envs: List[Env] = [],
+        inputs: Iterable[BaseInput] = [],
+        envs: Iterable[Env] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
         executable: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
         cmd_path: str = '',
-        upstreams: List[BaseTask] = [],
-        checkers: List[BaseTask] = [],
+        upstreams: Iterable[BaseTask] = [],
+        checkers: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
         max_output_line: int = 1000,
-        max_error_line: int = 1000
+        max_error_line: int = 1000,
+        preexec_fn: Optional[Callable[[], Any]] = os.setsid
     ):
         BaseTask.__init__(
             self,
@@ -83,7 +84,7 @@ class CmdTask(BaseTask):
             checkers=checkers,
             checking_interval=checking_interval,
             retry=retry,
-            retry_interval=retry_interval
+            retry_interval=retry_interval,
         )
         max_output_line = self.ensure_non_negative(
             max_output_line, 'Find negative max_output_line'
@@ -95,12 +96,13 @@ class CmdTask(BaseTask):
         self.cmd_path = cmd_path
         self.max_output_size = max_output_line
         self.max_error_size = max_error_line
-        self._output_buffer: List[str] = []
-        self._error_buffer: List[str] = []
+        self._output_buffer: Iterable[str] = []
+        self._error_buffer: Iterable[str] = []
         if executable is None and default_shell != '':
             executable = default_shell
         self.executable = executable
         self._process: Optional[asyncio.subprocess.Process]
+        self._preexec_fn = preexec_fn
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -116,8 +118,7 @@ class CmdTask(BaseTask):
         self.log_debug('\n'.join([
             'Run script:',
             self._get_multiline_repr(cmd),
-            'With env:',
-            self._get_map_repr(env)
+            f'With env: {env}',
         ]))
         self._output_buffer = []
         self._error_buffer = []
@@ -128,8 +129,8 @@ class CmdTask(BaseTask):
             env=env,
             shell=True,
             executable=self.executable,
-            # close_fds=True,
-            preexec_fn=os.setsid
+            close_fds=True,
+            preexec_fn=self._preexec_fn
         )
         self.set_task_pid(process.pid)
         self._process = process
@@ -207,7 +208,7 @@ class CmdTask(BaseTask):
         self,
         queue: asyncio.Queue,
         print_log: Callable[[str], None],
-        buffer: List[str],
+        buffer: Iterable[str],
         max_size: int
     ):
         while True:
@@ -219,7 +220,7 @@ class CmdTask(BaseTask):
             print_log(line_str)
 
     def _add_to_buffer(
-        self, buffer: List[str], max_size: int, new_line: str
+        self, buffer: Iterable[str], max_size: int, new_line: str
     ):
         if len(buffer) >= max_size:
             buffer.pop(0)

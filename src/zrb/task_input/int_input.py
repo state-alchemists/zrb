@@ -5,13 +5,13 @@ from ..task_input.base_input import BaseInput
 
 
 @typechecked
-class StrInput(BaseInput):
+class IntInput(BaseInput):
 
     def __init__(
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[str] = None,
+        default: Optional[int] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -44,7 +44,7 @@ class StrInput(BaseInput):
             multiple=multiple,
             count=count,
             allow_from_autoenv=allow_from_autoenv,
-            type=str,
+            type=int,
             hidden=hidden,
             show_choices=show_choices,
             show_envvar=show_envvar,

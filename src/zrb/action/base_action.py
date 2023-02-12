@@ -1,4 +1,4 @@
-from typing import List
+from typing import Iterable
 from typeguard import typechecked
 from ..task.base_task import BaseTask
 
@@ -7,7 +7,7 @@ from ..task.base_task import BaseTask
 class BaseAction():
 
     def __init__(self):
-        self._tasks: List[BaseTask] = []
+        self._tasks: Iterable[BaseTask] = []
 
     def register(self, task: BaseTask):
         self._tasks.append(task)

@@ -1,13 +1,14 @@
 from typing import Any, Optional
 from .._group import task_group
 from ...task_input.str_input import StrInput
-from ...task.resource_maker import ResourceMaker
-from ...task.task import Task
-from ...runner import runner
-from ...helper.render_data.replacement_template import (
-    Replacement
+from ...helper.middlewares.replacement import (
+    coalesce, add_pascal_key, add_snake_key, add_camel_key,
+    add_kebab_key, add_human_readable_key, add_base_name_key
 )
-from ...helper.common import to_snake_case, coalesce
+from ...task.task import Task
+from ...task.resource_maker import ResourceMaker
+from ...runner import runner
+from ...helper import util
 from ...helper.codemod.add_import_module import add_import_module
 from ...helper.codemod.add_assert_module import add_assert_module
 
@@ -16,45 +17,6 @@ import os
 # Common definitions
 
 current_dir = os.path.dirname(__file__)
-
-inputs = [
-    StrInput(
-        name='task-dir',
-        prompt='Task directory',
-        default='myTask'
-    ),
-    StrInput(
-        name='task-name',
-        prompt='Task name (can be empty)',
-        default=''
-    ),
-]
-
-replacements = Replacement().add_key_val(
-    key='taskDir',
-    value='input.task_dir'
-).add_transformed_key_val(Replacement.ALL)(
-    key='taskName',
-    value=[
-        'input.task_name',
-        'os.path.basename(input.task_dir)'
-    ]
-).get()
-
-
-def is_path_inside(path, parent_path):
-    # Normalize the paths to avoid inconsistencies due to
-    # different separators, etc.
-    path = os.path.normpath(path)
-    parent_path = os.path.normpath(parent_path)
-
-    # Split the paths into components
-    path_components = path.split(os.sep)
-    parent_path_components = parent_path.split(os.sep)
-
-    # Check if all components of `path` match the corresponding
-    # components of `parent_path`
-    return all(a == b for a, b in zip(path_components, parent_path_components))
 
 
 def get_zrb_project_dir(project_dir: str) -> Optional[str]:
@@ -81,7 +43,7 @@ def _task_validate_create(*args: Any, **kwargs: Any):
 
 def _task_create(*args: Any, **kwargs: Any):
     task_dir = os.path.abspath(kwargs.get('task_dir'))
-    snake_task_name = to_snake_case(coalesce(
+    snake_task_name = util.to_snake_case(util.coalesce(
         kwargs.get('task_name'), os.path.basename(task_dir)
     ))
     zrb_project_dir = get_zrb_project_dir(task_dir)
@@ -103,27 +65,67 @@ def _task_create(*args: Any, **kwargs: Any):
 
 # Task definitions
 
-task_validate_create = Task(
+task_validate_create_task = Task(
     name='task-validate-create',
-    inputs=inputs,
+    inputs=[
+        StrInput(
+            name='task-dir',
+            prompt='Task directory',
+            default='myTask'
+        )
+    ],
     run=_task_validate_create
 )
 
-task_copy_resource = ResourceMaker(
-    name='task-copy-resource',
-    inputs=inputs,
-    upstreams=[task_validate_create],
-    replacements=replacements,
+task_copy_resource_task = ResourceMaker(
+    name='copy-resource',
+    inputs=[
+        StrInput(
+            name='task-dir',
+            prompt='Task directory',
+            default='myTask'
+        ),
+        StrInput(
+            name='task-name',
+            prompt='Task name (can be empty)',
+            default=''
+        ),
+    ],
+    upstreams=[task_validate_create_task],
+    replacements={
+        'taskDir': '{{input.task_dir}}',
+        'taskName': '{{input.task_name}}'
+    },
+    replacement_middlewares=[
+        add_base_name_key('baseTaskDir', 'taskDir'),
+        coalesce('taskName', ['baseTaskDir']),
+        add_pascal_key('PascalTaskName', 'taskName'),
+        add_camel_key('camelTaskName', 'taskName'),
+        add_snake_key('snake_task_name', 'taskName'),
+        add_kebab_key('kebab-task-name', 'taskName'),
+        add_human_readable_key('human readable task name', 'taskName'),
+    ],
     template_path=os.path.join(current_dir, 'task_template'),
     destination_path='{{input.task_dir}}',
     scaffold_locks=['{{input.task_dir}}']
 )
 
-task_create = Task(
+task_create_task = Task(
     name='create',
     group=task_group,
-    inputs=inputs,
+    inputs=[
+        StrInput(
+            name='task-dir',
+            prompt='Task directory',
+            default='myTask'
+        ),
+        StrInput(
+            name='task-name',
+            prompt='Task name (can be empty)',
+            default=''
+        ),
+    ],
     run=_task_create,
-    upstreams=[task_copy_resource]
+    upstreams=[task_copy_resource_task]
 )
-runner.register(task_create)
+runner.register(task_create_task)

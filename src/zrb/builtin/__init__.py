@@ -4,6 +4,8 @@ from . import eval_task
 from . import md5_task
 from . import principle_task
 from . import ubuntu_task
+from . import update_task
+from . import version_task
 from .project import project_create_task
 from .task import task_create_task
 
@@ -13,5 +15,7 @@ assert eval_task
 assert md5_task
 assert principle_task
 assert ubuntu_task
+assert update_task
+assert version_task
 assert project_create_task
 assert task_create_task

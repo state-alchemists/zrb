@@ -1,5 +1,6 @@
 from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
+from ._constant import RESERVED_INPUT_NAMES
 
 
 @typechecked
@@ -27,6 +28,8 @@ class BaseInput():
         show_envvar: bool = False,
         nargs: int = 1,
     ):
+        if name in RESERVED_INPUT_NAMES:
+            raise ValueError(f'Forbidden input name: {name}')
         self.name = name
         self.shortcut = shortcut
         self.prompt = prompt

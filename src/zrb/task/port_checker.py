@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union
 from typeguard import typechecked
 from .base_task import BaseTask
 from ..task_env.env import Env
@@ -16,15 +16,15 @@ class PortChecker(BaseTask):
         self,
         name: str = 'port-check',
         group: Optional[Group] = None,
-        inputs: List[BaseInput] = [],
-        envs: List[Env] = [],
+        inputs: Iterable[BaseInput] = [],
+        envs: Iterable[Env] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
         host: str = 'localhost',
         port: Union[int, str] = 80,
         timeout: Union[int, str] = 5,
-        upstreams: List[BaseTask] = [],
+        upstreams: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
     ):
         BaseTask.__init__(

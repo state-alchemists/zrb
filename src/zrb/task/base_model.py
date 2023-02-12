@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
 from ..helper.accessories.color import (
     get_random_color, is_valid_color, colored
@@ -7,10 +7,11 @@ from ..helper.accessories.icon import get_random_icon
 from ..helper.string.conversion import (
     to_cmd_name, to_variable_name
 )
-from ..helper.render_data.default_render_data import DEFAULT_RENDER_DATA
+from ..helper.render_data import DEFAULT_RENDER_DATA
 from ..helper.log import logger
 from ..task_env.env import Env
 from ..task_group.group import Group
+from ..task_input._constant import RESERVED_INPUT_NAMES
 
 import datetime
 import os
@@ -121,7 +122,7 @@ class TaskDataModel():
         self,
         name: str,
         group: Optional[Group] = None,
-        envs: List[Env] = [],
+        envs: Iterable[Env] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
     ):
@@ -260,17 +261,9 @@ class TaskDataModel():
     def render_str(self, val: str) -> str:
         template = jinja2.Template(val)
         data = self._get_render_data()
-        self.log_debug('\n'.join([
-            'Render string template:',
-            self._get_multiline_repr(val),
-            'With data:',
-            self._get_map_repr(data)
-        ]))
+        self.log_debug(f'Render string template: {val}, with data: {data}')
         rendered_text = template.render(data)
-        self.log_debug('\n'.join([
-            'Get rendered result:',
-            self._get_multiline_repr(rendered_text),
-        ]))
+        self.log_debug(f'Get rendered result: {rendered_text}')
         return rendered_text
 
     def render_file(self, location: str) -> str:
@@ -281,16 +274,9 @@ class TaskDataModel():
         template = env.get_template(location)
         data = self._get_render_data()
         data['TEMPLATE_DIR'] = location_dir
-        self.log_debug('\n'.join([
-            f'Render template file: {template}',
-            'With data:',
-            self._get_map_repr(data)
-        ]))
+        self.log_debug(f'Render template file: {template}, with data: {data}')
         rendered_text = template.render(data)
-        self.log_debug('\n'.join([
-            'Get rendered result:',
-            self._get_multiline_repr(rendered_text),
-        ]))
+        self.log_debug(f'Get rendered result: {rendered_text}')
         return rendered_text
 
     def _get_render_data(self) -> Mapping[str, Any]:
@@ -302,16 +288,10 @@ class TaskDataModel():
         return render_data
 
     def _get_multiline_repr(self, text: str) -> str:
-        lines_repr: List[str] = []
+        lines_repr: Iterable[str] = []
         for index, line in enumerate(text.split('\n')):
             line_number_repr = str(index + 1).rjust(4, '0')
             lines_repr.append(f'{MULTILINE_INDENT}{line_number_repr} | {line}')
-        return '\n'.join(lines_repr)
-
-    def _get_map_repr(self, data: Mapping[str, Any]) -> str:
-        lines_repr: List[str] = []
-        for key, val in data.items():
-            lines_repr.append(f'{MULTILINE_INDENT}{key}: {val}')
         return '\n'.join(lines_repr)
 
     def _set_local_keyval(
@@ -324,20 +304,19 @@ class TaskDataModel():
         self._is_keyval_set = True
         self._input_map: Mapping[str, Any]
         for input_name, val in input_map.items():
-            self._input_map[to_variable_name(input_name)] = val
-        self.log_debug('\n'.join([
-            'Set input map:',
-            self._get_map_repr(self._input_map)
-        ]))
+            self._input_map[self._get_normalized_input_key(input_name)] = val
+        self.log_debug(f'Set input map: {self._input_map}')
         self._env_map = dict(os.environ)
         for task_env in self.envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
             self._env_map[env_name] = env_value
-        self.log_debug('\n'.join([
-            'Set env map:',
-            self._get_map_repr(self._env_map)
-        ]))
+        self.log_debug(f'Set env map: {self._env_map}')
+
+    def _get_normalized_input_key(self, key: str) -> str:
+        if key in RESERVED_INPUT_NAMES:
+            return key
+        return to_variable_name(key)
 
     def _get_complete_name(self) -> str:
         cmd_name = self.get_cmd_name()
@@ -369,7 +348,7 @@ class TaskModel(
         self,
         name: str,
         group: Optional[Group] = None,
-        envs: List[Env] = [],
+        envs: Iterable[Env] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         retry: int = 2,

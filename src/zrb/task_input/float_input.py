@@ -1,17 +1,17 @@
 from typing import Any, Optional, Union
 from typeguard import typechecked
 
-from ..task_input.base_input import BaseInput
+from .base_input import BaseInput
 
 
 @typechecked
-class StrInput(BaseInput):
+class FloatInput(BaseInput):
 
     def __init__(
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[str] = None,
+        default: Optional[float] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -44,7 +44,7 @@ class StrInput(BaseInput):
             multiple=multiple,
             count=count,
             allow_from_autoenv=allow_from_autoenv,
-            type=str,
+            type=float,
             hidden=hidden,
             show_choices=show_choices,
             show_envvar=show_envvar,

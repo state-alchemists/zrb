@@ -1,4 +1,4 @@
-from ..common import (
+from .util import (
     coalesce, coalesce_str, to_camel_case, to_pascal_case, to_kebab_case,
     to_snake_case, to_human_readable
 )
@@ -10,7 +10,7 @@ DEFAULT_RENDER_DATA = {
     'os': os,
     'datetime': datetime,
     'time': time,
-    'zrb': {
+    'util': {
         'coalesce': coalesce,
         'coalesce_str': coalesce_str,
         'to_camel_case': to_camel_case,
