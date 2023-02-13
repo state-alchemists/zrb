@@ -13,7 +13,6 @@ from ..helper.accessories.color import colored
 
 import asyncio
 import copy
-import sys
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
