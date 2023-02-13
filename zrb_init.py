@@ -79,7 +79,8 @@ test = CmdTask(
     checkers=[
         HTTPChecker(port='{{input.port}}')
     ],
-    retry=0
+    retry=0,
+    checking_interval=1
 )
 runner.register(test)
 

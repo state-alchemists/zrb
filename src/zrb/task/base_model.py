@@ -309,7 +309,7 @@ class TaskDataModel():
         self._env_map = dict(os.environ)
         for task_env in self.envs:
             env_name = task_env.name
-            env_value = task_env.get(env_prefix)
+            env_value = self.render_str(task_env.get(env_prefix))
             self._env_map[env_name] = env_value
         self.log_debug(f'Set env map: {self._env_map}')
 
