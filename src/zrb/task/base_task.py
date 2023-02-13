@@ -8,9 +8,12 @@ from ..task_env.env import Env
 from ..task_group.group import Group
 from ..helper.list.append_unique import append_unique
 from ..helper.string.conversion import to_variable_name
+from ..helper.accessories.color import colored
+
 
 import asyncio
 import copy
+import sys
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
@@ -110,7 +113,7 @@ class BaseTask(TaskModel):
             async def run_and_check_all_async() -> Any:
                 # initiate args
                 processes = [
-                    asyncio.create_task(self_cp._loop_check(celebrate=True)),
+                    asyncio.create_task(self_cp._loop_check()),
                     asyncio.create_task(self_cp._run_all(*args, **kwargs))
                 ]
                 results = await asyncio.gather(*processes)
@@ -118,6 +121,7 @@ class BaseTask(TaskModel):
             try:
                 result = asyncio.run(run_and_check_all_async())
                 self._print_result(result)
+                self.show_celebration()
                 return result
             except Exception as exception:
                 self_cp.log_error(f'{exception}')
@@ -159,17 +163,15 @@ class BaseTask(TaskModel):
         '''
         if result is None:
             return
-        self.print_out(result)
+        self.print_out(colored('Return output', color=self.get_color()))
         print(result)
 
-    async def _loop_check(self, celebrate: bool = False) -> bool:
+    async def _loop_check(self) -> bool:
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self.checking_interval)
         self.end_timer()
         self.log_info('Task is ready')
-        if celebrate:
-            self.show_celebration()
         return True
 
     async def _cached_check(self) -> bool:

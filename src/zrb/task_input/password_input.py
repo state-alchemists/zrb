@@ -11,7 +11,7 @@ class PasswordInput(BaseInput):
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[str] = None,
+        default: Optional[Any] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,

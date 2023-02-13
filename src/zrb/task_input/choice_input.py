@@ -12,7 +12,7 @@ class ChoiceInput(BaseInput):
         name: str,
         shortcut: Optional[str] = None,
         choices: Iterable[Any] = [],
-        default: Any = None,
+        default: Optional[Any] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,

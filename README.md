@@ -255,7 +255,7 @@ The following configurations are available:
         - `1`
         - `0`
 - `ZRB_SHELL`: Default shell for running cmdTask
-    - Default: empty, indicating the system's default (usually `/usr/bin/bash` or `/usr/bin/sh`)
+    - Default: `bash`
     - Possible value:
         - `/usr/bin/bash`
         - `/usr/bin/sh` 

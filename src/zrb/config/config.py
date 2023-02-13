@@ -29,7 +29,7 @@ def get_logging_level():
     return logging.WARNING
 
 
-default_shell = os.getenv('ZRB_SHELL', '')
+default_shell = os.getenv('ZRB_SHELL', 'bash')
 init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
 logging_level = get_logging_level()
 should_load_builtin = os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1') != '0'
