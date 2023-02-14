@@ -42,10 +42,6 @@ class TimeTracker():
         self._start_time: float = 0
         self._end_time: float = 0
 
-    def reset_timer(self):
-        self._start_time = 0
-        self._end_time = 0
-
     def start_timer(self):
         self._start_time = time.time()
 
@@ -71,9 +67,6 @@ class AttemptTracker():
 
     def increase_attempt(self):
         self._attempt += 1
-
-    def reset_attempt(self):
-        self._attempt = 0
 
     def should_attempt(self) -> bool:
         attempt = self.get_attempt()
@@ -137,6 +130,7 @@ class TaskDataModel():
         self._env_map: Mapping[str, str] = {}
         self._complete_name: Optional[str] = None
         self._is_keyval_set = False  # Flag
+        self._has_cli_interface = False
 
     def get_icon(self) -> str:
         if self.icon is None or self.icon == '':
@@ -311,10 +305,17 @@ class TaskDataModel():
         for task_env in self.envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
-            if '{{' in env_value and '}}' in env_value:
+            if self._is_probably_jinja(env_value):
                 env_value = self.render_str(env_value)
             self._env_map[env_name] = env_value
         self.log_debug(f'Set env map: {self._env_map}')
+
+    def _is_probably_jinja(self, string: str) -> bool:
+        if '{{' in string and '}}' in string:
+            return True
+        if '{%' in string and '%}' in string:
+            return True
+        return False
 
     def _get_normalized_input_key(self, key: str) -> str:
         if key in RESERVED_INPUT_NAMES:
@@ -324,19 +325,24 @@ class TaskDataModel():
     def _get_complete_name(self) -> str:
         if self._complete_name is not None:
             return self._complete_name
-        executable_name = self._get_executable_name()
+        executable_prefix = ''
+        if self._has_cli_interface:
+            executable_prefix += self._get_executable_name() + ' '
         cmd_name = self.get_cmd_name()
         if self.group is None:
-            self._complete_name = f'{executable_name} {cmd_name}'
+            self._complete_name = f'{executable_prefix}{cmd_name}'
             return self._complete_name
         group_cmd_name = self.group.get_complete_name()
-        self._complete_name = f'{executable_name} {group_cmd_name} {cmd_name}'
+        self._complete_name = f'{executable_prefix}{group_cmd_name} {cmd_name}'
         return self._complete_name
 
     def _get_executable_name(self) -> str:
         if len(sys.argv) > 0 and sys.argv[0] != '':
             return os.path.basename(sys.argv[0])
         return 'zrb'
+
+    def set_has_cli_interface(self):
+        self._has_cli_interface = True
 
 
 @typechecked

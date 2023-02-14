@@ -20,6 +20,10 @@ class Runner(BaseAction):
         self._top_levels: List[CliSubcommand] = []
         self._subcommands: Mapping[str, List[click.Group]] = {}
 
+    def register(self, task: BaseTask):
+        BaseAction.register(self, task)
+        task.set_has_cli_interface()
+
     def serve(self, cli: click.Group) -> click.Group:
         for task in self._tasks:
             subcommand = self._create_cli_subcommand(task)

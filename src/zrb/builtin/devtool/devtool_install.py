@@ -1,81 +1,13 @@
-from typing import Any, Callable, List
-from .._group import dev_tool_install_group
-from ...task.cmd_task import CmdTask
-from ...task.task import Task
-from ...task_input.base_input import BaseInput
+from .helper import create_installer
 from ...task_input.str_input import StrInput
 from ...task_input.bool_input import BoolInput
 from ...runner import runner
 
-import os
-
-dir_path = os.path.dirname(__file__)
-
-install_inputs = [
-    StrInput(
-        name='shell-startup',
-        shortcut='s',
-        description='Shell startup script (e.g., ~/.bashrc or ~/.zshrc)',
-        prompt='Shell startup script (e.g., ~/.bashrc or ~/.zshrc)'
-    )
-]
-
-
-def append_config(
-    source_config_script: str, shell_startup_script: str
-) -> Callable[..., Any]:
-    def _append_config(*args, **kwargs):
-        task: Task = kwargs.get('_task')
-        destination_config_script = task.render_str(
-            os.path.expandvars(
-                os.path.expanduser(shell_startup_script)
-            )
-        )
-        task.print_out(f'Add configuration to {destination_config_script}')
-        with open(source_config_script, 'r') as src:
-            with open(destination_config_script, 'a') as dst:
-                dst.write(src.read())
-        task.print_out('Done configuring')
-    return _append_config
-
-
-def create_installer(
-    name: str, description: str, inputs: List[BaseInput] = []
-) -> Task:
-    download_task = CmdTask(
-        name=f'download-{name}',
-        cmd_path=os.path.join(dir_path, name, 'download.sh'),
-        checking_interval=3,
-        preexec_fn=None
-    )
-    configure_task = Task(
-        name=f'configure-{name}',
-        upstreams=[download_task],
-        inputs=install_inputs,
-        run=append_config(
-            os.path.join(dir_path, name, 'config.sh'),
-            '{{input.shell_startup}}'
-        )
-    )
-    install_task = CmdTask(
-        name=name,
-        group=dev_tool_install_group,
-        description=description,
-        upstreams=[configure_task],
-        inputs=install_inputs + inputs,
-        cmd_path=os.path.join(dir_path, name, 'install.sh'),
-        checking_interval=3,
-        preexec_fn=None
-    )
-    return install_task
-
-
-# Tasks definition
-
+# GVM
 gvm_install_task = create_installer(
     name='gvm',
     description='GVM provides interface to manage go version',
-    inputs=[
+    install_inputs=[
         StrInput(
             name='go-default-version',
             description='Go default version',
@@ -85,10 +17,11 @@ gvm_install_task = create_installer(
 )
 runner.register(gvm_install_task)
 
+# PyEnv
 pyenv_install_task = create_installer(
     name='pyenv',
     description='Simple Python version management',
-    inputs=[
+    install_inputs=[
         StrInput(
             name='python-default-version',
             description='Python default version',
@@ -98,13 +31,14 @@ pyenv_install_task = create_installer(
 )
 runner.register(pyenv_install_task)
 
+# NVM
 nvm_install_task = create_installer(
     name='nvm',
     description=' '.join([
         'NVM allows you to quickly install and use different versions',
         'of node via the command line'
     ]),
-    inputs=[
+    install_inputs=[
         StrInput(
             name='node-default-version',
             description='Node default version',
@@ -114,13 +48,14 @@ nvm_install_task = create_installer(
 )
 runner.register(nvm_install_task)
 
+# sdkman
 sdkman_install_task = create_installer(
     name='sdkman',
     description=' '.join([
         'SDKMAN! is a tool for managing parallel versions of multiple',
         'Software Development Kits on most Unix based systems'
     ]),
-    inputs=[
+    install_inputs=[
         BoolInput(
             name='install-java',
             description='Install Java',
@@ -137,8 +72,48 @@ sdkman_install_task = create_installer(
 )
 runner.register(sdkman_install_task)
 
+# pulumi
 pulumi_install_task = create_installer(
     name='pulumi',
     description='Universal infrastructure as code'
 )
 runner.register(pulumi_install_task)
+
+# AWS
+aws_install_task = create_installer(
+    name='aws',
+    description='AWS CLI',
+    skip_config=True
+)
+runner.register(aws_install_task)
+
+# GCloud
+gcloud_install_task = create_installer(
+    name='gcloud',
+    description='Gcloud CLI',
+    skip_download=True,
+    skip_config=True,
+)
+runner.register(gcloud_install_task)
+
+# Tmux-config
+tmux_config_install_task = create_installer(
+    name='tmux-config',
+    description='Tmux configuration',
+    config_inputs=[],
+    config_destination='{{ env.HOME }}/.tmux.conf.bak',
+    skip_download=True,
+    skip_backup_config=False,
+)
+runner.register(tmux_config_install_task)
+
+# Zsh-config
+zsh_config_install_task = create_installer(
+    name='zsh-config',
+    description='Zsh configuration (oh-my-zsh and zdharma)',
+    config_inputs=[],
+    config_destination='{{ env.HOME }}/.zshrc',
+    skip_download=True,
+    skip_backup_config=False,
+)
+runner.register(zsh_config_install_task)
