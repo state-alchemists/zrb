@@ -202,7 +202,10 @@ class CmdTask(BaseTask):
 
     async def _queue_stream(self, stream, queue: asyncio.Queue):
         while True:
-            line = await stream.readline()
+            try:
+                line = await stream.readline()
+            except Exception as e:
+                line = str(e)
             if not line:
                 break
             await queue.put(line)
