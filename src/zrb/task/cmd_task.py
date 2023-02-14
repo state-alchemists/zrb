@@ -110,6 +110,8 @@ class CmdTask(BaseTask):
         return super().create_main_loop(env_prefix, raise_error)
 
     def _print_result(self, result: CmdResult):
+        if result.output == '':
+            return
         print(result.output)
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
@@ -130,7 +132,8 @@ class CmdTask(BaseTask):
             shell=True,
             executable=self.executable,
             close_fds=True,
-            preexec_fn=self._preexec_fn
+            preexec_fn=self._preexec_fn,
+            bufsize=0
         )
         self.set_task_pid(process.pid)
         self._process = process

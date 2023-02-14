@@ -4,6 +4,7 @@ from ...task.cmd_task import CmdTask
 from ...task.task import Task
 from ...task_input.base_input import BaseInput
 from ...task_input.str_input import StrInput
+from ...task_input.bool_input import BoolInput
 from ...runner import runner
 
 import os
@@ -34,11 +35,13 @@ def append_config(
         with open(source_config_script, 'r') as src:
             with open(destination_config_script, 'a') as dst:
                 dst.write(src.read())
-        task.print_out(f'Done configuring')
+        task.print_out('Done configuring')
     return _append_config
 
 
-def create_installer(name: str, description: str, inputs: List[BaseInput]):
+def create_installer(
+    name: str, description: str, inputs: List[BaseInput] = []
+) -> Task:
     download_task = CmdTask(
         name=f'download-{name}',
         cmd_path=os.path.join(dir_path, name, 'download.sh'),
@@ -64,12 +67,12 @@ def create_installer(name: str, description: str, inputs: List[BaseInput]):
         checking_interval=3,
         preexec_fn=None
     )
-    runner.register(install_task)
+    return install_task
 
 
 # Tasks definition
 
-create_installer(
+gvm_install_task = create_installer(
     name='gvm',
     description='GVM provides interface to manage go version',
     inputs=[
@@ -80,8 +83,9 @@ create_installer(
         )
     ]
 )
+runner.register(gvm_install_task)
 
-create_installer(
+pyenv_install_task = create_installer(
     name='pyenv',
     description='Simple Python version management',
     inputs=[
@@ -92,3 +96,49 @@ create_installer(
         )
     ]
 )
+runner.register(pyenv_install_task)
+
+nvm_install_task = create_installer(
+    name='nvm',
+    description=' '.join([
+        'NVM allows you to quickly install and use different versions',
+        'of node via the command line'
+    ]),
+    inputs=[
+        StrInput(
+            name='node-default-version',
+            description='Node default version',
+            default='node'
+        )
+    ]
+)
+runner.register(nvm_install_task)
+
+sdkman_install_task = create_installer(
+    name='sdkman',
+    description=' '.join([
+        'SDKMAN! is a tool for managing parallel versions of multiple',
+        'Software Development Kits on most Unix based systems'
+    ]),
+    inputs=[
+        BoolInput(
+            name='install-java',
+            description='Install Java',
+            prompt='Do you want to install Java?',
+            default=True
+        ),
+        BoolInput(
+            name='install-scala',
+            description='Install Scala',
+            prompt='Do you want to install Scala?',
+            default=True
+        )
+    ]
+)
+runner.register(sdkman_install_task)
+
+pulumi_install_task = create_installer(
+    name='pulumi',
+    description='Universal infrastructure as code'
+)
+runner.register(pulumi_install_task)

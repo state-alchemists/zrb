@@ -1,10 +1,15 @@
 source {{ os.path.expandvars(os.path.expanduser(input.shell_startup)) }}
 
-echo "Install {{ input.python_default_version }}"
-pyenv install {{input.python_default_version}}
+if [ ! -d "${HOME}/.pyenv/versions/{{ input.python_default_version }}" ]
+then
+    echo "Install Python {{ input.python_default_version }}"
+    pyenv install {{input.python_default_version}}
+else
+    echo "Python {{ input.python_default_version }} already installed"
+fi
 
-echo "Set {{ input.python_default_version }} as default"
-pyenv global {{input.python_default_version}} --default
+echo "Set Python {{ input.python_default_version }} as default"
+pyenv global {{input.python_default_version}}
 
 echo "Install pipenv"
 pip install pipenv

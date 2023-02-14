@@ -135,6 +135,7 @@ class TaskDataModel():
         self.color = color
         self._input_map: Mapping[str, Any] = {}
         self._env_map: Mapping[str, str] = {}
+        self._complete_name: Optional[str] = None
         self._is_keyval_set = False  # Flag
 
     def get_icon(self) -> str:
@@ -309,7 +310,9 @@ class TaskDataModel():
         self._env_map = dict(os.environ)
         for task_env in self.envs:
             env_name = task_env.name
-            env_value = self.render_str(task_env.get(env_prefix))
+            env_value = task_env.get(env_prefix)
+            if '{{' in env_value and '}}' in env_value:
+                env_value = self.render_str(env_value)
             self._env_map[env_name] = env_value
         self.log_debug(f'Set env map: {self._env_map}')
 
@@ -319,24 +322,21 @@ class TaskDataModel():
         return to_variable_name(key)
 
     def _get_complete_name(self) -> str:
+        if self._complete_name is not None:
+            return self._complete_name
+        executable_name = self._get_executable_name()
         cmd_name = self.get_cmd_name()
         if self.group is None:
-            return cmd_name
+            self._complete_name = f'{executable_name} {cmd_name}'
+            return self._complete_name
         group_cmd_name = self.group.get_complete_name()
-        return f'{group_cmd_name} {cmd_name}'
+        self._complete_name = f'{executable_name} {group_cmd_name} {cmd_name}'
+        return self._complete_name
 
-    def show_celebration(self):
-        complete_name = self._get_complete_name()
-        elapsed_time = self.get_elapsed_time()
-        icon = self.get_icon()
-        message = '\n'.join([
-            '🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉',
-            f'🤖 {icon} {complete_name} completed in',
-            f'🤖 {icon} {elapsed_time} seconds',
-            '🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉'
-        ])
-        print(message, file=sys.stderr)
-        self.play_bell()
+    def _get_executable_name(self) -> str:
+        if len(sys.argv) > 0 and sys.argv[0] != '':
+            return os.path.basename(sys.argv[0])
+        return 'zrb'
 
 
 @typechecked
@@ -374,3 +374,12 @@ class TaskModel(
             )
             return 0
         return value
+
+    def show_celebration(self):
+        complete_name = self._get_complete_name()
+        elapsed_time = self.get_elapsed_time()
+        message = '\n'.join([
+            f'{complete_name} completed in {elapsed_time} seconds',
+        ])
+        print(colored(message, attrs=['dark']), file=sys.stderr)
+        self.play_bell()
