@@ -11,6 +11,10 @@ import os
 def create_cli() -> click.Group:
     cli = click.Group(name='zrb', help='Your faithful companion.')
 
+    zrb_home_dir = os.path.dirname(os.path.dirname(__file__))
+    if 'ZRB_HOME_DIR' not in os.environ:
+        os.environ['ZRB_HOME_DIR'] = zrb_home_dir
+
     if 'PYTHONUNBUFFERED' not in os.environ:
         os.environ['PYTHONUNBUFFERED'] = '1'
 
@@ -26,20 +30,20 @@ def create_cli() -> click.Group:
 
     # Load zrb_init.py
     project_dir = os.getcwd()
-    load_zrb_init(project_dir)
+    _load_zrb_init(project_dir)
 
     # Serve all tasks registered to runner
     cli = runner.serve(cli)
     return cli
 
 
-def load_zrb_init(project_dir: str):
+def _load_zrb_init(project_dir: str):
     project_script = os.path.join(project_dir, 'zrb_init.py')
     if os.path.isfile(project_script):
         load_module(script_path=project_script)
         os.environ['ZRB_PROJECT_DIR'] = project_dir
         logger.info(colored(f'ZRB_PROJECT_DIR={project_dir}', attrs=['dark']))
-        add_project_dir_to_python_path(project_dir)
+        _add_project_dir_to_python_path(project_dir)
         python_path = os.getenv('PYTHONPATH')
         logger.info(colored(f'PYTHONPATH={python_path}', attrs=['dark']))
         return
@@ -50,10 +54,10 @@ def load_zrb_init(project_dir: str):
         logger.debug(colored('Cannot find zrb_init.py', attrs=['dark']))
         return
     # do the same thing again
-    load_zrb_init(parent_project_dir)
+    _load_zrb_init(parent_project_dir)
 
 
-def add_project_dir_to_python_path(project_dir: str):
+def _add_project_dir_to_python_path(project_dir: str):
     current_python_path = os.getenv('PYTHONPATH')
     if current_python_path is None or current_python_path == '':
         os.environ['PYTHONPATH'] = project_dir

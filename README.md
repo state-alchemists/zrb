@@ -231,6 +231,8 @@ Visit [click shell completion](https://click.palletsprojects.com/en/8.1.x/shell-
 
 The following configurations are available:
 
+- `ZRB_HOME_DIR`: Zrb home directory.
+    - Default: Zrb home directory
 - `ZRB_LOGGING_LEVEL`: Logging verbosity.
     - Default: `WARNING`
     - Possible values:

@@ -1,4 +1,4 @@
-source {{ os.path.expandvars(os.path.expanduser(input.shell_startup)) }}
+source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
 {% if input.install_java %}
 echo "Install Java"
@@ -10,5 +10,5 @@ echo "Install Scala"
 sdk install scala
 {% endif %}
 
-echo "Please reload your terminal to continue (i.e., source {{ input.shell_startup }})"
+echo "Please reload your terminal to continue (i.e., source {{ input.config_file }})"
 echo "Happy coding"

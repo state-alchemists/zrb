@@ -147,7 +147,6 @@ class BaseTask(TaskModel):
             if kwarg_key not in kwargs:
                 kwargs[kwarg_key] = task_input.default
         # inject kwargs[_task]
-        kwargs['_task'] = self_cp
         self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
         return self_cp, args, kwargs
 
@@ -228,12 +227,14 @@ class BaseTask(TaskModel):
         await asyncio.gather(*upstream_check_processes)
         # start running task
         result: Any
+        local_kwargs = dict(kwargs)
+        local_kwargs['_task'] = self
         while self.should_attempt():
             try:
                 self.log_debug(
-                    f'Invoke run with args: {args} and kwargs: {kwargs}'
+                    f'Invoke run with args: {args} and kwargs: {local_kwargs}'
                 )
-                result = await self.run(*args, **kwargs)
+                result = await self.run(*args, **local_kwargs)
                 break
             except Exception:
                 if self.is_last_attempt():

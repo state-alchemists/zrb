@@ -1,4 +1,4 @@
-from typing import Any, Callable, List
+from typing import Any, Callable, Iterable, List
 from .._group import dev_tool_install_group
 from ...task.cmd_task import CmdTask
 from ...task.task import Task
@@ -9,102 +9,113 @@ import os
 
 dir_path = os.path.dirname(__file__)
 
-default_config_inputs = [
-    StrInput(
-        name='shell-startup',
-        shortcut='s',
-        description='Shell startup script (e.g., ~/.bashrc or ~/.zshrc)',
-        prompt='Shell startup script (e.g., ~/.bashrc or ~/.zshrc)'
-    )
-]
 
-
-def append_config(
-    source_config_script: str, shell_startup_script: str
+def _get_append_config(
+    source_path: str, destination_path: str
 ) -> Callable[..., Any]:
     def _append_config(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
-        destination_config_script = task.render_str(
+        if not source_path or not os.path.exists(source_path):
+            task.print_out('Nothing to configure')
+            return
+        destination = task.render_str(
             os.path.expandvars(
-                os.path.expanduser(shell_startup_script)
+                os.path.expanduser(destination_path)
             )
         )
-        task.print_out(f'Add configuration to {destination_config_script}')
-        with open(source_config_script, 'r') as src:
-            with open(destination_config_script, 'a') as dst:
+        task.print_out(f'Add configuration to {destination}')
+        with open(source_path, 'r') as src:
+            with open(destination, 'a') as dst:
                 dst.write(src.read())
         task.print_out('Done configuring')
     return _append_config
 
 
-def do_nothing(*args: Any, **kwargs: Any):
-    return None
+def _get_cmd_path(name: str, step: str) -> str:
+    file_path = os.path.join(dir_path, name, f'{step}.sh')
+    if os.path.exists(file_path):
+        return file_path
+    return os.path.join(dir_path, '_default', f'{step}.sh')
 
 
 def create_installer(
     name: str,
     description: str,
-    config_inputs: List[BaseInput] = default_config_inputs,
-    install_inputs: List[BaseInput] = [],
-    skip_download: bool = False,
-    skip_config: bool = False,
-    skip_backup_config: bool = True,
-    config_destination: str = '{{input.shell_startup}}',
-    install_upstreams: List[Task] = []
+    inputs: List[BaseInput] = [],
+    ask_config_location: bool = True,
+    config_locations: Iterable[str] = [],
+    default_config_location: str = '',
+    remove_old_config: bool = False
 ) -> Task:
-
+    # define new inputs
+    inputs = list(inputs)
+    if ask_config_location:
+        config_hint = ''
+        if len(config_locations) > 0:
+            config_hint = ' (e.g.,' + ', '.join(config_locations) + ')'
+        inputs = inputs + [
+            StrInput(
+                name='config-file',
+                shortcut='c',
+                description=f'Config file{config_hint}',
+                prompt=f'Config file{config_hint}',
+                default=default_config_location
+            )
+        ]
+    # define task chain
+    check_task = CmdTask(
+        name=f'check-{name}',
+        inputs=inputs,
+        preexec_fn=None,
+        cmd_path=_get_cmd_path(name, 'check')
+    )
     download_task = CmdTask(
         name=f'download-{name}',
-        cmd_path='' if skip_download else os.path.join(
-            dir_path, name, 'download.sh'
-        ),
-        checking_interval=3,
-        preexec_fn=None
+        inputs=inputs,
+        upstreams=[check_task],
+        preexec_fn=None,
+        cmd_path=_get_cmd_path(name, 'download')
     )
-
-    backup_task = CmdTask(
+    backup_config_task = CmdTask(
         name=f'backup-config-{name}',
-        cmd=[
-            f'if [ -f "{config_destination}" ]',
-            'then',
-            f'  mv "{config_destination}" "{config_destination}.bak"',
-            'fi',
-            f'touch "{config_destination}"'
-        ]
+        inputs=inputs,
+        upstreams=[check_task],
+        preexec_fn=None,
+        cmd_path=_get_cmd_path(name, 'backup-config')
     )
-
-    # download and backup can run in parallel
-    upstreams = []
-    if not skip_download:
-        upstreams.append(download_task)
-    if not skip_backup_config:
-        upstreams.append(backup_task)
-
-    config_task = Task(
-        name=f'config-{name}',
-        upstreams=list(upstreams),
-        inputs=config_inputs,
-        run=do_nothing if skip_config else append_config(
+    setup_task = CmdTask(
+        name=f'setup-{name}',
+        inputs=inputs,
+        upstreams=[download_task],
+        preexec_fn=None,
+        cmd_path=_get_cmd_path(name, 'setup')
+    )
+    remove_config_task = CmdTask(
+        name='remove-{name}-config',
+        inputs=inputs,
+        upstreams=[backup_config_task],
+        preexec_fn=None,
+        cmd_path=_get_cmd_path(name, 'remove-config')
+    )
+    configure_task = Task(
+        name=f'configure-{name}',
+        inputs=inputs,
+        upstreams=[
+            setup_task,
+            remove_config_task if remove_old_config else backup_config_task
+        ],
+        run=_get_append_config(
             os.path.join(dir_path, name, 'config.sh'),
-            config_destination
+            '{{ input.config_file }}'
         )
     )
-
-    if not skip_config:
-        upstreams.append(config_task)
-
-    inputs = list(install_inputs)
-    if not skip_config:
-        inputs = config_inputs + inputs
-
-    install_task = CmdTask(
+    finalize_task = CmdTask(
         name=name,
-        group=dev_tool_install_group,
         description=description,
-        upstreams=install_upstreams + list(upstreams),
+        group=dev_tool_install_group,
         inputs=inputs,
-        cmd_path=os.path.join(dir_path, name, 'install.sh'),
-        checking_interval=3,
-        preexec_fn=None
+        upstreams=[configure_task],
+        preexec_fn=None,
+        cmd_path=_get_cmd_path(name, 'finalize')
     )
-    return install_task
+    return finalize_task

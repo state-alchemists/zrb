@@ -7,13 +7,14 @@ from ...runner import runner
 gvm_install_task = create_installer(
     name='gvm',
     description='GVM provides interface to manage go version',
-    install_inputs=[
+    inputs=[
         StrInput(
             name='go-default-version',
             description='Go default version',
             default='go1.14'
         )
-    ]
+    ],
+    config_locations=['~/.bashrc', '~/.zshrc']
 )
 runner.register(gvm_install_task)
 
@@ -21,13 +22,14 @@ runner.register(gvm_install_task)
 pyenv_install_task = create_installer(
     name='pyenv',
     description='Simple Python version management',
-    install_inputs=[
+    inputs=[
         StrInput(
             name='python-default-version',
             description='Python default version',
             default='3.9.0'
         )
-    ]
+    ],
+    config_locations=['~/.bashrc', '~/.zshrc']
 )
 runner.register(pyenv_install_task)
 
@@ -38,13 +40,14 @@ nvm_install_task = create_installer(
         'NVM allows you to quickly install and use different versions',
         'of node via the command line'
     ]),
-    install_inputs=[
+    inputs=[
         StrInput(
             name='node-default-version',
             description='Node default version',
             default='node'
         )
-    ]
+    ],
+    config_locations=['~/.bashrc', '~/.zshrc']
 )
 runner.register(nvm_install_task)
 
@@ -55,7 +58,7 @@ sdkman_install_task = create_installer(
         'SDKMAN! is a tool for managing parallel versions of multiple',
         'Software Development Kits on most Unix based systems'
     ]),
-    install_inputs=[
+    inputs=[
         BoolInput(
             name='install-java',
             description='Install Java',
@@ -68,14 +71,16 @@ sdkman_install_task = create_installer(
             prompt='Do you want to install Scala?',
             default=True
         )
-    ]
+    ],
+    config_locations=['~/.bashrc', '~/.zshrc']
 )
 runner.register(sdkman_install_task)
 
 # pulumi
 pulumi_install_task = create_installer(
     name='pulumi',
-    description='Universal infrastructure as code'
+    description='Universal infrastructure as code',
+    config_locations=['~/.bashrc', '~/.zshrc']
 )
 runner.register(pulumi_install_task)
 
@@ -83,7 +88,7 @@ runner.register(pulumi_install_task)
 aws_install_task = create_installer(
     name='aws',
     description='AWS CLI',
-    skip_config=True
+    ask_config_location=False
 )
 runner.register(aws_install_task)
 
@@ -91,29 +96,49 @@ runner.register(aws_install_task)
 gcloud_install_task = create_installer(
     name='gcloud',
     description='Gcloud CLI',
-    skip_download=True,
-    skip_config=True,
+    ask_config_location=False
 )
 runner.register(gcloud_install_task)
 
-# Tmux-config
-tmux_config_install_task = create_installer(
-    name='tmux-config',
-    description='Tmux configuration',
-    config_inputs=[],
-    config_destination='{{ env.HOME }}/.tmux.conf.bak',
-    skip_download=True,
-    skip_backup_config=False,
+# Tmux
+tmux_install_task = create_installer(
+    name='tmux',
+    description='Tmux',
+    default_config_location='~/.tmux.conf',
+    remove_old_config=True
 )
-runner.register(tmux_config_install_task)
+runner.register(tmux_install_task)
 
-# Zsh-config
-zsh_config_install_task = create_installer(
-    name='zsh-config',
-    description='Zsh configuration (oh-my-zsh and zdharma)',
-    config_inputs=[],
-    config_destination='{{ env.HOME }}/.zshrc',
-    skip_download=True,
-    skip_backup_config=False,
+# Zsh
+zsh_install_task = create_installer(
+    name='zsh',
+    description='Zsh terminal + oh-my-zsh + zdharma',
+    default_config_location='~/.zshrc',
+    remove_old_config=True
 )
-runner.register(zsh_config_install_task)
+runner.register(zsh_install_task)
+
+# Kubectl
+kubectl_install_task = create_installer(
+    name='kubectl',
+    description='Kubernetes CLI tool',
+    ask_config_location=False
+)
+runner.register(kubectl_install_task)
+
+# Helm
+helm_install_task = create_installer(
+    name='helm',
+    description='Package manager for kubernetes',
+    ask_config_location=False
+)
+runner.register(helm_install_task)
+
+# Terraform
+terraform_install_task = create_installer(
+    name='terraform',
+    description='Open source IAC by Hashicorp',
+    config_locations=['~/.bashrc', '~/.zshrc']
+)
+runner.register(terraform_install_task)
+

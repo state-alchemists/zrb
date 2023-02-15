@@ -1,4 +1,4 @@
-source {{ os.path.expandvars(os.path.expanduser(input.shell_startup)) }}
+source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
 if [ ! -d "${HOME}/.pyenv/versions/{{ input.python_default_version }}" ]
 then
@@ -14,5 +14,4 @@ pyenv global {{input.python_default_version}}
 echo "Install pipenv"
 pip install pipenv
 
-echo "Please reload your terminal to continue (i.e., source {{ input.shell_startup }})"
-echo "Happy coding"
+echo "Please reload your terminal to continue (i.e., source {{ input.config_file }})"

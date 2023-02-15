@@ -5,5 +5,3 @@ then
 fi
 echo "Install AWS CLI"
 sudo ./aws/install --update
-
-echo "Happy coding"
