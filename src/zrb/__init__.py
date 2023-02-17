@@ -14,6 +14,7 @@ from .task_input.str_input import StrInput
 from .task_env.env import Env
 from .task_group.group import Group
 from .builtin import _group as builtin_group
+from .helper.default_env import inject_default_env
 
 
 assert runner
@@ -32,3 +33,5 @@ assert StrInput
 assert Env
 assert Group
 assert builtin_group
+
+inject_default_env()

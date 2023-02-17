@@ -62,6 +62,7 @@ class CmdTask(BaseTask):
         executable: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
         cmd_path: str = '',
+        cwd: Optional[str] = None,
         upstreams: Iterable[BaseTask] = [],
         checkers: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
@@ -94,6 +95,7 @@ class CmdTask(BaseTask):
         )
         self.cmd = cmd
         self.cmd_path = cmd_path
+        self.cwd = cwd
         self.max_output_size = max_output_line
         self.max_error_size = max_error_line
         self._output_buffer: Iterable[str] = []
@@ -126,6 +128,7 @@ class CmdTask(BaseTask):
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(
             cmd,
+            cwd=self.cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,

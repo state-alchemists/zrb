@@ -270,7 +270,8 @@ The following configurations are available:
 - If not set, `PYTHONUNBUFFERED` will be set to `1`.
 - Once `zrb_init.py` is loaded, Zrb will automatically:
     - Set `ZRB_PROJECT_DIR` to `zrb_init.py`'s parent directory.
-    - Adding `ZRB_PROJECT_DIR` to `PYTHONPATH`.
+    - If loaded as CLI, Zrb will also:
+        - Adding `ZRB_PROJECT_DIR` to `PYTHONPATH`.
 - Zrb passes several keyword arguments that will be accessible from the task's run method:
     - `_args`: Shell argument when the task is invoked.
     - `_task`: Reference to the current task.
