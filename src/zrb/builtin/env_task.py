@@ -4,8 +4,6 @@ from ..helper.accessories.color import colored
 from ..task.task import Task
 from ..runner import runner
 
-import os
-
 # Common definitions
 
 
@@ -15,7 +13,7 @@ def _env_show(*args: Any, **kwargs: Any):
     names = list(env_map.keys())
     names.sort()
     for name in names:
-        value = os.getenv(name)
+        value = env_map[name]
         colored_name = colored(name, color='green', attrs=['bold'])
         colored_equal = colored('=', color='grey', attrs=['dark'])
         colored_value = colored(value, attrs=['bold'])

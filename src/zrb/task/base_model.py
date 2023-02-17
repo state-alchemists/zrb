@@ -297,11 +297,11 @@ class TaskDataModel():
         if self._is_keyval_set:
             return True
         self._is_keyval_set = True
-        self._input_map: Mapping[str, Any]
+        # Inject inputs from tasks's property
         for input_name, val in input_map.items():
             self._input_map[self._get_normalized_input_key(input_name)] = val
         self.log_debug(f'Set input map: {self._input_map}')
-        self._env_map = dict(os.environ)
+        # Inject envs from task's property
         for task_env in self.envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
