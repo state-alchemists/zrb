@@ -5,9 +5,12 @@ from typeguard import typechecked
 from .base_model import TaskModel
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
+from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
 from ..helper.list.append_unique import append_unique
 from ..helper.string.conversion import to_variable_name
+from ..helper.advertisement import get_advertisement
+from ..advertisement import advertisements
 
 
 import asyncio
@@ -29,6 +32,7 @@ class BaseTask(TaskModel):
         group: Optional[Group] = None,
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
@@ -44,6 +48,7 @@ class BaseTask(TaskModel):
             name=name,
             group=group,
             envs=envs,
+            env_files=env_files,
             icon=icon,
             color=color,
             retry=retry
@@ -122,7 +127,7 @@ class BaseTask(TaskModel):
                 self._print_result(result)
                 return result
             except Exception as exception:
-                self_cp.log_error(f'{exception}')
+                self_cp.log_critical(f'{exception}')
                 if raise_error:
                     raise
             finally:
@@ -169,6 +174,7 @@ class BaseTask(TaskModel):
         self.end_timer()
         self.log_info('Task is ready')
         if show_celebration:
+            get_advertisement(advertisements).show()
             self.show_celebration()
         return True
 

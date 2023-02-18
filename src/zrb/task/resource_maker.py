@@ -2,6 +2,7 @@ from typing import Any, Callable, Iterable, Mapping, Optional
 from typeguard import typechecked
 from .base_task import BaseTask
 from ..task_env.env import Env
+from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.file.copy_tree import copy_tree
@@ -24,6 +25,7 @@ class ResourceMaker(BaseTask):
         group: Optional[Group] = None,
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
@@ -36,6 +38,7 @@ class ResourceMaker(BaseTask):
             group=group,
             inputs=inputs,
             envs=envs,
+            env_files=env_files,
             icon=icon,
             color=color,
             description=description,

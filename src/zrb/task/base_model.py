@@ -10,6 +10,7 @@ from ..helper.string.conversion import (
 from ..helper.render_data import DEFAULT_RENDER_DATA
 from ..helper.log import logger
 from ..task_env.env import Env
+from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
 from ..task_input._constant import RESERVED_INPUT_NAMES
 
@@ -116,12 +117,14 @@ class TaskDataModel():
         name: str,
         group: Optional[Group] = None,
         envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
     ):
         self.name = name
         self.group = group
         self.envs = envs
+        self.env_files = env_files
         for key in dict(os.environ):
             self.envs.append(Env(name=key, os_name=key))
         self.icon = icon
@@ -131,6 +134,7 @@ class TaskDataModel():
         self._complete_name: Optional[str] = None
         self._is_keyval_set = False  # Flag
         self._has_cli_interface = False
+        self._render_data: Optional[Mapping[str, Any]] = None
 
     def get_icon(self) -> str:
         if self.icon is None or self.icon == '':
@@ -172,6 +176,13 @@ class TaskDataModel():
             f'{prefix} • {message}', color='red', attrs=['bold']
         )
         logger.error(colored_message, exc_info=True)
+
+    def log_critical(self, message: Any):
+        prefix = self._get_log_prefix()
+        colored_message = colored(
+            f'{prefix} • {message}', color='red', attrs=['bold']
+        )
+        logger.critical(colored_message, exc_info=True)
 
     def print_out(self, msg: Any):
         prefix = self._get_colored_print_prefix()
@@ -275,11 +286,14 @@ class TaskDataModel():
         return rendered_text
 
     def _get_render_data(self) -> Mapping[str, Any]:
+        if self._render_data is not None:
+            return self._render_data
         render_data = dict(DEFAULT_RENDER_DATA)
         render_data.update({
             'env': self._env_map,
             'input': self._input_map,
         })
+        self._render_data = render_data
         return render_data
 
     def _get_multiline_repr(self, text: str) -> str:
@@ -297,18 +311,26 @@ class TaskDataModel():
         if self._is_keyval_set:
             return True
         self._is_keyval_set = True
-        # Inject inputs from tasks's property
+        # Add self.inputs to input_map
+        self.log_info('Set input map')
         for input_name, val in input_map.items():
             self._input_map[self._get_normalized_input_key(input_name)] = val
-        self.log_debug(f'Set input map: {self._input_map}')
-        # Inject envs from task's property
-        for task_env in self.envs:
+        self.log_debug(f'Input map: {self._input_map}')
+        # Construct envs based on self.env_files and self.envs
+        self.log_info('Merging env_files and envs')
+        envs: Iterable[Env] = []
+        for env_file in self.env_files:
+            envs = envs + env_file.get_envs()
+        envs = envs + self.envs
+        # Add envs to env_map
+        self.log_info('Set env map')
+        for task_env in envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
             if self._is_probably_jinja(env_value):
                 env_value = self.render_str(env_value)
             self._env_map[env_name] = env_value
-        self.log_debug(f'Set env map: {self._env_map}')
+        self.log_debug(f'Env map: {self._env_map}')
 
     def _is_probably_jinja(self, string: str) -> bool:
         if '{{' in string and '}}' in string:
@@ -355,6 +377,7 @@ class TaskModel(
         name: str,
         group: Optional[Group] = None,
         envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         retry: int = 2,
@@ -364,6 +387,7 @@ class TaskModel(
             name=name,
             group=group,
             envs=envs,
+            env_files=env_files,
             icon=icon,
             color=color
         )

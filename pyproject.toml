@@ -22,6 +22,8 @@ dependencies = [
   "termcolor==2.2.0",
   "Jinja2==3.1.2",
   "libcst==0.4.9",
+  "python-dotenv==0.21.1",
+  "ruamel.yaml==0.17.21",
 ]
 
 [project.optional-dependencies]

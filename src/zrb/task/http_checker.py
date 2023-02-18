@@ -3,6 +3,7 @@ from typeguard import typechecked
 from http.client import HTTPConnection, HTTPSConnection
 from .base_task import BaseTask
 from ..task_env.env import Env
+from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 
@@ -18,6 +19,7 @@ class HTTPChecker(BaseTask):
         group: Optional[Group] = None,
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
@@ -36,6 +38,7 @@ class HTTPChecker(BaseTask):
             group=group,
             inputs=inputs,
             envs=envs,
+            env_files=env_files,
             icon=icon,
             color=color,
             description=description,

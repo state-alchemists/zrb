@@ -34,4 +34,5 @@ init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
 logging_level = get_logging_level()
 should_load_builtin = os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1') != '0'
 env_prefix = os.getenv('ZRB_ENV', '')
+show_advertisement = os.getenv('ZRB_SHOW_ADVERTISEMENT', '1') != '0'
 version = get_version()

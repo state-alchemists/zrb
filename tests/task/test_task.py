@@ -1,6 +1,8 @@
 from zrb.task.task import Task
 from zrb.task_env.env import Env
+from zrb.task_env.env_file import EnvFile
 from zrb.task_input.str_input import StrInput
+import os
 
 
 def test_task_with_no_runner():
@@ -102,3 +104,38 @@ def test_task_with_templated_env():
     main_loop = task.create_main_loop()
     result = main_loop()
     assert result == 'Elixir of immortality'
+
+
+def test_task_with_env_file():
+    def _run(*args, **kwargs) -> str:
+        task: Task = kwargs.get('_task')
+        env_map = task.get_env_map()
+        return env_map.get('__COLOR')
+    env_file = os.path.join(os.path.dirname(__file__), 'test_task.env')
+    task = Task(
+        name='env-file',
+        env_files=[EnvFile(env_file=env_file)],
+        run=_run,
+        retry=0
+    )
+    main_loop = task.create_main_loop()
+    result = main_loop()
+    assert result == 'blue'
+
+
+def test_task_with_env_file_and_prefix():
+    def _run(*args, **kwargs) -> str:
+        task: Task = kwargs.get('_task')
+        env_map = task.get_env_map()
+        return env_map.get('__COLOR')
+    env_file = os.path.join(os.path.dirname(__file__), 'test_task.env')
+    task = Task(
+        name='env-file-prefixed',
+        env_files=[EnvFile(env_file=env_file, prefix='__ZRB_TEST')],
+        run=_run,
+        retry=0
+    )
+    main_loop = task.create_main_loop()
+    os.environ['__ZRB_TEST___COLOR'] = 'red'
+    result = main_loop()
+    assert result == 'red'

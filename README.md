@@ -263,6 +263,11 @@ The following configurations are available:
         - `/usr/bin/sh` 
         - `node`
         - `python`
+- `ZRB_SHOW_ADVERTISEMENT`: Whether show advertisement or not.
+    - Default: `1`
+    - Possible value:
+        - `1`
+        - `0`
 
 # Quirks
 
