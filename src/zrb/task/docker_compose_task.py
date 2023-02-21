@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Mapping, Optional, Union
+from typing import Any, Callable, Iterable, Mapping, Optional
 from typeguard import typechecked
 from .base_task import BaseTask
 from .cmd_task import CmdTask
@@ -28,7 +28,7 @@ class DockerComposeTask(CmdTask):
         description: str = '',
         executable: Optional[str] = None,
         compose_file: Optional[str] = None,
-        compose_cmd: Union[str, Iterable[str]] = '',
+        compose_cmd: str = 'up',
         compose_options: Mapping[str, str] = {},
         compose_flags: Iterable[str] = [],
         compose_args: Iterable[str] = [],
@@ -43,7 +43,7 @@ class DockerComposeTask(CmdTask):
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid
     ):
-        combined_env_files = list[env_files]
+        combined_env_files = list(env_files)
         for _, service_env_files in service_env_files.items():
             combined_env_files = combined_env_files + service_env_files
         CmdTask.__init__(
@@ -103,7 +103,7 @@ class DockerComposeTask(CmdTask):
             command_options['--file'] = self.compose_file
         options = ' '.join([
             f'{self.render_str(key)} {double_quote(self.render_str(val))}'
-            for key, val in command_options
+            for key, val in command_options.items()
         ])
         flags = ' '.join([
             self.render_str(flag) for flag in self.compose_flags
@@ -111,6 +111,6 @@ class DockerComposeTask(CmdTask):
         args = ' '.join([
             double_quote(self.render_str(arg)) for arg in self.compose_args
         ])
-        cmd = f'docker compose {self.compose_cmd} {options} {flags} {args}'
+        cmd = f'docker compose {options} {flags} {self.compose_cmd} {args}'
         self.log_info(f'Command: {cmd}')
         return cmd

@@ -59,7 +59,18 @@ test = CmdTask(
     name='test',
     description='Run zrb test',
     inputs=[
-        StrInput(name='port', prompt='Serve coverage on port', default='9000')
+        StrInput(
+            name='port',
+            shortcut='p',
+            prompt='Serve coverage on port',
+            default='9000'
+        ),
+        StrInput(
+            name='test',
+            shortcut='t',
+            prompt='Test (i.e., tests/file.py::test_name)',
+            default=''
+        )
     ],
     upstreams=[install_symlink],
     cmd=[
@@ -69,6 +80,7 @@ test = CmdTask(
         ' '.join([
             'pytest --cov=zrb --cov-report html',
             '--cov-report term --cov-report term-missing',
+            '{{input.test}}'
         ]),
         'echo "🤖 Serve coverage report"',
         ' '.join([
