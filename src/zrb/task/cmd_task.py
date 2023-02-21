@@ -98,7 +98,7 @@ class CmdTask(BaseTask):
         )
         self.cmd = cmd
         self.cmd_path = cmd_path
-        self.cwd = cwd
+        self.cwd: str = cwd if cwd is not None else os.getcwd()
         self.max_output_size = max_output_line
         self.max_error_size = max_error_line
         self._output_buffer: Iterable[str] = []

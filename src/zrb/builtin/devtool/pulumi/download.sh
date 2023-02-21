@@ -1,3 +1,4 @@
+set -e
 if [ ! -d "${HOME}/.pulumi" ]
 then
     echo "Download Pulumi"

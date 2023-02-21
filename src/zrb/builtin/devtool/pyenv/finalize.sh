@@ -1,3 +1,4 @@
+set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
 if [ ! -d "${HOME}/.pyenv/versions/{{ input.python_default_version }}" ]

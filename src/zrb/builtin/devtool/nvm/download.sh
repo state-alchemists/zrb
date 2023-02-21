@@ -1,3 +1,4 @@
+set -e
 if [ ! -d "${HOME}/.nvm" ]
 then
     echo "Download nvm"

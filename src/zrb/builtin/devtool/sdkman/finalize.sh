@@ -1,3 +1,4 @@
+set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
 {% if input.install_java %}

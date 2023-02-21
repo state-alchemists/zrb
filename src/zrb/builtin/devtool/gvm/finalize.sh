@@ -1,3 +1,4 @@
+set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
 if [ ! -d "${HOME}/.gvm/gos/{{ input.go_default_version }}" ]

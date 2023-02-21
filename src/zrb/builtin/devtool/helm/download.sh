@@ -1,3 +1,4 @@
+set -e
 if [ -f './get_helm.sh']
 then
     echo 'get_helm.sh already downloaded'

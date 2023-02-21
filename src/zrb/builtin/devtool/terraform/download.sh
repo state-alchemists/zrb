@@ -1,3 +1,4 @@
+set -e
 if [ -f './terraform.zip']
 then
     echo 'terraform.zip already downloaded'

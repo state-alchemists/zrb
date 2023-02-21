@@ -1,3 +1,4 @@
+set -e
 if [ ! -d "${HOME}/.pyenv" ]
 then
     echo "Download Pyenv"

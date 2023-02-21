@@ -1,3 +1,4 @@
+set -e
 if [ ! -d "${HOME}/.gvm" ]
 then
     echo "Download GVM"

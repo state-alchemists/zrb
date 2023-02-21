@@ -1,3 +1,4 @@
+set -e
 if [ ! -d "./aws" ]
 then
     echo "Unzip AWS CLI"

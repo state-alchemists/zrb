@@ -1,7 +1,7 @@
 from typing import Any, Callable, Iterable, List
-from .._group import dev_tool_install_group
-from ...task.cmd_task import CmdTask
-from ...task.task import Task
+from ...builtin._group import dev_tool_install_group
+from ..cmd_task import CmdTask
+from ..task import Task
 from ...task_input.base_input import BaseInput
 from ...task_input.str_input import StrInput
 
@@ -31,8 +31,8 @@ def _get_append_config(
     return _append_config
 
 
-def _get_cmd_path(name: str, step: str) -> str:
-    file_path = os.path.join(dir_path, name, f'{step}.sh')
+def _get_cmd_path(template_dir: str, step: str) -> str:
+    file_path = os.path.join(dir_path, template_dir, f'{step}.sh')
     if os.path.exists(file_path):
         return file_path
     return os.path.join(dir_path, '_default', f'{step}.sh')
@@ -40,12 +40,14 @@ def _get_cmd_path(name: str, step: str) -> str:
 
 def create_installer(
     name: str,
+    template_dir: str,
     description: str,
     inputs: List[BaseInput] = [],
     ask_config_location: bool = True,
     config_locations: Iterable[str] = [],
     default_config_location: str = '',
-    remove_old_config: bool = False
+    remove_old_config: bool = False,
+    executable: str = 'bash'
 ) -> Task:
     # define new inputs
     inputs = list(inputs)
@@ -67,35 +69,40 @@ def create_installer(
         name=f'check-{name}',
         inputs=inputs,
         preexec_fn=None,
-        cmd_path=_get_cmd_path(name, 'check')
+        cmd_path=_get_cmd_path(template_dir, 'check'),
+        executable=executable
     )
     download_task = CmdTask(
         name=f'download-{name}',
         inputs=inputs,
         upstreams=[check_task],
         preexec_fn=None,
-        cmd_path=_get_cmd_path(name, 'download')
+        cmd_path=_get_cmd_path(template_dir, 'download'),
+        executable=executable
     )
     backup_config_task = CmdTask(
         name=f'backup-config-{name}',
         inputs=inputs,
         upstreams=[check_task],
         preexec_fn=None,
-        cmd_path=_get_cmd_path(name, 'backup-config')
+        cmd_path=_get_cmd_path(template_dir, 'backup-config'),
+        executable=executable
     )
     setup_task = CmdTask(
         name=f'setup-{name}',
         inputs=inputs,
         upstreams=[download_task],
         preexec_fn=None,
-        cmd_path=_get_cmd_path(name, 'setup')
+        cmd_path=_get_cmd_path(template_dir, 'setup'),
+        executable=executable
     )
     remove_config_task = CmdTask(
         name='remove-{name}-config',
         inputs=inputs,
         upstreams=[backup_config_task],
         preexec_fn=None,
-        cmd_path=_get_cmd_path(name, 'remove-config')
+        cmd_path=_get_cmd_path(template_dir, 'remove-config'),
+        executable=executable
     )
     configure_task = Task(
         name=f'configure-{name}',
@@ -105,7 +112,7 @@ def create_installer(
             remove_config_task if remove_old_config else backup_config_task
         ],
         run=_get_append_config(
-            os.path.join(dir_path, name, 'config.sh'),
+            os.path.join(template_dir, 'config.sh'),
             '{{ input.config_file }}'
         )
     )
@@ -116,6 +123,7 @@ def create_installer(
         inputs=inputs,
         upstreams=[configure_task],
         preexec_fn=None,
-        cmd_path=_get_cmd_path(name, 'finalize')
+        cmd_path=_get_cmd_path(template_dir, 'finalize'),
+        executable=executable
     )
     return finalize_task

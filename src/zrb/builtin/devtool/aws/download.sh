@@ -1,3 +1,4 @@
+set -e
 if [ ! -f "./awscliv2.zip" ]
 then
     echo "Download AWS CLI"

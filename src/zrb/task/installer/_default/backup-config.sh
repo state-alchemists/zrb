@@ -1,3 +1,4 @@
+set -e
 {% if input.config_file %}
 if [ -f '{{input.config_file}}' ]
 then

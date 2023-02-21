@@ -1,0 +1,6 @@
+version: '3'
+services:
+  myapp:
+    build: image
+    environment:
+      MY_MESSAGE: "Hello, Compose!"

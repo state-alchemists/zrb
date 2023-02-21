@@ -1,3 +1,4 @@
+set -e
 if [ ! -d "${HOME}/.sdkman" ]
 then
     echo "Download sdkman"

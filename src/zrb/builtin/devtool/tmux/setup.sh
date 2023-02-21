@@ -1,3 +1,4 @@
+set -e
 if [ "{{ platform.system() }}" = "Darwin" ]
 then
     sudo brew install tmux
