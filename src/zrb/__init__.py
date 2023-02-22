@@ -6,6 +6,7 @@ from .task.docker_compose_task import DockerComposeTask
 from .task.http_checker import HTTPChecker
 from .task.port_checker import PortChecker
 from .task.resource_maker import ResourceMaker
+from .task_input.input import Input
 from .task_input.bool_input import BoolInput
 from .task_input.choice_input import ChoiceInput
 from .task_input.float_input import FloatInput
@@ -26,6 +27,7 @@ assert DockerComposeTask
 assert HTTPChecker
 assert PortChecker
 assert ResourceMaker
+assert Input
 assert BoolInput
 assert ChoiceInput
 assert FloatInput
