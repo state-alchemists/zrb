@@ -11,6 +11,7 @@ import asyncio
 import os
 import signal
 import atexit
+import pathlib
 
 
 class CmdResult():
@@ -64,7 +65,7 @@ class CmdTask(BaseTask):
         executable: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
         cmd_path: str = '',
-        cwd: Optional[str] = None,
+        cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[BaseTask] = [],
         checkers: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
@@ -98,7 +99,7 @@ class CmdTask(BaseTask):
         )
         self.cmd = cmd
         self.cmd_path = cmd_path
-        self.cwd: str = cwd if cwd is not None else os.getcwd()
+        self._set_cwd(cwd)
         self.max_output_size = max_output_line
         self.max_error_size = max_error_line
         self._output_buffer: Iterable[str] = []
@@ -108,6 +109,14 @@ class CmdTask(BaseTask):
         self.executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
+
+    def _set_cwd(
+        self, cwd: Optional[Union[str, pathlib.Path]]
+    ):
+        if cwd is None:
+            self.cwd: Union[str, pathlib.Path] = os.getcwd()
+            return
+        self.cwd: Union[str, pathlib.Path] = cwd
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True

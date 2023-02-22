@@ -2,7 +2,7 @@ from zrb import (
     runner, CmdTask, StrInput, HTTPChecker
 )
 
-build = CmdTask(
+build_task = CmdTask(
     name='build',
     description='Build Zrb',
     cmd=[
@@ -14,12 +14,12 @@ build = CmdTask(
         'flit build',
     ],
 )
-runner.register(build)
+runner.register(build_task)
 
-publish = CmdTask(
+publish_task = CmdTask(
     name='publish',
     description='Publish zrb to pypi',
-    upstreams=[build],
+    upstreams=[build_task],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -27,12 +27,12 @@ publish = CmdTask(
         'flit publish --repository pypi',
     ]
 )
-runner.register(publish)
+runner.register(publish_task)
 
-publish_test = CmdTask(
+publish_test_task = CmdTask(
     name='publish-test',
     description='Publish zrb to testpypi',
-    upstreams=[build],
+    upstreams=[build_task],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -40,12 +40,12 @@ publish_test = CmdTask(
         'flit publish --repository testpypi',
     ]
 )
-runner.register(publish_test)
+runner.register(publish_test_task)
 
-install_symlink = CmdTask(
+install_symlink_task = CmdTask(
     name='install-symlink',
     description='Install Zrb as symlink',
-    upstreams=[build],
+    upstreams=[build_task],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -53,18 +53,12 @@ install_symlink = CmdTask(
         'flit install --symlink',
     ]
 )
-runner.register(install_symlink)
+runner.register(install_symlink_task)
 
-test = CmdTask(
+test_task = CmdTask(
     name='test',
     description='Run zrb test',
     inputs=[
-        StrInput(
-            name='port',
-            shortcut='p',
-            prompt='Serve coverage on port',
-            default='9000'
-        ),
         StrInput(
             name='test',
             shortcut='t',
@@ -72,7 +66,7 @@ test = CmdTask(
             default=''
         )
     ],
-    upstreams=[install_symlink],
+    upstreams=[install_symlink_task],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -81,7 +75,28 @@ test = CmdTask(
             'pytest --cov=zrb --cov-report html',
             '--cov-report term --cov-report term-missing',
             '{{input.test}}'
-        ]),
+        ])
+    ],
+    retry=0,
+    checking_interval=1
+)
+runner.register(test_task)
+
+serve_test_task = CmdTask(
+    name='serve-test',
+    description='Serve zrb test result',
+    inputs=[
+        StrInput(
+            name='port',
+            shortcut='p',
+            prompt='Serve coverage on port',
+            default='9000'
+        )
+    ],
+    upstreams=[test_task],
+    cmd=[
+        'set -e',
+        'cd ${ZRB_PROJECT_DIR}',
         'echo "🤖 Serve coverage report"',
         ' '.join([
             'python -m http.server {{input.port}}',
@@ -92,9 +107,9 @@ test = CmdTask(
         HTTPChecker(port='{{input.port}}')
     ],
     retry=0,
-    checking_interval=1
+    checking_interval=0.3
 )
-runner.register(test)
+runner.register(serve_test_task)
 
 prepare_playground_cmds = [
     'set -e',
@@ -113,18 +128,18 @@ prepare_playground_cmds = [
 ]
 
 
-prepare_playground = CmdTask(
+prepare_playground_task = CmdTask(
     name='prepare-playground',
-    upstreams=[install_symlink],
+    upstreams=[install_symlink_task],
     cmd=prepare_playground_cmds
 )
-runner.register(prepare_playground)
+runner.register(prepare_playground_task)
 
 
-reset_playground = CmdTask(
+reset_playground_task = CmdTask(
     name='reset-playground',
     description='Reset Zrb playground',
-    upstreams=[install_symlink],
+    upstreams=[install_symlink_task],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -132,4 +147,4 @@ reset_playground = CmdTask(
         'rm -Rf playground',
     ] + prepare_playground_cmds
 )
-runner.register(reset_playground)
+runner.register(reset_playground_task)

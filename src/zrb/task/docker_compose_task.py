@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Mapping, Optional
+from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
 from .base_task import BaseTask
 from .cmd_task import CmdTask
@@ -11,6 +11,7 @@ from ..helper.dockercompose.read import read_file as read_compose_file
 from ..helper.dockercompose.fetch_external_env import fetch_external_env
 
 import os
+import pathlib
 
 
 @typechecked
@@ -33,7 +34,7 @@ class DockerComposeTask(CmdTask):
         compose_flags: Iterable[str] = [],
         compose_args: Iterable[str] = [],
         compose_env_prefix: str = '',
-        cwd: Optional[str] = None,
+        cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[BaseTask] = [],
         checkers: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
@@ -84,17 +85,23 @@ class DockerComposeTask(CmdTask):
                 os_name = f'{self.compose_env_prefix}_{os_name}'
             self.envs.append(Env(name=key, os_name=os_name, default=value))
 
-    def _set_compose_file(self, compose_file: str):
-        if os.path.isabs(compose_file):
+    def _set_compose_file(self, compose_file: Optional[str]):
+        if compose_file is None:
+            for _compose_file in [
+                'compose.yml', 'compose.yaml',
+                'docker-compose.yml', 'docker-compose.yaml'
+            ]:
+                if os.path.exists(os.path.join(self.cwd, _compose_file)):
+                    self.compose_file: str = os.path.join(
+                        self.cwd, _compose_file
+                    )
+                    return
+        if os.path.isabs(compose_file) and os.path.exists(compose_file):
             self.compose_file: str = compose_file
             return
-        for _compose_file in [
-            'compose.yml', 'compose.yaml',
-            'docker-compose.yml', 'docker-compose.yaml'
-        ]:
-            if os.path.join(self.cwd, _compose_file):
-                self.compose_file: str = os.path.join(self.cwd, _compose_file)
-                return
+        if os.path.exists(os.path.join(self.cwd, compose_file)):
+            self.compose_file: str = os.path.join(self.cwd, compose_file)
+            return
         raise Exception(f'Invalid compose file: {compose_file}')
 
     def _get_cmd_str(self) -> str:

@@ -35,9 +35,6 @@ def parse_external_env_string(env_str: str) -> Mapping[str, str]:
                 segment = env_str[start+1:index]
                 if ':-' in segment:
                     key, value = segment.split(':-', 1)
-                    if key == '':
-                        key = value
-                        value = ''
                     if value.startswith('${') and value.endswith('}'):
                         sub_dict = parse_external_env_string(value)
                         env_dict.update(sub_dict)
