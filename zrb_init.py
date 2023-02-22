@@ -62,7 +62,7 @@ test_task = CmdTask(
         StrInput(
             name='test',
             shortcut='t',
-            prompt='Test (i.e., tests/file.py::test_name)',
+            prompt='Test (i.e., test/file.py::test_name)',
             default=''
         )
     ],

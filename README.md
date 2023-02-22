@@ -169,17 +169,17 @@ The output will be similar to this:
 ```
 Name [world]: Go Frendi
 Dir [.]:
-🤖 ➜  2023-02-04T11:08:11.921472 ⚙ 12264 ➤ 1 of 3 • 🍊    show hello • Hello Go Frendi
-🤖 ➜  2023-02-04T11:08:12.039529 ⚙ 12266 ➤ 1 of 3 • 🐹   make coffee • Coffee for you ☕
-🤖 ➜  2023-02-04T11:08:12.040651 ⚙ 12268 ➤ 1 of 3 • 🐶     make beer • Cheers 🍺
-🤖 ➜  2023-02-04T11:08:12.160402 ⚙ 12270 ➤ 1 of 3 • 🍒  start-server • Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
-🤖 ➜  2023-02-04T11:08:12.224660 ⚙ 12263 ➤ 1 of 1 • 🍇    http-check • HEAD http://localhost:8080/ 200 (OK)
-🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
-🤖 🍒 start-server completed in
-🤖 🍒 0.311281681060791 seconds
-🤖 🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉
-
-🤖 ⚠  2023-02-04T11:08:12.228542 ⚙ 12270 ➤ 1 of 3 • 🍒  start-server • 127.0.0.1 - - [04/Feb/2023 11:08:12] "HEAD / HTTP/1.1" 200 -
+🤖 ➜  2023-02-22T08:02:52.611040 ⚙ 14426 ➤ 1 of 3 • 🍋            zrb hello • Hello Go Frendi
+🤖 ➜  2023-02-22T08:02:52.719826 ⚙ 14428 ➤ 1 of 3 • 🍊      zrb make coffee • Coffee for you ☕
+🤖 ➜  2023-02-22T08:02:52.720372 ⚙ 14430 ➤ 1 of 3 • 🍒        zrb make beer • Cheers 🍺
+🤖 ➜  2023-02-22T08:02:52.845930 ⚙ 14432 ➤ 1 of 3 • 🍎     zrb start-server • Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...
+🤖 ➜  2023-02-22T08:02:52.910192 ⚙ 14425 ➤ 1 of 1 • 🍈           http-check • HEAD http://localhost:3000/ 200 (OK)
+Support zrb growth and development!
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zaruba
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+zrb start-server completed in 1.681591272354126 seconds
+🤖 ⚠  2023-02-22T08:02:52.911657 ⚙ 14432 ➤ 1 of 3 • 🍎     zrb start-server • 127.0.0.1 - - [22/Feb/2023 08:02:52] "HEAD / HTTP/1.1" 200 -
 ```
 
 # How to run tasks programmatically

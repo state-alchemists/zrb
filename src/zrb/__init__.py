@@ -2,6 +2,7 @@ from .runner import runner
 from .helper.loader.load_module import load_module
 from .task.task import Task
 from .task.cmd_task import CmdTask
+from .task.docker_compose_task import DockerComposeTask
 from .task.http_checker import HTTPChecker
 from .task.port_checker import PortChecker
 from .task.resource_maker import ResourceMaker
@@ -21,6 +22,7 @@ assert runner
 assert load_module
 assert Task
 assert CmdTask
+assert DockerComposeTask
 assert HTTPChecker
 assert PortChecker
 assert ResourceMaker
