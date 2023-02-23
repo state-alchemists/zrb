@@ -6,6 +6,7 @@ from .accessories.color import colored
 
 import click
 import os
+import sys
 
 
 def create_cli() -> click.Group:
@@ -34,10 +35,11 @@ def _load_zrb_init(project_dir: str):
     project_script = os.path.join(project_dir, 'zrb_init.py')
     if not os.path.isfile(project_script):
         return
-    load_module(script_path=project_script)
+    sys.path.append(project_dir)
     python_path = _get_new_python_path(project_dir)
     logger.info(colored(f'Set PYTHONPATH to {python_path}', attrs=['dark']))
     os.environ['PYTHONPATH'] = python_path
+    load_module(script_path=project_script)
 
 
 def _get_new_python_path(project_dir: str) -> str:

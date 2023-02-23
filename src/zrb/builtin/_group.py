@@ -4,7 +4,7 @@ project_group = Group(
     name='project', description='Project management'
 )
 project_add_group = Group(
-    name='add', description='Add resources to project'
+    name='add', description='Add resources to project', parent=project_group
 )
 env_group = Group(
     name='env', description='Environment variable management'

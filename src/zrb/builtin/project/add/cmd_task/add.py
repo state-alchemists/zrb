@@ -19,13 +19,9 @@ import os
 current_dir = os.path.dirname(__file__)
 
 
-def get_zrb_project_dir(project_dir: str) -> str:
-    if os.path.isfile(os.path.join(project_dir, 'zrb_init.py')):
-        return project_dir
-    new_project_dir = os.path.dirname(project_dir)
-    if new_project_dir == project_dir:
+def validate_project_dir(project_dir: str):
+    if not os.path.isfile(os.path.join(project_dir, 'zrb_init.py')):
         raise Exception(f'Not a project: {project_dir}')
-    return get_zrb_project_dir(new_project_dir)
 
 
 def get_task_file(zrb_project_dir: str, task_name: str) -> str:
@@ -38,29 +34,36 @@ def get_task_file(zrb_project_dir: str, task_name: str) -> str:
 
 
 def _validate(*args: Any, **kwargs: Any):
-    zrb_project_dir = get_zrb_project_dir(os.getcwd())
-    task_name = kwargs.get(zrb_project_dir, 'task_name')
-    task_file = get_task_file(zrb_project_dir, task_name)
+    project_dir = kwargs.get('project_dir')
+    validate_project_dir(project_dir)
+    task_name = kwargs.get(project_dir, 'task_name')
+    task_file = get_task_file(project_dir, task_name)
     if os.path.isfile(task_file):
         raise Exception(f'File already exists: {task_file}')
 
 
 def _create_task(*args: Any, **kwargs: Any):
-    zrb_project_dir = get_zrb_project_dir(os.getcwd())
+    project_dir = kwargs.get('project_dir')
+    validate_project_dir(project_dir)
     task_name = kwargs.get('task_name')
-    task_module_path = '.'.join(
+    task_module_path = '.'.join([
         '_automate',
         util.to_snake_case(task_name)
-    )
-    zrb_init_path = os.path.join(zrb_project_dir, 'zrb_init.py')
+    ])
+    zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
     with open(zrb_init_path, 'r') as f:
         code = f.read()
-        code = add_import_module(code, task_module_path)
-        code = add_assert_module(code, task_module_path)
+        import_alias = task_module_path.split('.')[-1]
+        code = add_import_module(code, task_module_path, import_alias)
+        code = add_assert_module(code, import_alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)
     return True
 
+
+project_dir_input = StrInput(
+    name='project-dir', shortcut='d', prompt='Project directory', default='.'
+)
 
 task_name_input = StrInput(
     name='task-name',
@@ -72,13 +75,13 @@ task_name_input = StrInput(
 
 validate_task = Task(
     name='task-validate-create',
-    inputs=[task_name_input],
+    inputs=[project_dir_input, task_name_input],
     run=_validate
 )
 
 copy_resource_task = ResourceMaker(
     name='copy-resource',
-    inputs=[task_name_input],
+    inputs=[project_dir_input, task_name_input],
     upstreams=[validate_task],
     replacements={
         'taskName': '{{input.task_name}}'
@@ -91,20 +94,20 @@ copy_resource_task = ResourceMaker(
         add_human_readable_key('human readable task name', 'taskName'),
     ],
     template_path=os.path.join(current_dir, 'task_template'),
-    destination_path='{{ os.path.join(env.ZRB_PROJECT_DIR, "_automate") }}',
+    destination_path='{{ os.path.join(input.project_dir, "_automate") }}',
     scaffold_locks=[
         os.path.sep.join([
-            '{{ os.path.join(env.ZRB_PROJECT_DIR, "_automate") }}',
+            '{{ os.path.join(input.project_dir, "_automate") }}',
             '{{ util.to_snake_case(input.task_name) }}.py'
         ])
     ]
 )
 
-create_cmd_task = Task(
+add_task = Task(
     name='cmd-task',
     group=project_add_group,
-    inputs=[task_name_input],
+    inputs=[project_dir_input, task_name_input],
     run=_create_task,
     upstreams=[copy_resource_task]
 )
-runner.register(create_cmd_task)
+runner.register(add_task)

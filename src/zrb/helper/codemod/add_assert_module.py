@@ -1,13 +1,13 @@
 import libcst as cst
 
 
-def add_assert_module(code: str, module_path: str) -> str:
+def add_assert_module(code: str, import_alias: str) -> str:
     module = cst.parse_module(code)
 
     # Create the new assertion statement
     new_assert = cst.SimpleStatementLine([
         cst.Assert(
-            test=cst.Name(value=module_path.split(".")[-1]),
+            test=cst.Name(value=import_alias),
             msg=None
         ),
     ])

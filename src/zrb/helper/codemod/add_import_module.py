@@ -1,7 +1,12 @@
+from typing import Optional
 import libcst as cst
 
 
-def add_import_module(code: str, module_path: str) -> str:
+def add_import_module(
+    code: str,
+    module_path: str,
+    import_alias: Optional[str] = None
+) -> str:
     module = cst.parse_module(code)
 
     # Create the new import statement
@@ -9,7 +14,7 @@ def add_import_module(code: str, module_path: str) -> str:
         names=[
             cst.ImportAlias(
                 name=cst.parse_expression(module_path),
-                asname=None
+                asname=cst.AsName(name=cst.parse_expression(import_alias))
             )
         ],
     )
