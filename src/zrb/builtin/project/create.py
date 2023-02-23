@@ -16,7 +16,9 @@ current_dir = os.path.dirname(__file__)
 
 # Task definitions
 
-project_dir_input = StrInput(name='project-dir', prompt='Project directory', default='.')
+project_dir_input = StrInput(
+    name='project-dir', prompt='Project directory', default='.'
+)
 
 copy_resource_task = ResourceMaker(
     name='copy-resource',

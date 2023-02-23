@@ -3,11 +3,8 @@ from ..task_group.group import Group
 project_group = Group(
     name='project', description='Project management'
 )
-task_group = Group(
-    name='task', description='Task management'
-)
-task_create_group = Group(
-    name='create', description='Create tasks', parent=task_group
+project_add_group = Group(
+    name='add', description='Add resources to project'
 )
 env_group = Group(
     name='env', description='Environment variable management'

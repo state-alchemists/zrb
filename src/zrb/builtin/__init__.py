@@ -8,7 +8,7 @@ from . import update
 from . import version
 from .devtool import devtool_install
 from .project import create as project_create
-from .task import create as task_create
+from .project.add.task import create as task_create
 
 assert base64
 assert env
