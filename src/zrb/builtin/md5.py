@@ -8,23 +8,13 @@ import hashlib
 
 # Common definitions
 
-inputs = [
-    StrInput(
-        name='text',
-        shortcut='t',
-        description='Text',
-        default=''
-    )
-]
-
-
-def _md5_hash(*args: str, **kwargs: Any):
+def _hash(*args: str, **kwargs: Any):
     text: str = kwargs.get('text', '')
     hashed_text = hashlib.md5(text.encode()).hexdigest()
     return hashed_text
 
 
-def _md5_sum(*args: str, **kwargs: Any):
+def _sum(*args: str, **kwargs: Any):
     file_path: str = kwargs.get('file', '')
     with open(file_path, "rb") as f:
         contents = f.read()
@@ -34,7 +24,7 @@ def _md5_sum(*args: str, **kwargs: Any):
 
 # Task definitions
 
-md5_hash_task = Task(
+hash_task = Task(
     name='hash',
     group=md5_group,
     inputs=[
@@ -45,13 +35,13 @@ md5_hash_task = Task(
             default=''
         )
     ],
-    run=_md5_hash,
+    run=_hash,
     description='Hash md5',
     retry=0
 )
-runner.register(md5_hash_task)
+runner.register(hash_task)
 
-md5_sum_task = Task(
+sum_task = Task(
     name='sum',
     group=md5_group,
     inputs=[
@@ -62,8 +52,8 @@ md5_sum_task = Task(
             default=''
         )
     ],
-    run=_md5_sum,
+    run=_sum,
     description='Sum md5 file',
     retry=0
 )
-runner.register(md5_sum_task)
+runner.register(sum_task)

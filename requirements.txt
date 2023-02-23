@@ -11,6 +11,7 @@ Jinja2==3.1.2
 libcst==0.4.9
 python-dotenv==0.21.1
 ruamel.yaml==0.17.21
+setuptools==49.2.1
 
 # Zrb dev dependencies (should be copied to `pyproject.toml`)
 autopep8==2.0.1     # Autoformatter

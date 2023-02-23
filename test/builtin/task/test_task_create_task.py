@@ -1,5 +1,5 @@
-from zrb.builtin.project.project_create_task import project_create_task
-from zrb.builtin.task.task_create_task import task_create_task
+from zrb.builtin.project.create import create_task
+from zrb.builtin.task.create import create_task
 import os
 import pathlib
 import shutil
@@ -13,13 +13,13 @@ def test_task_create():
     if os.path.exists(project_path):
         shutil.rmtree(project_path)
 
-    create_project = project_create_task.create_main_loop()
+    create_project = create_task.create_main_loop()
     create_project(project_dir=project_path)
 
     destination_path = os.path.join(project_path, 'transmutateGold')
 
     # first attempt should success
-    first_attempt_loop = task_create_task.create_main_loop()
+    first_attempt_loop = create_task.create_main_loop()
     result = first_attempt_loop(task_dir=destination_path)
     assert result
 
@@ -33,7 +33,7 @@ def test_task_create():
     # second attempt should success
     is_error = False
     try:
-        second_attempt_loop = task_create_task.create_main_loop()
+        second_attempt_loop = create_task.create_main_loop()
         result = second_attempt_loop(task_dir=destination_path)
     except Exception:
         is_error = True

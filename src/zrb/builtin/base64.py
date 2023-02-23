@@ -8,23 +8,21 @@ import base64
 
 # Common definitions
 
-inputs = [
-    StrInput(
-        name='text',
-        shortcut='t',
-        description='Text',
-        default=''
-    )
-]
+text_input = StrInput(
+    name='text',
+    shortcut='t',
+    description='Text',
+    default=''
+)
 
 
-def _base64_encode(*args: str, **kwargs: Any):
+def _encode(*args: str, **kwargs: Any):
     text: str = kwargs.get('text', '')
     encoded_text = base64.b64encode(text.encode())
     return encoded_text.decode()
 
 
-def _base64_decode(*args: str, **kwargs: Any):
+def _decode(*args: str, **kwargs: Any):
     text: str = kwargs.get('text', '')
     encoded_text = base64.b64decode(text.encode())
     return encoded_text.decode()
@@ -32,22 +30,22 @@ def _base64_decode(*args: str, **kwargs: Any):
 
 # Task definitions
 
-base64_encode_task = Task(
+encode_task = Task(
     name='encode',
     group=base64_group,
-    inputs=inputs,
-    run=_base64_encode,
+    inputs=[text_input],
+    run=_encode,
     description='Encode base64 task',
     retry=0
 )
-runner.register(base64_encode_task)
+runner.register(encode_task)
 
-base64_decode_task = Task(
+decode_task = Task(
     name='decode',
     group=base64_group,
-    inputs=inputs,
-    run=_base64_decode,
+    inputs=[text_input],
+    run=_decode,
     description='Decode base64 task',
     retry=0
 )
-runner.register(base64_decode_task)
+runner.register(decode_task)

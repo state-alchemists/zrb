@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from .._group import task_group
+from .._group import task_create_group
 from ...task_input.str_input import StrInput
 from ...helper.middlewares.replacement import (
     coalesce, add_pascal_key, add_snake_key, add_camel_key,
@@ -29,7 +29,7 @@ def get_zrb_project_dir(project_dir: str) -> Optional[str]:
     return get_zrb_project_dir(new_project_dir)
 
 
-def _task_validate_create(*args: Any, **kwargs: Any):
+def _validate(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     input_map = task.get_input_map()
     task_dir = os.path.abspath(input_map.get('task_dir'))
@@ -41,7 +41,7 @@ def _task_validate_create(*args: Any, **kwargs: Any):
         ]))
 
 
-def _task_create(*args: Any, **kwargs: Any):
+def _create_task(*args: Any, **kwargs: Any):
     task_dir = os.path.abspath(kwargs.get('task_dir'))
     snake_task_name = util.to_snake_case(util.coalesce(
         kwargs.get('task_name'), os.path.basename(task_dir)
@@ -63,35 +63,31 @@ def _task_create(*args: Any, **kwargs: Any):
     return True
 
 
-# Task definitions
-
-task_validate_create_task = Task(
-    name='task-validate-create',
-    inputs=[
-        StrInput(
-            name='task-dir',
-            prompt='Task directory',
-            default='myTask'
-        )
-    ],
-    run=_task_validate_create
+task_dir_input = StrInput(
+    name='task-dir',
+    prompt='Task directory',
+    default='myTask'
 )
 
-task_copy_resource_task = ResourceMaker(
+task_name_input = StrInput(
+    name='task-name',
+    prompt='Task name (can be empty)',
+    default=''
+)
+
+
+# Task definitions
+
+validate_task = Task(
+    name='task-validate-create',
+    inputs=[task_dir_input],
+    run=_validate
+)
+
+copy_resource_task = ResourceMaker(
     name='copy-resource',
-    inputs=[
-        StrInput(
-            name='task-dir',
-            prompt='Task directory',
-            default='myTask'
-        ),
-        StrInput(
-            name='task-name',
-            prompt='Task name (can be empty)',
-            default=''
-        ),
-    ],
-    upstreams=[task_validate_create_task],
+    inputs=[task_dir_input, task_name_input],
+    upstreams=[validate_task],
     replacements={
         'taskDir': '{{input.task_dir}}',
         'taskName': '{{input.task_name}}'
@@ -110,22 +106,11 @@ task_copy_resource_task = ResourceMaker(
     scaffold_locks=['{{input.task_dir}}']
 )
 
-task_create_task = Task(
-    name='create',
-    group=task_group,
-    inputs=[
-        StrInput(
-            name='task-dir',
-            prompt='Task directory',
-            default='myTask'
-        ),
-        StrInput(
-            name='task-name',
-            prompt='Task name (can be empty)',
-            default=''
-        ),
-    ],
-    run=_task_create,
-    upstreams=[task_copy_resource_task]
+create_task = Task(
+    name='task',
+    group=task_create_group,
+    inputs=[task_dir_input, task_name_input],
+    run=_create_task,
+    upstreams=[copy_resource_task]
 )
-runner.register(task_create_task)
+runner.register(create_task)

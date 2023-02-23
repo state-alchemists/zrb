@@ -24,6 +24,7 @@ dependencies = [
   "libcst==0.4.9",
   "python-dotenv==0.21.1",
   "ruamel.yaml==0.17.21",
+  "setuptools==49.2.1",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +34,7 @@ dev = [
 ]
 test = [
   "pytest==7.2.1",
-  "pytest-cov==4.0.0"
+  "pytest-cov==4.0.0",
 ]
 
 [project.urls]

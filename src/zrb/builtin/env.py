@@ -7,7 +7,7 @@ from ..runner import runner
 # Common definitions
 
 
-def _env_show(*args: Any, **kwargs: Any):
+def _show(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     env_map = task.get_env_map()
     names = list(env_map.keys())
@@ -20,25 +20,25 @@ def _env_show(*args: Any, **kwargs: Any):
         task.print_out(f'{colored_name}{colored_equal}{colored_value}')
 
 
-def _env_get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
+def _get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
     task: Task = kwargs['_task']
     return task.get_env_map()
 
 
 # Task definitions
 
-env_show_task = Task(
+show_task = Task(
     name='show',
     group=env_group,
-    run=_env_show,
+    run=_show,
     description='Show environment values'
 )
-runner.register(env_show_task)
+runner.register(show_task)
 
-env_get_task = Task(
+get_task = Task(
     name='get',
     group=env_group,
-    run=_env_get,
+    run=_get,
     description='Get environment values'
 )
-runner.register(env_get_task)
+runner.register(get_task)

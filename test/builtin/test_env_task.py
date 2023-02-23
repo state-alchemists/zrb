@@ -1,15 +1,15 @@
-from zrb.builtin.env_task import (
-    env_show_task, env_get_task
+from zrb.builtin.env import (
+    show_task, get_task
 )
 
 
 def test_env_show():
-    main_loop = env_show_task.create_main_loop()
+    main_loop = show_task.create_main_loop()
     result = main_loop()
     assert result is None
 
 
 def test_env_get():
-    main_loop = env_get_task.create_main_loop()
+    main_loop = get_task.create_main_loop()
     result = main_loop()
     assert len(result.keys()) > 0

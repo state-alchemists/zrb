@@ -6,7 +6,7 @@ from ..runner import runner
 # Common definitions
 
 
-def _evaluate(*args: str, **kwargs: Any):
+def _eval(*args: str, **kwargs: Any):
     expression: str = kwargs.get('expression', '')
     return eval(expression)
 
@@ -23,7 +23,7 @@ eval_task = Task(
             description='Python expression',
         )
     ],
-    run=_evaluate,
+    run=_eval,
     description='Evaluate Python expression',
     retry=0
 )

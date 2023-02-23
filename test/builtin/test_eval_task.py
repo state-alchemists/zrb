@@ -1,4 +1,4 @@
-from zrb.builtin.eval_task import eval_task
+from zrb.builtin.eval import eval_task
 
 
 def test_eval():

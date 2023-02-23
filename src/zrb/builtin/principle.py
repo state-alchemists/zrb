@@ -6,7 +6,7 @@ from ..runner import runner
 # Common definitions
 
 
-def _principle_show_solid(*args: Any, **kwargs: Any):
+def _show_solid(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('S - Single Responsibility Principle')
     task.print_out('O - Open/Closed Principle')
@@ -15,7 +15,7 @@ def _principle_show_solid(*args: Any, **kwargs: Any):
     task.print_out('D - Dependency Inversion Principle')
 
 
-def _principle_show_yagni(*args: Any, **kwargs: Any):
+def _show_yagni(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('Y - You')
     task.print_out('A - Aren\'t')
@@ -24,14 +24,14 @@ def _principle_show_yagni(*args: Any, **kwargs: Any):
     task.print_out('I - It')
 
 
-def _principle_show_dry(*args: Any, **kwargs: Any):
+def _show_dry(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('D - Don\'t')
     task.print_out('R - Repeat')
     task.print_out('Y - Yourself')
 
 
-def _principle_show_kiss(*args: Any, **kwargs: Any):
+def _show_kiss(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('K - Keep')
     task.print_out('I - It')
@@ -39,7 +39,7 @@ def _principle_show_kiss(*args: Any, **kwargs: Any):
     task.print_out('S - Stupid')
 
 
-def _principle_show_pancasila(*args: Any, **kwargs: Any):
+def _show_pancasila(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('1. Ketuhanan Yang Maha Esa')
     task.print_out('2. Kemanusiaan yang adil dan beradab')
@@ -53,43 +53,43 @@ def _principle_show_pancasila(*args: Any, **kwargs: Any):
 
 # Task definitions
 
-principle_show_solid_task = Task(
+show_solid_task = Task(
     name='solid',
     group=principle_show_group,
-    run=_principle_show_solid,
+    run=_show_solid,
     description='Show SOLID principle',
 )
-runner.register(principle_show_solid_task)
+runner.register(show_solid_task)
 
-principle_show_yagni_task = Task(
+show_yagni_task = Task(
     name='yagni',
     group=principle_show_group,
-    run=_principle_show_yagni,
+    run=_show_yagni,
     description='Show YAGNI principle',
 )
-runner.register(principle_show_yagni_task)
+runner.register(show_yagni_task)
 
-principle_show_dry_task = Task(
+show_dry_task = Task(
     name='dry',
     group=principle_show_group,
-    run=_principle_show_dry,
+    run=_show_dry,
     description='Show dry principle',
 )
-runner.register(principle_show_dry_task)
+runner.register(show_dry_task)
 
-principle_show_kiss_task = Task(
+show_kiss_task = Task(
     name='kiss',
     group=principle_show_group,
-    run=_principle_show_kiss,
+    run=_show_kiss,
     description='Show kiss principle',
 )
-runner.register(principle_show_kiss_task)
+runner.register(show_kiss_task)
 
-principle_show_pancasila_task = Task(
+show_pancasila_task = Task(
     icon="🦅",
     name='pancasila',
     group=principle_show_group,
-    run=_principle_show_pancasila,
+    run=_show_pancasila,
     description='Show pancasila',
 )
-runner.register(principle_show_pancasila_task)
+runner.register(show_pancasila_task)

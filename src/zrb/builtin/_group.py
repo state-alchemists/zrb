@@ -6,6 +6,9 @@ project_group = Group(
 task_group = Group(
     name='task', description='Task management'
 )
+task_create_group = Group(
+    name='create', description='Create tasks', parent=task_group
+)
 env_group = Group(
     name='env', description='Environment variable management'
 )

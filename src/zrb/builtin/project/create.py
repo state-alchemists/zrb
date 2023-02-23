@@ -16,14 +16,12 @@ current_dir = os.path.dirname(__file__)
 
 # Task definitions
 
-project_copy_resource_task = ResourceMaker(
+project_dir_input = StrInput(name='project-dir', prompt='Project directory', default='.')
+
+copy_resource_task = ResourceMaker(
     name='copy-resource',
     inputs=[
-        StrInput(
-            name='project-dir',
-            prompt='Project directory',
-            default='.'
-        ),
+        project_dir_input,
         StrInput(
             name='project-name',
             prompt='Project name (can be empty)',
@@ -45,13 +43,11 @@ project_copy_resource_task = ResourceMaker(
     scaffold_locks=['{{input.project_dir}}/zrb_init.py']
 )
 
-project_create_task = CmdTask(
+create_task = CmdTask(
     name='create',
     group=project_group,
-    upstreams=[project_copy_resource_task],
-    inputs=[
-        StrInput(name='project-dir', prompt='Project directory', default='.')
-    ],
+    upstreams=[copy_resource_task],
+    inputs=[project_dir_input],
     cmd=[
         'set -e',
         'cd "{{input.project_dir}}"',
@@ -63,4 +59,4 @@ project_create_task = CmdTask(
         'echo "Happy coding :)"',
     ]
 )
-runner.register(project_create_task)
+runner.register(create_task)

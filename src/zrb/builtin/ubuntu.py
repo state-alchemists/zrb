@@ -3,7 +3,7 @@ from ..task.cmd_task import CmdTask
 from ..runner import runner
 
 
-ubuntu_update = CmdTask(
+update_task = CmdTask(
     name='update',
     group=ubuntu_group,
     description='Update ubuntu',
@@ -14,22 +14,22 @@ ubuntu_update = CmdTask(
     checking_interval=3,
     preexec_fn=None
 )
-runner.register(ubuntu_update)
+runner.register(update_task)
 
-ubuntu_install_toys_task = CmdTask(
+install_toys_task = CmdTask(
     name='toys',
     group=ubuntu_install_group,
     description='Install ubuntu toy packages',
     cmd=[
         'sudo apt-get install -y lolcat cowsay figlet neofetch',
     ],
-    upstreams=[ubuntu_update],
+    upstreams=[update_task],
     checking_interval=3,
     preexec_fn=None
 )
-runner.register(ubuntu_install_toys_task)
+runner.register(install_toys_task)
 
-ubuntu_install_default_task = CmdTask(
+install_default_task = CmdTask(
     name='default',
     group=ubuntu_install_group,
     description='Install essential ubuntu packages',
@@ -42,8 +42,8 @@ ubuntu_install_default_task = CmdTask(
         'gfortran rustc fd-find ripgrep wget curl git ncat cmake make tree \\',
         'tmux zsh neovim xdotool xsel'
     ],
-    upstreams=[ubuntu_update],
+    upstreams=[update_task],
     checking_interval=3,
     preexec_fn=None
 )
-runner.register(ubuntu_install_default_task)
+runner.register(install_default_task)

@@ -1,3 +1,6 @@
+import myTask
+import test.builtin.task.app.transmutateGold
+
 from zrb import (
     runner, CmdTask, StrInput, HTTPChecker
 )
@@ -148,3 +151,5 @@ reset_playground_task = CmdTask(
     ] + prepare_playground_cmds
 )
 runner.register(reset_playground_task)
+assert myTask
+assert transmutateGold
