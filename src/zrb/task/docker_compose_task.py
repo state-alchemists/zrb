@@ -80,6 +80,10 @@ class DockerComposeTask(CmdTask):
         data = read_compose_file(self.compose_file)
         env_map = fetch_external_env(data)
         for key, value in env_map.items():
+            existing_env = [env for env in self.envs if env.name == key]
+            if len(existing_env) > 0:
+                # Don't override existing env
+                continue
             os_name = key
             if self.compose_env_prefix != '':
                 os_name = f'{self.compose_env_prefix}_{os_name}'

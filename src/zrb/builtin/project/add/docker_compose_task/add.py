@@ -1,6 +1,7 @@
 from typing import Any
 from ...._group import project_add_group
 from .....task.task import Task
+from .....task_input.str_input import StrInput
 from .....task.resource_maker import ResourceMaker
 from .....runner import runner
 from ..._common import (
@@ -30,6 +31,13 @@ def _create_task(*args: Any, **kwargs: Any):
     return register_task(project_dir, task_name)
 
 
+replacements = get_default_task_replacements()
+replacements.update({
+    'composeCommand': '{{ util.coalesce(input.compose_command, "up") }}',
+    'ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}'
+})
+
+
 # Task definitions
 
 validate_task = Task(
@@ -40,20 +48,29 @@ validate_task = Task(
 
 copy_resource_task = ResourceMaker(
     name='copy-resource',
-    inputs=[project_dir_input, task_name_input],
+    inputs=[
+        project_dir_input,
+        task_name_input,
+        StrInput(
+            name='compose-command', prompt='Compose command', default='up'
+        ),
+        StrInput(
+            name='env-prefix', prompt='Env prefix', default='MY'
+        ),
+    ],
     upstreams=[validate_task],
-    replacements=get_default_task_replacements(),
+    replacements=replacements,
     replacement_middlewares=get_default_task_replacement_middlewares(),
     template_path=os.path.join(current_dir, 'task_template'),
     destination_path='{{ input.project_dir }}',
     scaffold_locks=[new_task_scaffold_lock]
 )
 
-add_cmd_task = Task(
-    name='cmd-task',
+add_docker_compose_task = Task(
+    name='docker-compose-task',
     group=project_add_group,
     inputs=[project_dir_input, task_name_input],
     run=_create_task,
     upstreams=[copy_resource_task]
 )
-runner.register(add_cmd_task)
+runner.register(add_docker_compose_task)

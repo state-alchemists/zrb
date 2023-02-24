@@ -4,9 +4,9 @@ from ...helper.middlewares.replacement import (
 )
 from ...task.cmd_task import CmdTask
 from ...task.resource_maker import ResourceMaker
-from ...task_input.str_input import StrInput
 from ...runner import runner
 from ...config.config import version
+from ._common import project_dir_input, project_name_input
 
 import os
 
@@ -16,20 +16,11 @@ current_dir = os.path.dirname(__file__)
 
 # Task definitions
 
-project_dir_input = StrInput(
-    name='project-dir', shortcut='d', prompt='Project directory', default='.'
-)
-
 copy_resource_task = ResourceMaker(
     name='copy-resource',
     inputs=[
         project_dir_input,
-        StrInput(
-            name='project-name',
-            shortcut='n',
-            prompt='Project name (can be empty)',
-            default=''
-        ),
+        project_name_input
     ],
     replacements={
         'projectDir': '{{input.project_dir}}',

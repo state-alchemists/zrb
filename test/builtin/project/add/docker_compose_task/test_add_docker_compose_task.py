@@ -1,11 +1,13 @@
 from zrb.builtin.project.create import create_task
-from zrb.builtin.project.add.cmd_task.add import add_cmd_task
+from zrb.builtin.project.add.docker_compose_task.add import (
+    add_docker_compose_task
+)
 import os
 import pathlib
 import shutil
 
 
-def test_add_cmd_task():
+def test_add_docker_compose_task():
     # prepare path
     dir_path = pathlib.Path(__file__).parent.absolute()
     project_path = os.path.join(dir_path, 'app')
@@ -17,31 +19,35 @@ def test_add_cmd_task():
     create_project(project_dir=project_path)
 
     automate_path = os.path.join(project_path, '_automate')
+    src_path = os.path.join(project_path, 'src')
 
     # first attempt should success
-    first_attempt_loop = add_cmd_task.create_main_loop()
+    first_attempt_loop = add_docker_compose_task.create_main_loop()
     result = first_attempt_loop(
-        project_dir=project_path, task_name='cmdTask'
+        project_dir=project_path, task_name='composeTask'
     )
     assert result
 
-    # cmd_task.py file should exists
+    # compose_task.py file should exists
     assert os.path.isfile(
-        os.path.join(automate_path, 'cmd_task.py')
+        os.path.join(automate_path, 'compose_task.py')
+    )
+    assert os.path.isfile(
+        os.path.join(src_path, 'compose-task', 'docker-compose.yml')
     )
 
-    # cmd_task should be imported
+    # compose_task should be imported
     with open(os.path.join(project_path, 'zrb_init.py')) as f:
         content = f.read()
-        assert 'assert cmd_task' in content
-        assert 'import _automate.cmd_task as cmd_task' in content
+        assert 'assert compose_task' in content
+        assert 'import _automate.compose_task as compose_task' in content
 
     # second attempt should fail
     is_error = False
     try:
-        second_attempt_loop = add_cmd_task.create_main_loop()
+        second_attempt_loop = add_docker_compose_task.create_main_loop()
         result = second_attempt_loop(
-            project_dir=project_path, task_name='cmdTask'
+            project_dir=project_path, task_name='composeTask'
         )
     except Exception:
         is_error = True
