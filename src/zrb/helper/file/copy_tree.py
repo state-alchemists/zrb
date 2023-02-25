@@ -1,4 +1,4 @@
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Optional
 from ..string.parse_replacement import parse_replacement
 from typeguard import typechecked
 
@@ -11,9 +11,13 @@ import fnmatch
 def copy_tree(
     src: str,
     dst: str,
-    replacements: Mapping[str, str],
-    excludes: Iterable[str] = []
+    replacements: Optional[Mapping[str, str]] = None,
+    excludes: Optional[Iterable[str]] = None
 ):
+    if replacements is None:
+        replacements = {}
+    if excludes is None:
+        excludes = []
     names = os.listdir(src)
     new_dst = parse_replacement(dst, replacements)
     if not os.path.exists(new_dst):

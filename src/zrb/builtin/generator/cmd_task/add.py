@@ -44,7 +44,7 @@ copy_resource = ResourceMaker(
     upstreams=[validate],
     replacements=get_default_task_replacements(),
     replacement_middlewares=get_default_task_replacement_middlewares(),
-    template_path=os.path.join(current_dir, 'task_template'),
+    template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
     scaffold_locks=[new_task_scaffold_lock]
 )

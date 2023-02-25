@@ -5,7 +5,7 @@ import pathlib
 import shutil
 
 
-def test_project_create():
+def test_create_project():
     # prepare path
     dir_path = pathlib.Path(__file__).parent.absolute()
     destination_path = os.path.join(dir_path, 'app')
