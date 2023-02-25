@@ -94,12 +94,10 @@ class ResourceMaker(BaseTask):
             self.log_debug(f'Apply middleware #{index}')
             replacements = middleware(self, replacements)
         self.log_debug(f'Final replacement: {replacements}')
-        self.print_out('\n    '.join([
-            f'Create resource: {destination_path}',
-            f'Template: {template_path}',
-            f'Replacements: {replacements}',
-            f'Excludes: {excludes}',
-        ]))
+        self.print_out_dark(f'Template: {template_path}')
+        self.print_out_dark(f'Destination: {destination_path}')
+        self.print_out_dark(f'Replacements: {replacements}')
+        self.print_out_dark(f'Excludes: {excludes}')
         copy_tree(
             src=template_path,
             dst=destination_path,

@@ -192,6 +192,9 @@ class TaskDataModel():
         prefix = self._get_colored_print_prefix()
         print(f'🤖 ⚠  {prefix} • {msg}'.rstrip(), file=sys.stderr)
 
+    def print_out_dark(self, msg: Any):
+        self.print_out(colored(msg, attrs=['dark']))
+
     def colored(self, text: str) -> str:
         return colored(text, color=self.get_color())
 

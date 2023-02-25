@@ -16,6 +16,7 @@ def inject_default_env():
         ))
         os.environ['ZRB_HOME_DIR'] = zrb_home_dir
 
+    logger.info(colored('Getting project directory', attrs=['dark']))
     current_dir = os.getcwd()
     zrb_project_dir = _get_project_dir(current_dir)
     if zrb_project_dir is None:
