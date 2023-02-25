@@ -13,14 +13,14 @@ start_project_containers = Task(
     group=project_group,
     upstreams=[]
 )
-runner.register(start_project)
+runner.register(start_project_containers)
 
 remove_project_containers = Task(
     name='remove-containers',
     group=project_group,
     upstreams=[]
 )
-runner.register(start_project)
+runner.register(remove_project_containers)
 
 
 deploy_project = Task(
@@ -28,19 +28,11 @@ deploy_project = Task(
     group=project_group,
     upstreams=[]
 )
-runner.register(start_project)
+runner.register(deploy_project)
 
-
-deploy_project = Task(
-    name='deploy',
-    group=project_group,
-    upstreams=[]
-)
-runner.register(start_project)
-
-remove_deployment_project = Task(
+remove_project_deployment = Task(
     name='remove-deployment',
     group=project_group,
     upstreams=[]
 )
-runner.register(start_project)
+runner.register(remove_project_deployment)
