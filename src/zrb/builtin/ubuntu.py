@@ -16,7 +16,7 @@ update_task = CmdTask(
 )
 runner.register(update_task)
 
-install_toys_task = CmdTask(
+install_toys = CmdTask(
     name='toys',
     group=ubuntu_install_group,
     description='Install ubuntu toy packages',
@@ -27,10 +27,10 @@ install_toys_task = CmdTask(
     checking_interval=3,
     preexec_fn=None
 )
-runner.register(install_toys_task)
+runner.register(install_toys)
 
-install_default_task = CmdTask(
-    name='default',
+install_packages = CmdTask(
+    name='packages',
     group=ubuntu_install_group,
     description='Install essential ubuntu packages',
     cmd=[
@@ -46,4 +46,4 @@ install_default_task = CmdTask(
     checking_interval=3,
     preexec_fn=None
 )
-runner.register(install_default_task)
+runner.register(install_packages)

@@ -1,4 +1,4 @@
-from zrb.builtin.project.create import create_task
+from zrb.builtin.generator.project.create import create_project
 from zrb.config.config import version
 import os
 import pathlib
@@ -14,7 +14,7 @@ def test_project_create():
         shutil.rmtree(destination_path)
 
     # first attempt should success
-    first_attempt_loop = create_task.create_main_loop()
+    first_attempt_loop = create_project.create_main_loop()
     result = first_attempt_loop(project_dir=destination_path)
     assert result
 
@@ -38,7 +38,7 @@ def test_project_create():
     # second attempt should failed
     is_error = False
     try:
-        second_attempt_loop = create_task.create_main_loop()
+        second_attempt_loop = create_project.create_main_loop()
         result = second_attempt_loop(project_dir=destination_path)
     except Exception:
         is_error = True

@@ -7,9 +7,9 @@ from . import ubuntu
 from . import update
 from . import version
 from .devtool import devtool_install
-from .project import create as project_create
-from .project.add.cmd_task import add as cmd_task_add
-from .project.add.docker_compose_task import add as docker_compose_task_add
+from .generator.project import create as generate_project
+from .generator.cmd_task import add as generate_cmd_task
+from .generator.docker_compose_task import add as generate_docker_compose_task
 
 assert base64
 assert env
@@ -20,6 +20,6 @@ assert ubuntu
 assert update
 assert version
 assert devtool_install
-assert project_create
-assert cmd_task_add
-assert docker_compose_task_add
+assert generate_project
+assert generate_cmd_task
+assert generate_docker_compose_task

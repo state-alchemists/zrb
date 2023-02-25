@@ -27,18 +27,18 @@ def _get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
 
 # Task definitions
 
-show_task = Task(
+show = Task(
     name='show',
     group=env_group,
     run=_show,
     description='Show environment values'
 )
-runner.register(show_task)
+runner.register(show)
 
-get_task = Task(
+get = Task(
     name='get',
     group=env_group,
     run=_get,
     description='Get environment values'
 )
-runner.register(get_task)
+runner.register(get)

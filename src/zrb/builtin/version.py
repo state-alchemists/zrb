@@ -8,9 +8,9 @@ def _version(*args: Any, **kwargs: Any) -> str:
     return version
 
 
-version_task = Task(
+get_version = Task(
     name='version',
     run=_version,
     description='Get Zrb version',
 )
-runner.register(version_task)
+runner.register(get_version)

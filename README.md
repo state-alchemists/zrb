@@ -281,6 +281,10 @@ The following configurations are available:
     - `_args`: Shell argument when the task is invoked.
     - `_task`: Reference to the current task.
 - You can access the built-in command groups by importing `zrb.builtin_group`.
+- How environments are loaded:
+    - `env_files` has the lowest priority, it will be overridden by `env`
+    - `env` will override each other, the last one takes greater priority
+    - If you define a `DockerComposeTask`, it will automatically fill your environment with the ones you use in your docker-compose file. The environment defined that way will have a very low priority. They will be overridden by both `env_files` and `env`.
 
 # For contributors
 

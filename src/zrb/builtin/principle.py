@@ -53,43 +53,43 @@ def _show_pancasila(*args: Any, **kwargs: Any):
 
 # Task definitions
 
-show_solid_task = Task(
+show_solid_principle = Task(
     name='solid',
     group=principle_show_group,
     run=_show_solid,
     description='Show SOLID principle',
 )
-runner.register(show_solid_task)
+runner.register(show_solid_principle)
 
-show_yagni_task = Task(
+show_yagni_principle = Task(
     name='yagni',
     group=principle_show_group,
     run=_show_yagni,
     description='Show YAGNI principle',
 )
-runner.register(show_yagni_task)
+runner.register(show_yagni_principle)
 
-show_dry_task = Task(
+show_dry_principle = Task(
     name='dry',
     group=principle_show_group,
     run=_show_dry,
     description='Show dry principle',
 )
-runner.register(show_dry_task)
+runner.register(show_dry_principle)
 
-show_kiss_task = Task(
+show_kiss_principle = Task(
     name='kiss',
     group=principle_show_group,
     run=_show_kiss,
     description='Show kiss principle',
 )
-runner.register(show_kiss_task)
+runner.register(show_kiss_principle)
 
-show_pancasila_task = Task(
+show_pancasila = Task(
     icon="🦅",
     name='pancasila',
     group=principle_show_group,
     run=_show_pancasila,
     description='Show pancasila',
 )
-runner.register(show_pancasila_task)
+runner.register(show_pancasila)

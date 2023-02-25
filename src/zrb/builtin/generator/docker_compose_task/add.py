@@ -1,10 +1,10 @@
 from typing import Any
-from ...._group import project_add_group
-from .....task.task import Task
-from .....task_input.str_input import StrInput
-from .....task.resource_maker import ResourceMaker
-from .....runner import runner
-from ..._common import (
+from ..._group import project_add_group
+from ....task.task import Task
+from ....task_input.str_input import StrInput
+from ....task.resource_maker import ResourceMaker
+from ....runner import runner
+from .._common import (
     project_dir_input, task_name_input, validate_project_dir,
     validate_new_task_name, register_task, get_default_task_replacements,
     get_default_task_replacement_middlewares, new_task_scaffold_lock
@@ -40,13 +40,13 @@ replacements.update({
 
 # Task definitions
 
-validate_task = Task(
+validate = Task(
     name='task-validate-create',
     inputs=[project_dir_input, task_name_input],
     run=_validate
 )
 
-copy_resource_task = ResourceMaker(
+copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=[
         project_dir_input,
@@ -58,7 +58,7 @@ copy_resource_task = ResourceMaker(
             name='env-prefix', prompt='Env prefix', default='MY'
         ),
     ],
-    upstreams=[validate_task],
+    upstreams=[validate],
     replacements=replacements,
     replacement_middlewares=get_default_task_replacement_middlewares(),
     template_path=os.path.join(current_dir, 'task_template'),
@@ -71,6 +71,6 @@ add_docker_compose_task = Task(
     group=project_add_group,
     inputs=[project_dir_input, task_name_input],
     run=_create_task,
-    upstreams=[copy_resource_task]
+    upstreams=[copy_resource]
 )
 runner.register(add_docker_compose_task)

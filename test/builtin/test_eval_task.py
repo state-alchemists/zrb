@@ -1,7 +1,7 @@
-from zrb.builtin.eval import eval_task
+from zrb.builtin.eval import evaluate
 
 
 def test_eval():
-    main_loop = eval_task.create_main_loop()
+    main_loop = evaluate.create_main_loop()
     result = main_loop(expression='1+1')
     assert result == 2

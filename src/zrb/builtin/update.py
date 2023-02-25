@@ -1,7 +1,7 @@
 from ..task.cmd_task import CmdTask
 from ..runner import runner
 
-update_task = CmdTask(
+update = CmdTask(
     name='update',
     description='Update zrb',
     cmd=[
@@ -9,4 +9,4 @@ update_task = CmdTask(
     ],
     checking_interval=3
 )
-runner.register(update_task)
+runner.register(update)

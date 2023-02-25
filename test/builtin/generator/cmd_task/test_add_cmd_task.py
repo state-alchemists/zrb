@@ -1,5 +1,5 @@
-from zrb.builtin.project.create import create_task
-from zrb.builtin.project.add.cmd_task.add import add_cmd_task
+from zrb.builtin.generator.project.create import create_project
+from zrb.builtin.generator.cmd_task.add import add_cmd_task
 import os
 import pathlib
 import shutil
@@ -13,8 +13,8 @@ def test_add_cmd_task():
     if os.path.exists(project_path):
         shutil.rmtree(project_path)
 
-    create_project = create_task.create_main_loop()
-    create_project(project_dir=project_path)
+    create_project_loop = create_project.create_main_loop()
+    create_project_loop(project_dir=project_path)
 
     automate_path = os.path.join(project_path, '_automate')
 

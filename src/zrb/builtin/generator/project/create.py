@@ -1,12 +1,12 @@
-from .._group import project_group
-from ...helper.middlewares.replacement import (
+from ..._group import project_group
+from ....helper.middlewares.replacement import (
     coalesce, add_pascal_key, add_base_name_key
 )
-from ...task.cmd_task import CmdTask
-from ...task.resource_maker import ResourceMaker
-from ...runner import runner
-from ...config.config import version
-from ._common import project_dir_input, project_name_input
+from ....task.cmd_task import CmdTask
+from ....task.resource_maker import ResourceMaker
+from ....runner import runner
+from ....config.config import version
+from .._common import project_dir_input, project_name_input
 
 import os
 
@@ -16,7 +16,7 @@ current_dir = os.path.dirname(__file__)
 
 # Task definitions
 
-copy_resource_task = ResourceMaker(
+copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=[
         project_dir_input,
@@ -37,10 +37,10 @@ copy_resource_task = ResourceMaker(
     scaffold_locks=['{{input.project_dir}}/zrb_init.py']
 )
 
-create_task = CmdTask(
+create_project = CmdTask(
     name='create',
     group=project_group,
-    upstreams=[copy_resource_task],
+    upstreams=[copy_resource],
     inputs=[project_dir_input],
     cmd=[
         'set -e',
@@ -53,4 +53,4 @@ create_task = CmdTask(
         'echo "Happy coding :)"',
     ]
 )
-runner.register(create_task)
+runner.register(create_project)
