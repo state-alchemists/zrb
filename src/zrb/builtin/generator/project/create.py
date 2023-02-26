@@ -41,7 +41,11 @@ copy_resource = ResourceMaker(
 )
 
 
-@python_task(name='add-project-task', upstreams=[copy_resource])
+@python_task(
+    name='add-project-task',
+    inputs=[project_dir_input],
+    upstreams=[copy_resource]
+)
 def add_project_task(*args: Any, **kwargs: Any):
     add_default_project_task(kwargs.get('project_dir', '.'))
 

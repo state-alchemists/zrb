@@ -4,6 +4,7 @@ from zrb import Task, runner
 start_project = Task(
     name='start',
     group=project_group,
-    upstreams=[]
+    upstreams=[],
+    description='Start project'
 )
 runner.register(start_project)

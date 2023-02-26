@@ -4,6 +4,7 @@ from zrb import Task, runner
 remove_project_containers = Task(
     name='remove-containers',
     group=project_group,
-    upstreams=[]
+    upstreams=[],
+    description='Remove project containers'
 )
 runner.register(remove_project_containers)

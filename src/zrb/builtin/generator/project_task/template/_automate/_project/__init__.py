@@ -1,10 +1,14 @@
+from .build_project_images import build_project_images
 from .deploy_project import deploy_project
+from .push_project_images import push_project_images
 from .remove_project_containers import remove_project_containers
 from .remove_project_deployment import remove_project_deployment
 from .start_project_containers import start_project_containers
 from .start_project import start_project
 
+assert build_project_images
 assert deploy_project
+assert push_project_images
 assert remove_project_containers
 assert remove_project_deployment
 assert start_project_containers

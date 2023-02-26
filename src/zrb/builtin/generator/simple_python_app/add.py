@@ -11,6 +11,7 @@ from .._common import (
     get_default_task_replacement_middlewares, new_app_scaffold_lock
 )
 
+from ..project_task.add import add_default_project_task
 import os
 
 # Common definitions
@@ -53,10 +54,20 @@ copy_resource = ResourceMaker(
 
 
 @python_task(
+    name='add-project-task',
+    inputs=[project_dir_input],
+    upstreams=[copy_resource]
+)
+def add_project_task(*args: Any, **kwargs: Any):
+    project_dir = kwargs.get('project_dir', '.')
+    add_default_project_task(project_dir)
+
+
+@python_task(
     name='simple-python-app',
     group=project_add_group,
     inputs=[project_dir_input, app_name_input],
-    upstreams=[copy_resource],
+    upstreams=[add_project_task],
     runner=runner
 )
 def add_simple_python_app(*args: Any, **kwargs: Any):
