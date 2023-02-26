@@ -37,7 +37,7 @@ You can write your task definitions in Python. For example:
 from zrb import (
     runner, Env,
     StrInput, ChoiceInput, IntInput, BoolInput, FloatInput, PasswordInput,
-    Group, Task, CmdTask, HTTPChecker
+    Group, Task, CmdTask, HTTPChecker, python_task
 )
 
 # Simple Python task.
@@ -49,7 +49,7 @@ concat = Task(
 )
 runner.register(concat)
 
-# Simple Python with multiple inputs.
+# Simple Python task with multiple inputs.
 register_trainer = Task(
     name='register-trainer',
     inputs=[
@@ -66,6 +66,28 @@ register_trainer = Task(
     run=lambda *args, **kwargs: kwargs
 )
 runner.register(register_trainer)
+
+
+# Simple Python task with decorator
+@python_task(
+    name='fibo',
+    inputs=[IntInput(name='n', default='5')],
+    runner=runner
+)
+def fibo(*args, **kwargs):
+    n = int(args[0]) if len(args) > 0 else kwargs.get('n', 5)
+    if n <= 0:
+        return None
+    elif n == 1:
+        return 0
+    elif n == 2:
+        return 1
+    else:
+        a, b = 0, 1
+        for i in range(n - 1):
+            a, b = b, a + b
+        return a
+
 
 # Simple CLI task.
 # Usage example: zrb hello --name='world'
@@ -152,7 +174,6 @@ test_error = CmdTask(
     retry=0
 )
 runner.register(test_error)
-
 ```
 
 Once registered, your task will be accessible from the terminal.
