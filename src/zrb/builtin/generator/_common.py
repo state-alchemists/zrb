@@ -6,7 +6,7 @@ from ...task_input.str_input import StrInput
 from ...task_input.int_input import IntInput
 from ...helper import util
 from ...helper.accessories.name import get_random_name
-from ...helper.codemod.add_assert_module import add_assert_module
+from ...helper.codemod.add_assert_resource import add_assert_resource
 from ...helper.codemod.add_import_module import add_import_module
 from ...helper.middlewares.replacement import (
     add_pascal_key, add_snake_key, add_camel_key,
@@ -94,7 +94,7 @@ def register_task(project_dir: str, task_name: str):
             module_path=task_module_path,
             alias=import_alias
         )
-        code = add_assert_module(code, import_alias)
+        code = add_assert_resource(code, import_alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)
     return True

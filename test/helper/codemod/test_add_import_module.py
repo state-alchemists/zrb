@@ -49,4 +49,3 @@ def test_import_from_module_with_alias_on_existing_code():
         'from somewhere import something',
         'from my_package.my_module import resource as alias'
     ]) + '\n'
-

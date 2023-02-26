@@ -1,15 +1,14 @@
 import libcst as cst
 
 
-def add_assert_module(code: str, import_alias: str) -> str:
+def add_assert_resource(code: str, resource: str) -> str:
     """
     Adds an assertion statement to the end of a module that checks whether
-    a given import has been successfully loaded.
+    a resource has been successfully loaded.
 
     Args:
         code (str): The code of the module to modify.
-        import_alias (str): The name of the alias used to import
-            the module to check.
+        resoource (str): The name of the resource to check.
 
     Returns:
         str: The modified code with the new assertion statement added.
@@ -20,7 +19,7 @@ def add_assert_module(code: str, import_alias: str) -> str:
     # Create the new assertion statement
     new_assert = cst.SimpleStatementLine([
         cst.Assert(
-            test=cst.Name(value=import_alias),
+            test=cst.Name(value=resource),
             msg=None
         ),
     ])

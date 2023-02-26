@@ -19,8 +19,8 @@ def add_import_module(
     Args:
         code: The code to modify.
         module_path: The path to the module to import, in dot notation.
-        name: Name of resource to be immported
-        import_alias: An optional alias to use for the imported module.
+        resource: An optional name of resource to be immported.
+        alias: An optional alias to use for the imported module/resource.
 
     Returns:
         The modified code, as a string.

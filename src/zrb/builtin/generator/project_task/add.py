@@ -1,5 +1,5 @@
 from ....helper.file.copy_tree import copy_tree
-from ....helper.codemod.add_assert_module import add_assert_module
+from ....helper.codemod.add_assert_resource import add_assert_resource
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_upstream_to_task import add_upstream_to_task
 
@@ -25,7 +25,7 @@ def add_default_project_task(project_dir: str):
             module_path=project_task_module_path,
             alias=import_alias
         )
-        code = add_assert_module(code, import_alias)
+        code = add_assert_resource(code, import_alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)
 
