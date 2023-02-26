@@ -6,7 +6,7 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
     project_dir_input, task_name_input, validate_project_dir,
-    validate_new_task_name, register_task, get_default_task_replacements,
+    validate_automation_name, register_task, get_default_task_replacements,
     get_default_task_replacement_middlewares, new_task_scaffold_lock
 )
 
@@ -25,7 +25,7 @@ def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_project_dir(project_dir)
     task_name = kwargs.get(project_dir, 'task_name')
-    validate_new_task_name(project_dir, task_name)
+    validate_automation_name(project_dir, task_name)
 
 
 copy_resource = ResourceMaker(
@@ -54,4 +54,3 @@ def add_python_task(*args: Any, **kwargs: Any):
     task_name = kwargs.get('task_name')
     task.print_out(f'Register python task: {task_name}')
     register_task(project_dir, task_name)
-

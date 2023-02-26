@@ -11,6 +11,7 @@ from .generator.project import create as generate_project
 from .generator.cmd_task import add as generate_cmd_task
 from .generator.docker_compose_task import add as generate_docker_compose_task
 from .generator.python_task import add as generate_python_task
+from .generator.simple_python_app import add as generate_simple_python_app
 
 assert base64
 assert env
@@ -25,3 +26,4 @@ assert generate_project
 assert generate_cmd_task
 assert generate_docker_compose_task
 assert generate_python_task
+assert generate_simple_python_app

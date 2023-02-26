@@ -1,0 +1,9 @@
+version: '3'
+services:
+  myapp:
+    build: src
+    environment:
+      MESSAGE: '${MESSAGE:-Hello, world!}'
+      PORT: '${CONTAINER_PORT:-8080}'
+    ports:
+      - ${HOST_PORT:-8080}:${CONTAINER_PORT:-8080}

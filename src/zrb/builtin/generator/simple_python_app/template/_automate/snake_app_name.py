@@ -6,16 +6,16 @@ import os
 
 current_dir = os.path.dirname(__file__)
 resource_dir = os.path.abspath(os.path.join(
-    current_dir, '..', 'src', 'kebab-task-name'
+    current_dir, '..', 'src', 'kebab-app-name'
 ))
 
 
-snake_task_name = DockerComposeTask(
-    name='kebab-task-name',
-    description='human readable task name',
+start_snake_app_name_container = DockerComposeTask(
+    name='start-kebab-app-name-container',
+    description='Start human readable app name container',
     group=project_group,
     cwd=resource_dir,
-    compose_cmd='composeCommand',
+    compose_cmd='up',
     compose_env_prefix='ENV_PREFIX',
     envs=[
         Env(
@@ -38,4 +38,4 @@ snake_task_name = DockerComposeTask(
         HTTPChecker(port='{{env.HOST_PORT}}')
     ]
 )
-runner.register(snake_task_name)
+runner.register(start_snake_app_name_container)
