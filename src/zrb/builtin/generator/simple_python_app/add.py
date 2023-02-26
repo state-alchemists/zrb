@@ -10,8 +10,9 @@ from .._common import (
     validate_automation_name, register_task, get_default_task_replacements,
     get_default_task_replacement_middlewares, new_app_scaffold_lock
 )
+from ....helper import util
 
-from ..project_task.add import add_default_project_task
+from ..project_task.add import add_default_project_task, register_action
 import os
 
 # Common definitions
@@ -55,12 +56,23 @@ copy_resource = ResourceMaker(
 
 @python_task(
     name='add-project-task',
-    inputs=[project_dir_input],
+    inputs=[project_dir_input, app_name_input],
     upstreams=[copy_resource]
 )
 def add_project_task(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir', '.')
     add_default_project_task(project_dir)
+    app_name = kwargs.get('app_name')
+    snake_app_name = util.to_snake_case(app_name)
+    file_name = os.path.join(project_dir, '_automate', f'{snake_app_name}.py')
+    # start
+    register_action(
+        project_dir=project_dir,
+        base_file_name='start_project_containers.py',
+        task_name='start-containers',
+        upstream_task_file=file_name,
+        upstream_task_var=f'start_{snake_app_name}_container'
+    )
 
 
 @python_task(

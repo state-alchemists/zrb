@@ -89,7 +89,11 @@ def register_task(project_dir: str, task_name: str):
     with open(zrb_init_path, 'r') as f:
         code = f.read()
         import_alias = task_module_path.split('.')[-1]
-        code = add_import_module(code, task_module_path, import_alias)
+        code = add_import_module(
+            code=code,
+            module_path=task_module_path,
+            alias=import_alias
+        )
         code = add_assert_module(code, import_alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)

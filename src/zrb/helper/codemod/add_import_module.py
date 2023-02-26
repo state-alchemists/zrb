@@ -1,11 +1,12 @@
-from typing import Optional
+from typing import Optional, Union
 import libcst as cst
 
 
 def add_import_module(
     code: str,
     module_path: str,
-    import_alias: Optional[str] = None
+    resource: Optional[str] = None,
+    alias: Optional[str] = None
 ) -> str:
     """
     Parses the given code as a module using `libcst.parse_module()`,
@@ -18,28 +19,25 @@ def add_import_module(
     Args:
         code: The code to modify.
         module_path: The path to the module to import, in dot notation.
+        name: Name of resource to be immported
         import_alias: An optional alias to use for the imported module.
 
     Returns:
         The modified code, as a string.
     """
     module = cst.parse_module(code)
-
-    # Create the new import statement
-    new_import = cst.Import(
-        names=[
-            cst.ImportAlias(
-                name=cst.parse_expression(module_path),
-                asname=cst.AsName(name=cst.parse_expression(import_alias))
-            )
-        ],
+    new_import = _get_new_import(
+        module_path=module_path,
+        resource=resource,
+        alias=alias
     )
 
     last_import_index = None
     for i, node in enumerate(module.body):
-        if isinstance(
-            node, cst.SimpleStatementLine
-        ) and isinstance(node.body[0], cst.Import):
+        if isinstance(node, cst.SimpleStatementLine) and (
+            isinstance(node.body[0], cst.Import) or
+            isinstance(node.body[0], cst.ImportFrom)
+        ):
             last_import_index = i
 
     # If there are no import statements
@@ -55,3 +53,34 @@ def add_import_module(
     # Generate the modified code
     modified_code = module.code
     return modified_code
+
+
+def _get_new_import(
+    module_path: str,
+    resource: Optional[str] = None,
+    alias: Optional[str] = None
+) -> Union[cst.ImportFrom, cst.Import]:
+    if resource is None:
+        return cst.Import(
+            names=[
+                cst.ImportAlias(
+                    name=cst.parse_expression(module_path),
+                    asname=_get_as_name(alias)
+                )
+            ],
+        )
+    return cst.ImportFrom(
+        module=cst.parse_expression(module_path),
+        names=[
+            cst.ImportAlias(
+                name=cst.Name(resource),
+                asname=_get_as_name(alias)
+            )
+        ],
+    )
+
+
+def _get_as_name(alias: Optional[str] = None) -> Optional[cst.AsName]:
+    if alias is None:
+        return None
+    return cst.AsName(name=cst.Name(alias))
