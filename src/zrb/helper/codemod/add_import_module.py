@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 import libcst as cst
 
 
@@ -60,7 +60,13 @@ def _get_new_import(
     resource: Optional[str] = None,
     alias: Optional[str] = None
 ) -> Union[cst.ImportFrom, cst.Import]:
+    dots, module_path = _split_module_path(module_path)
+    relative = [cst.Dot()] * len(dots)
     if resource is None:
+        if len(relative) > 0:
+            raise Exception(
+                'Relative import is not allowed, please specify resource'
+            )
         return cst.Import(
             names=[
                 cst.ImportAlias(
@@ -77,7 +83,22 @@ def _get_new_import(
                 asname=_get_as_name(alias)
             )
         ],
+        relative=relative
     )
+
+
+def _split_module_path(module_path) -> Tuple[str, str]:
+    prefix = ''
+    suffix = ''
+    is_prefix = True
+    for char in module_path:
+        if char != '.':
+            is_prefix = False
+        if is_prefix:
+            prefix += char
+            continue
+        suffix += char
+    return prefix, suffix
 
 
 def _get_as_name(alias: Optional[str] = None) -> Optional[cst.AsName]:

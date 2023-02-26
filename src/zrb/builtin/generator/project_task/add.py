@@ -9,7 +9,7 @@ current_dir = os.path.dirname(__file__)
 
 
 def add_default_project_task(project_dir: str):
-    if os.path.exists(os.path.join(project_dir, '_automate', '_common.py')):
+    if os.path.exists(os.path.join(project_dir, '_automate', '_project')):
         return
     copy_tree(
         src=os.path.join(current_dir, 'template'),
@@ -30,27 +30,31 @@ def add_default_project_task(project_dir: str):
         f.write(code)
 
 
-def register_action(
+def register_upstream(
     project_dir: str,
-    base_file_name: str,
-    task_name: str,
+    project_task_file_name: str,
+    project_task_name: str,
     upstream_task_file: str,
     upstream_task_var: str
 ):
-    default_project_task_dir = os.path.join(
+    project_default_dir = os.path.join(
         project_dir, '_automate', '_project'
     )
-    default_project_task_file = os.path.join(
-        default_project_task_dir, f'{base_file_name}'
+    project_default_file = os.path.join(
+        project_default_dir, f'{project_task_file_name}'
     )
     upstream_task_rel_file_path = os.path.relpath(
-        upstream_task_file, project_dir
+        upstream_task_file, project_default_file
     )
-    upstream_module_parts = upstream_task_rel_file_path.split(os.path.sep)
+    # normalize `..` parts
+    upstream_module_parts = [
+        part if part != '..' else ''
+        for part in upstream_task_rel_file_path.split(os.path.sep)
+    ]
+    # remove .py extenstion
     upstream_module_parts[-1] = os.path.splitext(upstream_module_parts[-1])[0]
-    upstream_module_parts.append(upstream_task_var)
     upstream_module_path = '.'.join(upstream_module_parts)
-    with open(default_project_task_file, 'r') as f:
+    with open(project_default_file, 'r') as f:
         code = f.read()
         code = add_import_module(
             code=code,
@@ -58,7 +62,7 @@ def register_action(
             resource=upstream_task_var
         )
         code = add_upstream_to_task(
-            code, task_name, upstream_task_var
+            code, project_task_name, upstream_task_var
         )
-    with open(default_project_task_file, 'w') as f:
+    with open(project_default_file, 'w') as f:
         f.write(code)

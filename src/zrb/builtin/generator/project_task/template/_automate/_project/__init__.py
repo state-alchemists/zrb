@@ -5,6 +5,7 @@ from .remove_project_containers import remove_project_containers
 from .remove_project_deployment import remove_project_deployment
 from .start_project_containers import start_project_containers
 from .start_project import start_project
+from .stop_project_containers import stop_project_containers
 
 assert build_project_images
 assert deploy_project
@@ -13,3 +14,4 @@ assert remove_project_containers
 assert remove_project_deployment
 assert start_project_containers
 assert start_project
+assert stop_project_containers

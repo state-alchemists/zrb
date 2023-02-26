@@ -9,6 +9,23 @@ resource_dir = os.path.abspath(os.path.join(
     current_dir, '..', 'src', 'kebab-app-name'
 ))
 
+compose_envs = [
+    Env(
+        name='MESSAGE',
+        os_name='ENV_PREFIX_MESSAGE',
+        default='Salve Mane'
+    ),
+    Env(
+        name='CONTAINER_PORT',
+        os_name='ENV_PREFIX_CONTAINER_PORT',
+        default='3000'
+    ),
+    Env(
+        name='HOST_PORT',
+        os_name='ENV_PREFIX_HOST_PORT',
+        default='httpPort'
+    ),
+]
 
 start_snake_app_name_container = DockerComposeTask(
     name='start-kebab-app-name-container',
@@ -17,25 +34,31 @@ start_snake_app_name_container = DockerComposeTask(
     cwd=resource_dir,
     compose_cmd='up',
     compose_env_prefix='ENV_PREFIX',
-    envs=[
-        Env(
-            name='MESSAGE',
-            os_name='ENV_PREFIX_MESSAGE',
-            default='Salve Mane'
-        ),
-        Env(
-            name='CONTAINER_PORT',
-            os_name='ENV_PREFIX_CONTAINER_PORT',
-            default='3000'
-        ),
-        Env(
-            name='HOST_PORT',
-            os_name='ENV_PREFIX_HOST_PORT',
-            default='httpPort'
-        ),
-    ],
+    envs=compose_envs,
     checkers=[
         HTTPChecker(port='{{env.HOST_PORT}}')
     ]
 )
 runner.register(start_snake_app_name_container)
+
+stop_snake_app_name_container = DockerComposeTask(
+    name='stop-kebab-app-name-container',
+    description='Stop human readable app name container',
+    group=project_group,
+    cwd=resource_dir,
+    compose_cmd='stop',
+    compose_env_prefix='ENV_PREFIX',
+    envs=compose_envs,
+)
+runner.register(stop_snake_app_name_container)
+
+remove_snake_app_name_container = DockerComposeTask(
+    name='remove-kebab-app-name-container',
+    description='Rumove human readable app name container',
+    group=project_group,
+    cwd=resource_dir,
+    compose_cmd='rm',
+    compose_env_prefix='ENV_PREFIX',
+    envs=compose_envs,
+)
+runner.register(remove_snake_app_name_container)

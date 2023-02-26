@@ -12,7 +12,7 @@ from .._common import (
 )
 from ....helper import util
 
-from ..project_task.add import add_default_project_task, register_action
+from ..project_task.add import add_default_project_task, register_upstream
 import os
 
 # Common definitions
@@ -66,12 +66,28 @@ def add_project_task(*args: Any, **kwargs: Any):
     snake_app_name = util.to_snake_case(app_name)
     file_name = os.path.join(project_dir, '_automate', f'{snake_app_name}.py')
     # start
-    register_action(
+    register_upstream(
         project_dir=project_dir,
-        base_file_name='start_project_containers.py',
-        task_name='start-containers',
+        project_task_file_name='start_project_containers.py',
+        project_task_name='start-containers',
         upstream_task_file=file_name,
         upstream_task_var=f'start_{snake_app_name}_container'
+    )
+    # stop
+    register_upstream(
+        project_dir=project_dir,
+        project_task_file_name='stop_project_containers.py',
+        project_task_name='stop-containers',
+        upstream_task_file=file_name,
+        upstream_task_var=f'stop_{snake_app_name}_container'
+    )
+    # remove
+    register_upstream(
+        project_dir=project_dir,
+        project_task_file_name='remove_project_containers.py',
+        project_task_name='remove-containers',
+        upstream_task_file=file_name,
+        upstream_task_var=f'remove_{snake_app_name}_container'
     )
 
 
