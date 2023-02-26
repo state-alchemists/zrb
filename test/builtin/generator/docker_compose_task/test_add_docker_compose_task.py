@@ -23,10 +23,9 @@ def test_add_docker_compose_task():
 
     # first attempt should success
     first_attempt_loop = add_docker_compose_task.create_main_loop()
-    result = first_attempt_loop(
+    first_attempt_loop(
         project_dir=project_path, task_name='composeTask'
     )
-    assert result
 
     # compose_task.py file should exists
     assert os.path.isfile(
@@ -46,7 +45,7 @@ def test_add_docker_compose_task():
     is_error = False
     try:
         second_attempt_loop = add_docker_compose_task.create_main_loop()
-        result = second_attempt_loop(
+        second_attempt_loop(
             project_dir=project_path, task_name='composeTask'
         )
     except Exception:

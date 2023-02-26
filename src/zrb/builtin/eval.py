@@ -1,19 +1,12 @@
 from typing import Any
-from ..task.task import Task
+from ..task.decorator import python_task
 from ..task_input.str_input import StrInput
 from ..runner import runner
 
 # Common definitions
 
 
-def _eval(*args: str, **kwargs: Any):
-    expression: str = kwargs.get('expression', '')
-    return eval(expression)
-
-
-# Task definitions
-
-evaluate = Task(
+@python_task(
     name='eval',
     inputs=[
         StrInput(
@@ -23,8 +16,10 @@ evaluate = Task(
             description='Python expression',
         )
     ],
-    run=_eval,
     description='Evaluate Python expression',
-    retry=0
+    retry=0,
+    runner=runner
 )
-runner.register(evaluate)
+def evaluate(*args: str, **kwargs: Any):
+    expression: str = kwargs.get('expression', '')
+    return eval(expression)

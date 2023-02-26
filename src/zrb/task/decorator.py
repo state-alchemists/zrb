@@ -6,6 +6,7 @@ from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
+from ..action.runner import Runner
 from .base_task import BaseTask
 from .task import Task
 
@@ -25,9 +26,10 @@ def python_task(
     checking_interval: float = 0.1,
     retry: int = 2,
     retry_interval: float = 1,
+    runner: Optional[Runner] = None
 ) -> Callable[[Callable[..., Any]], Task]:
     def _create_task(fn: Callable[..., Any]) -> Task:
-        return Task(
+        task = Task(
             name=name,
             group=group,
             inputs=inputs,
@@ -43,4 +45,7 @@ def python_task(
             retry_interval=retry_interval,
             run=fn
         )
+        if runner is not None:
+            runner.register(task)
+        return task
     return _create_task

@@ -1,13 +1,20 @@
 from typing import Any, Mapping
 from ._group import env_group
 from ..helper.accessories.color import colored
+from ..task.decorator import python_task
 from ..task.task import Task
 from ..runner import runner
 
 # Common definitions
 
 
-def _show(*args: Any, **kwargs: Any):
+@python_task(
+    name='show',
+    group=env_group,
+    description='Show environment values',
+    runner=runner
+)
+def show(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     env_map = task.get_env_map()
     names = list(env_map.keys())
@@ -20,25 +27,12 @@ def _show(*args: Any, **kwargs: Any):
         task.print_out(f'{colored_name}{colored_equal}{colored_value}')
 
 
-def _get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
-    task: Task = kwargs['_task']
-    return task.get_env_map()
-
-
-# Task definitions
-
-show = Task(
-    name='show',
-    group=env_group,
-    run=_show,
-    description='Show environment values'
-)
-runner.register(show)
-
-get = Task(
+@python_task(
     name='get',
     group=env_group,
-    run=_get,
-    description='Get environment values'
+    description='Get environment values',
+    runner=runner
 )
-runner.register(get)
+def get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
+    task: Task = kwargs['_task']
+    return task.get_env_map()

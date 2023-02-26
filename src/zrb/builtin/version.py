@@ -1,16 +1,13 @@
 from typing import Any
-from ..task.task import Task
+from ..task.decorator import python_task
 from ..runner import runner
 from ..config.config import version
 
 
-def _version(*args: Any, **kwargs: Any) -> str:
-    return version
-
-
-get_version = Task(
+@python_task(
     name='version',
-    run=_version,
     description='Get Zrb version',
+    runner=runner
 )
-runner.register(get_version)
+def get_version(*args: Any, **kwargs: Any) -> str:
+    return version
