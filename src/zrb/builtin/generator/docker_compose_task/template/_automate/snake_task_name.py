@@ -6,8 +6,8 @@ import os
 
 current_dir = os.path.dirname(__file__)
 resource_dir = os.path.abspath(os.path.join(
-    current_dir, '..', 'src', 'kebab-task-name')
-)
+    current_dir, '..', 'src', 'kebab-task-name'
+))
 
 
 snake_task_name = DockerComposeTask(

@@ -28,43 +28,6 @@ def test_task_with_predefined_runner():
     assert result == 'hello'
 
 
-def test_task_with_decorated_runner():
-    task = Task(
-        name='hello',
-    )
-
-    @task.should
-    def _run(*args, **kwargs) -> str:
-        return 'hello'
-
-    main_loop = task.create_main_loop()
-    result = main_loop()
-    assert result == 'hello'
-
-
-def test_task_with_predefined_and_decorated_runner():
-    def _run(*args, **kwargs) -> str:
-        return 'hello'
-    task = Task(
-        name='hello',
-        run=_run,
-        retry=0
-    )
-    # should throw error when add decorated runner
-    # to a task with pre-existing runner
-    is_error = False
-    try:
-        @task.should
-        def _run(*args, **kwargs) -> str:
-            return 'not-hello'
-    except Exception:
-        is_error = True
-    assert is_error
-    main_loop = task.create_main_loop()
-    result = main_loop()
-    assert result == 'hello'
-
-
 def test_task_with_input():
     def _run(*args, **kwargs) -> str:
         name = kwargs['name']

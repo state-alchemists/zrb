@@ -1,5 +1,6 @@
 from .runner import runner
 from .helper.loader.load_module import load_module
+from .task.decorator import python_task
 from .task.task import Task
 from .task.cmd_task import CmdTask
 from .task.docker_compose_task import DockerComposeTask
@@ -21,6 +22,7 @@ from .helper.default_env import inject_default_env
 
 assert runner
 assert load_module
+assert python_task
 assert Task
 assert CmdTask
 assert DockerComposeTask
