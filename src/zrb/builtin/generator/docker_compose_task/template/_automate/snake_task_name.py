@@ -18,11 +18,24 @@ snake_task_name = DockerComposeTask(
     compose_cmd='composeCommand',
     compose_env_prefix='ENV_PREFIX',
     envs=[
-        Env(name='MESSAGE', os_name='ENV_PREFIX_MESSAGE', default='Salve Mane'),
-        Env(name='PORT', os_name='ENV_PREFIX_PORT', default='3000'),
+        Env(
+            name='MESSAGE',
+            os_name='ENV_PREFIX_MESSAGE',
+            default='Salve Mane'
+        ),
+        Env(
+            name='CONTAINER_PORT',
+            os_name='ENV_PREFIX_CONTAINER_PORT',
+            default='3000'
+        ),
+        Env(
+            name='HOST_PORT',
+            os_name='ENV_PREFIX_HOST_PORT',
+            default='3000'
+        ),
     ],
     checkers=[
-        HTTPChecker(port='{{env.PORT}}')
+        HTTPChecker(port='{{env.HOST_PORT}}')
     ]
 )
 runner.register(snake_task_name)
