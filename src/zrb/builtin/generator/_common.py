@@ -65,7 +65,9 @@ def validate_project_dir(project_dir: str):
         raise Exception(f'Not a project: {project_dir}')
 
 
-def get_automation_file(zrb_project_dir: str, automation_name: str) -> str:
+def get_automation_file_name(
+    zrb_project_dir: str, automation_name: str
+) -> str:
     snake_automation_name = util.to_snake_case(automation_name)
     return os.path.join(
         zrb_project_dir,
@@ -75,23 +77,24 @@ def get_automation_file(zrb_project_dir: str, automation_name: str) -> str:
 
 
 def validate_automation_name(project_dir: str, automation_name: str):
-    automation_file = get_automation_file(project_dir, automation_name)
+    automation_file = get_automation_file_name(project_dir, automation_name)
     if os.path.isfile(automation_file):
         raise Exception(f'File already exists: {automation_file}')
 
 
-def register_task(project_dir: str, task_name: str):
-    task_module_path = '.'.join([
-        '_automate',
-        util.to_snake_case(task_name)
-    ])
+def get_automation_module_name(automation_name: str):
+    snake_automation_name = util.to_snake_case(automation_name)
+    return '.'.join(['_automate', snake_automation_name])
+
+
+def register_module(project_dir: str, module_name: str):
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
     with open(zrb_init_path, 'r') as f:
         code = f.read()
-        import_alias = task_module_path.split('.')[-1]
+        import_alias = module_name.split('.')[-1]
         code = add_import_module(
             code=code,
-            module_path=task_module_path,
+            module_path=module_name,
             alias=import_alias
         )
         code = add_assert_resource(code, import_alias)
@@ -123,3 +126,4 @@ def get_default_task_replacement_middlewares() -> List[ReplacementMiddleware]:
         add_kebab_key('kebab-app-name', 'appName'),
         add_human_readable_key('human readable app name', 'appName'),
     ]
+

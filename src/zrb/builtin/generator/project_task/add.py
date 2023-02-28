@@ -8,7 +8,7 @@ import os
 current_dir = os.path.dirname(__file__)
 
 
-def add_default_project_task(project_dir: str):
+def add_project_automation(project_dir: str):
     if os.path.exists(os.path.join(project_dir, '_automate', '_project')):
         return
     copy_tree(
@@ -30,21 +30,24 @@ def add_default_project_task(project_dir: str):
         f.write(code)
 
 
-def register_upstream(
+def register_project_upstream(
     project_dir: str,
-    project_task_file_name: str,
-    project_task_name: str,
+    project_automation_file: str,
+    project_automation_task_name: str,
     upstream_task_file: str,
     upstream_task_var: str
 ):
-    project_default_dir = os.path.join(
+    '''
+    Adding upstream_task_var as project_task's
+    '''
+    project_automation_dir = os.path.join(
         project_dir, '_automate', '_project'
     )
-    project_default_file = os.path.join(
-        project_default_dir, f'{project_task_file_name}'
+    project_automation_path = os.path.join(
+        project_automation_dir, f'{project_automation_file}'
     )
     upstream_task_rel_file_path = os.path.relpath(
-        upstream_task_file, project_default_file
+        upstream_task_file, project_automation_path
     )
     # normalize `..` parts
     upstream_module_parts = [
@@ -54,7 +57,7 @@ def register_upstream(
     # remove .py extenstion
     upstream_module_parts[-1] = os.path.splitext(upstream_module_parts[-1])[0]
     upstream_module_path = '.'.join(upstream_module_parts)
-    with open(project_default_file, 'r') as f:
+    with open(project_automation_path, 'r') as f:
         code = f.read()
         code = add_import_module(
             code=code,
@@ -62,7 +65,7 @@ def register_upstream(
             resource=upstream_task_var
         )
         code = add_upstream_to_task(
-            code, project_task_name, upstream_task_var
+            code, project_automation_task_name, upstream_task_var
         )
-    with open(project_default_file, 'w') as f:
+    with open(project_automation_path, 'w') as f:
         f.write(code)

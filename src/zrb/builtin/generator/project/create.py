@@ -9,7 +9,7 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
 from .._common import project_dir_input, project_name_input
-from ..project_task.add import add_default_project_task
+from ..project_task.add import add_project_automation
 
 import os
 
@@ -47,7 +47,7 @@ copy_resource = ResourceMaker(
     upstreams=[copy_resource]
 )
 def add_project_task(*args: Any, **kwargs: Any):
-    add_default_project_task(kwargs.get('project_dir', '.'))
+    add_project_automation(kwargs.get('project_dir', '.'))
 
 
 create_project = CmdTask(

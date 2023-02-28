@@ -43,7 +43,7 @@ echo '    upstreams=[' >> zrb_init.py
 echo '        run_cmd.run_cmd,' >> zrb_init.py
 echo '        run_container.run_container,' >> zrb_init.py
 echo '        run_python.run_python,' >> zrb_init.py
-echo '        simple.start_simple_container,' >> zrb_init.py
+echo '        simple.start_simple,' >> zrb_init.py
 echo '    ]' >> zrb_init.py
 echo ')' >> zrb_init.py
 echo 'runner.register(test_project)' >> zrb_init.py
