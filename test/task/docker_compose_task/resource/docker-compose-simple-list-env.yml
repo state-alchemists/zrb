@@ -3,4 +3,4 @@ services:
   myapp:
     build: image
     environment:
-      - MY_MESSAGE=${_ZRB_TEST_SIMPLE_LIST_MESSAGE:-Good morning}
+      - MY_MESSAGE=${ZRB_TEST_SIMPLE_LIST_MESSAGE:-Good morning}
