@@ -1,15 +1,13 @@
-from typing import Any
 from ..._group import project_group
 from ....helper.middlewares.replacement import (
     coalesce, add_pascal_key, add_base_name_key
 )
-from ....task.decorator import python_task
 from ....task.cmd_task import CmdTask
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
 from .._common import project_dir_input, project_name_input
-from ..project_task.add import add_project_automation
+from ..project_task.task_factory import create_add_project_automation_task
 
 import os
 
@@ -40,15 +38,9 @@ copy_resource = ResourceMaker(
     scaffold_locks=['{{input.project_dir}}/zrb_init.py']
 )
 
-
-@python_task(
-    name='add-project-task',
-    inputs=[project_dir_input],
+add_project_task = create_add_project_automation_task(
     upstreams=[copy_resource]
 )
-def add_project_task(*args: Any, **kwargs: Any):
-    add_project_automation(kwargs.get('project_dir', '.'))
-
 
 create_project = CmdTask(
     name='create',

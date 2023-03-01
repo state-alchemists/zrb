@@ -11,10 +11,12 @@ from .._common import (
     get_default_task_replacements, get_default_task_replacement_middlewares,
     new_app_scaffold_lock
 )
-from ..project_task.add import (
-    add_project_automation, register_project_upstream
+from ..project_task.task_factory import (
+    create_add_project_automation_task, create_register_start_task,
+    create_register_start_container_task, create_register_stop_container_task,
+    create_register_remove_container_task, create_register_build_image_task,
+    create_register_push_image_task,
 )
-from ....helper import util
 
 import os
 
@@ -56,153 +58,32 @@ copy_resource = ResourceMaker(
     scaffold_locks=[new_app_scaffold_lock]
 )
 
-
-@python_task(
-    name='add-project-task',
-    inputs=[project_dir_input, app_name_input],
+add_project_task = create_add_project_automation_task(
     upstreams=[copy_resource]
 )
-def add_project_task(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    add_project_automation(project_dir)
 
-
-@python_task(
-    name='register-start',
-    inputs=[project_dir_input, app_name_input],
+register_start = create_register_start_task(
     upstreams=[add_project_task]
 )
-def register_start(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    app_name = kwargs.get('app_name')
-    snake_app_name = util.to_snake_case(app_name)
-    file_name = os.path.join(
-        project_dir, '_automate', f'{snake_app_name}.py'
-    )
-    register_project_upstream(
-        project_dir=project_dir,
-        project_automation_file='start_project.py',
-        project_automation_task_name='start',
-        upstream_task_file=file_name,
-        upstream_task_var=f'start_{snake_app_name}'
-    )
 
-
-@python_task(
-    name='register-start-container',
-    inputs=[project_dir_input, app_name_input],
+register_start_container = create_register_start_container_task(
     upstreams=[add_project_task]
 )
-def register_start_container(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    app_name = kwargs.get('app_name')
-    snake_app_name = util.to_snake_case(app_name)
-    file_name = os.path.join(
-        project_dir, '_automate', f'{snake_app_name}_container.py'
-    )
-    register_project_upstream(
-        project_dir=project_dir,
-        project_automation_file='start_project_containers.py',
-        project_automation_task_name='start-containers',
-        upstream_task_file=file_name,
-        upstream_task_var=f'start_{snake_app_name}_container'
-    )
 
-
-@python_task(
-    name='register-stop-container',
-    inputs=[project_dir_input, app_name_input],
+register_stop_container = create_register_stop_container_task(
     upstreams=[add_project_task]
 )
-def register_stop_container(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    app_name = kwargs.get('app_name')
-    snake_app_name = util.to_snake_case(app_name)
-    file_name = os.path.join(
-        project_dir, '_automate', f'{snake_app_name}_container.py'
-    )
-    register_project_upstream(
-        project_dir=project_dir,
-        project_automation_file='stop_project_containers.py',
-        project_automation_task_name='stop-containers',
-        upstream_task_file=file_name,
-        upstream_task_var=f'stop_{snake_app_name}_container'
-    )
 
-
-@python_task(
-    name='register-remove-container',
-    inputs=[project_dir_input, app_name_input],
+register_remove_container = create_register_remove_container_task(
     upstreams=[add_project_task]
 )
-def register_remove_container(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    app_name = kwargs.get('app_name')
-    snake_app_name = util.to_snake_case(app_name)
-    file_name = os.path.join(
-        project_dir, '_automate', f'{snake_app_name}_container.py'
-    )
-    register_project_upstream(
-        project_dir=project_dir,
-        project_automation_file='remove_project_containers.py',
-        project_automation_task_name='remove-containers',
-        upstream_task_file=file_name,
-        upstream_task_var=f'remove_{snake_app_name}_container'
-    )
 
-
-@python_task(
-    name='register-push-image',
-    inputs=[project_dir_input, app_name_input],
+register_push_image = create_register_push_image_task(
     upstreams=[add_project_task]
 )
-def register_push_image(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    app_name = kwargs.get('app_name')
-    snake_app_name = util.to_snake_case(app_name)
-    file_name = os.path.join(
-        project_dir, '_automate', f'{snake_app_name}_container.py'
-    )
-    register_project_upstream(
-        project_dir=project_dir,
-        project_automation_file='push_project_images.py',
-        project_automation_task_name='push-images',
-        upstream_task_file=file_name,
-        upstream_task_var=f'push_{snake_app_name}_image'
-    )
 
-
-@python_task(
-    name='register-build-image',
-    inputs=[project_dir_input, app_name_input],
+register_build_image = create_register_build_image_task(
     upstreams=[add_project_task]
-)
-def register_build_image(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir', '.')
-    app_name = kwargs.get('app_name')
-    snake_app_name = util.to_snake_case(app_name)
-    file_name = os.path.join(
-        project_dir, '_automate', f'{snake_app_name}_container.py'
-    )
-    register_project_upstream(
-        project_dir=project_dir,
-        project_automation_file='build_project_images.py',
-        project_automation_task_name='build-images',
-        upstream_task_file=file_name,
-        upstream_task_var=f'build_{snake_app_name}_image'
-    )
-
-
-register_task = Task(
-    name='register-tasks',
-    upstreams=[
-        register_start,
-        register_start_container,
-        register_stop_container,
-        register_remove_container,
-        register_build_image,
-        register_push_image
-    ]
 )
 
 
@@ -210,7 +91,14 @@ register_task = Task(
     name='simple-python-app',
     group=project_add_group,
     inputs=[project_dir_input, app_name_input],
-    upstreams=[register_task],
+    upstreams=[
+        register_start,
+        register_start_container,
+        register_stop_container,
+        register_remove_container,
+        register_build_image,
+        register_push_image
+    ],
     runner=runner
 )
 def add_simple_python_app(*args: Any, **kwargs: Any):
@@ -224,4 +112,3 @@ def add_simple_python_app(*args: Any, **kwargs: Any):
     register_module(
         project_dir, get_automation_module_name(f'{app_name}_container')
     )
-
