@@ -60,22 +60,3 @@ def show_kiss_principle(*args: Any, **kwargs: Any):
     task.print_out('I - It')
     task.print_out('S - Simple')
     task.print_out('S - Stupid')
-
-
-@python_task(
-    icon="🦅",
-    name='pancasila',
-    group=principle_show_group,
-    description='Show pancasila',
-    runner=runner
-)
-def show_pancasila(*args: Any, **kwargs: Any):
-    task: Task = kwargs['_task']
-    task.print_out('1. Ketuhanan Yang Maha Esa')
-    task.print_out('2. Kemanusiaan yang adil dan beradab')
-    task.print_out('3. Persatuan Indonesia')
-    task.print_out(' '.join([
-        '4. Kerakyatan yang dipimpin oleh hikmat kebijaksanaan',
-        'dalam permusyawaratan/perwakilan'
-    ]))
-    task.print_out('5. Keadilan sosial bagi seluruh rakyat Indonesia')
