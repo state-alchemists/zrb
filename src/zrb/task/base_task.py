@@ -1,5 +1,5 @@
 from typing import (
-    Any, Callable, Iterable, Mapping, Optional, Tuple, TypeVar
+    Any, Callable, Iterable, Mapping, Optional, Tuple, TypeVar, Union
 )
 from typeguard import typechecked
 from .base_model import TaskModel
@@ -41,7 +41,8 @@ class BaseTask(TaskModel):
         checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,
-        run: Optional[Callable[..., Any]] = None
+        run: Optional[Callable[..., Any]] = None,
+        skip_execution: Union[bool, str] = False
     ):
         TaskModel.__init__(
             self,
@@ -65,6 +66,7 @@ class BaseTask(TaskModel):
         self.upstreams = upstreams
         self.checkers = checkers
         self.checking_interval = checking_interval
+        self.skip_execution = skip_execution
         self._is_checked: bool = False
         self._is_executed: bool = False
         self._runner: Optional[Callable[..., Any]] = run
@@ -218,7 +220,7 @@ class BaseTask(TaskModel):
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self._is_executed:
-            self.log_debug('Skip running, because execution flag has been set')
+            self.log_debug('Skip execution because execution flag is True')
             return
         self.log_debug('Set execution flag to True')
         self._is_executed = True
@@ -231,6 +233,12 @@ class BaseTask(TaskModel):
             ))
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
+        if self.render_bool(self.skip_execution):
+            self.log_info(
+                f'Skip execution because config: {self.skip_execution}'
+            )
+            self.mark_as_done()
+            return None
         # start running task
         result: Any
         local_kwargs = dict(kwargs)

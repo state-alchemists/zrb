@@ -42,7 +42,8 @@ class DockerComposeTask(CmdTask):
         retry_interval: float = 1,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        preexec_fn: Optional[Callable[[], Any]] = os.setsid
+        preexec_fn: Optional[Callable[[], Any]] = os.setsid,
+        skip_execution: Union[bool, str] = False
     ):
         combined_env_files = list(env_files)
         for _, service_env_files in service_env_files.items():
@@ -66,7 +67,8 @@ class DockerComposeTask(CmdTask):
             retry_interval=retry_interval,
             max_output_line=max_output_line,
             max_error_line=max_error_line,
-            preexec_fn=preexec_fn
+            preexec_fn=preexec_fn,
+            skip_execution=skip_execution
         )
         self.compose_cmd = compose_cmd
         self.compose_options = compose_options

@@ -6,7 +6,7 @@ import os
 
 current_dir = os.path.dirname(__file__)
 resource_dir = os.path.abspath(os.path.join(
-    current_dir, '..', 'src', 'kebab-app-name'
+    current_dir, '..', '..', 'src', 'kebab-app-name'
 ))
 
 

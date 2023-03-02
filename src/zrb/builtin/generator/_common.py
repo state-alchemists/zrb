@@ -1,10 +1,9 @@
-from typing import List
+from typing import List, Optional
 from ...helper.middlewares.replacement import (
     Replacement, ReplacementMiddleware
 )
 from ...task_input.str_input import StrInput
 from ...task_input.int_input import IntInput
-from ...helper import util
 from ...helper.accessories.name import get_random_name
 from ...helper.codemod.add_assert_resource import add_assert_resource
 from ...helper.codemod.add_import_module import add_import_module
@@ -65,33 +64,14 @@ def validate_project_dir(project_dir: str):
         raise Exception(f'Not a project: {project_dir}')
 
 
-def get_automation_file_name(
-    zrb_project_dir: str, automation_name: str
-) -> str:
-    snake_automation_name = util.to_snake_case(automation_name)
-    return os.path.join(
-        zrb_project_dir,
-        '_automate',
-        f'{snake_automation_name}.py'
-    )
-
-
-def validate_automation_name(project_dir: str, automation_name: str):
-    automation_file = get_automation_file_name(project_dir, automation_name)
-    if os.path.isfile(automation_file):
-        raise Exception(f'File already exists: {automation_file}')
-
-
-def get_automation_module_name(automation_name: str):
-    snake_automation_name = util.to_snake_case(automation_name)
-    return '.'.join(['_automate', snake_automation_name])
-
-
-def register_module(project_dir: str, module_name: str):
+def register_module(
+    project_dir: str, module_name: str, import_alias: Optional[str] = None
+):
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
     with open(zrb_init_path, 'r') as f:
         code = f.read()
-        import_alias = module_name.split('.')[-1]
+        if import_alias is None:
+            import_alias = module_name.split('.')[-1]
         code = add_import_module(
             code=code,
             module_path=module_name,

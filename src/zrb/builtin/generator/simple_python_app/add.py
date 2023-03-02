@@ -7,9 +7,8 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
     project_dir_input, app_name_input, http_port_input, validate_project_dir,
-    get_automation_module_name, validate_automation_name, register_module,
-    get_default_task_replacements, get_default_task_replacement_middlewares,
-    new_app_scaffold_lock
+    register_module, get_default_task_replacements,
+    get_default_task_replacement_middlewares, new_app_scaffold_lock
 )
 from ..project_task.task_factory import (
     create_add_project_automation_task, create_register_start_task,
@@ -17,6 +16,7 @@ from ..project_task.task_factory import (
     create_register_remove_container_task, create_register_build_image_task,
     create_register_push_image_task,
 )
+from ....helper import util
 
 import os
 
@@ -32,8 +32,12 @@ current_dir = os.path.dirname(__file__)
 def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_project_dir(project_dir)
-    app_name = kwargs.get(project_dir, 'app_name')
-    validate_automation_name(project_dir, app_name)
+    app_name = kwargs.get('app_name')
+    automation_dir = os.path.join(
+        project_dir, '_automate', util.to_snake_case(app_name)
+    )
+    if os.path.isdir(automation_dir):
+        raise Exception(f'Directory already exists: {automation_dir}')
 
 
 replacements = get_default_task_replacements()
@@ -105,10 +109,26 @@ def add_simple_python_app(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     project_dir = kwargs.get('project_dir')
     app_name = kwargs.get('app_name')
+    snake_app_name = util.to_snake_case(app_name)
     task.print_out(f'Register app: {app_name}')
     register_module(
-        project_dir, get_automation_module_name(app_name)
+        project_dir=project_dir,
+        module_name='.'.join([
+            '_automate', snake_app_name, 'local'
+        ]),
+        import_alias=f'{snake_app_name}_local'
     )
     register_module(
-        project_dir, get_automation_module_name(f'{app_name}_container')
+        project_dir=project_dir,
+        module_name='.'.join([
+            '_automate', snake_app_name, 'deployment'
+        ]),
+        import_alias=f'{snake_app_name}_deployment'
+    )
+    register_module(
+        project_dir=project_dir,
+        module_name='.'.join([
+            '_automate', snake_app_name, 'container'
+        ]),
+        import_alias=f'{snake_app_name}_container'
     )

@@ -27,13 +27,18 @@ def test_add_simple_python_app():
         project_dir=project_path, app_name='simpleApp'
     )
 
-    # simple_app.py file should exists
+    # _automation should exists
     assert os.path.isfile(
-        os.path.join(automate_path, 'simple_app.py')
+        os.path.join(automate_path, 'simple_app', 'local.py')
     )
     assert os.path.isfile(
-        os.path.join(automate_path, 'simple_app_container.py')
+        os.path.join(automate_path, 'simple_app', 'container.py')
     )
+    assert os.path.isfile(
+        os.path.join(automate_path, 'simple_app', 'deployment.py')
+    )
+
+    # src should exists
     assert os.path.isfile(
         os.path.join(src_path, 'simple-app', 'docker-compose.yml')
     )
@@ -41,11 +46,13 @@ def test_add_simple_python_app():
     # python_app should be imported
     expected_lines = [
         'assert _project',
-        'assert simple_app',
+        'assert simple_app_local',
         'assert simple_app_container',
+        'assert simple_app_deployment',
         'import _automate._project as _project',
-        'import _automate.simple_app as simple_app',
-        'import _automate.simple_app_container as simple_app_container',
+        'import _automate.simple_app.local as simple_app_local',
+        'import _automate.simple_app.container as simple_app_container',
+        'import _automate.simple_app.deployment as simple_app_deployment',
     ]
     with open(os.path.join(project_path, 'zrb_init.py')) as f:
         content = f.read()

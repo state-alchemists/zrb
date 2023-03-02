@@ -7,10 +7,11 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
     project_dir_input, task_name_input, http_port_input, validate_project_dir,
-    get_automation_module_name, validate_automation_name, register_module,
+    register_module,
     get_default_task_replacements, get_default_task_replacement_middlewares,
     new_task_scaffold_lock
 )
+from ....helper import util
 
 import os
 
@@ -27,7 +28,11 @@ def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_project_dir(project_dir)
     task_name = kwargs.get(project_dir, 'task_name')
-    validate_automation_name(project_dir, task_name)
+    automation_file = os.path.join(
+        project_dir, '_automate', f'{util.to_snake_case(task_name)}.py'
+    )
+    if os.path.isfile(automation_file):
+        raise Exception(f'File already exists: {automation_file}')
 
 
 replacements = get_default_task_replacements()
@@ -70,5 +75,9 @@ def add_docker_compose_task(*args: Any, **kwargs: Any):
     validate_project_dir(project_dir)
     task_name = kwargs.get('task_name')
     task.print_out(f'Register docker-compose task: {task_name}')
-    module_name = get_automation_module_name(task_name)
-    register_module(project_dir, module_name)
+    register_module(
+        project_dir=project_dir,
+        module_name='.'.join([
+            '_automate', util.to_snake_case(task_name)
+        ])
+    )

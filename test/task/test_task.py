@@ -28,6 +28,20 @@ def test_task_with_predefined_runner():
     assert result == 'hello'
 
 
+def test_task_with_skip_execution():
+    def _run(*args, **kwargs) -> str:
+        return 'hello'
+    task = Task(
+        name='hello',
+        run=_run,
+        retry=0,
+        skip_execution=True
+    )
+    main_loop = task.create_main_loop()
+    result = main_loop()
+    assert result is None
+
+
 def test_task_with_input():
     def _run(*args, **kwargs) -> str:
         name = kwargs['name']
@@ -172,7 +186,7 @@ def test_task_env_with_empty_string_as_os_name():
     del os.environ['COLOR']
 
 
-def test_task_env_with_empty_string_as_os_name():
+def test_task_redeclared_env():
     '''
     When env exist, it should override env_file,
     If two env has the same name, the later should override the first one

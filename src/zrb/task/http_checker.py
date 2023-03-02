@@ -61,12 +61,12 @@ class HTTPChecker(BaseTask):
         return super().create_main_loop(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        is_https = self.get_bool(self.is_https)
+        is_https = self.render_bool(self.is_https)
         method = self.render_str(self.method)
         host = self.render_str(self.host)
-        port = self.get_int(self.port)
+        port = self.render_int(self.port)
         url = self.render_str(self.url)
-        timeout = self.get_int(self.timeout)
+        timeout = self.render_int(self.timeout)
         while not self._check_connection(
             method, host, port, url, is_https, timeout
         ):

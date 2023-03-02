@@ -247,17 +247,17 @@ class TaskDataModel():
             if override or key not in self._env_map:
                 self._env_map[key] = val
 
-    def get_float(self, val: Union[str, float]) -> float:
+    def render_float(self, val: Union[str, float]) -> float:
         if isinstance(val, str):
             return float(self.render_str(val))
         return val
 
-    def get_int(self, val: Union[str, int]) -> int:
+    def render_int(self, val: Union[str, int]) -> int:
         if isinstance(val, str):
             return int(self.render_str(val))
         return val
 
-    def get_bool(self, val: Union[str, bool]) -> bool:
+    def render_bool(self, val: Union[str, bool]) -> bool:
         if isinstance(val, str):
             str_val = self.render_str(val)
             if str_val.lower() in ['true', '1', 'yes', 'y', 'active']:

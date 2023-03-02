@@ -73,7 +73,8 @@ class CmdTask(BaseTask):
         retry_interval: float = 1,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        preexec_fn: Optional[Callable[[], Any]] = os.setsid
+        preexec_fn: Optional[Callable[[], Any]] = os.setsid,
+        skip_execution: Union[bool, str] = False
     ):
         BaseTask.__init__(
             self,
@@ -90,6 +91,7 @@ class CmdTask(BaseTask):
             checking_interval=checking_interval,
             retry=retry,
             retry_interval=retry_interval,
+            skip_execution=skip_execution
         )
         max_output_line = self.ensure_non_negative(
             max_output_line, 'Find negative max_output_line'
