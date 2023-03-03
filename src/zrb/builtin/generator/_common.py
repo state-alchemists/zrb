@@ -1,12 +1,15 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 from ...helper.middlewares.replacement import (
     Replacement, ReplacementMiddleware
 )
+from ...task.decorator import python_task
+from ...task.task import Task
 from ...task_input.str_input import StrInput
 from ...task_input.int_input import IntInput
 from ...helper.accessories.name import get_random_name
 from ...helper.codemod.add_assert_resource import add_assert_resource
 from ...helper.codemod.add_import_module import add_import_module
+from ...helper import util
 from ...helper.middlewares.replacement import (
     add_pascal_key, add_snake_key, add_camel_key,
     add_kebab_key, add_human_readable_key
@@ -64,20 +67,87 @@ def validate_project_dir(project_dir: str):
         raise Exception(f'Not a project: {project_dir}')
 
 
+def create_register_task_module(
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    @python_task(
+        name='register-task-module',
+        inputs=[project_dir_input, task_name_input],
+        upstreams=[] if upstreams is None else upstreams
+    )
+    def task(*args: Any, **kwargs: Any):
+        task: Task = kwargs.get('_task')
+        project_dir = kwargs.get('project_dir')
+        validate_project_dir(project_dir)
+        task_name = kwargs.get('task_name')
+        task.print_out(f'Register module: _automate.{task_name}')
+        register_module(
+            project_dir=project_dir,
+            module_name='.'.join([
+                '_automate', util.to_snake_case(task_name)
+            ])
+        )
+    return task
+
+
+def create_register_local_app_module(
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return _create_register_app_module('local', upstreams)
+
+
+def create_register_container_app_module(
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return _create_register_app_module('container', upstreams)
+
+
+def create_register_deployment_app_module(
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return _create_register_app_module('deployment', upstreams)
+
+
+def _create_register_app_module(
+    module: str,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    @python_task(
+        name='register-app-module',
+        inputs=[project_dir_input, app_name_input],
+        upstreams=[] if upstreams is None else upstreams
+    )
+    def task(*args: Any, **kwargs: Any):
+        task: Task = kwargs.get('_task')
+        project_dir = kwargs.get('project_dir')
+        validate_project_dir(project_dir)
+        app_name = kwargs.get('app_name')
+        task.print_out(f'Register module: _automate.{app_name}.{module}')
+        snake_app_name = util.to_snake_case(app_name)
+        register_module(
+            project_dir=project_dir,
+            module_name='.'.join([
+                '_automate', snake_app_name, module
+            ]),
+            alias=f'{snake_app_name}_{module}'
+        )
+    return task
+
+
 def register_module(
-    project_dir: str, module_name: str, import_alias: Optional[str] = None
+    project_dir: str, module_name: str, alias: Optional[str] = None
 ):
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
     with open(zrb_init_path, 'r') as f:
         code = f.read()
-        if import_alias is None:
-            import_alias = module_name.split('.')[-1]
+        if alias is None:
+            alias = module_name.split('.')[-1]
         code = add_import_module(
             code=code,
             module_path=module_name,
-            alias=import_alias
+            alias=alias
         )
-        code = add_assert_resource(code, import_alias)
+        code = add_assert_resource(code, alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)
     return True

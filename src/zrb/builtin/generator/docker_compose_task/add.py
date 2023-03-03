@@ -7,9 +7,8 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
     project_dir_input, task_name_input, http_port_input, validate_project_dir,
-    register_module,
-    get_default_task_replacements, get_default_task_replacement_middlewares,
-    new_task_scaffold_lock
+    create_register_task_module, get_default_task_replacements,
+    get_default_task_replacement_middlewares, new_task_scaffold_lock
 )
 from ....helper import util
 
@@ -61,23 +60,17 @@ copy_resource = ResourceMaker(
     scaffold_locks=[new_task_scaffold_lock]
 )
 
+register_task_module = create_register_task_module(
+    upstreams=[copy_resource]
+)
+
 
 @python_task(
     name='docker-compose-task',
     group=project_add_group,
-    inputs=[project_dir_input, task_name_input],
-    upstreams=[copy_resource],
+    upstreams=[register_task_module],
     runner=runner
 )
 def add_docker_compose_task(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
-    project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
-    task_name = kwargs.get('task_name')
-    task.print_out(f'Register docker-compose task: {task_name}')
-    register_module(
-        project_dir=project_dir,
-        module_name='.'.join([
-            '_automate', util.to_snake_case(task_name)
-        ])
-    )
+    task.print_out('Success')

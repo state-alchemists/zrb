@@ -1,19 +1,19 @@
 import os
 
 
-def get_app_local_task_file(project_dir: str, snake_app_name: str) -> str:
+def _get_app_local_task_file(project_dir: str, snake_app_name: str) -> str:
     return os.path.join(
         project_dir, '_automate', snake_app_name, 'local.py'
     )
 
 
-def get_app_container_task_file(project_dir: str, snake_app_name: str) -> str:
+def _get_app_container_task_file(project_dir: str, snake_app_name: str) -> str:
     return os.path.join(
         project_dir, '_automate', snake_app_name, 'container.py'
     )
 
 
-def get_app_deployment_task_file(
+def _get_app_deployment_task_file(
     project_dir: str, snake_app_name: str
 ) -> str:
     return os.path.join(
@@ -21,33 +21,33 @@ def get_app_deployment_task_file(
     )
 
 
-def get_app_start_task_var(snake_app_name: str) -> str:
+def _get_app_start_task_var(snake_app_name: str) -> str:
     return f'start_{snake_app_name}'
 
 
-def get_app_start_container_task_var(snake_app_name: str) -> str:
+def _get_app_start_container_task_var(snake_app_name: str) -> str:
     return f'start_{snake_app_name}_container'
 
 
-def get_app_stop_container_task_var(snake_app_name: str) -> str:
+def _get_app_stop_container_task_var(snake_app_name: str) -> str:
     return f'stop_{snake_app_name}_container'
 
 
-def get_app_remove_container_var(snake_app_name: str) -> str:
+def _get_app_remove_container_var(snake_app_name: str) -> str:
     return f'remove_{snake_app_name}_container'
 
 
-def get_app_push_image_task_var(snake_app_name: str) -> str:
+def _get_app_push_image_task_var(snake_app_name: str) -> str:
     return f'push_{snake_app_name}_image'
 
 
-def get_app_build_image_task_var(snake_app_name: str) -> str:
+def _get_app_build_image_task_var(snake_app_name: str) -> str:
     return f'build_{snake_app_name}_image'
 
 
-def get_app_deploy_task_var(snake_app_name: str) -> str:
+def _get_app_deploy_task_var(snake_app_name: str) -> str:
     return f'deploy_{snake_app_name}_image'
 
 
-def get_app_remove_deployment_task_var(snake_app_name: str) -> str:
+def _get_app_remove_deployment_task_var(snake_app_name: str) -> str:
     return f'remove_{snake_app_name}_deployment'
