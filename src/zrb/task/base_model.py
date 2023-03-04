@@ -332,7 +332,11 @@ class TaskDataModel():
             env_value = task_env.get(env_prefix)
             if self._is_probably_jinja(env_value):
                 env_value = self.render_str(env_value)
+            if env_name == 'APP_PORT':
+                print(env_name, env_value)
             self._env_map[env_name] = env_value
+        # for key, val in self._env_map.items():
+        #     print(key, val)
         self.log_debug(f'Env map: {self._env_map}')
 
     def _is_probably_jinja(self, string: str) -> bool:

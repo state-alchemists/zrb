@@ -124,6 +124,6 @@ class DockerComposeTask(CmdTask):
         args = ' '.join([
             double_quote(self.render_str(arg)) for arg in self.compose_args
         ])
-        cmd = f'docker compose {options} {flags} {self.compose_cmd} {args}'
+        cmd = f'docker compose {options} {self.compose_cmd} {flags} {args}'
         self.log_info(f'Command: {cmd}')
         return cmd

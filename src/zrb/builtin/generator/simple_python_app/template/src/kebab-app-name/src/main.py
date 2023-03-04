@@ -1,20 +1,25 @@
-import http.server
-import socketserver
+import uvicorn
 import os
 
-MESSAGE = os.getenv('MESSAGE', 'Hello, world!')
-PORT = int(os.getenv('PORT', '8000'))
+MESSAGE = os.getenv('APP_MESSAGE', 'Hello, world!')
+PORT = int(os.getenv('APP_PORT', '8000'))
 
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(MESSAGE.encode())
+async def app(scope, receive, send):
+    assert scope['type'] == 'http'
+
+    await send({
+        'type': 'http.response.start',
+        'status': 200,
+        'headers': [
+            [b'content-type', b'text/plain'],
+        ],
+    })
+    await send({
+        'type': 'http.response.body',
+        'body': bytes(MESSAGE, 'utf-8'),
+    })
 
 
-httpd = socketserver.TCPServer(("", PORT), Handler)
-
-print(f"Serving at port {PORT}")
-httpd.serve_forever()
+if __name__ == "__main__":
+    uvicorn.run("main:app", port=PORT, log_level="info")

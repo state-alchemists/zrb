@@ -15,6 +15,7 @@ from .task_input.int_input import IntInput
 from .task_input.password_input import PasswordInput
 from .task_input.str_input import StrInput
 from .task_env.env import Env
+from .task_env.env_file import EnvFile
 from .task_group.group import Group
 from .builtin import _group as builtin_group
 from .helper.default_env import inject_default_env
@@ -37,6 +38,7 @@ assert IntInput
 assert PasswordInput
 assert StrInput
 assert Env
+assert EnvFile
 assert Group
 assert builtin_group
 

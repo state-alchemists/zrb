@@ -30,7 +30,7 @@ echo '🤖 Add simple-python-app'
 zrb project add simple-python-app \
     --project-dir . \
     --app-name "simple" \
-    --env-prefix "APP" \
+    --env-prefix "MY" \
     --http-port 3001
 
 

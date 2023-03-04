@@ -1,4 +1,5 @@
 FROM python:3
-COPY . /
-ENV MY_MESSAGE="Hello, Docker!"
-CMD ["python", "/main.py"]
+WORKDIR /home
+COPY . .
+RUN pip install -r requirements.txt
+CMD python main.py

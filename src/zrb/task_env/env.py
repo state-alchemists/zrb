@@ -42,3 +42,9 @@ class Env():
         if prefix is None or prefix == '':
             return name
         return '_'.join([prefix, name])
+
+    def __repr__(self) -> str:
+        name = self.name
+        os_name = self.os_name
+        default = self.default
+        return f'<Env name={name} os_name={os_name} default={default}>'

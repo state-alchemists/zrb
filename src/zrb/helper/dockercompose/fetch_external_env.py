@@ -3,7 +3,11 @@ from typing import Any, List, Mapping
 
 def fetch_external_env(data: Any) -> Mapping[str, str]:
     global_env_dict = {}
+    if 'services' not in data:
+        return global_env_dict
     for service in data['services']:
+        if 'environment' not in data['services'][service]:
+            continue
         environments = data['services'][service]['environment']
         if isinstance(environments, list):
             for environment in environments:
@@ -22,8 +26,8 @@ def fetch_external_env(data: Any) -> Mapping[str, str]:
 def parse_external_env_string(env_str: str) -> Mapping[str, str]:
     env_dict = {}
     stack = []
-    key = ""
-    value = ""
+    key = ''
+    value = ''
     index = 0
     while index < len(env_str):
         char = env_str[index]
@@ -44,7 +48,7 @@ def parse_external_env_string(env_str: str) -> Mapping[str, str]:
                 if '${' in value:
                     value = ''
                 env_dict[key] = value
-                key = ""
-                value = ""
+                key = ''
+                value = ''
         index += 1
     return env_dict
