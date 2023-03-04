@@ -1,6 +1,7 @@
 from typing import Iterable, Mapping, Optional
 from ..string.parse_replacement import parse_replacement
 from typeguard import typechecked
+from ..log import logger
 
 import os
 import shutil
@@ -32,8 +33,11 @@ def copy_tree(
             continue
         new_dst_name = parse_replacement(dst_name, replacements)
         shutil.copy2(src_name, new_dst_name)
-        with open(new_dst_name, 'r') as file:
-            file_content = file.read()
-        new_file_content = parse_replacement(file_content, replacements)
-        with open(new_dst_name, 'w') as file:
-            file.write(new_file_content)
+        try:
+            with open(new_dst_name, 'r') as file:
+                file_content = file.read()
+            new_file_content = parse_replacement(file_content, replacements)
+            with open(new_dst_name, 'w') as file:
+                file.write(new_file_content)
+        except Exception:
+            logger.error(f'Cannot parse file: {new_dst_name}')

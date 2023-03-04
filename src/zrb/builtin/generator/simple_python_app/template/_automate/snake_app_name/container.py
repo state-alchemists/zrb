@@ -6,6 +6,7 @@ from .common import (
     local_snake_app_name_input, snake_app_name_host_input,
     snake_app_name_https_input
 )
+from .image import build_snake_app_name_image
 import os
 
 current_dir = os.path.dirname(__file__)
@@ -22,34 +23,6 @@ envs = [
         default='httpPort'
     ),
 ]
-
-build_snake_app_name_image = DockerComposeTask(
-    name='build-kebab-app-name-image',
-    description='Build human readable app name image',
-    group=project_group,
-    inputs=[local_snake_app_name_input],
-    skip_execution='{{not input.local_snake_app_name}}',
-    cwd=resource_dir,
-    compose_cmd='build',
-    compose_flags=[
-        '--no-cache'
-    ],
-    compose_env_prefix=env_prefix,
-    envs=envs,
-)
-runner.register(build_snake_app_name_image)
-
-push_snake_app_name_image = DockerComposeTask(
-    name='push-kebab-app-name-image',
-    description='Push human readable app name image',
-    group=project_group,
-    upstreams=[build_snake_app_name_image],
-    cwd=resource_dir,
-    compose_cmd='push',
-    compose_env_prefix=env_prefix,
-    envs=envs,
-)
-runner.register(push_snake_app_name_image)
 
 remove_snake_app_name_container = DockerComposeTask(
     name='remove-kebab-app-name-container',

@@ -8,8 +8,9 @@ from ....runner import runner
 from .._common import (
     project_dir_input, app_name_input, http_port_input, validate_project_dir,
     create_register_local_app_module, create_register_container_app_module,
-    create_register_deployment_app_module, get_default_task_replacements,
-    get_default_task_replacement_middlewares, new_app_scaffold_lock
+    create_register_image_app_module, create_register_deployment_app_module,
+    get_default_task_replacements, get_default_task_replacement_middlewares,
+    new_app_scaffold_lock
 )
 from ..project_task.task_factory import (
     create_add_project_automation, create_register_app_start,
@@ -60,7 +61,8 @@ copy_resource = ResourceMaker(
     replacement_middlewares=get_default_task_replacement_middlewares(),
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    scaffold_locks=[new_app_scaffold_lock]
+    scaffold_locks=[new_app_scaffold_lock],
+    excludes=['*/deployment/venv']
 )
 
 register_local_app_module = create_register_local_app_module(
@@ -68,6 +70,10 @@ register_local_app_module = create_register_local_app_module(
 )
 
 register_container_app_module = create_register_container_app_module(
+    upstreams=[copy_resource]
+)
+
+register_image_app_module = create_register_image_app_module(
     upstreams=[copy_resource]
 )
 
@@ -111,6 +117,7 @@ register_build_image = create_register_app_build_image(
     upstreams=[
         register_local_app_module,
         register_container_app_module,
+        register_image_app_module,
         register_deployment_app_module,
         register_start,
         register_start_container,

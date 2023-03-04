@@ -13,6 +13,12 @@ def _get_app_container_task_file(project_dir: str, snake_app_name: str) -> str:
     )
 
 
+def _get_app_image_task_file(project_dir: str, snake_app_name: str) -> str:
+    return os.path.join(
+        project_dir, '_automate', snake_app_name, 'image.py'
+    )
+
+
 def _get_app_deployment_task_file(
     project_dir: str, snake_app_name: str
 ) -> str:

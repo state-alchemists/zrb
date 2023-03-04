@@ -8,11 +8,11 @@ from ....helper.codemod.add_upstream_to_task import add_upstream_to_task
 from .add import add_project_automation
 from .task_factory_helper import (
     _get_app_local_task_file, _get_app_container_task_file,
-    _get_app_deployment_task_file, _get_app_start_task_var,
-    _get_app_start_container_task_var, _get_app_stop_container_task_var,
-    _get_app_remove_container_var, _get_app_build_image_task_var,
-    _get_app_push_image_task_var, _get_app_deploy_task_var,
-    _get_app_remove_deployment_task_var
+    _get_app_image_task_file, _get_app_deployment_task_file,
+    _get_app_start_task_var, _get_app_start_container_task_var,
+    _get_app_stop_container_task_var, _get_app_remove_container_var,
+    _get_app_build_image_task_var, _get_app_push_image_task_var,
+    _get_app_deploy_task_var, _get_app_remove_deployment_task_var
 )
 import os
 
@@ -100,7 +100,7 @@ def create_register_app_push_image(
         upstreams=upstreams,
         project_automation_file='push_project_images.py',
         project_automation_task_name='push-images',
-        get_file_name=_get_app_container_task_file,
+        get_file_name=_get_app_image_task_file,
         get_task_var=_get_app_push_image_task_var
     )
 
@@ -113,7 +113,7 @@ def create_register_app_build_image(
         upstreams=upstreams,
         project_automation_file='build_project_images.py',
         project_automation_task_name='build-images',
-        get_file_name=_get_app_container_task_file,
+        get_file_name=_get_app_image_task_file,
         get_task_var=_get_app_build_image_task_var
     )
 

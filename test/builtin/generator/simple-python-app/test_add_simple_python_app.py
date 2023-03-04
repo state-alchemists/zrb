@@ -48,10 +48,12 @@ def test_add_simple_python_app():
         'assert _project',
         'assert simple_app_local',
         'assert simple_app_container',
+        'assert simple_app_image',
         'assert simple_app_deployment',
         'import _automate._project as _project',
         'import _automate.simple_app.local as simple_app_local',
         'import _automate.simple_app.container as simple_app_container',
+        'import _automate.simple_app.image as simple_app_image',
         'import _automate.simple_app.deployment as simple_app_deployment',
     ]
     with open(os.path.join(project_path, 'zrb_init.py')) as f:

@@ -102,6 +102,12 @@ def create_register_container_app_module(
     return _create_register_app_module('container', upstreams)
 
 
+def create_register_image_app_module(
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return _create_register_app_module('image', upstreams)
+
+
 def create_register_deployment_app_module(
     upstreams: Optional[List[Task]] = None
 ) -> Task:
