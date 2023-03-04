@@ -20,6 +20,7 @@ import os
 project_dir_input = StrInput(
     name='project-dir',
     shortcut='d',
+    description='Project directory',
     prompt='Project directory',
     default='.'
 )
@@ -27,6 +28,7 @@ project_dir_input = StrInput(
 project_name_input = StrInput(
     name='project-name',
     shortcut='n',
+    description='Project name',
     prompt='Project name (can be empty)',
     default=''
 )
@@ -34,6 +36,7 @@ project_name_input = StrInput(
 app_name_input = StrInput(
     name='app-name',
     shortcut='a',
+    description='App name',
     prompt='App name',
     default=get_random_name()
 )
@@ -41,14 +44,22 @@ app_name_input = StrInput(
 task_name_input = StrInput(
     name='task-name',
     shortcut='t',
+    description='Task name',
     prompt='Task name',
     default=f'run-{get_random_name()}'
 )
 http_port_input = IntInput(
     name='http-port',
     shortcut='p',
-    prompt='Port',
+    description='HTTP port',
+    prompt='HTTP port',
     default=8080
+)
+env_prefix_input = StrInput(
+    name='env-prefix',
+    description='OS environment prefix',
+    prompt='OS environment prefix',
+    default='MY'
 )
 
 new_task_scaffold_lock = os.path.sep.join([

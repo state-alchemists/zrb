@@ -2,15 +2,14 @@ from typing import Any
 from ..._group import project_add_group
 from ....task.task import Task
 from ....task.decorator import python_task
-from ....task_input.str_input import StrInput
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
     project_dir_input, app_name_input, http_port_input, validate_project_dir,
-    create_register_local_app_module, create_register_container_app_module,
-    create_register_image_app_module, create_register_deployment_app_module,
-    get_default_task_replacements, get_default_task_replacement_middlewares,
-    new_app_scaffold_lock
+    env_prefix_input, create_register_local_app_module,
+    create_register_container_app_module, create_register_image_app_module,
+    create_register_deployment_app_module, get_default_task_replacements,
+    get_default_task_replacement_middlewares, new_app_scaffold_lock
 )
 from ..project_task.task_factory import (
     create_add_project_automation, create_register_app_start,
@@ -52,9 +51,7 @@ copy_resource = ResourceMaker(
         project_dir_input,
         app_name_input,
         http_port_input,
-        StrInput(
-            name='env-prefix', prompt='Env prefix', default='MY'
-        ),
+        env_prefix_input,
     ],
     upstreams=[validate],
     replacements=replacements,

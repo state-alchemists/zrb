@@ -62,6 +62,7 @@ test_task = CmdTask(
         StrInput(
             name='test',
             shortcut='t',
+            description='Specific test case (i.e., test/file.py::test_name)',
             prompt='Test (i.e., test/file.py::test_name)',
             default=''
         )
@@ -89,6 +90,7 @@ serve_test_task = CmdTask(
         StrInput(
             name='port',
             shortcut='p',
+            description='Port to serve coverage result',
             prompt='Serve coverage on port',
             default='9000'
         )

@@ -7,8 +7,9 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
     project_dir_input, task_name_input, http_port_input, validate_project_dir,
-    create_register_task_module, get_default_task_replacements,
-    get_default_task_replacement_middlewares, new_task_scaffold_lock
+    env_prefix_input, create_register_task_module,
+    get_default_task_replacements, get_default_task_replacement_middlewares,
+    new_task_scaffold_lock
 )
 from ....helper import util
 
@@ -46,11 +47,12 @@ copy_resource = ResourceMaker(
         task_name_input,
         http_port_input,
         StrInput(
-            name='compose-command', prompt='Compose command', default='up'
+            name='compose-command',
+            description='Compose command (e.g., up, down, start, remove, etc)',
+            prompt='Compose command (e.g., up, down, start, remove, etc)',
+            default='up'
         ),
-        StrInput(
-            name='env-prefix', prompt='Env prefix', default='MY'
-        ),
+        env_prefix_input,
     ],
     upstreams=[validate],
     replacements=replacements,
