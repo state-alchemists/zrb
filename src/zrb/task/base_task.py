@@ -143,23 +143,6 @@ class BaseTask(TaskModel):
     def _get_main_loop_variables(
         self, env_prefix: str, args: Iterable[Any], kwargs: Mapping[str, Any]
     ) -> Tuple[TTask, Iterable[str], Mapping[str, Any]]:
-        # self_cp = copy.deepcopy(self)
-        # kwargs = {
-        #     self._get_normalized_input_key(key): value
-        #     for key, value in kwargs.items()
-        # }
-        # # ensure args and kwargs[_args] has the same value
-        # if len(args) == 0 and '_args' in kwargs:
-        #     args = kwargs['_args']
-        # kwargs['_args'] = args
-        # # ensure kwargs are complete
-        # for task_input in self.inputs:
-        #     kwarg_key = self._get_normalized_input_key(task_input.name)
-        #     if kwarg_key not in kwargs:
-        #         kwargs[kwarg_key] = task_input.default
-        # inject kwargs[_task]
-
-        # create self_cp
         self_cp = copy.deepcopy(self)
         self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
         # init new_kwargs
