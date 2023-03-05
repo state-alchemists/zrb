@@ -305,7 +305,7 @@ class TaskDataModel():
 
     def _set_local_keyval(
         self,
-        input_map: Mapping[str, Any],
+        kwargs: Mapping[str, Any],
         env_prefix: str = ''
     ):
         if self._is_keyval_set:
@@ -315,7 +315,7 @@ class TaskDataModel():
         self.log_info('Set input map')
         for task_input in self.get_all_inputs():
             map_key = self._get_normalized_input_key(task_input.name)
-            input_value = input_map.get(map_key, task_input.default)
+            input_value = kwargs.get(map_key, task_input.default)
             if self._is_probably_jinja(input_value):
                 input_value = self.render_str(input_value)
             self._input_map[map_key] = input_value

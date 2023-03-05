@@ -22,7 +22,7 @@ project_dir_input = StrInput(
     shortcut='d',
     description='Project directory',
     prompt='Project directory',
-    default='.'
+    default='.',
 )
 
 project_name_input = StrInput(
@@ -30,7 +30,7 @@ project_name_input = StrInput(
     shortcut='n',
     description='Project name',
     prompt='Project name (can be empty)',
-    default=''
+    default='',
 )
 
 app_name_input = StrInput(
@@ -38,7 +38,7 @@ app_name_input = StrInput(
     shortcut='a',
     description='App name',
     prompt='App name',
-    default=get_random_name()
+    default=get_random_name(),
 )
 
 task_name_input = StrInput(
@@ -46,20 +46,20 @@ task_name_input = StrInput(
     shortcut='t',
     description='Task name',
     prompt='Task name',
-    default=f'run-{get_random_name()}'
+    default=f'run-{get_random_name()}',
 )
 http_port_input = IntInput(
     name='http-port',
     shortcut='p',
     description='HTTP port',
     prompt='HTTP port',
-    default=8080
+    default=8080,
 )
 env_prefix_input = StrInput(
     name='env-prefix',
     description='OS environment prefix',
     prompt='OS environment prefix',
-    default='MY'
+    default='{{util.to_snake_case(util.coalesce(input.app_name, input.task_name, "MY")).upper()}}',  # noqa
 )
 
 new_task_scaffold_lock = os.path.sep.join([

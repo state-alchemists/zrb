@@ -144,7 +144,7 @@ class BaseTask(TaskModel):
         self, env_prefix: str, args: Iterable[Any], kwargs: Mapping[str, Any]
     ) -> Tuple[TTask, Iterable[str], Mapping[str, Any]]:
         self_cp = copy.deepcopy(self)
-        self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
+        self_cp._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
         # init new_kwargs
         new_kwargs = copy.deepcopy(self_cp._input_map)
         # init new_args, make sure it has the same value as new_kwargs['_args']
@@ -189,10 +189,10 @@ class BaseTask(TaskModel):
             quoted_value = double_quote(value)
             params.append(f'--{key} {quoted_value}')
         run_cmd = self._get_complete_name()
-        run_cmd_with_param = ''
+        run_cmd_with_param = run_cmd
         if len(params) > 0:
             param_str = ' '.join(params)
-            run_cmd_with_param = run_cmd + ' ' + param_str
+            run_cmd_with_param += ' ' + param_str
         colored_run_cmd = colored(f'{run_cmd_with_param}', color='yellow')
         colored_label = colored('Run again: ', attrs=['dark'])
         print(colored(f'{colored_label}{colored_run_cmd}'), file=sys.stderr)
@@ -277,25 +277,29 @@ class BaseTask(TaskModel):
         self.mark_as_done()
         return result
 
-    def _set_keyval(self, input_map: Mapping[str, Any], env_prefix: str):
+    def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
         for task_input in self.get_all_inputs():
             key = self._get_normalized_input_key(task_input.name)
-            if key in input_map:
+            if key in kwargs:
                 continue
-            input_map[key] = task_input.default
+            kwargs[key] = task_input.default
         # set current task local keyval
-        self._set_local_keyval(input_map=input_map, env_prefix=env_prefix)
+        self._set_local_keyval(kwargs=kwargs, env_prefix=env_prefix)
+        # get new_kwargs for upstream and checkers
+        new_kwargs = copy.deepcopy(kwargs)
+        new_kwargs.update(self._input_map)
         # set uplstreams keyval
         for upstream_task in self.upstreams:
             upstream_task._set_keyval(
-                input_map=input_map, env_prefix=env_prefix
+                kwargs=new_kwargs, env_prefix=env_prefix
             )
         # set checker keyval
         local_env_map = self.get_env_map()
         for checker_task in self.checkers:
+            checker_task.inputs += self.inputs
             checker_task._set_keyval(
-                input_map=input_map, env_prefix=env_prefix
+                kwargs=new_kwargs, env_prefix=env_prefix
             )
             # Checker task should be able to read local env
             checker_task._inject_env_map(local_env_map)

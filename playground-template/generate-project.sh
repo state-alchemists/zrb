@@ -1,6 +1,7 @@
 set -e
 echo '🤖 Remove my-project'
 rm -Rf my-project
+export ZRB_SHOW_PROMPT=0
 
 
 echo '🤖 Create my-project'
@@ -18,7 +19,6 @@ zrb project add docker-compose-task \
     --project-dir . \
     --task-name "run-container" \
     --compose-command "up" \
-    --env-prefix "MY" \
     --http-port 3000
 
 echo '🤖 Add python-task'
@@ -30,7 +30,6 @@ echo '🤖 Add simple-python-app'
 zrb project add simple-python-app \
     --project-dir . \
     --app-name "simple" \
-    --env-prefix "MY" \
     --http-port 3001
 
 
