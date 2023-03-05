@@ -407,7 +407,7 @@ class TaskModel(
             return 0
         return value
 
-    def show_celebration(self):
+    def show_done_info(self):
         complete_name = self._get_complete_name()
         elapsed_time = self.get_elapsed_time()
         message = '\n'.join([

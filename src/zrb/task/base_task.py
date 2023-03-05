@@ -3,18 +3,20 @@ from typing import (
 )
 from typeguard import typechecked
 from .base_model import TaskModel
-from ..task_input.base_input import BaseInput
+from ..advertisement import advertisements
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
+from ..task_input.base_input import BaseInput
+from ..helper.accessories.color import colored
+from ..helper.advertisement import get_advertisement
 from ..helper.list.append_unique import append_unique
 from ..helper.string.conversion import to_variable_name
-from ..helper.advertisement import get_advertisement
-from ..advertisement import advertisements
-
+from ..helper.string.double_quote import double_quote
 
 import asyncio
 import copy
+import sys
 
 TTask = TypeVar('TTask', bound='BaseTask')
 
@@ -173,16 +175,33 @@ class BaseTask(TaskModel):
             return
         print(result)
 
-    async def _loop_check(self, show_celebration: bool = False) -> bool:
+    async def _loop_check(self, show_info: bool = False) -> bool:
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self.checking_interval)
         self.end_timer()
         self.log_info('Task is ready')
-        if show_celebration:
+        if show_info:
             get_advertisement(advertisements).show()
-            self.show_celebration()
+            self.show_done_info()
+            self.show_run_command()
         return True
+
+    def show_run_command(self):
+        params: List[str] = []
+        for task_input in self.inputs:
+            key = task_input.name
+            map_key = self._get_normalized_input_key(key)
+            value = str(self._input_map.get(map_key))
+            quoted_value = double_quote(value)
+            params.append(f'--{key} {quoted_value}')
+        run_cmd = self._get_complete_name()
+        if len(params) > 0:
+            param_str = ' '.join(params)
+            run_cmd_with_param = run_cmd + ' ' + param_str
+        colored_run_cmd = colored(f'{run_cmd_with_param}', color='yellow')
+        colored_label = colored('Run again: ', attrs=['dark'])
+        print(colored(f'{colored_label}{colored_run_cmd}'), file=sys.stderr)
 
     async def _cached_check(self) -> bool:
         if self._is_checked:
