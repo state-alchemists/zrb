@@ -59,7 +59,7 @@ start_snake_app_name_container = DockerComposeTask(
     checkers=[
         HTTPChecker(
             host='{{input.snake_app_name_host}}',
-            port='{{env.APP_PORT}}',
+            port='{{env.HOST_PORT}}',
             is_https='{{input.snake_app_name_https}}'
         )
     ]
