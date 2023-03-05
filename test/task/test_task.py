@@ -61,6 +61,25 @@ def test_task_with_input():
     assert result == 'hello Dumbledore, your favorite drink is Elixir'
 
 
+def test_task_with_default_input():
+    def _run(*args, **kwargs) -> str:
+        name = kwargs['name']
+        favorite_drink = kwargs['favorite_drink']
+        return f'hello {name}, your favorite drink is {favorite_drink}'
+    task = Task(
+        name='hello-name',
+        inputs=[
+            StrInput(name='name', default='Nicholas Flamel'),
+            StrInput(name='favorite-drink', default='Elixir')
+        ],
+        run=_run,
+        retry=0
+    )
+    main_loop = task.create_main_loop()
+    result = main_loop()
+    assert result == 'hello Nicholas Flamel, your favorite drink is Elixir'
+
+
 def test_task_with_templated_env():
     def _run(*args, **kwargs) -> str:
         task: Task = kwargs.get('_task')

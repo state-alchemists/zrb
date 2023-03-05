@@ -35,11 +35,11 @@ runner.register(register_trainer)
 # Simple Python task with decorator
 @python_task(
     name='fibo',
-    inputs=[IntInput(name='n', default='5')],
+    inputs=[IntInput(name='n', default=5)],
     runner=runner
 )
 def fibo(*args, **kwargs):
-    n = int(args[0]) if len(args) > 0 else kwargs.get('n', 5)
+    n = int(args[0]) if len(args) > 0 else kwargs.get('n')
     if n <= 0:
         return None
     elif n == 1:

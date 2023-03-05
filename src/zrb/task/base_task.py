@@ -1,5 +1,5 @@
 from typing import (
-    Any, Callable, Iterable, Mapping, Optional, Tuple, TypeVar, Union
+    Any, Callable, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
 )
 from typeguard import typechecked
 from .base_model import TaskModel
@@ -69,15 +69,16 @@ class BaseTask(TaskModel):
         self.skip_execution = skip_execution
         self._is_checked: bool = False
         self._is_executed: bool = False
-        self._runner: Optional[Callable[..., Any]] = run
+        self._run_function: Optional[Callable[..., Any]] = run
+        self._all_inputs: Optional[List[BaseInput]] = None
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
         Do task execution
         Please override this method.
         '''
-        if self._runner is not None:
-            return self._runner(*args, **kwargs)
+        if self._run_function is not None:
+            return self._run_function(*args, **kwargs)
         return True
 
     async def check(self) -> bool:
@@ -92,11 +93,14 @@ class BaseTask(TaskModel):
         ''''
         Getting all inputs of this task and all its upstream, non-duplicated.
         '''
+        if self._all_inputs is not None:
+            return self._all_inputs
         inputs: Iterable[BaseInput] = []
         for upstream in self.upstreams:
             upstream_inputs = upstream.get_all_inputs()
             append_unique(inputs, *upstream_inputs)
         append_unique(inputs, *self.inputs)
+        self._all_inputs = inputs
         return inputs
 
     def get_description(self) -> str:
@@ -261,11 +265,20 @@ class BaseTask(TaskModel):
         return result
 
     def _set_keyval(self, input_map: Mapping[str, Any], env_prefix: str):
+        # if input is not in input_map, add default values
+        for task_input in self.get_all_inputs():
+            key = self._get_normalized_input_key(task_input.name)
+            if key in input_map:
+                continue
+            input_map[key] = task_input.default
+        # set current task local keyval
         self._set_local_keyval(input_map=input_map, env_prefix=env_prefix)
+        # set uplstreams keyval
         for upstream_task in self.upstreams:
             upstream_task._set_keyval(
                 input_map=input_map, env_prefix=env_prefix
             )
+        # set checker keyval
         local_env_map = self.get_env_map()
         for checker_task in self.checkers:
             checker_task._set_keyval(

@@ -1,6 +1,7 @@
 from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
 from ._constant import RESERVED_INPUT_NAMES
+from ..config.config import show_prompt
 
 
 @typechecked
@@ -60,8 +61,7 @@ class BaseInput():
         return param_decl
 
     def get_options(self) -> Mapping[str, Any]:
-        return {
-            'prompt': self.prompt,
+        options: Mapping[str, Any] = {
             'default': self.default,
             'help': self.help,
             'type': self.type,
@@ -79,3 +79,6 @@ class BaseInput():
             'show_envvar': self.show_envvar,
             'nargs': self.nargs
         }
+        if show_prompt:
+            options['prompt'] = self.prompt
+        return options

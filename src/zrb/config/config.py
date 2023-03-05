@@ -1,3 +1,4 @@
+from ..helper.string.conversion import to_boolean
 import logging
 import os
 import pkg_resources
@@ -32,7 +33,8 @@ def get_logging_level():
 default_shell = os.getenv('ZRB_SHELL', 'bash')
 init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
 logging_level = get_logging_level()
-should_load_builtin = os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1') != '0'
+should_load_builtin = to_boolean(os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1'))
 env_prefix = os.getenv('ZRB_ENV', '')
-show_advertisement = os.getenv('ZRB_SHOW_ADVERTISEMENT', '1') != '0'
+show_advertisement = to_boolean(os.getenv('ZRB_SHOW_ADVERTISEMENT', '1'))
+show_prompt = to_boolean(os.getenv('ZRB_SHOW_PROMPT', '1'))
 version = get_version()

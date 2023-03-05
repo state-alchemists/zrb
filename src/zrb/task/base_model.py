@@ -5,7 +5,7 @@ from ..helper.accessories.color import (
 )
 from ..helper.accessories.icon import get_random_icon
 from ..helper.string.conversion import (
-    to_cmd_name, to_variable_name
+    to_cmd_name, to_variable_name, to_boolean
 )
 from ..helper.render_data import DEFAULT_RENDER_DATA
 from ..helper.log import logger
@@ -259,12 +259,7 @@ class TaskDataModel():
 
     def render_bool(self, val: Union[str, bool]) -> bool:
         if isinstance(val, str):
-            str_val = self.render_str(val)
-            if str_val.lower() in ['true', '1', 'yes', 'y', 'active']:
-                return True
-            if str_val.lower() in ['false', '0', 'no', 'n', 'inactive']:
-                return False
-            raise Exception(f'Cannot infer boolean value from {str_val}')
+            return to_boolean(self.render_str(val))
         return val
 
     def render_str(self, val: str) -> str:
