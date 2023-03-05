@@ -4,7 +4,8 @@ from zrb import (
 from zrb.builtin._group import project_group
 from .common import (
     local_snake_app_name_input, snake_app_name_host_input,
-    snake_app_name_https_input
+    snake_app_name_https_input,
+    snake_app_name_image_input, snake_app_name_image_env
 )
 from .image import build_snake_app_name_image
 import os
@@ -17,6 +18,7 @@ template_env_file = os.path.join(resource_dir, 'src', 'template.env')
 
 env_prefix = 'CONTAINER_ENV_PREFIX'
 envs = [
+    snake_app_name_image_env,
     Env(
         name='HOST_PORT',
         os_name='CONTAINER_ENV_PREFIX_HOST_PORT',
@@ -42,7 +44,8 @@ start_snake_app_name_container = DockerComposeTask(
     inputs=[
         local_snake_app_name_input,
         snake_app_name_host_input,
-        snake_app_name_https_input
+        snake_app_name_https_input,
+        snake_app_name_image_input,
     ],
     skip_execution='{{not input.local_snake_app_name}}',
     upstreams=[

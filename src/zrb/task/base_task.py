@@ -11,7 +11,6 @@ from ..task_input.base_input import BaseInput
 from ..helper.accessories.color import colored
 from ..helper.advertisement import get_advertisement
 from ..helper.list.append_unique import append_unique
-from ..helper.string.conversion import to_variable_name
 from ..helper.string.double_quote import double_quote
 
 import asyncio
@@ -72,7 +71,6 @@ class BaseTask(TaskModel):
         self._is_checked: bool = False
         self._is_executed: bool = False
         self._run_function: Optional[Callable[..., Any]] = run
-        self._all_inputs: Optional[List[BaseInput]] = None
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -145,23 +143,35 @@ class BaseTask(TaskModel):
     def _get_main_loop_variables(
         self, env_prefix: str, args: Iterable[Any], kwargs: Mapping[str, Any]
     ) -> Tuple[TTask, Iterable[str], Mapping[str, Any]]:
-        self_cp = copy.deepcopy(self)
-        kwargs = {
-            self._get_normalized_input_key(key): value
-            for key, value in kwargs.items()
-        }
-        # ensure args and kwargs[_args] has the same value
-        if len(args) == 0 and '_args' in kwargs:
-            args = kwargs['_args']
-        kwargs['_args'] = args
-        # ensure kwargs are complete
-        for task_input in self.inputs:
-            kwarg_key = to_variable_name(task_input.name)
-            if kwarg_key not in kwargs:
-                kwargs[kwarg_key] = task_input.default
+        # self_cp = copy.deepcopy(self)
+        # kwargs = {
+        #     self._get_normalized_input_key(key): value
+        #     for key, value in kwargs.items()
+        # }
+        # # ensure args and kwargs[_args] has the same value
+        # if len(args) == 0 and '_args' in kwargs:
+        #     args = kwargs['_args']
+        # kwargs['_args'] = args
+        # # ensure kwargs are complete
+        # for task_input in self.inputs:
+        #     kwarg_key = self._get_normalized_input_key(task_input.name)
+        #     if kwarg_key not in kwargs:
+        #         kwargs[kwarg_key] = task_input.default
         # inject kwargs[_task]
+
+        # create self_cp
+        self_cp = copy.deepcopy(self)
         self_cp._set_keyval(input_map=kwargs, env_prefix=env_prefix)
-        return self_cp, args, kwargs
+        # init new_kwargs
+        new_kwargs = copy.deepcopy(self_cp._input_map)
+        # init new_args, make sure it has the same value as new_kwargs['_args']
+        new_args = copy.deepcopy(args)
+        if len(args) == 0 and '_args' in kwargs:
+            new_args = kwargs['_args']
+        new_kwargs['_args'] = new_args
+        # inject new_kwargs['_task']
+        new_kwargs['_task'] = self_cp
+        return self_cp, new_args, new_kwargs
 
     def _print_result(self, result: Any):
         '''

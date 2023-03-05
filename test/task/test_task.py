@@ -80,6 +80,64 @@ def test_task_with_default_input():
     assert result == 'hello Nicholas Flamel, your favorite drink is Elixir'
 
 
+def test_task_with_templated_input_without_kwarg():
+    def _run(*args, **kwargs) -> str:
+        name = kwargs['name']
+        alias = kwargs['alias']
+        return f'hello {name}, aka {alias}'
+    task = Task(
+        name='hello-name',
+        inputs=[
+            StrInput(name='name', default='Nicholas Flamel'),
+            StrInput(name='alias', default='{{input.name}}')
+        ],
+        run=_run,
+        retry=0
+    )
+    main_loop = task.create_main_loop()
+    result = main_loop()
+    assert result == 'hello Nicholas Flamel, aka Nicholas Flamel'
+
+
+def test_task_with_templated_input_and_partial_kwarg():
+    def _run(*args, **kwargs) -> str:
+        name = kwargs['name']
+        alias = kwargs['alias']
+        return f'hello {name}, aka {alias}'
+    task = Task(
+        name='hello-name',
+        inputs=[
+            StrInput(name='name', default='Nicholas Flamel'),
+            StrInput(name='alias', default='{{input.name}}')
+        ],
+        run=_run,
+        retry=0
+    )
+    main_loop = task.create_main_loop()
+    result = main_loop(name='Alchemist')
+    assert result == 'hello Alchemist, aka Alchemist'
+
+
+def test_task_with_templated_input():
+    def _run(*args, **kwargs) -> str:
+        name = kwargs['name']
+        alias = kwargs['alias']
+        return f'hello {name}, aka {alias}'
+    task = Task(
+        name='hello-name',
+        inputs=[
+            StrInput(name='name', default='Nicholas Flamel'),
+            StrInput(name='alias', default='{{input.name}}')
+        ],
+        run=_run,
+        retry=0
+    )
+    # Name and alias provided
+    main_loop = task.create_main_loop()
+    result = main_loop(name='Nicholas Flamel', alias='Alchemist')
+    assert result == 'hello Nicholas Flamel, aka Alchemist'
+
+
 def test_task_with_templated_env():
     def _run(*args, **kwargs) -> str:
         task: Task = kwargs.get('_task')

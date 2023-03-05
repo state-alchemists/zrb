@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Iterable, List, Mapping, Optional, Union
 from typeguard import typechecked
 from ..helper.accessories.color import (
     get_random_color, is_valid_color, colored
@@ -12,6 +12,7 @@ from ..helper.log import logger
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
+from ..task_input.base_input import BaseInput
 from ..task_input._constant import RESERVED_INPUT_NAMES
 
 import datetime
@@ -135,6 +136,7 @@ class TaskDataModel():
         self._is_keyval_set = False  # Flag
         self._has_cli_interface = False
         self._render_data: Optional[Mapping[str, Any]] = None
+        self._all_inputs: Optional[List[BaseInput]] = None
 
     def get_icon(self) -> str:
         if self.icon is None or self.icon == '':
@@ -311,8 +313,12 @@ class TaskDataModel():
         self._is_keyval_set = True
         # Add self.inputs to input_map
         self.log_info('Set input map')
-        for input_name, val in input_map.items():
-            self._input_map[self._get_normalized_input_key(input_name)] = val
+        for task_input in self.get_all_inputs():
+            map_key = self._get_normalized_input_key(task_input.name)
+            input_value = input_map.get(map_key, task_input.default)
+            if self._is_probably_jinja(input_value):
+                input_value = self.render_str(input_value)
+            self._input_map[map_key] = input_value
         self.log_debug(f'Input map: {self._input_map}')
         # Construct envs based on self.env_files and self.envs
         self.log_info('Merging env_files and envs')
@@ -327,17 +333,17 @@ class TaskDataModel():
             env_value = task_env.get(env_prefix)
             if self._is_probably_jinja(env_value):
                 env_value = self.render_str(env_value)
-            if env_name == 'APP_PORT':
-                print(env_name, env_value)
             self._env_map[env_name] = env_value
         # for key, val in self._env_map.items():
         #     print(key, val)
         self.log_debug(f'Env map: {self._env_map}')
 
-    def _is_probably_jinja(self, string: str) -> bool:
-        if '{{' in string and '}}' in string:
+    def _is_probably_jinja(self, value: Any) -> bool:
+        if not isinstance(value, str):
+            return False
+        if '{{' in value and '}}' in value:
             return True
-        if '{%' in string and '%}' in string:
+        if '{%' in value and '%}' in value:
             return True
         return False
 

@@ -1,4 +1,4 @@
-from zrb import BoolInput, StrInput
+from zrb import BoolInput, StrInput, Env
 
 
 local_snake_app_name_input = BoolInput(
@@ -20,4 +20,17 @@ snake_app_name_host_input = StrInput(
     description='Hostname of "kebab-app-name"',
     prompt='Hostname of "kebab-app-name"',
     default='localhost'
+)
+
+snake_app_name_image_input = StrInput(
+    name='kebab-app-name-image',
+    description='Image name of "kebab-app-name"',
+    prompt='Image name of "kebab-app-name"',
+    default='kebab-app-name'
+)
+
+snake_app_name_image_env = Env(
+    name='IMAGE',
+    os_name='ENV_PREFIX_IMAGE',
+    default='{{input.snake_app_name}}'
 )

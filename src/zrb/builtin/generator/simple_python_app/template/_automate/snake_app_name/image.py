@@ -2,7 +2,10 @@ from zrb import (
     DockerComposeTask, runner
 )
 from zrb.builtin._group import project_group
-from .common import local_snake_app_name_input
+from .common import (
+    local_snake_app_name_input,
+    snake_app_name_image_input, snake_app_name_image_env
+)
 import os
 
 current_dir = os.path.dirname(__file__)
@@ -17,7 +20,11 @@ build_snake_app_name_image = DockerComposeTask(
     name='build-kebab-app-name-image',
     description='Build human readable app name image',
     group=project_group,
-    inputs=[local_snake_app_name_input],
+    inputs=[
+        local_snake_app_name_input,
+        snake_app_name_image_input,
+    ],
+    envs=[snake_app_name_image_env],
     skip_execution='{{not input.local_snake_app_name}}',
     cwd=resource_dir,
     compose_cmd='build',
@@ -32,10 +39,14 @@ push_snake_app_name_image = DockerComposeTask(
     name='push-kebab-app-name-image',
     description='Push human readable app name image',
     group=project_group,
+    inputs=[
+        local_snake_app_name_input,
+        snake_app_name_image_input,
+    ],
+    envs=[snake_app_name_image_env],
     upstreams=[build_snake_app_name_image],
     cwd=resource_dir,
     compose_cmd='push',
     compose_env_prefix=env_prefix,
 )
 runner.register(push_snake_app_name_image)
-
