@@ -196,6 +196,7 @@ class BaseTask(TaskModel):
             quoted_value = double_quote(value)
             params.append(f'--{key} {quoted_value}')
         run_cmd = self._get_complete_name()
+        run_cmd_with_param = ''
         if len(params) > 0:
             param_str = ' '.join(params)
             run_cmd_with_param = run_cmd + ' ' + param_str
