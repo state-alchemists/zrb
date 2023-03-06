@@ -5,17 +5,18 @@ from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
-    project_dir_input, app_name_input, http_port_input, validate_project_dir,
-    env_prefix_input, create_register_local_app_module,
+    default_app_inputs, project_dir_input, app_name_input,
+    validate_project_dir, create_register_local_app_module,
     create_register_container_app_module, create_register_image_app_module,
-    create_register_deployment_app_module, get_default_task_replacements,
-    get_default_task_replacement_middlewares, new_app_scaffold_lock
+    create_register_deployment_app_module, get_default_app_replacements,
+    get_default_app_replacement_middlewares, new_app_scaffold_lock
 )
 from ..project_task.task_factory import (
     create_add_project_automation, create_register_app_start,
     create_register_app_start_container, create_register_app_stop_container,
     create_register_app_remove_container, create_register_app_build_image,
-    create_register_app_push_image,
+    create_register_app_push_image, create_register_app_deploy,
+    create_register_app_remove_deployment
 )
 from ....helper import util
 
@@ -41,21 +42,12 @@ def validate(*args: Any, **kwargs: Any):
         raise Exception(f'Directory already exists: {automation_dir}')
 
 
-replacements = get_default_task_replacements()
-replacements.update({
-    'ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}'
-})
 copy_resource = ResourceMaker(
     name='copy-resource',
-    inputs=[
-        project_dir_input,
-        app_name_input,
-        http_port_input,
-        env_prefix_input,
-    ],
+    inputs=default_app_inputs,
     upstreams=[validate],
-    replacements=replacements,
-    replacement_middlewares=get_default_task_replacement_middlewares(),
+    replacements=get_default_app_replacements(),
+    replacement_middlewares=get_default_app_replacement_middlewares(),
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
     scaffold_locks=[new_app_scaffold_lock],
@@ -106,11 +98,18 @@ register_build_image = create_register_app_build_image(
     upstreams=[add_project_task]
 )
 
+register_deploy = create_register_app_deploy(
+    upstreams=[add_project_task]
+)
+
+register_remove_deployment = create_register_app_remove_deployment(
+    upstreams=[add_project_task]
+)
+
 
 @python_task(
     name='simple-python-app',
     group=project_add_group,
-    inputs=[project_dir_input, app_name_input],
     upstreams=[
         register_local_app_module,
         register_container_app_module,
@@ -121,7 +120,9 @@ register_build_image = create_register_app_build_image(
         register_stop_container,
         register_remove_container,
         register_build_image,
-        register_push_image
+        register_push_image,
+        register_deploy,
+        register_remove_deployment
     ],
     runner=runner
 )

@@ -5,8 +5,7 @@ from ....task.task import Task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common import (
-    project_dir_input, task_name_input, validate_project_dir,
-    create_register_task_module,
+    default_task_inputs, validate_project_dir, create_register_task_module,
     get_default_task_replacements, get_default_task_replacement_middlewares,
     new_task_scaffold_lock
 )
@@ -21,7 +20,7 @@ current_dir = os.path.dirname(__file__)
 
 @python_task(
     name='task-validate-create',
-    inputs=[project_dir_input, task_name_input],
+    inputs=default_task_inputs
 )
 def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
@@ -36,7 +35,7 @@ def validate(*args: Any, **kwargs: Any):
 
 copy_resource = ResourceMaker(
     name='copy-resource',
-    inputs=[project_dir_input, task_name_input],
+    inputs=default_task_inputs,
     upstreams=[validate],
     replacements=get_default_task_replacements(),
     replacement_middlewares=get_default_task_replacement_middlewares(),

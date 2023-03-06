@@ -4,6 +4,7 @@ from ...helper.middlewares.replacement import (
 )
 from ...task.decorator import python_task
 from ...task.task import Task
+from ...task_input.base_input import BaseInput
 from ...task_input.str_input import StrInput
 from ...task_input.int_input import IntInput
 from ...helper.accessories.name import get_random_name
@@ -41,6 +42,14 @@ app_name_input = StrInput(
     default=get_random_name(),
 )
 
+app_image_default_namespace = os.getenv('USER', 'library')
+app_image_name_input = StrInput(
+    name='app-image-name',
+    description='App image name',
+    prompt='App image name',
+    default=f'docker.io/{app_image_default_namespace}/' + '{{util.to_kebab_case(input.app_name)}}',  # noqa
+)
+
 task_name_input = StrInput(
     name='task-name',
     shortcut='t',
@@ -48,6 +57,7 @@ task_name_input = StrInput(
     prompt='Task name',
     default=f'run-{get_random_name()}',
 )
+
 http_port_input = IntInput(
     name='http-port',
     shortcut='p',
@@ -55,12 +65,25 @@ http_port_input = IntInput(
     prompt='HTTP port',
     default=8080,
 )
+
 env_prefix_input = StrInput(
     name='env-prefix',
     description='OS environment prefix',
     prompt='OS environment prefix',
     default='{{util.to_snake_case(util.coalesce(input.app_name, input.task_name, "MY")).upper()}}',  # noqa
 )
+
+default_task_inputs: List[BaseInput] = [
+   project_dir_input, task_name_input
+]
+
+default_app_inputs: List[BaseInput] = [
+    project_dir_input,
+    app_name_input,
+    app_image_name_input,
+    http_port_input,
+    env_prefix_input,
+]
 
 new_task_scaffold_lock = os.path.sep.join([
     '{{ os.path.join(input.project_dir, "_automate") }}',
@@ -173,24 +196,33 @@ def register_module(
 def get_default_task_replacements() -> Replacement:
     return {
         'taskName': '{{input.task_name}}',
-        'appName': '{{input.app_name}}',
-        'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
     }
 
 
 def get_default_task_replacement_middlewares() -> List[ReplacementMiddleware]:
     return [
-        # task
         add_pascal_key('PascalTaskName', 'taskName'),
         add_camel_key('camelTaskName', 'taskName'),
         add_snake_key('snake_task_name', 'taskName'),
         add_kebab_key('kebab-task-name', 'taskName'),
         add_human_readable_key('human readable task name', 'taskName'),
-        # app
+    ]
+
+
+def get_default_app_replacements() -> Replacement:
+    return {
+        'appName': '{{input.app_name}}',
+        'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
+        'ENV_PREFIX': '{{util.coalesce(input.env_prefix, "MY").upper()}}',
+        'app-image-name': '{{input.app_image_name}}'
+    }
+
+
+def get_default_app_replacement_middlewares() -> List[ReplacementMiddleware]:
+    return [
         add_pascal_key('PascalAppName', 'appName'),
         add_camel_key('camelAppName', 'appName'),
         add_snake_key('snake_app_name', 'appName'),
         add_kebab_key('kebab-app-name', 'appName'),
         add_human_readable_key('human readable app name', 'appName'),
     ]
-

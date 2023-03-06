@@ -8,10 +8,10 @@ from ..task_group.group import Group
 from ..config.config import default_shell
 
 import asyncio
-import os
-import signal
 import atexit
+import os
 import pathlib
+import signal
 
 
 class CmdResult():
@@ -133,11 +133,8 @@ class CmdTask(BaseTask):
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
         env = self.get_env_map()
-        self.log_debug('\n'.join([
-            'Run script:',
-            self._get_multiline_repr(cmd),
-            f'With env: {env}',
-        ]))
+        self.print_out('Run script: ' + self._get_multiline_repr(cmd))
+        self.print_out('Current working directory: ' + self.cwd)
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(

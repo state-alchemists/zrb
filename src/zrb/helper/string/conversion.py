@@ -22,4 +22,4 @@ def to_boolean(string: str) -> bool:
         return True
     if string.lower() in ['false', '0', 'no', 'n', 'inactive']:
         return False
-    raise Exception(f'Cannot infer boolean value from {string}')
+    raise Exception(f'Cannot infer boolean value from "{string}"')

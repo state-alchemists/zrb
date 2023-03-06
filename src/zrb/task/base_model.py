@@ -268,8 +268,11 @@ class TaskDataModel():
         template = jinja2.Template(val)
         data = self._get_render_data()
         self.log_debug(f'Render string template: {val}, with data: {data}')
-        rendered_text = template.render(data)
-        self.log_debug(f'Get rendered result: {rendered_text}')
+        try:
+            rendered_text = template.render(data)
+            self.log_debug(f'Get rendered result: {rendered_text}')
+        except Exception:
+            self.log_error(f'Fail to render "{val}" with data: {data}')
         return rendered_text
 
     def render_file(self, location: str) -> str:
@@ -298,10 +301,13 @@ class TaskDataModel():
 
     def _get_multiline_repr(self, text: str) -> str:
         lines_repr: Iterable[str] = []
-        for index, line in enumerate(text.split('\n')):
+        lines = text.split('\n')
+        if len(lines) == 1:
+            return lines[0]
+        for index, line in enumerate(lines):
             line_number_repr = str(index + 1).rjust(4, '0')
             lines_repr.append(f'{MULTILINE_INDENT}{line_number_repr} | {line}')
-        return '\n'.join(lines_repr)
+        return '\n' + '\n'.join(lines_repr)
 
     def _set_local_keyval(
         self,
