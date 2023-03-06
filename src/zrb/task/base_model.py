@@ -425,5 +425,5 @@ class TaskModel(
         message = '\n'.join([
             f'{complete_name} completed in {elapsed_time} seconds',
         ])
-        print(colored(message, attrs=['dark']), file=sys.stderr)
+        self.print_out_dark(message)
         self.play_bell()

@@ -1,52 +1,44 @@
-from zrb import (
-    DockerComposeTask, runner
-)
+from typing import List
+from zrb import Input, DockerComposeTask, runner
 from zrb.builtin._group import project_group
 from .common import (
-    local_snake_app_name_input,
-    snake_app_name_image_input, snake_app_name_image_env
+    RESOURCE_DIR,
+    local_input, image_input, image_env
 )
-import os
 
-current_dir = os.path.dirname(__file__)
-resource_dir = os.path.abspath(os.path.join(
-    current_dir, '..', '..', 'src', 'kebab-app-name'
-))
-template_env_file = os.path.join(resource_dir, 'src', 'template.env')
-
-env_prefix = 'CONTAINER_ENV_PREFIX'
+compose_inputs: List[Input] = [
+    local_input,
+    image_input,
+]
+compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 
 build_snake_app_name_image = DockerComposeTask(
+    icon='🏭',
     name='build-kebab-app-name-image',
     description='Build human readable app name image',
     group=project_group,
-    inputs=[
-        local_snake_app_name_input,
-        snake_app_name_image_input,
-    ],
-    envs=[snake_app_name_image_env],
+    inputs=compose_inputs,
+    envs=[image_env],
     skip_execution='{{not input.local_snake_app_name}}',
-    cwd=resource_dir,
+    cwd=RESOURCE_DIR,
     compose_cmd='build',
     compose_flags=[
         '--no-cache'
     ],
-    compose_env_prefix=env_prefix,
+    compose_env_prefix=compose_env_prefix,
 )
 runner.register(build_snake_app_name_image)
 
 push_snake_app_name_image = DockerComposeTask(
+    icon='📰',
     name='push-kebab-app-name-image',
     description='Push human readable app name image',
     group=project_group,
-    inputs=[
-        local_snake_app_name_input,
-        snake_app_name_image_input,
-    ],
-    envs=[snake_app_name_image_env],
+    inputs=compose_inputs,
+    envs=[image_env],
     upstreams=[build_snake_app_name_image],
-    cwd=resource_dir,
+    cwd=RESOURCE_DIR,
     compose_cmd='push',
-    compose_env_prefix=env_prefix,
+    compose_env_prefix=compose_env_prefix,
 )
 runner.register(push_snake_app_name_image)
