@@ -14,7 +14,7 @@ from ..runner import runner
     description='Show environment values',
     runner=runner
 )
-def show(*args: Any, **kwargs: Any):
+async def show(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     env_map = task.get_env_map()
     names = list(env_map.keys())
@@ -33,6 +33,6 @@ def show(*args: Any, **kwargs: Any):
     description='Get environment values',
     runner=runner
 )
-def get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
+async def get(*args: Any, **kwargs: Any) -> Mapping[str, str]:
     task: Task = kwargs['_task']
     return task.get_env_map()

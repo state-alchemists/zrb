@@ -14,6 +14,7 @@ from ..helper.list.append_unique import append_unique
 from ..helper.string.double_quote import double_quote
 
 import asyncio
+import inspect
 import copy
 import sys
 
@@ -39,7 +40,7 @@ class BaseTask(TaskModel):
         description: str = '',
         upstreams: Iterable[TTask] = [],
         checkers: Iterable[TTask] = [],
-        checking_interval: float = 0.1,
+        checking_interval: float = 0,
         retry: int = 2,
         retry_interval: float = 1,
         run: Optional[Callable[..., Any]] = None,
@@ -61,6 +62,8 @@ class BaseTask(TaskModel):
         checking_interval = self.ensure_non_negative(
             checking_interval, 'Find negative checking_interval'
         )
+        if checking_interval == 0:
+            checking_interval = 0.05 if len(checkers) == 0 else 0.1
         self.inputs = inputs
         self.description = description
         self.retry_interval = retry_interval
@@ -78,6 +81,8 @@ class BaseTask(TaskModel):
         Please override this method.
         '''
         if self._run_function is not None:
+            if inspect.iscoroutinefunction(self._run_function):
+                return await self._run_function(*args, **kwargs)
             return self._run_function(*args, **kwargs)
         return True
 
@@ -298,8 +303,7 @@ class BaseTask(TaskModel):
         local_env_map = self.get_env_map()
         for checker_task in self.checkers:
             checker_task.inputs += self.inputs
+            checker_task._inject_env_map(local_env_map)
             checker_task._set_keyval(
                 kwargs=new_kwargs, env_prefix=env_prefix
             )
-            # Checker task should be able to read local env
-            checker_task._inject_env_map(local_env_map)

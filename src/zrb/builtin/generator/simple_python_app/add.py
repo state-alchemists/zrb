@@ -31,7 +31,7 @@ current_dir = os.path.dirname(__file__)
     name='task-validate-create',
     inputs=[project_dir_input, app_name_input],
 )
-def validate(*args: Any, **kwargs: Any):
+async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_project_dir(project_dir)
     app_name = kwargs.get('app_name')
@@ -126,6 +126,6 @@ register_destroy = create_register_app_destroy(
     ],
     runner=runner
 )
-def add_simple_python_app(*args: Any, **kwargs: Any):
+async def add_simple_python_app(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')

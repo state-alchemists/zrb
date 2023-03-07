@@ -35,13 +35,19 @@ class Env():
         print(env.get('STAG'))  # will show '0.0.0.0'
         ```
         '''
+        if self.os_name == '':
+            return self.default
         prefixed_name = self._get_prefixed_name(self.os_name, prefix)
-        return os.getenv(prefixed_name, os.getenv(self.os_name, self.default))
+        if prefixed_name in os.environ:
+            return os.environ[prefixed_name]
+        if self.os_name in os.environ:
+            return os.environ[self.os_name]
+        return self.default
 
     def _get_prefixed_name(self, name: str, prefix: str):
         if prefix is None or prefix == '':
             return name
-        return '_'.join([prefix, name])
+        return prefix + '_' + name
 
     def __repr__(self) -> str:
         name = self.name

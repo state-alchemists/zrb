@@ -2,6 +2,8 @@ from typing import Any, Optional
 import re
 import jinja2
 
+NON_ALPHA_NUM = re.compile(r'[^a-zA-Z0-9]+')
+
 
 def _is_undefined(value: Any) -> bool:
     return value is None or isinstance(value, jinja2.Undefined)
@@ -59,7 +61,7 @@ def to_snake_case(text: Optional[str]) -> str:
 
 def _to_alphanum(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
-    return re.sub(r'[^a-zA-Z0-9]+', ' ', text)
+    return NON_ALPHA_NUM.sub(' ', text)
 
 
 def to_human_readable(text: Optional[str]) -> str:

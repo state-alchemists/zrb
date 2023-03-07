@@ -9,7 +9,7 @@ from zrb.builtin._group import project_group
     group=project_group,
     runner=runner
 )
-def snake_task_name(*args: Any, **kwargs: Any) -> Any:
+async def snake_task_name(*args: Any, **kwargs: Any) -> Any:
     task: Task = kwargs.get('_task')
     env_map: Mapping[str, str] = task.get_env_map()
     input_map: Mapping[str, str] = task.get_input_map()

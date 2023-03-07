@@ -5,7 +5,7 @@ def test_task_with_decorated_runner():
     @python_task(
         name='hello'
     )
-    def hello(*args, **kwargs) -> str:
+    async def hello(*args, **kwargs) -> str:
         return 'hello'
 
     main_loop = hello.create_main_loop()

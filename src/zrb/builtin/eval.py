@@ -20,6 +20,6 @@ from ..runner import runner
     retry=0,
     runner=runner
 )
-def evaluate(*args: str, **kwargs: Any):
+async def evaluate(*args: str, **kwargs: Any):
     expression: str = kwargs.get('expression', '')
     return eval(expression)

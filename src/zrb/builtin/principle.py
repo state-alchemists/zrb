@@ -11,7 +11,7 @@ from ..runner import runner
     description='Show SOLID principle',
     runner=runner
 )
-def show_solid_principle(*args: Any, **kwargs: Any):
+async def show_solid_principle(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('S - Single Responsibility Principle')
     task.print_out('O - Open/Closed Principle')
@@ -26,7 +26,7 @@ def show_solid_principle(*args: Any, **kwargs: Any):
     description='Show YAGNI principle',
     runner=runner
 )
-def show_yagni_principle(*args: Any, **kwargs: Any):
+async def show_yagni_principle(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('Y - You')
     task.print_out('A - Aren\'t')
@@ -41,7 +41,7 @@ def show_yagni_principle(*args: Any, **kwargs: Any):
     description='Show dry principle',
     runner=runner
 )
-def show_dry_principle(*args: Any, **kwargs: Any):
+async def show_dry_principle(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('D - Don\'t')
     task.print_out('R - Repeat')
@@ -54,7 +54,7 @@ def show_dry_principle(*args: Any, **kwargs: Any):
     description='Show kiss principle',
     runner=runner
 )
-def show_kiss_principle(*args: Any, **kwargs: Any):
+async def show_kiss_principle(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     task.print_out('K - Keep')
     task.print_out('I - It')

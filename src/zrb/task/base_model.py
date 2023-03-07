@@ -340,9 +340,11 @@ class TaskDataModel():
             if self._is_probably_jinja(env_value):
                 env_value = self.render_str(env_value)
             self._env_map[env_name] = env_value
-        # for key, val in self._env_map.items():
-        #     print(key, val)
         self.log_debug(f'Env map: {self._env_map}')
+
+    def get_all_inputs(self) -> Iterable[BaseInput]:
+        # Override this method!!!
+        return self._all_inputs
 
     def _is_probably_jinja(self, value: Any) -> bool:
         if not isinstance(value, str):
@@ -413,9 +415,7 @@ class TaskModel(
 
     def ensure_non_negative(self, value: float, error_label: str) -> float:
         if value < 0:
-            self.log_warn(
-                f'{error_label}: {value}'
-            )
+            self.log_warn(f'{error_label}: {value}')
             return 0
         return value
 

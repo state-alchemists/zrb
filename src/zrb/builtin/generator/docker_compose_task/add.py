@@ -24,7 +24,7 @@ current_dir = os.path.dirname(__file__)
     name='task-validate-create',
     inputs=default_task_inputs,
 )
-def validate(*args: Any, **kwargs: Any):
+async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_project_dir(project_dir)
     task_name = kwargs.get(project_dir, 'task_name')
@@ -72,6 +72,6 @@ register_task_module = create_register_task_module(
     upstreams=[register_task_module],
     runner=runner
 )
-def add_docker_compose_task(*args: Any, **kwargs: Any):
+async def add_docker_compose_task(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')

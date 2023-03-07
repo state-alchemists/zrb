@@ -25,7 +25,7 @@ def create_add_project_automation(
         inputs=[project_dir_input],
         upstreams=[] if upstreams is None else upstreams
     )
-    def _task(*args: Any, **kwargs: Any):
+    async def _task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir', '.')
         task.print_out('Create project automation modules if not exist')
@@ -157,7 +157,7 @@ def _create_register_app_task(
         inputs=[project_dir_input, app_name_input],
         upstreams=[] if upstreams is None else upstreams
     )
-    def _task(*args: Any, **kwargs: Any):
+    async def _task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir', '.')
         app_name = kwargs.get('app_name')

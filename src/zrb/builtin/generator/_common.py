@@ -109,7 +109,7 @@ def create_register_task_module(
         inputs=[project_dir_input, task_name_input],
         upstreams=[] if upstreams is None else upstreams
     )
-    def task(*args: Any, **kwargs: Any):
+    async def task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir')
         validate_project_dir(project_dir)
@@ -157,7 +157,7 @@ def _create_register_app_module(
         inputs=[project_dir_input, app_name_input],
         upstreams=[] if upstreams is None else upstreams
     )
-    def task(*args: Any, **kwargs: Any):
+    async def task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir')
         validate_project_dir(project_dir)

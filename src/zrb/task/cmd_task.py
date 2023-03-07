@@ -68,7 +68,7 @@ class CmdTask(BaseTask):
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[BaseTask] = [],
         checkers: Iterable[BaseTask] = [],
-        checking_interval: float = 0.1,
+        checking_interval: float = 0,
         retry: int = 2,
         retry_interval: float = 1,
         max_output_line: int = 1000,
@@ -133,8 +133,8 @@ class CmdTask(BaseTask):
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
         env = self.get_env_map()
-        self.print_out('Run script: ' + self._get_multiline_repr(cmd))
-        self.print_out('Current working directory: ' + self.cwd)
+        self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
+        self.print_out_dark('Current working directory: ' + self.cwd)
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(

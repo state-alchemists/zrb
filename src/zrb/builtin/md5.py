@@ -24,7 +24,7 @@ import hashlib
     retry=0,
     runner=runner
 )
-def hash_text(*args: str, **kwargs: Any):
+async def hash_text(*args: str, **kwargs: Any):
     text: str = kwargs.get('text', '')
     hashed_text = hashlib.md5(text.encode()).hexdigest()
     return hashed_text
@@ -45,7 +45,7 @@ def hash_text(*args: str, **kwargs: Any):
     retry=0,
     runner=runner
 )
-def sum_file(*args: str, **kwargs: Any):
+async def sum_file(*args: str, **kwargs: Any):
     file_path: str = kwargs.get('file', '')
     with open(file_path, "rb") as f:
         contents = f.read()

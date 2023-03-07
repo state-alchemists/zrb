@@ -1,5 +1,4 @@
-from ..helper.string.conversion import to_boolean
-import logging
+from ..helper.string.conversion import to_boolean, to_logging_level
 import os
 import pkg_resources
 
@@ -14,25 +13,9 @@ def get_version():
         return meta["module"]["version"]
 
 
-def get_logging_level():
-    logging_level_str = os.getenv('ZRB_LOGGING_LEVEL', 'WARNING').lower()
-    logging_level_map = {
-        'critical': logging.CRITICAL,
-        'error': logging.ERROR,
-        'warning': logging.WARNING,
-        'warn': logging.WARN,
-        'info': logging.INFO,
-        'debug': logging.DEBUG,
-        'notset': logging.NOTSET,
-    }
-    if logging_level_str in logging_level_map:
-        return logging_level_map[logging_level_str]
-    return logging.WARNING
-
-
 default_shell = os.getenv('ZRB_SHELL', 'bash')
 init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
-logging_level = get_logging_level()
+logging_level = to_logging_level(os.getenv('ZRB_LOGGING_LEVEL', 'WARNING'))
 should_load_builtin = to_boolean(os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1'))
 env_prefix = os.getenv('ZRB_ENV', '')
 show_advertisement = to_boolean(os.getenv('ZRB_SHOW_ADVERTISEMENT', '1'))

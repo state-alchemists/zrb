@@ -9,5 +9,5 @@ from ..config.config import version
     description='Get Zrb version',
     runner=runner
 )
-def get_version(*args: Any, **kwargs: Any) -> str:
+async def get_version(*args: Any, **kwargs: Any) -> str:
     return version

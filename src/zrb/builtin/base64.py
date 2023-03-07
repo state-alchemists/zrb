@@ -24,7 +24,7 @@ text_input = StrInput(
     retry=0,
     runner=runner
 )
-def encode(*args: str, **kwargs: Any):
+async def encode(*args: str, **kwargs: Any):
     text: str = kwargs.get('text', '')
     encoded_text = base64.b64encode(text.encode())
     return encoded_text.decode()
@@ -38,7 +38,7 @@ def encode(*args: str, **kwargs: Any):
     retry=0,
     runner=runner
 )
-def decode(*args: str, **kwargs: Any):
+async def decode(*args: str, **kwargs: Any):
     text: str = kwargs.get('text', '')
     encoded_text = base64.b64decode(text.encode())
     return encoded_text.decode()
