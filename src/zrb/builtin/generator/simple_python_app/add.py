@@ -16,7 +16,7 @@ from ..project_task.task_factory import (
     create_register_app_start_container, create_register_app_stop_container,
     create_register_app_remove_container, create_register_app_build_image,
     create_register_app_push_image, create_register_app_deploy,
-    create_register_app_remove_deployment
+    create_register_app_destroy
 )
 from ....helper import util
 
@@ -102,7 +102,7 @@ register_deploy = create_register_app_deploy(
     upstreams=[add_project_task]
 )
 
-register_remove_deployment = create_register_app_remove_deployment(
+register_destroy = create_register_app_destroy(
     upstreams=[add_project_task]
 )
 
@@ -122,7 +122,7 @@ register_remove_deployment = create_register_app_remove_deployment(
         register_build_image,
         register_push_image,
         register_deploy,
-        register_remove_deployment
+        register_destroy
     ],
     runner=runner
 )

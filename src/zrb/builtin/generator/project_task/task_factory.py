@@ -12,7 +12,7 @@ from .task_factory_helper import (
     _get_app_start_task_var, _get_app_start_container_task_var,
     _get_app_stop_container_task_var, _get_app_remove_container_var,
     _get_app_build_image_task_var, _get_app_push_image_task_var,
-    _get_app_deploy_task_var, _get_app_remove_deployment_task_var
+    _get_app_deploy_task_var, _get_app_destroy_task_var
 )
 import os
 
@@ -131,16 +131,16 @@ def create_register_app_deploy(
     )
 
 
-def create_register_app_remove_deployment(
+def create_register_app_destroy(
     upstreams: Optional[List[Task]] = None,
 ):
     return _create_register_app_task(
-        task_name='register-remove-deployment',
-        project_automation_file='remove_project_deployment.py',
-        project_automation_task_name='remove-deployment',
+        task_name='register-destroy',
+        project_automation_file='destroy_project.py',
+        project_automation_task_name='destroy',
         upstreams=upstreams,
         get_file_name=_get_app_deployment_task_file,
-        get_task_var=_get_app_remove_deployment_task_var
+        get_task_var=_get_app_destroy_task_var
     )
 
 

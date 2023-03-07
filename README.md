@@ -16,6 +16,50 @@ To run a task, you can invoke the following command:
 zrb <task> [arguments]
 ```
 
+# How to create and deploy an app
+
+```bash
+# Create a project
+zrb project create --project-dir my-project --project-name "My Project"
+cd my-project
+
+# Add a simple python app
+zrb project add simple-python-app --project-dir . --app-name simple --http-port 3000
+
+# Start every app in your project
+zrb project start
+
+# or start a specific app (press ctrl+c first):
+zrb project start-simple
+
+# Open new terminal
+# test if everything works:
+curl http://localhost:3000
+# Press ctrl + c in your first terminal
+
+# Go back to your first terminal
+# Start every app in your project as container (docker-compose required)
+zrb project start-containers
+
+# or start a specific app (press ctrl+c first):
+zrb project start-simple-container
+# Press ctrl + c in your first terminal
+
+# Deploy to kubernetes
+zrb project deploy
+
+#  or deploy specific app
+zrb project deploy-simple
+
+# Remove the deployment
+zrb project destroy
+```
+
+Simple-python-app is a simple Uvicorn application.
+
+For the next iterations, Zrb will also introduce a serious framework for serious software development.
+Stay tunes.
+
 # Autoloaded tasks
 
 Zrb will automatically load the following task definitions:

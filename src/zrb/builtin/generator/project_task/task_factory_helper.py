@@ -52,8 +52,8 @@ def _get_app_build_image_task_var(snake_app_name: str) -> str:
 
 
 def _get_app_deploy_task_var(snake_app_name: str) -> str:
-    return f'deploy_{snake_app_name}_image'
+    return f'deploy_{snake_app_name}'
 
 
-def _get_app_remove_deployment_task_var(snake_app_name: str) -> str:
-    return f'remove_{snake_app_name}_deployment'
+def _get_app_destroy_task_var(snake_app_name: str) -> str:
+    return f'destroy_{snake_app_name}'

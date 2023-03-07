@@ -27,9 +27,9 @@ deployment_envs: List[Env] = [
     deployment_replica_env,
 ]
 
-deploy_snake_app_name_image = CmdTask(
+deploy_snake_app_name = CmdTask(
     icon='🚧',
-    name='deploy-kebab-app-name-image',
+    name='deploy-kebab-app-name',
     description='Deploy human readable app name',
     group=project_group,
     inputs=deployment_inputs,
@@ -39,11 +39,11 @@ deploy_snake_app_name_image = CmdTask(
     envs=deployment_envs,
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'pulumi-up.sh'),
 )
-runner.register(deploy_snake_app_name_image)
+runner.register(deploy_snake_app_name)
 
-remove_snake_app_name_deployment = CmdTask(
+destroy_snake_app_name = CmdTask(
     icon='💨',
-    name='remove-kebab-app-name-deployment',
+    name='destroy-kebab-app-name',
     description='Remove human readable app name deployment',
     group=project_group,
     inputs=deployment_inputs,
@@ -52,4 +52,4 @@ remove_snake_app_name_deployment = CmdTask(
     envs=deployment_envs,
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'pulumi-destroy.sh'),
 )
-runner.register(remove_snake_app_name_deployment)
+runner.register(destroy_snake_app_name)

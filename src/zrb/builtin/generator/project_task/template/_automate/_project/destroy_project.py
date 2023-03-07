@@ -1,10 +1,10 @@
 from zrb.builtin._group import project_group
 from zrb import Task, runner
 
-remove_project_deployment = Task(
-    name='remove-deployment',
+destroy_project = Task(
+    name='destroy',
     group=project_group,
     upstreams=[],
     description='Remove project deployment'
 )
-runner.register(remove_project_deployment)
+runner.register(destroy_project)
