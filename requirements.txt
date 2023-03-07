@@ -18,6 +18,7 @@ autopep8==2.0.1     # Autoformatter
 flake8==6.0.0       # Linter
 pytest==7.2.1
 pytest-cov==4.0.0
+pytest-xdist==3.2.0
 
 # Other dependencies (just for auto-completion)
 pulumi==3.56.0

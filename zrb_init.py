@@ -72,11 +72,7 @@ test_task = CmdTask(
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
         'echo "🤖 Perform test"',
-        ' '.join([
-            'pytest --cov=zrb --cov-report html',
-            '--cov-report term --cov-report term-missing',
-            '{{input.test}}'
-        ])
+        'pytest -n auto --cov=zrb --cov-report html --cov-report term --cov-report term-missing {{input.test}}'  # noqa
     ],
     retry=0,
     checking_interval=1
@@ -100,10 +96,7 @@ serve_test_task = CmdTask(
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
         'echo "🤖 Serve coverage report"',
-        ' '.join([
-            'python -m http.server {{input.port}}',
-            '--directory ${ZRB_PROJECT_DIR}/htmlcov',
-        ])
+        'python -m http.server {{input.port}} --directory ${ZRB_PROJECT_DIR}/htmlcov',  # noqa
     ],
     checkers=[
         HTTPChecker(port='{{input.port}}')

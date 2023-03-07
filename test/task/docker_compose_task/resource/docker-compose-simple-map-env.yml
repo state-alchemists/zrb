@@ -1,6 +1,6 @@
 version: '3'
 services:
-  myapp:
+  myapp_simple_map:
     build: image
     environment:
       MY_MESSAGE: '${ZRB_TEST_SIMPLE_MAP_MESSAGE:-Good morning}'
