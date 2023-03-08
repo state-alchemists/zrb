@@ -122,12 +122,17 @@ class BaseTask(TaskModel):
             return asyncio.run(self_cp._run_and_check_all(
                 env_prefix=env_prefix,
                 raise_error=raise_error,
-                *args, **kwargs
+                args=args,
+                kwargs=kwargs
             ))
         return main_loop
 
     async def _run_and_check_all(
-        self, env_prefix: str, raise_error: bool, *args: Any, **kwargs: Any
+        self,
+        env_prefix: str,
+        raise_error: bool,
+        args: Iterable[Any],
+        kwargs: Mapping[str, Any]
     ):
         self.start_timer()
         self.log_info('Set keyval')

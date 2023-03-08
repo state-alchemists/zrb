@@ -2,8 +2,11 @@ version: '3'
 services:
   myapp:
     build: image
+    image: kebab-task-name
+    container_name: snake_task_name
+    hostname: snake_task_name
     environment:
-      MESSAGE: '${MESSAGE:-Hello, world!}'
-      PORT: '${CONTAINER_PORT:-8080}'
+      APP_MESSAGE: '${MESSAGE:-Hello, world!}'
+      APP_PORT: '${CONTAINER_PORT:-8080}'
     ports:
       - ${HOST_PORT:-8080}:${CONTAINER_PORT:-8080}
