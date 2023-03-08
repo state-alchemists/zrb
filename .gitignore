@@ -4,5 +4,6 @@ dist
 playground
 .pytest_cache
 .coverage
+.coverage.*
 .env
 htmlcov

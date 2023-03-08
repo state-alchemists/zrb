@@ -1,5 +1,5 @@
 from typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
+    Any, Callable, Iterable, List, Mapping, Optional, TypeVar, Union
 )
 from typeguard import typechecked
 from .base_model import TaskModel
@@ -117,47 +117,45 @@ class BaseTask(TaskModel):
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., Any]:
         def main_loop(*args: Any, **kwargs: Any) -> Any:
-            self.start_timer()
-            self_cp, args, kwargs = asyncio.run(self._get_main_loop_variables(
-                env_prefix=env_prefix, args=args, kwargs=kwargs
+            self.log_info('Copy task')
+            self_cp = copy.deepcopy(self)
+            return asyncio.run(self_cp._run_and_check_all(
+                env_prefix=env_prefix,
+                raise_error=raise_error,
+                *args, **kwargs
             ))
-            try:
-                result = asyncio.run(
-                    self_cp._run_and_check_all(*args, **kwargs)
-                )
-                self._print_result(result)
-                return result
-            except Exception as exception:
-                self_cp.log_critical(f'{exception}')
-                if raise_error:
-                    raise
-            finally:
-                self_cp.play_bell()
         return main_loop
 
-    async def _run_and_check_all(self, *args: Any, **kwargs: Any):
-        processes = [
-            asyncio.create_task(self._loop_check(True)),
-            asyncio.create_task(self._run_all(*args, **kwargs))
-        ]
-        results = await asyncio.gather(*processes)
-        return results[-1]
-
-    async def _get_main_loop_variables(
-        self, env_prefix: str, args: Iterable[Any], kwargs: Mapping[str, Any]
-    ) -> Tuple[TTask, Iterable[str], Mapping[str, Any]]:
-        self_cp = copy.deepcopy(self)
-        await self_cp._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
-        # init new_kwargs
-        new_kwargs = copy.deepcopy(self_cp._input_map)
-        # init new_args, make sure it has the same value as new_kwargs['_args']
+    async def _run_and_check_all(
+        self, env_prefix: str, raise_error: bool, *args: Any, **kwargs: Any
+    ):
+        self.start_timer()
+        self.log_info('Set keyval')
+        await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
+        self.log_info('Get new kwargs')
+        new_kwargs = self.get_input_map()
+        # make sure args and kwargs['_args'] are the same
+        self.log_info('Get new args')
         new_args = copy.deepcopy(args)
         if len(args) == 0 and '_args' in kwargs:
             new_args = kwargs['_args']
         new_kwargs['_args'] = new_args
-        # inject new_kwargs['_task']
-        new_kwargs['_task'] = self_cp
-        return self_cp, new_args, new_kwargs
+        # inject self as kwargs['_task']
+        new_kwargs['_task'] = self
+        # run the task
+        try:
+            processes = [
+                asyncio.create_task(self._loop_check(True)),
+                asyncio.create_task(self._run_all(*new_args, **new_kwargs))
+            ]
+            results = await asyncio.gather(*processes)
+            return results[-1]
+        except Exception as exception:
+            self.log_critical(f'{exception}')
+            if raise_error:
+                raise
+        finally:
+            self.play_bell()
 
     def _print_result(self, result: Any):
         '''
@@ -172,6 +170,7 @@ class BaseTask(TaskModel):
         print(result)
 
     async def _loop_check(self, show_info: bool = False) -> bool:
+        self.log_info('Start checking')
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self.checking_interval)
@@ -226,6 +225,7 @@ class BaseTask(TaskModel):
         return True
 
     async def _run_all(self, *args: Any, **kwargs: Any) -> Any:
+        self.log_info('Start running')
         await self.mark_start()
         processes: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes

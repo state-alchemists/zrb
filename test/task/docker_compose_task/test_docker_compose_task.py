@@ -67,12 +67,12 @@ def test_docker_compose_task_simple_no_default_env():
     )
     main_loop = docker_compose_task.create_main_loop()
     # run with env set
-    if 'ZRB_TEST_SIMPLE_NO_DEFAULT_MESSAGE' in os.environ:
-        del os.environ['ZRB_TEST_SIMPLE_NO_DEFAULT_MESSAGE']
-    os.environ['ZRB_TEST_SIMPLE_NO_DEFAULT_MESSAGE'] = 'Good night'
+    if 'ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE' in os.environ:
+        del os.environ['ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE']
+    os.environ['ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE'] = 'Good night'
     result_default = main_loop()
     assert 'Good night' in result_default.output
-    del os.environ['ZRB_TEST_SIMPLE_NO_DEFAULT_MESSAGE']
+    del os.environ['ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE']
 
 
 def test_docker_compose_task_simple_map_env():
@@ -86,19 +86,19 @@ def test_docker_compose_task_simple_map_env():
     )
     main_loop = docker_compose_task.create_main_loop()
     # run with no env
-    if 'ZRB_TEST_SIMPLE_MAP_MESSAGE' in os.environ:
-        del os.environ['ZRB_TEST_SIMPLE_MAP_MESSAGE']
+    if 'ZRB_TEST_DC_TASK_SIMPLE_MAP_MESSAGE' in os.environ:
+        del os.environ['ZRB_TEST_DC_TASK_SIMPLE_MAP_MESSAGE']
     result_default = main_loop()
     assert 'Good morning' in result_default.output
     # run with env set to empty string
-    os.environ['ZRB_TEST_SIMPLE_MAP_MESSAGE'] = ''
+    os.environ['ZRB_TEST_DC_TASK_SIMPLE_MAP_MESSAGE'] = ''
     result_default = main_loop()
     assert 'Good morning' in result_default.output
     # run with env set
-    os.environ['ZRB_TEST_SIMPLE_MAP_MESSAGE'] = 'Good night'
+    os.environ['ZRB_TEST_DC_TASK_SIMPLE_MAP_MESSAGE'] = 'Good night'
     result_custom = main_loop()
     assert 'Good night' in result_custom.output
-    del os.environ['ZRB_TEST_SIMPLE_MAP_MESSAGE']
+    del os.environ['ZRB_TEST_DC_TASK_SIMPLE_MAP_MESSAGE']
 
 
 def test_docker_compose_task_simple_list_env():
@@ -112,16 +112,16 @@ def test_docker_compose_task_simple_list_env():
     )
     main_loop = docker_compose_task.create_main_loop()
     # run with no env
-    if 'ZRB_TEST_SIMPLE_LIST_MESSAGE' in os.environ:
-        del os.environ['ZRB_TEST_SIMPLE_LIST_MESSAGE']
+    if 'ZRB_TEST_DC_TASK_SIMPLE_LIST_MESSAGE' in os.environ:
+        del os.environ['ZRB_TEST_DC_TASK_SIMPLE_LIST_MESSAGE']
     result_default = main_loop()
     assert 'Good morning' in result_default.output
     # run with env set to empty string
-    os.environ['ZRB_TEST_SIMPLE_LIST_MESSAGE'] = ''
+    os.environ['ZRB_TEST_DC_TASK_SIMPLE_LIST_MESSAGE'] = ''
     result_default = main_loop()
     assert 'Good morning' in result_default.output
     # run with env set
-    os.environ['ZRB_TEST_SIMPLE_LIST_MESSAGE'] = 'Good night'
+    os.environ['ZRB_TEST_DC_TASK_SIMPLE_LIST_MESSAGE'] = 'Good night'
     result_custom = main_loop()
     assert 'Good night' in result_custom.output
-    del os.environ['ZRB_TEST_SIMPLE_LIST_MESSAGE']
+    del os.environ['ZRB_TEST_DC_TASK_SIMPLE_LIST_MESSAGE']

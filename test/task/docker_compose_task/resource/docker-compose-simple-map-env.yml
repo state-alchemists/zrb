@@ -3,4 +3,4 @@ services:
   myapp_simple_map:
     build: image
     environment:
-      MY_MESSAGE: '${ZRB_TEST_SIMPLE_MAP_MESSAGE:-Good morning}'
+      MY_MESSAGE: '${ZRB_TEST_DC_TASK_SIMPLE_MAP_MESSAGE:-Good morning}'
