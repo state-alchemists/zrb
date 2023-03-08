@@ -315,7 +315,7 @@ class TaskDataModel():
             lines_repr.append(f'{MULTILINE_INDENT}{line_number_repr} | {line}')
         return '\n' + '\n'.join(lines_repr)
 
-    def _set_local_keyval(
+    async def _set_local_keyval(
         self,
         kwargs: Mapping[str, Any],
         env_prefix: str = ''

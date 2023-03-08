@@ -289,7 +289,7 @@ class BaseTask(TaskModel):
                 continue
             kwargs[key] = task_input.default
         # set current task local keyval
-        self._set_local_keyval(kwargs=kwargs, env_prefix=env_prefix)
+        await self._set_local_keyval(kwargs=kwargs, env_prefix=env_prefix)
         # get new_kwargs for upstream and checkers
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self._input_map)
