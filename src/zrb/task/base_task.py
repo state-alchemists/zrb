@@ -117,24 +117,14 @@ class BaseTask(TaskModel):
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., Any]:
         def main_loop(*args: Any, **kwargs: Any) -> Any:
-            '''
-            Task main loop.
-            '''
             self.start_timer()
-            self_cp, args, kwargs = self._get_main_loop_variables(
+            self_cp, args, kwargs = asyncio.run(self._get_main_loop_variables(
                 env_prefix=env_prefix, args=args, kwargs=kwargs
-            )
-
-            async def run_and_check_all_async() -> Any:
-                # initiate args
-                processes = [
-                    asyncio.create_task(self_cp._loop_check(True)),
-                    asyncio.create_task(self_cp._run_all(*args, **kwargs))
-                ]
-                results = await asyncio.gather(*processes)
-                return results[-1]
+            ))
             try:
-                result = asyncio.run(run_and_check_all_async())
+                result = asyncio.run(
+                    self_cp._run_and_check_all(*args, **kwargs)
+                )
                 self._print_result(result)
                 return result
             except Exception as exception:
@@ -145,11 +135,19 @@ class BaseTask(TaskModel):
                 self_cp.play_bell()
         return main_loop
 
-    def _get_main_loop_variables(
+    async def _run_and_check_all(self, *args: Any, **kwargs: Any):
+        processes = [
+            asyncio.create_task(self._loop_check(True)),
+            asyncio.create_task(self._run_all(*args, **kwargs))
+        ]
+        results = await asyncio.gather(*processes)
+        return results[-1]
+
+    async def _get_main_loop_variables(
         self, env_prefix: str, args: Iterable[Any], kwargs: Mapping[str, Any]
     ) -> Tuple[TTask, Iterable[str], Mapping[str, Any]]:
         self_cp = copy.deepcopy(self)
-        self_cp._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
+        await self_cp._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
         # init new_kwargs
         new_kwargs = copy.deepcopy(self_cp._input_map)
         # init new_args, make sure it has the same value as new_kwargs['_args']
@@ -283,7 +281,7 @@ class BaseTask(TaskModel):
         await self.mark_as_done()
         return result
 
-    def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+    async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
         for task_input in self.get_all_inputs():
             key = self._get_normalized_input_key(task_input.name)
@@ -295,16 +293,24 @@ class BaseTask(TaskModel):
         # get new_kwargs for upstream and checkers
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self._input_map)
+        upstream_processes = []
         # set uplstreams keyval
         for upstream_task in self.upstreams:
-            upstream_task._set_keyval(
-                kwargs=new_kwargs, env_prefix=env_prefix
-            )
+            upstream_processes.append(asyncio.create_task(
+                upstream_task._set_keyval(
+                    kwargs=new_kwargs, env_prefix=env_prefix
+                )
+            ))
+        await asyncio.gather(*upstream_processes)
         # set checker keyval
         local_env_map = self.get_env_map()
+        checker_processes = []
         for checker_task in self.checkers:
             checker_task.inputs += self.inputs
             checker_task._inject_env_map(local_env_map)
-            checker_task._set_keyval(
-                kwargs=new_kwargs, env_prefix=env_prefix
-            )
+            checker_processes.append(asyncio.create_task(
+                checker_task._set_keyval(
+                    kwargs=new_kwargs, env_prefix=env_prefix
+                )
+            ))
+        await asyncio.gather(*checker_processes)

@@ -95,6 +95,9 @@ class FinishTracker():
         self._counter += 1
 
     async def mark_as_done(self):
+        # Tracker might be started several times
+        # However, when the execution is marked as done, it applied globally
+        # Thus, we need to send event as much as the counter.
         for i in range(self._counter):
             await self._execution_queue.put(True)
 
