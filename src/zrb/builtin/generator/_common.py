@@ -153,7 +153,7 @@ def _create_register_app_module(
     upstreams: Optional[List[Task]] = None
 ) -> Task:
     @python_task(
-        name='register-app-module',
+        name=f'register-{module}',
         inputs=[project_dir_input, app_name_input],
         upstreams=[] if upstreams is None else upstreams
     )

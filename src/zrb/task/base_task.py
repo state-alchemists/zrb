@@ -92,7 +92,7 @@ class BaseTask(TaskModel):
         By default, this will wait the task execution to be completed.
         You can override this method.
         '''
-        return self.is_done()
+        return await self.is_done()
 
     def get_all_inputs(self) -> Iterable[BaseInput]:
         ''''
@@ -228,6 +228,7 @@ class BaseTask(TaskModel):
         return True
 
     async def _run_all(self, *args: Any, **kwargs: Any) -> Any:
+        await self.mark_start()
         processes: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
@@ -259,7 +260,7 @@ class BaseTask(TaskModel):
             self.log_info(
                 f'Skip execution because config: {self.skip_execution}'
             )
-            self.mark_as_done()
+            await self.mark_as_done()
             return None
         # start running task
         result: Any
@@ -279,7 +280,7 @@ class BaseTask(TaskModel):
                 self.log_error(f'Encounter error on attempt {attempt}')
                 self.increase_attempt()
                 await asyncio.sleep(self.retry_interval)
-        self.mark_as_done()
+        await self.mark_as_done()
         return result
 
     def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):

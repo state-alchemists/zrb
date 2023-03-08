@@ -15,6 +15,7 @@ from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..task_input._constant import RESERVED_INPUT_NAMES
 
+import asyncio
 import datetime
 import os
 import sys
@@ -85,16 +86,22 @@ class AttemptTracker():
 class FinishTracker():
 
     def __init__(self):
-        self._is_done: bool = False
+        self._execution_queue: Optional[asyncio.Queue] = None
+        self._counter = 0
 
-    def mark_as_done(self):
-        self._is_done = True
+    async def mark_start(self):
+        if self._execution_queue is None:
+            self._execution_queue = asyncio.Queue()
+        self._counter += 1
 
-    def mark_as_undone(self):
-        self._is_done = False
+    async def mark_as_done(self):
+        for i in range(self._counter):
+            await self._execution_queue.put(True)
 
-    def is_done(self) -> bool:
-        return self._is_done
+    async def is_done(self) -> bool:
+        while self._execution_queue is None:
+            await asyncio.sleep(0.05)
+        return await self._execution_queue.get()
 
 
 @typechecked
@@ -209,7 +216,7 @@ class TaskDataModel():
     def _get_print_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=True)
         icon = self.get_icon()
-        truncated_name = self._get_truncated_complete_name()
+        truncated_name = self._get_filled_complete_name()
         return f'{common_prefix} • {icon} {truncated_name}'
 
     def _get_log_prefix(self) -> str:
@@ -229,12 +236,6 @@ class TaskDataModel():
 
     def _get_filled_complete_name(self) -> str:
         return self._get_complete_name().rjust(MAX_NAME_LENGTH, ' ')
-
-    def _get_truncated_complete_name(self):
-        filled_name = self._get_filled_complete_name()
-        if len(filled_name) > MAX_NAME_LENGTH:
-            return '..' + filled_name[-(MAX_NAME_LENGTH-2):]
-        return filled_name
 
     def get_input_map(self) -> Mapping[str, Any]:
         return self._input_map
@@ -265,6 +266,8 @@ class TaskDataModel():
         return val
 
     def render_str(self, val: str) -> str:
+        if not self._is_probably_jinja(val):
+            return val
         template = jinja2.Template(val)
         data = self._get_render_data()
         self.log_debug(f'Render string template: {val}, with data: {data}')
@@ -322,7 +325,7 @@ class TaskDataModel():
         for task_input in self.get_all_inputs():
             map_key = self._get_normalized_input_key(task_input.name)
             input_value = kwargs.get(map_key, task_input.default)
-            if self._is_probably_jinja(input_value):
+            if isinstance(input_value, str):
                 input_value = self.render_str(input_value)
             self._input_map[map_key] = input_value
         self.log_debug(f'Input map: {self._input_map}')
@@ -337,7 +340,7 @@ class TaskDataModel():
         for task_env in envs:
             env_name = task_env.name
             env_value = task_env.get(env_prefix)
-            if self._is_probably_jinja(env_value):
+            if isinstance(env_value, str):
                 env_value = self.render_str(env_value)
             self._env_map[env_name] = env_value
         self.log_debug(f'Env map: {self._env_map}')
