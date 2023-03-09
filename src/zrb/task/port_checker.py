@@ -63,9 +63,9 @@ class PortChecker(BaseTask):
         return True
 
     def _check_port(
-        self, host: str, port: int, url: str, timeout: int
+        self, host: str, port: int, timeout: int
     ) -> bool:
-        label = self._get_label(host, port, url)
+        label = self._get_label(host, port)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(timeout)
             result = sock.connect_ex((host, port))
