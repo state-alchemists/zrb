@@ -116,6 +116,8 @@ class BaseTask(TaskModel):
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., Any]:
+        self.log_info('Create main loop')
+
         def main_loop(*args: Any, **kwargs: Any) -> Any:
             self.log_info('Copy task')
             self_cp = copy.deepcopy(self)
