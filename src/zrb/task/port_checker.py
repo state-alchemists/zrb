@@ -28,6 +28,8 @@ class PortChecker(BaseTask):
         timeout: Union[int, str] = 5,
         upstreams: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
+        skip_execution: Union[bool, str] = False,
+        show_error_interval: float = 5
     ):
         BaseTask.__init__(
             self,
@@ -43,11 +45,13 @@ class PortChecker(BaseTask):
             checkers=[],
             checking_interval=checking_interval,
             retry=0,
-            retry_interval=0
+            retry_interval=0,
+            skip_execution=skip_execution,
         )
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.show_error_interval = show_error_interval
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -58,22 +62,43 @@ class PortChecker(BaseTask):
         host = self.render_str(self.host)
         port = self.render_int(self.port)
         timeout = self.render_int(self.timeout)
-        while not self._check_port(host, port, timeout):
+        wait_time = 0
+        while not self._check_port(
+            host=host,
+            port=port,
+            timeout=timeout,
+            should_print_error=wait_time >= self.show_error_interval
+        ):
+            if wait_time >= self.show_error_interval:
+                wait_time = 0
             await asyncio.sleep(self.checking_interval)
+            wait_time += self.checking_interval
         return True
 
     def _check_port(
-        self, host: str, port: int, timeout: int
+        self, host: str, port: int, timeout: int, should_print_error: bool
     ) -> bool:
         label = self._get_label(host, port)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(timeout)
-            result = sock.connect_ex((host, port))
-            if result == 0:
-                self.print_out(f'{label} (OK)')
-                return True
-        self.log_debug(f'{label} (Not OK)')
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(timeout)
+                result = sock.connect_ex((host, port))
+                if result == 0:
+                    self.print_out(f'{label} (OK)')
+                    return True
+                self._debug_and_print_error(
+                    f'{label} (Not OK)', should_print_error
+                )
+        except Exception:
+            self._debug_and_print_error(
+                f'{label} Socket error', should_print_error
+            )
         return False
+
+    def _debug_and_print_error(self, message: str, should_print_error: bool):
+        if should_print_error:
+            self.print_err(message)
+        self.log_debug(message)
 
     def _get_label(self, host: str, port: int) -> str:
         return f'Checking {host}:{port}'

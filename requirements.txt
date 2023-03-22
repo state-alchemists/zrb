@@ -23,3 +23,4 @@ pytest-xdist==3.2.0
 # Other dependencies (just for auto-completion)
 pulumi==3.56.0
 pulumi-kubernetes==3.24.1
+fastapi==0.93.0

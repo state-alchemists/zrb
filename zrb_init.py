@@ -112,40 +112,24 @@ serve_test_task = CmdTask(
 )
 runner.register(serve_test_task)
 
-prepare_playground_cmds = [
-    'set -e',
-    'cd ${ZRB_PROJECT_DIR}',
-    'if [ ! -d playground ]',
-    'then',
-    '  echo "🤖 Create playground"',
-    '  cp -R playground-template playground',
-    'fi',
-    'cd ${ZRB_PROJECT_DIR}/playground',
-    'echo "🤖 Run zrb in the playground"',
-    'zrb',
-    'echo "🤖 Invoke the following command:"',
-    'echo "      cd ${ZRB_PROJECT_DIR}/playground"',
-    'echo "🤖 And start hacking around. Good luck :)"',
-]
-
-
-prepare_playground_task = CmdTask(
-    name='prepare-playground',
-    upstreams=[install_symlink_task],
-    cmd=prepare_playground_cmds
-)
-runner.register(prepare_playground_task)
-
-
-reset_playground_task = CmdTask(
-    name='reset-playground',
-    description='Reset Zrb playground',
+playground_task = CmdTask(
+    name='playground',
     upstreams=[install_symlink_task],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
         'echo "🤖 Remove playground"',
         'rm -Rf playground',
-    ] + prepare_playground_cmds
+        'echo "🤖 Create playground"',
+        'cp -R playground-template playground',
+        'cd ${ZRB_PROJECT_DIR}/playground',
+        'echo "🤖 Generate project"',
+        './generate-project.sh',
+        'echo "🤖 Change to playground directory:"',
+        'echo "      cd ${ZRB_PROJECT_DIR}/playground"',
+        'echo "🤖 Or playground project directory:"',
+        'echo "      cd ${ZRB_PROJECT_DIR}/playground/my-project"',
+        'echo "🤖 And start hacking around. Good luck :)"',
+    ]
 )
-runner.register(reset_playground_task)
+runner.register(playground_task)

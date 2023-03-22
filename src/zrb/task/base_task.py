@@ -10,7 +10,7 @@ from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.accessories.color import colored
 from ..helper.advertisement import get_advertisement
-from ..helper.list.append_unique import append_unique
+from ..helper.list.ensure_uniqueness import ensure_uniqueness
 from ..helper.string.double_quote import double_quote
 
 import asyncio
@@ -103,9 +103,11 @@ class BaseTask(TaskModel):
         inputs: Iterable[BaseInput] = []
         for upstream in self.upstreams:
             upstream_inputs = upstream.get_all_inputs()
-            append_unique(inputs, *upstream_inputs)
-        append_unique(inputs, *self.inputs)
-        self._all_inputs = inputs
+            inputs += upstream_inputs
+        inputs += self.inputs
+        self._all_inputs = ensure_uniqueness(
+            inputs, lambda x, y: x.name == y.name
+        )
         return inputs
 
     def get_description(self) -> str:
@@ -203,7 +205,7 @@ class BaseTask(TaskModel):
             param_str = ' '.join(params)
             run_cmd_with_param += ' ' + param_str
         colored_run_cmd = colored(f'{run_cmd_with_param}', color='yellow')
-        colored_label = colored('Run again: ', attrs=['dark'])
+        colored_label = colored('To run again: ', attrs=['dark'])
         print(colored(f'{colored_label}{colored_run_cmd}'), file=sys.stderr)
 
     async def _cached_check(self) -> bool:
@@ -227,7 +229,9 @@ class BaseTask(TaskModel):
             return await self.check()
         check_processes: Iterable[asyncio.Task] = []
         for checker_task in self.checkers:
-            check_processes.append(asyncio.create_task(checker_task.run()))
+            check_processes.append(
+                asyncio.create_task(checker_task._run_all())
+            )
         await asyncio.gather(*check_processes)
         return True
 
@@ -300,24 +304,25 @@ class BaseTask(TaskModel):
         # get new_kwargs for upstream and checkers
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self._input_map)
-        upstream_processes = []
+        upstream_coroutines = []
         # set uplstreams keyval
         for upstream_task in self.upstreams:
-            upstream_processes.append(asyncio.create_task(
+            upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix
                 )
             ))
-        await asyncio.gather(*upstream_processes)
         # set checker keyval
         local_env_map = self.get_env_map()
-        checker_processes = []
+        checker_coroutines = []
         for checker_task in self.checkers:
             checker_task.inputs += self.inputs
-            checker_task._inject_env_map(local_env_map)
-            checker_processes.append(asyncio.create_task(
+            checker_task._inject_env_map(local_env_map, override=True)
+            checker_coroutines.append(asyncio.create_task(
                 checker_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix
                 )
             ))
-        await asyncio.gather(*checker_processes)
+        # wait for checker and upstreams
+        coroutines = checker_coroutines + upstream_coroutines
+        await asyncio.gather(*coroutines)

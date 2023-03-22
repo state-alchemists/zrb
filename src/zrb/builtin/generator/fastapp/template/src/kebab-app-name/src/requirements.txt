@@ -1,0 +1,8 @@
+zrb==0.0.38
+aiormq==6.7.3
+aiokafka==0.8.0
+fastapi==0.93.0
+uvicorn==0.20.0
+fastapi==0.93.0
+jsons==1.6.3
+pydantic==1.10.6

@@ -51,6 +51,7 @@ start_snake_app_name_container = DockerComposeTask(
     envs=compose_envs,
     checkers=[
         HTTPChecker(
+            name='check-kebab-app-name',
             host='{{input.snake_app_name_host}}',
             port='{{env.HOST_PORT}}',
             is_https='{{input.snake_app_name_https}}'

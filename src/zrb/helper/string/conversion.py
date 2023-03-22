@@ -1,9 +1,9 @@
+import keyword
 import logging
 import re
 
 NON_WORD = re.compile(r'[\W]+')
-NON_ALPHA_NUM = re.compile(r'[^0-9a-zA-Z]+')
-LEADING_NUM = re.compile(r'^[0-9]+')
+LEADING_NUM = re.compile(r'^\d+')
 LOGGING_LEVEL_MAP = {
     'critical': logging.CRITICAL,
     'fatal': logging.FATAL,
@@ -21,14 +21,14 @@ def to_cmd_name(name: str) -> str:
 
 
 def to_variable_name(string: str) -> str:
-    # Remove any non-alphanumeric characters
-    string = NON_ALPHA_NUM.sub(' ', string).strip()
-    # Convert to lowercase
-    string = string.lower()
-    # Replace spaces with underscores
-    string = string.replace(' ', '_')
+    # Replace any non-word characters with underscore
+    string = NON_WORD.sub('_', string).strip()
     # Remove leading digits
     string = LEADING_NUM.sub('', string)
+    # Convert to lowercase
+    string = string.lower()
+    if keyword.iskeyword(string):
+        return string + '_'
     return string
 
 

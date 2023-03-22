@@ -32,6 +32,12 @@ zrb project add simple-python-app \
     --app-name "simple" \
     --http-port 3001
 
+echo '🤖 Add fastapp'
+zrb project add fastapp \
+    --project-dir . \
+    --app-name "fastapp" \
+    --http-port 3002
+
 
 echo '🤖 Add test-project task'
 echo '' >> zrb_init.py
@@ -43,11 +49,8 @@ echo '        run_cmd.run_cmd,' >> zrb_init.py
 echo '        run_container.run_container,' >> zrb_init.py
 echo '        run_python.run_python,' >> zrb_init.py
 echo '        simple_local.start_simple,' >> zrb_init.py
+echo '        fastapp_local.start_fastapp,' >> zrb_init.py
 echo '    ]' >> zrb_init.py
 echo ')' >> zrb_init.py
 echo 'runner.register(test_project)' >> zrb_init.py
 echo '' >> zrb_init.py
-
-
-echo '🤖 Test project'
-zrb test-project

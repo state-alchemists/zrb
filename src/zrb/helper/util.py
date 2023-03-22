@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from .string.conversion import to_boolean as conversion_to_boolean
 import re
 import jinja2
 
@@ -87,3 +88,7 @@ def to_human_readable(text: Optional[str]) -> str:
         if new_part != '':
             new_parts.append(new_part)
     return ' '.join(new_parts).strip(' ')
+
+
+def to_boolean(text: str) -> bool:
+    return conversion_to_boolean(text)

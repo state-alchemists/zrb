@@ -1,0 +1,82 @@
+version: '3'
+services:
+
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
+    hostname: redpanda
+    command:
+      - redpanda start
+      - --smp 1
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 1
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+      - --advertise-pandaproxy-addr PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
+      - --rpc-addr 0.0.0.0:33145
+      - --advertise-rpc-addr redpanda:33145
+    ports:
+      - 8082:8082
+      - ${KAFKA_OUTSIDE_HOST_PORT:-9092}:9092
+      - 28082:28082
+      - ${KAFKA_PLAINTEXT_HOST_PORT:-29092}:29092
+    restart: on-failure
+    profiles:
+      - kafka
+    healthcheck:
+      test: ["CMD", "redpanda", "admin", "check"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
+
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.2.2
+    hostname: redpanda-console
+    ports:
+      - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
+    environment:
+      - KAFKA_BROKERS=redpanda:29092
+    profiles:
+      - kafka
+    depends_on:
+      - redpanda
+    restart: on-failure
+
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
+    # volumes:
+    #   - rabbitmq:/var/lib/rabbitmq/mnesia
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: on-failure
+    profiles:
+      - rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
+
+
+  snake_app_name:
+    build: src
+    image: ${IMAGE:-kebab-app-name}
+    container_name: snake_app_name
+    hostname: snake_app_name
+    env_file: 'src/template.env'
+    environment:
+      APP_PORT: ${APP_PORT:-8080}
+    ports:
+      - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
+    restart: on-failure
+    profiles:
+      - monolith

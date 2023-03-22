@@ -31,6 +31,8 @@ class HTTPChecker(BaseTask):
         is_https: Union[bool, str] = False,
         upstreams: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
+        skip_execution: Union[bool, str] = False,
+        show_error_interval: float = 5
     ):
         BaseTask.__init__(
             self,
@@ -46,7 +48,8 @@ class HTTPChecker(BaseTask):
             checkers=[],
             checking_interval=checking_interval,
             retry=0,
-            retry_interval=0
+            retry_interval=0,
+            skip_execution=skip_execution
         )
         self.host = host
         self.port = port
@@ -54,6 +57,7 @@ class HTTPChecker(BaseTask):
         self.method = method
         self.url = url
         self.is_https = is_https
+        self.show_error_interval = show_error_interval
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -67,10 +71,20 @@ class HTTPChecker(BaseTask):
         port = self.render_int(self.port)
         url = self.render_str(self.url)
         timeout = self.render_int(self.timeout)
+        wait_time = 0
         while not self._check_connection(
-            method, host, port, url, is_https, timeout
+            method=method,
+            host=host,
+            port=port,
+            url=url,
+            is_https=is_https,
+            timeout=timeout,
+            should_print_error=wait_time >= self.show_error_interval
         ):
+            if wait_time >= self.show_error_interval:
+                wait_time = 0
             await asyncio.sleep(self.checking_interval)
+            wait_time += self.checking_interval
         return True
 
     def _check_connection(
@@ -80,7 +94,8 @@ class HTTPChecker(BaseTask):
         port: int,
         url: str,
         is_https: bool,
-        timeout: int
+        timeout: int,
+        should_print_error: bool
     ) -> bool:
         label = self._get_label(method, host, port, is_https, url)
         conn = self._get_connection(host, port, is_https, timeout)
@@ -91,12 +106,21 @@ class HTTPChecker(BaseTask):
                 self.log_info('Connection success')
                 self.print_out(f'{label} {res.status} (OK)')
                 return True
-            self.log_debug(f'{label} {res.status} (Not OK)')
+            self._debug_and_print_error(
+                f'{label} {res.status} (Not OK)', should_print_error
+            )
         except Exception:
-            self.log_debug(f'{label} Connection error')
+            self._debug_and_print_error(
+                f'{label} Connection error', should_print_error
+            )
         finally:
             conn.close()
         return False
+
+    def _debug_and_print_error(self, message: str, should_print_error: bool):
+        if should_print_error:
+            self.print_err(message)
+        self.log_debug(message)
 
     def _get_label(
         self, method: str, host: str, port: int, is_https: bool, url: str

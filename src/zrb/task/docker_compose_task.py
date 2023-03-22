@@ -23,7 +23,6 @@ class DockerComposeTask(CmdTask):
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
-        service_env_files: Mapping[str, Iterable[EnvFile]] = {},
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
@@ -46,8 +45,6 @@ class DockerComposeTask(CmdTask):
         skip_execution: Union[bool, str] = False
     ):
         combined_env_files = list(env_files)
-        for _, service_env_files in service_env_files.items():
-            combined_env_files = combined_env_files + service_env_files
         CmdTask.__init__(
             self,
             name=name,
@@ -118,12 +115,15 @@ class DockerComposeTask(CmdTask):
         options = ' '.join([
             f'{self.render_str(key)} {double_quote(self.render_str(val))}'
             for key, val in command_options.items()
+            if self.render_str(val) != ''
         ])
         flags = ' '.join([
             self.render_str(flag) for flag in self.compose_flags
+            if self.render_str(flag) != ''
         ])
         args = ' '.join([
             double_quote(self.render_str(arg)) for arg in self.compose_args
+            if self.render_str(arg) != ''
         ])
         cmd = f'docker compose {options} {self.compose_cmd} {flags} {args}'
         self.log_info(f'Command: {cmd}')

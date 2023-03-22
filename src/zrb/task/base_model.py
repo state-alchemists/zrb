@@ -4,6 +4,7 @@ from ..helper.accessories.color import (
     get_random_color, is_valid_color, colored
 )
 from ..helper.accessories.icon import get_random_icon
+from ..helper.list.ensure_uniqueness import ensure_uniqueness
 from ..helper.string.conversion import (
     to_cmd_name, to_variable_name, to_boolean
 )
@@ -134,15 +135,18 @@ class TaskDataModel():
     ):
         self.name = name
         self.group = group
-        self.envs = envs
+        self.envs = [
+            Env(name=key, os_name=key)
+            for key in os.environ
+        ] + envs
         self.env_files = env_files
-        for key in dict(os.environ):
-            self.envs.append(Env(name=key, os_name=key))
         self.icon = icon
         self.color = color
         self._input_map: Mapping[str, Any] = {}
         self._env_map: Mapping[str, str] = {}
         self._complete_name: Optional[str] = None
+        self._filled_complete_name: Optional[str] = None
+        self._rendered_str: Mapping[str, str] = {}
         self._is_keyval_set = False  # Flag
         self._has_cli_interface = False
         self._render_data: Optional[Mapping[str, Any]] = None
@@ -238,7 +242,11 @@ class TaskDataModel():
         return f'⚙ {pid} ➤ {attempt} of {max_attempt}'
 
     def _get_filled_complete_name(self) -> str:
-        return self._get_complete_name().rjust(MAX_NAME_LENGTH, ' ')
+        if self._filled_complete_name is not None:
+            return self._filled_complete_name
+        complete_name = self._get_complete_name()
+        self._filled_complete_name = complete_name.rjust(MAX_NAME_LENGTH, ' ')
+        return self._filled_complete_name
 
     def get_input_map(self) -> Mapping[str, Any]:
         return self._input_map
@@ -252,6 +260,11 @@ class TaskDataModel():
         for key, val in env_map.items():
             if override or key not in self._env_map:
                 self._env_map[key] = val
+
+    def render_any(self, val: Any) -> Any:
+        if isinstance(val, str):
+            return self.render_str(val)
+        return val
 
     def render_float(self, val: Union[str, float]) -> float:
         if isinstance(val, str):
@@ -269,6 +282,8 @@ class TaskDataModel():
         return val
 
     def render_str(self, val: str) -> str:
+        if val in self._rendered_str:
+            return self._rendered_str[val]
         if not self._is_probably_jinja(val):
             return val
         template = jinja2.Template(val)
@@ -279,6 +294,7 @@ class TaskDataModel():
             self.log_debug(f'Get rendered result: {rendered_text}')
         except Exception:
             self.log_error(f'Fail to render "{val}" with data: {data}')
+        self._rendered_str[val] = rendered_text
         return rendered_text
 
     def render_file(self, location: str) -> str:
@@ -327,25 +343,30 @@ class TaskDataModel():
         self.log_info('Set input map')
         for task_input in self.get_all_inputs():
             map_key = self._get_normalized_input_key(task_input.name)
-            input_value = kwargs.get(map_key, task_input.default)
-            if isinstance(input_value, str):
-                input_value = self.render_str(input_value)
-            self._input_map[map_key] = input_value
+            self._input_map[map_key] = self.render_any(
+                kwargs.get(map_key, task_input.default)
+            )
         self.log_debug(f'Input map: {self._input_map}')
         # Construct envs based on self.env_files and self.envs
         self.log_info('Merging env_files and envs')
         envs: Iterable[Env] = []
         for env_file in self.env_files:
-            envs = envs + env_file.get_envs()
-        envs = envs + self.envs
+            envs += env_file.get_envs()
+        envs += self.envs
+        envs.reverse()
+        envs = ensure_uniqueness(
+            envs, lambda x, y: x.name == y.name
+        )
+        envs.reverse()
         # Add envs to env_map
         self.log_info('Set env map')
         for task_env in envs:
             env_name = task_env.name
-            env_value = task_env.get(env_prefix)
-            if isinstance(env_value, str):
-                env_value = self.render_str(env_value)
-            self._env_map[env_name] = env_value
+            if env_name in self._env_map:
+                continue
+            self._env_map[env_name] = self.render_any(
+                task_env.get(env_prefix)
+            )
         self.log_debug(f'Env map: {self._env_map}')
 
     def get_all_inputs(self) -> Iterable[BaseInput]:
