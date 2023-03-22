@@ -74,6 +74,8 @@ class BaseTask(TaskModel):
         self._is_checked: bool = False
         self._is_executed: bool = False
         self._run_function: Optional[Callable[..., Any]] = run
+        self._args: List[Any] = []
+        self._kwargs: Mapping[str, Any] = {}
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -151,14 +153,18 @@ class BaseTask(TaskModel):
         new_kwargs['_args'] = new_args
         # inject self as kwargs['_task']
         new_kwargs['_task'] = self
+        self._args = new_args
+        self._kwargs = new_kwargs
         # run the task
         try:
             processes = [
-                asyncio.create_task(self._loop_check(True)),
+                asyncio.create_task(self._loop_check(show_info=True)),
                 asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
             results = await asyncio.gather(*processes)
-            return results[-1]
+            result = results[-1]
+            self._print_result(result)
+            return result
         except Exception as exception:
             self.log_critical(f'{exception}')
             if raise_error:
@@ -192,12 +198,11 @@ class BaseTask(TaskModel):
         return True
 
     def show_run_command(self):
-        params: List[str] = []
-        for task_input in self.inputs:
+        params: List[str] = [double_quote(arg) for arg in self._args]
+        for task_input in self.get_all_inputs():
             key = task_input.name
-            map_key = self._get_normalized_input_key(key)
-            value = str(self._input_map.get(map_key))
-            quoted_value = double_quote(value)
+            kwarg_key = self._get_normalized_input_key(key)
+            quoted_value = double_quote(str(self._kwargs[kwarg_key]))
             params.append(f'--{key} {quoted_value}')
         run_cmd = self._get_complete_name()
         run_cmd_with_param = run_cmd

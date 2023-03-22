@@ -31,7 +31,10 @@ snake_task_name = DockerComposeTask(
         ),
     ],
     checkers=[
-        HTTPChecker(port='{{env.HOST_PORT}}')
+        HTTPChecker(
+            name='check-kebab-app-name',
+            port='{{env.HOST_PORT}}'
+        )
     ]
 )
 runner.register(snake_task_name)

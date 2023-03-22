@@ -31,6 +31,7 @@ start_snake_app_name = CmdTask(
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
     checkers=[
         HTTPChecker(
+            name='check-kebab-app-name',
             host='{{input.snake_app_name_host}}',
             port='{{env.APP_PORT}}',
             is_https='{{input.snake_app_name_https}}'
