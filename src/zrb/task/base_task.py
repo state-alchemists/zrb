@@ -157,11 +157,11 @@ class BaseTask(TaskModel):
         self._kwargs = new_kwargs
         # run the task
         try:
-            processes = [
+            coroutines = [
                 asyncio.create_task(self._loop_check(show_info=True)),
                 asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
-            results = await asyncio.gather(*processes)
+            results = await asyncio.gather(*coroutines)
             result = results[-1]
             self._print_result(result)
             return result
@@ -232,27 +232,27 @@ class BaseTask(TaskModel):
         '''
         if len(self.checkers) == 0:
             return await self.check()
-        check_processes: Iterable[asyncio.Task] = []
+        check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self.checkers:
-            check_processes.append(
+            check_coroutines.append(
                 asyncio.create_task(checker_task._run_all())
             )
-        await asyncio.gather(*check_processes)
+        await asyncio.gather(*check_coroutines)
         return True
 
     async def _run_all(self, *args: Any, **kwargs: Any) -> Any:
         self.log_info('Start running')
         await self.mark_start()
-        processes: Iterable[asyncio.Task] = []
+        coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
         for upstream_task in self.upstreams:
-            processes.append(asyncio.create_task(
+            coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
         # Add current task to processes
-        processes.append(self._cached_run(*args, **kwargs))
+        coroutines.append(self._cached_run(*args, **kwargs))
         # Wait everything to complete
-        results = await asyncio.gather(*processes)
+        results = await asyncio.gather(*coroutines)
         return results[-1]
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:

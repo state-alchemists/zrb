@@ -10,6 +10,7 @@ DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, 'deployment')
 APP_DIR = os.path.join(RESOURCE_DIR, 'src')
 TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 
+
 # Inputs
 
 local_input = BoolInput(

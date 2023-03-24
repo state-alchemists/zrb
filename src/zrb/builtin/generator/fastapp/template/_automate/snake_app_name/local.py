@@ -1,20 +1,42 @@
-from zrb import CmdTask, DockerComposeTask, Env, HTTPChecker, runner
+from zrb import CmdTask, DockerComposeTask, Env, EnvFile, HTTPChecker, runner
 from zrb.builtin._group import project_group
-from .common import (
-    CURRENT_DIR, APP_DIR, RESOURCE_DIR,
-    local_input, host_input, https_input, image_input
-)
-from .image import build_snake_app_name_image
-from .app.app_env import app_env_file, app_envs
-from .container import remove_snake_app_name_container
-from .compose.compose_env import compose_env_prefix, compose_envs
-from .compose.compose_checker import (
+from ._common import (
+    CURRENT_DIR, APP_DIR, RESOURCE_DIR, TEMPLATE_ENV_FILE_NAME,
     rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker,
     kafka_plaintext_checker, pandaproxy_outside_checker,
-    pandaproxy_plaintext_checker
+    pandaproxy_plaintext_checker,
+    local_input, host_input, https_input, image_input,
+    local_app_port_env, local_app_broker_type_env, compose_app_host_port_env,
+    compose_rabbitmq_host_port_env, compose_rabbitmq_management_host_port_env,
+    compose_redpanda_console_host_port_env,
+    compose_kafka_outside_host_port_env,
+    compose_pandaproxy_outside_host_port_env,
+    compose_kafka_plaintext_host_port_env,
+    compose_pandaproxy_plaintext_host_port_env
 )
+from .image import build_snake_app_name_image
+from .container import remove_snake_app_name_container
 import os
+
+support_compose_env_prefix = 'CONTAINER_ENV_PREFIX'
+support_compose_envs = [
+    local_app_broker_type_env,
+    local_app_port_env,
+    compose_app_host_port_env,
+    compose_rabbitmq_host_port_env,
+    compose_rabbitmq_management_host_port_env,
+    compose_redpanda_console_host_port_env,
+    compose_kafka_outside_host_port_env,
+    compose_kafka_plaintext_host_port_env,
+    compose_pandaproxy_outside_host_port_env,
+    compose_pandaproxy_plaintext_host_port_env
+]
+app_env_file = EnvFile(env_file=TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX')
+app_envs = [
+    local_app_broker_type_env,
+    local_app_port_env,
+]
 
 start_snake_app_name_support_container = DockerComposeTask(
     icon='🐳',
@@ -38,8 +60,8 @@ start_snake_app_name_support_container = DockerComposeTask(
     ],
     cwd=RESOURCE_DIR,
     compose_cmd='up',
-    compose_env_prefix=compose_env_prefix,
-    envs=compose_envs + app_envs + [
+    compose_env_prefix=support_compose_env_prefix,
+    envs=support_compose_envs + [
         Env(
             name='COMPOSE_PROFILES',
             os_name='',

@@ -6,17 +6,18 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
     hostname: redpanda
     command:
-      - redpanda start
-      - --smp 1
-      - --reserve-memory 0M
-      - --overprovisioned
-      - --node-id 1
+      - redpanda
+      - start
       - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
       - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
       - --pandaproxy-addr PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
       - --advertise-pandaproxy-addr PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
       - --rpc-addr 0.0.0.0:33145
       - --advertise-rpc-addr redpanda:33145
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+      - --default-log-level=warn
     ports:
       - 8082:8082
       - ${KAFKA_OUTSIDE_HOST_PORT:-9092}:9092

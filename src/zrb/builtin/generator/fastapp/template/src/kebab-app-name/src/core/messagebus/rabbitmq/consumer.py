@@ -1,4 +1,4 @@
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, List, Mapping, Optional
 from core.messagebus.messagebus import (
     Consumer, THandler, MessageSerializer, get_message_serializer
 )
@@ -53,6 +53,7 @@ class RMQConsumer(Consumer):
     async def _run(self, retry: int):
         try:
             async with self.conn as conn:
+                coroutines: List[asyncio.Task] = []
                 connection: aiormq.Connection = conn.connection
                 self.logger.info('🐰 Get channel')
                 channel = await connection.channel()
@@ -62,9 +63,12 @@ class RMQConsumer(Consumer):
                     on_message = self._create_consumer_callback(
                         channel, event_name
                     )
-                    asyncio.create_task(channel.basic_consume(
-                        queue=event_name, consumer_callback=on_message
+                    coroutines.append(asyncio.create_task(
+                        channel.basic_consume(
+                            queue=event_name, consumer_callback=on_message
+                        )
                     ))
+                await asyncio.gather(coroutines)
             retry = self._retry
         except Exception:
             if retry == 0:

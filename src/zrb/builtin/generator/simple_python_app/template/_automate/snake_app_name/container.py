@@ -1,11 +1,11 @@
 from zrb import DockerComposeTask, Env, HTTPChecker, runner
 from zrb.builtin._group import project_group
-from .common import (
+from ._common import (
     RESOURCE_DIR,
-    local_input, host_input, https_input, image_input, image_env
+    local_input, host_input, https_input, image_input,
+    image_env
 )
 from .image import build_snake_app_name_image
-
 
 compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 compose_envs = [
@@ -28,6 +28,18 @@ remove_snake_app_name_container = DockerComposeTask(
     envs=compose_envs,
 )
 runner.register(remove_snake_app_name_container)
+
+stop_snake_app_name_container = DockerComposeTask(
+    icon='⛔',
+    name='stop-kebab-app-name-container',
+    description='Stop human readable app name container',
+    group=project_group,
+    cwd=RESOURCE_DIR,
+    compose_cmd='stop',
+    compose_env_prefix=compose_env_prefix,
+    envs=compose_envs,
+)
+runner.register(stop_snake_app_name_container)
 
 start_snake_app_name_container = DockerComposeTask(
     icon='🐳',
@@ -59,15 +71,3 @@ start_snake_app_name_container = DockerComposeTask(
     ]
 )
 runner.register(start_snake_app_name_container)
-
-stop_snake_app_name_container = DockerComposeTask(
-    icon='⛔',
-    name='stop-kebab-app-name-container',
-    description='Stop human readable app name container',
-    group=project_group,
-    cwd=RESOURCE_DIR,
-    compose_cmd='stop',
-    compose_env_prefix=compose_env_prefix,
-    envs=compose_envs,
-)
-runner.register(stop_snake_app_name_container)

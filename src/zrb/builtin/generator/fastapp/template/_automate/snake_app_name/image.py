@@ -1,7 +1,7 @@
 from typing import List
 from zrb import Input, DockerComposeTask, runner
 from zrb.builtin._group import project_group
-from .common import (
+from ._common import (
     RESOURCE_DIR,
     local_input, image_input, image_env
 )
