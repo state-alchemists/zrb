@@ -53,23 +53,21 @@ class RMQConsumer(Consumer):
     async def _run(self, retry: int):
         try:
             async with self.conn as conn:
-                coroutines: List[asyncio.Task] = []
                 connection: aiormq.Connection = conn.connection
                 self.logger.info('🐰 Get channel')
                 channel = await connection.channel()
-                for event_name, handler in self._handlers.items():
+                for event_name in self._handlers:
                     self.logger.info(f'🐰 Declare queue: {event_name}')
                     await channel.queue_declare(event_name)
                     on_message = self._create_consumer_callback(
                         channel, event_name
                     )
-                    coroutines.append(asyncio.create_task(
-                        channel.basic_consume(
-                            queue=event_name, consumer_callback=on_message
-                        )
-                    ))
-                await asyncio.gather(coroutines)
-            retry = self._retry
+                    await channel.basic_consume(
+                        queue=event_name, consumer_callback=on_message
+                    )
+                retry = self._retry
+                while True:
+                    await asyncio.sleep(0.01)
         except Exception:
             if retry == 0:
                 raise
