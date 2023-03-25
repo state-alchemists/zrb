@@ -11,7 +11,7 @@ import inspect
 import logging
 
 
-class KafkaConsumeConnection():
+class KafkaConsumer(Consumer):
     def __init__(
         self,
         logger: logging.Logger,
@@ -49,10 +49,13 @@ class KafkaConsumeConnection():
         sasl_plain_username=None,
         sasl_kerberos_service_name='kafka',
         sasl_kerberos_domain_name=None,
-        sasl_oauth_token_provider=None
+        sasl_oauth_token_provider=None,
+        serializer: Optional[MessageSerializer] = None,
+        retry: int = 5,
+        retry_interval: int = 5
     ):
         self.logger = logger
-        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.serializer = get_message_serializer(serializer)
         self.bootstrap_servers = bootstrap_servers
         self.client_id = client_id
         self.group_id = group_id
@@ -88,8 +91,54 @@ class KafkaConsumeConnection():
         self.sasl_kerberos_service_name = sasl_kerberos_service_name
         self.sasl_kerberos_domain_name = sasl_kerberos_domain_name
         self.sasl_oauth_token_provider = sasl_oauth_token_provider
+        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.retry = retry
+        self.retry_interval = retry_interval
+        self._handlers: Mapping[str, THandler] = {}
 
-    async def __aenter__(self):
+    def register(self, event_name: str) -> Callable[[THandler], Any]:
+        def wrapper(handler: THandler):
+            self.logger.warning(f'🐼 Register handler for "{event_name}"')
+            self._handlers[event_name] = handler
+            return handler
+        return wrapper
+
+    async def run(self):
+        return await self._run(self.retry)
+
+    async def _run(self, retry: int):
+        try:
+            if self.consumer is None:
+                await self._connect()
+            topics = list(self._handlers.keys())
+            self.logger.warning(f'🐼 Subscribe to topics: {topics}')
+            self.consumer.subscribe(topics=topics)
+            async for message in self.consumer:
+                event_name = message.topic
+                message_handler = self._handlers.get(event_name)
+                decoded_value = self.serializer.decode(
+                    event_name, message.value
+                )
+                self.logger.info(
+                    f'🐼 Consume "{event_name}": {decoded_value}'
+                )
+                await self._run_handler(message_handler, decoded_value)
+            retry = self.retry
+        except Exception:
+            if retry == 0:
+                self.logger.error(
+                    f'🐼 Failed to consume message after {self.retry} attempts'
+                )
+                self.logger.fatal('🐼 Cannot retry')
+                raise
+            self.logger.warning('🐼 Retry to consume')
+            await self._disconnect()
+            await asyncio.sleep(self.retry_interval)
+            await self._run(retry-1)
+        finally:
+            await self._disconnect()
+
+    async def _connect(self):
         self.logger.info('🐼 Create kafka consumer')
         self.consumer = AIOKafkaConsumer(
             bootstrap_servers=self.bootstrap_servers,
@@ -131,64 +180,15 @@ class KafkaConsumeConnection():
         self.logger.info('🐼 Start kafka consumer')
         await self.consumer.start()
         self.logger.info('🐼 Kafka consumer started')
-        return self
 
-    async def __aexit__(self, exc_type, exc, tb):
-        self.logger.info('🐼 Unsubscribe kafka consumer from all topics')
-        self.consumer.unsubscribe()
-        self.logger.info('🐼 Stop kafka consumer')
-        await self.consumer.stop()
-        self.logger.info('🐼 Kafka consumer stopped')
-
-
-class KafkaConsumer(Consumer):
-    def __init__(
-        self,
-        logger: logging.Logger,
-        consume_connection: KafkaConsumeConnection,
-        serializer: Optional[MessageSerializer] = None,
-        retry: int = 5
-    ):
-        self.logger = logger
-        self.serializer = get_message_serializer(serializer)
-        self.conn = consume_connection
-        self._handlers: Mapping[str, THandler] = {}
-        self._retry = retry
-
-    def register(self, event_name: str) -> Callable[[THandler], Any]:
-        def wrapper(handler: THandler):
-            self.logger.warning(f'🐼 Register handler for "{event_name}"')
-            self._handlers[event_name] = handler
-            return handler
-        return wrapper
-
-    async def run(self):
-        return await self._run(self._retry)
-
-    async def _run(self, retry: int):
-        try:
-            async with self.conn as conn:
-                consumer: AIOKafkaConsumer = conn.consumer
-                topics = list(self._handlers.keys())
-                self.logger.warning(f'🐼 Subscribe to topics: {topics}')
-                consumer.subscribe(topics=topics)
-                async for message in consumer:
-                    event_name = message.topic
-                    message_handler = self._handlers.get(event_name)
-                    decoded_value = self.serializer.decode(
-                        event_name, message.value
-                    )
-                    self.logger.info(
-                        f'🐼 Consume "{event_name}": {decoded_value}'
-                    )
-                    await self._run_handler(message_handler, decoded_value)
-                retry = self._retry
-        except Exception:
-            if retry == 0:
-                self.logger.fatal('🐼 Cannot retry')
-                raise
-            self.logger.warning('🐼 Retry to consume')
-            await self._run(retry-1)
+    async def _disconnect(self):
+        if self.consumer is not None:
+            self.logger.info('🐼 Unsubscribe kafka consumer from all topics')
+            self.consumer.unsubscribe()
+            self.logger.info('🐼 Stop kafka consumer')
+            await self.consumer.stop()
+            self.logger.info('🐼 Kafka consumer stopped')
+        self.consumer = None
 
     async def _run_handler(
         self, message_handler: THandler, decoded_value: Any

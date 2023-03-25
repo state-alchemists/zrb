@@ -6,9 +6,10 @@ from aiokafka import AIOKafkaProducer
 from aiokafka.producer.producer import _missing, DefaultPartitioner
 
 import logging
+import asyncio
 
 
-class KafkaPublishConnection():
+class KafkaPublisher(Publisher):
     def __init__(
         self,
         logger: logging.Logger,
@@ -38,9 +39,13 @@ class KafkaPublishConnection():
         sasl_plain_username=None,
         sasl_kerberos_service_name='kafka',
         sasl_kerberos_domain_name=None,
-        sasl_oauth_token_provider=None
+        sasl_oauth_token_provider=None,
+        serializer: Optional[MessageSerializer] = None,
+        retry: int = 3,
+        retry_interval: int = 5
     ):
         self.logger = logger
+        self.serializer = get_message_serializer(serializer)
         self.producer: Optional[AIOKafkaProducer] = None
         self.bootstrap_servers = bootstrap_servers
         self.client_id = client_id
@@ -69,8 +74,31 @@ class KafkaPublishConnection():
         self.sasl_kerberos_service_name = sasl_kerberos_service_name
         self.sasl_kerberos_domain_name = sasl_kerberos_domain_name
         self.sasl_oauth_token_provider = sasl_oauth_token_provider
+        self.retry = retry
+        self.retry_interval = retry_interval
 
-    async def __aenter__(self):
+    async def publish(self, event_name: str, message: Any):
+        for attempt in range(self.retry):
+            try:
+                await self._connect()
+                encoded_value = self.serializer.encode(event_name, message)
+                self.logger.info(
+                    f'🐼 Publish to "{event_name}": {message}'
+                )
+                return await self.producer.send_and_wait(
+                    event_name, encoded_value
+                )
+            except Exception as e:
+                self.logger.error(f'🐼 Failed to publish message: {e}')
+                await self._disconnect()
+                await asyncio.sleep(self.retry_interval)
+                continue
+        self.logger.error(
+            f'🐼 Failed to publish message after {self.retry} attempts'
+        )
+        raise RuntimeError('Failed to publish message after retrying')
+
+    async def _connect(self):
         self.logger.info('🐼 Create kafka producer')
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
@@ -106,39 +134,9 @@ class KafkaPublishConnection():
         self.logger.info('🐼 Kafka producer started')
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def _disconnect(self):
         self.logger.info('🐼 Stop kafka producer')
-        await self.producer.stop()
+        if self.producer is not None:
+            await self.producer.stop()
         self.logger.info('🐼 Kafka producer stopped')
-
-
-class KafkaPublisher(Publisher):
-    def __init__(
-        self,
-        logger: logging.Logger,
-        publish_connection: KafkaPublishConnection,
-        serializer: Optional[MessageSerializer] = None,
-        retry: int = 3
-    ):
-        self.logger = logger
-        self.serializer = get_message_serializer(serializer)
-        self.conn = publish_connection
-        self._retry = retry
-
-    async def publish(self, event_name: str, message: Any):
-        return await self._publish(event_name, message, self._retry)
-
-    async def _publish(self, event_name: str, message: Any, retry: int):
-        try:
-            async with self.conn as conn:
-                producer: AIOKafkaProducer = conn.producer
-                encoded_value = self.serializer.encode(event_name, message)
-                self.logger.info(
-                    f'🐼 Publish "{event_name}": {message}'
-                )
-                await producer.send_and_wait(event_name, encoded_value)
-                retry = self._retry
-        except Exception:
-            if retry == 0:
-                raise
-            await self._publish(event_name, message, retry-1)
+        self.producer = None

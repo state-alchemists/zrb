@@ -1,10 +1,8 @@
 from component.app import app
 from component.app_state import app_state
 from component.log import logger
-from component.message_consumer import consumer
-from component.message_publisher import publisher
+from component.messagebus import consumer, publisher
 from helper.async_task import create_task
-
 
 app_state.set_liveness(True)
 messages = []
