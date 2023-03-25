@@ -68,16 +68,36 @@ services:
       retries: 30
 
 
-  snake_app_name:
+  monolith_snake_app_name:
     build: src
     image: ${IMAGE:-kebab-app-name}
     container_name: snake_app_name
     hostname: snake_app_name
     env_file: 'src/template.env'
     environment:
+      APP_NAME: ${APP_NAME:-kebab-app-name}
       APP_PORT: ${APP_PORT:-8080}
     ports:
       - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: on-failure
     profiles:
       - monolith
+
+
+  snake_app_name-gateway:
+    build: src
+    image: ${IMAGE:-kebab-app-name}
+    container_name: snake_app_name_gateway
+    hostname: snake_app_name_gateway
+    env_file:
+      - 'src/template.env'
+      - 'src/feature_enabled.env'
+    environment:
+      APP_NAME: ${APP_NAME:-kebab-app-name}-gateway
+      APP_PORT: ${APP_PORT:-8080}
+      APP_ENABLE_MESSAGE_CONSUMER: false
+    ports:
+      - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
+    restart: on-failure
+    profiles:
+      - microservices

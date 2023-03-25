@@ -1,5 +1,5 @@
 from config import (
-    app_name, app_broker_type, app_rmq_connection, app_kafka_bootstrap_servers
+    app_name, app_broker_type, app_rmq_connection_string, app_kafka_bootstrap_servers
 )
 from core.messagebus.mock import MockConsumer, MockPublisher
 from core.messagebus.messagebus import Consumer, MessageSerializer, Publisher
@@ -18,7 +18,7 @@ def init_publisher(
     if broker_type == 'rabbitmq':
         return RMQPublisher(
             logger=logger,
-            connection_string=app_rmq_connection,
+            connection_string=app_rmq_connection_string,
             serializer=serializer
         )
     if broker_type == 'kafka':
@@ -40,7 +40,7 @@ def init_consumer(
     if broker_type == 'rabbitmq':
         return RMQConsumer(
             logger=logger,
-            connection_string=app_rmq_connection,
+            connection_string=app_rmq_connection_string,
             serializer=serializer
         )
     if broker_type == 'kafka':

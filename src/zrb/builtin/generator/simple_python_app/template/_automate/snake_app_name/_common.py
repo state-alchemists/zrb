@@ -1,7 +1,9 @@
 from zrb import BoolInput, IntInput, StrInput, Env
 import os
 
+###############################################################################
 # Constants
+###############################################################################
 
 CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
@@ -10,8 +12,9 @@ DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, 'deployment')
 APP_DIR = os.path.join(RESOURCE_DIR, 'src')
 TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 
-
-# Inputs
+###############################################################################
+# Input Definitions
+###############################################################################
 
 local_input = BoolInput(
     name='local-kebab-app-name',
@@ -55,7 +58,9 @@ pulumi_stack_input = StrInput(
     default=os.getenv('ZRB_ENV', 'dev')
 )
 
-# Envs
+###############################################################################
+# Env Definitions
+###############################################################################
 
 image_env = Env(
     name='IMAGE',

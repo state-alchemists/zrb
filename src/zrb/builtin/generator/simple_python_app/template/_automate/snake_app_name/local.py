@@ -8,6 +8,10 @@ import os
 
 app_env_file = EnvFile(env_file=TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX')
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 start_snake_app_name = CmdTask(
     icon='🚤',
     name='start-kebab-app-name',

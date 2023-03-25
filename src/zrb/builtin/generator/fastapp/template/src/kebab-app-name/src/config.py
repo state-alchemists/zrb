@@ -12,7 +12,11 @@ app_host = os.environ.get('APP_HOST', '0.0.0.0')
 app_port = int(os.environ.get('APP_PORT', '8080'))
 app_reload = str_to_boolean(os.environ.get('APP_RELOAD', 'true'))
 
-app_rmq_connection = os.environ.get(
+app_enable_message_consumer: bool = str_to_boolean(os.getenv(
+    'APP_ENABLE_MESSAGE_CONSUMER', 'true'
+))
+
+app_rmq_connection_string = os.environ.get(
     'APP_RMQ_CONNECTION', 'amqp://guest:guest@localhost/'
 )
 

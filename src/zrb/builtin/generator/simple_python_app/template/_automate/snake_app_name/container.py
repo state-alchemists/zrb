@@ -17,6 +17,10 @@ compose_envs = [
     ),
 ]
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 remove_snake_app_name_container = DockerComposeTask(
     icon='💨',
     name='remove-kebab-app-name-container',

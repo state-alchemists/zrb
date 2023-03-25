@@ -1,13 +1,14 @@
-from zrb import DockerComposeTask, Env, HTTPChecker, runner
+from zrb import DockerComposeTask, runner
 from zrb.builtin._group import project_group
 from ._common import (
-    RESOURCE_DIR,
-    rabbitmq_checker, rabbitmq_management_checker,
+    RESOURCE_DIR, SKIP_CONTAINER_EXECUTION,
+    app_container_checker, rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker,
     kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker,
-    local_input, host_input, https_input, image_input,
+    local_input, mode_input, host_input, https_input, image_input,
     compose_app_broker_type_env, compose_app_host_port_env,
+    start_container_compose_profile_env,
     compose_rabbitmq_host_port_env, compose_rabbitmq_management_host_port_env,
     compose_redpanda_console_host_port_env,
     compose_kafka_outside_host_port_env,
@@ -29,23 +30,10 @@ compose_envs = [
     compose_pandaproxy_outside_host_port_env,
     compose_pandaproxy_plaintext_host_port_env
 ]
-compose_checkers = [
-    HTTPChecker(
-        name='check-kebab-app-name-monolith',
-        host='{{input.snake_app_name_host}}',
-        url='/readiness',
-        port='{{env.get("HOST_PORT", "httpPort")}}',
-        is_https='{{input.snake_app_name_https}}'
-    ),
-    rabbitmq_checker,
-    rabbitmq_management_checker,
-    kafka_outside_checker,
-    kafka_plaintext_checker,
-    redpanda_console_checker,
-    pandaproxy_outside_checker,
-    pandaproxy_plaintext_checker,
-]
 
+###############################################################################
+# Task Definitions
+###############################################################################
 
 remove_snake_app_name_container = DockerComposeTask(
     icon='💨',
@@ -66,11 +54,12 @@ start_snake_app_name_container = DockerComposeTask(
     group=project_group,
     inputs=[
         local_input,
+        mode_input,
         host_input,
         https_input,
         image_input,
     ],
-    skip_execution='{{not input.local_snake_app_name}}',
+    skip_execution=SKIP_CONTAINER_EXECUTION,
     upstreams=[
         build_snake_app_name_image,
         remove_snake_app_name_container
@@ -79,27 +68,10 @@ start_snake_app_name_container = DockerComposeTask(
     compose_cmd='up',
     compose_env_prefix=compose_env_prefix,
     envs=compose_envs + [
-        Env(
-            name='COMPOSE_PROFILES',
-            os_name='',
-            default=' '.join([
-                '{{',
-                '",".join([',
-                '  env.get("APP_BROKER_TYPE", "rabbitmq"),',
-                '  "monolith"',
-                '])',
-                '}}'
-            ])
-        )
+        start_container_compose_profile_env,
     ],
     checkers=[
-        HTTPChecker(
-            name='check-kebab-app-name-monolith',
-            host='{{input.snake_app_name_host}}',
-            url='/readiness',
-            port='{{env.get("HOST_PORT", "httpPort")}}',
-            is_https='{{input.snake_app_name_https}}'
-        ),
+        app_container_checker,
         rabbitmq_checker,
         rabbitmq_management_checker,
         kafka_outside_checker,

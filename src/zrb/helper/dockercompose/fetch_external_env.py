@@ -13,11 +13,12 @@ def fetch_external_env(data: Any) -> Mapping[str, str]:
             for environment in environments:
                 parts: List[str] = environment.split('=')
                 if len(parts) > 0:
-                    env_str = parts[1]
+                    env_str = str(parts[1])
                     env_dict = parse_external_env_string(env_str)
                     global_env_dict.update(env_dict)
         if isinstance(environments, dict):
             for _, env_str in environments.items():
+                env_str = str(env_str)
                 env_dict = parse_external_env_string(env_str)
                 global_env_dict.update(env_dict)
     return global_env_dict

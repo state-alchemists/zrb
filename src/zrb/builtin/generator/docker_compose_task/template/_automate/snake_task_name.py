@@ -2,9 +2,17 @@ from zrb import DockerComposeTask, HTTPChecker, Env, runner
 from zrb.builtin._group import project_group
 import os
 
+###############################################################################
+# Constants
+###############################################################################
+
 CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-task-name')
+
+###############################################################################
+# Task Definitions
+###############################################################################
 
 snake_task_name = DockerComposeTask(
     name='kebab-task-name',

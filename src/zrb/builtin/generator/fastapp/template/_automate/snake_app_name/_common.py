@@ -1,7 +1,11 @@
-from zrb import BoolInput, IntInput, StrInput, Env, HTTPChecker, PortChecker
+from zrb import (
+    BoolInput, ChoiceInput, IntInput, StrInput, Env, HTTPChecker, PortChecker
+)
 import os
 
+###############################################################################
 # Constants
+###############################################################################
 
 CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
@@ -9,8 +13,29 @@ RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-app-name')
 DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, 'deployment')
 APP_DIR = os.path.join(RESOURCE_DIR, 'src')
 TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
+SKIP_CONTAINER_EXECUTION = '{{not input.local_snake_app_name}}'
+SKIP_SUPPORT_CONTAINER_EXECUTION = ' '.join([
+    '{{',
+    'not input.local_snake_app_name',
+    'or env.get("APP_BROKER_TYPE") not in ["rabbitmq", "kafka"]',
+    '}}',
+])
+SKIP_LOCAL_MONOLITH_EXECUTION = ' '.join([
+    '{{',
+    'not input.local_snake_app_name',
+    'or input.snake_app_name_mode == "microservices"',
+    '}}',
+])
+SKIP_LOCAL_MICROSERVICES_EXECUTION = ' '.join([
+    '{{',
+    'not input.local_snake_app_name',
+    'or input.snake_app_name_mode == "monolith"',
+    '}}',
+])
 
-# Checkers
+###############################################################################
+# Checker Task Definitions
+###############################################################################
 
 rabbitmq_management_checker = HTTPChecker(
     name='check-rabbitmq-management',
@@ -57,13 +82,39 @@ pandaproxy_outside_checker = PortChecker(
     skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
 )
 
-# Inputs
+app_container_checker = HTTPChecker(
+    name='check-kebab-app-name-container',
+    host='{{input.snake_app_name_host}}',
+    url='/readiness',
+    port='{{env.get("HOST_PORT", "httpPort")}}',
+    is_https='{{input.snake_app_name_https}}'
+)
+
+app_local_checker = HTTPChecker(
+    name='check-kebab-app-name',
+    host='{{input.snake_app_name_host}}',
+    url='/readiness',
+    port='{{env.APP_PORT}}',
+    is_https='{{input.snake_app_name_https}}'
+)
+
+###############################################################################
+# Input Definitions
+###############################################################################
 
 local_input = BoolInput(
     name='local-kebab-app-name',
     description='Use local "kebab-app-name"',
     prompt='Use local "kebab-app-name"?',
     default=True
+)
+
+mode_input = ChoiceInput(
+    name='kebab-app-name-mode',
+    description='"kebab-app-name" mode',
+    prompt='"kebab-app-name" mode',
+    choices=['monolith', 'microservices'],
+    default='monolith'
 )
 
 https_input = BoolInput(
@@ -101,7 +152,9 @@ pulumi_stack_input = StrInput(
     default=os.getenv('ZRB_ENV', 'dev')
 )
 
-# Envs
+###############################################################################
+# Env Definitions
+###############################################################################
 
 image_env = Env(
     name='IMAGE',
@@ -191,4 +244,29 @@ compose_pandaproxy_outside_host_port_env = Env(
     name='PANDAPROXY_OUTSIDE_HOST_PORT',
     os_name='CONTAINER_ENV_PREFIX_PANDAPROXY_OUTSIDE_HOST_PORT',
     default='9092'
+)
+
+start_container_compose_profile_env = Env(
+    name='COMPOSE_PROFILES',
+    os_name='',
+    default=' '.join([
+        '{{',
+        '",".join([',
+        '  env.get("APP_BROKER_TYPE", "rabbitmq"),',
+        '  input.get("snake_app_name_mode", "monolith")',
+        '])',
+        '}}'
+    ])
+)
+
+start_support_container_compose_profile_env = Env(
+    name='COMPOSE_PROFILES',
+    os_name='',
+    default=' '.join([
+        '{{',
+        '",".join([',
+        '  env.get("APP_BROKER_TYPE", "rabbitmq"),',
+        '])',
+        '}}'
+    ])
 )

@@ -12,6 +12,10 @@ compose_inputs: List[Input] = [
 ]
 compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 build_snake_app_name_image = DockerComposeTask(
     icon='🏭',
     name='build-kebab-app-name-image',

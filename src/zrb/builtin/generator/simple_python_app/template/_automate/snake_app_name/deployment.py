@@ -27,6 +27,10 @@ deployment_envs: List[Env] = [
     deployment_replica_env,
 ]
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 deploy_snake_app_name = CmdTask(
     icon='🚧',
     name='deploy-kebab-app-name',
