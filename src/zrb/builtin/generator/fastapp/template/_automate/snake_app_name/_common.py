@@ -12,6 +12,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-app-name')
 DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, 'deployment')
 APP_DIR = os.path.join(RESOURCE_DIR, 'src')
+APP_FRONTEND_DIR = os.path.join(APP_DIR, 'frontend')
 TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 SKIP_CONTAINER_EXECUTION = '{{not input.local_snake_app_name}}'
 SKIP_SUPPORT_CONTAINER_EXECUTION = ' '.join([

@@ -1,3 +1,4 @@
 .env
+frontend/build
 __pycache__
 venv

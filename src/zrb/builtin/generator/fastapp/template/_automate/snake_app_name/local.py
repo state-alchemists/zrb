@@ -19,6 +19,7 @@ from ._common import (
     start_support_container_compose_profile_env,
 )
 from .image import build_snake_app_name_image
+from .frontend import build_snake_app_name_frontend
 from .container import remove_snake_app_name_container
 import os
 
@@ -87,7 +88,10 @@ start_monolith_snake_app_name = CmdTask(
         https_input
     ],
     skip_execution=SKIP_LOCAL_MONOLITH_EXECUTION,
-    upstreams=[start_snake_app_name_support_container],
+    upstreams=[
+        start_snake_app_name_support_container,
+        build_snake_app_name_frontend
+    ],
     cwd=APP_DIR,
     env_files=[app_env_file],
     envs=app_envs,
@@ -107,7 +111,10 @@ start_snake_app_name_gateway = CmdTask(
         https_input
     ],
     skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION,
-    upstreams=[start_snake_app_name_support_container],
+    upstreams=[
+        start_snake_app_name_support_container,
+        build_snake_app_name_frontend
+    ],
     cwd=APP_DIR,
     env_files=[app_env_file],
     envs=app_envs,

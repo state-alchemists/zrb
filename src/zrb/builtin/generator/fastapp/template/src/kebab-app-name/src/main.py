@@ -28,11 +28,11 @@ async def handle_event(message):
     print(messages)
 
 
-@app.get('/')
+@app.get('/api/get')
 def handle_get():
-    return ('hello world')
+    return messages
 
 
-@app.get('/send')
+@app.get('/api/send')
 async def handle_send():
     return await publisher.publish('coba', 'sesuatu')
