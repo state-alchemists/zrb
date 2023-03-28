@@ -1,3 +1,6 @@
+from component.log import logger
+
+
 class AppState():
     __instance = None
 
@@ -24,3 +27,8 @@ class AppState():
 
 
 app_state = AppState()
+
+
+def set_not_ready_on_error(exception: Exception):
+    logger.critical(exception)
+    app_state.set_readiness(False)

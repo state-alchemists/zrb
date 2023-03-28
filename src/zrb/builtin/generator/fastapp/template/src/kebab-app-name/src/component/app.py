@@ -1,35 +1,50 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from config import (
-    app_enable_frontend, cors_allow_credentials, cors_allow_headers,
-    cors_allow_methods, cors_allow_origin_regex, cors_allow_origins,
-    cors_expose_headers, cors_max_age
+    app_name, app_enable_message_consumer, app_enable_frontend,
+    cors_allow_credentials, cors_allow_headers, cors_allow_methods,
+    cors_allow_origin_regex, cors_allow_origins, cors_expose_headers,
+    cors_max_age
 )
-from component.app_state import app_state
-from starlette.requests import Request
-from starlette.responses import FileResponse
+from component.app_state import app_state, set_not_ready_on_error
+from component.messagebus import consumer
+from component.log import logger
+from helper.async_task import create_task
+from contextlib import asynccontextmanager
 import os
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(f'{app_name} started')
+    app_state.set_liveness(True)
+    if app_enable_message_consumer:
+        create_task(consumer.run(), on_error=set_not_ready_on_error)
+    if app_enable_frontend:
+        build_path = os.path.join('frontend', 'build')
+        app.mount(
+            path='',
+            app=StaticFiles(directory=build_path, html=True),
+            name='frontend'
+        )
+    app_state.set_readiness(True)
+    yield
+    logger.info(f'{app_name} closed')
+
+app = FastAPI(lifespan=lifespan)
 
 if app_enable_frontend:
     @app.middleware("http")
-    async def static_file_middleware(request: Request, call_next):
-        frontend_build_path = os.path.join('frontend', 'build')
-        request_url = request.url.path.strip('/')
-        resource_path = os.path.join(frontend_build_path, request_url)
-        if os.path.isfile(resource_path):
-            # Resource exists
-            return FileResponse(resource_path)
-        if os.path.isdir(resource_path):
-            # Resource is directory
-            file_path = os.path.join(resource_path, 'index.html')
-            if os.path.isfile(file_path):
-                # Index.html is exist within the directory
-                return FileResponse(file_path)
-        # Nothing exists, this must be served programmatically
+    async def catch_all(request, call_next):
         response = await call_next(request)
+        if response.status_code == 404:
+            # This route will match any requests that haven't been handled yet
+            index_path = os.path.join('frontend', 'build', 'index.html')
+            with open(index_path, "r") as f:
+                html_content = f.read()
+            return HTMLResponse(content=html_content, status_code=200)
         return response
 
 
