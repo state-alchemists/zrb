@@ -16,16 +16,18 @@ app = FastAPI()
 if app_enable_frontend:
     @app.middleware("http")
     async def static_file_middleware(request: Request, call_next):
-        build_path = os.path.join('frontend', 'build')
+        frontend_build_path = os.path.join('frontend', 'build')
         request_url = request.url.path.strip('/')
-        file_path = os.path.join(build_path, request_url)
-        # File exists, serve it
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        # File doesn't exists, try to look for index.html
-        file_path = os.path.join(file_path, 'index.html')
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
+        resource_path = os.path.join(frontend_build_path, request_url)
+        if os.path.isfile(resource_path):
+            # Resource exists
+            return FileResponse(resource_path)
+        if os.path.isdir(resource_path):
+            # Resource is directory
+            file_path = os.path.join(resource_path, 'index.html')
+            if os.path.isfile(file_path):
+                # Index.html is exist within the directory
+                return FileResponse(file_path)
         # Nothing exists, this must be served programmatically
         response = await call_next(request)
         return response

@@ -1,2 +1,2 @@
 npm install --save
-npm run build
+npm run build:watch
