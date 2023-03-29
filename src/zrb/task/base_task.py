@@ -232,6 +232,8 @@ class BaseTask(TaskModel):
         '''
         if len(self.checkers) == 0:
             return await self.check()
+        while not self._is_executed:
+            await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self.checkers:
             check_coroutines.append(
