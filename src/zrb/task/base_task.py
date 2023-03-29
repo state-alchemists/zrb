@@ -71,8 +71,9 @@ class BaseTask(TaskModel):
         self.checkers = checkers
         self.checking_interval = checking_interval
         self.skip_execution = skip_execution
-        self._is_checked: bool = False
-        self._is_executed: bool = False
+        self._is_check_triggered: bool = False
+        self._is_execution_triggered: bool = False
+        self._is_execution_started: bool = False
         self._run_function: Optional[Callable[..., Any]] = run
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
@@ -214,12 +215,12 @@ class BaseTask(TaskModel):
         print(colored(f'{colored_label}{colored_run_cmd}'), file=sys.stderr)
 
     async def _cached_check(self) -> bool:
-        if self._is_checked:
+        if self._is_check_triggered:
             self.log_debug('Skip checking, because checking flag has been set')
             return True
         check_result = await self._check()
         if check_result:
-            self._is_checked = True
+            self._is_check_triggered = True
             self.log_debug('Set checking flag to True')
         return check_result
 
@@ -232,7 +233,7 @@ class BaseTask(TaskModel):
         '''
         if len(self.checkers) == 0:
             return await self.check()
-        while not self._is_executed:
+        while not self._is_execution_started:
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self.checkers:
@@ -258,11 +259,11 @@ class BaseTask(TaskModel):
         return results[-1]
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
-        if self._is_executed:
+        if self._is_execution_triggered:
             self.log_debug('Skip execution because execution flag is True')
             return
         self.log_debug('Set execution flag to True')
-        self._is_executed = True
+        self._is_execution_triggered = True
         self.log_debug('Start running')
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
@@ -272,6 +273,8 @@ class BaseTask(TaskModel):
             ))
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
+        # mark execution as started, so that checkers can start checking
+        self._is_execution_started = True
         if self.render_bool(self.skip_execution):
             self.log_info(
                 f'Skip execution because config: {self.skip_execution}'
