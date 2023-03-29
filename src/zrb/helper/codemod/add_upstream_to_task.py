@@ -73,6 +73,7 @@ def add_upstream_to_task(
             # `upstreams` argument and modify the value
             if (
                 not self._on_task_call
+                or updated_node.keyword is None
                 or updated_node.keyword.value != 'upstreams'
             ):
                 return updated_node

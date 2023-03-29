@@ -91,7 +91,7 @@ services:
     hostname: snake_app_name_gateway
     env_file:
       - 'src/template.env'
-      - 'src/feature_enabled.env'
+      - 'src/module_enabled.env'
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}-gateway
       APP_PORT: ${APP_PORT:-8080}

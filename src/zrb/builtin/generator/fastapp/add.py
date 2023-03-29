@@ -28,7 +28,7 @@ current_dir = os.path.dirname(__file__)
 
 
 @python_task(
-    name='task-validate-create',
+    name='validate',
     inputs=[project_dir_input, app_name_input],
 )
 async def validate(*args: Any, **kwargs: Any):
@@ -38,8 +38,13 @@ async def validate(*args: Any, **kwargs: Any):
     automation_dir = os.path.join(
         project_dir, '_automate', util.to_snake_case(app_name)
     )
-    if os.path.isdir(automation_dir):
+    if os.path.exists(automation_dir):
         raise Exception(f'Directory already exists: {automation_dir}')
+    source_dir = os.path.join(
+        project_dir, 'src', f'{util.to_kebab_case(app_name)}'
+    )
+    if os.path.exists(source_dir):
+        raise Exception(f'Source already exists: {source_dir}')
 
 
 copy_resource = ResourceMaker(
@@ -51,7 +56,12 @@ copy_resource = ResourceMaker(
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
     scaffold_locks=[new_app_scaffold_lock],
-    excludes=['*/deployment/venv']
+    excludes=[
+        '*/deployment/venv',
+        '*/src/kebab-app-name/venv',
+        '*/src/kebab-app-name/frontend/node_modules',
+        '*/src/kebab-app-name/frontend/build',
+    ]
 )
 
 register_local_app_module = create_register_local_app_module(

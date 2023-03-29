@@ -21,18 +21,23 @@ current_dir = os.path.dirname(__file__)
 
 
 @python_task(
-    name='task-validate-create',
+    name='validate',
     inputs=default_task_inputs,
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_project_dir(project_dir)
-    task_name = kwargs.get(project_dir, 'task_name')
+    task_name = kwargs.get('task_name')
     automation_file = os.path.join(
         project_dir, '_automate', f'{util.to_snake_case(task_name)}.py'
     )
-    if os.path.isfile(automation_file):
-        raise Exception(f'File already exists: {automation_file}')
+    if os.path.exists(automation_file):
+        raise Exception(f'Automation file already exists: {automation_file}')
+    source_dir = os.path.join(
+        project_dir, 'src', f'{util.to_kebab_case(task_name)}'
+    )
+    if os.path.exists(source_dir):
+        raise Exception(f'Source already exists: {source_dir}')
 
 
 replacements = get_default_task_replacements()

@@ -1,5 +1,5 @@
-feature_enabled.env
-feature_disabled.env
+module_enabled.env
+module_disabled.env
 .env
 __pycache__
 venv
