@@ -72,6 +72,7 @@ class BaseTask(TaskModel):
         self.checking_interval = checking_interval
         self.skip_execution = skip_execution
         self._is_check_triggered: bool = False
+        self._is_checked: bool = False
         self._is_execution_triggered: bool = False
         self._is_execution_started: bool = False
         self._run_function: Optional[Callable[..., Any]] = run
@@ -216,11 +217,15 @@ class BaseTask(TaskModel):
 
     async def _cached_check(self) -> bool:
         if self._is_check_triggered:
-            self.log_debug('Skip checking, because checking flag has been set')
+            self.log_debug('Waiting checking flag to be set')
+            while not self._is_checked:
+                await asyncio.sleep(0.1)
             return True
+        self._is_check_triggered = True
+        self.log_debug('Start checking')
         check_result = await self._check()
         if check_result:
-            self._is_check_triggered = True
+            self._is_checked = True
             self.log_debug('Set checking flag to True')
         return check_result
 
@@ -233,7 +238,9 @@ class BaseTask(TaskModel):
         '''
         if len(self.checkers) == 0:
             return await self.check()
+        self.log_debug('Waiting execution to be started')
         while not self._is_execution_started:
+            # Don't start checking before the execution itself has been started
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self.checkers:
