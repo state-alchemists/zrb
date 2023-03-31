@@ -38,6 +38,12 @@ zrb project add fastapp \
     --app-name "fastapp" \
     --http-port 3002
 
+echo '🤖 Add fastapp module'
+zrb project add fastapp-module \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library"
+
 
 echo '🤖 Add test-project task'
 echo '' >> zrb_init.py

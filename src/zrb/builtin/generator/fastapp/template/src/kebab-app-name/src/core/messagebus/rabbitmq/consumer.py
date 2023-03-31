@@ -1,6 +1,6 @@
 from typing import Any, Callable, Mapping, Optional
 from core.messagebus.messagebus import (
-    Consumer, THandler, MessageSerializer, get_message_serializer
+    Consumer, TEventHandler, MessageSerializer, must_get_message_serializer
 )
 import asyncio
 import aiormq
@@ -20,22 +20,33 @@ class RMQConsumer(Consumer):
         self.logger = logger
         self.connection_string = connection_string
         self.connection: Optional[aiormq.Connection] = None
-        self.serializer = get_message_serializer(serializer)
+        self.serializer = must_get_message_serializer(serializer)
         self.retry = retry
         self.retry_interval = retry_interval
-        self._handlers: Mapping[str, THandler] = {}
+        self._handlers: Mapping[str, TEventHandler] = {}
+        self._is_start_triggered = False
+        self._is_stop_triggered = False
 
-    def register(self, event_name: str) -> Callable[[THandler], Any]:
-        def wrapper(handler: THandler):
+    def register(self, event_name: str) -> Callable[[TEventHandler], Any]:
+        def wrapper(handler: TEventHandler):
             self.logger.warning(f'🐰 Register handler for "{event_name}"')
             self._handlers[event_name] = handler
             return handler
         return wrapper
 
-    async def run(self):
-        return await self._run(self.retry)
+    async def start(self):
+        if self._is_start_triggered:
+            return
+        self._is_start_triggered = True
+        return await self._start(self.retry)
 
-    async def _run(self, retry: int):
+    async def stop(self):
+        if self._is_stop_triggered:
+            return
+        self._is_stop_triggered = True
+        await self._disconnect()
+
+    async def _start(self, retry: int):
         try:
             if self.connection is None or self.connection.is_closed:
                 await self._connect()
@@ -61,7 +72,7 @@ class RMQConsumer(Consumer):
                 raise
             await self._disconnect()
             await asyncio.sleep(self.retry_interval)
-            await self._run(retry-1)
+            await self._start(retry-1)
         finally:
             await self._disconnect()
 
@@ -91,7 +102,7 @@ class RMQConsumer(Consumer):
         return on_message
 
     async def _run_handler(
-        self, message_handler: THandler, decoded_value: Any
+        self, message_handler: TEventHandler, decoded_value: Any
     ):
         if inspect.iscoroutinefunction(message_handler):
             return asyncio.create_task(message_handler(decoded_value))

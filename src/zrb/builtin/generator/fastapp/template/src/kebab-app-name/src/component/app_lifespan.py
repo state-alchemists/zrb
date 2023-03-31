@@ -16,7 +16,7 @@ async def app_lifespan(app: FastAPI):
     logger.info(f'{app_name} started')
     app_state.set_liveness(True)
     if app_enable_message_consumer:
-        create_task(consumer.run(), on_error=set_not_ready_on_error)
+        create_task(consumer.start(), on_error=set_not_ready_on_error)
     if app_enable_frontend:
         build_path = os.path.join('frontend', 'build')
         app.mount(
@@ -26,4 +26,6 @@ async def app_lifespan(app: FastAPI):
         )
     app_state.set_readiness(True)
     yield
+    if app_enable_message_consumer:
+        await consumer.stop()
     logger.info(f'{app_name} closed')

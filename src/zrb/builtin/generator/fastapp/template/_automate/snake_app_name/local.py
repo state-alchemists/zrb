@@ -1,4 +1,4 @@
-from zrb import CmdTask, DockerComposeTask, EnvFile, runner
+from zrb import CmdTask, DockerComposeTask, Task, EnvFile, runner
 from zrb.builtin._group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, RESOURCE_DIR, TEMPLATE_ENV_FILE_NAME,
@@ -124,15 +124,15 @@ start_snake_app_name_gateway = CmdTask(
     ]
 )
 
-start_snake_app_name = CmdTask(
+start_snake_app_name = Task(
     icon='🚤',
     name='start-kebab-app-name',
     description='Start human readable app name',
     group=project_group,
-    cmd='echo "Ok"',
     upstreams=[
         start_monolith_snake_app_name,
         start_snake_app_name_gateway,
-    ]
+    ],
+    run=lambda *args, **kwargs: kwargs.get('_task').print_out('👌')
 )
 runner.register(start_snake_app_name)

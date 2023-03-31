@@ -1,8 +1,18 @@
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, List, Mapping, Optional
 from abc import ABC, abstractmethod
 from core.serializer.serializer import Serializer, JsonSerializer
 
-THandler = Callable[[Any], Any]
+TEventHandler = Callable[[Any], Any]
+
+
+class Admin(ABC):
+    @abstractmethod
+    def create_events(self, event_names: List[str]):
+        pass
+
+    @abstractmethod
+    def delete_events(self, event_names: List[str]):
+        pass
 
 
 class Publisher(ABC):
@@ -13,11 +23,15 @@ class Publisher(ABC):
 
 class Consumer(ABC):
     @abstractmethod
-    def register(self, event_name: str) -> Callable[[THandler], Any]:
+    def register(self, event_name: str) -> Callable[[TEventHandler], Any]:
         pass
 
     @abstractmethod
-    def run(self):
+    def start(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
         pass
 
 
@@ -44,7 +58,7 @@ class MessageSerializer():
         )
 
 
-def get_message_serializer(
+def must_get_message_serializer(
     serializer: Optional[MessageSerializer] = None
 ) -> MessageSerializer:
     if serializer is None:

@@ -39,7 +39,9 @@ async def validate(*args: Any, **kwargs: Any):
         project_dir, '_automate', util.to_snake_case(app_name)
     )
     if os.path.exists(automation_dir):
-        raise Exception(f'Directory already exists: {automation_dir}')
+        raise Exception(
+            f'Automation directory already exists: {automation_dir}'
+        )
     source_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )
@@ -136,6 +138,6 @@ register_destroy = create_register_app_destroy(
     ],
     runner=runner
 )
-async def add_simple_python_app(*args: Any, **kwargs: Any):
+async def add_fastapp(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')

@@ -1,5 +1,6 @@
 from config import (
-    app_name, app_broker_type, app_rmq_connection_string, app_kafka_bootstrap_servers
+    app_name, app_broker_type, app_rmq_connection_string,
+    app_kafka_bootstrap_servers
 )
 from core.messagebus.mock import MockConsumer, MockPublisher
 from core.messagebus.messagebus import Consumer, MessageSerializer, Publisher
@@ -27,9 +28,9 @@ def init_publisher(
             bootstrap_servers=app_kafka_bootstrap_servers,
             serializer=serializer
         )
-    if broker_type == 'mock':
-        return default_publisher
-    raise Exception(f'Invalid broker type: {broker_type}')
+    if broker_type != 'mock':
+        logger.warning(f'Invalid broker type {broker_type}')
+    return default_publisher
 
 
 def init_consumer(
@@ -50,9 +51,9 @@ def init_consumer(
             group_id=app_name,
             serializer=serializer
         )
-    if broker_type == 'mock':
-        return default_consumer
-    raise Exception(f'Invalid broker type: {broker_type}')
+    if broker_type != 'mock':
+        logger.warning(f'Invalid broker type {broker_type}')
+    return default_consumer
 
 
 def init_message_serializer() -> MessageSerializer:

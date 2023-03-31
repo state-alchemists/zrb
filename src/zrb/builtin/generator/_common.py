@@ -50,6 +50,14 @@ app_image_name_input = StrInput(
     default=f'docker.io/{app_image_default_namespace}/' + '{{util.to_kebab_case(input.app_name)}}',  # noqa
 )
 
+module_name_input = StrInput(
+    name='module-name',
+    shortcut='m',
+    description='module name',
+    prompt='module name',
+    default=get_random_name(),
+)
+
 task_name_input = StrInput(
     name='task-name',
     shortcut='t',
@@ -84,6 +92,13 @@ default_app_inputs: List[BaseInput] = [
     http_port_input,
     env_prefix_input,
 ]
+
+default_module_inputs: List[BaseInput] = [
+    project_dir_input,
+    app_name_input,
+    module_name_input,
+]
+
 
 new_task_scaffold_lock = os.path.sep.join([
     '{{ os.path.join(input.project_dir, "_automate") }}',
@@ -225,4 +240,25 @@ def get_default_app_replacement_middlewares() -> List[ReplacementMiddleware]:
         add_snake_key('snake_app_name', 'appName'),
         add_kebab_key('kebab-app-name', 'appName'),
         add_human_readable_key('human readable app name', 'appName'),
+    ]
+
+
+def get_default_module_replacements() -> Replacement:
+    return {
+        'appName': '{{input.app_name}}',
+        'moduleName': '{{input.module_name}}',
+    }
+
+
+def get_default_module_replacement_middlewares() -> List[ReplacementMiddleware]:
+    return [
+        add_pascal_key('PascalAppName', 'appName'),
+        add_camel_key('camelAppName', 'appName'),
+        add_snake_key('snake_app_name', 'appName'),
+        add_kebab_key('kebab-app-name', 'appName'),
+        add_human_readable_key('human readable app name', 'appName'),
+        add_pascal_key('PascalModuleName', 'moduleName'),
+        add_camel_key('camelModuleName', 'moduleName'),
+        add_snake_key('snake_module_name', 'moduleName'),
+        add_kebab_key('kebab-module-name', 'moduleName'),
     ]

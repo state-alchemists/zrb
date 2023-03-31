@@ -1,6 +1,6 @@
 from typing import Any, Optional
 from core.messagebus.messagebus import (
-    Publisher,  MessageSerializer, get_message_serializer
+    Publisher,  MessageSerializer, must_get_message_serializer
 )
 import aiormq
 import asyncio
@@ -19,7 +19,7 @@ class RMQPublisher(Publisher):
         self.logger = logger
         self.connection_string = connection_string
         self.connection: Optional[aiormq.Connection] = None
-        self.serializer = get_message_serializer(serializer)
+        self.serializer = must_get_message_serializer(serializer)
         self.retry = retry
         self.retry_interval = retry_interval
 

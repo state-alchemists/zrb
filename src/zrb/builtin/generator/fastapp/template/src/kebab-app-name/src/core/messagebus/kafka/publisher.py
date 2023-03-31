@@ -1,6 +1,9 @@
 from typing import Any, Optional
 from core.messagebus.messagebus import (
-    Publisher, MessageSerializer, get_message_serializer
+    Publisher, MessageSerializer, must_get_message_serializer
+)
+from core.messagebus.kafka.admin import (
+    KafkaAdmin, must_get_kafka_admin
 )
 from aiokafka import AIOKafkaProducer
 from aiokafka.producer.producer import _missing, DefaultPartitioner
@@ -41,11 +44,24 @@ class KafkaPublisher(Publisher):
         sasl_kerberos_domain_name=None,
         sasl_oauth_token_provider=None,
         serializer: Optional[MessageSerializer] = None,
+        kafka_admin: Optional[KafkaAdmin] = None,
         retry: int = 3,
         retry_interval: int = 5
     ):
         self.logger = logger
-        self.serializer = get_message_serializer(serializer)
+        self.serializer = must_get_message_serializer(serializer)
+        self.kafka_admin = must_get_kafka_admin(
+            logger=logger,
+            kafka_admin=kafka_admin,
+            bootstrap_servers=bootstrap_servers,
+            security_protocol=security_protocol,
+            sasl_mechanism=sasl_mechanism,
+            sasl_plain_password=sasl_plain_password,
+            sasl_plain_username=sasl_plain_username,
+            sasl_kerberos_service_name=sasl_kerberos_service_name,
+            sasl_kerberos_domain_name=sasl_kerberos_domain_name,
+            sasl_oauth_token_provider=sasl_oauth_token_provider,
+        )
         self.producer: Optional[AIOKafkaProducer] = None
         self.bootstrap_servers = bootstrap_servers
         self.client_id = client_id
@@ -78,15 +94,17 @@ class KafkaPublisher(Publisher):
         self.retry_interval = retry_interval
 
     async def publish(self, event_name: str, message: Any):
+        self.kafka_admin.create_events([event_name])
+        topic_name = self.kafka_admin.get_topic_name(event_name)
         for attempt in range(self.retry):
             try:
                 await self._connect()
                 encoded_value = self.serializer.encode(event_name, message)
                 self.logger.info(
-                    f'🐼 Publish to "{event_name}": {message}'
+                    f'🐼 Publish to "{topic_name}": {message}'
                 )
                 return await self.producer.send_and_wait(
-                    event_name, encoded_value
+                    topic_name, encoded_value
                 )
             except Exception as e:
                 self.logger.error(f'🐼 Failed to publish message: {e}')

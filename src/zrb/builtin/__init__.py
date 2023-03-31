@@ -13,7 +13,7 @@ from .generator.docker_compose_task import add as generate_docker_compose_task
 from .generator.python_task import add as generate_python_task
 from .generator.simple_python_app import add as generate_simple_python_app
 from .generator.fastapp import add as generate_fastapp
-from .generator.fastapp import add as generate_fastapp_module
+from .generator.fastapp_module import add as generate_fastapp_module
 
 assert base64
 assert env
