@@ -2,6 +2,9 @@ from typing import Any, Callable, Mapping, Optional
 from core.messagebus.messagebus import (
     Consumer, TEventHandler, MessageSerializer, must_get_message_serializer
 )
+from core.messagebus.rabbitmq.admin import (
+    RMQAdmin, must_get_rmq_admin
+)
 import asyncio
 import aiormq
 import inspect
@@ -14,10 +17,16 @@ class RMQConsumer(Consumer):
         logger: logging.Logger,
         connection_string: str,
         serializer: Optional[MessageSerializer] = None,
+        rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 5,
         retry_interval: int = 5
     ):
         self.logger = logger
+        self.rmq_admin = must_get_rmq_admin(
+            logger=logger,
+            rmq_admin=rmq_admin,
+            connection_string=connection_string
+        )
         self.connection_string = connection_string
         self.connection: Optional[aiormq.Connection] = None
         self.serializer = must_get_message_serializer(serializer)
@@ -52,14 +61,15 @@ class RMQConsumer(Consumer):
                 await self._connect()
             self.logger.info('🐰 Get channel')
             channel = await self.connection.channel()
-            for event_name in self._handlers:
-                self.logger.info(f'🐰 Declare queue to consume: {event_name}')
-                await channel.queue_declare(event_name)
+            event_names = list(self._handlers.keys())
+            await self.rmq_admin.create_events(event_names)
+            for event_name in event_names:
+                queue_name = self.rmq_admin.get_queue_name(event_name)
                 on_message = self._create_consumer_callback(
                     channel, event_name
                 )
                 await channel.basic_consume(
-                    queue=event_name, consumer_callback=on_message
+                    queue=queue_name, consumer_callback=on_message
                 )
             retry = self.retry
             while True:
@@ -96,7 +106,8 @@ class RMQConsumer(Consumer):
         async def on_message(message):
             decoded_value = self.serializer.decode(event_name, message.body)
             handler = self._handlers.get(event_name)
-            self.logger.info(f'🐰 Consume from "{event_name}": {decoded_value}')
+            queue_name = self.rmq_admin.get_queue_name(event_name)
+            self.logger.info(f'🐰 Consume from "{queue_name}": {decoded_value}')
             await self._run_handler(handler, decoded_value)
             await channel.basic_ack(message.delivery_tag)
         return on_message

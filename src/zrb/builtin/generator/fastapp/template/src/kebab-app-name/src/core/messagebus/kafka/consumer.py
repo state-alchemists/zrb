@@ -138,7 +138,7 @@ class KafkaConsumer(Consumer):
         try:
             if self.consumer is None:
                 await self._connect()
-            self._init_topics()
+            await self._init_topics()
             topics = list(self._topic_to_event_map.keys())
             self.logger.warning(f'🐼 Subscribe to topics: {topics}')
             self.consumer.subscribe(topics=topics)
@@ -168,9 +168,9 @@ class KafkaConsumer(Consumer):
         finally:
             await self._disconnect()
 
-    def _init_topics(self):
+    async def _init_topics(self):
         event_names = self._handlers.keys()
-        self.kafka_admin.create_events(event_names)
+        await self.kafka_admin.create_events(event_names)
         self._topic_to_event_map = {
             event_name: self.kafka_admin.get_topic_name(event_name)
             for event_name in event_names

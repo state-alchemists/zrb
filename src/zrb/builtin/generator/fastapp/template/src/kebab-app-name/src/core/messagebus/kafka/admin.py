@@ -6,7 +6,7 @@ from kafka import __version__
 import logging
 
 
-class KafkaSingleEventConfig():
+class KafkaEventConfig():
     def __init__(
         self,
         topic_name: str,
@@ -23,7 +23,7 @@ class KafkaAdmin(Admin):
         self,
         logger: logging.Logger,
         bootstrap_servers: str,
-        configs: Mapping[str, KafkaSingleEventConfig],
+        configs: Mapping[str, KafkaEventConfig],
         client_id: str = 'kafka-admin-' + __version__,
         security_protocol='PLAINTEXT',
         sasl_mechanism="PLAIN",
@@ -45,12 +45,7 @@ class KafkaAdmin(Admin):
         self.sasl_kerberos_domain_name = sasl_kerberos_domain_name
         self.sasl_oauth_token_provider = sasl_oauth_token_provider
 
-    def get_config(self, event_name: str):
-        if event_name in self.configs:
-            return self.configs[event_name]
-        return KafkaSingleEventConfig(topic_name=event_name)
-
-    def create_events(self, event_names: List[str]):
+    async def create_events(self, event_names: List[str]):
         topics = [
             self.get_new_topic(event_name) for event_name in event_names
         ]
@@ -61,7 +56,7 @@ class KafkaAdmin(Admin):
             self.logger.debug('Not creating topic')
         admin_client.close()
 
-    def delete_events(self, event_names: List[str]):
+    async def delete_events(self, event_names: List[str]):
         topic_names = [
             self.get_topic_name(event_name) for event_name in event_names
         ]
@@ -69,7 +64,12 @@ class KafkaAdmin(Admin):
         admin_client.delete_topics(topic_names)
         admin_client.close()
 
-    def get_topic_name(self, event_name: str) -> NewTopic:
+    def get_config(self, event_name: str) -> KafkaEventConfig:
+        if event_name in self.configs:
+            return self.configs[event_name]
+        return KafkaEventConfig(topic_name=event_name)
+
+    def get_topic_name(self, event_name: str) -> str:
         event_config = self.get_config(event_name)
         return event_config.topic_name
 

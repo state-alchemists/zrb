@@ -1,6 +1,6 @@
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, List, Mapping
 from core.messagebus.messagebus import (
-    Publisher, Consumer, MessageSerializer, TEventHandler
+    Admin, Publisher, Consumer, MessageSerializer, TEventHandler
 )
 import asyncio
 import inspect
@@ -52,3 +52,11 @@ class MockPublisher(Publisher):
         encoded_value = self.serializer.encode(event_name, message)
         self.logger.info(f'🪵 Publish "{event_name}": {message}')
         await self.consumer.handle(event_name, encoded_value)
+
+
+class MockAdmin(Admin):
+    def create_events(self, event_names: List[str]):
+        pass
+
+    def delete_events(self, event_names: List[str]):
+        pass

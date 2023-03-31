@@ -2,6 +2,9 @@ from typing import Any, Optional
 from core.messagebus.messagebus import (
     Publisher,  MessageSerializer, must_get_message_serializer
 )
+from core.messagebus.rabbitmq.admin import (
+    RMQAdmin, must_get_rmq_admin
+)
 import aiormq
 import asyncio
 import logging
@@ -13,10 +16,16 @@ class RMQPublisher(Publisher):
         logger: logging.Logger,
         connection_string: str,
         serializer: Optional[MessageSerializer] = None,
+        rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 3,
         retry_interval: int = 5
     ):
         self.logger = logger
+        self.rmq_admin = must_get_rmq_admin(
+            logger=logger,
+            rmq_admin=rmq_admin,
+            connection_string=connection_string
+        )
         self.connection_string = connection_string
         self.connection: Optional[aiormq.Connection] = None
         self.serializer = must_get_message_serializer(serializer)
@@ -24,18 +33,20 @@ class RMQPublisher(Publisher):
         self.retry_interval = retry_interval
 
     async def publish(self, event_name: str, message: Any):
+        await self.rmq_admin.create_events([event_name])
+        queue_name = self.rmq_admin.get_queue_name(event_name)
+        exchange_name = self.rmq_admin.get_exchange_name(event_name)
         for attempt in range(self.retry):
             try:
                 if self.connection is None or self.connection.is_closed:
                     await self._connect()
                 self.logger.info('🐰 Get channel')
                 channel = await self.connection.channel()
-                self.logger.info(f'🐰 Declare queue to publish: {event_name}')
-                await channel.queue_declare(event_name)
-                self.logger.info(f'🐰 Publish to "{event_name}": {message}')
+                self.logger.info(f'🐰 Publish to "{queue_name}": {message}')
                 await channel.basic_publish(
                     body=self.serializer.encode(event_name, message),
-                    routing_key=event_name,
+                    exchange=exchange_name,
+                    routing_key=queue_name if exchange_name == '' else '',
                 )
                 return
             except Exception as e:

@@ -94,7 +94,7 @@ class KafkaPublisher(Publisher):
         self.retry_interval = retry_interval
 
     async def publish(self, event_name: str, message: Any):
-        self.kafka_admin.create_events([event_name])
+        await self.kafka_admin.create_events([event_name])
         topic_name = self.kafka_admin.get_topic_name(event_name)
         for attempt in range(self.retry):
             try:
