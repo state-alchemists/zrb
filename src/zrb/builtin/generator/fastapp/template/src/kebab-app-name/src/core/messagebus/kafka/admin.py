@@ -44,25 +44,56 @@ class KafkaAdmin(Admin):
         self.sasl_kerberos_service_name = sasl_kerberos_service_name
         self.sasl_kerberos_domain_name = sasl_kerberos_domain_name
         self.sasl_oauth_token_provider = sasl_oauth_token_provider
+        self._existing_events: Mapping[str, bool] = {}
 
     async def create_events(self, event_names: List[str]):
+        # Only handle non-existing events
+        event_names = [
+            event_name for event_name in event_names
+            if event_name not in self._existing_events
+        ]
+        if len(event_names) == 0:
+            return
+        # Create topics
         topics = [
             self.get_new_topic(event_name) for event_name in event_names
         ]
-        admin_client = self._create_connection()
         try:
+            admin_client = self._create_connection()
             admin_client.create_topics(topics)
+            admin_client.close()
         except Exception:
-            self.logger.debug('Not creating topic')
-        admin_client.close()
+            self.logger.error(
+                f'Something wrong when creating topics: {topics}',
+                exc_info=True
+            )
+        for event_name in event_names:
+            self._existing_events[event_name] = True
 
     async def delete_events(self, event_names: List[str]):
+        # Only handle existing events
+        event_names = [
+            event_name for event_name in event_names
+            if event_name not in self._existing_events
+        ]
+        if len(event_names) == 0:
+            return
+        # Create topic names
         topic_names = [
             self.get_topic_name(event_name) for event_name in event_names
+            if event_name in self._existing_events
         ]
-        admin_client = self._create_connection()
-        admin_client.delete_topics(topic_names)
-        admin_client.close()
+        try:
+            admin_client = self._create_connection()
+            admin_client.delete_topics(topic_names)
+            admin_client.close()
+            for event_name in event_names:
+                del self._existing_events[event_name]
+        except Exception:
+            self.logger.error(
+                f'Something wrong when deleting topics: {topic_names}',
+                exc_info=True
+            )
 
     def get_config(self, event_name: str) -> KafkaEventConfig:
         if event_name in self.configs:

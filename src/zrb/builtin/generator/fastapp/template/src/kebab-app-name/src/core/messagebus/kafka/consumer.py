@@ -56,7 +56,8 @@ class KafkaConsumer(Consumer):
         serializer: Optional[MessageSerializer] = None,
         kafka_admin: Optional[KafkaAdmin] = None,
         retry: int = 5,
-        retry_interval: int = 5
+        retry_interval: int = 5,
+        identifier='kafka-consumer'
     ):
         self.logger = logger
         self.serializer = must_get_message_serializer(serializer)
@@ -114,10 +115,13 @@ class KafkaConsumer(Consumer):
         self._is_start_triggered = False
         self._is_stop_triggered = False
         self._topic_to_event_map: Mapping[str, str] = {}
+        self.identifier = identifier
 
     def register(self, event_name: str) -> Callable[[TEventHandler], Any]:
         def wrapper(handler: TEventHandler):
-            self.logger.warning(f'🐼 Register handler for "{event_name}"')
+            self.logger.warning(
+                f'🐼 [{self.identifier}] Register handler for "{event_name}"'
+            )
             self._handlers[event_name] = handler
             return handler
         return wrapper
@@ -140,7 +144,9 @@ class KafkaConsumer(Consumer):
                 await self._connect()
             await self._init_topics()
             topics = list(self._topic_to_event_map.keys())
-            self.logger.warning(f'🐼 Subscribe to topics: {topics}')
+            self.logger.warning(
+                f'🐼 [{self.identifier}] Subscribe to topics: {topics}'
+            )
             self.consumer.subscribe(topics=topics)
             async for message in self.consumer:
                 topic_name = message.topic
@@ -150,18 +156,22 @@ class KafkaConsumer(Consumer):
                     event_name, message.value
                 )
                 self.logger.info(
-                    f'🐼 Consume from "{topic_name}": {decoded_value}'
+                    f'🐼 [{self.identifier}] Consume from "{topic_name}": ' +
+                    f'{decoded_value}'
                 )
                 await self._run_handler(message_handler, decoded_value)
             retry = self.retry
-        except Exception:
+        except Exception as exception:
+            if retry > 0:
+                self.logger.error(exception, exc_info=True)
             if retry == 0:
                 self.logger.error(
-                    f'🐼 Failed to consume message after {self.retry} attempts'
+                    f'🐼 [{self.identifier}] Failed to consume message after ' +
+                    f'{self.retry} attempts'
                 )
-                self.logger.fatal('🐼 Cannot retry')
-                raise
-            self.logger.warning('🐼 Retry to consume')
+                self.logger.fatal(f'🐼 [{self.identifier}] Cannot retry')
+                raise exception
+            self.logger.warning(f'🐼 [{self.identifier}] Retry to consume')
             await self._disconnect()
             await asyncio.sleep(self.retry_interval)
             await self._start(retry-1)
@@ -177,7 +187,7 @@ class KafkaConsumer(Consumer):
         }
 
     async def _connect(self):
-        self.logger.info('🐼 Create kafka consumer')
+        self.logger.info(f'🐼 [{self.identifier}] Create kafka consumer')
         self.consumer = AIOKafkaConsumer(
             bootstrap_servers=self.bootstrap_servers,
             client_id=self.client_id,
@@ -215,17 +225,25 @@ class KafkaConsumer(Consumer):
             sasl_kerberos_domain_name=self.sasl_kerberos_domain_name,
             sasl_oauth_token_provider=self.sasl_oauth_token_provider,
         )
-        self.logger.info('🐼 Start kafka consumer')
+        self.logger.info(f'🐼 [{self.identifier}] Start kafka consumer')
         await self.consumer.start()
-        self.logger.info('🐼 Kafka consumer started')
+        self.logger.info(f'🐼 [{self.identifier}] Kafka consumer started')
 
     async def _disconnect(self):
         if self.consumer is not None:
-            self.logger.info('🐼 Unsubscribe kafka consumer from all topics')
-            self.consumer.unsubscribe()
-            self.logger.info('🐼 Stop kafka consumer')
-            await self.consumer.stop()
-            self.logger.info('🐼 Kafka consumer stopped')
+            try:
+                self.logger.info(
+                    f'🐼 [{self.identifier}] Unsubscribe kafka consumer ' +
+                    'from all topics'
+                )
+                self.consumer.unsubscribe()
+                self.logger.info(f'🐼 [{self.identifier}] Stop kafka consumer')
+                await self.consumer.stop()
+                self.logger.info(
+                    f'🐼 [{self.identifier}] Kafka consumer stopped'
+                )
+            except Exception as exception:
+                self.logger.error(exception, exc_info=True)
         self.consumer = None
 
     async def _run_handler(

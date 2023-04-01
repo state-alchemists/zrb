@@ -55,8 +55,8 @@ class MockPublisher(Publisher):
 
 
 class MockAdmin(Admin):
-    def create_events(self, event_names: List[str]):
-        pass
+    async def create_events(self, event_names: List[str]):
+        return
 
-    def delete_events(self, event_names: List[str]):
-        pass
+    async def delete_events(self, event_names: List[str]):
+        return

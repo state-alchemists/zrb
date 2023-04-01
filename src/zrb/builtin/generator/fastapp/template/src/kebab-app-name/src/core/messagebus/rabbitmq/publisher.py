@@ -18,7 +18,8 @@ class RMQPublisher(Publisher):
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 3,
-        retry_interval: int = 5
+        retry_interval: int = 5,
+        identifier='rmq-publisher'
     ):
         self.logger = logger
         self.rmq_admin = must_get_rmq_admin(
@@ -31,6 +32,7 @@ class RMQPublisher(Publisher):
         self.serializer = must_get_message_serializer(serializer)
         self.retry = retry
         self.retry_interval = retry_interval
+        self.identifier = identifier
 
     async def publish(self, event_name: str, message: Any):
         await self.rmq_admin.create_events([event_name])
@@ -38,35 +40,72 @@ class RMQPublisher(Publisher):
         exchange_name = self.rmq_admin.get_exchange_name(event_name)
         for attempt in range(self.retry):
             try:
-                if self.connection is None or self.connection.is_closed:
-                    await self._connect()
-                self.logger.info('🐰 Get channel')
-                channel = await self.connection.channel()
-                self.logger.info(f'🐰 Publish to "{queue_name}": {message}')
-                await channel.basic_publish(
+                await self._connect()
+                self.logger.info(f'🐰 [{self.identifier}] Get channel')
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Publish to "{queue_name}": ' +
+                    f'{message}'
+                )
+                await self.channel.basic_publish(
                     body=self.serializer.encode(event_name, message),
                     exchange=exchange_name,
                     routing_key=queue_name if exchange_name == '' else '',
                 )
                 return
             except Exception as e:
-                self.logger.error(f'🐰 Failed to publish message: {e}')
+                self.logger.error(
+                    f'🐰 [{self.identifier}] Failed to publish message: {e}'
+                )
                 await self._disconnect()
                 await asyncio.sleep(self.retry_interval)
                 continue
         self.logger.error(
-            f'🐰 Failed to publish message after {self.retry} attempts'
+            f'🐰 [{self.identifier}] Failed to publish message after ' +
+            f'{self.retry} attempts'
         )
         raise RuntimeError('Failed to publish message after retrying')
 
     async def _connect(self):
-        self.logger.info('🐰 Create publisher connection')
-        self.connection = await aiormq.connect(self.connection_string)
-        self.logger.info('🐰 Publisher connection created')
+        connection_created = False
+        if self.connection is None or self.connection.is_closed:
+            self.logger.info(
+                f'🐰 [{self.identifier}] Create publisher connection'
+            )
+            self.connection = await aiormq.connect(self.connection_string)
+            self.logger.info(
+                f'🐰 [{self.identifier}] Publisher connection created'
+            )
+            connection_created = True
+        if (
+            connection_created or
+            self.channel is None or
+            self.channel.is_closed
+        ):
+            self.logger.info(f'🐰 [{self.identifier}] Get publisher channel')
+            self.channel = await self.connection.channel()
+            self.logger.info(
+                f'🐰 [{self.identifier}] publisher channel created'
+            )
 
     async def _disconnect(self):
-        self.logger.info('🐰 Close publisher connection')
-        if self.connection is not None:
-            await self.connection.close()
-        self.logger.info('🐰 Publisher connection closed')
+        try:
+            if self.channel is not None and not self.channel.is_closed:
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Close publisher channel'
+                )
+                await self.channel.close()
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Publisher channel closed'
+                )
+            if self.connection is not None and not self.connection.is_closed:
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Close publisher connection'
+                )
+                await self.connection.close()
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Publisher connection closed'
+                )
+        except Exception as exception:
+            self.logger.error(exception, exc_info=True)
         self.connection = None
+        self.channel = None

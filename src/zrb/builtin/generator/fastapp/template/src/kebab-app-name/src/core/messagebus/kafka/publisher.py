@@ -46,7 +46,8 @@ class KafkaPublisher(Publisher):
         serializer: Optional[MessageSerializer] = None,
         kafka_admin: Optional[KafkaAdmin] = None,
         retry: int = 3,
-        retry_interval: int = 5
+        retry_interval: int = 5,
+        identifier='kafka-publisher'
     ):
         self.logger = logger
         self.serializer = must_get_message_serializer(serializer)
@@ -92,6 +93,7 @@ class KafkaPublisher(Publisher):
         self.sasl_oauth_token_provider = sasl_oauth_token_provider
         self.retry = retry
         self.retry_interval = retry_interval
+        self.identifier = identifier
 
     async def publish(self, event_name: str, message: Any):
         await self.kafka_admin.create_events([event_name])
@@ -101,23 +103,27 @@ class KafkaPublisher(Publisher):
                 await self._connect()
                 encoded_value = self.serializer.encode(event_name, message)
                 self.logger.info(
-                    f'🐼 Publish to "{topic_name}": {message}'
+                    f'🐼 [{self.identifier}] Publish to "{topic_name}": ' +
+                    f'{message}'
                 )
                 return await self.producer.send_and_wait(
                     topic_name, encoded_value
                 )
             except Exception as e:
-                self.logger.error(f'🐼 Failed to publish message: {e}')
+                self.logger.error(
+                    f'🐼 [{self.identifier}] Failed to publish message: {e}'
+                )
                 await self._disconnect()
                 await asyncio.sleep(self.retry_interval)
                 continue
         self.logger.error(
-            f'🐼 Failed to publish message after {self.retry} attempts'
+            f'🐼 [{self.identifier}] Failed to publish message after ' +
+            f'{self.retry} attempts'
         )
         raise RuntimeError('Failed to publish message after retrying')
 
     async def _connect(self):
-        self.logger.info('🐼 Create kafka producer')
+        self.logger.info(f'🐼 [{self.identifier}] Create kafka producer')
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
             client_id=self.client_id,
@@ -147,14 +153,14 @@ class KafkaPublisher(Publisher):
             sasl_kerberos_domain_name=self.sasl_kerberos_domain_name,
             sasl_oauth_token_provider=self.sasl_oauth_token_provider,
         )
-        self.logger.info('🐼 Start kafka producer')
+        self.logger.info(f'🐼 [{self.identifier}] Start kafka producer')
         await self.producer.start()
-        self.logger.info('🐼 Kafka producer started')
+        self.logger.info(f'🐼 [{self.identifier}] Kafka producer started')
         return self
 
     async def _disconnect(self):
-        self.logger.info('🐼 Stop kafka producer')
+        self.logger.info(f'🐼 [{self.identifier}] Stop kafka producer')
         if self.producer is not None:
             await self.producer.stop()
-        self.logger.info('🐼 Kafka producer stopped')
+        self.logger.info(f'🐼 [{self.identifier}] Kafka producer stopped')
         self.producer = None
