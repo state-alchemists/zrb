@@ -24,6 +24,10 @@ app_enable_frontend: bool = str_to_boolean(os.getenv(
     'APP_ENABLE_FRONTEND', 'true'
 ))
 
+app_enable_api: bool = str_to_boolean(os.getenv(
+    'APP_ENABLE_API', 'true'
+))
+
 app_rmq_connection_string = os.environ.get(
     'APP_RMQ_CONNECTION', 'amqp://guest:guest@localhost/'
 )

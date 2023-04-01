@@ -68,8 +68,10 @@ services:
       retries: 30
 
 
-  monolith_snake_app_name:
-    build: src
+  kebab-app-name-monolith:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
     image: ${IMAGE:-kebab-app-name}
     container_name: snake_app_name
     hostname: snake_app_name
@@ -84,8 +86,10 @@ services:
       - monolith
 
 
-  snake_app_name-gateway:
-    build: src
+  kebab-app-name-gateway:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
     image: ${IMAGE:-kebab-app-name}
     container_name: snake_app_name_gateway
     hostname: snake_app_name_gateway

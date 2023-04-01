@@ -78,6 +78,16 @@ start_snake_app_name_support_container = DockerComposeTask(
     ]
 )
 
+prepare_snake_app_name_backend = CmdTask(
+    icon='🚤',
+    name='prepare-snake-app-name-backend',
+    description='Prepare backend for human readable app name',
+    group=project_group,
+    cwd=APP_DIR,
+    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'prepare-backend.sh'),
+)
+runner.register(prepare_snake_app_name_backend)
+
 start_monolith_snake_app_name = CmdTask(
     icon='🚤',
     name='start-monolith-kebab-app-name',
@@ -90,7 +100,8 @@ start_monolith_snake_app_name = CmdTask(
     skip_execution=SKIP_LOCAL_MONOLITH_EXECUTION,
     upstreams=[
         start_snake_app_name_support_container,
-        build_snake_app_name_frontend
+        build_snake_app_name_frontend,
+        prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
     env_files=[app_env_file],
@@ -113,7 +124,8 @@ start_snake_app_name_gateway = CmdTask(
     skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION,
     upstreams=[
         start_snake_app_name_support_container,
-        build_snake_app_name_frontend
+        build_snake_app_name_frontend,
+        prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
     env_files=[app_env_file],

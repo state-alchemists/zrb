@@ -2,7 +2,6 @@ from component.app import app
 from component.app_state import app_state
 from component.messagebus import consumer, publisher
 from component.rpc import rpc_caller, rpc_server
-from component.log import logger
 
 app_state.set_liveness(True)
 messages = []
@@ -26,11 +25,6 @@ def handle_get():
 
 @app.get('/api/send')
 async def handle_send():
-    result = 0
-    try:
-        await publisher.publish('coba', 'sesuatu')
-        result = await rpc_caller.call('add', 4, 5)
-        print({'result': result})
-    except Exception as e:
-        logger.error(e, exc_info=True)
-    return result + 1
+    await publisher.publish('coba', 'sesuatu')
+    result = await rpc_caller.call('add', 4, 5)
+    return result

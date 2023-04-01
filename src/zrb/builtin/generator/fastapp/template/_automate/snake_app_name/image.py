@@ -5,7 +5,6 @@ from ._common import (
     RESOURCE_DIR,
     local_input, image_input, image_env
 )
-from .frontend import build_snake_app_name_frontend
 
 compose_inputs: List[Input] = [
     local_input,
@@ -24,12 +23,11 @@ build_snake_app_name_image = DockerComposeTask(
     group=project_group,
     inputs=compose_inputs,
     envs=[image_env],
-    upstreams=[build_snake_app_name_frontend],
     skip_execution='{{not input.local_snake_app_name}}',
     cwd=RESOURCE_DIR,
     compose_cmd='build',
-    compose_flags=[
-        '--no-cache'
+    compose_args=[
+        'kebab-app-name-monolith'
     ],
     compose_env_prefix=compose_env_prefix,
 )
