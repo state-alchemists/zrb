@@ -50,6 +50,7 @@ class MessagebusCaller(Caller):
             )
         except Exception as exception:
             self.logger.error(exception, exc_info=True)
+        # Waiting for reply
         waiting_time = 0
         try:
             while not is_reply_accepted:
@@ -65,6 +66,7 @@ class MessagebusCaller(Caller):
             await self.admin.delete_events([reply_event_name])
         except Exception as exception:
             self.logger.error(exception, exc_info=True)
+        # REturn result or throw error
         if waiting_time > self.timeout:
             raise Exception(
                 f'Timeout while waiting for reply event: {reply_event_name}'

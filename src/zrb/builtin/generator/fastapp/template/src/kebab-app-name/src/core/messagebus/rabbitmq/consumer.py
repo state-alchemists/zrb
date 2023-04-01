@@ -132,7 +132,7 @@ class RMQConsumer(Consumer):
                 )
         except asyncio.CancelledError as exception:
             # handle the cancellation
-            self.logger.error(exception, exc_info=True)
+            self.logger.error(exception)
         except Exception as exception:
             self.logger.error(exception, exc_info=True)
         self.connection = None
