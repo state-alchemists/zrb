@@ -6,6 +6,7 @@ from .task.cmd_task import CmdTask
 from .task.docker_compose_task import DockerComposeTask
 from .task.http_checker import HTTPChecker
 from .task.port_checker import PortChecker
+from .task.path_checker import PathChecker
 from .task.resource_maker import ResourceMaker
 from .task_input.input import Input
 from .task_input.bool_input import BoolInput
@@ -29,6 +30,7 @@ assert CmdTask
 assert DockerComposeTask
 assert HTTPChecker
 assert PortChecker
+assert PathChecker
 assert ResourceMaker
 assert Input
 assert BoolInput
