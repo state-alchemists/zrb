@@ -2,7 +2,7 @@ from typing import List, Mapping, Optional
 from core.messagebus.messagebus import Admin
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka import __version__
-
+import asyncio
 import logging
 
 
@@ -62,9 +62,12 @@ class KafkaAdmin(Admin):
             admin_client = self._create_connection()
             admin_client.create_topics(topics)
             admin_client.close()
-        except Exception:
+        except (asyncio.CancelledError, GeneratorExit, Exception):
             self.logger.error(
-                f'Something wrong when creating topics: {topics}',
+                ' '.join([
+                    '🐼 [kafka-admin] Something wrong when ',
+                    f'creating topics: {topics}'
+                ]),
                 exc_info=True
             )
         for event_name in event_names:
@@ -74,7 +77,7 @@ class KafkaAdmin(Admin):
         # Only handle existing events
         event_names = [
             event_name for event_name in event_names
-            if event_name not in self._existing_events
+            if event_name in self._existing_events
         ]
         if len(event_names) == 0:
             return
@@ -89,9 +92,12 @@ class KafkaAdmin(Admin):
             admin_client.close()
             for event_name in event_names:
                 del self._existing_events[event_name]
-        except Exception:
+        except (asyncio.CancelledError, GeneratorExit, Exception):
             self.logger.error(
-                f'Something wrong when deleting topics: {topic_names}',
+                ' '.join([
+                    '🐼 [kafka-admin] Something wrong when ',
+                    f'deleting topics: {topic_names}'
+                ]),
                 exc_info=True
             )
 

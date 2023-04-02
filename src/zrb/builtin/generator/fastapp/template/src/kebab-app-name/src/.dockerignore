@@ -3,3 +3,7 @@ module_disabled.env
 .env
 __pycache__
 venv
+frontend/node_modules
+frontend/build
+frontend/svelte-kit
+frontend/package

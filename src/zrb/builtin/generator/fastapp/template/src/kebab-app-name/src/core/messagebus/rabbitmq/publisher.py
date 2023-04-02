@@ -18,7 +18,7 @@ class RMQPublisher(Publisher):
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 3,
-        retry_interval: int = 5,
+        retry_interval: int = 3,
         identifier='rmq-publisher'
     ):
         self.logger = logger
@@ -52,7 +52,7 @@ class RMQPublisher(Publisher):
                     routing_key=queue_name if exchange_name == '' else '',
                 )
                 return
-            except Exception as e:
+            except (asyncio.CancelledError, GeneratorExit, Exception) as e:
                 self.logger.error(
                     f'🐰 [{self.identifier}] Failed to publish message: {e}'
                 )
@@ -66,26 +66,32 @@ class RMQPublisher(Publisher):
         raise RuntimeError('Failed to publish message after retrying')
 
     async def _connect(self):
-        connection_created = False
-        if self.connection is None or self.connection.is_closed:
-            self.logger.info(
-                f'🐰 [{self.identifier}] Create publisher connection'
-            )
-            self.connection = await aiormq.connect(self.connection_string)
-            self.logger.info(
-                f'🐰 [{self.identifier}] Publisher connection created'
-            )
-            connection_created = True
-        if (
-            connection_created or
-            self.channel is None or
-            self.channel.is_closed
-        ):
-            self.logger.info(f'🐰 [{self.identifier}] Get publisher channel')
-            self.channel = await self.connection.channel()
-            self.logger.info(
-                f'🐰 [{self.identifier}] publisher channel created'
-            )
+        try:
+            connection_created = False
+            if self.connection is None or self.connection.is_closed:
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Create publisher connection'
+                )
+                self.connection = await aiormq.connect(self.connection_string)
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Publisher connection created'
+                )
+                connection_created = True
+            if (
+                connection_created or
+                self.channel is None or
+                self.channel.is_closed
+            ):
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Get publisher channel'
+                )
+                self.channel = await self.connection.channel()
+                self.logger.info(
+                    f'🐰 [{self.identifier}] publisher channel created'
+                )
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+            raise Exception('Cannot connect')
 
     async def _disconnect(self):
         try:
@@ -97,6 +103,9 @@ class RMQPublisher(Publisher):
                 self.logger.info(
                     f'🐰 [{self.identifier}] Publisher channel closed'
                 )
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+        try:
             if self.connection is not None and not self.connection.is_closed:
                 self.logger.info(
                     f'🐰 [{self.identifier}] Close publisher connection'
@@ -105,7 +114,7 @@ class RMQPublisher(Publisher):
                 self.logger.info(
                     f'🐰 [{self.identifier}] Publisher connection closed'
                 )
-        except Exception as exception:
-            self.logger.error(exception, exc_info=True)
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
         self.connection = None
         self.channel = None

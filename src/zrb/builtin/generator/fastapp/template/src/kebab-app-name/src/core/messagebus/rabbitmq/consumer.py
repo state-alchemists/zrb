@@ -18,8 +18,8 @@ class RMQConsumer(Consumer):
         connection_string: str,
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
-        retry: int = 10,
-        retry_interval: int = 5,
+        retry: int = 3,
+        retry_interval: int = 3,
         identifier='rmq-consumer'
     ):
         self.logger = logger
@@ -77,15 +77,15 @@ class RMQConsumer(Consumer):
             retry = self.retry
             while not self._is_stop_triggered:
                 await asyncio.sleep(0.01)
-        except Exception as exception:
+        except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if retry > 0:
-                self.logger.error(exception, exc_info=True)
+                self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
             if retry == 0:
                 self.logger.error(
                     f'🐰 [{self.identifier}] Failed to consume message after ' +
                     f'{self.retry} attempts'
                 )
-                raise exception
+                raise e
             await self._disconnect()
             await asyncio.sleep(self.retry_interval)
             await self._start(retry-1)
@@ -93,24 +93,30 @@ class RMQConsumer(Consumer):
             await self._disconnect()
 
     async def _connect(self):
-        connection_created = False
-        if self.connection is None or self.connection.is_closed:
-            self.logger.info(
-                f'🐰 [{self.identifier}] Create consumer connection'
-            )
-            self.connection = await aiormq.connect(self.connection_string)
-            self.logger.info(
-                f'🐰 [{self.identifier}] Consumer connection created'
-            )
-            connection_created = True
-        if (
-            connection_created or
-            self.channel is None or
-            self.channel.is_closed
-        ):
-            self.logger.info(f'🐰 [{self.identifier}] Get consumer channel')
-            self.channel = await self.connection.channel()
-            self.logger.info(f'🐰 [{self.identifier}] Consumer channel created')
+        try:
+            connection_created = False
+            if self.connection is None or self.connection.is_closed:
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Create consumer connection'
+                )
+                self.connection = await aiormq.connect(self.connection_string)
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Consumer connection created'
+                )
+                connection_created = True
+            if (
+                connection_created or
+                self.channel is None or
+                self.channel.is_closed
+            ):
+                self.logger.info(f'🐰 [{self.identifier}] Get consumer channel')
+                self.channel = await self.connection.channel()
+                self.logger.info(
+                    f'🐰 [{self.identifier}] Consumer channel created'
+                )
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+            raise Exception('Cannot connect')
 
     async def _disconnect(self):
         try:
@@ -122,6 +128,9 @@ class RMQConsumer(Consumer):
                 self.logger.info(
                     f'🐰 [{self.identifier}] Consumer channel closed'
                 )
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+        try:
             if self.connection is not None and not self.connection.is_closed:
                 self.logger.info(
                     f'🐰 [{self.identifier}] Close consumer connection'
@@ -130,11 +139,8 @@ class RMQConsumer(Consumer):
                 self.logger.info(
                     f'🐰 [{self.identifier}] Consumer connection closed'
                 )
-        except asyncio.CancelledError as exception:
-            # handle the cancellation
-            self.logger.error(exception)
-        except Exception as exception:
-            self.logger.error(exception, exc_info=True)
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
         self.connection = None
         self.channel = None
 
@@ -156,8 +162,8 @@ class RMQConsumer(Consumer):
                 )
                 await self._run_handler(handler, decoded_value)
                 await channel.basic_ack(message.delivery_tag)
-            except Exception as exception:
-                self.logger.error(exception, exc_info=True)
+            except (asyncio.CancelledError, GeneratorExit, Exception):
+                self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
         return on_message
 
     async def _run_handler(

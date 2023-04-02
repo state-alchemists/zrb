@@ -46,7 +46,7 @@ class KafkaPublisher(Publisher):
         serializer: Optional[MessageSerializer] = None,
         kafka_admin: Optional[KafkaAdmin] = None,
         retry: int = 3,
-        retry_interval: int = 5,
+        retry_interval: int = 3,
         identifier='kafka-publisher'
     ):
         self.logger = logger
@@ -109,7 +109,7 @@ class KafkaPublisher(Publisher):
                 return await self.producer.send_and_wait(
                     topic_name, encoded_value
                 )
-            except Exception as e:
+            except (asyncio.CancelledError, GeneratorExit, Exception) as e:
                 self.logger.error(
                     f'🐼 [{self.identifier}] Failed to publish message: {e}'
                 )

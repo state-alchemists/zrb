@@ -55,8 +55,8 @@ class KafkaConsumer(Consumer):
         sasl_oauth_token_provider=None,
         serializer: Optional[MessageSerializer] = None,
         kafka_admin: Optional[KafkaAdmin] = None,
-        retry: int = 5,
-        retry_interval: int = 5,
+        retry: int = 3,
+        retry_interval: int = 3,
         identifier='kafka-consumer'
     ):
         self.logger = logger
@@ -161,16 +161,16 @@ class KafkaConsumer(Consumer):
                 )
                 await self._run_handler(message_handler, decoded_value)
             retry = self.retry
-        except Exception as exception:
+        except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if retry > 0:
-                self.logger.error(exception, exc_info=True)
+                self.logger.error(f'🐼 [{self.identifier}]', exc_info=True)
             if retry == 0:
                 self.logger.error(
                     f'🐼 [{self.identifier}] Failed to consume message after ' +
                     f'{self.retry} attempts'
                 )
                 self.logger.fatal(f'🐼 [{self.identifier}] Cannot retry')
-                raise exception
+                raise e
             self.logger.warning(f'🐼 [{self.identifier}] Retry to consume')
             await self._disconnect()
             await asyncio.sleep(self.retry_interval)
@@ -242,8 +242,8 @@ class KafkaConsumer(Consumer):
                 self.logger.info(
                     f'🐼 [{self.identifier}] Kafka consumer stopped'
                 )
-            except Exception as exception:
-                self.logger.error(exception, exc_info=True)
+            except (asyncio.CancelledError, GeneratorExit, Exception):
+                self.logger.error(f'🐼 [{self.identifier}]', exc_info=True)
         self.consumer = None
 
     async def _run_handler(

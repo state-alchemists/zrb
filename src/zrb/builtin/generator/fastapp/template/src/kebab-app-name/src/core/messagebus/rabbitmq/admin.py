@@ -2,6 +2,7 @@ from typing import Any, Mapping, List, Optional
 from core.messagebus.messagebus import Admin
 import logging
 import aiormq
+import asyncio
 
 
 class RMQEventConfig():
@@ -45,11 +46,13 @@ class RMQAdmin(Admin):
                     continue
                 await self._declare_queue(channel, config)
                 self._existing_events[event_name] = True
-            await channel.close()
-            await connection.close()
-        except Exception:
+            await self._clean_up(connection, channel)
+        except (asyncio.CancelledError, GeneratorExit, Exception):
             self.logger.error(
-                f'Something wrong when creating events {event_names}',
+                ' '.join([
+                    '🐰 [rabbitmq-admin] Something wrong when ',
+                    f'creating events: {event_names}'
+                ]),
                 exc_info=True
             )
 
@@ -57,7 +60,7 @@ class RMQAdmin(Admin):
         # Only handle existing events
         event_names = [
             event_name for event_name in event_names
-            if event_name not in self._existing_events
+            if event_name in self._existing_events
         ]
         if len(event_names) == 0:
             return
@@ -74,13 +77,24 @@ class RMQAdmin(Admin):
                         exchange_name=config.exchange_name
                     )
                 del self._existing_events[event_name]
-            await channel.close()
-            await connection.close()
-        except Exception:
+            await self._clean_up(connection, channel)
+        except (asyncio.CancelledError, GeneratorExit, Exception):
             self.logger.error(
-                f'Something wrong when deleting events {event_names}',
+                ' '.join([
+                    '🐰 [rabbitmq-admin] Something wrong when ',
+                    f'deleting events: {event_names}'
+                ]),
                 exc_info=True
             )
+
+    async def _clean_up(
+        self, connection: aiormq.Connection, channel: aiormq.Channel
+    ):
+        try:
+            await channel.close()
+            await connection.close()
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error('🐰 [rabbitmq-admin]', exc_info=True)
 
     async def _declare_fanned_out_exchange(
         self, channel: aiormq.Channel, config: RMQEventConfig

@@ -1,9 +1,7 @@
 from component.app import app
-from component.app_state import app_state
 from component.messagebus import consumer, publisher
 from component.rpc import rpc_caller, rpc_server
 
-app_state.set_liveness(True)
 messages = []
 
 

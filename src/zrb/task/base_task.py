@@ -167,8 +167,8 @@ class BaseTask(TaskModel):
             result = results[-1]
             self._print_result(result)
             return result
-        except Exception as exception:
-            self.log_critical(f'{exception}')
+        except Exception as e:
+            self.log_critical(f'{e}')
             if raise_error:
                 raise
         finally:

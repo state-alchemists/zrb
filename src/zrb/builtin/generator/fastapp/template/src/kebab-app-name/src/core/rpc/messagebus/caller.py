@@ -14,7 +14,7 @@ class MessagebusCaller(Caller):
         admin: Admin,
         publisher: Publisher,
         consumer_factory: Callable[[], Consumer],
-        timeout: float = 5,
+        timeout: float = 30,
         check_reply_interval: float = 0.1
     ):
         self.logger = logger
@@ -33,13 +33,14 @@ class MessagebusCaller(Caller):
         result = None
 
         @reply_consumer.register(reply_event_name)
-        def consume_reply(message: Any):
+        async def consume_reply(message: Any):
             nonlocal result, is_reply_accepted
             result = message
             is_reply_accepted = True
+            await reply_consumer.stop()
 
         try:
-            asyncio.create_task(reply_consumer.start())
+            task = asyncio.create_task(reply_consumer.start())
             await self.publisher.publish(
                 rpc_name,
                 Message(
@@ -48,28 +49,42 @@ class MessagebusCaller(Caller):
                     kwargs=kwargs
                 ).to_dict()
             )
-        except Exception as exception:
-            self.logger.error(exception, exc_info=True)
+            await asyncio.gather(task)
+        except (asyncio.CancelledError, GeneratorExit, Exception) as e:
+            await self._clean_up(reply_consumer, reply_event_name)
+            raise e
         # Waiting for reply
         waiting_time = 0
-        try:
-            while not is_reply_accepted:
-                waiting_time += self.check_reply_interval
-                await asyncio.sleep(self.check_reply_interval)
-                if waiting_time > self.timeout:
-                    self.logger.error(
-                        'Timeout while waiting from reply event: ' +
+        while not is_reply_accepted:
+            waiting_time += self.check_reply_interval
+            await asyncio.sleep(self.check_reply_interval)
+            if waiting_time > self.timeout:
+                self.logger.error(
+                    ' '.join([
+                        '🤙 [messagebus-rpc-caller]',
+                        'Timeout while waiting for reply event',
                         f'{reply_event_name}'
-                    )
-                    break
-            await reply_consumer.stop()
-            await self.admin.delete_events([reply_event_name])
-        except Exception as exception:
-            self.logger.error(exception, exc_info=True)
-        # REturn result or throw error
+                    ])
+                )
+                break
+        await self._clean_up(reply_consumer, reply_event_name)
+        # Return result or throw error
         if waiting_time > self.timeout:
             raise Exception(
                 f'Timeout while waiting for reply event: {reply_event_name}'
             )
-        self.logger.info(f'RPC {rpc_name} returning result: {result}')
+        self.logger.info(
+            '🤙 [messagebus-rpc-caller] RPC ' +
+            f'"{rpc_name}" returning result: {result}'
+        )
         return result
+
+    async def _clean_up(self, reply_consumer: Consumer, reply_event_name: str):
+        try:
+            await reply_consumer.stop()
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error('🤙 [messagebus-rpc-caller]', exc_info=True)
+        try:
+            await self.admin.delete_events([reply_event_name])
+        except (asyncio.CancelledError, GeneratorExit, Exception):
+            self.logger.error('🤙 [messagebus-rpc-caller]', exc_info=True)

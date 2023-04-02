@@ -33,10 +33,11 @@ class MessagebusServer(Server):
                 reply_event = message.reply_event
                 # get reply
                 self.logger.info(
-                    f'Getting result for {rpc_name} call ' +
-                    f'args: {args} ' +
-                    f'kwargs: {kwargs} ' +
-                    f'reply_event: {reply_event}'
+                    '🤙 [messagebus-rpc-server] ' +
+                    f'Getting result for RPC: {rpc_name} ' +
+                    f', args: {args} ' +
+                    f', kwargs: {kwargs} ' +
+                    f', reply_event: {reply_event}'
                 )
                 result = await self._run_handler(handler, *args, **kwargs)
                 # publish reply

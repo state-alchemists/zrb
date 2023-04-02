@@ -10,8 +10,8 @@ def create_task(
     async def critical_task(awaitable):
         try:
             return await awaitable
-        except Exception as exception:
+        except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if inspect.iscoroutinefunction(on_error):
-                return await on_error(exception)
-            return on_error(exception)
+                return await on_error(e)
+            return on_error(e)
     return asyncio.create_task(critical_task(awaitable))
