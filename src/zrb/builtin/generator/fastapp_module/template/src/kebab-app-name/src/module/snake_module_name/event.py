@@ -9,6 +9,7 @@ def register_event(
     rpc_caller: Caller,
     publisher: Publisher
 ):
+    logger.info('Registering event handlers for "snake_module_name"')
 
     @consumer.register('hit_snake_module_name')
     async def hit_snake_module_name_event(message):

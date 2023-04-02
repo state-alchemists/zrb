@@ -10,6 +10,8 @@ from .._common import (
     get_default_module_replacement_middlewares, new_app_scaffold_lock
 )
 from ....helper import util
+from ....helper.codemod.add_import_module import add_import_module
+from ....helper.codemod.add_function_call import add_function_call
 
 import os
 
@@ -56,12 +58,56 @@ copy_resource = ResourceMaker(
     ]
 )
 
-# TODO: generate src
+
+@python_task(
+    name='register-module',
+    inputs=[project_dir_input, app_name_input, module_name_input],
+    upstreams=[copy_resource]
+)
+def register_module(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    project_dir = kwargs.get('project_dir', '.')
+    app_name = kwargs.get('app_name')
+    module_name = kwargs.get('module_name')
+    kebab_app_name = util.to_kebab_case(app_name)
+    snake_module_name = util.to_snake_case(module_name)
+    import_module_path = '.'.join([
+        'module', snake_module_name
+    ])
+    function_name = f'register_{snake_module_name}'
+    main_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'main.py'
+    )
+    task.print_out(f'Read code from: {main_file_path}')
+    with open(main_file_path, 'r') as f:
+        code = f.read()
+        task.print_out(
+            f'Add import "{function_name}" from "{import_module_path}" ' +
+            'to the code'
+        )
+        code = add_import_module(
+            code=code,
+            module_path=import_module_path,
+            resource=function_name
+        )
+        task.print_out(
+            f'Add "{function_name}" call to the code'
+        )
+        code = add_function_call(
+            code=code,
+            function_name=function_name,
+            parameters=[]
+        )
+    task.print_out(f'Write modified code to: {main_file_path}')
+    with open(main_file_path, 'w') as f:
+        f.write(code)
+    task.print_out('👌')
+
+
+# TODO: register module
 # TODO: add env to template.env
 # TODO: add env to module_enabled.env
 # TODO: add env to module_disabled.env
-# TODO: import module from main
-# TODO: init module
 # TODO: create service in docker compose
 # TODO: create runner for local microservices
 
@@ -69,9 +115,7 @@ copy_resource = ResourceMaker(
 @python_task(
     name='fastapp-module',
     group=project_add_group,
-    upstreams=[
-        copy_resource
-    ],
+    upstreams=[register_module],
     runner=runner
 )
 async def add_fastapp_module(*args: Any, **kwargs: Any):

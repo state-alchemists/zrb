@@ -5,9 +5,9 @@ from component.log import logger
 from component.app import app
 from component.messagebus import consumer, publisher
 from component.rpc import rpc_caller, rpc_server
-from snake_module_name.api import register_api
-from snake_module_name.event import register_event
-from snake_module_name.rpc import register_rpc
+from module.snake_module_name.api import register_api
+from module.snake_module_name.event import register_event
+from module.snake_module_name.rpc import register_rpc
 
 
 def register_snake_module_name():
