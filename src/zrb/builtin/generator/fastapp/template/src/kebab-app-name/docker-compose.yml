@@ -79,6 +79,8 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}
       APP_PORT: ${APP_PORT:-8080}
+      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
+      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
     ports:
       - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: on-failure
@@ -99,7 +101,10 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}-gateway
       APP_PORT: ${APP_PORT:-8080}
+      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
+      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
       APP_ENABLE_MESSAGE_CONSUMER: false
+      APP_ENABLE_RPC_SERVER: false
     ports:
       - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: on-failure
