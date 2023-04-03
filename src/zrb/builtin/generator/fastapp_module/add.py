@@ -164,8 +164,8 @@ def create_automation_config(*args: Any, **kwargs: Any):
 
 
 # TODO: add env to template.env
-# TODO: add env to module_enabled.env (use automation path)
-# TODO: add env to module_disabled.env (use automation path)
+# TODO: add env to module_enabled.env <-- use the ones in src, because of docker-compose
+# TODO: add env to module_disabled.env
 # TODO: create service in docker compose
 # TODO: create runner for local microservices
 
