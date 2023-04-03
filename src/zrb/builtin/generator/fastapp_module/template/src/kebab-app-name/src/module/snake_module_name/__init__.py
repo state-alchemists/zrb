@@ -1,5 +1,6 @@
 from config import (
-    app_enable_rpc_server, app_enable_message_consumer, app_enable_api
+    app_enable_rpc_server, app_enable_message_consumer, app_enable_api,
+    app_enable_snake_module_name_module
 )
 from component.log import logger
 from component.app import app
@@ -11,6 +12,9 @@ from module.snake_module_name.rpc import register_rpc
 
 
 def register_snake_module_name():
+    if not app_enable_snake_module_name_module:
+        logger.info('🥪 Skip registering "snake_module_name"')
+        return
     if app_enable_api:
         register_api(
             logger=logger,
