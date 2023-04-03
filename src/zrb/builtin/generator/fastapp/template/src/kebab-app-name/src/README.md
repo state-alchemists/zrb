@@ -85,7 +85,7 @@ Once you activate `zrb` project environment, you can run PascalAppName by invoki
 zrb project start kebab-app-name
 ```
 
-This will run a docker container as well as build the front-end and run the server.
+This will run a docker container as well as build the front end and run the server.
 
 You can also run PascalAppName as a container:
 

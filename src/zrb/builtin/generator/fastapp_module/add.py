@@ -104,7 +104,15 @@ def register_module(*args: Any, **kwargs: Any):
     task.print_out('👌')
 
 
-# TODO: register module
+@python_task(
+    name='create-automation-config',
+    inputs=[project_dir_input, app_name_input, module_name_input],
+    upstreams=[copy_resource]
+)
+def create_automation_config(*args: Any, **kwargs: Any):
+    pass
+
+
 # TODO: add env to template.env
 # TODO: add env to module_enabled.env
 # TODO: add env to module_disabled.env
@@ -115,7 +123,10 @@ def register_module(*args: Any, **kwargs: Any):
 @python_task(
     name='fastapp-module',
     group=project_add_group,
-    upstreams=[register_module],
+    upstreams=[
+        register_module,
+        create_automation_config,
+    ],
     runner=runner
 )
 async def add_fastapp_module(*args: Any, **kwargs: Any):

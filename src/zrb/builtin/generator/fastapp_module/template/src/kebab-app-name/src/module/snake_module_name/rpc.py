@@ -10,7 +10,7 @@ def register_rpc(
     rpc_caller: Caller,
     publisher: Publisher
 ):
-    logger.info('Registering RPC handlers for "snake_module_name"')
+    logger.info('🥪 Registering RPC handlers for "snake_module_name"')
 
     @rpc_server.register('process_snake_module_name')
     async def process_snake_module_name(*args: Any, **kwargs: Any):
