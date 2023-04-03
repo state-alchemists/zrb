@@ -163,10 +163,9 @@ def create_automation_config(*args: Any, **kwargs: Any):
         f.write(json_str)
 
 
-# TODO: add config
 # TODO: add env to template.env
-# TODO: add env to module_enabled.env
-# TODO: add env to module_disabled.env
+# TODO: add env to module_enabled.env (use automation path)
+# TODO: add env to module_disabled.env (use automation path)
 # TODO: create service in docker compose
 # TODO: create runner for local microservices
 
