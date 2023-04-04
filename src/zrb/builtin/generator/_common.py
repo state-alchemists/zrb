@@ -10,11 +10,12 @@ from ...task_input.int_input import IntInput
 from ...helper.accessories.name import get_random_name
 from ...helper.codemod.add_assert_resource import add_assert_resource
 from ...helper.codemod.add_import_module import add_import_module
-from ...helper import util
 from ...helper.middlewares.replacement import (
     add_pascal_key, add_snake_key, add_camel_key,
     add_kebab_key, add_human_readable_key
 )
+from ...helper.file.text import read_text_file_async, write_text_file_async
+from ...helper import util
 import os
 
 
@@ -130,7 +131,7 @@ def create_register_task_module(
         validate_project_dir(project_dir)
         task_name = kwargs.get('task_name')
         task.print_out(f'Register module: _automate.{task_name}')
-        register_module(
+        await register_module(
             project_dir=project_dir,
             module_name='.'.join([
                 '_automate', util.to_snake_case(task_name)
@@ -179,7 +180,7 @@ def _create_register_app_module(
         app_name = kwargs.get('app_name')
         task.print_out(f'Register module: _automate.{app_name}.{module}')
         snake_app_name = util.to_snake_case(app_name)
-        register_module(
+        await register_module(
             project_dir=project_dir,
             module_name='.'.join([
                 '_automate', snake_app_name, module
@@ -189,12 +190,11 @@ def _create_register_app_module(
     return task
 
 
-def register_module(
+async def register_module(
     project_dir: str, module_name: str, alias: Optional[str] = None
 ):
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
-    with open(zrb_init_path, 'r') as f:
-        code = f.read()
+    code = await read_text_file_async(zrb_init_path)
     if alias is None:
         alias = module_name.split('.')[-1]
     code = add_import_module(
@@ -203,8 +203,7 @@ def register_module(
         alias=alias
     )
     code = add_assert_resource(code, alias)
-    with open(zrb_init_path, 'w') as f:
-        f.write(code)
+    await write_text_file_async(zrb_init_path, code)
     return True
 
 

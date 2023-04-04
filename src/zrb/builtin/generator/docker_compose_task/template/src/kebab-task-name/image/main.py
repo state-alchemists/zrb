@@ -1,4 +1,3 @@
-import uvicorn
 import os
 
 MESSAGE = os.getenv('APP_MESSAGE', 'Hello, world!')
@@ -19,7 +18,3 @@ async def app(scope, receive, send):
         'type': 'http.response.body',
         'body': bytes(MESSAGE, 'utf-8'),
     })
-
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host='0.0.0.0', port=PORT, log_level="info")

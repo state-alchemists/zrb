@@ -66,15 +66,15 @@ register_local_app_module = create_register_local_app_module(
 )
 
 register_container_app_module = create_register_container_app_module(
-    upstreams=[copy_resource]
+    upstreams=[register_local_app_module]
 )
 
 register_image_app_module = create_register_image_app_module(
-    upstreams=[copy_resource]
+    upstreams=[register_container_app_module]
 )
 
 register_deployment_app_module = create_register_deployment_app_module(
-    upstreams=[copy_resource]
+    upstreams=[register_image_app_module]
 )
 
 add_project_task = create_add_project_automation(

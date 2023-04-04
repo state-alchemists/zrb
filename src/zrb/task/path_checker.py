@@ -72,10 +72,10 @@ class PathChecker(BaseTask):
         label = self._get_label(path)
         try:
             if os.path.exists(path):
-                self.print_out(f'{label} (OK)')
+                self.print_out(f'{label} (Exist)')
                 return True
             self._debug_and_print_error(
-                f'{label} (Not OK)', should_print_error
+                f'{label} (Not Exist)', should_print_error
             )
         except Exception:
             self._debug_and_print_error(

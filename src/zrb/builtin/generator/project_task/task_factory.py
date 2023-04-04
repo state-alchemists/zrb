@@ -5,6 +5,7 @@ from ....task.task import Task
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_upstream_to_task import add_upstream_to_task
+from ....helper.file.text import read_text_file_async, write_text_file_async
 from .add import add_project_automation
 from .task_factory_helper import (
     _get_app_local_task_file, _get_app_container_task_file,
@@ -29,7 +30,7 @@ def create_add_project_automation(
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir', '.')
         task.print_out('Create project automation modules if not exist')
-        add_project_automation(project_dir)
+        await add_project_automation(project_dir)
     return _task
 
 
@@ -184,8 +185,7 @@ def _create_register_app_task(
         # turn into module path
         upstream_module_path = '.'.join(upstream_module_parts)
         task.print_out(f'Add {upstream_task_var} to project automation')
-        with open(project_automation_path, 'r') as f:
-            code = f.read()
+        code = await read_text_file_async(project_automation_path)
         code = add_import_module(
             code=code,
             module_path=upstream_module_path,
@@ -194,7 +194,5 @@ def _create_register_app_task(
         code = add_upstream_to_task(
             code, project_automation_task_name, upstream_task_var
         )
-        with open(project_automation_path, 'w') as f:
-            f.write(code)
-
+        await write_text_file_async(project_automation_path, code)
     return _task

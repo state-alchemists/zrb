@@ -27,7 +27,7 @@ build_snake_app_name_image = DockerComposeTask(
     cwd=RESOURCE_DIR,
     compose_cmd='build',
     compose_args=[
-        'kebab-app-name-monolith'
+        'kebab-app-name'
     ],
     compose_env_prefix=compose_env_prefix,
 )

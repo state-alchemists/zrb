@@ -4,6 +4,7 @@ from ..cmd_task import CmdTask
 from ..task import Task
 from ...task_input.base_input import BaseInput
 from ...task_input.str_input import StrInput
+from ...helper.file.text import read_text_file_async, write_text_file_async
 
 import os
 
@@ -13,7 +14,7 @@ dir_path = os.path.dirname(__file__)
 def _get_append_config(
     source_path: str, destination_path: str
 ) -> Callable[..., Any]:
-    def _append_config(*args: Any, **kwargs: Any):
+    async def _append_config(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         if not source_path or not os.path.exists(source_path):
             task.print_out('Nothing to configure')
@@ -24,10 +25,10 @@ def _get_append_config(
             )
         )
         task.print_out(f'Add configuration to {destination}')
-        with open(source_path, 'r') as src:
-            content = src.read()
-        with open(destination, 'a') as dst:
-            dst.write(content)
+        additional_content = await read_text_file_async(source_path)
+        content = await read_text_file_async(destination)
+        new_content = content + '\n' + additional_content
+        await write_text_file_async(destination, new_content)
         task.print_out('👌')
     return _append_config
 

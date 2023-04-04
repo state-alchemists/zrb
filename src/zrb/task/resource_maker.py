@@ -97,7 +97,7 @@ class ResourceMaker(BaseTask):
         self.print_out_dark(f'Destination: {destination_path}')
         self.print_out_dark(f'Replacements: {replacements}')
         self.print_out_dark(f'Excludes: {excludes}')
-        copy_tree(
+        await copy_tree(
             src=template_path,
             dst=destination_path,
             replacements=replacements,

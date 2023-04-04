@@ -1,6 +1,7 @@
 from typing import Iterable, Mapping, Optional
-from ..string.parse_replacement import parse_replacement
 from typeguard import typechecked
+from .text import read_text_file_async, write_text_file_async
+from ..string.parse_replacement import parse_replacement
 from ..log import logger
 
 import os
@@ -9,7 +10,7 @@ import fnmatch
 
 
 @typechecked
-def copy_tree(
+async def copy_tree(
     src: str,
     dst: str,
     replacements: Optional[Mapping[str, str]] = None,
@@ -29,15 +30,13 @@ def copy_tree(
             continue
         dst_name = os.path.join(dst, name)
         if os.path.isdir(src_name):
-            copy_tree(src_name, dst_name, replacements, excludes)
+            await copy_tree(src_name, dst_name, replacements, excludes)
             continue
         new_dst_name = parse_replacement(dst_name, replacements)
         shutil.copy2(src_name, new_dst_name)
         try:
-            with open(new_dst_name, 'r') as file:
-                file_content = file.read()
+            file_content = await read_text_file_async(new_dst_name)
             new_file_content = parse_replacement(file_content, replacements)
-            with open(new_dst_name, 'w') as file:
-                file.write(new_file_content)
+            await write_text_file_async(new_dst_name, new_file_content)
         except Exception:
             logger.error(f'Cannot parse file: {new_dst_name}')

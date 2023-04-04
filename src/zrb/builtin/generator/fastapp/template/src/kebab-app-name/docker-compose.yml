@@ -68,7 +68,7 @@ services:
       retries: 30
 
 
-  kebab-app-name-monolith:
+  kebab-app-name:
     build:
       dockerfile: Dockerfile
       context: ./src
@@ -86,6 +86,11 @@ services:
     restart: on-failure
     profiles:
       - monolith
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
 
 
   kebab-app-name-gateway:
@@ -97,7 +102,7 @@ services:
     hostname: snake_app_name_gateway
     env_file:
       - 'src/template.env'
-      - 'src/module_enabled.env'
+      - 'all-module-enabled.env'
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}-gateway
       APP_PORT: ${APP_PORT:-8080}
@@ -110,3 +115,8 @@ services:
     restart: on-failure
     profiles:
       - microservices
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
