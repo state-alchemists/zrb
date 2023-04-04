@@ -5,8 +5,6 @@ from ..task.decorator import python_task
 from ..task.task import Task
 from ..runner import runner
 
-# Common definitions
-
 
 @python_task(
     name='show',

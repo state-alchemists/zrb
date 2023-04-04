@@ -1,11 +1,10 @@
 from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
-from .base_task import BaseTask
+from .base_task import BaseTask, Group
 from .cmd_task import CmdTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
-from ..task_group.group import Group
 from ..helper.string.double_quote import double_quote
 from ..helper.dockercompose.read import read_file as read_compose_file
 from ..helper.dockercompose.fetch_external_env import fetch_external_env

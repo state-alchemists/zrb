@@ -1,9 +1,8 @@
 from typing import Any, Callable, Iterable, Mapping, Optional
 from typeguard import typechecked
-from .base_task import BaseTask
+from .base_task import BaseTask, Group
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
-from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.file.copy_tree import copy_tree
 from ..helper.middlewares.replacement import Replacement, ReplacementMiddleware

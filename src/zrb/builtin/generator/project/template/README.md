@@ -33,8 +33,7 @@ pip freeze
 pip freeze | grep dbt
 ```
 
-
-# How to Start PascalProjectName
+# Activating PascalProjectName
 
 ```bash
 source ./project.sh
@@ -59,3 +58,20 @@ reload
 ```
 
 Please note that PascalProjectName's virtual environment has to be activated first.
+
+# Getting task environments
+
+To get task environments, you can invoke the following command:
+
+```bash
+zrb project get-default-env
+```
+
+It is expected to use the command for informational purposes only.
+You should only override necessary environment variables to keep track of what you need to change.
+
+Being said so, you can also add the default task environments to `.env` by invoking the following command:
+
+```bash
+zrb project get-default-env >> .env
+```

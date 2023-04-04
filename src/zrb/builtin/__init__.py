@@ -3,6 +3,7 @@ from . import env
 from . import eval
 from . import md5
 from . import principle
+from . import project
 from . import ubuntu
 from . import update
 from . import version
@@ -20,6 +21,7 @@ assert env
 assert eval
 assert md5
 assert principle
+assert project
 assert ubuntu
 assert update
 assert version

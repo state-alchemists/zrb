@@ -5,7 +5,7 @@ from typeguard import typechecked
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
-from ..task_group.group import Group
+from ..task.base_task import Group
 from ..action.runner import Runner
 from .base_task import BaseTask
 from .task import Task

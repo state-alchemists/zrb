@@ -1,10 +1,9 @@
 from typing import Any, Callable, Iterable, Optional, Union
 from typeguard import typechecked
-from .base_task import BaseTask
+from .base_task import BaseTask, Group
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
-from ..task_group.group import Group
 from ..config.config import default_shell
 
 import asyncio

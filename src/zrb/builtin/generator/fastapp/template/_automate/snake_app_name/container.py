@@ -8,7 +8,7 @@ from ._common import (
     pandaproxy_plaintext_checker,
     local_input, mode_input, host_input, https_input, image_input,
     compose_app_broker_type_env, compose_app_host_port_env,
-    start_container_compose_profile_env, image_env,
+    start_container_compose_profile_env, all_compose_profile_env, image_env,
     compose_rabbitmq_host_port_env, compose_rabbitmq_management_host_port_env,
     compose_redpanda_console_host_port_env,
     compose_kafka_outside_host_port_env,
@@ -45,6 +45,7 @@ remove_snake_app_name_container = DockerComposeTask(
     compose_env_prefix=compose_env_prefix,
     envs=compose_envs + [
         image_env,
+        all_compose_profile_env
     ],
 )
 runner.register(remove_snake_app_name_container)
@@ -95,7 +96,8 @@ stop_snake_app_name_container = DockerComposeTask(
     compose_cmd='stop',
     compose_env_prefix=compose_env_prefix,
     envs=compose_envs + [
-        image_env
+        image_env,
+        all_compose_profile_env
     ],
 )
 runner.register(stop_snake_app_name_container)

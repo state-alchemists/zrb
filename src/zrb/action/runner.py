@@ -1,7 +1,6 @@
 from typing import List, Mapping, Union
 from ..action.base_action import BaseAction
-from ..task.base_task import BaseTask
-from ..task_group.group import Group as TaskGroup
+from ..task.base_task import BaseTask, Group as TaskGroup
 import click
 
 CliSubcommand = Union[click.Group, click.Command]

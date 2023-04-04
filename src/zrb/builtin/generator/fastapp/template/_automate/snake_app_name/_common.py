@@ -272,3 +272,9 @@ start_support_container_compose_profile_env = Env(
         '}}'
     ])
 )
+
+all_compose_profile_env = Env(
+    name='COMPOSE_PROFILES',
+    os_name='',
+    default='monolith,microservices,kafka,rabbitmq'
+)
