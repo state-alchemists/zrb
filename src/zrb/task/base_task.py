@@ -79,7 +79,7 @@ class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
             if os.path.exists(file_path):
                 with open(file_path, 'r') as file:
                     contents = file.read()
-                    return contents, file_path, lambda: False
+                return contents, file_path, lambda: False
         raise jinja2.TemplateNotFound(template)
 
 

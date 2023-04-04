@@ -49,5 +49,5 @@ async def sum_file(*args: str, **kwargs: Any):
     file_path: str = kwargs.get('file', '')
     with open(file_path, "rb") as f:
         contents = f.read()
-        hashed_text = hashlib.md5(contents).hexdigest()
-        return hashed_text
+    hashed_text = hashlib.md5(contents).hexdigest()
+    return hashed_text

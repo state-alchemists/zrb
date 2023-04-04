@@ -58,8 +58,8 @@ def test_add_simple_python_app():
     ]
     with open(os.path.join(project_path, 'zrb_init.py')) as f:
         content = f.read()
-        for line in expected_lines:
-            assert line in content
+    for line in expected_lines:
+        assert line in content
 
     # second attempt should fail
     is_error = False

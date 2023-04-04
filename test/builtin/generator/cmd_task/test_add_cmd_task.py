@@ -32,8 +32,8 @@ def test_add_cmd_task():
     # cmd_task should be imported
     with open(os.path.join(project_path, 'zrb_init.py')) as f:
         content = f.read()
-        assert 'assert cmd_task' in content
-        assert 'import _automate.cmd_task as cmd_task' in content
+    assert 'assert cmd_task' in content
+    assert 'import _automate.cmd_task as cmd_task' in content
 
     # second attempt should fail
     is_error = False

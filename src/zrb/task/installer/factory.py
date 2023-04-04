@@ -25,8 +25,9 @@ def _get_append_config(
         )
         task.print_out(f'Add configuration to {destination}')
         with open(source_path, 'r') as src:
-            with open(destination, 'a') as dst:
-                dst.write(src.read())
+            content = src.read()
+        with open(destination, 'a') as dst:
+            dst.write(content)
         task.print_out('👌')
     return _append_config
 

@@ -18,12 +18,12 @@ def add_project_automation(project_dir: str):
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
     with open(zrb_init_path, 'r') as f:
         code = f.read()
-        import_alias = project_task_module_path.split('.')[-1]
-        code = add_import_module(
-            code=code,
-            module_path=project_task_module_path,
-            alias=import_alias
-        )
-        code = add_assert_resource(code, import_alias)
+    import_alias = project_task_module_path.split('.')[-1]
+    code = add_import_module(
+        code=code,
+        module_path=project_task_module_path,
+        alias=import_alias
+    )
+    code = add_assert_resource(code, import_alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)

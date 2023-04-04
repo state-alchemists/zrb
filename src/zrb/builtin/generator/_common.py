@@ -195,14 +195,14 @@ def register_module(
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
     with open(zrb_init_path, 'r') as f:
         code = f.read()
-        if alias is None:
-            alias = module_name.split('.')[-1]
-        code = add_import_module(
-            code=code,
-            module_path=module_name,
-            alias=alias
-        )
-        code = add_assert_resource(code, alias)
+    if alias is None:
+        alias = module_name.split('.')[-1]
+    code = add_import_module(
+        code=code,
+        module_path=module_name,
+        alias=alias
+    )
+    code = add_assert_resource(code, alias)
     with open(zrb_init_path, 'w') as f:
         f.write(code)
     return True

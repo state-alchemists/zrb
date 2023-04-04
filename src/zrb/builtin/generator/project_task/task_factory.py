@@ -186,14 +186,14 @@ def _create_register_app_task(
         task.print_out(f'Add {upstream_task_var} to project automation')
         with open(project_automation_path, 'r') as f:
             code = f.read()
-            code = add_import_module(
-                code=code,
-                module_path=upstream_module_path,
-                resource=upstream_task_var
-            )
-            code = add_upstream_to_task(
-                code, project_automation_task_name, upstream_task_var
-            )
+        code = add_import_module(
+            code=code,
+            module_path=upstream_module_path,
+            resource=upstream_task_var
+        )
+        code = add_upstream_to_task(
+            code, project_automation_task_name, upstream_task_var
+        )
         with open(project_automation_path, 'w') as f:
             f.write(code)
 
