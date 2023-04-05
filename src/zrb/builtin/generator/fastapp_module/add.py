@@ -177,7 +177,10 @@ async def add_docker_compose_service(
                     'microservices'
                 ],
                 'healthcheck': {
-                    'test': '["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1"]', # noqa
+                    'test': [
+                        "CMD-SHELL",
+                        "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1" # noqa
+                    ],
                     'interval': '5s',
                     'timeout': '1s',
                     'retries': 30

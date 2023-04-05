@@ -1,6 +1,5 @@
 from typing import Any, Mapping
-from ruamel.yaml import YAML, round_trip_load, round_trip_dump
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml import YAML, composer, CommentedMap
 
 
 def read_compose_file(file_name: str) -> Any:
