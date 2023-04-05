@@ -13,6 +13,7 @@ from .._common import (
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_function_call import add_function_call
+from ....helper.docker_compose.file import add_services
 from ....helper.file.text import (
     read_text_file_async, write_text_file_async, append_text_file_async
 )
@@ -82,6 +83,7 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
     module_name = kwargs.get('module_name')
     kebab_app_name = util.to_kebab_case(app_name)
     snake_app_name = util.to_snake_case(app_name)
+    kebab_module_name = util.to_kebab_case(module_name)
     snake_module_name = util.to_snake_case(module_name)
     upper_snake_module_name = snake_module_name.upper()
     app_main_file = get_app_main_file(project_dir, kebab_app_name)
@@ -89,9 +91,8 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
     json_modules_file = get_json_modules_file(project_dir, snake_app_name)
     enabled_env_file = get_all_enabled_env_file(project_dir, kebab_app_name)
     disabled_env_file = get_all_disabled_env_file(project_dir, kebab_app_name)
-    # run `create_automation_json_config`, `register_module`,
-    # `create_app_config` in parallel
-    coroutines = [
+    docker_compose_file = get_docker_compose_file(project_dir, kebab_app_name)
+    results = await asyncio.gather(*[
         asyncio.create_task(create_automation_json_config(
             task, json_modules_file, snake_module_name
         )),
@@ -106,53 +107,121 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
         )),
         asyncio.create_task(append_all_disabled_env(
             task, disabled_env_file, upper_snake_module_name
-        ))
-    ]
-    results = await asyncio.gather(*coroutines)
-    modules = results[0]
+        )),
+    ])
+    modules = results[0] # return value of `create_automation_json_config`
     template_env_path = get_template_env_file(project_dir, kebab_app_name)
-    await append_template_env(
-        task, modules, template_env_path, upper_snake_module_name
-    )
-    # TODO: create service in docker compose
+    template_env_map = dotenv_values(template_env_path)
+    app_port = int(template_env_map.get('APP_PORT', '8080'))
+    module_app_port = app_port + len(modules)
+    await asyncio.gather(*[
+        asyncio.create_task(add_docker_compose_service(
+            task, module_app_port, docker_compose_file, kebab_app_name,
+            kebab_module_name, snake_module_name, upper_snake_module_name
+        )),
+        asyncio.create_task(append_template_env(
+            task, module_app_port, template_env_path, upper_snake_module_name
+        ))
+    ])
     # TODO: create runner for local microservices
+    # TODO: create deployment for local microservices
     task.print_out('Success')
+
+
+async def add_docker_compose_service(
+    task: Task,
+    module_app_port: int,
+    docker_compose_file_path: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    snake_module_name: str,
+    upper_snake_module_name: str
+):
+    module_app_port_str = str(module_app_port)
+    app_container_port_env_name = f'APP_{upper_snake_module_name}_MODULE_PORT'
+    app_container_port_env = '${' + app_container_port_env_name + ':-' + module_app_port_str + '}' # noqa
+    app_host_port_env_name = f'APP_HOST_{upper_snake_module_name}_MODULE_PORT'
+    app_host_port_env = '${' + app_host_port_env_name + ':-' + module_app_port_str + '}' # noqa
+    task.print_out(f'Add service at: {docker_compose_file_path}')
+    add_services(
+        file_name=docker_compose_file_path,
+        new_services={
+            f'{kebab_app_name}-{kebab_module_name}-module': {
+                'build': {
+                    'dockerfile': 'Dockerfile',
+                    'context': './src'
+                },
+                'image': '${IMAGE:-' + kebab_app_name + '}',
+                'container_name': f'snake_app_name_{snake_module_name}',
+                'hostname': f'snake_app_name_{snake_module_name}',
+                'env_file': [
+                    'src/template.env',
+                    'all-module-disabled.env'
+                ],
+                'environment': {
+                    'APP_NAME': '${APP_NAME:-' + kebab_app_name + '}-' + f'{kebab_module_name}-module', # noqa
+                    'APP_PORT': app_container_port_env,  # noqa
+                    'APP_RMQ_CONNECTION': '${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}', # noqa
+                    'APP_KAFKA_BOOTSTRAP_SERVERS': '${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}', # noqa
+                    'APP_ENABLE_MESSAGE_CONSUMER': 'true',
+                    'APP_ENABLE_RPC_SERVER': 'true',
+                    'APP_ENABLE_API': 'false',
+                    'APP_ENABLE_FRONTEND': 'false',
+                    f'APP_ENABLE_{upper_snake_module_name}_MODULE': 'true',
+                },
+                'ports': [
+                    f'{app_host_port_env}:{app_container_port_env}'
+                ],
+                'restart': 'on-failure',
+                'profiles': [
+                    'microservices'
+                ],
+                'healthcheck': {
+                    'test': '["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1"]', # noqa
+                    'interval': '5s',
+                    'timeout': '1s',
+                    'retries': 30
+                }
+            }
+        }
+    )
 
 
 async def append_template_env(
     task: Task,
-    modules: List[str],
+    module_app_port: int,
     template_env_path: str,
     upper_snake_module_name: str
 ):
-    template_env_map = dotenv_values(template_env_path)
-    app_port = int(template_env_map.get('APP_PORT', '8080'))
-    module_app_port = app_port + len(modules)
     new_env_str = '\n'.join([
         f'APP_ENABLE_{upper_snake_module_name}_MODULE=true',
         f'APP_{upper_snake_module_name}_MODULE_PORT={module_app_port}',
+        f'APP_HOST_{upper_snake_module_name}_MODULE_PORT={module_app_port}',
     ])
+    task.print_out(f'Add new environment to: {template_env_path}')
     await append_text_file_async(template_env_path, new_env_str)
 
 
 async def append_all_enabled_env(
     task: Task,
-    all_enabled_env_file_path: str,
+    all_enabled_env_path: str,
     upper_snake_module_name: str
 ):
+    task.print_out(f'Add new environment to: {all_enabled_env_path}')
     await append_text_file_async(
-        all_enabled_env_file_path,
+        all_enabled_env_path,
         f'APP_ENABLE_{upper_snake_module_name}_MODULE=true'
     )
 
 
 async def append_all_disabled_env(
     task: Task,
-    all_disabled_env_file_path: str,
+    all_disabled_env_path: str,
     upper_snake_module_name: str
 ):
+    task.print_out(f'Add new environment to: {all_disabled_env_path}')
     await append_text_file_async(
-        all_disabled_env_file_path,
+        all_disabled_env_path,
         f'APP_ENABLE_{upper_snake_module_name}_MODULE=false'
     )
 
@@ -217,6 +286,11 @@ async def register_module(
     task.print_out(f'Write modified code to: {app_main_file_path}')
     await write_text_file_async(app_main_file_path, code)
 
+
+def get_docker_compose_file(project_dir: str, kebab_app_name: str):
+    return os.path.join(
+        project_dir, 'src', kebab_app_name, 'docker-compose.yml'
+    )
 
 def get_app_main_file(project_dir: str, kebab_app_name: str):
     return os.path.join(

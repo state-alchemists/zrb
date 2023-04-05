@@ -110,6 +110,8 @@ services:
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
       APP_ENABLE_MESSAGE_CONSUMER: false
       APP_ENABLE_RPC_SERVER: false
+      APP_ENABLE_API: true
+      APP_ENABLE_FRONTEND: true
     ports:
       - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: on-failure
