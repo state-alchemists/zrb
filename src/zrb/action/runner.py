@@ -69,7 +69,7 @@ class Runner(BaseAction):
         task_cmd_name = task.get_cmd_name()
         task_description = task.get_description()
         task_main_loop = task.create_main_loop(
-            env_prefix=self.env_prefix, raise_error=False
+            env_prefix=self.env_prefix, raise_error=True
          )
         command = click.Command(
             callback=task_main_loop, name=task_cmd_name, help=task_description

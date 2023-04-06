@@ -9,7 +9,7 @@ from ._common import (
     kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker, app_local_checker,
     local_input, mode_input, host_input, https_input, image_input,
-    local_app_port_env, local_app_broker_type_env, compose_app_host_port_env,
+    local_app_port_env, local_app_broker_type_env,
     compose_rabbitmq_host_port_env, compose_rabbitmq_management_host_port_env,
     compose_redpanda_console_host_port_env,
     compose_kafka_outside_host_port_env,
@@ -27,7 +27,6 @@ support_compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 support_compose_envs = [
     local_app_broker_type_env,
     local_app_port_env,
-    compose_app_host_port_env,
     compose_rabbitmq_host_port_env,
     compose_rabbitmq_management_host_port_env,
     compose_redpanda_console_host_port_env,

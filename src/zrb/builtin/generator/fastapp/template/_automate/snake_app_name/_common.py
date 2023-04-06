@@ -1,5 +1,6 @@
 from zrb import (
-    BoolInput, ChoiceInput, IntInput, StrInput, Env, HTTPChecker, PortChecker
+    BoolInput, ChoiceInput, IntInput, StrInput, Env, EnvFile,
+    HTTPChecker, PortChecker
 )
 import os
 
@@ -155,6 +156,15 @@ pulumi_stack_input = StrInput(
 )
 
 ###############################################################################
+# Env file Definitions
+###############################################################################
+
+compose_env_file = EnvFile(
+    env_file=os.path.join(CURRENT_DIR, 'config', 'docker-compose.env'),
+    prefix='ENV_PREFIX'
+)
+
+###############################################################################
 # Env Definitions
 ###############################################################################
 
@@ -198,12 +208,6 @@ compose_app_broker_type_env = Env(
     name='APP_BROKER_TYPE',
     os_name='CONTAINER_ENV_PREFIX_APP_BROKER_TYPE',
     default='rabbitmq'
-)
-
-compose_app_host_port_env = Env(
-    name='APP_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_APP_HOST_PORT',
-    default='httpPort'
 )
 
 compose_rabbitmq_host_port_env = Env(

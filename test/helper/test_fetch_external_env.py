@@ -1,4 +1,4 @@
-from zrb.helper.dockercompose.fetch_external_env import fetch_external_env
+from zrb.helper.docker_compose.fetch_external_env import fetch_external_env
 
 
 def test_fetch_external_env():
