@@ -161,7 +161,7 @@ pulumi_stack_input = StrInput(
 
 compose_env_file = EnvFile(
     env_file=os.path.join(CURRENT_DIR, 'config', 'docker-compose.env'),
-    prefix='ENV_PREFIX'
+    prefix='CONTAINER_ENV_PREFIX'
 )
 
 ###############################################################################

@@ -182,10 +182,7 @@ class TaskModel(
         # init properties
         self.name = name
         self.group = group
-        self.envs: List[Env] = [
-            Env(name=key, os_name=key)
-            for key in os.environ
-        ] + list(envs)
+        self.envs = envs
         self.env_files = env_files
         self.icon = icon
         self.color = color
@@ -419,15 +416,13 @@ class TaskModel(
             )
         self.log_debug(f'Input map: {self._input_map}')
         # Construct envs based on self.env_files and self.envs
-        self.log_info('Merging env_files and envs')
-        envs: Iterable[Env] = []
+        self.log_info('Merging task env_files and task envs')
+        envs: List[Env] = []
         for env_file in self.env_files:
             envs += env_file.get_envs()
-        envs += self.envs
+        envs += list(self.envs)
         envs.reverse()
-        envs = ensure_uniqueness(
-            envs, lambda x, y: x.name == y.name
-        )
+        envs = ensure_uniqueness(envs, lambda x, y: x.name == y.name)
         envs.reverse()
         # Add envs to env_map
         self.log_info('Set env map')
@@ -438,6 +433,11 @@ class TaskModel(
             self._env_map[env_name] = self.render_any(
                 task_env.get(env_prefix)
             )
+        self.log_info('Add os environment to env map')
+        for key in os.environ:
+            if key in self._env_map:
+                continue
+            self._env_map[key] = os.getenv(key, '')
         self.log_debug(f'Env map: {self._env_map}')
 
     def get_all_inputs(self) -> Iterable[BaseInput]:

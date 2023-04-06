@@ -10,7 +10,8 @@ class Env():
     '''
 
     def __init__(
-        self, name: str,
+        self,
+        name: str,
         os_name: Optional[str] = None,
         default: str = ''
     ):
@@ -38,9 +39,9 @@ class Env():
         if self.os_name == '':
             return self.default
         prefixed_name = self._get_prefixed_name(self.os_name, prefix)
-        if prefixed_name in os.environ:
+        if prefixed_name in os.environ and os.environ[prefixed_name] != '':
             return os.environ[prefixed_name]
-        if self.os_name in os.environ:
+        if self.os_name in os.environ and os.environ[self.os_name] != '':
             return os.environ[self.os_name]
         return self.default
 
