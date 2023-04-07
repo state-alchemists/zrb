@@ -6,26 +6,26 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
     hostname: redpanda
     command:
-      - redpanda
-      - start
-      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
-      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
-      - --pandaproxy-addr PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
-      - --advertise-pandaproxy-addr PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
-      - --rpc-addr 0.0.0.0:33145
-      - --advertise-rpc-addr redpanda:33145
-      - --smp 1
-      - --memory 1G
-      - --mode dev-container
-      - --default-log-level=warn
+    - redpanda
+    - start
+    - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+    - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    - --pandaproxy-addr PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+    - --advertise-pandaproxy-addr PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
+    - --rpc-addr 0.0.0.0:33145
+    - --advertise-rpc-addr redpanda:33145
+    - --smp 1
+    - --memory 1G
+    - --mode dev-container
+    - --default-log-level=warn
     ports:
-      - 8082:8082
-      - ${KAFKA_OUTSIDE_HOST_PORT:-9092}:9092
-      - 28082:28082
-      - ${KAFKA_PLAINTEXT_HOST_PORT:-29092}:29092
+    - 8082:8082
+    - ${KAFKA_OUTSIDE_HOST_PORT:-9092}:9092
+    - 28082:28082
+    - ${KAFKA_PLAINTEXT_HOST_PORT:-29092}:29092
     restart: on-failure
     profiles:
-      - kafka
+    - kafka
     healthcheck:
       test: ["CMD", "redpanda", "admin", "check"]
       interval: 5s
@@ -37,13 +37,13 @@ services:
     image: docker.redpanda.com/redpandadata/console:v2.2.2
     hostname: redpanda-console
     ports:
-      - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
+    - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
     environment:
-      - KAFKA_BROKERS=redpanda:29092
+    - KAFKA_BROKERS=redpanda:29092
     profiles:
-      - kafka
+    - kafka
     depends_on:
-      - redpanda
+    - redpanda
     restart: on-failure
 
 
@@ -51,16 +51,14 @@ services:
     image: rabbitmq:3-management
     hostname: rabbitmq
     ports:
-      - "${RABBITMQ_HOST_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
-    # volumes:
-    #   - rabbitmq:/var/lib/rabbitmq/mnesia
+    - "${RABBITMQ_HOST_PORT:-5672}:5672"
+    - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     restart: on-failure
     profiles:
-      - rabbitmq
+    - rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 5s
@@ -76,17 +74,17 @@ services:
     container_name: snake_app_name
     hostname: snake_app_name
     env_file:
-      - 'src/template.env'
+    - 'src/template.env'
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}
       APP_PORT: ${APP_PORT:-8080}
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
     ports:
-      - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
+    - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: on-failure
     profiles:
-      - monolith
+    - monolith
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1"]
       interval: 5s
@@ -102,8 +100,8 @@ services:
     container_name: snake_app_name_gateway
     hostname: snake_app_name_gateway
     env_file:
-      - 'src/template.env'
-      - 'all-module-enabled.env'
+    - 'src/template.env'
+    - 'all-module-enabled.env'
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}-gateway
       APP_PORT: ${APP_GATEWAY_PORT:-8080}
@@ -114,10 +112,10 @@ services:
       APP_ENABLE_API: true
       APP_ENABLE_FRONTEND: true
     ports:
-      - "${APP_GATEWAY_HOST_PORT:-8080}:${APP_GATEWAY_PORT:-8080}"
+    - "${APP_GATEWAY_HOST_PORT:-8080}:${APP_GATEWAY_PORT:-8080}"
     restart: on-failure
     profiles:
-      - microservices
+    - microservices
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/ || exit 1"]
       interval: 5s

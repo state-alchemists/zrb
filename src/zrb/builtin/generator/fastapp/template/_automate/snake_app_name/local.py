@@ -21,6 +21,7 @@ from ._common import (
 from .image import build_snake_app_name_image
 from .frontend import build_snake_app_name_frontend
 from .container import remove_snake_app_name_container
+from .local_microservices import get_start_microservices
 import os
 
 support_compose_env_prefix = 'CONTAINER_ENV_PREFIX'
@@ -135,6 +136,14 @@ start_snake_app_name_gateway = CmdTask(
     ]
 )
 
+start_microservices = get_start_microservices(
+    upstreams=[
+        start_snake_app_name_support_container,
+        build_snake_app_name_frontend,
+        prepare_snake_app_name_backend,
+    ]
+)
+
 start_snake_app_name = Task(
     icon='🚤',
     name='start-kebab-app-name',
@@ -143,7 +152,7 @@ start_snake_app_name = Task(
     upstreams=[
         start_monolith_snake_app_name,
         start_snake_app_name_gateway,
-    ],
+    ] + start_microservices,
     run=lambda *args, **kwargs: kwargs.get('_task').print_out('👌')
 )
 runner.register(start_snake_app_name)

@@ -7,7 +7,7 @@ from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
 from ..helper.string.double_quote import double_quote
 from ..helper.docker_compose.file import read_compose_file
-from ..helper.docker_compose.fetch_external_env import fetch_external_env
+from ..helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
 
 import os
 import pathlib
@@ -76,16 +76,29 @@ class DockerComposeTask(CmdTask):
 
     def _fill_envs(self):
         data = read_compose_file(self.compose_file)
-        env_map = fetch_external_env(data)
+        env_map = fetch_compose_file_env_map(data)
         for key, value in env_map.items():
-            existing_env = [env for env in self.envs if env.name == key]
-            if len(existing_env) > 0:
-                # Don't override existing env
+            # Need to get this everytime because we only want
+            # the first compose file env value for a certain key
+            existing_env_map = self._get_existing_env_map()
+            if key in existing_env_map:
                 continue
             os_name = key
             if self.compose_env_prefix != '':
                 os_name = f'{self.compose_env_prefix}_{os_name}'
             self.envs.append(Env(name=key, os_name=os_name, default=value))
+
+    def _get_existing_env_map(self) -> Mapping[str, str]:
+        env_map: Mapping[str, str] = {}
+        for env_file in self.env_files:
+            envs = env_file.get_envs()
+            env_map.update({
+                env.name: env.default for env in envs
+            })
+        env_map.update({
+            env.name: env.default for env in self.envs
+        })
+        return env_map
 
     def _set_compose_file(self, compose_file: Optional[str]):
         if compose_file is None:

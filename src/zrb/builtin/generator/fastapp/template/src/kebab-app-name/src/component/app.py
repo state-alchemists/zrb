@@ -2,7 +2,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from config import (
-    app_enable_frontend, cors_allow_credentials, cors_allow_headers,
+    app_name, app_enable_frontend, cors_allow_credentials, cors_allow_headers,
     cors_allow_methods, cors_allow_origin_regex, cors_allow_origins,
     cors_expose_headers, cors_max_age
 )
@@ -38,7 +38,7 @@ app.add_middleware(
 def handle_liveness():
     if app_state.get_liveness():
         return JSONResponse(
-            content={'message': 'Service is alive'},
+            content={'app': app_name, 'alive': True},
             status_code=status.HTTP_200_OK
         )
     return JSONResponse(
@@ -52,7 +52,7 @@ def handle_liveness():
 def handle_readiness():
     if app_state.get_readiness():
         return JSONResponse(
-            content={'message': 'Service is ready'},
+            content={'app': app_name, 'ready': True},
             status_code=status.HTTP_200_OK
         )
     return JSONResponse(

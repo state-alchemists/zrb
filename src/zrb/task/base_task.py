@@ -19,6 +19,7 @@ from ..helper.string.double_quote import double_quote
 from ..helper.string.conversion import (
     to_cmd_name, to_variable_name, to_boolean
 )
+from ..helper.map.conversion import to_str as str_map_to_str
 from ..helper.string.jinja import is_probably_jinja
 
 import asyncio
@@ -414,7 +415,9 @@ class TaskModel(
             self._input_map[map_key] = self.render_any(
                 kwargs.get(map_key, task_input.default)
             )
-        self.log_debug(f'Input map: {self._input_map}')
+        self.log_debug(
+            f'Input map:\n{str_map_to_str(self._input_map, item_prefix="  ")}'
+        )
         # Construct envs based on self.env_files and self.envs
         self.log_info('Merging task env_files and task envs')
         envs: List[Env] = []
@@ -438,7 +441,9 @@ class TaskModel(
             if key in self._env_map:
                 continue
             self._env_map[key] = os.getenv(key, '')
-        self.log_debug(f'Env map: {self._env_map}')
+        self.log_debug(
+            f'Env map:\n{str_map_to_str(self._env_map, item_prefix="  ")}'
+        )
 
     def get_all_inputs(self) -> Iterable[BaseInput]:
         # Override this method!!!

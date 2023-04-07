@@ -162,7 +162,7 @@ async def add_docker_compose_service(
     add_services(
         file_name=docker_compose_file_path,
         new_services={
-            f'{kebab_app_name}-{kebab_module_name}-module': {
+            f'{kebab_app_name}-{kebab_module_name}-service': {
                 'build': {
                     'dockerfile': 'Dockerfile',
                     'context': './src'
