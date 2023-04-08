@@ -1,21 +1,15 @@
 from typing import Mapping
-from dotenv import dotenv_values
+from _common import TEMPLATE_ENV_MAP
 
 import pulumi_kubernetes as k8s
 import os
 
-
-CURRENT_DIR = os.path.dirname(__file__)
-APP_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'src'))
-TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
-
-template_env_map = dotenv_values(TEMPLATE_ENV_FILE_NAME)
 image = os.getenv('IMAGE', 'kebab-app-name:latest')
 app_monolith_replica = int(os.getenv('REPLICA', '1'))
 app_monolith_labels = {'app': 'kebab-app-name'}
-app_monolith_env_map = template_env_map
+app_monolith_env_map = TEMPLATE_ENV_MAP
 app_monolith_port = int(os.getenv(
-    'APP_PORT', template_env_map.get('APP_PORT', '8080')
+    'APP_PORT', TEMPLATE_ENV_MAP.get('APP_PORT', '8080')
 ))
 
 

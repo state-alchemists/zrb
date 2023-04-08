@@ -1,6 +1,8 @@
 '''A Kubernetes Python Pulumi program to deploy kebab-app-name'''
 
-from app import create_app_monolith_deployment, create_app_monolith_service
+from app_helper import (
+    create_app_monolith_deployment, create_app_monolith_service
+)
 
 import pulumi
 

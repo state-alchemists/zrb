@@ -138,7 +138,7 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
             upper_snake_module_name
         ))
     ])
-    # TODO: create runner for local microservices
+    # TODO: deploy rabbitmq/kafka
     # TODO: create deployment for local microservices
     task.print_out('Success')
 

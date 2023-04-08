@@ -1,5 +1,5 @@
 from typing import List
-from zrb import Input, CmdTask, Env, EnvFile, runner
+from zrb import CmdTask, Env, EnvFile, runner
 from zrb.builtin._group import project_group
 from .image import push_snake_app_name_image
 from ._common import (
