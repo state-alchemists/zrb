@@ -43,6 +43,9 @@ push_snake_app_name_image = DockerComposeTask(
     upstreams=[build_snake_app_name_image],
     cwd=RESOURCE_DIR,
     compose_cmd='push',
+    compose_args=[
+        'kebab-app-name'
+    ],
     compose_env_prefix=compose_env_prefix,
 )
 runner.register(push_snake_app_name_image)

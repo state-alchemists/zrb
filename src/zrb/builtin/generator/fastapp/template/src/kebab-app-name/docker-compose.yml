@@ -5,6 +5,8 @@ services:
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
     hostname: redpanda
+    # Redpanda docker configuration: https://docs.redpanda.com/docs/reference/docker-compose/#configure-redpanda-in-docker
+    # Redpanda node configuration example: https://docs.redpanda.com/docs/reference/node-configuration-sample/
     command:
     - redpanda
     - start
@@ -18,11 +20,18 @@ services:
     - --memory 1G
     - --mode dev-container
     - --default-log-level=warn
+    - --set sasl_mechanism=${KAFKA_SASL_MECHANISM}
+    - --set sasl_username=${KAFKA_SASL_USER}
+    - --set sasl_password=${KAFKA_SASL_PASS}
     ports:
     - 8082:8082
     - ${KAFKA_OUTSIDE_HOST_PORT:-9092}:9092
     - 28082:28082
     - ${KAFKA_PLAINTEXT_HOST_PORT:-29092}:29092
+    environment:
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
+      KAFKA_SASL_USER: ${KAFKA_SASL_USER:-admin}
+      KAFKA_SASL_PASS: ${KAFKA_SASL_PASS:-admin}
     restart: on-failure
     profiles:
     - kafka
@@ -43,7 +52,8 @@ services:
     profiles:
     - kafka
     depends_on:
-    - redpanda
+      redpanda:
+        condition: service_completed_successfully
     restart: on-failure
 
 
@@ -54,8 +64,8 @@ services:
     - "${RABBITMQ_HOST_PORT:-5672}:5672"
     - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
     restart: on-failure
     profiles:
     - rabbitmq
@@ -64,6 +74,28 @@ services:
       interval: 5s
       timeout: 1s
       retries: 30
+
+  
+  postgres:
+    image: postgres:15.2
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-snake_app_name}
+    ports:
+    - ${POSTGRES_HOST_PORT:-5432}:5432
+    profiles:
+    - postgresql
+
+
+  adminer:
+    image: adminer
+    restart: on-failure
+    ports:
+    - ${ADMINER_HOST_PORT:-9001}:8080
+    profiles:
+    - postgresql
 
 
   kebab-app-name:

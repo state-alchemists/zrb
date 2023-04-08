@@ -1,6 +1,7 @@
 from config import (
     app_name, app_broker_type, app_rmq_connection_string,
-    app_kafka_bootstrap_servers
+    app_kafka_bootstrap_servers, app_kafka_security_protocol,
+    app_kafka_sasl_mechanism, app_kafka_sasl_user, app_kafka_sasl_pass
 )
 from core.messagebus.mock import MockAdmin, MockConsumer, MockPublisher
 from core.messagebus.messagebus import (
@@ -28,6 +29,10 @@ def init_admin(
         return KafkaAdmin(
             logger=logger,
             bootstrap_servers=app_kafka_bootstrap_servers,
+            security_protocol=app_kafka_security_protocol,
+            sasl_mechanism=app_kafka_sasl_mechanism,
+            sasl_plain_username=app_kafka_sasl_user,
+            sasl_plain_password=app_kafka_sasl_pass,
             configs={}
         )
     return default_admin
@@ -49,6 +54,10 @@ def init_publisher(
         return KafkaPublisher(
             logger=logger,
             bootstrap_servers=app_kafka_bootstrap_servers,
+            security_protocol=app_kafka_security_protocol,
+            sasl_mechanism=app_kafka_sasl_mechanism,
+            sasl_plain_username=app_kafka_sasl_user,
+            sasl_plain_password=app_kafka_sasl_pass,
             serializer=serializer,
             kafka_admin=admin
         )
@@ -71,6 +80,10 @@ def init_consumer(
         return KafkaConsumer(
             logger=logger,
             bootstrap_servers=app_kafka_bootstrap_servers,
+            security_protocol=app_kafka_security_protocol,
+            sasl_mechanism=app_kafka_sasl_mechanism,
+            sasl_plain_username=app_kafka_sasl_user,
+            sasl_plain_password=app_kafka_sasl_pass,
             group_id=app_name,
             serializer=serializer,
             kafka_admin=admin

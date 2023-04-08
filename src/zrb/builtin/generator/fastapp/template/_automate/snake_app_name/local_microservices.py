@@ -43,7 +43,8 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
             host='{{input.snake_app_name_host}}',
             url='/readiness',
             port='{{env.APP_PORT}}',
-            is_https='{{input.snake_app_name_https}}'
+            is_https='{{input.snake_app_name_https}}',
+            skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION
         )
         # Create start_service
         start_service = CmdTask(

@@ -7,28 +7,12 @@ from ._common import (
     kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker,
     local_input, mode_input, host_input, https_input, image_input,
-    compose_env_file, compose_app_broker_type_env,
-    start_container_compose_profile_env, all_compose_profile_env, image_env,
-    compose_rabbitmq_host_port_env, compose_rabbitmq_management_host_port_env,
-    compose_redpanda_console_host_port_env,
-    compose_kafka_outside_host_port_env,
-    compose_pandaproxy_outside_host_port_env,
-    compose_kafka_plaintext_host_port_env,
-    compose_pandaproxy_plaintext_host_port_env
+    compose_env_file, start_container_compose_profile_env,
+    all_compose_profile_env, image_env
 )
 from .image import build_snake_app_name_image
 
 compose_env_prefix = 'CONTAINER_ENV_PREFIX'
-compose_envs = [
-    compose_app_broker_type_env,
-    compose_rabbitmq_host_port_env,
-    compose_rabbitmq_management_host_port_env,
-    compose_redpanda_console_host_port_env,
-    compose_kafka_outside_host_port_env,
-    compose_kafka_plaintext_host_port_env,
-    compose_pandaproxy_outside_host_port_env,
-    compose_pandaproxy_plaintext_host_port_env
-]
 
 ###############################################################################
 # Task Definitions
@@ -43,7 +27,7 @@ remove_snake_app_name_container = DockerComposeTask(
     compose_cmd='down',
     compose_env_prefix=compose_env_prefix,
     env_files=[compose_env_file],
-    envs=compose_envs + [
+    envs=[
         image_env,
         all_compose_profile_env
     ],
@@ -71,7 +55,7 @@ start_snake_app_name_container = DockerComposeTask(
     compose_cmd='up',
     compose_env_prefix=compose_env_prefix,
     env_files=[compose_env_file],
-    envs=compose_envs + [
+    envs=[
         start_container_compose_profile_env,
         image_env,
     ],
@@ -97,7 +81,7 @@ stop_snake_app_name_container = DockerComposeTask(
     compose_cmd='stop',
     compose_env_prefix=compose_env_prefix,
     env_files=[compose_env_file],
-    envs=compose_envs + [
+    envs=[
         image_env,
         all_compose_profile_env
     ],

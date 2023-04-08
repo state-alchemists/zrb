@@ -98,7 +98,8 @@ app_local_checker = HTTPChecker(
     host='{{input.snake_app_name_host}}',
     url='/readiness',
     port='{{env.APP_PORT}}',
-    is_https='{{input.snake_app_name_https}}'
+    is_https='{{input.snake_app_name_https}}',
+    skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION
 )
 
 ###############################################################################
@@ -202,54 +203,6 @@ local_app_broker_type_env = Env(
     name='APP_BROKER_TYPE',
     os_name='ENV_PREFIX_APP_BROKER_TYPE',
     default='rabbitmq'
-)
-
-compose_app_broker_type_env = Env(
-    name='APP_BROKER_TYPE',
-    os_name='CONTAINER_ENV_PREFIX_APP_BROKER_TYPE',
-    default='rabbitmq'
-)
-
-compose_rabbitmq_host_port_env = Env(
-    name='RABBITMQ_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_RABBITMQ_HOST_PORT',
-    default='5672'
-)
-
-compose_rabbitmq_management_host_port_env = Env(
-    name='RABBITMQ_MANAGEMENT_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_RABBITMQ_MANAGEMENT_HOST_PORT',
-    default='15672'
-)
-
-compose_redpanda_console_host_port_env = Env(
-    name='REDPANDA_CONSOLE_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_REDPANDA_CONSOLE_HOST_PORT',
-    default='9000'
-)
-
-compose_kafka_plaintext_host_port_env = Env(
-    name='KAFKA_PLAINTEXT_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_KAFKA_PLAINTEXT_HOST_PORT',
-    default='29092'
-)
-
-compose_kafka_outside_host_port_env = Env(
-    name='KAFKA_OUTSIDE_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_KAFKA_OUTSIDE_HOST_PORT',
-    default='9092'
-)
-
-compose_pandaproxy_plaintext_host_port_env = Env(
-    name='PANDAPROXY_PLAINTEXT_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_PANDAPROXY_PLAINTEXT_HOST_PORT',
-    default='29092'
-)
-
-compose_pandaproxy_outside_host_port_env = Env(
-    name='PANDAPROXY_OUTSIDE_HOST_PORT',
-    os_name='CONTAINER_ENV_PREFIX_PANDAPROXY_OUTSIDE_HOST_PORT',
-    default='9092'
 )
 
 start_container_compose_profile_env = Env(

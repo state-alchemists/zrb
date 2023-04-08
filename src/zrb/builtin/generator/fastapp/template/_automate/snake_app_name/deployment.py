@@ -14,12 +14,6 @@ deployment_app_env_file = EnvFile(
     env_file=TEMPLATE_ENV_FILE_NAME, prefix='DEPLOYMENT_APP_ENV_PREFIX'
 )
 
-deployment_inputs: List[Input] = [
-    image_input,
-    replica_input,
-    pulumi_stack_input,
-]
-
 deployment_envs: List[Env] = [
     pulumi_backend_url_env,
     pulumi_config_passphrase_env,
@@ -36,7 +30,11 @@ deploy_snake_app_name = CmdTask(
     name='deploy-kebab-app-name',
     description='Deploy human readable app name',
     group=project_group,
-    inputs=deployment_inputs,
+    inputs=[
+        image_input,
+        replica_input,
+        pulumi_stack_input,
+    ],
     upstreams=[push_snake_app_name_image],
     cwd=DEPLOYMENT_DIR,
     env_files=[deployment_app_env_file],
@@ -50,7 +48,9 @@ destroy_snake_app_name = CmdTask(
     name='destroy-kebab-app-name',
     description='Remove human readable app name deployment',
     group=project_group,
-    inputs=deployment_inputs,
+    inputs=[
+        pulumi_stack_input,
+    ],
     cwd=DEPLOYMENT_DIR,
     env_files=[deployment_app_env_file],
     envs=deployment_envs,

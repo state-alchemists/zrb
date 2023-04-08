@@ -35,6 +35,18 @@ app_rmq_connection_string = os.environ.get(
 app_kafka_bootstrap_servers = os.environ.get(
     'APP_KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092'
 )
+app_kafka_security_protocol = os.environ.get(
+    'APP_KAFKA_SECURITY_PROTOCOL', 'PLAINTEXT'
+)
+app_kafka_sasl_mechanism = os.environ.get(
+    'APP_KAFKA_SASL_MECHANISM', 'SCRAM-SHA-256'
+)
+app_kafka_sasl_user = os.environ.get(
+    'APP_KAFKA_SASL_USER', 'admin'
+)
+app_kafka_sasl_pass = os.environ.get(
+    'APP_KAFKA_SASL_PASS', 'admin'
+)
 
 cors_allow_origins: List[str] = json.loads(os.getenv(
     'APP_CORS_ALLOW_ORIGINS', '["*"]'
