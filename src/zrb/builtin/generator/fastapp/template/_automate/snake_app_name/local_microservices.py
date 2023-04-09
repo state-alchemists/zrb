@@ -3,7 +3,7 @@ from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile, runner
 from zrb.helper.util import to_snake_case, to_kebab_case
 from ._common import (
     CURRENT_DIR, APP_DIR, SKIP_LOCAL_MICROSERVICES_EXECUTION,
-    TEMPLATE_ENV_FILE_NAME, local_app_broker_type_env,
+    APP_TEMPLATE_ENV_FILE_NAME, local_app_broker_type_env,
     local_input, mode_input, host_input, https_input
 )
 import os
@@ -23,7 +23,7 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
         upper_snake_module_name = snake_module_name.upper()
         # Create service_env_file
         service_env_file = EnvFile(
-            env_file=TEMPLATE_ENV_FILE_NAME,
+            env_file=APP_TEMPLATE_ENV_FILE_NAME,
             prefix=f'ENV_PREFIX_{upper_snake_module_name}'
         )
         # Create service_envs

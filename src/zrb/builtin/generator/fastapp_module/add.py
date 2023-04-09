@@ -92,6 +92,12 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
     enabled_env_file = get_all_enabled_env_file(project_dir, kebab_app_name)
     disabled_env_file = get_all_disabled_env_file(project_dir, kebab_app_name)
     docker_compose_file = get_docker_compose_file(project_dir, kebab_app_name)
+    src_template_env_path = get_src_template_env_file(
+        project_dir, kebab_app_name
+    )
+    deployment_template_env_path = get_deployment_template_env_file(
+        project_dir, kebab_app_name
+    )
     results = await asyncio.gather(*[
         asyncio.create_task(create_automation_json_config(
             task, json_modules_file, snake_module_name
@@ -108,15 +114,15 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
         asyncio.create_task(append_all_disabled_env(
             task, disabled_env_file, upper_snake_module_name
         )),
+        asyncio.create_task(append_src_template_env(
+            task, src_template_env_path, upper_snake_module_name
+        )),
+        asyncio.create_task(append_deployment_template_env(
+            task, deployment_template_env_path, upper_snake_module_name
+        )),
     ])
     modules = results[0]  # return value of `create_automation_json_config`
     module_port = 8080 + len(modules)
-    src_template_env_path = get_src_template_env_file(
-        project_dir, kebab_app_name
-    )
-    src_template_env_map = dotenv_values(src_template_env_path)
-    app_port = int(src_template_env_map.get('APP_PORT', '8080'))
-    module_app_port = app_port + len(modules)
     compose_env_path = get_compose_env_file(
         project_dir, snake_app_name
     )
@@ -127,10 +133,6 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
         asyncio.create_task(add_docker_compose_service(
             task, module_port, docker_compose_file, kebab_app_name,
             snake_app_name, kebab_module_name, snake_module_name,
-            upper_snake_module_name
-        )),
-        asyncio.create_task(append_src_template_env(
-            task, module_app_port, src_template_env_path,
             upper_snake_module_name
         )),
         asyncio.create_task(append_compose_env(
@@ -222,7 +224,6 @@ async def append_compose_env(
 
 async def append_src_template_env(
     task: Task,
-    module_app_port: int,
     src_template_env_path: str,
     upper_snake_module_name: str
 ):
@@ -231,6 +232,18 @@ async def append_src_template_env(
     ])
     task.print_out(f'Add new environment to: {src_template_env_path}')
     await append_text_file_async(src_template_env_path, new_env_str)
+
+
+async def append_deployment_template_env(
+    task: Task,
+    deployment_template_env_path: str,
+    upper_snake_module_name: str
+):
+    new_env_str = '\n'.join([
+        f'REPLICA_{upper_snake_module_name}_SERVICE=1',
+    ])
+    task.print_out(f'Add new environment to: {deployment_template_env_path}')
+    await append_text_file_async(deployment_template_env_path, new_env_str)
 
 
 async def append_all_enabled_env(
@@ -355,6 +368,12 @@ def get_src_template_env_file(project_dir: str, kebab_app_name: str):
     )
 
 
+def get_deployment_template_env_file(project_dir: str, kebab_app_name: str):
+    return os.path.join(
+        project_dir, 'src', kebab_app_name, 'deployment', 'template.env'
+    )
+
+
 def get_all_enabled_env_file(project_dir: str, kebab_app_name: str):
     return os.path.join(
         project_dir, 'src', kebab_app_name, 'all-module-enabled.env'
@@ -365,4 +384,3 @@ def get_all_disabled_env_file(project_dir: str, kebab_app_name: str):
     return os.path.join(
         project_dir, 'src', kebab_app_name, 'all-module-disabled.env'
     )
-

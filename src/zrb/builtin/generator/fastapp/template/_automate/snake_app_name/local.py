@@ -1,7 +1,7 @@
 from zrb import CmdTask, DockerComposeTask, Task, EnvFile, runner
 from zrb.builtin._group import project_group
 from ._common import (
-    CURRENT_DIR, APP_DIR, RESOURCE_DIR, TEMPLATE_ENV_FILE_NAME,
+    CURRENT_DIR, APP_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME,
     SKIP_SUPPORT_CONTAINER_EXECUTION, SKIP_LOCAL_MONOLITH_EXECUTION,
     SKIP_LOCAL_MICROSERVICES_EXECUTION,
     rabbitmq_checker, rabbitmq_management_checker,
@@ -23,7 +23,7 @@ support_compose_envs = [
     local_app_broker_type_env,
     local_app_port_env,
 ]
-app_env_file = EnvFile(env_file=TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX')
+app_env_file = EnvFile(env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX')
 app_envs = [
     local_app_broker_type_env,
     local_app_port_env,

@@ -29,6 +29,6 @@ Once the repo has been updated, you can fetch the repository to `helm-charts` di
 
 ```bash
 helm fetch redpanda/redpanda --untar --untardir helm-charts
-helm fetch bitnami/rabbitmq --untar --untardir rabbitmq
+helm fetch bitnami/rabbitmq --untar --untardir helm-charts
 helm fetch bitnami/postgresql --untar --untardir helm-charts
 ```

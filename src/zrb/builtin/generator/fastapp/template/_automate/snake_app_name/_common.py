@@ -1,5 +1,5 @@
 from zrb import (
-    BoolInput, ChoiceInput, IntInput, StrInput, Env, EnvFile,
+    BoolInput, ChoiceInput, StrInput, Env, EnvFile,
     HTTPChecker, PortChecker
 )
 import os
@@ -12,10 +12,13 @@ CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-app-name')
 DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, 'deployment')
+DEPLOYMENT_TEMPLATE_ENV_FILE_NAME = os.path.join(
+    DEPLOYMENT_DIR, 'template.env'
+)
 APP_DIR = os.path.join(RESOURCE_DIR, 'src')
 APP_FRONTEND_DIR = os.path.join(APP_DIR, 'frontend')
 APP_FRONTEND_BUILD_DIR = os.path.join(APP_FRONTEND_DIR, 'build')
-TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
+APP_TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 SKIP_CONTAINER_EXECUTION = '{{not input.local_snake_app_name}}'
 SKIP_SUPPORT_CONTAINER_EXECUTION = ' '.join([
     '{{',
@@ -142,13 +145,6 @@ image_input = StrInput(
     default='app-image-name:latest'
 )
 
-replica_input = IntInput(
-    name='kebab-app-name-replica',
-    description='Replica of "kebab-app-name"',
-    prompt='Replica of "kebab-app-name"',
-    default=1,
-)
-
 pulumi_stack_input = StrInput(
     name='kebab-app-name-pulumi-stack',
     description='Pulumi stack name for "kebab-app-name"',
@@ -185,12 +181,6 @@ pulumi_config_passphrase_env = Env(
     name='PULUMI_CONFIG_PASSPHRASE',
     os_name='PULUMI_ENV_PREFIX_CONFIG_PASSPHRASE',
     default='secret'
-)
-
-deployment_replica_env = Env(
-    name='REPLICA',
-    os_name='DEPLOYMENT_ENV_PREFIX',
-    default='{{input.snake_app_name_replica}}'
 )
 
 local_app_port_env = Env(

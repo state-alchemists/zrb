@@ -3,14 +3,15 @@ from helper.conversion import str_to_boolean, str_to_logging_level
 import os
 import json
 
-app_name = os.environ.get('APP_NAME', 'app')
+app_name = os.getenv('APP_NAME', 'app')
 app_logging_level = str_to_logging_level(
-    os.environ.get('APP_LOGGING_LEVEL', 'INFO')
+    os.getenv('APP_LOGGING_LEVEL', 'INFO')
 )
-app_broker_type = os.environ.get('APP_BROKER_TYPE', 'mock')
-app_host = os.environ.get('APP_HOST', '0.0.0.0')
-app_port = int(os.environ.get('APP_PORT', '8080'))
-app_reload = str_to_boolean(os.environ.get('APP_RELOAD', 'true'))
+app_broker_type = os.getenv('APP_BROKER_TYPE', 'mock')
+app_host = os.getenv('APP_HOST', '0.0.0.0')
+app_port = int(os.getenv('APP_PORT', '8080'))
+app_reload = str_to_boolean(os.getenv('APP_RELOAD', 'true'))
+app_max_not_ready = int(os.getenv('APP_MAX_NOT_READY', '10'))
 
 app_enable_rpc_server: bool = str_to_boolean(os.getenv(
     'APP_ENABLE_RPC_SERVER', 'true'
@@ -28,23 +29,23 @@ app_enable_api: bool = str_to_boolean(os.getenv(
     'APP_ENABLE_API', 'true'
 ))
 
-app_rmq_connection_string = os.environ.get(
+app_rmq_connection_string = os.getenv(
     'APP_RMQ_CONNECTION', 'amqp://guest:guest@localhost/'
 )
 
-app_kafka_bootstrap_servers = os.environ.get(
+app_kafka_bootstrap_servers = os.getenv(
     'APP_KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092'
 )
-app_kafka_security_protocol = os.environ.get(
+app_kafka_security_protocol = os.getenv(
     'APP_KAFKA_SECURITY_PROTOCOL', 'PLAINTEXT'
 )
-app_kafka_sasl_mechanism = os.environ.get(
-    'APP_KAFKA_SASL_MECHANISM', 'SCRAM-SHA-256'
+app_kafka_sasl_mechanism = os.getenv(
+    'APP_KAFKA_SASL_MECHANISM', 'SCRAM-SHA-512'
 )
-app_kafka_sasl_user = os.environ.get(
+app_kafka_sasl_user = os.getenv(
     'APP_KAFKA_SASL_USER', 'admin'
 )
-app_kafka_sasl_pass = os.environ.get(
+app_kafka_sasl_pass = os.getenv(
     'APP_KAFKA_SASL_PASS', 'admin'
 )
 

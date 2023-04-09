@@ -1,4 +1,6 @@
 from component.log import logger
+from config import app_max_not_ready
+import asyncio
 
 
 class AppState():
@@ -29,6 +31,8 @@ class AppState():
 app_state = AppState()
 
 
-def set_not_ready_on_error(exception: Exception):
+async def set_not_ready_on_error(exception: Exception):
     logger.critical(exception)
     app_state.set_readiness(False)
+    await asyncio.sleep(app_max_not_ready)
+    app_state.set_liveness(False)

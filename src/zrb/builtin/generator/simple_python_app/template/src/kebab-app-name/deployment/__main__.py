@@ -66,7 +66,7 @@ service = k8s.core.v1.Service(
         selector=app_labels,
         ports=[
             k8s.core.v1.ServicePortArgs(
-                port=80,
+                port=app_port,
                 protocol="TCP",
                 target_port=app_port,
             )
