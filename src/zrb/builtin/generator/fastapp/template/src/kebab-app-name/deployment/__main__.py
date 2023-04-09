@@ -2,7 +2,8 @@
 
 from _common import MODE, BROKER_TYPE
 from app_helper import (
-    create_app_monolith_deployment, create_app_monolith_service
+    create_app_monolith_deployment, create_app_monolith_service,
+    create_app_microservices_deployments, create_app_microservices_services
 )
 from helm_postgresql_helper import create_postgresql
 from helm_rabbitmq_helper import create_rabbitmq
@@ -22,7 +23,14 @@ elif BROKER_TYPE == 'kafka':
 
 
 if MODE == 'microservices':
-    pass
+    deployments = create_app_microservices_deployments()
+    pulumi.export('app-deployment-names', [
+        deployment.metadata['name'] for deployment in deployments
+    ])
+    services = create_app_microservices_services()
+    pulumi.export('app-service-names', [
+        service.metadata['name'] for service in services
+    ])
 else:
     deployment = create_app_monolith_deployment()
     pulumi.export('app-deployment-names', [deployment.metadata['name']])

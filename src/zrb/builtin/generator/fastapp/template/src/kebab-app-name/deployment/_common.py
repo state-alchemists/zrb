@@ -1,18 +1,28 @@
-from typing import Mapping
+from typing import Mapping, List
 from dotenv import dotenv_values
+import copy
+import jsons
 import os
+import re
 
+NON_ALPHA_NUM = re.compile(r'[^a-zA-Z0-9]+')
 CURRENT_DIR: str = os.path.dirname(__file__)
-MODE = os.getenv('MODE', 'monolith')
-NAMESPACE = os.getenv('NAMESPACE', 'default')
-APP_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'src'))
+MODE: str = os.getenv('MODE', 'monolith')
+NAMESPACE: str = os.getenv('NAMESPACE', 'default')
 
+MODULE_JSON_STR: str = os.getenv('MODULES', '[]')
+MODULES: List[str] = jsons.loads(MODULE_JSON_STR)
+
+APP_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'src'))
 TEMPLATE_ENV_FILE_NAME: str = os.path.join(APP_DIR, 'template.env')
 TEMPLATE_ENV_MAP: Mapping[str, str] = {
     key: os.getenv(key, default_value)
     for key, default_value in dotenv_values(TEMPLATE_ENV_FILE_NAME).items()
 }
-BROKER_TYPE = TEMPLATE_ENV_MAP.get('APP_BROKER_TYPE', 'rabbitmq')
+
+BROKER_TYPE: str = os.getenv('BROKER_TYPE', '')
+if BROKER_TYPE == '':
+    BROKER_TYPE = TEMPLATE_ENV_MAP.get('APP_BROKER_TYPE', 'rabbitmq')
 
 RABBITMQ_AUTH_USERNAME: str = os.getenv('RABBITMQ_AUTH_USERNAME', 'root')
 RABBITMQ_AUTH_PASSWORD: str = os.getenv('RABBITMQ_AUTH_PASSWORD', 'toor')
@@ -25,3 +35,78 @@ REDPANDA_AUTH_USER_PASSWORD: str = os.getenv('REDPANDA_AUTH_USER_PASSWORD')
 POSTGRESQL_AUTH_POSTGRES_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_POSTGRES_PASSWORD')  # noqa
 POSTGRESQL_AUTH_USERNAME: str = os.getenv('POSTGRESQL_AUTH_USERNAME')
 POSTGRESQL_AUTH_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_PASSWORD')
+
+
+def get_app_monolith_env_map(
+    template_env_map: Mapping[str, str], modules: List[str]
+) -> Mapping[str, str]:
+    env_map = copy.deepcopy(template_env_map)
+    env_map['APP_RMQ_CONNECTION'] = f'amqp://{RABBITMQ_AUTH_USERNAME}:{RABBITMQ_AUTH_PASSWORD}@rabbitmq'  # noqa
+    env_map['APP_KAFKA_BOOTSTRAP_SERVERS'] = 'redpanda:9092'
+    env_map['APP_KAFKA_SASL_MECHANISM'] = REDPANDA_AUTH_MECHANISM
+    env_map['APP_KAFKA_SASL_USER'] = REDPANDA_AUTH_USER_NAME
+    env_map['APP_KAFKA_SASL_PASSWORD'] = REDPANDA_AUTH_USER_PASSWORD
+    for module_name in modules:
+        env_name = get_module_flag_env_name(module_name)
+        env_map[env_name] = 'true'
+    env_map['APP_ENABLE_MESSAGE_CONSUMER'] = 'true'
+    env_map['APP_ENABLE_RPC_SERVER'] = 'true'
+    env_map['APP_ENABLE_FRONTEND'] = 'true'
+    env_map['APP_ENABLE_API'] = 'true'
+    return env_map
+
+
+def get_app_gateway_env_map(
+    template_env_map: Mapping[str, str], modules: List[str]
+) -> Mapping[str, str]:
+    env_map = get_app_monolith_env_map(template_env_map, modules)
+    for module_name in modules:
+        env_name = get_module_flag_env_name(module_name)
+        env_map[env_name] = 'true'
+    env_map['APP_ENABLE_MESSAGE_CONSUMER'] = 'false'
+    env_map['APP_ENABLE_RPC_SERVER'] = 'false'
+    env_map['APP_ENABLE_FRONTEND'] = 'true'
+    env_map['APP_ENABLE_API'] = 'true'
+    return env_map
+
+
+def get_app_service_env_map(
+    template_env_map: Mapping[str, str],
+    modules: List[str],
+    current_module: str
+) -> Mapping[str, str]:
+    env_map = get_app_monolith_env_map(template_env_map, modules)
+    for module_name in modules:
+        env_name = get_module_flag_env_name(module_name)
+        if module_name == current_module:
+            env_map[env_name] = 'true'
+            continue
+        env_map[env_name] = 'false'
+    env_map['APP_ENABLE_MESSAGE_CONSUMER'] = 'true'
+    env_map['APP_ENABLE_RPC_SERVER'] = 'true'
+    env_map['APP_ENABLE_FRONTEND'] = 'false'
+    env_map['APP_ENABLE_API'] = 'false'
+    return env_map
+
+
+def get_module_flag_env_name(module_name: str) -> str:
+    upper_snake_module_name = to_snake_case(module_name).upper()
+    return f'APP_ENABLE_{upper_snake_module_name}_MODULE'
+
+
+def to_kebab_case(text: str) -> str:
+    text = to_alphanum(text)
+    return '-'.join([
+        x.lower() for x in text.split(' ')
+    ])
+
+
+def to_snake_case(text: str) -> str:
+    text = to_alphanum(text)
+    return '_'.join([
+        x.lower() for x in text.split(' ')
+    ])
+
+
+def to_alphanum(text: str) -> str:
+    return NON_ALPHA_NUM.sub(' ', text)

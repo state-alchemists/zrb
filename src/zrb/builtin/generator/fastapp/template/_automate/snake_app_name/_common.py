@@ -2,6 +2,7 @@ from zrb import (
     BoolInput, ChoiceInput, StrInput, Env, EnvFile,
     HTTPChecker, PortChecker
 )
+import jsons
 import os
 
 ###############################################################################
@@ -38,6 +39,12 @@ SKIP_LOCAL_MICROSERVICES_EXECUTION = ' '.join([
     'or input.snake_app_name_mode == "monolith"',
     '}}',
 ])
+
+MODULE_CONFIG_PATH = os.path.join(CURRENT_DIR, 'config', 'modules.json')
+with open(MODULE_CONFIG_PATH) as file:
+    MODULE_JSON_STR = file.read()
+MODULES = jsons.loads(MODULE_JSON_STR)
+
 
 ###############################################################################
 # Checker Task Definitions

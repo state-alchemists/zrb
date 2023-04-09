@@ -3,21 +3,15 @@ from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile, runner
 from zrb.helper.util import to_snake_case, to_kebab_case
 from ._common import (
     CURRENT_DIR, APP_DIR, SKIP_LOCAL_MICROSERVICES_EXECUTION,
-    APP_TEMPLATE_ENV_FILE_NAME, local_app_broker_type_env,
+    APP_TEMPLATE_ENV_FILE_NAME, MODULES, local_app_broker_type_env,
     local_input, mode_input, host_input, https_input
 )
 import os
-import jsons
-
-module_config_path = os.path.join(CURRENT_DIR, 'config', 'modules.json')
-with open(module_config_path) as file:
-    module_json_str = file.read()
-modules = jsons.loads(module_json_str)
 
 
 def get_start_microservices(upstreams: List[Task]) -> List[Task]:
     start_microservices: List[Task] = []
-    for index, module in enumerate(modules):
+    for index, module in enumerate(MODULES):
         kebab_module_name = to_kebab_case(module)
         snake_module_name = to_snake_case(module)
         upper_snake_module_name = snake_module_name.upper()

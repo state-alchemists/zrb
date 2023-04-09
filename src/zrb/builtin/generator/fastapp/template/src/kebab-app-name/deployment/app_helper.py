@@ -1,53 +1,96 @@
-from typing import Mapping
+from typing import Mapping, List
 from _common import (
-    NAMESPACE, TEMPLATE_ENV_MAP, RABBITMQ_AUTH_USERNAME,
-    RABBITMQ_AUTH_PASSWORD, REDPANDA_AUTH_USER_NAME,
-    REDPANDA_AUTH_USER_PASSWORD, REDPANDA_AUTH_MECHANISM
+    NAMESPACE, MODULES, TEMPLATE_ENV_MAP, get_app_monolith_env_map,
+    get_app_gateway_env_map, get_app_service_env_map, to_kebab_case,
+    to_snake_case
 )
 
 import pulumi_kubernetes as k8s
-import copy
 import os
 
 image = os.getenv('IMAGE', 'kebab-app-name:latest')
 app_monolith_replica = int(os.getenv('REPLICA', '1'))
 app_monolith_labels = {'app': 'kebab-app-name'}
+app_gateway_replica = int(os.getenv('REPLICA_GATEWAY'))
+app_gateway_labels = {'app': 'kebab-app-name-gateway'}
 
-app_monolith_env_map = copy.deepcopy(TEMPLATE_ENV_MAP)
-app_monolith_env_map['APP_RMQ_CONNECTION'] = f'amqp://{RABBITMQ_AUTH_USERNAME}:{RABBITMQ_AUTH_PASSWORD}@rabbitmq'  # noqa
-app_monolith_env_map['APP_KAFKA_BOOTSTRAP_SERVERS'] = 'redpanda:9092'
-app_monolith_env_map['APP_KAFKA_SASL_MECHANISM'] = REDPANDA_AUTH_MECHANISM
-app_monolith_env_map['APP_KAFKA_SASL_USER'] = REDPANDA_AUTH_USER_NAME
-app_monolith_env_map['APP_KAFKA_SASL_PASSWORD'] = REDPANDA_AUTH_USER_PASSWORD
-
-app_monolith_port = int(os.getenv(
-    'APP_PORT', TEMPLATE_ENV_MAP.get('APP_PORT', '8080')
+app_monolith_env_map = get_app_monolith_env_map(TEMPLATE_ENV_MAP, MODULES)
+app_port = int(os.getenv(
+    'APP_PORT', app_monolith_env_map.get('APP_PORT', '8080')
 ))
+app_gateway_env_map = get_app_gateway_env_map(TEMPLATE_ENV_MAP, MODULES)
+
+
+def create_app_microservices_deployments() -> List[k8s.apps.v1.Deployment]:
+    deployments: List[k8s.apps.v1.Deployment] = []
+    deployments.append(_create_app_deployment(
+        resource_name='kebab-app-name-gateway',
+        image=image,
+        replica=app_gateway_replica,
+        app_labels=app_gateway_labels,
+        env_map=app_gateway_env_map,
+        app_port=app_port
+    ))
+    for module in MODULES:
+        kebab_module_name = to_kebab_case(module)
+        snake_module_name = to_snake_case(module)
+        upper_snake_module_name = snake_module_name.upper()
+        app_service_replica = int(os.getenv(
+            f'REPLICA_{upper_snake_module_name}_SERVICE', '1'
+        ))
+        app_service_env_map = get_app_service_env_map(
+            TEMPLATE_ENV_MAP, MODULES, module
+        )
+        app_service_labels = {
+            'app': f'kebab-app-name-{kebab_module_name}-service'
+        }
+        deployments.append(_create_app_deployment(
+            resource_name=f'kebab-app-name-{kebab_module_name}-service',
+            app_labels=app_service_labels,
+            image=image,
+            replica=app_service_replica,
+            env_map=app_service_env_map,
+            app_port=app_port
+        ))
+    return deployments
+
+
+def create_app_microservices_services() -> List[k8s.core.v1.Service]:
+    services: List[k8s.core.v1.Service] = []
+    services.append(_create_app_service(
+        resource_name='kebab-app-name-gateway',
+        app_labels=app_gateway_labels,
+        app_port=app_port,
+        service_type='LoadBalancer',
+        service_port=app_port,
+        service_port_protocol='TCP'
+    ))
+    return services
 
 
 def create_app_monolith_deployment() -> k8s.apps.v1.Deployment:
-    return create_app_deployment(
+    return _create_app_deployment(
         resource_name='kebab-app-name',
         image=image,
         replica=app_monolith_replica,
         app_labels=app_monolith_labels,
         env_map=app_monolith_env_map,
-        app_port=app_monolith_port
+        app_port=app_port
     )
 
 
 def create_app_monolith_service() -> k8s.core.v1.Service:
-    return create_app_service(
+    return _create_app_service(
         resource_name='kebab-app-name',
         app_labels=app_monolith_labels,
-        app_port=app_monolith_port,
+        app_port=app_port,
         service_type='LoadBalancer',
-        service_port=app_monolith_port,
+        service_port=app_port,
         service_port_protocol='TCP'
     )
 
 
-def create_app_deployment(
+def _create_app_deployment(
     resource_name: str,
     image: str,
     replica: int,
@@ -105,7 +148,7 @@ def create_app_deployment(
     return deployment
 
 
-def create_app_service(
+def _create_app_service(
     resource_name: str,
     app_labels: Mapping[str, str],
     app_port: int,
