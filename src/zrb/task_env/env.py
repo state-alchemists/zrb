@@ -13,11 +13,13 @@ class Env():
         self,
         name: str,
         os_name: Optional[str] = None,
-        default: str = ''
+        default: str = '',
+        renderable: bool = True,
     ):
         self.name: str = name
         self.os_name: str = os_name if os_name is not None else name
         self.default: str = default
+        self.renderable: bool = renderable
 
     def get(self, prefix: str = '') -> str:
         '''

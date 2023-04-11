@@ -13,6 +13,7 @@ from ..helper.accessories.color import (
 from ..helper.accessories.icon import get_random_icon
 from ..helper.advertisement import get_advertisement
 from ..helper.list.ensure_uniqueness import ensure_uniqueness
+from ..helper.list.reverse import reverse
 from ..helper.log import logger
 from ..helper.render_data import DEFAULT_RENDER_DATA
 from ..helper.string.double_quote import double_quote
@@ -418,32 +419,40 @@ class TaskModel(
         self.log_debug(
             f'Input map:\n{str_map_to_str(self._input_map, item_prefix="  ")}'
         )
-        # Construct envs based on self.env_files and self.envs
-        self.log_info('Merging task env_files and task envs')
-        envs: List[Env] = []
-        for env_file in self.env_files:
+        # Construct envs based on self.env_files and self.envs,
+        # - self.env_files should have lower priority then self.envs
+        # - First self.envs/self.env_files should be overriden by the next
+        self.log_info('Merging task envs, task env files, and native envs')
+        envs: List[Env] = self._deduplicate_env(self.envs)
+        for env_file in reverse(self.env_files):
             envs += env_file.get_envs()
-        envs += list(self.envs)
-        envs.reverse()
-        envs = ensure_uniqueness(envs, lambda x, y: x.name == y.name)
-        envs.reverse()
+        for env_name in os.environ:
+            envs.append(Env(name=env_name, os_name=env_name, renderable=False))
+        envs = ensure_uniqueness(envs, self._compare_env_name)
         # Add envs to env_map
         self.log_info('Set env map')
         for task_env in envs:
             env_name = task_env.name
             if env_name in self._env_map:
                 continue
-            self._env_map[env_name] = self.render_any(
-                task_env.get(env_prefix)
-            )
-        self.log_info('Add os environment to env map')
-        for key in os.environ:
-            if key in self._env_map:
-                continue
-            self._env_map[key] = os.getenv(key, '')
+            env_value = task_env.get(env_prefix)
+            if task_env.renderable:
+                env_value = self.render_any(env_value)
+            self._env_map[env_name] = env_value
         self.log_debug(
             f'Env map:\n{str_map_to_str(self._env_map, item_prefix="  ")}'
         )
+
+    def _deduplicate_env(self, envs: Iterable[Env]) -> List[Env]:
+        # If two environment with the same name exists, the second one should
+        # override the first one. But the order of the declaration should not
+        # be changed
+        return reverse(ensure_uniqueness(
+            reverse(envs), self._compare_env_name
+        ))
+
+    def _compare_env_name(self, first_env: Env, second_env: Env) -> bool:
+        return first_env.name == second_env.name
 
     def get_all_inputs(self) -> Iterable[BaseInput]:
         # Override this method!!!
