@@ -6,3 +6,6 @@ uvicorn==0.20.0
 fastapi==0.93.0
 jsons==1.6.3
 pydantic==1.10.6
+alembic==1.10.3
+SQLAlchemy==2.0.9
+psycopg2-binary==2.9.6

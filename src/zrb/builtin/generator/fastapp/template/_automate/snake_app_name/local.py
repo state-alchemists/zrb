@@ -1,4 +1,4 @@
-from zrb import CmdTask, DockerComposeTask, Task, EnvFile, runner
+from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
 from zrb.builtin._group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME,
@@ -23,7 +23,9 @@ support_compose_envs = [
     local_app_broker_type_env,
     local_app_port_env,
 ]
-app_env_file = EnvFile(env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX')
+app_env_file = EnvFile(
+    env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
+)
 app_envs = [
     local_app_broker_type_env,
     local_app_port_env,
@@ -67,7 +69,7 @@ start_snake_app_name_support_container = DockerComposeTask(
 
 prepare_snake_app_name_backend = CmdTask(
     icon='🚤',
-    name='prepare-snake-app-name-backend',
+    name='prepare-kebab-app-name-backend',
     description='Prepare backend for human readable app name',
     group=project_group,
     cwd=APP_DIR,
@@ -100,7 +102,7 @@ start_monolith_snake_app_name = CmdTask(
 )
 
 start_snake_app_name_gateway = CmdTask(
-    icon='🚤',
+    icon='🚪',
     name='start-kebab-app-name-gateway',
     inputs=[
         local_input,
@@ -116,7 +118,10 @@ start_snake_app_name_gateway = CmdTask(
     ],
     cwd=APP_DIR,
     env_files=[app_env_file],
-    envs=app_envs,
+    envs=app_envs + [
+        Env(name='APP_ENABLE_MESSAGE_CONSUMER', default='false', os_name=''),
+        Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),
+    ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
     checkers=[
         app_local_checker,

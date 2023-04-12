@@ -49,11 +49,15 @@ async def validate(*args: Any, **kwargs: Any):
         raise Exception(f'Source already exists: {source_dir}')
 
 
+replacements = get_default_app_replacements()
+replacements.update({
+    'httpAuthPort': '{{util.coalesce(input.http_port, "3000") + 1}}'
+})
 copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=default_app_inputs,
     upstreams=[validate],
-    replacements=get_default_app_replacements(),
+    replacements=replacements,
     replacement_middlewares=get_default_app_replacement_middlewares(),
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',

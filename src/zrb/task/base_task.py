@@ -363,7 +363,7 @@ class TaskModel(
             rendered_text = template.render(data)
             self.log_debug(f'Get rendered result: {rendered_text}')
         except Exception:
-            self.log_error(f'Fail to render "{val}" with data: {data}')
+            raise Exception(f'Fail to render "{val}" with data: {data}')
         self._rendered_str[val] = rendered_text
         return rendered_text
 

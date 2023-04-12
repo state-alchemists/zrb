@@ -87,6 +87,7 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
     snake_module_name = util.to_snake_case(module_name)
     upper_snake_module_name = snake_module_name.upper()
     app_main_file = get_app_main_file(project_dir, kebab_app_name)
+    app_migration_file = get_app_migration_file(project_dir, kebab_app_name)
     app_config_file = get_app_config_file(project_dir, kebab_app_name)
     json_modules_file = get_json_modules_file(project_dir, snake_app_name)
     enabled_env_file = get_all_enabled_env_file(project_dir, kebab_app_name)
@@ -104,6 +105,9 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
         )),
         asyncio.create_task(register_module(
             task, app_main_file, snake_module_name
+        )),
+        asyncio.create_task(register_migration(
+            task, app_migration_file, snake_module_name
         )),
         asyncio.create_task(create_app_config(
             task, app_config_file, snake_module_name, upper_snake_module_name
@@ -175,7 +179,7 @@ async def add_docker_compose_service(
                     'all-module-disabled.env'
                 ],
                 'environment': {
-                    'APP_NAME': '${APP_NAME:-' + kebab_app_name + '}-' + f'{kebab_module_name}-module', # noqa
+                    'APP_NAME': '${APP_NAME:-' + kebab_app_name + '}-' + f'{kebab_module_name}-service', # noqa
                     'APP_PORT': app_container_port_env,  # noqa
                     'APP_RMQ_CONNECTION': '${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}', # noqa
                     'APP_KAFKA_BOOTSTRAP_SERVERS': '${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}', # noqa
@@ -276,7 +280,7 @@ async def create_app_config(
 ):
     config_code = '\n'.join([
         f'app_enable_{snake_module_name}_module = str_to_boolean(os.environ.get(',  # noqa
-        f"    'APP_{upper_snake_module_name}', 'true'"
+        f"    'APP_ENABLE_{upper_snake_module_name}_MODULE', 'true'"
         '))'
     ])
     task.print_out(f'Read config from: {config_file_path}')
@@ -300,6 +304,33 @@ async def create_automation_json_config(
     task.print_out(f'Write new json config to: {json_modules_file_path}')
     await write_text_file_async(json_modules_file_path, json_str)
     return modules
+
+
+async def register_migration(
+    task: Task,
+    app_migration_file_path: str,
+    snake_module_name: str
+):
+    import_module_path = '.'.join(['module', snake_module_name])
+    function_name = f'migrate_{snake_module_name}'
+    task.print_out(f'Read code from: {app_migration_file_path}')
+    code = await read_text_file_async(app_migration_file_path)
+    task.print_out(
+        f'Add import "{function_name}" from "{import_module_path}" to the code'
+    )
+    code = add_import_module(
+        code=code,
+        module_path=import_module_path,
+        resource=function_name
+    )
+    task.print_out(f'Add "{function_name}" call to the code')
+    code = add_function_call(
+        code=code,
+        function_name=function_name,
+        parameters=[]
+    )
+    task.print_out(f'Write modified code to: {app_migration_file_path}')
+    await write_text_file_async(app_migration_file_path, code)
 
 
 async def register_module(
@@ -332,6 +363,12 @@ async def register_module(
 def get_docker_compose_file(project_dir: str, kebab_app_name: str):
     return os.path.join(
         project_dir, 'src', kebab_app_name, 'docker-compose.yml'
+    )
+
+
+def get_app_migration_file(project_dir: str, kebab_app_name: str):
+    return os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'migrate.py'
     )
 
 

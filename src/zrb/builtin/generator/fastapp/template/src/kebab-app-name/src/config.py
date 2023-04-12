@@ -7,11 +7,14 @@ app_name = os.getenv('APP_NAME', 'app')
 app_logging_level = str_to_logging_level(
     os.getenv('APP_LOGGING_LEVEL', 'INFO')
 )
-app_broker_type = os.getenv('APP_BROKER_TYPE', 'mock')
 app_host = os.getenv('APP_HOST', '0.0.0.0')
 app_port = int(os.getenv('APP_PORT', '8080'))
 app_reload = str_to_boolean(os.getenv('APP_RELOAD', 'true'))
 app_max_not_ready = int(os.getenv('APP_MAX_NOT_READY', '10'))
+
+app_db_connection = os.getenv('APP_DB_CONNECTION', 'sqlite://')
+
+app_broker_type = os.getenv('APP_BROKER_TYPE', 'mock')
 
 app_enable_rpc_server: bool = str_to_boolean(os.getenv(
     'APP_ENABLE_RPC_SERVER', 'true'
@@ -69,4 +72,7 @@ cors_expose_headers: bool = str_to_boolean(os.getenv(
 ))
 cors_max_age: int = int(os.getenv(
     'APP_CORS_MAX_AGE', '600'
+))
+app_enable_auth_module = str_to_boolean(os.environ.get(
+    'APP_ENABLE_AUTH_MODULE', 'true'
 ))

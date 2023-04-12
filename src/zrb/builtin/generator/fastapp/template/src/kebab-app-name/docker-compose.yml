@@ -85,8 +85,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-snake_app_name}
     ports:
     - ${POSTGRES_HOST_PORT:-5432}:5432
-    profiles:
-    - postgresql
 
 
   adminer:
@@ -94,8 +92,6 @@ services:
     restart: on-failure
     ports:
     - ${ADMINER_HOST_PORT:-9001}:8080
-    profiles:
-    - postgresql
 
 
   kebab-app-name:
@@ -150,6 +146,40 @@ services:
     - microservices
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/ || exit 1"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
+
+
+  kebab-app-name-auth:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
+    image: ${IMAGE:-fastapp}
+    container_name: fastapp_auth
+    hostname: snake_app_name_auth
+    env_file:
+    - src/template.env
+    - all-module-disabled.env
+    environment:
+      APP_NAME: ${APP_NAME:-fastapp}-auth-service
+      APP_PORT: ${APP_AUTH_MODULE_PORT:-8081}
+      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
+      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
+      APP_ENABLE_MESSAGE_CONSUMER: true
+      APP_ENABLE_RPC_SERVER: true
+      APP_ENABLE_API: false
+      APP_ENABLE_FRONTEND: false
+      APP_ENABLE_AUTH_MODULE: true
+    ports:
+    - ${APP_AUTH_HOST_MODULE_PORT:-8081}:${APP_AUTH_MODULE_PORT:-8081}
+    restart: on-failure
+    profiles:
+    - microservices
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1
       interval: 5s
       timeout: 1s
       retries: 30
