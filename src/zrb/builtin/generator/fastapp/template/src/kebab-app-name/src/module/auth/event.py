@@ -9,8 +9,8 @@ def register_event(
     rpc_caller: Caller,
     publisher: Publisher
 ):
-    logger.info('🥪 Registering event handlers for "auth"')
+    logger.info('🥪 Register event handlers for "auth"')
 
     @consumer.register('hit_auth')
     async def hit_auth_event(message):
-        logger.info(f'👋 Getting message: {message}')
+        logger.info(f'👋 Get message: {message}')

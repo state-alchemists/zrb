@@ -35,6 +35,7 @@ REDPANDA_AUTH_USER_PASSWORD: str = os.getenv('REDPANDA_AUTH_USER_PASSWORD')
 POSTGRESQL_AUTH_POSTGRES_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_POSTGRES_PASSWORD')  # noqa
 POSTGRESQL_AUTH_USERNAME: str = os.getenv('POSTGRESQL_AUTH_USERNAME')
 POSTGRESQL_AUTH_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_PASSWORD')
+POSTGRESQL_DB: str = os.getenv('POSTGRESQL_DB')
 
 
 def get_app_monolith_env_map(
@@ -46,6 +47,7 @@ def get_app_monolith_env_map(
     env_map['APP_KAFKA_SASL_MECHANISM'] = REDPANDA_AUTH_MECHANISM
     env_map['APP_KAFKA_SASL_USER'] = REDPANDA_AUTH_USER_NAME
     env_map['APP_KAFKA_SASL_PASSWORD'] = REDPANDA_AUTH_USER_PASSWORD
+    env_map['APP_DB_CONNECTION'] = f'postgresql+psycopg2://{POSTGRESQL_AUTH_USERNAME}:{POSTGRESQL_AUTH_PASSWORD}@postgresql:5432/{POSTGRESQL_DB}'  # noqa
     for module_name in modules:
         env_name = get_module_flag_env_name(module_name)
         env_map[env_name] = 'true'
@@ -67,6 +69,7 @@ def get_app_gateway_env_map(
     env_map['APP_ENABLE_RPC_SERVER'] = 'false'
     env_map['APP_ENABLE_FRONTEND'] = 'true'
     env_map['APP_ENABLE_API'] = 'true'
+    env_map['APP_DB_AUTO_MIGRATE'] = 'false'
     return env_map
 
 

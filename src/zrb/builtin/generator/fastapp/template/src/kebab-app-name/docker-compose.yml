@@ -4,6 +4,7 @@ services:
 
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
+    container_name: snake_app_name_redpanda
     hostname: redpanda
     # Redpanda docker configuration: https://docs.redpanda.com/docs/reference/docker-compose/#configure-redpanda-in-docker
     # Redpanda node configuration example: https://docs.redpanda.com/docs/reference/node-configuration-sample/
@@ -44,6 +45,7 @@ services:
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:v2.2.2
+    container_name: snake_app_name_redpanda_console
     hostname: redpanda-console
     ports:
     - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
@@ -59,6 +61,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: snake_app_name_rabbitmq
     hostname: rabbitmq
     ports:
     - "${RABBITMQ_HOST_PORT:-5672}:5672"
@@ -76,8 +79,10 @@ services:
       retries: 30
 
   
-  postgres:
+  postgresql:
     image: postgres:15.2
+    container_name: snake_app_name_postgresql
+    hostname: postgresql
     restart: on-failure
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -89,6 +94,8 @@ services:
 
   adminer:
     image: adminer
+    container_name: snake_app_name_adminer
+    hostname: adminer
     restart: on-failure
     ports:
     - ${ADMINER_HOST_PORT:-9001}:8080
@@ -135,10 +142,12 @@ services:
       APP_PORT: ${APP_GATEWAY_PORT:-8080}
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
+      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
       APP_ENABLE_MESSAGE_CONSUMER: false
       APP_ENABLE_RPC_SERVER: false
       APP_ENABLE_API: true
       APP_ENABLE_FRONTEND: true
+      APP_DB_AUTO_MIGRATE: false
     ports:
     - "${APP_GATEWAY_HOST_PORT:-8080}:${APP_GATEWAY_PORT:-8080}"
     restart: on-failure
@@ -166,6 +175,7 @@ services:
       APP_PORT: ${APP_AUTH_MODULE_PORT:-8081}
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
+      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
       APP_ENABLE_MESSAGE_CONSUMER: true
       APP_ENABLE_RPC_SERVER: true
       APP_ENABLE_API: false

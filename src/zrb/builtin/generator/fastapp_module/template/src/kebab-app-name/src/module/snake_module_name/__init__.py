@@ -18,6 +18,7 @@ def migrate_snake_module_name():
     if not app_enable_snake_module_name_module:
         logger.info('🥪 Skip DB migration for "snake_module_name"')
         return
+    logger.info('🥪 Perform DB migration for "snake_module_name"')
     migrate(engine=engine, Base=Base)
 
 

@@ -10,7 +10,7 @@ def register_api(
     rpc_caller: Caller,
     publisher: Publisher
 ):
-    logger.info('🥪 Registering API for "auth"')
+    logger.info('🥪 Register API for "auth"')
 
     @app.get('/api/v1/auth')
     async def get_auth():

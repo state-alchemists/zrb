@@ -127,6 +127,7 @@ start_snake_app_name_gateway = CmdTask(
         app_local_checker,
     ]
 )
+runner.register(start_snake_app_name_gateway)
 
 start_microservices = get_start_microservices(
     upstreams=[

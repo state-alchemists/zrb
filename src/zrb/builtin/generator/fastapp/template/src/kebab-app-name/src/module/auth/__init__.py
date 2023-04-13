@@ -18,6 +18,7 @@ def migrate_auth():
     if not app_enable_auth_module:
         logger.info('🥪 Skip DB migration for "auth"')
         return
+    logger.info('🥪 Perform DB migration for "auth"')
     migrate(engine=engine, Base=Base)
 
 

@@ -13,6 +13,7 @@ app_reload = str_to_boolean(os.getenv('APP_RELOAD', 'true'))
 app_max_not_ready = int(os.getenv('APP_MAX_NOT_READY', '10'))
 
 app_db_connection = os.getenv('APP_DB_CONNECTION', 'sqlite://')
+app_db_auto_migrate = str_to_boolean(os.getenv('APP_DB_AUTO_MIGRATE', 'true'))
 
 app_broker_type = os.getenv('APP_BROKER_TYPE', 'mock')
 

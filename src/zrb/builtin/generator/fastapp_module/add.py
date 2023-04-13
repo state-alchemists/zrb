@@ -13,6 +13,7 @@ from .._common import (
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_function_call import add_function_call
+from ....helper.codemod.append_code_to_function import append_code_to_function
 from ....helper.docker_compose.file import add_services
 from ....helper.file.text import (
     read_text_file_async, write_text_file_async, append_text_file_async
@@ -183,6 +184,7 @@ async def add_docker_compose_service(
                     'APP_PORT': app_container_port_env,  # noqa
                     'APP_RMQ_CONNECTION': '${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}', # noqa
                     'APP_KAFKA_BOOTSTRAP_SERVERS': '${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}', # noqa
+                    'APP_DB_CONNECTION': '${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/' + snake_app_name + '}', # noqa
                     'APP_ENABLE_MESSAGE_CONSUMER': 'true',
                     'APP_ENABLE_RPC_SERVER': 'true',
                     'APP_ENABLE_API': 'false',
@@ -324,10 +326,10 @@ async def register_migration(
         resource=function_name
     )
     task.print_out(f'Add "{function_name}" call to the code')
-    code = add_function_call(
+    code = append_code_to_function(
         code=code,
-        function_name=function_name,
-        parameters=[]
+        function_name='migrate',
+        new_code=f'{function_name}()'
     )
     task.print_out(f'Write modified code to: {app_migration_file_path}')
     await write_text_file_async(app_migration_file_path, code)

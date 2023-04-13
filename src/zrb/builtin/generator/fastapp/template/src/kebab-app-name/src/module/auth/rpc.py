@@ -10,7 +10,7 @@ def register_rpc(
     rpc_caller: Caller,
     publisher: Publisher
 ):
-    logger.info('🥪 Registering RPC handlers for "auth"')
+    logger.info('🥪 Register RPC handlers for "auth"')
 
     @rpc_server.register('process_auth')
     async def process_auth(*args: Any, **kwargs: Any):
