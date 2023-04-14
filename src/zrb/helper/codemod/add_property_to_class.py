@@ -2,7 +2,9 @@ import libcst as cst
 
 
 class AddPropertyTransformer(cst.CSTTransformer):
-    def __init__(self, class_name: str, property_name: str, property_type: str):
+    def __init__(
+        self, class_name: str, property_name: str, property_type: str
+    ):
         self.class_name = class_name
         self.property_name = property_name
         self.property_type = property_type

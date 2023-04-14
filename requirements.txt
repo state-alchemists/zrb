@@ -30,3 +30,4 @@ aiormq==6.7.4
 aiokafka==0.8.0
 alembic==1.10.3
 SQLAlchemy==2.0.9
+python-jose==3.3.0

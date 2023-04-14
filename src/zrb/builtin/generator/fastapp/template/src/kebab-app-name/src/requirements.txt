@@ -9,3 +9,4 @@ pydantic==1.10.6
 alembic==1.10.3
 SQLAlchemy==2.0.9
 psycopg2-binary==2.9.6
+python-jose==3.3.0
