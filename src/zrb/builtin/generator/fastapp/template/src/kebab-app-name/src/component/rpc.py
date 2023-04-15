@@ -1,8 +1,5 @@
-from core.rpc.rpc import Caller, Server
-from core.rpc.messagebus.caller import MessagebusCaller
-from core.rpc.messagebus.server import MessagebusServer
-from core.messagebus.rabbitmq.consumer import RMQConsumer
-from core.messagebus.kafka.consumer import KafkaConsumer
+from core.rpc import Caller, Server, MessagebusCaller, MessagebusServer
+from core.messagebus import RMQConsumer, KafkaConsumer
 from component.messagebus import (
     admin, consumer, publisher, message_serializer, mock_consumer
 )

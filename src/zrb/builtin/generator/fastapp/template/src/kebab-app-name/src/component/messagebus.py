@@ -3,16 +3,12 @@ from config import (
     app_kafka_bootstrap_servers, app_kafka_security_protocol,
     app_kafka_sasl_mechanism, app_kafka_sasl_user, app_kafka_sasl_pass
 )
-from core.messagebus.mock import MockAdmin, MockConsumer, MockPublisher
-from core.messagebus.messagebus import (
-    Admin, Consumer, MessageSerializer, Publisher
+from core.messagebus import (
+    Admin, Consumer, MessageSerializer, Publisher,
+    MockAdmin, MockConsumer, MockPublisher,
+    KafkaAdmin, KafkaConsumer, KafkaPublisher,
+    RMQAdmin, RMQConsumer, RMQPublisher
 )
-from core.messagebus.kafka.admin import KafkaAdmin
-from core.messagebus.kafka.consumer import KafkaConsumer
-from core.messagebus.kafka.publisher import KafkaPublisher
-from core.messagebus.rabbitmq.admin import RMQAdmin
-from core.messagebus.rabbitmq.consumer import RMQConsumer
-from core.messagebus.rabbitmq.publisher import RMQPublisher
 from component.log import logger
 
 
