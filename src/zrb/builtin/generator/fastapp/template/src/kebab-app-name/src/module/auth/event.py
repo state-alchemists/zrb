@@ -10,7 +10,3 @@ def register_event(
     publisher: Publisher
 ):
     logger.info('🥪 Register event handlers for "auth"')
-
-    @consumer.register('hit_auth')
-    async def hit_auth_event(message):
-        logger.info(f'👋 Get message: {message}')

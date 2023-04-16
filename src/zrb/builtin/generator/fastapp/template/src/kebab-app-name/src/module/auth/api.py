@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller
+from module.auth.entity.permission.api import (
+    register_api as register_permission_api
+)
 
 
 def register_api(
@@ -11,15 +14,4 @@ def register_api(
     publisher: Publisher
 ):
     logger.info('🥪 Register API for "auth"')
-
-    @app.get('/api/v1/auth')
-    async def get_auth():
-        # Publish hit event
-        await publisher.publish(
-            'hit_auth', '/api/v1/auth'
-        )
-        # Send RPC request
-        result = await rpc_caller.call(
-            'process_auth', 'hello', 'world', magic_number=42
-        )
-        return result
+    register_permission_api(logger, app, rpc_caller, publisher)

@@ -18,5 +18,5 @@ class PermissionRepo(Repo[Permission, PermissionData], ABC):
 class PermissionDBRepo(
     DBRepo[Permission, PermissionData], PermissionRepo
 ):
-    schema_class = Permission
-    db_entity_class = DBEntityPermission
+    schema_cls = Permission
+    db_entity_cls = DBEntityPermission

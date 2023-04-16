@@ -1,6 +1,6 @@
 from typing import Any, Callable
 from core.messagebus.messagebus import Admin, Consumer, Publisher
-from core.rpc.rpc import Caller, Message
+from core.rpc.rpc import Caller, Message, Result
 import logging
 import uuid
 import asyncio
@@ -30,12 +30,14 @@ class MessagebusCaller(Caller):
         await self.admin.create_events([reply_event_name])
         reply_consumer = self.consumer_factory()
         is_reply_accepted = False
-        result = None
+        call_result = None
+        call_error = None
 
         @reply_consumer.register(reply_event_name)
-        async def consume_reply(message: Any):
-            nonlocal result, is_reply_accepted
-            result = message
+        async def consume_reply(result_dict: Any):
+            nonlocal call_result, call_error, is_reply_accepted
+            result = Result.from_dict(result_dict)
+            call_result, call_error = result.result, result.error
             is_reply_accepted = True
             await reply_consumer.stop()
 
@@ -68,16 +70,23 @@ class MessagebusCaller(Caller):
                 )
                 break
         await self._clean_up(reply_consumer, reply_event_name)
-        # Return result or throw error
+        # Throw error on networking/timeout problem
         if waiting_time > self.timeout:
             raise Exception(
                 f'Timeout while waiting for reply event: {reply_event_name}'
             )
+        # raise call_error or return call_result
+        if call_error != '':
+            self.logger.error(
+                '🤙 [messagebus-rpc-caller] RPC ' +
+                f'"{rpc_name}" returning error: {call_error}'
+            )
+            raise Exception(call_error)
         self.logger.info(
             '🤙 [messagebus-rpc-caller] RPC ' +
-            f'"{rpc_name}" returning result: {result}'
+            f'"{rpc_name}" returning result: {call_result}'
         )
-        return result
+        return call_result
 
     async def _clean_up(self, reply_consumer: Consumer, reply_event_name: str):
         try:

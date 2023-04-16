@@ -12,31 +12,33 @@ import uuid
 import datetime
 import logging
 
-SchemaData = TypeVar('SchemaData', bound=BaseModel)
 Schema = TypeVar('Schema', bound=BaseModel)
+SchemaData = TypeVar('SchemaData', bound=BaseModel)
 DBEntity = TypeVar('DBEntity', bound=Any)
 
 
 class DBRepo(Repo[Schema, SchemaData]):
-    schema_class: Type[Schema]
-    db_entity_class: Type[DBEntity]
+    schema_cls: Type[Schema]
+    db_entity_cls: Type[DBEntity]
 
     def __init__(
         self, logger: logging.Logger, engine: Engine,
     ):
         self.logger = logger
         self.engine = engine
-        self.db_entity_attribute_names: List[str] = dir(self.db_entity_class)
-        self.schema_attribute_names: List[str] = dir(self.schema_class)
+        self.db_entity_attribute_names: List[str] = dir(self.db_entity_cls)
+        self.schema_attribute_names: List[str] = dir(self.schema_cls)
+        self._keyword_fields: Optional[List[InstrumentedAttribute]] = None
 
-    def get_one(self, id: str) -> Optional[Schema]:
+    def get_by_id(self, id: str) -> Schema:
         '''
         Find a record by id.
         '''
         db = self._create_db_session()
         try:
-            search_filter = self.db_entity_class.id == id
-            return self._get_one_by_criterion(db, search_filter)
+            search_filter = self.db_entity_cls.id == id
+            db_entity = self._get_one_by_criterion(db, search_filter)
+            return self._db_entity_to_schema(db_entity)
         finally:
             db.close()
 
@@ -67,14 +69,14 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def insert(self, schema_data: SchemaData) -> Optional[Schema]:
+    def insert(self, data: SchemaData) -> Schema:
         '''
         Insert a new record.
         '''
         db = self._create_db_session()
         try:
-            db_entity = self.db_entity_class(
-                ** self._schema_data_to_db_entity_dict(schema_data),
+            db_entity = self.db_entity_cls(
+                **self._schema_data_to_db_entity_dict(data),
             )
             if 'id' in self.db_entity_attribute_names:
                 new_id = str(uuid.uuid4())
@@ -89,26 +91,24 @@ class DBRepo(Repo[Schema, SchemaData]):
             return self._db_entity_to_schema(db_entity)
         except Exception:
             self.logger.error(
-                f'Error while inserting into {self.db_entity_class} ' +
-                f'with schema_data: {schema_data}'
+                f'Error while inserting into {self.db_entity_cls} ' +
+                f'with schema_data: {data}'
             )
             raise
         finally:
             db.close()
 
-    def update(self, id: str, schema_data: SchemaData) -> Optional[Schema]:
+    def update(self, id: str, data: SchemaData) -> Schema:
         '''
         Update a record.
         '''
         db = self._create_db_session()
         try:
-            db_entity = db.query(self.db_entity_class).filter(
-                self.db_entity_class.id == id
-            ).first()
-            if db_entity is None:
-                return None
+            db_entity = self._get_one_by_criterion(
+                db, self.db_entity_cls.id == id
+            )
             db_entity_dict = self._schema_data_to_db_entity_dict(
-                schema_data
+                data
             )
             for field, value in db_entity_dict.items():
                 if field == 'created_at' or field == 'created_by':
@@ -122,30 +122,28 @@ class DBRepo(Repo[Schema, SchemaData]):
             return self._db_entity_to_schema(db_entity)
         except Exception:
             self.logger.error(
-                f'Error while updating {self.db_entity_class} ' +
-                f'with id: {id}, schema_data: {schema_data}'
+                f'Error while updating {self.db_entity_cls} ' +
+                f'with id: {id}, schema_data: {data}'
             )
             raise
         finally:
             db.close()
 
-    def delete(self, id: str) -> Optional[Schema]:
+    def delete(self, id: str) -> Schema:
         '''
         Delete a record.
         '''
         db = self._create_db_session()
         try:
-            db_entity = db.query(self.db_entity_class).filter(
-                self.db_entity_class.id == id
-            ).first()
-            if db_entity is None:
-                return None
+            db_entity = self._get_one_by_criterion(
+                db, self.db_entity_cls.id == id
+            )
             db.delete(db_entity)
             db.commit()
             return self._db_entity_to_schema(db_entity)
         except Exception:
             self.logger.error(
-                f'Error while deleting {self.db_entity_class} with id: {id}'
+                f'Error while deleting {self.db_entity_cls} with id: {id}'
             )
             raise
         finally:
@@ -163,12 +161,12 @@ class DBRepo(Repo[Schema, SchemaData]):
         limit: int = 100, offset: int = 0
     ) -> List[Schema]:
         try:
-            db_query = db.query(self.db_entity_class).filter(
+            db_query = db.query(self.db_entity_cls).filter(
                 criterion
             )
             if 'created_at' in self.db_entity_attribute_names:
                 db_query = db_query.order_by(
-                    self.db_entity_class.created_at.desc()
+                    self.db_entity_cls.created_at.desc()
                 )
             db_entities = db_query.offset(offset).limit(limit).all()
             return [
@@ -177,40 +175,43 @@ class DBRepo(Repo[Schema, SchemaData]):
             ]
         except Exception:
             self.logger.error(
-                f'Error while getting {self.db_entity_class} ' +
-                f'with search filter: {criterion}, ' +
+                f'Error while getting {self.db_entity_cls} ' +
+                f'with criterion: {criterion}, ' +
                 f'limit: {limit}, offset: {offset}'
             )
             raise
 
     def _count_by_criterion(
         self, db: Session, criterion: _ColumnExpressionArgument[bool]
-    ) -> List[Schema]:
+    ) -> int:
         try:
-            return db.query(self.db_entity_class).filter(
+            return db.query(self.db_entity_cls).filter(
                 criterion
             ).count()
         except Exception:
             self.logger.error(
-                f'Error while counting for {self.db_entity_class} ' +
-                f'with search filter: {criterion}'
+                f'Error while counting for {self.db_entity_cls} ' +
+                f'with criterion: {criterion}'
             )
             raise
 
     def _get_one_by_criterion(
         self, db: Session, criterion: _ColumnExpressionArgument[bool]
-    ) -> Optional[Schema]:
+    ) -> DBEntity:
         try:
-            db_entity = db.query(self.db_entity_class).filter(
+            db_entity = db.query(self.db_entity_cls).filter(
                 criterion
             ).first()
             if db_entity is None:
-                return None
-            return self._db_entity_to_schema(db_entity)
+                raise ValueError(
+                    f'Cannot find a {self.db_entity_cls} ' +
+                    f'with criterion: {criterion}'
+                )
+            return db_entity
         except Exception:
             self.logger.error(
-                f'Error while getting a {self.db_entity_class} ' +
-                f'with search filter: {criterion}'
+                f'Error while getting a {self.db_entity_cls} ' +
+                f'with criterion: {criterion}'
             )
             raise
 
@@ -232,16 +233,16 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Convert db_entity into schema.
         '''
-        return self.schema_class.from_orm(db_entity)
+        return self.schema_cls.from_orm(db_entity)
 
     def _search_filter_to_criterion(
-        self, filter_map: SearchFilter
+        self, search_filter: SearchFilter
     ) -> _ColumnExpressionArgument[bool]:
         '''
         Return keyword filtering.
         The result is usually used to invoke find/count.
         '''
-        keyword = filter_map.get('keyword', '')
+        keyword = search_filter.keyword
         like_keyword = '%{}%'.format(keyword) if keyword != '' else '%'
         keyword_criterion = [
             keyword_field.like(like_keyword)
@@ -253,10 +254,19 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Return list of fields for keyword filtering
         '''
-        return [
-            getattr(self.db_entity_class, field)
-            for field in self.db_entity_attribute_names
-            if type(
-                getattr(self.db_entity_class, field)
-            ) == InstrumentedAttribute
-        ]
+        if self._keyword_fields is not None:
+            return self._keyword_fields
+        self._keyword_fields = []
+        for field_name in self.db_entity_attribute_names:
+            field = getattr(self.db_entity_cls, field_name, None)
+            if type(field) != InstrumentedAttribute:
+                continue
+            field_type = getattr(field, 'type', None)
+            str_field_type = str(field_type)
+            if not (
+                str_field_type.upper().startswith('VARCHAR') or
+                str_field_type.upper().startswith('TEXT')
+            ):
+                continue
+            self._keyword_fields.append(field)
+        return self._keyword_fields

@@ -38,9 +38,10 @@ app.add_middleware(
 def get_application_liveness_status():
     '''
     Get application liveness status.
-    Will return HTTP response status 200 if application is alive.
-    will return HTTP response status 503 otherwise.
-    Note: Orchestrator like Kubernetes will not restart an alive application
+    Will return HTTP response status 200 if application is alive,
+    or return 503 otherwise.
+    Orchestrator like Kubernetes will restart
+    any application with non-healthy liveness status.
     '''
     if app_state.get_liveness():
         return JSONResponse(
@@ -58,10 +59,10 @@ def get_application_liveness_status():
 def get_application_readiness_status():
     '''
     Get application readiness status.
-    Will return HTTP response status 200 if application is ready.
-    will return HTTP response status 503 otherwise.
-    Note: Orchestrator like Kubernetes will only send request
-    once the application is ready.
+    Will return HTTP response status 200 if application is ready,
+    or return 503 otherwise.
+    Orchestrator like Kubernetes will only send user request
+    to any application with healthy readiness status.
     '''
     if app_state.get_readiness():
         return JSONResponse(

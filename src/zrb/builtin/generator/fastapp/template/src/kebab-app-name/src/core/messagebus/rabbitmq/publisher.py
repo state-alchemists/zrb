@@ -5,6 +5,8 @@ from core.messagebus.messagebus import (
 from core.messagebus.rabbitmq.admin import (
     RMQAdmin, must_get_rmq_admin
 )
+from pydantic import BaseModel
+
 import aiormq
 import asyncio
 import logging
@@ -38,6 +40,8 @@ class RMQPublisher(Publisher):
         await self.rmq_admin.create_events([event_name])
         queue_name = self.rmq_admin.get_queue_name(event_name)
         exchange_name = self.rmq_admin.get_exchange_name(event_name)
+        if isinstance(message, BaseModel):
+            message = message.dict()
         for attempt in range(self.retry):
             try:
                 await self._connect()

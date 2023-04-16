@@ -1,10 +1,17 @@
-from module.auth.entity.permission.repo import PermissionRepo
+from abc import ABC
+from core.model import Model, RepoModel
+from module.auth.schema.permission import (
+    Permission, PermissionData, PermissionResult
+)
 
 
-class PermissionModel():
+class PermissionModel(
+    Model[Permission, PermissionData, PermissionResult], ABC
+):
+    pass
 
-    def __init__(self, permission_repo: PermissionRepo):
-        self.permission_repo = permission_repo
 
-    def get(self):
-        return self.permission_repo.get()
+class PermissionRepoModel(
+    RepoModel[Permission, PermissionData, PermissionResult], PermissionModel
+):
+    schema_result_cls = PermissionResult

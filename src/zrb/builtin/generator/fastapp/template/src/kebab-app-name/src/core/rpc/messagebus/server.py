@@ -1,8 +1,9 @@
 from typing import Any, Mapping
 from core.messagebus.messagebus import Consumer, Publisher
-from core.rpc.rpc import Server, TRPCHandler, Message
+from core.rpc.rpc import Server, TRPCHandler, Message, Result
 import logging
 import inspect
+from pydantic import BaseModel
 
 
 class MessagebusServer(Server):
@@ -34,14 +35,25 @@ class MessagebusServer(Server):
                 # get reply
                 self.logger.info(
                     '🤙 [messagebus-rpc-server] ' +
-                    f'Getting result for RPC: {rpc_name} ' +
+                    f'Invoke RPC: {rpc_name} ' +
                     f', args: {args} ' +
                     f', kwargs: {kwargs} ' +
                     f', reply_event: {reply_event}'
                 )
-                result = await self._run_handler(handler, *args, **kwargs)
-                # publish reply
-                await self.publisher.publish(reply_event, result)
+                try:
+                    result = await self._run_handler(handler, *args, **kwargs)
+                    if isinstance(result, BaseModel):
+                        result = result.dict()
+                    # publish result
+                    await self.publisher.publish(
+                        reply_event, Result(result=result).to_dict()
+                    )
+                except Exception as e:
+                    self.logger.error(e, exc_info=True)
+                    # publish error
+                    await self.publisher.publish(
+                        reply_event, Result(error=f'{e}').to_dict()
+                    )
         return wrapper
 
     async def _run_handler(

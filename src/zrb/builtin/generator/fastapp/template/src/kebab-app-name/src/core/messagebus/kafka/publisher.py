@@ -7,6 +7,7 @@ from core.messagebus.kafka.admin import (
 )
 from aiokafka import AIOKafkaProducer
 from aiokafka.producer.producer import _missing, DefaultPartitioner
+from pydantic import BaseModel
 
 import logging
 import asyncio
@@ -98,6 +99,8 @@ class KafkaPublisher(Publisher):
     async def publish(self, event_name: str, message: Any):
         await self.kafka_admin.create_events([event_name])
         topic_name = self.kafka_admin.get_topic_name(event_name)
+        if isinstance(message, BaseModel):
+            message = message.dict()
         for attempt in range(self.retry):
             try:
                 await self._connect()
