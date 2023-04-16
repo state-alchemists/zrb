@@ -204,7 +204,7 @@ class DBRepo(Repo[Schema, SchemaData]):
             ).first()
             if db_entity is None:
                 raise ValueError(
-                    f'Cannot find a {self.db_entity_cls} ' +
+                    f'Not found: Cannot find a {self.db_entity_cls} ' +
                     f'with criterion: {criterion}'
                 )
             return db_entity

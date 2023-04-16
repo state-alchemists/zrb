@@ -16,9 +16,12 @@ if app_enable_frontend:
     @app.middleware("http")
     async def catch_all(request, call_next):
         response = await call_next(request)
-        if response.status_code == 404:
-            return frontend_index_response
-        return response
+        if response.status_code != 404:
+            return response
+        api_error = response.headers.get('api-error', '').lower() == 'yes'
+        if api_error:
+            return response
+        return frontend_index_response
 
 
 app.add_middleware(
