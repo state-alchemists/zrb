@@ -1,9 +1,12 @@
-from typing import Any, Generic, List, Mapping, Optional, TypeVar, Type
+from typing import Any, List, Mapping, Optional, TypeVar, Type
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.sql._typing import _ColumnExpressionArgument
+from core.repo.search_filter import SearchFilter
+from core.repo.repo import Repo
 
 import uuid
 import datetime
@@ -14,14 +17,12 @@ Schema = TypeVar('Schema', bound=BaseModel)
 DBEntity = TypeVar('DBEntity', bound=Any)
 
 
-class DBRepo(Generic[DBEntity, Schema, SchemaData]):
+class DBRepo(Repo[Schema, SchemaData]):
     schema_class: Type[Schema]
     db_entity_class: Type[DBEntity]
 
     def __init__(
-        self,
-        logger: logging.Logger,
-        engine: Engine,
+        self, logger: logging.Logger, engine: Engine,
     ):
         self.logger = logger
         self.engine = engine
@@ -35,31 +36,34 @@ class DBRepo(Generic[DBEntity, Schema, SchemaData]):
         db = self._create_db_session()
         try:
             search_filter = self.db_entity_class.id == id
-            return self._get_one_by_filter(db, search_filter)
+            return self._get_one_by_criterion(db, search_filter)
         finally:
             db.close()
 
     def get(
-        self, keyword: str, limit: int = 100, offset: int = 0
+        self, search_filter: Optional[SearchFilter] = None,
+        limit: int = 100, offset: int = 0
     ) -> List[Schema]:
         '''
         Find multiple records by keyword with limit and offset.
         '''
         db = self._create_db_session()
         try:
-            search_filter = self._get_search_filter(db, keyword)
-            return self._get_by_filter(db, search_filter, limit, offset)
+            search_filter = {} if search_filter is None else search_filter
+            criterion = self._search_filter_to_criterion(search_filter)
+            return self._get_by_criterion(db, criterion, limit, offset)
         finally:
             db.close()
 
-    def count(self, keyword: str) -> int:
+    def count(self, search_filter: Optional[SearchFilter] = None) -> int:
         '''
         Count records by keyword.
         '''
         db = self._create_db_session()
         try:
-            search_filter = self._get_search_filter(db, keyword)
-            return self._count_by_filter(db, search_filter)
+            search_filter = {} if search_filter is None else search_filter
+            criterion = self._search_filter_to_criterion(search_filter)
+            return self._count_by_criterion(db, criterion)
         finally:
             db.close()
 
@@ -92,9 +96,7 @@ class DBRepo(Generic[DBEntity, Schema, SchemaData]):
         finally:
             db.close()
 
-    def update(
-        self, id: str, schema_data: SchemaData
-    ) -> Optional[Schema]:
+    def update(self, id: str, schema_data: SchemaData) -> Optional[Schema]:
         '''
         Update a record.
         '''
@@ -149,16 +151,20 @@ class DBRepo(Generic[DBEntity, Schema, SchemaData]):
         finally:
             db.close()
 
-    def _get_by_filter(
+    def _create_db_session(self) -> Session:
+        '''
+        Return a db session.
+        '''
+        return Session(self.engine, expire_on_commit=False)
+
+    def _get_by_criterion(
         self,
-        db: Session,
-        search_filter: Any,
-        limit: int = 100,
-        offset: int = 0
+        db: Session, criterion: _ColumnExpressionArgument[bool],
+        limit: int = 100, offset: int = 0
     ) -> List[Schema]:
         try:
             db_query = db.query(self.db_entity_class).filter(
-                search_filter
+                criterion
             )
             if 'created_at' in self.db_entity_attribute_names:
                 db_query = db_query.order_by(
@@ -171,56 +177,42 @@ class DBRepo(Generic[DBEntity, Schema, SchemaData]):
             ]
         except Exception:
             self.logger.error(
-                f'Error while looking for {self.db_entity_class} ' +
-                f'with search filter: {search_filter}, ' +
+                f'Error while getting {self.db_entity_class} ' +
+                f'with search filter: {criterion}, ' +
                 f'limit: {limit}, offset: {offset}'
             )
             raise
 
-    def _count_by_filter(
-        self,
-        db: Session,
-        search_filter: Any,
+    def _count_by_criterion(
+        self, db: Session, criterion: _ColumnExpressionArgument[bool]
     ) -> List[Schema]:
         try:
             return db.query(self.db_entity_class).filter(
-                search_filter
+                criterion
             ).count()
         except Exception:
             self.logger.error(
-                f'Error while conunting for {self.db_entity_class} ' +
-                f'with search filter: {search_filter}'
+                f'Error while counting for {self.db_entity_class} ' +
+                f'with search filter: {criterion}'
             )
             raise
 
-    def _get_one_by_filter(
-        self, db: Session, search_filter: Any
+    def _get_one_by_criterion(
+        self, db: Session, criterion: _ColumnExpressionArgument[bool]
     ) -> Optional[Schema]:
         try:
             db_entity = db.query(self.db_entity_class).filter(
-                search_filter
+                criterion
             ).first()
             if db_entity is None:
                 return None
             return self._db_entity_to_schema(db_entity)
         except Exception:
             self.logger.error(
-                f'Error while looking for {self.db_entity_class} ' +
-                f'with search filter: {search_filter}'
+                f'Error while getting a {self.db_entity_class} ' +
+                f'with search filter: {criterion}'
             )
             raise
-
-    def _get_keyword_fields(self) -> List[InstrumentedAttribute]:
-        '''
-        Return list of fields for keyword filtering
-        '''
-        return [
-            getattr(self.db_entity_class, field)
-            for field in self.db_entity_attribute_names
-            if type(
-                getattr(self.db_entity_class, field)
-            ) == InstrumentedAttribute
-        ]
 
     def _schema_data_to_db_entity_dict(
         self, schema_data: SchemaData
@@ -242,20 +234,29 @@ class DBRepo(Generic[DBEntity, Schema, SchemaData]):
         '''
         return self.schema_class.from_orm(db_entity)
 
-    def _get_search_filter(self, db: Session, keyword: str) -> Any:
+    def _search_filter_to_criterion(
+        self, filter_map: SearchFilter
+    ) -> _ColumnExpressionArgument[bool]:
         '''
         Return keyword filtering.
         The result is usually used to invoke find/count.
         '''
+        keyword = filter_map.get('keyword', '')
         like_keyword = '%{}%'.format(keyword) if keyword != '' else '%'
-        keyword_filter = [
+        keyword_criterion = [
             keyword_field.like(like_keyword)
             for keyword_field in self._get_keyword_fields()
         ]
-        return or_(*keyword_filter)
+        return or_(*keyword_criterion)
 
-    def _create_db_session(self) -> Session:
+    def _get_keyword_fields(self) -> List[InstrumentedAttribute]:
         '''
-        Return a db session.
+        Return list of fields for keyword filtering
         '''
-        return Session(self.engine, expire_on_commit=False)
+        return [
+            getattr(self.db_entity_class, field)
+            for field in self.db_entity_attribute_names
+            if type(
+                getattr(self.db_entity_class, field)
+            ) == InstrumentedAttribute
+        ]

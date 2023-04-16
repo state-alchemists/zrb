@@ -8,7 +8,7 @@ from component.messagebus import consumer, publisher
 from component.rpc import rpc_caller, rpc_server
 from component.db_connection import engine
 from helper.migration import migrate
-from module.auth.repo._base import Base
+from module.auth.component import Base
 from module.auth.api import register_api
 from module.auth.event import register_event
 from module.auth.rpc import register_rpc

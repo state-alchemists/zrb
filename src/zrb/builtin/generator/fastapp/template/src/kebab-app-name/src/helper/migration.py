@@ -7,7 +7,12 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 def migrate(engine: Engine, Base: DeclarativeBase):
-    migration_context = MigrationContext.configure(engine.connect())
+    '''
+    Generate migration and run it
+    See: https://alembic.sqlalchemy.org/en/latest/cookbook.html#run-alembic-operation-objects-directly-as-in-from-autogenerate  # noqa
+    '''
+    connection = engine.connect()
+    migration_context = MigrationContext.configure(connection)
     migration_script = produce_migrations(
         context=migration_context,
         metadata=Base.metadata
@@ -18,6 +23,12 @@ def migrate(engine: Engine, Base: DeclarativeBase):
     stack = [migration_script.upgrade_ops]
     while stack:
         elem = stack.pop(0)
+        if (
+            hasattr(elem, 'table_name') and
+            elem.table_name not in Base.metadata.tables
+        ):
+            # We want the migration leave all unrelated tables as is
+            continue
 
         if use_batch and isinstance(elem, ModifyTableOps):
             with operations.batch_alter_table(
@@ -35,3 +46,5 @@ def migrate(engine: Engine, Base: DeclarativeBase):
             if hasattr(elem, "column"):
                 elem.column = elem.column.copy()
             operations.invoke(elem)
+    connection.commit()
+    connection.close()

@@ -10,7 +10,7 @@ from component.app_lifespan import app_state
 from component.app_lifespan import app_lifespan
 from component.frontend_index import frontend_index_response
 
-app = FastAPI(lifespan=app_lifespan)
+app = FastAPI(title=app_name, lifespan=app_lifespan)
 
 if app_enable_frontend:
     @app.middleware("http")
@@ -35,7 +35,13 @@ app.add_middleware(
 
 @app.head('/liveness')
 @app.get('/liveness')
-def handle_liveness():
+def get_application_liveness_status():
+    '''
+    Get application liveness status.
+    Will return HTTP response status 200 if application is alive.
+    will return HTTP response status 503 otherwise.
+    Note: Orchestrator like Kubernetes will not restart an alive application
+    '''
     if app_state.get_liveness():
         return JSONResponse(
             content={'app': app_name, 'alive': True},
@@ -49,7 +55,14 @@ def handle_liveness():
 
 @app.head('/readiness')
 @app.get('/readiness')
-def handle_readiness():
+def get_application_readiness_status():
+    '''
+    Get application readiness status.
+    Will return HTTP response status 200 if application is ready.
+    will return HTTP response status 503 otherwise.
+    Note: Orchestrator like Kubernetes will only send request
+    once the application is ready.
+    '''
     if app_state.get_readiness():
         return JSONResponse(
             content={'app': app_name, 'ready': True},
