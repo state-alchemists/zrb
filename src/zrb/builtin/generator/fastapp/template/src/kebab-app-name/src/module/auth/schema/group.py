@@ -1,25 +1,24 @@
-from typing import List, Optional
-from pydantic import BaseModel
-import datetime
+from typing import List
+from core.schema import BaseDateTimeSchema, BaseCountSchema
+from module.auth.schema.permission import Permission
 
 
-class GroupData(BaseModel):
+class GroupBase(BaseDateTimeSchema):
     name: str
     description: str
-    permission_ids: List[str]
-    created_at: Optional[datetime.datetime]
-    created_by: Optional[str]
-    updated_at: Optional[datetime.datetime]
-    updated_by: Optional[str]
 
 
-class Group(GroupData):
+class GroupData(GroupBase):
+    permissions: List[str]
+
+
+class Group(GroupBase):
     id: str
+    permissions: List[Permission] = []
 
     class Config:
         orm_mode = True
 
 
-class GroupResult(BaseModel):
+class GroupResult(BaseCountSchema):
     count: int
-    data: List[Group]

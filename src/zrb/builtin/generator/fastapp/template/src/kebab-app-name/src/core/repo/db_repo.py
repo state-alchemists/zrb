@@ -38,7 +38,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         try:
             search_filter = self.db_entity_cls.id == id
             db_entity = self._get_one_by_criterion(db, search_filter)
-            return self._db_entity_to_schema(db_entity)
+            return self._db_entity_to_schema(db, db_entity)
         finally:
             db.close()
 
@@ -76,7 +76,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         db = self._create_db_session()
         try:
             db_entity = self.db_entity_cls(
-                **self._schema_data_to_db_entity_dict(data),
+                **self._schema_data_to_db_entity_map(db, data),
             )
             if 'id' in self.db_entity_attribute_names:
                 new_id = str(uuid.uuid4())
@@ -88,7 +88,7 @@ class DBRepo(Repo[Schema, SchemaData]):
             db.add(db_entity)
             db.commit()
             db.refresh(db_entity)
-            return self._db_entity_to_schema(db_entity)
+            return self._db_entity_to_schema(db, db_entity)
         except Exception:
             self.logger.error(
                 f'Error while inserting into {self.db_entity_cls} ' +
@@ -107,10 +107,8 @@ class DBRepo(Repo[Schema, SchemaData]):
             db_entity = self._get_one_by_criterion(
                 db, self.db_entity_cls.id == id
             )
-            db_entity_dict = self._schema_data_to_db_entity_dict(
-                data
-            )
-            for field, value in db_entity_dict.items():
+            db_entity_map = self._schema_data_to_db_entity_map(db, data)
+            for field, value in db_entity_map.items():
                 if field == 'created_at' or field == 'created_by':
                     continue
                 setattr(db_entity, field, value)
@@ -119,7 +117,7 @@ class DBRepo(Repo[Schema, SchemaData]):
             db.add(db_entity)
             db.commit()
             db.refresh(db_entity)
-            return self._db_entity_to_schema(db_entity)
+            return self._db_entity_to_schema(db, db_entity)
         except Exception:
             self.logger.error(
                 f'Error while updating {self.db_entity_cls} ' +
@@ -140,7 +138,7 @@ class DBRepo(Repo[Schema, SchemaData]):
             )
             db.delete(db_entity)
             db.commit()
-            return self._db_entity_to_schema(db_entity)
+            return self._db_entity_to_schema(db, db_entity)
         except Exception:
             self.logger.error(
                 f'Error while deleting {self.db_entity_cls} with id: {id}'
@@ -170,7 +168,7 @@ class DBRepo(Repo[Schema, SchemaData]):
                 )
             db_entities = db_query.offset(offset).limit(limit).all()
             return [
-                self._db_entity_to_schema(db_entity)
+                self._db_entity_to_schema(db, db_entity)
                 for db_entity in db_entities
             ]
         except Exception:
@@ -215,8 +213,8 @@ class DBRepo(Repo[Schema, SchemaData]):
             )
             raise
 
-    def _schema_data_to_db_entity_dict(
-        self, schema_data: SchemaData
+    def _schema_data_to_db_entity_map(
+        self, db: Session, schema_data: SchemaData
     ) -> Mapping[str, Any]:
         '''
         Convert entity_data into dictionary
@@ -229,7 +227,7 @@ class DBRepo(Repo[Schema, SchemaData]):
             if field in self.db_entity_attribute_names
         }
 
-    def _db_entity_to_schema(self, db_entity: DBEntity) -> Schema:
+    def _db_entity_to_schema(self, db: Session, db_entity: DBEntity) -> Schema:
         '''
         Convert db_entity into schema.
         '''

@@ -1,15 +1,10 @@
-from typing import List, Optional
-from pydantic import BaseModel
-import datetime
+from typing import List
+from core.schema import BaseDateTimeSchema, BaseCountSchema
 
 
-class PermissionData(BaseModel):
+class PermissionData(BaseDateTimeSchema):
     name: str
     description: str
-    created_at: Optional[datetime.datetime]
-    created_by: Optional[str]
-    updated_at: Optional[datetime.datetime]
-    updated_by: Optional[str]
 
 
 class Permission(PermissionData):
@@ -19,6 +14,5 @@ class Permission(PermissionData):
         orm_mode = True
 
 
-class PermissionResult(BaseModel):
-    count: int
+class PermissionResult(BaseCountSchema):
     data: List[Permission]
