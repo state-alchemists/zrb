@@ -19,11 +19,11 @@ class DBEntityUser(Base, DBEntityMixin):
     hashed_password = Column(String)
     permissions = relationship(
         "DBEntityPermission",
-        secondary=user_permission, back_populates="users"
+        secondary=user_permission
     )
     groups = relationship(
         "DBEntityGroup",
-        secondary=user_group, back_populates="users"
+        secondary=user_group
     )
 
 

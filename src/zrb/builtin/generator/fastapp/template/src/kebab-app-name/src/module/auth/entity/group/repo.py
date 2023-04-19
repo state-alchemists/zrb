@@ -15,7 +15,7 @@ class DBEntityGroup(Base, DBEntityMixin):
     description = Column(String)
     permissions = relationship(
         "DBEntityPermission",
-        secondary=group_permission, back_populates="groups"
+        secondary=group_permission
     )
 
 

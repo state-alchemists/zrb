@@ -260,6 +260,8 @@ class DBRepo(Repo[Schema, SchemaData]):
             if type(field) != InstrumentedAttribute:
                 continue
             field_type = getattr(field, 'type', None)
+            if field_type is None:
+                continue
             str_field_type = str(field_type)
             if not (
                 str_field_type.upper().startswith('VARCHAR') or
