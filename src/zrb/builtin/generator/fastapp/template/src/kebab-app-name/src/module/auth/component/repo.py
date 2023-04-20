@@ -1,3 +1,4 @@
+from module.auth.component.password_hasher import password_hasher
 from component.log import logger
 from component.db_connection import engine
 from module.auth.entity.permission.repo import (
@@ -18,5 +19,5 @@ group_repo: GroupRepo = GroupDBRepo(
     logger=logger, engine=engine
 )
 user_repo: UserRepo = UserDBRepo(
-    logger=logger, engine=engine
+    logger=logger, engine=engine, password_hasher=password_hasher
 )

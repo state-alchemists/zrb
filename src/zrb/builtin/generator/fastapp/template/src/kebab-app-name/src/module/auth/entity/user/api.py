@@ -4,8 +4,9 @@ from core.messagebus import Publisher
 from core.rpc import Caller
 from helper.error import get_http_api_error
 from module.auth.schema.user import (
-    User, UserData, UserResult
+    User, UserData, UserResult, UserLogin
 )
+from module.auth.schema.token import TokenResponse
 
 
 def register_api(
@@ -15,6 +16,16 @@ def register_api(
     publisher: Publisher
 ):
     logger.info('🥪 Register API for "auth.user"')
+
+    @app.post('/api/v1/login', response_model=TokenResponse)
+    async def login(data: UserLogin):
+        try:
+            token = await rpc_caller.call(
+                'auth_login', login_data=data.dict()
+            )
+            return TokenResponse(token=token)
+        except Exception as e:
+            raise get_http_api_error(e)
 
     @app.get(
         '/api/v1/auth/users', response_model=UserResult

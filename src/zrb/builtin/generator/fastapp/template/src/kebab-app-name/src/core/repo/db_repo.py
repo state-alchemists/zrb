@@ -53,7 +53,11 @@ class DBRepo(Repo[Schema, SchemaData]):
         try:
             search_filter = {} if search_filter is None else search_filter
             criterion = self._search_filter_to_criterion(search_filter)
-            return self._get_by_criterion(db, criterion, limit, offset)
+            db_entities = self._get_by_criterion(db, criterion, limit, offset)
+            return [
+                self._db_entity_to_schema(db, db_entity)
+                for db_entity in db_entities
+            ]
         finally:
             db.close()
 
@@ -157,7 +161,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         self,
         db: Session, criterion: _ColumnExpressionArgument[bool],
         limit: int = 100, offset: int = 0
-    ) -> List[Schema]:
+    ) -> List[DBEntity]:
         try:
             db_query = db.query(self.db_entity_cls).filter(
                 criterion
@@ -166,11 +170,7 @@ class DBRepo(Repo[Schema, SchemaData]):
                 db_query = db_query.order_by(
                     self.db_entity_cls.created_at.desc()
                 )
-            db_entities = db_query.offset(offset).limit(limit).all()
-            return [
-                self._db_entity_to_schema(db, db_entity)
-                for db_entity in db_entities
-            ]
+            return db_query.offset(offset).limit(limit).all()
         except Exception:
             self.logger.error(
                 f'Error while getting {self.db_entity_cls} ' +

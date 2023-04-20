@@ -1,12 +1,11 @@
-zrb==0.0.38
+SQLAlchemy==2.0.9
 aiormq==6.7.3
 aiokafka==0.8.0
-fastapi==0.93.0
-uvicorn==0.20.0
+alembic==1.10.3
+bcrypt==4.0.1
 fastapi==0.93.0
 jsons==1.6.3
 pydantic==1.10.6
-alembic==1.10.3
-SQLAlchemy==2.0.9
 psycopg2-binary==2.9.6
 python-jose==3.3.0
+uvicorn==0.20.0

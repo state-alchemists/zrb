@@ -1,4 +1,5 @@
-from typing import List, Optional
+from typing import List
+from pydantic import BaseModel
 from core.schema import BaseDateTimeSchema, BaseCountSchema
 from module.auth.schema.permission import Permission
 from module.auth.schema.group import Group
@@ -22,7 +23,6 @@ class User(UserBase):
     id: str
     permissions: List[Permission] = []
     groups: List[Group] = []
-    hashed_password: Optional[str]
 
     class Config:
         orm_mode = True
@@ -30,3 +30,8 @@ class User(UserBase):
 
 class UserResult(BaseCountSchema):
     data: List[User]
+
+
+class UserLogin(BaseModel):
+    identity: str
+    password: str

@@ -4,7 +4,7 @@ from core.messagebus import Publisher
 from core.rpc import Caller, Server
 from core.repo import SearchFilter
 from module.auth.component.model import user_model
-from module.auth.schema.user import UserData
+from module.auth.schema.user import UserData, UserLogin
 
 
 def register_rpc(
@@ -14,6 +14,10 @@ def register_rpc(
     publisher: Publisher
 ):
     logger.info('🥪 Register RPC handlers for "auth.user"')
+
+    @rpc_server.register('auth_login')
+    async def login(login_data: Mapping[str, str]) -> str:
+        return user_model.login(UserLogin(**login_data))
 
     @rpc_server.register('get_auth_user')
     async def get(
