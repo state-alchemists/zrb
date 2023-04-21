@@ -27,11 +27,11 @@ def register_login_api(
             identity=form_data.username,
             password=form_data.password
         )
-        await _login(data=data)
+        return await _login(data=data)
 
     @app.post('/api/v1/login', response_model=TokenResponse)
     async def login(data: UserLogin) -> TokenResponse:
-        await _login(data=data)
+        return await _login(data=data)
 
     async def _login(data: UserLogin) -> TokenResponse:
         try:

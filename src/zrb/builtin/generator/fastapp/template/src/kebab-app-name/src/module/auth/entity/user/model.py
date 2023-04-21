@@ -50,7 +50,9 @@ class UserRepoModel(
                 user_login.identity == self.admin_user.phone
             )
         ):
-            return self._get_token(self.admin_user)
+            admin_user = self.admin_user
+            admin_user.permissions = self.permission_model.get_all()
+            return self._get_token(admin_user)
         user = self._get_by_user_login(user_login)
         return self._get_token(user)
 
@@ -59,7 +61,7 @@ class UserRepoModel(
             user_id=user.id,
             username=user.username,
             permissions=[
-                permission.id for permission in self._get_permissions(user)
+                permission.name for permission in self._get_permissions(user)
             ],
             expire_seconds=self.expire_seconds
         )

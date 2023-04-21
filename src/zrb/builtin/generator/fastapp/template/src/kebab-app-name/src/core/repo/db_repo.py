@@ -51,7 +51,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         db = self._create_db_session()
         try:
-            search_filter = {} if search_filter is None else search_filter
+            search_filter = self._ensure_search_filter(search_filter)
             criterion = self._search_filter_to_criterion(search_filter)
             db_entities = self._get_by_criterion(db, criterion, limit, offset)
             return [
@@ -67,7 +67,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         db = self._create_db_session()
         try:
-            search_filter = {} if search_filter is None else search_filter
+            search_filter = self._ensure_search_filter(search_filter)
             criterion = self._search_filter_to_criterion(search_filter)
             return self._count_by_criterion(db, criterion)
         finally:
@@ -270,3 +270,8 @@ class DBRepo(Repo[Schema, SchemaData]):
                 continue
             self._keyword_fields.append(field)
         return self._keyword_fields
+
+    def _ensure_search_filter(self, search_filter: Optional[SearchFilter]):
+        if search_filter is None:
+            return SearchFilter(keyword='', criterion={})
+        return search_filter
