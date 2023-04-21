@@ -53,7 +53,8 @@ def get_application_liveness_status():
         )
     return JSONResponse(
         content={'message': 'Service is not alive'},
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={'api-error': 'yes'}
     )
 
 
@@ -74,5 +75,6 @@ def get_application_readiness_status():
         )
     return JSONResponse(
         content={'message': 'Service is not ready'},
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={'api-error': 'yes'}
     )

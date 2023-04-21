@@ -3,7 +3,7 @@ from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller, Server
 from core.repo import SearchFilter
-from module.auth.component.model import group_model
+from module.auth.component.model.group_model import group_model
 from module.auth.schema.group import GroupData
 
 

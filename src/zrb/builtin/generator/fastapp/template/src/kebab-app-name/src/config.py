@@ -26,10 +26,14 @@ app_auth_admin_active = str_to_boolean(os.getenv(
     'APP_AUTH_ADMIN_ACTIVE', 'true'
 ))
 app_auth_admin_user_id = os.getenv('APP_AUTH_ADMIN_USER_ID', 'root')
-app_auth_admin_username = os.getenv('APP_AUTH_ADMIN_USERNAME', 'root')
-app_auth_admin_password = os.getenv('APP_AUTH_ADMIN_PASSWORD', 'toor')
-app_auth_admin_email = os.getenv('APP_AUTH_ADMIN_EMAIL', 'root@innistrad.com')
+app_auth_admin_username = os.getenv('APP_AUTH_ADMIN_USERNAME', 'admin')
+app_auth_admin_password = os.getenv('APP_AUTH_ADMIN_PASSWORD', 'admin')
+app_auth_admin_email = os.getenv('APP_AUTH_ADMIN_EMAIL', 'admin@system.com')
 app_auth_admin_phone = os.getenv('APP_AUTH_ADMIN_PHONE', '+629876543212')
+app_auth_guest_user_id = os.getenv('APP_AUTH_GUEST_USER_ID', 'root')
+app_auth_guest_username = os.getenv('APP_AUTH_GUEST_USERNAME', 'guest')
+app_auth_guest_email = os.getenv('APP_AUTH_GUEST_EMAIL', 'guest@system.com')
+app_auth_guest_phone = os.getenv('APP_AUTH_GUEST_PHONE', '+629876543212')
 
 app_db_connection = os.getenv('APP_DB_CONNECTION', 'sqlite://')
 app_db_auto_migrate = str_to_boolean(os.getenv('APP_DB_AUTO_MIGRATE', 'true'))

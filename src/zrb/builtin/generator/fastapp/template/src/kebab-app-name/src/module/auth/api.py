@@ -9,7 +9,8 @@ from module.auth.entity.group.api import (
     register_api as register_group_api
 )
 from module.auth.entity.user.api import (
-    register_api as register_user_api
+    register_api as register_user_api,
+    register_login_api as register_user_login_api
 )
 
 
@@ -20,6 +21,7 @@ def register_api(
     publisher: Publisher
 ):
     logger.info('🥪 Register API for "auth"')
+    register_user_login_api(logger, app, rpc_caller, publisher)
     register_permission_api(logger, app, rpc_caller, publisher)
     register_group_api(logger, app, rpc_caller, publisher)
     register_user_api(logger, app, rpc_caller, publisher)

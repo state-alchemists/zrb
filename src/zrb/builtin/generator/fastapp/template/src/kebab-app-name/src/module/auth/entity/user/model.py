@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from abc import ABC, abstractmethod
 from core.model import Model, RepoModel
 from module.auth.schema.user import (
@@ -8,6 +8,7 @@ from module.auth.schema.permission import Permission
 from module.auth.entity.user.repo import UserRepo
 from module.auth.schema.token import TokenData
 from module.auth.core.token_util.token_util import TokenUtil
+from module.auth.entity.permission.model import PermissionModel
 
 
 class UserModel(
@@ -24,13 +25,32 @@ class UserRepoModel(
     schema_result_cls = UserResult
 
     def __init__(
-        self, repo: UserRepo, token_util: TokenUtil, expire_seconds: int = 300
+        self,
+        repo: UserRepo,
+        permission_model: PermissionModel,
+        token_util: TokenUtil,
+        expire_seconds: int = 300,
+        admin_user: Optional[User] = None,
+        admin_user_password: str = ''
     ):
         self.repo = repo
+        self.permission_model = permission_model
         self.token_util = token_util
         self.expire_seconds = expire_seconds
+        self.admin_user = admin_user
+        self.admin_user_pasword = admin_user_password
 
     def login(self, user_login: UserLogin) -> str:
+        if (
+            self.admin_user is not None
+            and user_login.password == self.admin_user_pasword
+            and (
+                user_login.identity == self.admin_user.username or
+                user_login.identity == self.admin_user.email or
+                user_login.identity == self.admin_user.phone
+            )
+        ):
+            return self._get_token(self.admin_user)
         user = self._get_by_user_login(user_login)
         return self._get_token(user)
 

@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar, Type
+from typing import List, Optional, TypeVar, Type
 from pydantic import BaseModel
 from core.repo.repo import Repo
 from core.repo.search_filter import SearchFilter
@@ -17,6 +17,15 @@ class RepoModel(Model[Schema, SchemaData, SchemaResult]):
 
     def get_by_id(self, id: str) -> Schema:
         return self.repo.get_by_id(id)
+
+    def get_all(self) -> List[Schema]:
+        count = self.repo.count()
+        limit = 1000
+        schema_list: List[Schema] = []
+        for offset in range(0, count, limit):
+            partial_schema_list = self.repo.get(limit=limit, offset=offset)
+            schema_list += partial_schema_list
+        return schema_list
 
     def get(
         self, search_filter: Optional[SearchFilter] = None,

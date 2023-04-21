@@ -3,9 +3,10 @@ aiormq==6.7.3
 aiokafka==0.8.0
 alembic==1.10.3
 bcrypt==4.0.1
-fastapi==0.93.0
+fastapi==0.95.0
 jsons==1.6.3
 pydantic==1.10.6
 psycopg2-binary==2.9.6
 python-jose==3.3.0
 uvicorn==0.20.0
+python-multipart==0.0.6

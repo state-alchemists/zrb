@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, Union
 from fastapi import HTTPException
 
 
@@ -9,13 +9,14 @@ def get_api_error_detail(detail):
 def create_http_api_exception(
     status_code: int,
     detail: Any = None,
+    headers: Union[Dict[str, Any], None] = None
 ) -> HTTPException:
+    response_headers = {} if headers is None else headers
+    response_headers['api-error'] = 'yes'
     return HTTPException(
         status_code=status_code,
         detail=detail,
-        headers={
-            'api-error': 'yes'
-        }
+        headers=response_headers
     )
 
 

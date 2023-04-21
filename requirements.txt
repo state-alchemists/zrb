@@ -25,10 +25,11 @@ pytest-xdist==3.2.0
 # Other dependencies (just for auto-completion)
 pulumi==3.56.0
 pulumi-kubernetes==3.24.1
-fastapi==0.93.0
+fastapi==0.95.0
 aiormq==6.7.4
 aiokafka==0.8.0
 alembic==1.10.3
 SQLAlchemy==2.0.9
 python-jose==3.3.0
 bcrypt==4.0.1
+python-multipart==0.0.6

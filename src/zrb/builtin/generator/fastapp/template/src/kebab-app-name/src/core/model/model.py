@@ -1,4 +1,4 @@
-from typing import Generic, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar
 from pydantic import BaseModel
 from core.repo.search_filter import SearchFilter
 from abc import ABC, abstractmethod
@@ -12,6 +12,10 @@ class Model(Generic[Schema, SchemaData, SchemaResult], ABC):
 
     @abstractmethod
     def get_by_id(self, id: str) -> Schema:
+        pass
+
+    @abstractmethod
+    def get_all(self) -> List[Schema]:
         pass
 
     @abstractmethod
