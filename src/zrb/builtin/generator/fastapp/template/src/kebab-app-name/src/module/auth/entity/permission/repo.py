@@ -29,7 +29,7 @@ class PermissionDBRepo(
         '''
         db = self._create_db_session()
         try:
-            search_filter = Permission.name == name
+            search_filter = DBEntityPermission.name == name
             db_permission = self._get_one_by_criterion(db, search_filter)
             return self._db_entity_to_schema(db, db_permission)
         finally:

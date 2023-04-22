@@ -2,8 +2,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from config import (
     app_name, app_enable_message_consumer, app_enable_rpc_server,
-    app_enable_frontend,
+    app_enable_frontend, app_db_auto_migrate
 )
+from migrate import migrate
 from component.app_state import app_state, set_not_ready_on_error
 from component.messagebus import consumer
 from component.rpc import rpc_server
@@ -16,6 +17,8 @@ import os
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     logger.info(f'{app_name} started')
+    if app_db_auto_migrate:
+        await migrate()
     app_state.set_liveness(True)
     if app_enable_message_consumer:
         create_task(consumer.start(), on_error=set_not_ready_on_error)
@@ -29,6 +32,7 @@ async def app_lifespan(app: FastAPI):
             name='frontend'
         )
     app_state.set_readiness(True)
+    logger.info(f'{app_name} started')
     yield
     if app_enable_message_consumer:
         await consumer.stop()

@@ -1,9 +1,10 @@
-from module.auth import migrate_auth
+from module.auth.migrate import migrate_auth
+import asyncio
 
 
-def migrate():
-    migrate_auth()
+async def migrate():
+    await migrate_auth()
 
 
 if __name__ == '__main__':
-    migrate()
+    asyncio.run(migrate())

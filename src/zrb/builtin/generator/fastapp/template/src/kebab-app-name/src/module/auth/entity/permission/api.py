@@ -8,7 +8,7 @@ from module.auth.schema.permission import (
     Permission, PermissionData, PermissionResult
 )
 from module.auth.schema.token import TokenData
-from module.auth.component.token_scheme import token_scheme
+from module.auth.component import token_scheme
 
 
 def register_api(
@@ -28,12 +28,12 @@ def register_api(
         user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:permission.get'
+            user_token_data.user_id, 'auth:permission:get'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'get_auth_permission',
+                'auth_get_permission',
                 keyword=keyword,
                 criterion={},
                 limit=limit,
@@ -51,12 +51,12 @@ def register_api(
         id: str, user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            'auth:permission.get_by_id'
+            'auth:permission:get_by_id'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'get_auth_permission_by_id',
+                'auth_get_permission_by_id',
                 id=id, user_token_data=user_token_data.dict()
             )
             return Permission(**result_dict)
@@ -71,12 +71,12 @@ def register_api(
         user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:permission.insert'
+            user_token_data.user_id, 'auth:permission:insert'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'insert_auth_permission',
+                'auth_insert_permission',
                 data=data.dict(), user_token_data=user_token_data.dict()
             )
             return Permission(**result_dict)
@@ -91,12 +91,12 @@ def register_api(
         user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:permission.update'
+            user_token_data.user_id, 'auth:permission:update'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'update_auth_permission',
+                'auth_update_permission',
                 id=id, data=data.dict(), user_token_data=user_token_data.dict()
             )
             return Permission(**result_dict)
@@ -110,12 +110,12 @@ def register_api(
         id: str, user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:permission.delete'
+            user_token_data.user_id, 'auth:permission:delete'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'delete_auth_permission',
+                'auth_delete_permission',
                 id=id, user_token_data=user_token_data.dict()
             )
             return Permission(**result_dict)

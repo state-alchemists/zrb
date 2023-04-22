@@ -313,7 +313,9 @@ async def register_migration(
     app_migration_file_path: str,
     snake_module_name: str
 ):
-    import_module_path = '.'.join(['module', snake_module_name])
+    import_module_path = '.'.join([
+        'module', snake_module_name, 'migrate'
+    ])
     function_name = f'migrate_{snake_module_name}'
     task.print_out(f'Read code from: {app_migration_file_path}')
     code = await read_text_file_async(app_migration_file_path)
@@ -329,7 +331,7 @@ async def register_migration(
     code = append_code_to_function(
         code=code,
         function_name='migrate',
-        new_code=f'{function_name}()'
+        new_code=f'await {function_name}()'
     )
     task.print_out(f'Write modified code to: {app_migration_file_path}')
     await write_text_file_async(app_migration_file_path, code)
@@ -340,7 +342,9 @@ async def register_module(
     app_main_file_path: str,
     snake_module_name: str
 ):
-    import_module_path = '.'.join(['module', snake_module_name])
+    import_module_path = '.'.join([
+        'module', snake_module_name, 'register_module'
+    ])
     function_name = f'register_{snake_module_name}'
     task.print_out(f'Read code from: {app_main_file_path}')
     code = await read_text_file_async(app_main_file_path)

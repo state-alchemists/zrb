@@ -6,21 +6,10 @@ from component.log import logger
 from component.app import app
 from component.messagebus import consumer, publisher
 from component.rpc import rpc_caller, rpc_server
-from component.db_connection import engine
-from helper.migration import migrate
 from module.auth.component import authorizer
-from module.snake_module_name.component import Base
 from module.snake_module_name.api import register_api
 from module.snake_module_name.event import register_event
 from module.snake_module_name.rpc import register_rpc
-
-
-def migrate_snake_module_name():
-    if not app_enable_snake_module_name_module:
-        logger.info('🥪 Skip DB migration for "snake_module_name"')
-        return
-    logger.info('🥪 Perform DB migration for "snake_module_name"')
-    migrate(engine=engine, Base=Base)
 
 
 def register_snake_module_name():

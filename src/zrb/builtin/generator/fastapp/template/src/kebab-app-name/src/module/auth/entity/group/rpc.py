@@ -16,7 +16,7 @@ def register_rpc(
 ):
     logger.info('🥪 Register RPC handlers for "auth.group"')
 
-    @rpc_server.register('get_auth_group')
+    @rpc_server.register('auth_get_group')
     async def get(
         keyword: str,
         criterion: Mapping[str, Any],
@@ -33,7 +33,7 @@ def register_rpc(
         )
         return result.dict()
 
-    @rpc_server.register('get_auth_group_by_id')
+    @rpc_server.register('auth_get_group_by_id')
     async def get_by_id(
         id: str,
         user_token_data: Mapping[str, Any] = {}
@@ -41,7 +41,7 @@ def register_rpc(
         row = await group_model.get_by_id(id)
         return row.dict()
 
-    @rpc_server.register('insert_auth_group')
+    @rpc_server.register('auth_insert_group')
     async def insert(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
@@ -54,7 +54,7 @@ def register_rpc(
         )
         return row.dict()
 
-    @rpc_server.register('update_auth_group')
+    @rpc_server.register('auth_update_group')
     async def update(
         id: str,
         data: Mapping[str, Any],
@@ -67,7 +67,7 @@ def register_rpc(
         )
         return row.dict()
 
-    @rpc_server.register('delete_auth_group')
+    @rpc_server.register('auth_delete_group')
     async def delete(
         id: str,
         user_token_data: Mapping[str, Any]

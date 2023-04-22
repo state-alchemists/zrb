@@ -6,7 +6,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import DeclarativeBase
 
 
-def migrate(engine: Engine, Base: DeclarativeBase):
+async def migrate(engine: Engine, Base: DeclarativeBase):
     '''
     Generate migration and run it
     See: https://alembic.sqlalchemy.org/en/latest/cookbook.html#run-alembic-operation-objects-directly-as-in-from-autogenerate  # noqa

@@ -1,9 +1,9 @@
 from config import app_auth_token_expire_seconds, app_auth_admin_active
-from module.auth.component.repo import user_repo
+from module.auth.component.repo.user_repo import user_repo
 from module.auth.entity.user.model import (
     UserModel, UserRepoModel
 )
-from module.auth.component.token_util import token_util
+from module.auth.component import token_util
 from module.auth.component.user import (
     admin_user, admin_user_password, guest_user
 )

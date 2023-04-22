@@ -34,5 +34,5 @@ def create_oauth2_bearer_token_scheme(
                 expire_seconds=300
             )
         return token_util.decode(token)
-    
+
     return oauth2_bearer_token_scheme

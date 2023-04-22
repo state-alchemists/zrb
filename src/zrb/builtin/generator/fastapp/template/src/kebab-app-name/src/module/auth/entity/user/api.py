@@ -10,7 +10,7 @@ from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
 from module.auth.schema.token import TokenData, TokenResponse
-from module.auth.component.token_scheme import token_scheme
+from module.auth.component import token_scheme
 
 
 def register_login_api(
@@ -63,12 +63,12 @@ def register_api(
         user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:user.get'
+            user_token_data.user_id, 'auth:user:get'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'get_auth_user',
+                'auth_get_user',
                 keyword=keyword,
                 criterion={},
                 limit=limit,
@@ -86,12 +86,12 @@ def register_api(
         id: str, user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:user.get_by_id'
+            user_token_data.user_id, 'auth:user:get_by_id'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'get_auth_user_by_id',
+                'auth_get_user_by_id',
                 id=id, user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
@@ -105,12 +105,12 @@ def register_api(
         data: UserData, user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:user.insert'
+            user_token_data.user_id, 'auth:user:insert'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'insert_auth_user',
+                'auth_insert_user',
                 data=data.dict(), user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
@@ -125,12 +125,12 @@ def register_api(
         user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:user.update'
+            user_token_data.user_id, 'auth:user:update'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'update_auth_user',
+                'auth_update_user',
                 id=id, data=data.dict(), user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
@@ -144,12 +144,12 @@ def register_api(
         id: str, user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            user_token_data.user_id, 'auth:user.delete'
+            user_token_data.user_id, 'auth:user:delete'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'delete_auth_user',
+                'auth_delete_user',
                 id=id, user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
