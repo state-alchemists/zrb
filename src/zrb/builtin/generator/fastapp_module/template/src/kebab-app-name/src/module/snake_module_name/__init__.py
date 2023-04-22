@@ -8,6 +8,7 @@ from component.messagebus import consumer, publisher
 from component.rpc import rpc_caller, rpc_server
 from component.db_connection import engine
 from helper.migration import migrate
+from module.auth.component import authorizer
 from module.snake_module_name.component import Base
 from module.snake_module_name.api import register_api
 from module.snake_module_name.event import register_event
@@ -30,6 +31,7 @@ def register_snake_module_name():
         register_api(
             logger=logger,
             app=app,
+            authorizer=authorizer,
             rpc_caller=rpc_caller,
             publisher=publisher
         )

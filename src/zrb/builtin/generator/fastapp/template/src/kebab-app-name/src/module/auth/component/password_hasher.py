@@ -1,6 +1,3 @@
-from module.auth.core.password_hasher.password_hasher import PasswordHasher
-from module.auth.core.password_hasher.bcrypt_password_hasher import (
-    BcryptPasswordHasher
-)
+from module.auth.core import PasswordHasher, BcryptPasswordHasher
 
 password_hasher: PasswordHasher = BcryptPasswordHasher()

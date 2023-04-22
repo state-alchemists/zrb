@@ -11,32 +11,32 @@ SchemaResult = TypeVar('SchemaResult', bound=BaseModel)
 class Model(Generic[Schema, SchemaData, SchemaResult], ABC):
 
     @abstractmethod
-    def get_by_id(self, id: str) -> Schema:
+    async def get_by_id(self, id: str) -> Schema:
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Schema]:
+    async def get_all(self) -> List[Schema]:
         pass
 
     @abstractmethod
-    def get(
+    async def get(
         self, search_filter: Optional[SearchFilter] = None,
         limit: int = 100, offset: int = 0
     ) -> SchemaResult:
         pass
 
     @abstractmethod
-    def count(self, search_filter: Optional[SearchFilter] = None) -> int:
+    async def count(self, search_filter: Optional[SearchFilter] = None) -> int:
         pass
 
     @abstractmethod
-    def insert(self, data: SchemaData) -> Schema:
+    async def insert(self, data: SchemaData) -> Schema:
         pass
 
     @abstractmethod
-    def update(self, id: str, data: SchemaData) -> Schema:
+    async def update(self, id: str, data: SchemaData) -> Schema:
         pass
 
     @abstractmethod
-    def delete(self, id: str) -> Schema:
+    async def delete(self, id: str) -> Schema:
         pass

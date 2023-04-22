@@ -1,19 +1,22 @@
 from typing import Annotated
-from fastapi import FastAPI, Depends, status
+from fastapi import FastAPI, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller
-from helper.error import get_http_api_error, create_http_api_exception
+from core.error import HTTPAPIException
+from module.auth.core import Authorizer
 from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
-from module.auth.schema.token import TokenResponse
+from module.auth.schema.token import TokenData, TokenResponse
+from module.auth.component.token_scheme import token_scheme
 
 
 def register_login_api(
     logger: Logger,
     app: FastAPI,
+    authorizer: Authorizer,
     rpc_caller: Caller,
     publisher: Publisher
 ):
@@ -39,17 +42,14 @@ def register_login_api(
                 'auth_login', login_data=data.dict()
             )
             return TokenResponse(access_token=token, token_type='bearer')
-        except Exception:
-            raise create_http_api_exception(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Incorrect identity or password',
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        except Exception as e:
+            raise HTTPAPIException(error=e)
 
 
 def register_api(
     logger: Logger,
     app: FastAPI,
+    authorizer: Authorizer,
     rpc_caller: Caller,
     publisher: Publisher
 ):
@@ -59,64 +59,99 @@ def register_api(
         '/api/v1/auth/users', response_model=UserResult
     )
     async def get_users(
-        keyword: str = '', limit: int = 100, offset: int = 0
+        keyword: str = '', limit: int = 100, offset: int = 0,
+        user_token_data: TokenData = Depends(token_scheme)
     ):
+        if not await authorizer.is_having_permission(
+            user_token_data.user_id, 'auth:user.get'
+        ):
+            raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
                 'get_auth_user',
                 keyword=keyword,
                 criterion={},
                 limit=limit,
-                offset=offset
+                offset=offset,
+                user_token_data=user_token_data.dict()
             )
             return UserResult(**result_dict)
         except Exception as e:
-            raise get_http_api_error(e)
+            raise HTTPAPIException(error=e)
 
     @app.get(
         '/api/v1/auth/users/{id}', response_model=User
     )
-    async def get_user_by_id(id: str):
+    async def get_user_by_id(
+        id: str, user_token_data: TokenData = Depends(token_scheme)
+    ):
+        if not await authorizer.is_having_permission(
+            user_token_data.user_id, 'auth:user.get_by_id'
+        ):
+            raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'get_auth_user_by_id', id=id
+                'get_auth_user_by_id',
+                id=id, user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
         except Exception as e:
-            raise get_http_api_error(e)
+            raise HTTPAPIException(error=e)
 
     @app.post(
         '/api/v1/auth/users', response_model=User
     )
-    async def insert_user(data: UserData):
+    async def insert_user(
+        data: UserData, user_token_data: TokenData = Depends(token_scheme)
+    ):
+        if not await authorizer.is_having_permission(
+            user_token_data.user_id, 'auth:user.insert'
+        ):
+            raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'insert_auth_user', data=data.dict()
+                'insert_auth_user',
+                data=data.dict(), user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
         except Exception as e:
-            raise get_http_api_error(e)
+            raise HTTPAPIException(error=e)
 
     @app.put(
         '/api/v1/auth/users/{id}', response_model=User
     )
-    async def update_user(id: str, data: UserData):
+    async def update_user(
+        id: str, data: UserData,
+        user_token_data: TokenData = Depends(token_scheme)
+    ):
+        if not await authorizer.is_having_permission(
+            user_token_data.user_id, 'auth:user.update'
+        ):
+            raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'update_auth_user', id=id, data=data.dict()
+                'update_auth_user',
+                id=id, data=data.dict(), user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
         except Exception as e:
-            raise get_http_api_error(e)
+            raise HTTPAPIException(error=e)
 
     @app.delete(
         '/api/v1/auth/users/{id}', response_model=User
     )
-    async def delete_user(id: str):
+    async def delete_user(
+        id: str, user_token_data: TokenData = Depends(token_scheme)
+    ):
+        if not await authorizer.is_having_permission(
+            user_token_data.user_id, 'auth:user.delete'
+        ):
+            raise HTTPAPIException(403, 'Unauthorized')
         try:
             result_dict = await rpc_caller.call(
-                'delete_auth_user', id=id
+                'delete_auth_user',
+                id=id, user_token_data=user_token_data.dict()
             )
             return User(**result_dict)
         except Exception as e:
-            raise get_http_api_error(e)
+            raise HTTPAPIException(error=e)

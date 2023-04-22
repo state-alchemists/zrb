@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, relationship
 from sqlalchemy.engine import Engine
 from core.repo import Repo, DBEntityMixin, DBRepo
 from module.auth.schema.user import User, UserData, UserLogin
-from module.auth.core.password_hasher.password_hasher import PasswordHasher
+from module.auth.core import PasswordHasher
 from module.auth.component import Base
 from module.auth.entity.table import user_group, user_permission
 from module.auth.entity.permission.repo import DBEntityPermission
@@ -33,7 +33,7 @@ class DBEntityUser(Base, DBEntityMixin):
 
 class UserRepo(Repo[User, UserData], ABC):
     @abstractmethod
-    def get_by_user_login(self, user_login: UserLogin) -> User:
+    async def get_by_user_login(self, user_login: UserLogin) -> User:
         pass
 
 
@@ -52,7 +52,7 @@ class UserDBRepo(
         super().__init__(logger, engine)
         self.password_hasher = password_hasher
 
-    def get_by_user_login(self, user_login: UserLogin) -> User:
+    async def get_by_user_login(self, user_login: UserLogin) -> User:
         db = self._create_db_session()
         db_users: List[DBEntityUser] = []
         try:

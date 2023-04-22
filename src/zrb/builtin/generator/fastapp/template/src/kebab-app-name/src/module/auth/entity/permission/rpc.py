@@ -5,6 +5,7 @@ from core.rpc import Caller, Server
 from core.repo import SearchFilter
 from module.auth.component.model.permission_model import permission_model
 from module.auth.schema.permission import PermissionData
+from module.auth.schema.token import TokenData
 
 
 def register_rpc(
@@ -15,34 +16,68 @@ def register_rpc(
 ):
     logger.info('🥪 Register RPC handlers for "auth.permission"')
 
+    @rpc_server.register('ensure_auth_permission')
+    async def ensure(data: Mapping[str, Any]):
+        await permission_model.ensure_permission(
+            PermissionData(**data)
+        )
+
     @rpc_server.register('get_auth_permission')
     async def get(
-        keyword: str, criterion: Mapping[str, Any],
-        limit: int = 100, offset: int = 0
+        keyword: str,
+        criterion: Mapping[str, Any],
+        limit: int,
+        offset: int,
+        user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        return permission_model.get(
+        result = await permission_model.get(
             search_filter=SearchFilter(
                 keyword=keyword, criterion=criterion
             ),
-            limit=limit, offset=offset
-        ).dict()
+            limit=limit,
+            offset=offset
+        )
+        return result.dict()
 
     @rpc_server.register('get_auth_permission_by_id')
-    async def get_by_id(id: str) -> Mapping[str, Any]:
-        return permission_model.get_by_id(id).dict()
+    async def get_by_id(
+        id: str,
+        user_token_data: Mapping[str, Any] = {}
+    ) -> Mapping[str, Any]:
+        row = await permission_model.get_by_id(id)
+        return row.dict()
 
     @rpc_server.register('insert_auth_permission')
-    async def insert(data: Mapping[str, Any]) -> Mapping[str, Any]:
-        return permission_model.insert(
+    async def insert(
+        data: Mapping[str, Any],
+        user_token_data: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        user_token_data = TokenData(**user_token_data)
+        data['created_by'] = user_token_data.user_id
+        data['updated_by'] = user_token_data.user_id
+        row = await permission_model.insert(
             data=PermissionData(**data)
-        ).dict()
+        )
+        return row.dict()
 
     @rpc_server.register('update_auth_permission')
-    async def update(id: str, data: Mapping[str, Any]) -> Mapping[str, Any]:
-        return permission_model.update(
+    async def update(
+        id: str,
+        data: Mapping[str, Any],
+        user_token_data: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        user_token_data = TokenData(**user_token_data)
+        data['updated_by'] = user_token_data.user_id
+        row = await permission_model.update(
             id=id, data=PermissionData(**data)
-        ).dict()
+        )
+        return row.dict()
 
     @rpc_server.register('delete_auth_permission')
-    async def delete(id: str) -> Mapping[str, Any]:
-        return permission_model.delete(id=id).dict()
+    async def delete(
+        id: str,
+        user_token_data: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        user_token_data = TokenData(**user_token_data)
+        row = await permission_model.delete(id=id).dict()
+        return row.dict()

@@ -8,7 +8,7 @@ TResult = TypeVar('TResult', bound='Result')
 
 class Caller(ABC):
     @abstractmethod
-    def call(self, rpc_name: str, *args: Any, **kwargs: Any) -> Any:
+    async def call(self, rpc_name: str, *args: Any, **kwargs: Any) -> Any:
         pass
 
 

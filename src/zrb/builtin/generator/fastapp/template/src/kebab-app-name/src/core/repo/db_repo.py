@@ -30,7 +30,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         self.schema_attribute_names: List[str] = dir(self.schema_cls)
         self._keyword_fields: Optional[List[InstrumentedAttribute]] = None
 
-    def get_by_id(self, id: str) -> Schema:
+    async def get_by_id(self, id: str) -> Schema:
         '''
         Find a record by id.
         '''
@@ -42,7 +42,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def get(
+    async def get(
         self, search_filter: Optional[SearchFilter] = None,
         limit: int = 100, offset: int = 0
     ) -> List[Schema]:
@@ -61,7 +61,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def count(self, search_filter: Optional[SearchFilter] = None) -> int:
+    async def count(self, search_filter: Optional[SearchFilter] = None) -> int:
         '''
         Count records by keyword.
         '''
@@ -73,7 +73,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def insert(self, data: SchemaData) -> Schema:
+    async def insert(self, data: SchemaData) -> Schema:
         '''
         Insert a new record.
         '''
@@ -102,7 +102,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def update(self, id: str, data: SchemaData) -> Schema:
+    async def update(self, id: str, data: SchemaData) -> Schema:
         '''
         Update a record.
         '''
@@ -131,7 +131,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def delete(self, id: str) -> Schema:
+    async def delete(self, id: str) -> Schema:
         '''
         Delete a record.
         '''

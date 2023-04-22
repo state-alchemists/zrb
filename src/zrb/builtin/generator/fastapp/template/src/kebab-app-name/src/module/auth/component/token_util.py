@@ -2,8 +2,7 @@ from config import (
     app_auth_token_type, app_auth_jwt_token_algorithm,
     app_auth_jwt_token_secret_key
 )
-from module.auth.core.token_util.token_util import TokenUtil
-from module.auth.core.token_util.jwt_token_util import JWTTokenUtil
+from module.auth.core import TokenUtil, JWTTokenUtil
 
 
 def init_token_util() -> TokenUtil:

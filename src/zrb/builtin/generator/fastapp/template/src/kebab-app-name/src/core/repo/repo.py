@@ -10,27 +10,27 @@ Schema = TypeVar('Schema', bound=BaseModel)
 class Repo(Generic[Schema, SchemaData], ABC):
 
     @abstractmethod
-    def get_by_id(self, id: str) -> Schema:
+    async def get_by_id(self, id: str) -> Schema:
         pass
 
     @abstractmethod
-    def get(
+    async def get(
         self, search_filter: Optional[SearchFilter], limit: int, offset: int
     ) -> List[Schema]:
         pass
 
     @abstractmethod
-    def count(self, search_filter: Optional[SearchFilter]) -> int:
+    async def count(self, search_filter: Optional[SearchFilter]) -> int:
         pass
 
     @abstractmethod
-    def insert(self, data: SchemaData) -> Schema:
+    async def insert(self, data: SchemaData) -> Schema:
         pass
 
     @abstractmethod
-    def update(self, id: str, data: SchemaData) -> Schema:
+    async def update(self, id: str, data: SchemaData) -> Schema:
         pass
 
     @abstractmethod
-    def delete(self, id: str) -> Schema:
+    async def delete(self, id: str) -> Schema:
         pass

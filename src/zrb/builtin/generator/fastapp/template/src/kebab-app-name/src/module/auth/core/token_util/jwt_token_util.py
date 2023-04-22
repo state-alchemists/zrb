@@ -1,3 +1,4 @@
+from core.error import HTTPAPIException
 from module.auth.schema.token import TokenData
 from module.auth.core.token_util.token_util import TokenUtil
 from datetime import datetime, timedelta
@@ -34,7 +35,7 @@ class JWTTokenUtil(TokenUtil):
                 datetime.fromtimestamp(expire_time) - datetime.utcnow()
             ).total_seconds())
             if token_data.expire_seconds < 0:
-                raise ValueError('Expired token')
+                raise HTTPAPIException(422, 'Expired token')
             return token_data
         except jwt.JWTError:
-            raise ValueError('Invalid token')
+            raise HTTPAPIException(422, 'Invalid token')

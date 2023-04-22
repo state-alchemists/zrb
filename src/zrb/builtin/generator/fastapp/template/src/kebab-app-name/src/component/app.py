@@ -18,7 +18,7 @@ if app_enable_frontend:
         response = await call_next(request)
         if response.status_code != 404:
             return response
-        api_error = response.headers.get('api-error', '').lower() == 'yes'
+        api_error = str(response.headers.get('api-error', '')).lower() == 'yes'
         if api_error:
             return response
         return frontend_index_response

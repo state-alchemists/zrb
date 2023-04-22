@@ -21,4 +21,4 @@ class Group(GroupBase):
 
 
 class GroupResult(BaseCountSchema):
-    count: int
+    data: List[Group]

@@ -7,31 +7,33 @@ TEventHandler = Callable[[Any], Any]
 
 class Admin(ABC):
     @abstractmethod
-    def create_events(self, event_names: List[str]):
+    async def create_events(self, event_names: List[str]):
         pass
 
     @abstractmethod
-    def delete_events(self, event_names: List[str]):
+    async def delete_events(self, event_names: List[str]):
         pass
 
 
 class Publisher(ABC):
     @abstractmethod
-    def publish(self, event_name: str, message: Any):
+    async def publish(self, event_name: str, message: Any):
         pass
 
 
 class Consumer(ABC):
     @abstractmethod
-    def register(self, event_name: str) -> Callable[[TEventHandler], Any]:
+    def register(
+        self, event_name: str
+    ) -> Callable[[TEventHandler], Any]:
         pass
 
     @abstractmethod
-    def start(self):
+    async def start(self):
         pass
 
     @abstractmethod
-    def stop(self):
+    async def stop(self):
         pass
 
 
