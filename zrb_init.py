@@ -2,7 +2,7 @@ from zrb import (
     runner, CmdTask, BoolInput, StrInput, HTTPChecker
 )
 
-build_task = CmdTask(
+build = CmdTask(
     name='build',
     description='Build Zrb',
     cmd=[
@@ -14,12 +14,12 @@ build_task = CmdTask(
         'flit build',
     ],
 )
-runner.register(build_task)
+runner.register(build)
 
-publish_task = CmdTask(
+publish = CmdTask(
     name='publish',
     description='Publish zrb to pypi',
-    upstreams=[build_task],
+    upstreams=[build],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -27,12 +27,12 @@ publish_task = CmdTask(
         'flit publish --repository pypi',
     ]
 )
-runner.register(publish_task)
+runner.register(publish)
 
-publish_test_task = CmdTask(
+publish_test = CmdTask(
     name='publish-test',
     description='Publish zrb to testpypi',
-    upstreams=[build_task],
+    upstreams=[build],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -40,12 +40,12 @@ publish_test_task = CmdTask(
         'flit publish --repository testpypi',
     ]
 )
-runner.register(publish_test_task)
+runner.register(publish_test)
 
-install_symlink_task = CmdTask(
+install_symlink = CmdTask(
     name='install-symlink',
     description='Install Zrb as symlink',
-    upstreams=[build_task],
+    upstreams=[build],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -53,9 +53,9 @@ install_symlink_task = CmdTask(
         'flit install --symlink',
     ]
 )
-runner.register(install_symlink_task)
+runner.register(install_symlink)
 
-test_task = CmdTask(
+test = CmdTask(
     name='test',
     description='Run zrb test',
     inputs=[
@@ -73,7 +73,7 @@ test_task = CmdTask(
             default=True
         )
     ],
-    upstreams=[install_symlink_task],
+    upstreams=[install_symlink],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -83,9 +83,9 @@ test_task = CmdTask(
     retry=0,
     checking_interval=1
 )
-runner.register(test_task)
+runner.register(test)
 
-serve_test_task = CmdTask(
+serve_test = CmdTask(
     name='serve-test',
     description='Serve zrb test result',
     inputs=[
@@ -97,7 +97,7 @@ serve_test_task = CmdTask(
             default='9000'
         )
     ],
-    upstreams=[test_task],
+    upstreams=[test],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -110,11 +110,11 @@ serve_test_task = CmdTask(
     retry=0,
     checking_interval=0.3
 )
-runner.register(serve_test_task)
+runner.register(serve_test)
 
-playground_task = CmdTask(
+playground = CmdTask(
     name='playground',
-    upstreams=[install_symlink_task],
+    upstreams=[install_symlink],
     cmd=[
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
@@ -132,4 +132,4 @@ playground_task = CmdTask(
         'echo "🤖 And start hacking around. Good luck :)"',
     ]
 )
-runner.register(playground_task)
+runner.register(playground)

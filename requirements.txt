@@ -21,8 +21,9 @@ flake8==6.0.0       # Linter
 pytest==7.2.1
 pytest-cov==4.0.0
 pytest-xdist==3.2.0
+pytest-asyncio==0.21.0
 
-# Other dependencies (just for auto-completion)
+# Other dependencies (just for auto-completion, not included in `pyproject.toml`)
 pulumi==3.56.0
 pulumi-kubernetes==3.24.1
 fastapi==0.95.0
@@ -33,3 +34,5 @@ SQLAlchemy==2.0.9
 python-jose==3.3.0
 bcrypt==4.0.1
 python-multipart==0.0.6
+httpx==0.24.0
+asgi-lifespan==2.1.0

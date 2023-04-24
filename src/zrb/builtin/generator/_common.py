@@ -131,7 +131,7 @@ def create_register_task_module(
         validate_project_dir(project_dir)
         task_name = kwargs.get('task_name')
         task.print_out(f'Register module: _automate.{task_name}')
-        await register_module(
+        await register_module_to_project(
             project_dir=project_dir,
             module_name='.'.join([
                 '_automate', util.to_snake_case(task_name)
@@ -140,33 +140,8 @@ def create_register_task_module(
     return task
 
 
-def create_register_local_app_module(
-    upstreams: Optional[List[Task]] = None
-) -> Task:
-    return _create_register_app_module('local', upstreams)
-
-
-def create_register_container_app_module(
-    upstreams: Optional[List[Task]] = None
-) -> Task:
-    return _create_register_app_module('container', upstreams)
-
-
-def create_register_image_app_module(
-    upstreams: Optional[List[Task]] = None
-) -> Task:
-    return _create_register_app_module('image', upstreams)
-
-
-def create_register_deployment_app_module(
-    upstreams: Optional[List[Task]] = None
-) -> Task:
-    return _create_register_app_module('deployment', upstreams)
-
-
-def _create_register_app_module(
-    module: str,
-    upstreams: Optional[List[Task]] = None
+def create_register_app_module(
+    module: str, upstreams: Optional[List[Task]] = None
 ) -> Task:
     @python_task(
         name=f'register-{module}',
@@ -180,7 +155,7 @@ def _create_register_app_module(
         app_name = kwargs.get('app_name')
         task.print_out(f'Register module: _automate.{app_name}.{module}')
         snake_app_name = util.to_snake_case(app_name)
-        await register_module(
+        await register_module_to_project(
             project_dir=project_dir,
             module_name='.'.join([
                 '_automate', snake_app_name, module
@@ -190,7 +165,7 @@ def _create_register_app_module(
     return task
 
 
-async def register_module(
+async def register_module_to_project(
     project_dir: str, module_name: str, alias: Optional[str] = None
 ):
     zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
@@ -249,7 +224,7 @@ def get_default_module_replacements() -> Replacement:
     }
 
 
-def get_default_module_replacement_middlewares() -> List[ReplacementMiddleware]:
+def get_default_module_replacement_middlewares() -> List[ReplacementMiddleware]:  # noqa
     return [
         add_pascal_key('PascalAppName', 'appName'),
         add_camel_key('camelAppName', 'appName'),

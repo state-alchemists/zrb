@@ -10,3 +10,10 @@ psycopg2-binary==2.9.6
 python-jose==3.3.0
 uvicorn==0.20.0
 python-multipart==0.0.6
+
+# for testing
+pytest==7.2.1
+pytest-cov==4.0.0
+pytest-asyncio==0.21.0
+httpx==0.24.0
+asgi-lifespan==2.1.0

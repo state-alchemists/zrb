@@ -1,4 +1,4 @@
 echo "Installing node packages, might take a while"
 npm install --save
 echo "Building frontend"
-npm run build:watch
+npm run build{{ ':watch' if env.WATCH == '1' else '' }}

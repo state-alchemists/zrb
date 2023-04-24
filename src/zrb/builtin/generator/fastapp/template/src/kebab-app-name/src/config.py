@@ -3,6 +3,8 @@ from helper.conversion import str_to_boolean, str_to_logging_level
 import os
 import json
 
+app_src_dir = os.path.dirname(__file__)
+
 app_name = os.getenv('APP_NAME', 'app')
 app_logging_level = str_to_logging_level(
     os.getenv('APP_LOGGING_LEVEL', 'INFO')
@@ -36,6 +38,9 @@ app_auth_guest_email = os.getenv('APP_AUTH_GUEST_EMAIL', 'guest@system.com')
 app_auth_guest_phone = os.getenv('APP_AUTH_GUEST_PHONE', '+629876543212')
 
 app_db_connection = os.getenv('APP_DB_CONNECTION', 'sqlite://')
+app_db_engine_show_log = str_to_boolean(
+    os.getenv('APP_DB_ENGINE_SHOW_LOG', 'false')
+)
 app_db_auto_migrate = str_to_boolean(os.getenv('APP_DB_AUTO_MIGRATE', 'true'))
 
 app_broker_type = os.getenv('APP_BROKER_TYPE', 'mock')

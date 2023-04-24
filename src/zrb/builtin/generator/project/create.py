@@ -7,7 +7,7 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
 from .._common import project_dir_input, project_name_input
-from ..project_task.task_factory import create_add_project_automation
+from ..project_task.task_factory import create_add_project_automation_task
 
 import os
 
@@ -38,7 +38,7 @@ copy_resource = ResourceMaker(
     scaffold_locks=['{{input.project_dir}}/zrb_init.py']
 )
 
-add_project_task = create_add_project_automation(
+add_project_task = create_add_project_automation_task(
     upstreams=[copy_resource]
 )
 
