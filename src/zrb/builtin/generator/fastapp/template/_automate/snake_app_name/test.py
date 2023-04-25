@@ -1,4 +1,4 @@
-from zrb import CmdTask, StrInput, Env, EnvFile, runner
+from zrb import CmdTask, StrInput, Env, EnvFile, runner, python_task
 from zrb.builtin._group import project_group
 from ._common import (
     CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME,
@@ -15,6 +15,17 @@ app_env_file = EnvFile(
 # Task Definitions
 ###############################################################################
 
+
+@python_task(
+    name='remove-kebab-app-name-test-db',
+    runner=runner
+)
+def remove_snake_app_name_test_db(*args, **kwargs):
+    test_db_file_path = os.path.join(RESOURCE_DIR, 'test.db')
+    if os.path.isfile(test_db_file_path):
+        os.remove(test_db_file_path)
+
+
 test_snake_app_name = CmdTask(
     icon='🚤',
     name='test-kebab-app-name',
@@ -29,6 +40,7 @@ test_snake_app_name = CmdTask(
     upstreams=[
         build_snake_app_name_frontend_once,
         prepare_snake_app_name_backend,
+        remove_snake_app_name_test_db,
     ],
     group=project_group,
     cwd=RESOURCE_DIR,
@@ -42,7 +54,7 @@ test_snake_app_name = CmdTask(
         Env(
             name='APP_DB_CONNECTION',
             os_name='TEST_APP_DB_CONNECTION',
-            default='sqlite:///'
+            default='sqlite:///test.db'
         )
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'test.sh'),

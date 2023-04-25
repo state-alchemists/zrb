@@ -11,11 +11,11 @@ class UserBase(BaseDateTimeSchema):
     email: str
     description: str
     groups: List[str]
+    permissions: List[str]
 
 
 class UserData(UserBase):
     password: str
-    permissions: List[str]
     groups: List[str]
 
 
