@@ -51,7 +51,7 @@ def register_api(
         id: str, user_token_data: TokenData = Depends(token_scheme)
     ):
         if not await authorizer.is_having_permission(
-            'auth:permission:get_by_id'
+            user_token_data.user_id, 'auth:permission:get_by_id'
         ):
             raise HTTPAPIException(403, 'Unauthorized')
         try:

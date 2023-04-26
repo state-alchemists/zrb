@@ -1,8 +1,6 @@
 from typing import AsyncIterator
 from httpx import AsyncClient
-from src.config import (
-    app_auth_admin_active, app_auth_admin_username, app_auth_admin_password
-)
+from src.config import app_auth_admin_username, app_auth_admin_password
 import pytest
 
 
@@ -10,9 +8,6 @@ import pytest
 async def test_admin_user_login_success(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
-    if not app_auth_admin_active:
-        # Only test if admin user is active
-        return
     async for client in test_client_generator:
         login_response = await client.post(
             '/api/v1/login',
@@ -31,9 +26,6 @@ async def test_admin_user_login_success(
 async def test_admin_user_login_empty_identity_failed(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
-    if not app_auth_admin_active:
-        # Only test if admin user is active
-        return
     async for client in test_client_generator:
         login_response = await client.post(
             '/api/v1/login',
@@ -49,9 +41,6 @@ async def test_admin_user_login_empty_identity_failed(
 async def test_admin_user_login_invalid_identity_failed(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
-    if not app_auth_admin_active:
-        # Only test if admin user is active
-        return
     async for client in test_client_generator:
         login_response = await client.post(
             '/api/v1/login',
@@ -67,9 +56,6 @@ async def test_admin_user_login_invalid_identity_failed(
 async def test_admin_user_failed_invalid_password(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
-    if not app_auth_admin_active:
-        # Only test if admin user is active
-        return
     async for client in test_client_generator:
         login_response = await client.post(
             '/api/v1/login',

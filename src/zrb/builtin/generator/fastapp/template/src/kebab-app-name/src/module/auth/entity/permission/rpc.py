@@ -79,5 +79,5 @@ def register_rpc(
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
         user_token_data = TokenData(**user_token_data)
-        row = await permission_model.delete(id=id).dict()
+        row = await permission_model.delete(id=id)
         return row.dict()

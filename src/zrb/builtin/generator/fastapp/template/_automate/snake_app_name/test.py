@@ -55,8 +55,14 @@ test_snake_app_name = CmdTask(
             name='APP_DB_CONNECTION',
             os_name='TEST_APP_DB_CONNECTION',
             default='sqlite:///test.db'
+        ),
+        Env(
+            name='APP_AUTH_ADMIN_ACTIVE',
+            os_name='',
+            default='true'
         )
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'test.sh'),
+    retry=0
 )
 runner.register(test_snake_app_name)
