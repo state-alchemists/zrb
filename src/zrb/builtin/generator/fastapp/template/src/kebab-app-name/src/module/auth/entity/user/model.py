@@ -125,7 +125,7 @@ class UserRepoModel(
 
     async def login(self, user_login: UserLogin) -> str:
         if user_login.identity == '':
-            return ValueError('Invalid identity: Identity is not provided')
+            raise ValueError('Invalid identity: Identity is not provided')
         if (
             self.admin_user is not None
             and user_login.password == self.admin_user_pasword

@@ -30,12 +30,12 @@ app_auth_admin_active = str_to_boolean(os.getenv(
 app_auth_admin_user_id = os.getenv('APP_AUTH_ADMIN_USER_ID', 'root')
 app_auth_admin_username = os.getenv('APP_AUTH_ADMIN_USERNAME', 'admin')
 app_auth_admin_password = os.getenv('APP_AUTH_ADMIN_PASSWORD', 'admin')
-app_auth_admin_email = os.getenv('APP_AUTH_ADMIN_EMAIL', 'admin@system.com')
-app_auth_admin_phone = os.getenv('APP_AUTH_ADMIN_PHONE', '+629876543212')
-app_auth_guest_user_id = os.getenv('APP_AUTH_GUEST_USER_ID', 'root')
+app_auth_admin_email = os.getenv('APP_AUTH_ADMIN_EMAIL', '')
+app_auth_admin_phone = os.getenv('APP_AUTH_ADMIN_PHONE', '')
+app_auth_guest_user_id = os.getenv('APP_AUTH_GUEST_USER_ID', 'guest')
 app_auth_guest_username = os.getenv('APP_AUTH_GUEST_USERNAME', 'guest')
-app_auth_guest_email = os.getenv('APP_AUTH_GUEST_EMAIL', 'guest@system.com')
-app_auth_guest_phone = os.getenv('APP_AUTH_GUEST_PHONE', '+629876543212')
+app_auth_guest_email = os.getenv('APP_AUTH_GUEST_EMAIL', '')
+app_auth_guest_phone = os.getenv('APP_AUTH_GUEST_PHONE', '')
 
 app_db_connection = os.getenv('APP_DB_CONNECTION', 'sqlite://')
 app_db_engine_show_log = str_to_boolean(

@@ -42,6 +42,8 @@ class HTTPAPIException(HTTPException):
             return 401
         if error_message.lower().startswith('unprocessable'):
             return 422
+        if error_message.lower().startswith('invalid'):
+            return 422
         return 500
 
     def _get_headers(
