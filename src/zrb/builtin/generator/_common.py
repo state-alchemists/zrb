@@ -62,9 +62,22 @@ module_name_input = StrInput(
 entity_name_input = StrInput(
     name='entity-name',
     shortcut='e',
-    description='entity name',
-    prompt='entity name',
-    default=get_random_name(),
+    description='Singular entity name',
+    prompt='Singular entity name',
+)
+
+plural_entity_name_input = StrInput(
+    name='plural-entity-name',
+    description='Plural entity name',
+    prompt='Plural entity name',
+)
+
+main_column_name_input = StrInput(
+    name='column-name',
+    shortcut='c',
+    description='Main column name',
+    prompt='Main column name',
+    default='code'
 )
 
 task_name_input = StrInput(
@@ -113,6 +126,8 @@ default_crud_inputs: List[BaseInput] = [
     app_name_input,
     module_name_input,
     entity_name_input,
+    plural_entity_name_input,
+    main_column_name_input,
 ]
 
 
@@ -258,6 +273,8 @@ def get_default_crud_replacements() -> Replacement:
         'appName': '{{input.app_name}}',
         'moduleName': '{{input.module_name}}',
         'entityName': '{{input.entity_name}}',
+        'pluralEntityName': '{{input.plural_entity_name}}',
+        'columnName': '{{input.column_name}}',
     }
 
 
@@ -276,4 +293,12 @@ def get_default_crud_replacement_middlewares() -> List[ReplacementMiddleware]:  
         add_camel_key('camelEntityName', 'entityName'),
         add_snake_key('snake_entity_name', 'entityName'),
         add_kebab_key('kebab-entity-name', 'entityName'),
+        add_pascal_key('PascalPluralEntityName', 'pluralEntityName'),
+        add_camel_key('camelPluralEntityName', 'pluralEntityName'),
+        add_snake_key('snake_plural_entity_name', 'pluralEntityName'),
+        add_kebab_key('kebab-plural-entity-name', 'pluralEntityName'),
+        add_pascal_key('PascalColumnName', 'columnName'),
+        add_camel_key('camelColumnName', 'columnName'),
+        add_snake_key('snake_column_name', 'columnName'),
+        add_kebab_key('kebab-column-name', 'columnName'),
     ]

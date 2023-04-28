@@ -4,7 +4,7 @@ from src.config import app_auth_admin_username, app_auth_admin_password
 import pytest
 
 inserted_success_data = {
-    'name': 'test-create_permission-success',
+    'name': 'test-create-permission-success',
     'description': '',
 }
 to_be_updated_success_data = {

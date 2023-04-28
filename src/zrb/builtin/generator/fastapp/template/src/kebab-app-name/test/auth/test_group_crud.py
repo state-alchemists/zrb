@@ -4,7 +4,7 @@ from src.config import app_auth_admin_username, app_auth_admin_password
 import pytest
 
 inserted_success_data = {
-    'name': 'test-create_group-success',
+    'name': 'test-create-group-success',
     'description': '',
     'permissions': [],
 }
@@ -98,7 +98,6 @@ async def test_update_group_and_get_success(
             json={
                 'identity': app_auth_admin_username,
                 'password': app_auth_admin_password,
-                'permissions': [],
             }
         )
         assert login_admin_response.status_code == 200

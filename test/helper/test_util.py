@@ -64,4 +64,3 @@ def test_to_human_readable():
     assert to_human_readable('send-rpc-request') == 'send rpc request'
     assert to_human_readable('send_rpc_request') == 'send rpc request'
     assert to_human_readable('send_rpc_request!!!') == 'send rpc request!!!'
-
