@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String
 from core.repo import Repo, DBEntityMixin, DBRepo
-from module.auth.schema.snake_entity_name import (
+from module.snake_module_name.schema.snake_entity_name import (
     PascalEntityName, PascalEntityNameData
 )
-from module.auth.component import Base
+from module.snake_module_name.component import Base
 
 
 class DBEntityPascalEntityName(Base, DBEntityMixin):
