@@ -3,6 +3,27 @@ from httpx import AsyncClient
 from src.config import app_auth_admin_username, app_auth_admin_password
 import pytest
 
+inserted_success_data = {
+    'name': 'test-create_group-success',
+    'description': '',
+    'permissions': [],
+}
+to_be_updated_success_data = {
+    'name': 'test-group-to-be-updated-success',
+    'description': '',
+    'permissions': [],
+}
+updated_success_data = {
+    'name': 'test-group-updated-success',
+    'description': 'new-description',
+    'permissions': [],
+}
+to_be_deleted_success_data = {
+    'name': 'test-group-to-be-deleted-success',
+    'description': '',
+    'permissions': [],
+}
+
 
 @pytest.mark.asyncio
 async def test_insert_group_and_get_success(
@@ -25,11 +46,7 @@ async def test_insert_group_and_get_success(
         # create group
         create_response = await client.post(
             '/api/v1/auth/groups',
-            json={
-                'name': 'test-create_group-success',
-                'description': '',
-                'permissions': [],
-            },
+            json=inserted_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -92,11 +109,7 @@ async def test_update_group_and_get_success(
         # create group
         create_response = await client.post(
             '/api/v1/auth/groups',
-            json={
-                'name': 'test-to-be-updated-success',
-                'description': '',
-                'permissions': [],
-            },
+            json=to_be_updated_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -109,11 +122,7 @@ async def test_update_group_and_get_success(
         # update group
         update_response = await client.put(
             f'/api/v1/auth/groups/{create_response_id}',
-            json={
-                'name': 'test-updated-success',
-                'description': '',
-                'permissions': [],
-            },
+            json=updated_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -134,8 +143,9 @@ async def test_update_group_and_get_success(
         json_get_by_id_response = get_by_id_response.json()
         get_by_id_response_id = json_get_by_id_response.get('id', '')
         assert get_by_id_response_id == create_response_id
-        get_by_id_response_name = json_get_by_id_response.get('name', '')
-        assert get_by_id_response_name == 'test-updated-success'
+        for key, expected_value in updated_success_data.items():
+            actual_value = json_get_by_id_response.get(key, '')
+            assert f'{key}:{actual_value}' == f'{key}:{expected_value}'
 
         # get
         get_response = await client.get(
@@ -177,11 +187,7 @@ async def test_delete_group_and_get_success(
         # create group
         create_response = await client.post(
             '/api/v1/auth/groups',
-            json={
-                'name': 'test-to-be-deleted-success',
-                'description': '',
-                'permissions': [],
-            },
+            json=to_be_deleted_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }

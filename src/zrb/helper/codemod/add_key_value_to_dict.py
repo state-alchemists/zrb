@@ -3,10 +3,10 @@ import libcst as cst
 
 class AddKeyValuePairTransformer(cst.CSTTransformer):
     def __init__(
-        self, dict_name: str, key_name: str, value_node: cst.BaseExpression
+        self, dict_name: str, key: str, value_node: cst.BaseExpression
     ):
         self.dict_name = dict_name
-        self.key_name = key_name
+        self.key = key
         self.value_node = value_node
         super().__init__()
 
@@ -22,12 +22,12 @@ class AddKeyValuePairTransformer(cst.CSTTransformer):
                 key = element.key
                 if (
                     isinstance(key, cst.SimpleString)
-                    and key.value == self.key_name
+                    and key.value == self.key
                 ):
                     return updated_node
             new_elements = updated_node.value.elements + (
                 cst.DictElement(
-                    cst.SimpleString(self.key_name), self.value_node
+                    cst.SimpleString(self.key), self.value_node
                 ),
             )
             new_value = cst.Dict(new_elements)
@@ -36,11 +36,11 @@ class AddKeyValuePairTransformer(cst.CSTTransformer):
 
 
 def add_key_value_to_dict(
-    code: str, dict_name: str, key_name: str, value: str
+    code: str, dict_name: str, key: str, value: str
 ) -> str:
     module = cst.parse_module(code)
     value_node = cst.parse_expression(value)
     transformed_module = module.visit(
-        AddKeyValuePairTransformer(dict_name, key_name, value_node)
+        AddKeyValuePairTransformer(dict_name, key, value_node)
     )
     return transformed_module.code

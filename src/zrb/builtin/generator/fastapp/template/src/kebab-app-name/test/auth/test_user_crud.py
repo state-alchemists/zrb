@@ -4,25 +4,45 @@ from src.config import app_auth_admin_username, app_auth_admin_password
 import pytest
 
 inserted_success_data = {
-    'name': 'test-create_permission-success',
+    'username': 'test-create_user-success',
+    'phone': '',
+    'email': '',
+    'password': '',
     'description': '',
+    'groups': [],
+    'permissions': [],
 }
 to_be_updated_success_data = {
-    'name': 'test-permission-to-be-updated-success',
+    'username': 'test-user-to-be-updated-success',
+    'phone': '',
+    'email': '',
+    'password': '',
     'description': '',
+    'groups': [],
+    'permissions': [],
 }
 updated_success_data = {
-    'name': 'test-permission-updated-success',
+    'username': 'test-user-updated-success',
+    'phone': '',
+    'email': '',
+    'password': '',
     'description': 'new-description',
+    'groups': [],
+    'permissions': [],
 }
 to_be_deleted_success_data = {
-    'name': 'test-permission-to-be-deleted-success',
+    'username': 'test-user-to-be-deleted-success',
+    'phone': '',
+    'email': '',
+    'password': '',
     'description': '',
+    'groups': [],
+    'permissions': [],
 }
 
 
 @pytest.mark.asyncio
-async def test_insert_permission_and_get_success(
+async def test_insert_user_and_get_success(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
     async for client in test_client_generator:
@@ -39,9 +59,9 @@ async def test_insert_permission_and_get_success(
             'access_token', ''
         )
 
-        # create permission
+        # create user
         create_response = await client.post(
-            '/api/v1/auth/permissions',
+            '/api/v1/auth/users',
             json=inserted_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -54,7 +74,7 @@ async def test_insert_permission_and_get_success(
 
         # get_by_id
         get_by_id_response = await client.get(
-            f'/api/v1/auth/permissions/{create_response_id}',
+            f'/api/v1/auth/users/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -66,7 +86,7 @@ async def test_insert_permission_and_get_success(
 
         # get
         get_response = await client.get(
-            '/api/v1/auth/permissions',
+            '/api/v1/auth/users',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -84,7 +104,7 @@ async def test_insert_permission_and_get_success(
 
 
 @pytest.mark.asyncio
-async def test_update_permission_and_get_success(
+async def test_update_user_and_get_success(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
     async for client in test_client_generator:
@@ -94,7 +114,7 @@ async def test_update_permission_and_get_success(
             json={
                 'identity': app_auth_admin_username,
                 'password': app_auth_admin_password,
-                'permissions': [],
+                'users': [],
             }
         )
         assert login_admin_response.status_code == 200
@@ -102,9 +122,9 @@ async def test_update_permission_and_get_success(
             'access_token', ''
         )
 
-        # create permission
+        # create user
         create_response = await client.post(
-            '/api/v1/auth/permissions',
+            '/api/v1/auth/users',
             json=to_be_updated_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -115,9 +135,9 @@ async def test_update_permission_and_get_success(
         create_response_id = json_create_response.get('id', '')
         assert create_response_id != ''
 
-        # update permission
+        # update user
         update_response = await client.put(
-            f'/api/v1/auth/permissions/{create_response_id}',
+            f'/api/v1/auth/users/{create_response_id}',
             json=updated_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -130,7 +150,7 @@ async def test_update_permission_and_get_success(
 
         # get_by_id
         get_by_id_response = await client.get(
-            f'/api/v1/auth/permissions/{create_response_id}',
+            f'/api/v1/auth/users/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -145,7 +165,7 @@ async def test_update_permission_and_get_success(
 
         # get
         get_response = await client.get(
-            '/api/v1/auth/permissions',
+            '/api/v1/auth/users',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -163,7 +183,7 @@ async def test_update_permission_and_get_success(
 
 
 @pytest.mark.asyncio
-async def test_delete_permission_and_get_success(
+async def test_delete_user_and_get_success(
     test_client_generator: AsyncIterator[AsyncClient]
 ):
     async for client in test_client_generator:
@@ -180,9 +200,9 @@ async def test_delete_permission_and_get_success(
             'access_token', ''
         )
 
-        # create permission
+        # create user
         create_response = await client.post(
-            '/api/v1/auth/permissions',
+            '/api/v1/auth/users',
             json=to_be_deleted_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -193,9 +213,9 @@ async def test_delete_permission_and_get_success(
         create_response_id = json_create_response.get('id', '')
         assert create_response_id != ''
 
-        # create permission
+        # create user
         delete_response = await client.delete(
-            f'/api/v1/auth/permissions/{create_response_id}',
+            f'/api/v1/auth/users/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -207,7 +227,7 @@ async def test_delete_permission_and_get_success(
 
         # get_by_id
         get_by_id_response = await client.get(
-            f'/api/v1/auth/permissions/{create_response_id}',
+            f'/api/v1/auth/users/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -216,7 +236,7 @@ async def test_delete_permission_and_get_success(
 
         # get
         get_response = await client.get(
-            '/api/v1/auth/permissions',
+            '/api/v1/auth/users',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
