@@ -15,6 +15,7 @@ from .generator.python_task import add as generate_python_task
 from .generator.simple_python_app import add as generate_simple_python_app
 from .generator.fastapp import add as generate_fastapp
 from .generator.fastapp_module import add as generate_fastapp_module
+from .generator.fastapp_crud import add as generate_fastapp_crud
 
 assert base64
 assert env
@@ -33,3 +34,4 @@ assert generate_python_task
 assert generate_simple_python_app
 assert generate_fastapp
 assert generate_fastapp_module
+assert generate_fastapp_crud

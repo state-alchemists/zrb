@@ -44,6 +44,12 @@ zrb project add fastapp-module \
     --app-name "fastapp" \
     --module-name "library"
 
+echo '🤖 Add fastapp crud'
+zrb project add fastapp-crud \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library" \
+    --entity-name "book"
 
 echo '🤖 Add test-project task'
 echo '' >> zrb_init.py

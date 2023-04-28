@@ -62,12 +62,7 @@ copy_resource = ResourceMaker(
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
     scaffold_locks=[new_app_scaffold_lock],
-    excludes=[
-        '*/deployment/venv',
-        '*/src/kebab-app-name/venv',
-        '*/src/kebab-app-name/frontend/node_modules',
-        '*/src/kebab-app-name/frontend/build',
-    ]
+    excludes=[]
 )
 
 

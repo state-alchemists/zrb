@@ -59,6 +59,14 @@ module_name_input = StrInput(
     default=get_random_name(),
 )
 
+entity_name_input = StrInput(
+    name='entity-name',
+    shortcut='e',
+    description='entity name',
+    prompt='entity name',
+    default=get_random_name(),
+)
+
 task_name_input = StrInput(
     name='task-name',
     shortcut='t',
@@ -98,6 +106,13 @@ default_module_inputs: List[BaseInput] = [
     project_dir_input,
     app_name_input,
     module_name_input,
+]
+
+default_crud_inputs: List[BaseInput] = [
+    project_dir_input,
+    app_name_input,
+    module_name_input,
+    entity_name_input,
 ]
 
 
@@ -235,4 +250,30 @@ def get_default_module_replacement_middlewares() -> List[ReplacementMiddleware]:
         add_camel_key('camelModuleName', 'moduleName'),
         add_snake_key('snake_module_name', 'moduleName'),
         add_kebab_key('kebab-module-name', 'moduleName'),
+    ]
+
+
+def get_default_crud_replacements() -> Replacement:
+    return {
+        'appName': '{{input.app_name}}',
+        'moduleName': '{{input.module_name}}',
+        'entityName': '{{input.entity_name}}',
+    }
+
+
+def get_default_crud_replacement_middlewares() -> List[ReplacementMiddleware]:  # noqa
+    return [
+        add_pascal_key('PascalAppName', 'appName'),
+        add_camel_key('camelAppName', 'appName'),
+        add_snake_key('snake_app_name', 'appName'),
+        add_kebab_key('kebab-app-name', 'appName'),
+        add_human_readable_key('human readable app name', 'appName'),
+        add_pascal_key('PascalModuleName', 'moduleName'),
+        add_camel_key('camelModuleName', 'moduleName'),
+        add_snake_key('snake_module_name', 'moduleName'),
+        add_kebab_key('kebab-module-name', 'moduleName'),
+        add_pascal_key('PascalEntityName', 'entityName'),
+        add_camel_key('camelEntityName', 'entityName'),
+        add_snake_key('snake_entity_name', 'entityName'),
+        add_kebab_key('kebab-entity-name', 'entityName'),
     ]

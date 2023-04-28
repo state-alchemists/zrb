@@ -10,7 +10,3 @@ def register_event(
     publisher: Publisher
 ):
     logger.info('🥪 Register event handlers for "snake_module_name"')
-
-    @consumer.register('hit_snake_module_name')
-    async def hit_snake_module_name_event(message):
-        logger.info(f'👋 Getting message: {message}')

@@ -11,9 +11,3 @@ def register_rpc(
     publisher: Publisher
 ):
     logger.info('🥪 Register RPC handlers for "snake_module_name"')
-
-    @rpc_server.register('process_snake_module_name')
-    async def process_snake_module_name(*args: Any, **kwargs: Any):
-        return {
-            'args': args, 'kwargs': kwargs
-        }
