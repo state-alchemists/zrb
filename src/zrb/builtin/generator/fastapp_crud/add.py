@@ -12,6 +12,7 @@ from .._common import (
 )
 from ....helper import util
 
+import asyncio
 import os
 
 current_dir = os.path.dirname(__file__)
@@ -62,7 +63,9 @@ copy_resource = ResourceMaker(
 @python_task(
     name='fastapp-crud',
     group=project_add_group,
-    upstreams=[copy_resource],
+    upstreams=[
+        copy_resource,
+    ],
     runner=runner
 )
 async def add_fastapp_crud(*args: Any, **kwargs: Any):
@@ -70,4 +73,52 @@ async def add_fastapp_crud(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir', '.')
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
-    task.print_out(f'{project_dir} {app_name} {module_name}')
+    entity_name = kwargs.get('entity_name')
+    kebab_app_name = util.to_kebab_case(app_name)
+    snake_module_name = util.to_snake_case(module_name)
+    snake_entity_name = util.to_snake_case(entity_name)
+    await asyncio.gather(
+        asyncio.create_task(register_api(
+            task, project_dir, kebab_app_name, snake_module_name,
+            snake_entity_name
+        )),
+        asyncio.create_task(register_rpc(
+            task, project_dir, kebab_app_name, snake_module_name,
+            snake_entity_name
+        )),
+        asyncio.create_task(register_migration(
+            task, project_dir, kebab_app_name, snake_module_name,
+            snake_entity_name
+        )),
+    )
+    task.print_out('Success')
+
+
+async def register_api(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    snake_module_name: str,
+    snake_entity_name: str
+):
+    pass
+
+
+async def register_rpc(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    snake_module_name: str,
+    snake_entity_name: str
+):
+    pass
+
+
+async def register_migration(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    snake_module_name: str,
+    snake_entity_name: str
+):
+    pass
