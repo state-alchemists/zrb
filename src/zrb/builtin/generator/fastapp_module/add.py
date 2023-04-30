@@ -5,11 +5,12 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common import (
-    default_module_inputs, project_dir_input, app_name_input,
-    module_name_input, validate_project_dir, get_default_module_replacements,
-    get_default_module_replacement_middlewares, new_app_scaffold_lock
+from .._common.input import (
+    project_dir_input, app_name_input,
+    module_name_input
 )
+from .._common.helper import validate_project_dir
+from .._common.lock import new_task_app_lock
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_function_call import add_function_call
@@ -55,13 +56,19 @@ async def validate(*args: Any, **kwargs: Any):
 
 copy_resource = ResourceMaker(
     name='copy-resource',
-    inputs=default_module_inputs,
+    inputs=[
+        project_dir_input,
+        app_name_input,
+        module_name_input,
+    ],
     upstreams=[validate],
-    replacements=get_default_module_replacements(),
-    replacement_middlewares=get_default_module_replacement_middlewares(),
+    replacements={
+        'appName': '{{input.app_name}}',
+        'moduleName': '{{input.module_name}}',
+    },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    scaffold_locks=[new_app_scaffold_lock],
+    locks=[new_task_app_lock],
     excludes=[]
 )
 

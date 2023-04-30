@@ -23,7 +23,7 @@ def test_resource_maker():
             'app_name': 'my_app',
             '3000': '8080'
         },
-        scaffold_locks=[destination_path]
+        locks=[destination_path]
     )
 
     # first attempt should succeed

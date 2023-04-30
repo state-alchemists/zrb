@@ -1,12 +1,10 @@
+from typing import Mapping
 from ..._group import project_group
-from ....helper.middlewares.replacement import (
-    coalesce, add_pascal_key, add_base_name_key
-)
 from ....task.cmd_task import CmdTask
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
-from .._common import project_dir_input, project_name_input
+from .._common.input import project_dir_input, project_name_input
 from ..project_task.task_factory import create_add_project_automation_task
 
 import os
@@ -14,6 +12,18 @@ import os
 # Common definitions
 
 current_dir = os.path.dirname(__file__)
+
+
+def copy_resource_replacement_mutator(
+    task: ResourceMaker, replacements: Mapping[str, str]
+) -> Mapping[str, str]:
+    replacements['baseProjectDir'] = os.path.basename(
+        replacements.get('projectDir', '')
+    )
+    if replacements.get('projectName', '') == '':
+        replacements['projectName'] = replacements.get('baseProjectDir', '')
+    return replacements
+
 
 # Task definitions
 
@@ -28,14 +38,10 @@ copy_resource = ResourceMaker(
         'projectName': '{{input.project_name}}',
         'zrbVersion': version,
     },
-    replacement_middlewares=[
-        add_base_name_key('baseProjectDir', 'projectDir'),
-        coalesce('projectName', ['baseProjectDir']),
-        add_pascal_key('PascalProjectName', 'projectName')
-    ],
+    replacement_mutator=copy_resource_replacement_mutator,
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{input.project_dir}}',
-    scaffold_locks=['{{input.project_dir}}/zrb_init.py']
+    locks=['{{input.project_dir}}/zrb_init.py']
 )
 
 add_project_task = create_add_project_automation_task(

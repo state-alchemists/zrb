@@ -5,9 +5,18 @@ from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
 from ..helper.file.copy_tree import copy_tree
-from ..helper.middlewares.replacement import Replacement, ReplacementMiddleware
+from ..helper.util import (
+    to_camel_case, to_pascal_case, to_kebab_case, to_snake_case,
+    to_human_readable
+)
 
 import os
+
+Replacement = Mapping[str, str]
+ReplacementMutator = Callable[
+    [BaseTask, Replacement],
+    Replacement
+]
 
 
 @typechecked
@@ -19,7 +28,7 @@ class ResourceMaker(BaseTask):
         template_path: str,
         destination_path: str,
         replacements: Replacement = {},
-        replacement_middlewares: Iterable[ReplacementMiddleware] = [],
+        replacement_mutator: Optional[ReplacementMutator] = None,
         excludes: Iterable[str] = [],
         group: Optional[Group] = None,
         inputs: Iterable[BaseInput] = [],
@@ -29,7 +38,7 @@ class ResourceMaker(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         upstreams: Iterable[BaseTask] = [],
-        scaffold_locks: Iterable[str] = []
+        locks: Iterable[str] = []
     ):
         BaseTask.__init__(
             self,
@@ -51,8 +60,8 @@ class ResourceMaker(BaseTask):
         self.destination_path = destination_path
         self.excludes = excludes
         self.replacements = replacements
-        self.replacement_middlewares = replacement_middlewares
-        self.scaffold_locks = scaffold_locks
+        self.replacement_mutator = replacement_mutator
+        self.locks = locks
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -64,7 +73,7 @@ class ResourceMaker(BaseTask):
         template_path = self.render_str(self.template_path)
         destination_path = self.render_str(self.destination_path)
         # check scaffold locks
-        for scaffold_lock in self.scaffold_locks:
+        for scaffold_lock in self.locks:
             self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
             rendered_scaffold_lock = self.render_str(scaffold_lock)
             self.log_debug(f'Rendered scaffold lock: {rendered_scaffold_lock}')
@@ -82,25 +91,52 @@ class ResourceMaker(BaseTask):
         ]
         self.log_debug(f'Rendered excludes: {excludes}')
         self.log_debug(f'Render replacements: {self.replacements}')
-        replacements: Mapping[str, str] = {
+        rendered_replacements: Mapping[str, str] = {
             old: self.render_str(new)
             for old, new in self.replacements.items()
         }
-        self.log_debug(f'Rendered replacements: {replacements}')
-        # apply replacement middleware
-        self.log_debug('Apply replacement middlewares')
-        for index, middleware in enumerate(self.replacement_middlewares):
-            self.log_debug(f'Apply middleware #{index}')
-            replacements = middleware(self, replacements)
-        self.log_debug(f'Final replacement: {replacements}')
+        self.log_debug(f'Rendered replacements: {rendered_replacements}')
+        if self.replacement_mutator is not None:
+            self.log_debug('Apply replacement mutator')
+            rendered_replacements = self.replacement_mutator(
+                self, rendered_replacements
+            )
+        self.log_debug(
+            f'Apply default replacement mutator: {rendered_replacements}'
+        )
+        rendered_replacements = self._default_mutate_replacements(
+            rendered_replacements
+        )
+        self.log_debug(f'Final replacement: {rendered_replacements}')
         self.print_out_dark(f'Template: {template_path}')
         self.print_out_dark(f'Destination: {destination_path}')
-        self.print_out_dark(f'Replacements: {replacements}')
+        self.print_out_dark(f'Replacements: {rendered_replacements}')
         self.print_out_dark(f'Excludes: {excludes}')
         await copy_tree(
             src=template_path,
             dst=destination_path,
-            replacements=replacements,
+            replacements=rendered_replacements,
             excludes=excludes
         )
         return True
+
+    def _default_mutate_replacements(
+        self, rendered_replacements: Mapping[str, str]
+    ) -> Mapping[str, str]:
+        transformations: Mapping[str, Callable[[str], str]] = {
+            'Pascal': to_pascal_case,
+            'kebab': to_kebab_case,
+            'camel': to_camel_case,
+            'snake': to_snake_case,
+            'human readable': to_human_readable,
+        }
+        keys = list(rendered_replacements.keys())
+        for key in keys:
+            value = rendered_replacements[key]
+            for prefix, transform in transformations.items():
+                prefixed_key = transform(prefix + ' ' + key)
+                if prefixed_key in rendered_replacements:
+                    continue
+                transformed_value = transform(value)
+                rendered_replacements[prefixed_key] = transformed_value
+        return rendered_replacements

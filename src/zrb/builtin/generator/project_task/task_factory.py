@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from .._common import project_dir_input, app_name_input
+from .._common.input import project_dir_input, app_name_input
 from ....task.decorator import python_task
 from ....task.task import Task
 from ....helper import util

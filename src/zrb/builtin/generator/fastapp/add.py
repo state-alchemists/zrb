@@ -4,12 +4,12 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common import (
-    default_app_inputs, project_dir_input, app_name_input,
-    validate_project_dir, create_register_app_module,
-    get_default_app_replacements, get_default_app_replacement_middlewares,
-    new_app_scaffold_lock
+from .._common.input import (
+    project_dir_input, app_name_input, app_image_name_input, http_port_input,
+    env_prefix_input
 )
+from .._common.helper import validate_project_dir, create_register_app_module
+from .._common.lock import new_task_app_lock
 from ..project_task.task_factory import (
     create_add_project_automation_task, create_register_app_task
 )
@@ -44,19 +44,26 @@ async def validate(*args: Any, **kwargs: Any):
         raise Exception(f'Source already exists: {source_dir}')
 
 
-replacements = get_default_app_replacements()
-replacements.update({
-    'httpAuthPort': '{{util.coalesce(input.http_port, "3000") + 1}}'
-})
 copy_resource = ResourceMaker(
     name='copy-resource',
-    inputs=default_app_inputs,
+    inputs=[
+        project_dir_input,
+        app_name_input,
+        app_image_name_input,
+        http_port_input,
+        env_prefix_input,
+    ],
     upstreams=[validate],
-    replacements=replacements,
-    replacement_middlewares=get_default_app_replacement_middlewares(),
+    replacements={
+        'appName': '{{input.app_name}}',
+        'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
+        'ENV_PREFIX': '{{util.coalesce(input.env_prefix, "MY").upper()}}',
+        'app-image-name': '{{input.app_image_name}}',
+        'httpAuthPort': '{{util.coalesce(input.http_port, "3000") + 1}}'
+    },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    scaffold_locks=[new_app_scaffold_lock],
+    locks=[new_task_app_lock],
     excludes=[
         '*/deployment/venv',
         '*/src/kebab-app-name/venv',

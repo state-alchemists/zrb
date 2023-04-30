@@ -5,12 +5,11 @@ from ....task.decorator import python_task
 from ....task_input.str_input import StrInput
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common import (
-    default_task_inputs, http_port_input, env_prefix_input,
-    validate_project_dir, create_register_task_module,
-    get_default_task_replacements, get_default_task_replacement_middlewares,
-    new_task_scaffold_lock
+from .._common.input import (
+   project_dir_input, task_name_input, http_port_input, env_prefix_input
 )
+from .._common.helper import validate_project_dir, create_register_task_module
+from .._common.lock import new_task_lock
 from ....helper import util
 
 import os
@@ -22,7 +21,10 @@ current_dir = os.path.dirname(__file__)
 
 @python_task(
     name='validate',
-    inputs=default_task_inputs,
+    inputs=[
+        project_dir_input,
+        task_name_input
+    ],
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
@@ -40,15 +42,11 @@ async def validate(*args: Any, **kwargs: Any):
         raise Exception(f'Source already exists: {source_dir}')
 
 
-replacements = get_default_task_replacements()
-replacements.update({
-    'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
-    'composeCommand': '{{ util.coalesce(input.compose_command, "up") }}',
-    'ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}',
-})
 copy_resource = ResourceMaker(
     name='copy-resource',
-    inputs=default_task_inputs + [
+    inputs=[
+        project_dir_input,
+        task_name_input,
         http_port_input,
         StrInput(
             name='compose-command',
@@ -59,11 +57,15 @@ copy_resource = ResourceMaker(
         env_prefix_input,
     ],
     upstreams=[validate],
-    replacements=replacements,
-    replacement_middlewares=get_default_task_replacement_middlewares(),
+    replacements={
+        'taskName': '{{input.task_name}}',
+        'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
+        'composeCommand': '{{ util.coalesce(input.compose_command, "up") }}',
+        'ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}',
+    },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    scaffold_locks=[new_task_scaffold_lock]
+    locks=[new_task_lock]
 )
 
 register_task_module = create_register_task_module(

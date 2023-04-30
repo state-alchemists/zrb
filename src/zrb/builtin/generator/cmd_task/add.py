@@ -4,11 +4,9 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common import (
-    default_task_inputs, validate_project_dir, create_register_task_module,
-    get_default_task_replacements, get_default_task_replacement_middlewares,
-    new_task_scaffold_lock
-)
+from .._common.input import project_dir_input, task_name_input
+from .._common.helper import validate_project_dir, create_register_task_module
+from .._common.lock import new_task_lock
 from ....helper import util
 
 import os
@@ -20,7 +18,10 @@ current_dir = os.path.dirname(__file__)
 
 @python_task(
     name='validate',
-    inputs=default_task_inputs
+    inputs=[
+        project_dir_input,
+        task_name_input,
+    ]
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
@@ -35,13 +36,17 @@ async def validate(*args: Any, **kwargs: Any):
 
 copy_resource = ResourceMaker(
     name='copy-resource',
-    inputs=default_task_inputs,
+    inputs=[
+        project_dir_input,
+        task_name_input,
+    ],
     upstreams=[validate],
-    replacements=get_default_task_replacements(),
-    replacement_middlewares=get_default_task_replacement_middlewares(),
+    replacements={
+        'taskName': '{{input.task_name}}',
+    },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    scaffold_locks=[new_task_scaffold_lock]
+    locks=[new_task_lock]
 )
 
 register_task_module = create_register_task_module(
