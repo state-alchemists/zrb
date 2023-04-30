@@ -8,8 +8,7 @@ from module.snake_module_name.component import Base
 
 class DBEntityPascalEntityName(Base, DBEntityMixin):
     __tablename__ = "snake_plural_entity_name"
-    name = Column(String)
-    description = Column(String)
+    snake_column_name = Column(String)
 
 
 class PascalEntityNameRepo(Repo[PascalEntityName, PascalEntityNameData]):

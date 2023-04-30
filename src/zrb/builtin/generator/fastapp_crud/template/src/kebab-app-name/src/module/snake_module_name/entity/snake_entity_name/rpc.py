@@ -3,10 +3,10 @@ from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller, Server
 from core.repo import SearchFilter
-from module.auth.component.model.snake_entity_name_model import (
+from module.snake_module_name.component.model.snake_entity_name_model import (
     snake_entity_name_model
 )
-from module.auth.schema.snake_entity_name import PascalEntityNameData
+from module.snake_module_name.schema.snake_entity_name import PascalEntityNameData
 from module.auth.schema.token import TokenData
 
 
@@ -16,9 +16,9 @@ def register_rpc(
     rpc_caller: Caller,
     publisher: Publisher
 ):
-    logger.info('🥪 Register RPC handlers for "auth.snake_entity_name"')
+    logger.info('🥪 Register RPC handlers for "snake_module_name.snake_entity_name"')
 
-    @rpc_server.register('auth_get_snake_entity_name')
+    @rpc_server.register('snake_module_name_get_snake_entity_name')
     async def get(
         keyword: str,
         criterion: Mapping[str, Any],
@@ -35,7 +35,7 @@ def register_rpc(
         )
         return result.dict()
 
-    @rpc_server.register('auth_get_snake_entity_name_by_id')
+    @rpc_server.register('snake_module_name_get_snake_entity_name_by_id')
     async def get_by_id(
         id: str,
         user_token_data: Mapping[str, Any] = {}
@@ -43,7 +43,7 @@ def register_rpc(
         row = await snake_entity_name_model.get_by_id(id)
         return row.dict()
 
-    @rpc_server.register('auth_insert_snake_entity_name')
+    @rpc_server.register('snake_module_name_insert_snake_entity_name')
     async def insert(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
@@ -56,7 +56,7 @@ def register_rpc(
         )
         return row.dict()
 
-    @rpc_server.register('auth_update_snake_entity_name')
+    @rpc_server.register('snake_module_name_update_snake_entity_name')
     async def update(
         id: str,
         data: Mapping[str, Any],
@@ -69,7 +69,7 @@ def register_rpc(
         )
         return row.dict()
 
-    @rpc_server.register('auth_delete_snake_entity_name')
+    @rpc_server.register('snake_module_name_delete_snake_entity_name')
     async def delete(
         id: str,
         user_token_data: Mapping[str, Any]

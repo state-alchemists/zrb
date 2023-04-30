@@ -1,6 +1,5 @@
 from typing import Optional
-from abc import ABC, abstractmethod
-from core.model import Model, RepoModel
+from core.model import RepoModel
 from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
@@ -11,29 +10,7 @@ from module.auth.entity.permission.model import PermissionModel
 
 
 class UserModel(
-    Model[User, UserData, UserResult], ABC
-):
-    @abstractmethod
-    async def login(self, user_login: UserLogin) -> str:
-        pass
-
-    @abstractmethod
-    async def is_having_permission(
-        self, id: str, permission_name: str
-    ) -> bool:
-        pass
-
-    @abstractmethod
-    async def is_guest(self, id: str) -> bool:
-        pass
-
-    @abstractmethod
-    async def is_admin(self, id: str) -> bool:
-        pass
-
-
-class UserRepoModel(
-    RepoModel[User, UserData, UserResult], UserModel
+    RepoModel[User, UserData, UserResult]
 ):
     schema_result_cls = UserResult
 

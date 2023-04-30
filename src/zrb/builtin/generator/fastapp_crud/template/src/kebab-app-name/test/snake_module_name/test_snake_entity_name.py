@@ -37,7 +37,7 @@ async def test_insert_snake_entity_name_and_get_success(
 
         # create snake_entity_name
         create_response = await client.post(
-            '/api/v1/auth/kebab-plural-entity-name',
+            '/api/v1/snake_module_name/kebab-plural-entity-name',
             json=inserted_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -50,7 +50,7 @@ async def test_insert_snake_entity_name_and_get_success(
 
         # get_by_id
         get_by_id_response = await client.get(
-            f'/api/v1/auth/kebab-plural-entity-name/{create_response_id}',
+            f'/api/v1/snake_module_name/kebab-plural-entity-name/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -62,7 +62,7 @@ async def test_insert_snake_entity_name_and_get_success(
 
         # get
         get_response = await client.get(
-            '/api/v1/auth/kebab-plural-entity-name',
+            '/api/v1/snake_module_name/kebab-plural-entity-name',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -99,7 +99,7 @@ async def test_update_snake_entity_name_and_get_success(
 
         # create snake_entity_name
         create_response = await client.post(
-            '/api/v1/auth/kebab-plural-entity-name',
+            '/api/v1/snake_module_name/kebab-plural-entity-name',
             json=to_be_updated_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -112,7 +112,7 @@ async def test_update_snake_entity_name_and_get_success(
 
         # update snake_entity_name
         update_response = await client.put(
-            f'/api/v1/auth/kebab-plural-entity-name/{create_response_id}',
+            f'/api/v1/snake_module_name/kebab-plural-entity-name/{create_response_id}',
             json=updated_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -125,7 +125,7 @@ async def test_update_snake_entity_name_and_get_success(
 
         # get_by_id
         get_by_id_response = await client.get(
-            f'/api/v1/auth/kebab-plural-entity-name/{create_response_id}',
+            f'/api/v1/snake_module_name/kebab-plural-entity-name/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -140,7 +140,7 @@ async def test_update_snake_entity_name_and_get_success(
 
         # get
         get_response = await client.get(
-            '/api/v1/auth/kebab-plural-entity-name',
+            '/api/v1/snake_module_name/kebab-plural-entity-name',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -177,7 +177,7 @@ async def test_delete_snake_entity_name_and_get_success(
 
         # create snake_entity_name
         create_response = await client.post(
-            '/api/v1/auth/kebab-plural-entity-name',
+            '/api/v1/snake_module_name/kebab-plural-entity-name',
             json=to_be_deleted_success_data,
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
@@ -190,7 +190,7 @@ async def test_delete_snake_entity_name_and_get_success(
 
         # create snake_entity_name
         delete_response = await client.delete(
-            f'/api/v1/auth/kebab-plural-entity-name/{create_response_id}',
+            f'/api/v1/snake_module_name/kebab-plural-entity-name/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -202,7 +202,7 @@ async def test_delete_snake_entity_name_and_get_success(
 
         # get_by_id
         get_by_id_response = await client.get(
-            f'/api/v1/auth/kebab-plural-entity-name/{create_response_id}',
+            f'/api/v1/snake_module_name/kebab-plural-entity-name/{create_response_id}',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }
@@ -211,7 +211,7 @@ async def test_delete_snake_entity_name_and_get_success(
 
         # get
         get_response = await client.get(
-            '/api/v1/auth/kebab-plural-entity-name',
+            '/api/v1/snake_module_name/kebab-plural-entity-name',
             headers={
                 'Authorization': 'Bearer ' + admin_access_token
             }

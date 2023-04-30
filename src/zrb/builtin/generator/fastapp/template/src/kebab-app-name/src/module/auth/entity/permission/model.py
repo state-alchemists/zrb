@@ -1,5 +1,4 @@
-from abc import ABC, abstractmethod
-from core.model import Model, RepoModel
+from core.model import RepoModel
 from module.auth.schema.permission import (
     Permission, PermissionData, PermissionResult
 )
@@ -7,15 +6,7 @@ from module.auth.entity.permission.repo import PermissionRepo
 
 
 class PermissionModel(
-    Model[Permission, PermissionData, PermissionResult], ABC
-):
-    @abstractmethod
-    async def ensure_permission(self, data: PermissionData):
-        pass
-
-
-class PermissionRepoModel(
-    RepoModel[Permission, PermissionData, PermissionResult], PermissionModel
+    RepoModel[Permission, PermissionData, PermissionResult]
 ):
     schema_result_cls = PermissionResult
 

@@ -1,15 +1,14 @@
-from typing import List, Optional, TypeVar, Type
+from typing import Generic, List, Optional, TypeVar, Type
 from pydantic import BaseModel
 from core.repo.repo import Repo
 from core.repo.search_filter import SearchFilter
-from core.model.model import Model
 
 Schema = TypeVar('Schema', bound=BaseModel)
 SchemaData = TypeVar('SchemaData', bound=BaseModel)
 SchemaResult = TypeVar('SchemaResult', bound=BaseModel)
 
 
-class RepoModel(Model[Schema, SchemaData, SchemaResult]):
+class RepoModel(Generic[Schema, SchemaData, SchemaResult]):
     schema_result_cls: Type[SchemaResult]
 
     def __init__(self, repo: Repo[Schema, SchemaData]):
