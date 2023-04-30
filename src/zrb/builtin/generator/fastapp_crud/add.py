@@ -9,7 +9,6 @@ from .._common.input import (
     plural_entity_name_input, main_column_name_input
 )
 from .._common.helper import validate_project_dir
-from .._common.lock import new_task_app_lock
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.append_code_to_function import append_code_to_function
@@ -32,7 +31,9 @@ async def validate(*args: Any, **kwargs: Any):
     validate_project_dir(project_dir)
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
+    entity_name = kwargs.get('entity_name')
     snake_module_name = util.to_snake_case(module_name)
+    snake_entity_name = util.to_snake_case(entity_name)
     automation_dir = os.path.join(
         project_dir, '_automate', util.to_snake_case(app_name)
     )
@@ -48,6 +49,9 @@ async def validate(*args: Any, **kwargs: Any):
     module_path = os.path.join(source_dir, 'module', snake_module_name)
     if os.path.exists(module_path):
         raise Exception(f'Module directory already exists: {module_path}')
+    entity_path = os.path.join(module_path, 'entity', snake_entity_name)
+    if os.path.exists(entity_path):
+        raise Exception(f'Entity directory already exists: {entity_path}')
 
 
 copy_resource = ResourceMaker(
@@ -70,7 +74,6 @@ copy_resource = ResourceMaker(
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    locks=[new_task_app_lock],
     excludes=[]
 )
 
@@ -78,6 +81,14 @@ copy_resource = ResourceMaker(
 @python_task(
     name='fastapp-crud',
     group=project_add_group,
+    inputs=[
+        project_dir_input,
+        app_name_input,
+        module_name_input,
+        entity_name_input,
+        plural_entity_name_input,
+        main_column_name_input,
+    ],
     upstreams=[
         copy_resource,
     ],

@@ -64,6 +64,22 @@ main_column_name_input = StrInput(
     default='code'
 )
 
+column_name_input = StrInput(
+    name='column-name',
+    shortcut='c',
+    description='Column name',
+    prompt='Column name',
+    default=''
+)
+
+column_type_input = StrInput(
+    name='column-type',
+    shortcut='t',
+    description='Column type',
+    prompt='Column type',
+    default=''
+)
+
 task_name_input = StrInput(
     name='task-name',
     shortcut='t',
