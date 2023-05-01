@@ -57,10 +57,10 @@ def test_to_snake_case():
 
 def test_to_human_readable():
     assert to_human_readable('') == ''
-    assert to_human_readable(' send  RPC  Request ') == 'send RPC Request'
-    assert to_human_readable('send RPC Request') == 'send RPC Request'
-    assert to_human_readable('sendRPCRequest') == 'send RPC Request'
-    assert to_human_readable('SendRPCRequest') == 'Send RPC Request'
+    assert to_human_readable(' send  RPC  Request ') == 'send RPC request'
+    assert to_human_readable('send RPC Request') == 'send RPC request'
+    assert to_human_readable('sendRPCRequest') == 'send RPC request'
+    assert to_human_readable('SendRPCRequest') == 'send RPC request'
     assert to_human_readable('send-rpc-request') == 'send rpc request'
     assert to_human_readable('send_rpc_request') == 'send rpc request'
     assert to_human_readable('send_rpc_request!!!') == 'send rpc request!!!'

@@ -40,7 +40,7 @@ def to_pascal_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = _to_alphanum(text)
     return ''.join([
-        x.lower().capitalize() for x in to_human_readable(text).split(' ')
+        x.lower().capitalize() for x in _to_space_separated(text).split(' ')
     ])
 
 
@@ -48,7 +48,7 @@ def to_kebab_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = _to_alphanum(text)
     return '-'.join([
-        x.lower() for x in to_human_readable(text).split(' ')
+        x.lower() for x in _to_space_separated(text).split(' ')
     ])
 
 
@@ -56,7 +56,7 @@ def to_snake_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = _to_alphanum(text)
     return '_'.join([
-        x.lower() for x in to_human_readable(text).split(' ')
+        x.lower() for x in _to_space_separated(text).split(' ')
     ])
 
 
@@ -66,6 +66,14 @@ def _to_alphanum(text: Optional[str]) -> str:
 
 
 def to_human_readable(text: Optional[str]) -> str:
+    text = str(text) if not _is_undefined(text) else ''
+    return ' '.join([
+        x.lower() if x.upper() != x else x
+        for x in _to_space_separated(text).split(' ')
+    ])
+
+
+def _to_space_separated(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = text.replace('-', ' ').replace('_', ' ')
     parts = text.split(' ')

@@ -24,7 +24,7 @@ app_name_input = StrInput(
     shortcut='a',
     description='App name',
     prompt='App name',
-    default=get_random_name(),
+    default='app',
 )
 
 app_image_default_namespace = os.getenv('USER', 'library')
@@ -40,7 +40,7 @@ module_name_input = StrInput(
     shortcut='m',
     description='module name',
     prompt='module name',
-    default=get_random_name(),
+    default='library',
 )
 
 entity_name_input = StrInput(
@@ -48,12 +48,14 @@ entity_name_input = StrInput(
     shortcut='e',
     description='Singular entity name',
     prompt='Singular entity name',
+    default='book'
 )
 
 plural_entity_name_input = StrInput(
     name='plural-entity-name',
     description='Plural entity name',
     prompt='Plural entity name',
+    default='books'
 )
 
 main_column_name_input = StrInput(
@@ -69,7 +71,7 @@ column_name_input = StrInput(
     shortcut='c',
     description='Column name',
     prompt='Column name',
-    default=''
+    default='title'
 )
 
 column_type_input = StrInput(
@@ -77,7 +79,7 @@ column_type_input = StrInput(
     shortcut='t',
     description='Column type',
     prompt='Column type',
-    default=''
+    default='str'
 )
 
 task_name_input = StrInput(

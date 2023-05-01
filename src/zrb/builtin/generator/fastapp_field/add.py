@@ -126,8 +126,8 @@ async def add_column_to_test(
     for dict_name in dict_names:
         code = add_key_value_to_dict(
             code=code,
-            dict_namee=dict_name,
-            key=snake_column_name,
+            dict_name=dict_name,
+            key=f"'{snake_column_name}'",
             value="''"
         )
     task.print_out(f'Write modified code to: {test_file_path}')
@@ -184,9 +184,10 @@ async def add_column_to_repo(
     )
     code = add_property_to_class(
         code=code,
-        class_name=f'DB{pascal_entity_name}',
+        class_name=f'DBEntity{pascal_entity_name}',
         property_name=snake_column_name,
-        property_type='Column(String)'
+        property_type='Column',
+        property_value='Column(String)'
     )
     task.print_out(f'Write modified code to: {repo_file_path}')
     await write_text_file_async(repo_file_path, code)

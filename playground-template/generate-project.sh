@@ -50,7 +50,17 @@ zrb project add fastapp-crud \
     --app-name "fastapp" \
     --module-name "library" \
     --entity-name "book" \
-    --plural-entity-name "books"
+    --plural-entity-name "books" \
+    --column-name "code"
+
+echo '🤖 Add fastapp field'
+zrb project add fastapp-field \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library" \
+    --entity-name "book" \
+    --column-name "title" \
+    --column-type "str"
 
 echo '🤖 Add test-project task'
 echo '' >> zrb_init.py
