@@ -62,18 +62,6 @@ zrb project add fastapp-field \
     --column-name "title" \
     --column-type "str"
 
-echo '🤖 Add test-project task'
-echo '' >> zrb_init.py
-echo 'from zrb import Task, runner' >> zrb_init.py
-echo 'test_project = Task(' >> zrb_init.py
-echo "    name='test-project'," >> zrb_init.py
-echo '    upstreams=[' >> zrb_init.py
-echo '        run_cmd.run_cmd,' >> zrb_init.py
-echo '        run_container.run_container,' >> zrb_init.py
-echo '        run_python.run_python,' >> zrb_init.py
-echo '        simple_local.start_simple,' >> zrb_init.py
-echo '        fastapp_local.start_fastapp,' >> zrb_init.py
-echo '    ]' >> zrb_init.py
-echo ')' >> zrb_init.py
-echo 'runner.register(test_project)' >> zrb_init.py
-echo '' >> zrb_init.py
+echo '🤖 Disable auto-install-pip'
+cp template.env .env
+echo 'export PROJECT_AUTO_INSTALL_PIP=0' >> .env
