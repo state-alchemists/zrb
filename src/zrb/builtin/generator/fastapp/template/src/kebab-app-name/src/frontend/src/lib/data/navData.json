@@ -1,0 +1,5 @@
+[
+    {"title": "Home", "url": "/"},
+    {"title": "About", "url": "/about"},
+    {"title": "About hi", "url": "/about?name=hi"}
+]

@@ -1,9 +1,10 @@
-<script>
-  import "../app.css";
+<script lang="ts">
+  	import "../app.css";
+	import Navigation from '$lib/components/Navigation.svelte';
+	import navigationData from '$lib/data/navData.json';
+	import logo from '$lib/assets/logo.png';
 </script>
-<nav>
-	<a href="/">home</a>
-	<a href="/about">about</a>
-	<a href="/about?name=hi">about</a>
-</nav>
+
+<Navigation data={navigationData} logo={logo} brand="bearbrand"></Navigation>
+
 <slot></slot>
