@@ -19,8 +19,8 @@ class RMQPublisher(Publisher):
         connection_string: str,
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
-        retry: int = 3,
-        retry_interval: int = 3,
+        retry: int = 5,
+        retry_interval: int = 5,
         identifier='rmq-publisher'
     ):
         self.logger = logger

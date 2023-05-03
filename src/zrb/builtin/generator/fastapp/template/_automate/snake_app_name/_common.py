@@ -201,34 +201,3 @@ local_app_broker_type_env = Env(
     os_name='ENV_PREFIX_APP_BROKER_TYPE',
     default='rabbitmq'
 )
-
-start_container_compose_profile_env = Env(
-    name='COMPOSE_PROFILES',
-    os_name='',
-    default=' '.join([
-        '{{',
-        '",".join([',
-        '  env.get("APP_BROKER_TYPE", "rabbitmq"),',
-        '  input.get("snake_app_name_mode", "monolith")',
-        '])',
-        '}}'
-    ])
-)
-
-start_support_container_compose_profile_env = Env(
-    name='COMPOSE_PROFILES',
-    os_name='',
-    default=' '.join([
-        '{{',
-        '",".join([',
-        '  env.get("APP_BROKER_TYPE", "rabbitmq"),',
-        '])',
-        '}}'
-    ])
-)
-
-all_compose_profile_env = Env(
-    name='COMPOSE_PROFILES',
-    os_name='',
-    default='monolith,microservices,kafka,rabbitmq'
-)

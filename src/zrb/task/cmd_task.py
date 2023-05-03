@@ -207,11 +207,16 @@ class CmdTask(BaseTask):
         await stderr_log_process
 
     def _get_cmd_str(self) -> str:
-        if self.cmd_path != '':
-            return self.render_file(self.cmd_path)
-        if isinstance(self.cmd, str):
-            return self.render_str(self.cmd)
-        return self.render_str('\n'.join(self.cmd))
+        return self._create_cmd_str(self.cmd_path, self.cmd)
+
+    def _create_cmd_str(
+        self, cmd_path: str, cmd: Union[str, Iterable[str]]
+    ) -> str:
+        if cmd_path != '':
+            return self.render_file(cmd_path)
+        if isinstance(cmd, str):
+            return self.render_str(cmd)
+        return self.render_str('\n'.join(list(cmd)))
 
     async def _queue_stream(self, stream, queue: asyncio.Queue):
         while True:

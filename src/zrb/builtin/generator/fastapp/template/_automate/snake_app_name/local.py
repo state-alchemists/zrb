@@ -10,7 +10,6 @@ from ._common import (
     pandaproxy_plaintext_checker, app_local_checker,
     local_input, mode_input, host_input, https_input, image_input,
     local_app_port_env, local_app_broker_type_env,
-    start_support_container_compose_profile_env,
 )
 from .image import build_snake_app_name_image
 from .frontend import build_snake_app_name_frontend
@@ -19,17 +18,7 @@ from .local_microservices import get_start_microservices
 import os
 
 support_compose_env_prefix = 'CONTAINER_ENV_PREFIX'
-support_compose_envs = [
-    local_app_broker_type_env,
-    local_app_port_env,
-]
-app_env_file = EnvFile(
-    env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
-)
-app_envs = [
-    local_app_broker_type_env,
-    local_app_port_env,
-]
+start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
 
 ###############################################################################
 # Task Definitions
@@ -51,10 +40,12 @@ start_snake_app_name_support_container = DockerComposeTask(
         remove_snake_app_name_container
     ],
     cwd=RESOURCE_DIR,
+    setup_cmd=f'export COMPOSE_PROFILES={start_broker_compose_profile}',
     compose_cmd='up',
     compose_env_prefix=support_compose_env_prefix,
-    envs=support_compose_envs + [
-        start_support_container_compose_profile_env,
+    envs=[
+        local_app_broker_type_env,
+        local_app_port_env,
     ],
     checkers=[
         rabbitmq_checker,
@@ -93,8 +84,15 @@ start_monolith_snake_app_name = CmdTask(
         prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
-    env_files=[app_env_file],
-    envs=app_envs,
+    env_files=[
+        EnvFile(
+            env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
+        ),
+    ],
+    envs=[
+        local_app_broker_type_env,
+        local_app_port_env,
+    ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
     checkers=[
         app_local_checker,
@@ -117,8 +115,14 @@ start_snake_app_name_gateway = CmdTask(
         prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
-    env_files=[app_env_file],
-    envs=app_envs + [
+    env_files=[
+       EnvFile(
+            env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
+        ), 
+    ],
+    envs=[
+        local_app_broker_type_env,
+        local_app_port_env,
         Env(name='APP_ENABLE_MESSAGE_CONSUMER', default='false', os_name=''),
         Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),
     ],

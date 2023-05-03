@@ -18,8 +18,8 @@ class RMQConsumer(Consumer):
         connection_string: str,
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
-        retry: int = 3,
-        retry_interval: int = 3,
+        retry: int = 5,
+        retry_interval: int = 5,
         identifier='rmq-consumer'
     ):
         self.logger = logger
@@ -77,6 +77,8 @@ class RMQConsumer(Consumer):
             retry = self.retry
             while not self._is_stop_triggered:
                 await asyncio.sleep(0.01)
+                if self.connection is None or self.connection.is_closed:
+                    raise Exception('Rabbitmq connection is closed')
         except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if retry > 0:
                 self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)

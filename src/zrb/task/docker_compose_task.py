@@ -7,7 +7,9 @@ from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
 from ..helper.string.double_quote import double_quote
 from ..helper.docker_compose.file import read_compose_file
-from ..helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
+from ..helper.docker_compose.fetch_external_env import (
+    fetch_compose_file_env_map
+)
 
 import os
 import pathlib
@@ -32,6 +34,8 @@ class DockerComposeTask(CmdTask):
         compose_flags: Iterable[str] = [],
         compose_args: Iterable[str] = [],
         compose_env_prefix: str = '',
+        setup_cmd: Union[str, Iterable[str]] = '',
+        setup_cmd_path: str = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[BaseTask] = [],
         checkers: Iterable[BaseTask] = [],
@@ -66,6 +70,8 @@ class DockerComposeTask(CmdTask):
             preexec_fn=preexec_fn,
             skip_execution=skip_execution
         )
+        self.setup_cmd = setup_cmd
+        self.setup_cmd_path = setup_cmd_path
         self.compose_cmd = compose_cmd
         self.compose_options = compose_options
         self.compose_flags = compose_flags
@@ -121,6 +127,9 @@ class DockerComposeTask(CmdTask):
         raise Exception(f'Invalid compose file: {compose_file}')
 
     def _get_cmd_str(self) -> str:
+        setup_cmd_str = self._create_cmd_str(
+            self.setup_cmd_path, self.setup_cmd
+        )
         command_options = dict(self.compose_options)
         if '--file' not in command_options and '-f' not in command_options:
             command_options['--file'] = self.compose_file
@@ -137,6 +146,9 @@ class DockerComposeTask(CmdTask):
             double_quote(self.render_str(arg)) for arg in self.compose_args
             if self.render_str(arg) != ''
         ])
-        cmd = f'docker compose {options} {self.compose_cmd} {flags} {args}'
-        self.log_info(f'Command: {cmd}')
-        return cmd
+        cmd_str = '\n'.join([
+            setup_cmd_str,
+            f'docker compose {options} {self.compose_cmd} {flags} {args}',
+        ])
+        self.log_info(f'Command: {cmd_str}')
+        return cmd_str

@@ -218,11 +218,11 @@ def _get_new_docker_compose_service_definition(
             'healthcheck': {
                 'test': [
                     "CMD-SHELL",
-                    "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1" # noqa
+                    "curl --fail http://localhost:${APP_PORT:-8080}/readiness || exit 1" # noqa
                 ],
                 'interval': '5s',
-                'timeout': '1s',
-                'retries': 30
+                'timeout': '3s',
+                'retries': 10
             }
         }
     }

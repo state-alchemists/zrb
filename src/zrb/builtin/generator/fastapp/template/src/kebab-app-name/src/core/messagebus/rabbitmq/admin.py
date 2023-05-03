@@ -120,7 +120,7 @@ class RMQAdmin(Admin):
     ) -> Any:
         return await channel.queue_declare(
             queue=config.queue_name,
-            durable=False,
+            durable=True,
             auto_delete=False
         )
 
