@@ -33,7 +33,7 @@ Before running the server, you need to build the front end:
 cd frontend
 
 # Install node modules
-npm install --save
+npm install --save-dev
 
 # Build frontend (the build artefact will be available at `frontend/build`)
 npm run build:watch
@@ -64,6 +64,13 @@ uvicon main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 You will be able to access PascalAppName by accessing `http://localhost:8080` from your browser.
+
+### Note about Frontend
+
+We use sveltekit + tailwind. W follow these guides to set up the Frontend:
+
+- [Install Tailwind CSS with Sveltekit](https://tailwindcss.com/docs/guides/sveltekit)
+- [Sveltekit static site generation](https://kit.svelte.dev/docs/adapter-static)
 
 ## Using Zrb
 
