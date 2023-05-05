@@ -7,4 +7,6 @@
 
 <Navigation data={navigationData} logo={logo} brand="bearbrand"></Navigation>
 
-<slot></slot>
+<div class="pl-10 pr-10">
+	<slot></slot>
+</div>
