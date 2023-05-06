@@ -48,7 +48,7 @@ async def test_insert_user_and_get_success(
     async for client in test_client_generator:
         # login
         login_admin_response = await client.post(
-            '/api/v1/login',
+            '/api/v1/auth/login',
             json={
                 'identity': app_auth_admin_username,
                 'password': app_auth_admin_password
@@ -110,7 +110,7 @@ async def test_update_user_and_get_success(
     async for client in test_client_generator:
         # login
         login_admin_response = await client.post(
-            '/api/v1/login',
+            '/api/v1/auth/login',
             json={
                 'identity': app_auth_admin_username,
                 'password': app_auth_admin_password,
@@ -188,7 +188,7 @@ async def test_delete_user_and_get_success(
     async for client in test_client_generator:
         # login
         login_admin_response = await client.post(
-            '/api/v1/login',
+            '/api/v1/auth/login',
             json={
                 'identity': app_auth_admin_username,
                 'password': app_auth_admin_password

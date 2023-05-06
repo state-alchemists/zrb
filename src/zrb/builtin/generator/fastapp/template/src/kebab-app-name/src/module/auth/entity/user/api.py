@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, List, Mapping
 from fastapi import FastAPI, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from logging import Logger
@@ -13,7 +13,7 @@ from module.auth.schema.token import TokenData, TokenResponse
 from module.auth.component import token_scheme
 
 
-def register_login_api(
+def register_auth_api(
     logger: Logger,
     app: FastAPI,
     authorizer: Authorizer,
@@ -22,7 +22,7 @@ def register_login_api(
 ):
     logger.info('🥪 Register Login API for "auth.user"')
 
-    @app.post('/api/v1/login-oauth', response_model=TokenResponse)
+    @app.post('/api/v1/auth/login-oauth', response_model=TokenResponse)
     async def login_oauth(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
     ) -> TokenResponse:
@@ -30,18 +30,41 @@ def register_login_api(
             identity=form_data.username,
             password=form_data.password
         )
-        return await _login(data=data)
+        return await _create_token(data=data)
 
-    @app.post('/api/v1/login', response_model=TokenResponse)
+    @app.post('/api/v1/auth/login', response_model=TokenResponse)
     async def login(data: UserLogin) -> TokenResponse:
-        return await _login(data=data)
+        return await _create_token(data=data)
 
-    async def _login(data: UserLogin) -> TokenResponse:
+    async def _create_token(data: UserLogin) -> TokenResponse:
         try:
             token = await rpc_caller.call(
-                'auth_login', login_data=data.dict()
+                'auth_create_token', login_data=data.dict()
             )
             return TokenResponse(access_token=token, token_type='bearer')
+        except Exception as e:
+            raise HTTPAPIException(error=e)
+
+    @app.post('/api/v1/auth/refresh-token', response_model=TokenResponse)
+    async def refresh_token(token: str) -> TokenResponse:
+        try:
+            token = await rpc_caller.call(
+                'auth_refresh_token', token=token
+            )
+            return TokenResponse(access_token=token, token_type='bearer')
+        except Exception as e:
+            raise HTTPAPIException(error=e)
+
+    @app.post('/api/v1/auth/is-authorized', response_model=Mapping[str, bool])
+    async def is_authorized(
+        permission_names: List[str],
+        user_token_data: TokenData = Depends(token_scheme)
+    ) -> Mapping[str, str]:
+        try:
+            user_id = user_token_data.user_id
+            return await rpc_caller.call(
+                'auth_is_user_authorized', id=user_id, *permission_names
+            )
         except Exception as e:
             raise HTTPAPIException(error=e)
 

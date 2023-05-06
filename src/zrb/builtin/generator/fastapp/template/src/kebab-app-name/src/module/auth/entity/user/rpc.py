@@ -17,20 +17,35 @@ def register_rpc(
     logger.info('🥪 Register RPC handlers for "auth.user"')
 
     @rpc_server.register('auth_user_is_admin')
-    async def is_admin(id: str) -> bool:
+    async def user_is_admin(id: str) -> bool:
+        '''
+        Used by RPC Authenticator
+        '''
         return await user_model.is_admin(id)
 
     @rpc_server.register('auth_user_is_guest')
-    async def is_guest(id: str) -> bool:
+    async def user_is_guest(id: str) -> bool:
+        '''
+        Used by RPC Authenticator
+        '''
         return await user_model.is_guest(id)
 
-    @rpc_server.register('auth_user_is_having_permission')
-    async def is_having_permission(id: str, permission_name: str) -> bool:
-        return await user_model.is_having_permission(id, permission_name)
+    @rpc_server.register('auth_is_user_authorized')
+    async def is_user_having_permission(
+        id: str, *permission_names: str
+    ) -> Mapping[str, bool]:
+        '''
+        Used by RPC Authenticator
+        '''
+        return await user_model.is_authorized(id, *permission_names)
 
-    @rpc_server.register('auth_login')
-    async def login(login_data: Mapping[str, str]) -> str:
-        return await user_model.login(UserLogin(**login_data))
+    @rpc_server.register('auth_create_token')
+    async def create_token(login_data: Mapping[str, str]) -> str:
+        return await user_model.create_token(UserLogin(**login_data))
+
+    @rpc_server.register('auth_refresh_token')
+    async def refresh_token(token: str) -> str:
+        return await user_model.refresh_token(token)
 
     @rpc_server.register('auth_get_user')
     async def get(

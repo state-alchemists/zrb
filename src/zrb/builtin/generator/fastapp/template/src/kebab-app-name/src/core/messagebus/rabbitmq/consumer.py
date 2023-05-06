@@ -77,7 +77,10 @@ class RMQConsumer(Consumer):
             retry = self.retry
             while not self._is_stop_triggered:
                 await asyncio.sleep(0.01)
-                if self.connection is None or self.connection.is_closed:
+                if (
+                    not self._is_stop_triggered and
+                    (self.connection is None or self.connection.is_closed)
+                ):
                     raise Exception('Rabbitmq connection is closed')
         except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if retry > 0:

@@ -11,7 +11,7 @@ from module.auth.entity.group.api import (
 )
 from module.auth.entity.user.api import (
     register_api as register_user_api,
-    register_login_api as register_user_login_api
+    register_auth_api as register_user_login_api
 )
 
 
