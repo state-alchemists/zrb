@@ -1,6 +1,6 @@
 export function load({ params }) {
-	return {
-        title: 'hello ' + params.slug,
-        content: 'hello ' + params.slug
-	};
+    return {
+        title: 'Greetings, ' + params.slug,
+        content: 'Hello ' + params.slug
+    };
 }
