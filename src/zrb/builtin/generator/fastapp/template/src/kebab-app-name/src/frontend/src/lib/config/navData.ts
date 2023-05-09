@@ -1,4 +1,6 @@
-[
+import type { SingleNavData } from '../components/navigation/type'
+
+export const navData: SingleNavData[] = [
     {"title": "Home", "url": "/"},
     {"title": "About", "url": "/about"},
     {"title": "Greetings, Lord", "url": "/greetings/Lord"},
