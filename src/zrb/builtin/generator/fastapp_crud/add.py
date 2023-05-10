@@ -2,6 +2,7 @@ from typing import Any
 from ..._group import project_add_group
 from ....task.task import Task
 from ....task.decorator import python_task
+from ....task.cmd_task import CmdTask
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common.input import (
@@ -18,6 +19,7 @@ import asyncio
 import os
 
 current_dir = os.path.dirname(__file__)
+codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
 
 
 @python_task(
@@ -79,8 +81,7 @@ copy_resource = ResourceMaker(
 
 
 @python_task(
-    name='fastapp-crud',
-    group=project_add_group,
+    name='register-crud',
     inputs=[
         project_dir_input,
         app_name_input,
@@ -91,10 +92,9 @@ copy_resource = ResourceMaker(
     ],
     upstreams=[
         copy_resource,
-    ],
-    runner=runner
+    ]
 )
-async def add_fastapp_crud(*args: Any, **kwargs: Any):
+async def register_crud(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     project_dir = kwargs.get('project_dir', '.')
     app_name = kwargs.get('app_name')
@@ -117,6 +117,51 @@ async def add_fastapp_crud(*args: Any, **kwargs: Any):
             snake_entity_name
         )),
     )
+
+
+prepare_codemod = CmdTask(
+    name='prepare-codemod',
+    cwd=codemod_dir,
+    cmd=[
+        'npm install --save-dev',
+        'node_modules/.bin/tsc'
+    ]
+)
+
+
+nav_file_path = '{{input.project_dir}}/src/{{util.to_kebab_case(input.app_name)}}/src/frontend/src/lib/config/navData.ts' # noqa
+var_name = 'navData'
+title = '{{util.to_pascal_case(input.entity_name)}}'
+url = '{{util.to_kebab_case(input.module_name)}}/{{util.to_kebab_case(input.entity_name)}}' # noqa
+permission = ''
+add_navigation = CmdTask(
+    name='add-navigation',
+    inputs=[
+        project_dir_input,
+        app_name_input,
+        module_name_input,
+        entity_name_input,
+    ],
+    upstreams=[
+        copy_resource,
+        prepare_codemod,
+    ],
+    retry=0,
+    cmd=f'node {codemod_dir}/dist/addNav.js "{nav_file_path}" "{var_name}" "{title}" "{url}" "{permission}"' # noqa
+)
+
+
+@python_task(
+    name='fastapp-crud',
+    group=project_add_group,
+    upstreams=[
+        register_crud,
+        add_navigation
+    ],
+    runner=runner
+)
+async def add_fastapp_crud(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
     task.print_out('Success')
 
 

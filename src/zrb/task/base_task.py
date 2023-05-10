@@ -22,6 +22,7 @@ from ..helper.string.conversion import (
 )
 from ..helper.map.conversion import to_str as str_map_to_str
 from ..helper.string.jinja import is_probably_jinja
+from ..config.config import show_advertisement
 
 import asyncio
 import copy
@@ -661,7 +662,8 @@ class BaseTask(TaskModel):
         self.end_timer()
         self.log_info('Task is ready')
         if show_info:
-            get_advertisement(advertisements).show()
+            if show_advertisement:
+                get_advertisement(advertisements).show()
             self.show_done_info()
             self.show_run_command()
         return True

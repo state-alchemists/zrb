@@ -130,6 +130,7 @@ playground = CmdTask(
         'echo "🤖 Or playground project directory:"',
         'echo "      cd ${ZRB_PROJECT_DIR}/playground/my-project"',
         'echo "🤖 And start hacking around. Good luck :)"',
-    ]
+    ],
+    retry=0
 )
 runner.register(playground)
