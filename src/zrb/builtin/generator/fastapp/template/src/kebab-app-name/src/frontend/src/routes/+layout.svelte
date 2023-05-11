@@ -7,7 +7,7 @@
 </script>
 
 <title>{appTitle}</title>
-<Navigation data={navData} logo={logo} brand={appBrand}, tokenCookieKey={appAuthTokenCookieKey}></Navigation>
+<Navigation data={navData} logo={logo} brand={appBrand} authTokenCookieKey={appAuthTokenCookieKey}></Navigation>
 <div class="pl-10 pr-10">
 	<slot></slot>
 </div>
