@@ -13,6 +13,7 @@ app_host = os.getenv('APP_HOST', '0.0.0.0')
 app_port = int(os.getenv('APP_PORT', '8080'))
 app_reload = str_to_boolean(os.getenv('APP_RELOAD', 'true'))
 app_max_not_ready = int(os.getenv('APP_MAX_NOT_READY', '10'))
+app_auth_token_cookie_key = os.getenv('APP_AUTH_TOKEN_COOKIE_KEY', 'auth_token')
 app_auth_token_expire_seconds = int(os.getenv(
     'APP_AUTH_TOKEN_EXPIRE_SECONDS', '300'
 ))

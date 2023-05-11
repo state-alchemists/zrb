@@ -12,7 +12,7 @@ def create_oauth2_bearer_token_scheme(
     guest_user: User,
     token_util: TokenUtil,
     token_url: str,
-    token_cookie_key: str = 'auth_token'
+    token_cookie_key: str
 ) -> TokenScheme:
 
     oauth2_scheme = OAuth2PasswordBearer(

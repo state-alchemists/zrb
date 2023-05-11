@@ -2,7 +2,7 @@
 FROM node:18-alpine AS frontend-builder
 WORKDIR /frontend
 COPY frontend .
-RUN npm install && npm run build
+RUN npm install --save-dev && npm run build
 
 # Second stage: build the API and copy the frontend build
 FROM python:3.10-slim

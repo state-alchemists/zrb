@@ -4,6 +4,7 @@
     export let logo: string;
     export let brand: string;
     export let data: SingleNavData[];
+    export let authTokenCookieKey: string;
 </script>
 
 <div class="navbar bg-base-100">
@@ -19,3 +20,4 @@
         </ul>
     </div>
 </div>
+{authTokenCookieKey}
