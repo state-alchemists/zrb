@@ -8,7 +8,7 @@ Your faithful companion.
 pip install zrb
 ```
 
-# Creating a project
+# Create a project
 
 A project is a directory containing a Python file named `zrb_init.py`.
 
@@ -26,7 +26,7 @@ source project.sh
 
 The command will make you a Python virtual environment, as well as install necessary Python packages.
 
-## Creating a very minimal project
+## Create a very minimal project
 
 Aside from the built-in generator, you can also make a project manually by invoking the following command:
 
@@ -38,7 +38,7 @@ touch zrb_init.py
 
 This might be useful for demo/experimentation.
 
-# Defining tasks
+# Define tasks
 
 Zrb comes with many types of tasks:
 
@@ -51,6 +51,12 @@ Zrb comes with many types of tasks:
 - Resource maker
 
 Every task has its inputs, environments, and upstreams. By defining the upstreams, you can make several tasks run in parallel. Let's see the following example:
+
+```
+install-pip --------------------------------------> run-server
+                                             |
+install-node-modules  ---> build-frontend ----
+```
 
 ```python
 # File location: zrb_init.py
@@ -115,7 +121,7 @@ zrb run-server
 Zrb will make sure that the tasks are executed in order based on their upstreams.
 You will also see that `install-pip-packages` and `install-node-modules` are executed in parallel since they are independent of each other.
 
-# Defining a Python task
+# Define a Python task
 
 Defining a Python task is simple.
 
@@ -148,7 +154,7 @@ zrb say-hello --name=John
 
 Python task is very powerful to do complex logic. You can also use `async` function if you think you need to.
 
-# Defining a Cmd task
+# Define a Cmd task
 
 You can define a Cmd task by using `CmdTask` class.
 
@@ -216,49 +222,173 @@ zrb say-hello --name=John
 ```
 
 
-# How to create and deploy an app
+# Define a Docker Compose task
+
+Docker Compose is a convenient way to run containers on your local computer.
+
+Suppose you have the following Docker Compose file:
+
+```yaml
+# docker-compose.yml file
+version: '3'
+
+services:
+  # The load balancer
+  nginx:
+    image: nginx:1.16.0-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${HOST_PORT:-8080}:80"
+```
+
+You can define a task to run your Docker Compose file (i.e., `docker compose up`) like this:
+
+```python
+from zrb import DockerComposeTask, HTTPChecker, Env, runner
+
+run_container = DockerComposeTask(
+    name='run-container',
+    compose_cmd='up',
+    compose_file='docker-compose.yml',
+    envs=[
+        Env(name='HOST_PORT', default='3000')
+    ],
+    checkers=[
+        HTTPChecker(
+            name='check-readiness', port='{{env.HOST_PORT}}'
+        )
+    ]
+)
+runner.register(run_container)
+```
+
+# Define checkers
+
+Some tasks might run forever, and you need a way to make sure whether those tasks are ready or not.
+
+Let's say you invoke `npm run build:watch`. This command will build your Node.js App into `dist` directory, as well as watch the changes and rebuild your app as soon as there are some changes.
+
+- You need to start the server after the app has been built for the first time.
+- You can do this by checking whether the `dist` folder already exists or not.
+- You can use `PathChecker` for this purpose
+
+Let's see how to do this:
+
+```python
+from zrb import CmdTask, PathChecker, Env, EnvFile, runner
+
+build_frontend = CmdTask(
+    name='build-frontend',
+    cmd='npm run build',
+    cwd='src/frontend',
+    checkers=[
+        PathChecker(path='src/frontend/dist')
+    ]
+)
+
+run_server = CmdTask(
+    name='run-server',
+    envs=[
+        Env(name='PORT', os_name='WEB_PORT', default='3000')
+    ],
+    env_files=[
+        EnvFile(env_file='src/template.env', prefix='WEB')
+    ]
+    cmd='python main.py',
+    cwd='src',
+    upstreams=[
+        build_frontend
+    ],
+    checkers=[HTTPChecker(port='{{env.PORT}}')],
+)
+runner.register(run_server)
+```
+
+Aside from `PathChecker`, Zrb also has `HTTPChecker` and `PortChecker`.
+
+# Define a resource maker
+
+ResourceMaker is used to generate resources. Let's say you have a `template` folder containing a file named `app_name.py`:
+
+```python
+# file: template/app_name.py
+message = 'Hello world_name'
+print(message)
+```
+
+You can define a ResourceMaker like this:
+
+```python
+from zrb import ResourceMaker, StrInput, runner
+
+create_hello_world = ResourceMaker(
+    name='create-hello-world',
+    inputs=[
+        StrInput('app-name'),
+        StrInput('world-name'),
+    ],
+    replacements={
+        'app_name': '{{input.app_name}}',
+        'world_name': '{{input.world_name}}',
+    },
+    template_path='template',
+    destination_path='.',
+)
+runner.register(create_hello_world)
+```
+
+Now when you invoke the task, you will get a new file as expected:
+
+```bash
+zrb create-hello-world --app-name=wow --world-name=kalimdor
+echo ./wow.py
+```
+
+The result will be:
+
+```python
+# file: template/wow.py
+message = 'Hello kalimdor'
+print(message)
+```
+
+This is a very powerful building block to build anything based on the template.
+
+# Using Zrb to build an application (WIP)
+
+You can use Zrb to build a powerful application with a few commands:
 
 ```bash
 # Create a project
 zrb project create --project-dir my-project --project-name "My Project"
 cd my-project
 
-# Add a simple python app
-zrb project add simple-python-app --project-dir . --app-name simple --http-port 3000
+# Create a Fastapp
+zrb project add fastapp --project-dir . --app-name "fastapp" --http-port 3000
 
-# Start every app in your project
-zrb project start
+# Add library module to fastapp
+zrb project add fastapp-module --project-dir . --app-name "fastapp" --module-name "library"
 
-# or start a specific app (press ctrl+c first):
-zrb project start-simple
+# Add entity named "books"
+zrb project add fastapp-crud --project-dir . --app-name "fastapp" --module-name "library" \
+    --entity-name "book" --plural-entity-name "books" --column-name "code"
 
-# Open new terminal
-# test if everything works:
-curl http://localhost:3000
-# Press ctrl + c in your first terminal
+# Add column to the entity
+zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name "library" \
+    --entity-name "book" --column-name "title" --column-type "str"
 
-# Go back to your first terminal
-# Start every app in your project as container (docker-compose required)
-zrb project start-containers
+# Run Fastapp
+zrb project start-fastapp
 
-# or start a specific app (press ctrl+c first):
-zrb project start-simple-container
-# Press ctrl + c in your first terminal
+# Run Fastapp as container
+zrb project start-fastapp-container
 
-# Deploy to kubernetes
-zrb project deploy
-
-#  or deploy specific app
-zrb project deploy-simple
-
-# Remove the deployment
-zrb project destroy
+# Deploy fastapp
+zrb project deploy-fastapp
 ```
 
-Simple-python-app is a simple Uvicorn application.
-
-For the next iterations, Zrb will also introduce a serious framework for serious software development.
-Stay tunes.
+You should notice that every module in `fastapp` can be deployed/treated as microservices.
 
 # Autoloaded tasks
 
@@ -273,180 +403,6 @@ Zrb will automatically load the following task definitions:
     - If Zrb cannot find any in your current directory, it will look at the parent directories until it finds one.
 - Every built-in task definition given `ZRB_SHOULD_LOAD_BUILTIN` equals `1` or unset.
 
-# How to define tasks
-
-You can write your task definitions in Python. For example:
-
-```python
-from zrb import (
-    runner, Env,
-    StrInput, ChoiceInput, IntInput, BoolInput, FloatInput, PasswordInput,
-    Group, Task, CmdTask, HTTPChecker, python_task
-)
-
-# Simple Python task.
-# Usage example: zrb concat --separator=' '
-concat = Task(
-    name='concat',  # Task name
-    inputs=[StrInput(name='separator', description='Separator', default=' ')],
-    run=lambda *args, **kwargs: kwargs.get('separator', ' ').join(args)
-)
-runner.register(concat)
-
-# Simple Python task with multiple inputs.
-register_trainer = Task(
-    name='register-trainer',
-    inputs=[
-        StrInput(name='name', default=''),
-        PasswordInput(name='password', default=''),
-        IntInput(name='age', default=0),
-        BoolInput(name='employed', default=False),
-        FloatInput(name='salary', default=0.0),
-        ChoiceInput(
-            name='starter-pokemon',
-            choices=['bulbasaur', 'charmender', 'squirtle']
-        )
-    ],
-    run=lambda *args, **kwargs: kwargs
-)
-runner.register(register_trainer)
-
-
-# Simple Python task with decorator
-@python_task(
-    name='fibo',
-    inputs=[IntInput(name='n', default=5)],
-    runner=runner
-)
-async def fibo(*args, **kwargs):
-    n = int(args[0]) if len(args) > 0 else kwargs.get('n')
-    if n <= 0:
-        return None
-    elif n == 1:
-        return 0
-    elif n == 2:
-        return 1
-    else:
-        a, b = 0, 1
-        for i in range(n - 1):
-            a, b = b, a + b
-        return a
-
-
-# Simple CLI task.
-# Usage example: zrb hello --name='world'
-hello = CmdTask(
-    name='hello',
-    inputs=[StrInput(name='name', description='Name', default='world')],
-    cmd='echo Hello {{input.name}}'
-)
-runner.register(hello)
-
-# Command group: zrb make
-make = Group(name='make', description='Make things')
-
-# CLI task, part of `zrb make` group, depends on `hello`
-# Usage example: zrb make coffee
-make_coffee = CmdTask(
-    name='coffee',
-    group=make,
-    upstreams=[hello],
-    cmd='echo Coffee for you ☕'
-)
-runner.register(make_coffee)
-
-# CLI task, part of `zrb make` group, depends on `hello`
-# Usage example: zrb make beer
-make_beer = CmdTask(
-    name='beer',
-    group=make,
-    upstreams=[hello],
-    cmd='echo Cheers 🍺'
-)
-runner.register(make_beer)
-
-# Command group: zrb make gitignore
-make_gitignore = Group(
-    name='gitignore', description='Make gitignore', parent=make
-)
-
-# CLI task, part of `zrb make gitignore` group,
-# making .gitignore for Python project
-# Usage example: zrb make gitignore python
-make_gitignore_python = CmdTask(
-    name='python',
-    group=make_gitignore,
-    cmd=[
-        'echo "node_modules/" >> .gitignore'
-        'echo ".npm" >> .gitignore'
-        'echo "npm-debug.log" >> .gitignore'
-    ]
-)
-runner.register(make_gitignore_python)
-
-# CLI task, part of `zrb make gitignore` group,
-# making .gitignore for Node.js project
-# Usage example: zrb make gitignore node
-make_gitignore_nodejs = CmdTask(
-    name='node',
-    group=make_gitignore,
-    cmd=[
-        'echo "__pycache__/" >> .gitignore'
-        'echo "venv" >> .gitignore'
-    ]
-)
-runner.register(make_gitignore_nodejs)
-
-# Long running CLI task
-# Usage example: zrb start-server dir='.'
-start_server = CmdTask(
-    name='start-server',
-    upstreams=[make_coffee, make_beer],
-    inputs=[StrInput(name='dir', description='Directory', default='.')],
-    envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
-    cmd='python -m http.server $PORT --directory {{input.dir}}',
-    checkers=[HTTPChecker(port='{{env.PORT}}')]
-)
-runner.register(start_server)
-
-# CLI task, depends on `start-server`, throw error
-# Usage example: zrb test-error
-test_error = CmdTask(
-    name='test-error',
-    upstreams=[start_server],
-    cmd='sleep 3 && exit 1',
-    retry=0
-)
-runner.register(test_error)
-```
-
-Once registered, your task will be accessible from the terminal.
-
-For example, you can run a server by performing:
-
-```bash
-export WEB_PORT=8080
-zrb start-server
-```
-
-The output will be similar to this:
-
-```
-Name [world]: Go Frendi
-Dir [.]:
-🤖 ➜  2023-02-22T08:02:52.611040 ⚙ 14426 ➤ 1 of 3 • 🍋            zrb hello • Hello Go Frendi
-🤖 ➜  2023-02-22T08:02:52.719826 ⚙ 14428 ➤ 1 of 3 • 🍊      zrb make coffee • Coffee for you ☕
-🤖 ➜  2023-02-22T08:02:52.720372 ⚙ 14430 ➤ 1 of 3 • 🍒        zrb make beer • Cheers 🍺
-🤖 ➜  2023-02-22T08:02:52.845930 ⚙ 14432 ➤ 1 of 3 • 🍎     zrb start-server • Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...
-🤖 ➜  2023-02-22T08:02:52.910192 ⚙ 14425 ➤ 1 of 1 • 🍈           http-check • HEAD http://localhost:3000/ 200 (OK)
-Support zrb growth and development!
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zaruba
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-zrb start-server completed in 1.681591272354126 seconds
-🤖 ⚠  2023-02-22T08:02:52.911657 ⚙ 14432 ➤ 1 of 3 • 🍎     zrb start-server • 127.0.0.1 - - [22/Feb/2023 08:02:52] "HEAD / HTTP/1.1" 200 -
-```
-
 # How to run tasks programmatically
 
 To run a task programmatically, you need to create a `main loop`.
@@ -456,7 +412,6 @@ For example:
 ```python
 from zrb import CmdTask
 
-
 cmd_task = CmdTask(
     name='sample',
     cmd='echo hello'
@@ -465,7 +420,6 @@ main_loop = cmd_task.create_main_loop(env_prefix='')
 result = main_loop() # This run the task
 print(result.output) # Should be "hello"
 ```
-
 
 # Enable shell completion
 
