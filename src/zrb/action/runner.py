@@ -1,7 +1,8 @@
-from typing import List, Mapping, Union
+from typing import Any, Callable, List, Mapping, Union
 from ..action.base_action import BaseAction
 from ..task.base_task import BaseTask, Group as TaskGroup
 import click
+import sys
 
 CliSubcommand = Union[click.Group, click.Command]
 
@@ -70,9 +71,10 @@ class Runner(BaseAction):
         task_description = task.get_description()
         task_main_loop = task.create_main_loop(
             env_prefix=self.env_prefix, raise_error=True
-         )
+        )
+        callback = self._wrap_task_main_loop(task_main_loop)
         command = click.Command(
-            callback=task_main_loop, name=task_cmd_name, help=task_description
+            callback=callback, name=task_cmd_name, help=task_description
         )
         # by default, add an argument named _args
         command.params.append(click.Argument(['_args'], nargs=-1))
@@ -87,3 +89,13 @@ class Runner(BaseAction):
             options = task_input.get_options()
             command.params.append(click.Option(param_decl, **options))
         return command
+
+    def _wrap_task_main_loop(
+        self, main_loop: Callable[..., Any]
+    ) -> Callable[..., Any]:
+        def wrapped_main_loop(*args: Any, **kwargs: Any) -> Any:
+            try:
+                main_loop(*args, **kwargs)
+            except Exception:
+                sys.exit(1)
+        return wrapped_main_loop

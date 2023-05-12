@@ -2,19 +2,219 @@
 
 Your faithful companion.
 
-# How to install
+# Installation
 
 ```bash
 pip install zrb
 ```
 
-# How to use
+# Creating a project
 
-To run a task, you can invoke the following command:
+A project is a directory containing a Python file named `zrb_init.py`.
+
+The recommended way to create a Zrb project is by using Zrb built-in generator. To create a Zrb project using the built-in generator, you can invoke the following command:
 
 ```bash
-zrb <task> [arguments]
+zrb project create --project-dir=my-project
 ```
+
+To start working on the project, you can invoke the following command:
+
+```bash
+source project.sh
+```
+
+The command will make you a Python virtual environment, as well as install necessary Python packages.
+
+## Creating a very minimal project
+
+Aside from the built-in generator, you can also make a project manually by invoking the following command:
+
+```bash
+mkdir my-project
+cd my-project
+touch zrb_init.py
+```
+
+This might be useful for demo/experimentation.
+
+# Defining tasks
+
+Zrb comes with many types of tasks:
+
+- Python task
+- Cmd task
+- Docker compose task
+- Http checker
+- Port Checker
+- Path Checker
+- Resource maker
+
+Every task has its inputs, environments, and upstreams. By defining the upstreams, you can make several tasks run in parallel. Let's see the following example:
+
+```python
+# File location: zrb_init.py
+from zrb import CmdTask, HttpChecker, EnvFile, runner
+
+# Install pip package for requirements.txt in src directory
+install_pip_packages = CmdTask(
+    name='install-pip',
+    cmd='pip install -r requirements.txt',
+    cwd='src'
+)
+
+# Install node modules in src/frontend directory
+install_node_modules = CmdTask(
+    name='install-node-modules',
+    cmd='npm install --save-dev',
+    cwd='src/frontend'
+)
+
+# Build src/frontend
+# To build the frontend, you need to make sure that node_modules has already been installed.
+build_frontend = CmdTask(
+    name='build-frontend',
+    cmd='npm run build',
+    cwd='src/frontend',
+    upstreams=[install_node_modules]
+)
+
+# Start the server.
+# In order to start the server, you need to make sure that:
+# - Necessary pip packages has been already installed
+# - Frontend has already been built
+# By default it should use environment defined in `src/template.env`.
+# You can set the port using environment variable WEB_PORT
+# This WEB_PORT environment will be translated into PORT variable internally
+# You can use the port to check whether a server is ready or not.
+run_server = CmdTask(
+    name='run-server',
+    envs=[
+        Env(name='PORT', os_name='WEB_PORT', default='3000')
+    ],
+    env_files=[
+        EnvFile(env_file='src/template.env', prefix='WEB')
+    ]
+    cmd='python main.py',
+    cwd='src',
+    upstreams=[
+        install_pip_packages,
+        build_frontend
+    ],
+    checkers=[HTTPChecker(port='{{env.PORT}}')],
+)
+runner.register(run_server)
+```
+
+Once defined, you can start the server by invoking the following command:
+
+```bash
+zrb run-server
+```
+
+Zrb will make sure that the tasks are executed in order based on their upstreams.
+You will also see that `install-pip-packages` and `install-node-modules` are executed in parallel since they are independent of each other.
+
+# Defining a Python task
+
+Defining a Python task is simple.
+
+```python
+from zrb import python_task, Env, StrInput, runner
+
+@python_task(
+    name='say-hello',
+    inputs=[
+        StrInput(name='name')
+    ],
+    envs=[
+        Env(name='PYTHONUNBUFFERED', default=1)
+    ],
+    runner=runner
+)
+def say_hello(*args, **kwargs) -> str:
+    name = kwargs.get('name')
+    greetings = f'Hello, {name}'
+    task = kwargs.get('_task')
+    task.print_out(greetings)
+    return greetings
+```
+
+You can then run the task by invoking:
+
+```
+zrb say-hello --name=John
+```
+
+Python task is very powerful to do complex logic. You can also use `async` function if you think you need to.
+
+# Defining a Cmd task
+
+You can define a Cmd task by using `CmdTask` class.
+
+```python
+from zrb import CmdTask, StrInput, Env, runner
+
+say_hello = CmdTask(
+    name='say-hello',
+    inputs=[
+        StrInput(name='name')
+    ],
+    envs=[
+        Env(name='SOME_ENV')
+    ],
+    cmd='echo {{input.name}}'
+)
+runner.register(say_hello)
+```
+
+If you need a multi-line command, you can also define the command as a list:
+
+```python
+from zrb import CmdTask, StrInput, Env, runner
+
+say_hello = CmdTask(
+    name='say-hello',
+    inputs=[
+        StrInput(name='name')
+    ],
+    envs=[
+        Env(name='SOME_ENV')
+    ],
+    cmd=[
+        'echo {{input.name}}',
+        'echo Yeay!!!'
+    ]
+)
+runner.register(say_hello)
+```
+
+However, if your command is too long, you can also load it from other file:
+
+
+```python
+from zrb import CmdTask, StrInput, Env, runner
+
+say_hello = CmdTask(
+    name='say-hello',
+    inputs=[
+        StrInput(name='name')
+    ],
+    envs=[
+        Env(name='SOME_ENV')
+    ],
+    cmd_path='hello_script.sh'
+)
+runner.register(say_hello)
+```
+
+
+You can then run the task by invoking:
+
+```
+zrb say-hello --name=John
+```
+
 
 # How to create and deploy an app
 
