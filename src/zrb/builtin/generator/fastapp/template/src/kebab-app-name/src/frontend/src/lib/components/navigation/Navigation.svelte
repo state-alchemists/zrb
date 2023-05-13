@@ -13,12 +13,15 @@
     export let logoutTitle: string = 'Logout';
 
     const authToken = getCookie(authTokenCookieKey);
+    let hasToken = authToken != '';
+
     let identity: string;
     let password: string;
 
     async function onLoginClick() {
         const loginSuccess = await login('/api/v1/auth/login', identity, password);
         if (loginSuccess) {
+            hasToken = true;
             await goto('/');
             return;
         }
@@ -27,6 +30,7 @@
 
     async function onLogoutClick() {
         logout();
+        hasToken = false;
         await goto('/');
     }
 </script>
@@ -41,7 +45,7 @@
             {#each data as menuData}
                 <Menu data={menuData} />
             {/each}
-            {#if authToken == ''}
+            {#if !hasToken}
                 <li><a href="#login-modal" class="px-4">{loginTitle}</a></li>
             {:else}
                 <li><a href="#" class="px-4" on:click={onLogoutClick}>{logoutTitle}</a></li>
