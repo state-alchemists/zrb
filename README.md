@@ -1,7 +1,8 @@
-# Zrb (WIP)
+# Zrb (WIP): Your Faithful Companion
 
-Your faithful companion.
+![](images/zrb/android-chrome-192x192.png)
 
+Zrb is a task runner to help you automate day-to-day tasks.
 # Installation
 
 ```bash

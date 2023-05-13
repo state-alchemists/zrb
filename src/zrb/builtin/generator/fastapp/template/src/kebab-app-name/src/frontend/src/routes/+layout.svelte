@@ -3,7 +3,7 @@
 	import Navigation from '$lib/components/navigation/Navigation.svelte';
 	import {navData} from '$lib/config/navData';
 	import {appBrand, appTitle, appAuthTokenCookieKey} from '$lib/config/config';
-	import logo from '$lib/assets/logo.png';
+	import logo from '/static/logo.png';
 </script>
 
 <title>{appTitle}</title>
