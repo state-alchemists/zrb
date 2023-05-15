@@ -10,6 +10,7 @@ from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
 from module.auth.schema.token import TokenData, TokenResponse
+from module.auth.schema.request import RefreshTokenRequest, IsAuthorizedRequest
 from module.auth.component import token_scheme
 
 
@@ -46,10 +47,10 @@ def register_auth_api(
             raise HTTPAPIException(error=e)
 
     @app.post('/api/v1/auth/refresh-token', response_model=TokenResponse)
-    async def refresh_token(token: str) -> TokenResponse:
+    async def refresh_token(data: RefreshTokenRequest) -> TokenResponse:
         try:
             token = await rpc_caller.call(
-                'auth_refresh_token', token=token
+                'auth_refresh_token', token=data.token
             )
             return TokenResponse(access_token=token, token_type='bearer')
         except Exception as e:
@@ -57,13 +58,13 @@ def register_auth_api(
 
     @app.post('/api/v1/auth/is-authorized', response_model=Mapping[str, bool])
     async def is_authorized(
-        permission_names: List[str],
+        data: IsAuthorizedRequest,
         user_token_data: TokenData = Depends(token_scheme)
     ) -> Mapping[str, str]:
         try:
             user_id = user_token_data.user_id
             return await rpc_caller.call(
-                'auth_is_user_authorized', id=user_id, *permission_names
+                'auth_is_user_authorized', id=user_id, *data.permission_names
             )
         except Exception as e:
             raise HTTPAPIException(error=e)
