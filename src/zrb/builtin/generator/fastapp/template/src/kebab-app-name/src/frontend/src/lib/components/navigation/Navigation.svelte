@@ -44,7 +44,7 @@
     }
 </script>
 
-<div class="navbar sticky top-0 bg-base-100">
+<div class="navbar sticky top-0 bg-base-100 z-50">
     <div class="flex-1">
         <img class="h-8 mr-3" src={logo} alt="Logo">
         <a href="/" class="btn btn-ghost normal-case text-xl">{brand}</a>
