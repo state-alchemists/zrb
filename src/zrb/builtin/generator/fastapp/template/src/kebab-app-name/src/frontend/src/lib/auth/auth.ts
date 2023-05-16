@@ -1,11 +1,31 @@
 import axios from 'axios';
 import jwt_decode from 'jwt-decode';
-import { appAuthTokenCookieKey } from '../config/config';
+import { appAuthTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/config';
 import { getCookie, setCookie, unsetCookie } from '../cookie/cookie';
 import { userIdStore, userNameStore } from './store';
 import type { TokenData } from './type';
 
-export async function refreshToken(refreshTokenUrl: string): Promise<boolean> {
+export async function getAuthorization(permissions: string[]): Promise<{[key: string]: boolean}> {
+    try {
+        const token = getCookie(appAuthTokenCookieKey);
+        if (token == '') {
+            return {};
+        }
+        const config = {
+            headers: { Authorization: `Bearer ${token}` }
+        };
+        const response = await axios.post(isAuthorizedApiUrl, {permission_names: permissions}, config);
+        if (response && response.status == 200 && response.data && response.data) {
+            return response.data;
+        }
+        throw new Error('Invalid response');
+    } catch(error) {
+        console.error(error);
+    }
+    return {};
+}
+
+export async function refreshToken(): Promise<boolean> {
     try {
         const oldToken: string = getCookie(appAuthTokenCookieKey);
         const oldTokenData: TokenData = decodeToken(oldToken);
@@ -14,7 +34,7 @@ export async function refreshToken(refreshTokenUrl: string): Promise<boolean> {
         if (now.getTime()/1000 > expireAt) {
             throw new Error('Expired token');
         }
-        const response = await axios.post(refreshTokenUrl, {token: oldToken});
+        const response = await axios.post(refreshTokenApiUrl, {token: oldToken});
         if (response && response.status == 200 && response.data && response.data.access_token) {
             const newToken: string = response.data.access_token;
             setCookie(appAuthTokenCookieKey, newToken);
@@ -28,9 +48,9 @@ export async function refreshToken(refreshTokenUrl: string): Promise<boolean> {
     return false;
 }
 
-export async function login(loginUrl: string, identity: string, password: string): Promise<boolean> {
+export async function login(identity: string, password: string): Promise<boolean> {
     try {
-        const response = await axios.post(loginUrl, {identity, password});
+        const response = await axios.post(loginApiUrl, {identity, password});
         if (response && response.status == 200 && response.data && response.data.access_token) {
             const token: string = response.data.access_token;
             setCookie(appAuthTokenCookieKey, token);

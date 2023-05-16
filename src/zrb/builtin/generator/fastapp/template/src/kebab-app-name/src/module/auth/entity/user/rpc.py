@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, Mapping, List, Union
 from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller, Server
@@ -32,12 +32,14 @@ def register_rpc(
 
     @rpc_server.register('auth_is_user_authorized')
     async def is_user_having_permission(
-        id: str, *permission_names: str
+        id: str, permission_name: Union[str, List[str]]
     ) -> Mapping[str, bool]:
         '''
         Used by RPC Authenticator
         '''
-        return await user_model.is_authorized(id, *permission_names)
+        if isinstance(permission_name, str):
+            return await user_model.is_authorized(id, permission_name)
+        return await user_model.is_authorized(id, *permission_name)
 
     @rpc_server.register('auth_create_token')
     async def create_token(login_data: Mapping[str, str]) -> str:

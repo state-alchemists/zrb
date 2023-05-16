@@ -3,31 +3,34 @@
     import { onMount } from 'svelte';
     import Menu from './Menu.svelte';
     import type { SingleNavData } from './type';
-    import { login, logout, refreshToken } from '../../auth/auth';
+    import { getAuthorization, login, logout, refreshToken } from '../../auth/auth';
     import { userIdStore } from '../../auth/store';
+	import { getNavDataPermissions } from './helper';
 
     export let logo: string;
     export let brand: string;
-    export let data: SingleNavData[];
+    export let navData: SingleNavData[];
     export let loginTitle: string = 'Login';
     export let logoutTitle: string = 'Logout';
-    export let loginApiUrl: string = '/api/v1/auth/login';
-    export let refreshTokenApiUrl: string = '/api/v1/auth/refresh-token';
+
+    const navDataPermissions = getNavDataPermissions(navData);
 
     let identity: string;
     let password: string;
-
     let userId = '';
-    userIdStore.subscribe((value) => {
+    let authorization: {[key: string]: boolean} = {};
+
+    userIdStore.subscribe(async (value) => {
         userId = value;
+        authorization = await getAuthorization(navDataPermissions);
     });
 
     onMount(async() => {
-        await refreshToken(refreshTokenApiUrl);
+        await refreshToken();
     });
 
     async function onLoginClick() {
-        const loginSuccess = await login(loginApiUrl, identity, password);
+        const loginSuccess = await login(identity, password);
         if (loginSuccess) {
             await goto('/');
             return;
@@ -48,8 +51,8 @@
     </div>
     <div class="flex-none">
         <ul class="menu menu-horizontal px-1">
-            {#each data as menuData}
-                <Menu data={menuData} />
+            {#each navData as singleNavData}
+                <Menu singleNavData={singleNavData} authorization={authorization} />
             {/each}
             {#if userId == ''}
                 <li><a href="#login-modal" class="px-4">{loginTitle}</a></li>

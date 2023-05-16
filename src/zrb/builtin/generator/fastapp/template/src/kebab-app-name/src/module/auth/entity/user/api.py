@@ -64,7 +64,9 @@ def register_auth_api(
         try:
             user_id = user_token_data.user_id
             return await rpc_caller.call(
-                'auth_is_user_authorized', id=user_id, *data.permission_names
+                'auth_is_user_authorized',
+                id=user_id,
+                permission_name=data.permission_names
             )
         except Exception as e:
             raise HTTPAPIException(error=e)

@@ -27,10 +27,12 @@ class RPCAuthorizer(Authorizer):
         )
 
     async def is_having_permission(
-        self, user_id: str, *permission_names: str
+        self, user_id: str, *permission_name: str
     ) -> bool:
         permission_map = await self.rpc_caller.call(
-            self.is_user_authorized_rpc_name, user_id, *permission_names
+            self.is_user_authorized_rpc_name,
+            id=user_id,
+            permission_name=permission_name
         )
         for permission in permission_map:
             if not permission_map[permission]:
