@@ -1,9 +1,14 @@
 from pydantic import BaseModel
 
 
-class TokenData(BaseModel):
+class AccessTokenData(BaseModel):
     user_id: str
     username: str
+    expire_seconds: int
+
+
+class RefreshTokenData(BaseModel):
+    user_id: str
     expire_seconds: int
 
 

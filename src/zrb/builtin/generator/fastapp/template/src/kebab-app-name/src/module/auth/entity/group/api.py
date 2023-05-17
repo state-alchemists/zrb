@@ -7,8 +7,8 @@ from module.auth.core import Authorizer
 from module.auth.schema.group import (
     Group, GroupData, GroupResult
 )
-from module.auth.schema.token import TokenData
-from module.auth.component import token_scheme
+from module.auth.schema.token import AccessTokenData
+from module.auth.component import access_token_scheme
 
 
 def register_api(
@@ -25,7 +25,7 @@ def register_api(
     )
     async def get_groups(
         keyword: str = '', limit: int = 100, offset: int = 0,
-        user_token_data: TokenData = Depends(token_scheme),
+        user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:permission:get'
@@ -48,7 +48,7 @@ def register_api(
         '/api/v1/auth/groups/{id}', response_model=Group
     )
     async def get_group_by_id(
-        id: str, user_token_data: TokenData = Depends(token_scheme)
+        id: str, user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:group:get_by_id'
@@ -67,7 +67,8 @@ def register_api(
         '/api/v1/auth/groups', response_model=Group
     )
     async def insert_group(
-        data: GroupData, user_token_data: TokenData = Depends(token_scheme)
+        data: GroupData,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:group:insert'
@@ -87,7 +88,7 @@ def register_api(
     )
     async def update_group(
         id: str, data: GroupData,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:group:update'
@@ -106,7 +107,8 @@ def register_api(
         '/api/v1/auth/groups/{id}', response_model=Group
     )
     async def delete_group(
-        id: str, user_token_data: TokenData = Depends(token_scheme)
+        id: str,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:group:delete'

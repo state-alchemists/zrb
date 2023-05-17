@@ -9,9 +9,9 @@ from module.auth.core import Authorizer
 from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
-from module.auth.schema.token import TokenData, TokenResponse
+from module.auth.schema.token import AccessTokenData, TokenResponse
 from module.auth.schema.request import RefreshTokenRequest, IsAuthorizedRequest
-from module.auth.component import token_scheme
+from module.auth.component import access_token_scheme
 
 
 def register_auth_api(
@@ -59,7 +59,7 @@ def register_auth_api(
     @app.post('/api/v1/auth/is-authorized', response_model=Mapping[str, bool])
     async def is_authorized(
         data: IsAuthorizedRequest,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ) -> Mapping[str, str]:
         try:
             user_id = user_token_data.user_id
@@ -86,7 +86,7 @@ def register_api(
     )
     async def get_users(
         keyword: str = '', limit: int = 100, offset: int = 0,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:user:get'
@@ -109,7 +109,8 @@ def register_api(
         '/api/v1/auth/users/{id}', response_model=User
     )
     async def get_user_by_id(
-        id: str, user_token_data: TokenData = Depends(token_scheme)
+        id: str,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:user:get_by_id'
@@ -128,7 +129,8 @@ def register_api(
         '/api/v1/auth/users', response_model=User
     )
     async def insert_user(
-        data: UserData, user_token_data: TokenData = Depends(token_scheme)
+        data: UserData,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:user:insert'
@@ -148,7 +150,7 @@ def register_api(
     )
     async def update_user(
         id: str, data: UserData,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:user:update'
@@ -167,7 +169,8 @@ def register_api(
         '/api/v1/auth/users/{id}', response_model=User
     )
     async def delete_user(
-        id: str, user_token_data: TokenData = Depends(token_scheme)
+        id: str,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:user:delete'

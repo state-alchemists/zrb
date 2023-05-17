@@ -7,8 +7,8 @@ from module.auth.core import Authorizer
 from module.auth.schema.permission import (
     Permission, PermissionData, PermissionResult
 )
-from module.auth.schema.token import TokenData
-from module.auth.component import token_scheme
+from module.auth.schema.token import AccessTokenData
+from module.auth.component import access_token_scheme
 
 
 def register_api(
@@ -25,7 +25,7 @@ def register_api(
     )
     async def get_permissions(
         keyword: str = '', limit: int = 100, offset: int = 0,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:permission:get'
@@ -48,7 +48,8 @@ def register_api(
         '/api/v1/auth/permissions/{id}', response_model=Permission
     )
     async def get_permission_by_id(
-        id: str, user_token_data: TokenData = Depends(token_scheme)
+        id: str,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:permission:get_by_id'
@@ -68,7 +69,7 @@ def register_api(
     )
     async def insert_permission(
         data: PermissionData,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:permission:insert'
@@ -88,7 +89,7 @@ def register_api(
     )
     async def update_permission(
         id: str, data: PermissionData,
-        user_token_data: TokenData = Depends(token_scheme)
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:permission:update'
@@ -107,7 +108,8 @@ def register_api(
         '/api/v1/auth/permissions/{id}', response_model=Permission
     )
     async def delete_permission(
-        id: str, user_token_data: TokenData = Depends(token_scheme)
+        id: str,
+        user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
         if not await authorizer.is_having_permission(
             user_token_data.user_id, 'auth:permission:delete'

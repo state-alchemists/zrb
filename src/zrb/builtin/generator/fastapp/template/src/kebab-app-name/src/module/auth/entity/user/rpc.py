@@ -5,7 +5,7 @@ from core.rpc import Caller, Server
 from core.repo import SearchFilter
 from module.auth.component.model.user_model import user_model
 from module.auth.schema.user import UserData, UserLogin
-from module.auth.schema.token import TokenData
+from module.auth.schema.token import AccessTokenData
 
 
 def register_rpc(
@@ -43,11 +43,11 @@ def register_rpc(
 
     @rpc_server.register('auth_create_token')
     async def create_token(login_data: Mapping[str, str]) -> str:
-        return await user_model.create_token(UserLogin(**login_data))
+        return await user_model.create_access_token(UserLogin(**login_data))
 
     @rpc_server.register('auth_refresh_token')
     async def refresh_token(token: str) -> str:
-        return await user_model.refresh_token(token)
+        return await user_model.refresh_access_token(token)
 
     @rpc_server.register('auth_get_user')
     async def get(
@@ -79,7 +79,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         data['created_by'] = user_token_data.user_id
         data['updated_by'] = user_token_data.user_id
         row = await user_model.insert(
@@ -93,7 +93,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         data['updated_by'] = user_token_data.user_id
         row = await user_model.update(
             id=id, data=UserData(**data)
@@ -105,6 +105,6 @@ def register_rpc(
         id: str,
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         row = await user_model.delete(id=id)
         return row.dict()

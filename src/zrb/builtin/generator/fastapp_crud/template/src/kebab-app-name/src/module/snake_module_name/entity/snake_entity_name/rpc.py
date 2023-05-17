@@ -7,7 +7,7 @@ from module.snake_module_name.component.model.snake_entity_name_model import (
     snake_entity_name_model
 )
 from module.snake_module_name.schema.snake_entity_name import PascalEntityNameData
-from module.auth.schema.token import TokenData
+from module.auth.schema.token import AccessTokenData
 
 
 def register_rpc(
@@ -48,7 +48,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         data['created_by'] = user_token_data.user_id
         data['updated_by'] = user_token_data.user_id
         row = await snake_entity_name_model.insert(
@@ -62,7 +62,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         data['updated_by'] = user_token_data.user_id
         row = await snake_entity_name_model.update(
             id=id, data=PascalEntityNameData(**data)
@@ -74,6 +74,6 @@ def register_rpc(
         id: str,
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         row = await snake_entity_name_model.delete(id=id)
         return row.dict()

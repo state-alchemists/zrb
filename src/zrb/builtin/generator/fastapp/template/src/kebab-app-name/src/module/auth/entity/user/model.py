@@ -4,8 +4,8 @@ from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
 from module.auth.entity.user.repo import UserRepo
-from module.auth.schema.token import TokenData
-from module.auth.core import TokenUtil
+from module.auth.schema.token import AccessTokenData
+from module.auth.core import AccessTokenUtil
 from module.auth.entity.permission.model import PermissionModel
 
 
@@ -18,8 +18,8 @@ class UserModel(
         self,
         repo: UserRepo,
         permission_model: PermissionModel,
-        token_util: TokenUtil,
-        expire_seconds: int,
+        token_util: AccessTokenUtil,
+        access_token_expire_seconds: int,
         guest_user: User,
         admin_user: Optional[User] = None,
         admin_user_password: str = ''
@@ -27,7 +27,7 @@ class UserModel(
         self.repo = repo
         self.permission_model = permission_model
         self.token_util = token_util
-        self.expire_seconds = expire_seconds
+        self.access_token_expire_seconds = access_token_expire_seconds
         self.guest_user = guest_user
         self.admin_user = admin_user
         self.admin_user_pasword = admin_user_password
@@ -116,19 +116,19 @@ class UserModel(
             return False
         return id == self.admin_user.id
 
-    async def create_token(self, user_login: UserLogin) -> str:
+    async def create_access_token(self, user_login: UserLogin) -> str:
         user = await self._get_user_by_user_login(user_login)
-        return self._get_token(user)
+        return self._get_access_token(user)
 
-    async def refresh_token(self, auth_token_str: str) -> str:
-        user = await self._get_user_by_token(auth_token_str)
-        return self._get_token(user)
+    async def refresh_access_token(self, access_token: str) -> str:
+        user = await self._get_user_by_access_token(access_token)
+        return self._get_access_token(user)
 
-    def _get_token(self, user: User) -> str:
-        token_data = TokenData(
+    def _get_access_token(self, user: User) -> str:
+        token_data = AccessTokenData(
             user_id=user.id,
             username=user.username,
-            expire_seconds=self.expire_seconds
+            expire_seconds=self.access_token_expire_seconds
         )
         return self.token_util.encode(token_data)
 
@@ -147,6 +147,6 @@ class UserModel(
             return self.admin_user
         return await self.repo.get_by_user_login(user_login)
 
-    async def _get_user_by_token(self, token: str) -> User:
+    async def _get_user_by_access_token(self, token: str) -> User:
         token_data = self.token_util.decode(token)
         return await self.get_by_id(token_data.user_id)

@@ -1,5 +1,5 @@
 from typing import Callable
 from starlette.requests import Request
-from module.auth.schema.token import TokenData
+from module.auth.schema.token import AccessTokenData
 
-TokenScheme = Callable[[Request], TokenData]
+AccessTokenScheme = Callable[[Request], AccessTokenData]

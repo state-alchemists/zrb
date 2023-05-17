@@ -5,7 +5,7 @@ from core.rpc import Caller, Server
 from core.repo import SearchFilter
 from module.auth.component.model.group_model import group_model
 from module.auth.schema.group import GroupData
-from module.auth.schema.token import TokenData
+from module.auth.schema.token import AccessTokenData
 
 
 def register_rpc(
@@ -46,7 +46,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data: TokenData = TokenData(**user_token_data)
+        user_token_data: AccessTokenData = AccessTokenData(**user_token_data)
         data['created_by'] = user_token_data.user_id
         data['updated_by'] = user_token_data.user_id
         row = await group_model.insert(
@@ -60,7 +60,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data: TokenData = TokenData(**user_token_data)
+        user_token_data: AccessTokenData = AccessTokenData(**user_token_data)
         data['updated_by'] = user_token_data.user_id
         row = await group_model.update(
             id=id, data=GroupData(**data)
@@ -72,6 +72,6 @@ def register_rpc(
         id: str,
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         row = await group_model.delete(id=id)
         return row.dict()

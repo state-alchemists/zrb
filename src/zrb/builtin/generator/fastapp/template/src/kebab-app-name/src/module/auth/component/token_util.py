@@ -2,16 +2,16 @@ from config import (
     app_auth_token_type, app_auth_jwt_token_algorithm,
     app_auth_jwt_token_secret_key
 )
-from module.auth.core import TokenUtil, JWTTokenUtil
+from module.auth.core import AccessTokenUtil, JWTAccessTokenUtil
 
 
-def init_token_util() -> TokenUtil:
+def init_token_util() -> AccessTokenUtil:
     if app_auth_token_type.lower() == 'jwt':
-        return JWTTokenUtil(
+        return JWTAccessTokenUtil(
             secret_key=app_auth_jwt_token_secret_key,
             algorithm=app_auth_jwt_token_algorithm
         )
     raise ValueError(f'Invalid auth token type: {app_auth_token_type}')
 
 
-token_util = init_token_util()
+access_token_util = init_token_util()

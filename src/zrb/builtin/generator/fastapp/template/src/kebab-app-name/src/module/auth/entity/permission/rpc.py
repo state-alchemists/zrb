@@ -5,7 +5,7 @@ from core.rpc import Caller, Server
 from core.repo import SearchFilter
 from module.auth.component.model.permission_model import permission_model
 from module.auth.schema.permission import PermissionData
-from module.auth.schema.token import TokenData
+from module.auth.schema.token import AccessTokenData
 
 
 def register_rpc(
@@ -52,7 +52,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         data['created_by'] = user_token_data.user_id
         data['updated_by'] = user_token_data.user_id
         row = await permission_model.insert(
@@ -66,7 +66,7 @@ def register_rpc(
         data: Mapping[str, Any],
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         data['updated_by'] = user_token_data.user_id
         row = await permission_model.update(
             id=id, data=PermissionData(**data)
@@ -78,6 +78,6 @@ def register_rpc(
         id: str,
         user_token_data: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        user_token_data = TokenData(**user_token_data)
+        user_token_data = AccessTokenData(**user_token_data)
         row = await permission_model.delete(id=id)
         return row.dict()
