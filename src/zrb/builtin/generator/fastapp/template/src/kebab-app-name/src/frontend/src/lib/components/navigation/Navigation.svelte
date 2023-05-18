@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import Menu from './Menu.svelte';
     import type { SingleNavData } from './type';
-    import { getAuthorization, login, logout, refreshToken } from '../../auth/auth';
+    import { getAuthorization, initAuthStore, login, logout } from '../../auth/auth';
     import { userIdStore } from '../../auth/store';
 	import { getNavDataPermissions } from './helper';
 
@@ -26,7 +26,7 @@
     });
 
     onMount(async() => {
-        await refreshToken();
+        await initAuthStore();
     });
 
     async function onLoginClick() {

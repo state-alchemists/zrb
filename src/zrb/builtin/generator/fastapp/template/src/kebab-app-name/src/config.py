@@ -13,9 +13,14 @@ app_host = os.getenv('APP_HOST', '0.0.0.0')
 app_port = int(os.getenv('APP_PORT', '8080'))
 app_reload = str_to_boolean(os.getenv('APP_RELOAD', 'true'))
 app_max_not_ready = int(os.getenv('APP_MAX_NOT_READY', '10'))
-app_auth_token_cookie_key = os.getenv(
-    'PUBLIC_AUTH_TOKEN_COOKIE_KEY', 'auth_token'
+
+app_auth_access_token_cookie_key = os.getenv(
+    'PUBLIC_AUTH_ACCESS_TOKEN_COOKIE_KEY', 'access_token'
 )
+app_auth_refresh_token_cookie_key = os.getenv(
+    'PUBLIC_AUTH_REFRESH_TOKEN_COOKIE_KEY', 'refresh_token'
+)
+
 app_auth_access_token_type = os.getenv('APP_AUTH_ACCESS_TOKEN_TYPE', 'jwt')
 app_auth_access_token_expire_seconds = int(os.getenv(
     'APP_AUTH_ACCESS_TOKEN_EXPIRE_SECONDS', '300'

@@ -55,7 +55,7 @@ def register_auth_api(
             token_response_dict = await rpc_caller.call(
                 'auth_refresh_token',
                 refresh_token=refresh_token,
-                access_token=data.token
+                access_token=data.access_token
             )
             return TokenResponse(**token_response_dict)
         except Exception as e:

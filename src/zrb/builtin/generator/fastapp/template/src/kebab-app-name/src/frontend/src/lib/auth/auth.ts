@@ -1,20 +1,24 @@
 import axios from 'axios';
 import jwt_decode from 'jwt-decode';
-import { appAuthTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/config';
-import { getCookie, setCookie, unsetCookie } from '../cookie/cookie';
+import { authAccessTokenCookieKey, authRefreshTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/config';
 import { userIdStore, userNameStore } from './store';
-import type { TokenData } from './type';
+import type { AccessTokenData } from './type';
+import Cookies from 'js-cookie';
+
 
 export async function getAuthorization(permissions: string[]): Promise<{[key: string]: boolean}> {
     try {
-        const token = getCookie(appAuthTokenCookieKey);
-        if (token == '') {
+        const accessToken = await ensureAccessToken();
+        if (accessToken == '') {
             return {};
         }
-        const config = {
-            headers: { Authorization: `Bearer ${token}` }
-        };
-        const response = await axios.post(isAuthorizedApiUrl, {permission_names: permissions}, config);
+        const response = await axios.post(
+            isAuthorizedApiUrl,
+            {permission_names: permissions},
+            {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            }
+        );
         if (response && response.status == 200 && response.data && response.data) {
             return response.data;
         }
@@ -25,36 +29,69 @@ export async function getAuthorization(permissions: string[]): Promise<{[key: st
     return {};
 }
 
-export async function refreshToken(): Promise<boolean> {
+export async function initAuthStore() {
     try {
-        const oldToken: string = getCookie(appAuthTokenCookieKey);
-        const oldTokenData: TokenData = decodeToken(oldToken);
-        const { expireAt } = oldTokenData;
-        const now = new Date();
-        if (now.getTime()/1000 > expireAt) {
-            throw new Error('Expired token');
-        }
-        const response = await axios.post(refreshTokenApiUrl, {token: oldToken});
-        if (response && response.status == 200 && response.data && response.data.access_token) {
-            const newToken: string = response.data.access_token;
-            setCookie(appAuthTokenCookieKey, newToken);
-            setAuthStoreByToken(newToken);
-            return true;
+        const accessToken = await ensureAccessToken();
+        if (accessToken) {
+            setAuthStoreByAccessToken(accessToken);
         }
     } catch(error) {
         console.error(error);
     }
-    logout();
-    return false;
+}
+
+export async function ensureAccessToken(): Promise<string> {
+    try {
+        const oldAccessToken = getOldAccessToken();
+        if (oldAccessToken) {
+            const oldAccessTokenData: AccessTokenData = decodeAccessToken(oldAccessToken);
+            const { expireAt } = oldAccessTokenData;
+            const now = new Date();
+            if (now.getTime()/1000 < expireAt) {
+                return oldAccessToken;
+            }
+        }
+        const oldRefreshToken = getOldRefreshToken();
+        if (oldRefreshToken) {
+            const response = await axios.post(
+                refreshTokenApiUrl,
+                {access_token: oldAccessToken},
+                {
+                    headers: { Authorization: `Bearer ${oldRefreshToken}` }
+                }
+            );
+            if (response && response.status == 200 && response.data && response.data.access_token && response.data.refresh_token) {
+                const newAccessToken: string = response.data.access_token;
+                const newRefreshToken: string = response.data.refresh_token;
+                saveToken(newAccessToken, newRefreshToken);
+                setAuthStoreByAccessToken(newAccessToken);
+                return newAccessToken;
+            }
+            throw new Error('Invalid refresh-token response');
+        }
+        throw new Error('Cannot refresh token');
+    } catch(error) {
+        logout();
+        throw(error);
+    }
+}
+
+function getOldRefreshToken(): string | null {
+    return localStorage.getItem(authRefreshTokenCookieKey); 
+}
+
+function getOldAccessToken(): string | undefined {
+    return Cookies.get(authAccessTokenCookieKey); 
 }
 
 export async function login(identity: string, password: string): Promise<boolean> {
     try {
         const response = await axios.post(loginApiUrl, {identity, password});
-        if (response && response.status == 200 && response.data && response.data.access_token) {
-            const token: string = response.data.access_token;
-            setCookie(appAuthTokenCookieKey, token);
-            setAuthStoreByToken(token);
+        if (response && response.status == 200 && response.data && response.data.access_token && response.data.refresh_token) {
+            const accessToken: string = response.data.access_token;
+            const refreshToken: string = response.data.refresh_token;
+            saveToken(accessToken, refreshToken);
+            setAuthStoreByAccessToken(accessToken);
             return true;
         }
     } catch(error) {
@@ -64,8 +101,14 @@ export async function login(identity: string, password: string): Promise<boolean
     return false;
 }
 
+function saveToken(accessToken: string, refreshToken: string) {
+    Cookies.set(authAccessTokenCookieKey, accessToken);
+    localStorage.setItem(authRefreshTokenCookieKey, refreshToken);
+}
+
 export function logout() {
-    unsetCookie(appAuthTokenCookieKey)
+    Cookies.remove(authAccessTokenCookieKey);
+    localStorage.removeItem(authRefreshTokenCookieKey);
     unsetAuthStore();
 }
 
@@ -73,8 +116,8 @@ function unsetAuthStore() {
     setAuthStore('', '');
 }
 
-function setAuthStoreByToken(token: string) {
-    const tokenData = decodeToken(token);
+function setAuthStoreByAccessToken(accessToken: string) {
+    const tokenData = decodeAccessToken(accessToken);
     setAuthStore(tokenData.sub.userId, tokenData.sub.userName);
 }
 
@@ -83,7 +126,7 @@ function setAuthStore(newUserId: string, newUserName: string) {
     userNameStore.set(newUserName);
 }
 
-function decodeToken(token: string): TokenData {
+function decodeAccessToken(accessToken: string): AccessTokenData {
     const jwtTokenData: {
         exp: number,
         sub: {
@@ -91,7 +134,7 @@ function decodeToken(token: string): TokenData {
             username: string,
             expire_seconds: number
         }
-    } = jwt_decode(token);
+    } = jwt_decode(accessToken);
     return {
         sub: {
             userId: jwtTokenData.sub.user_id,

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class RefreshTokenRequest(BaseModel):
-    token: str
+    access_token: str
 
 
 class IsAuthorizedRequest(BaseModel):
