@@ -136,7 +136,7 @@ class UserModel(
         access_token_data = self.access_token_util.decode(
             access_token, parse_expired_token=True
         )
-        refresh_token_data = self.access_token_util.decode(refresh_token)
+        refresh_token_data = self.refresh_token_util.decode(refresh_token)
         if access_token_data.user_id != refresh_token_data.user_id:
             raise ValueError('Unmatch refresh and access token')
         user = await self.get_by_id(refresh_token_data.user_id)
@@ -157,7 +157,7 @@ class UserModel(
     def _get_refresh_token(self, user: User) -> str:
         refresh_token_data = RefreshTokenData(
             user_id=user.id,
-            expire_seconds=self.access_token_expire_seconds
+            expire_seconds=self.refresh_token_expire_seconds
         )
         return self.refresh_token_util.encode(refresh_token_data)
 

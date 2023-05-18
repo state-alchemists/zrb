@@ -1,3 +1,4 @@
+from typing import Any, Mapping
 from abc import ABC, abstractmethod
 from core.error import HTTPAPIException
 from module.auth.schema.token import AccessTokenData
@@ -42,7 +43,10 @@ class JWTAccessTokenUtil(AccessTokenUtil):
     ) -> AccessTokenData:
         try:
             decoded_data = jwt.decode(
-                token, self.secret_key, algorithms=[self.algorithm]
+                token,
+                self.secret_key,
+                algorithms=[self.algorithm],
+                options=self._get_decode_options(parse_expired_token)
             )
             sub = jsons.loads(decoded_data['sub'])
             token_data = AccessTokenData.parse_obj(sub)
@@ -56,3 +60,10 @@ class JWTAccessTokenUtil(AccessTokenUtil):
             return token_data
         except jwt.JWTError:
             raise HTTPAPIException(422, 'Invalid token')
+
+    def _get_decode_options(
+        self, parse_expired_token: bool
+    ) -> Mapping[str, Any]:
+        if parse_expired_token:
+            return {'verify_exp': False}
+        return {}
