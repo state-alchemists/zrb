@@ -1,7 +1,7 @@
 from module.auth.core import (
     AccessTokenScheme, create_oauth2_bearer_access_token_scheme
 )
-from module.auth.component.token_util import access_token_util
+from module.auth.component.access_token_util import access_token_util
 from module.auth.component.user import guest_user
 
 

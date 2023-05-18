@@ -42,12 +42,18 @@ def register_rpc(
         return await user_model.is_authorized(id, *permission_name)
 
     @rpc_server.register('auth_create_token')
-    async def create_token(login_data: Mapping[str, str]) -> str:
-        return await user_model.create_access_token(UserLogin(**login_data))
+    async def create_token(login_data: Mapping[str, str]) -> Mapping[str, str]:
+        result = await user_model.create_auth_token(UserLogin(**login_data))
+        return result.dict()
 
     @rpc_server.register('auth_refresh_token')
-    async def refresh_token(token: str) -> str:
-        return await user_model.refresh_access_token(token)
+    async def refresh_token(
+        refresh_token: str, access_token: str
+    ) -> Mapping[str, str]:
+        result = await user_model.refresh_auth_token(
+            refresh_token, access_token
+        )
+        return result.dict()
 
     @rpc_server.register('auth_get_user')
     async def get(

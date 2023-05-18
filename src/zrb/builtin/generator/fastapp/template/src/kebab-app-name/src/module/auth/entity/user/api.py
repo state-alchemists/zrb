@@ -11,7 +11,7 @@ from module.auth.schema.user import (
 )
 from module.auth.schema.token import AccessTokenData, TokenResponse
 from module.auth.schema.request import RefreshTokenRequest, IsAuthorizedRequest
-from module.auth.component import access_token_scheme
+from module.auth.component import access_token_scheme, bearer_token_scheme
 
 
 def register_auth_api(
@@ -39,20 +39,25 @@ def register_auth_api(
 
     async def _create_token(data: UserLogin) -> TokenResponse:
         try:
-            token = await rpc_caller.call(
+            token_response_dict = await rpc_caller.call(
                 'auth_create_token', login_data=data.dict()
             )
-            return TokenResponse(access_token=token, token_type='bearer')
+            return TokenResponse(**token_response_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
     @app.post('/api/v1/auth/refresh-token', response_model=TokenResponse)
-    async def refresh_token(data: RefreshTokenRequest) -> TokenResponse:
+    async def refresh_token(
+        data: RefreshTokenRequest,
+        refresh_token: str = Depends(bearer_token_scheme)
+    ) -> TokenResponse:
         try:
-            token = await rpc_caller.call(
-                'auth_refresh_token', token=data.token
+            token_response_dict = await rpc_caller.call(
+                'auth_refresh_token',
+                refresh_token=refresh_token,
+                access_token=data.token
             )
-            return TokenResponse(access_token=token, token_type='bearer')
+            return TokenResponse(**token_response_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 

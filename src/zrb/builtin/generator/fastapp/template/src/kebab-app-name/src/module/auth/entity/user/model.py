@@ -4,8 +4,10 @@ from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
 from module.auth.entity.user.repo import UserRepo
-from module.auth.schema.token import AccessTokenData
-from module.auth.core import AccessTokenUtil
+from module.auth.schema.token import (
+    AccessTokenData, RefreshTokenData, TokenResponse
+)
+from module.auth.core import AccessTokenUtil, RefreshTokenUtil
 from module.auth.entity.permission.model import PermissionModel
 
 
@@ -18,16 +20,20 @@ class UserModel(
         self,
         repo: UserRepo,
         permission_model: PermissionModel,
-        token_util: AccessTokenUtil,
+        access_token_util: AccessTokenUtil,
         access_token_expire_seconds: int,
+        refresh_token_util: RefreshTokenUtil,
+        refresh_token_expire_seconds: int,
         guest_user: User,
         admin_user: Optional[User] = None,
         admin_user_password: str = ''
     ):
         self.repo = repo
         self.permission_model = permission_model
-        self.token_util = token_util
+        self.access_token_util = access_token_util
         self.access_token_expire_seconds = access_token_expire_seconds
+        self.refresh_token_util = refresh_token_util
+        self.refresh_token_expire_seconds = refresh_token_expire_seconds
         self.guest_user = guest_user
         self.admin_user = admin_user
         self.admin_user_pasword = admin_user_password
@@ -116,21 +122,44 @@ class UserModel(
             return False
         return id == self.admin_user.id
 
-    async def create_access_token(self, user_login: UserLogin) -> str:
+    async def create_auth_token(self, user_login: UserLogin) -> TokenResponse:
         user = await self._get_user_by_user_login(user_login)
-        return self._get_access_token(user)
+        return TokenResponse(
+            access_token=self._get_access_token(user),
+            refresh_token=self._get_refresh_token(user),
+            token_type='bearer'
+        )
 
-    async def refresh_access_token(self, access_token: str) -> str:
-        user = await self._get_user_by_access_token(access_token)
-        return self._get_access_token(user)
+    async def refresh_auth_token(
+        self, refresh_token: str, access_token: str
+    ) -> TokenResponse:
+        access_token_data = self.access_token_util.decode(
+            access_token, parse_expire_token=True
+        )
+        refresh_token_data = self.access_token_util.decode(refresh_token)
+        if access_token_data.user_id != refresh_token_data.user_id:
+            raise ValueError('Unmatch refresh and access token')
+        user = await self.get_by_id(refresh_token_data.user_id)
+        return TokenResponse(
+            access_token=self._get_access_token(user),
+            refresh_token=self._get_refresh_token(user),
+            token_type='bearer'
+        )
 
     def _get_access_token(self, user: User) -> str:
-        token_data = AccessTokenData(
+        access_token_data = AccessTokenData(
             user_id=user.id,
             username=user.username,
             expire_seconds=self.access_token_expire_seconds
         )
-        return self.token_util.encode(token_data)
+        return self.access_token_util.encode(access_token_data)
+
+    def _get_refresh_token(self, user: User) -> str:
+        refresh_token_data = RefreshTokenData(
+            user_id=user.id,
+            expire_seconds=self.access_token_expire_seconds
+        )
+        return self.refresh_token_util.encode(refresh_token_data)
 
     async def _get_user_by_user_login(self, user_login: UserLogin) -> User:
         if user_login.identity == '':
@@ -146,7 +175,3 @@ class UserModel(
         ):
             return self.admin_user
         return await self.repo.get_by_user_login(user_login)
-
-    async def _get_user_by_access_token(self, token: str) -> User:
-        token_data = self.token_util.decode(token)
-        return await self.get_by_id(token_data.user_id)

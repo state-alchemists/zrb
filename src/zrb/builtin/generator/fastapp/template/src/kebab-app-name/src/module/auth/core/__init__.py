@@ -4,12 +4,15 @@ from module.auth.core.password_hasher.password_hasher import PasswordHasher
 from module.auth.core.password_hasher.bcrypt_password_hasher import (
     BcryptPasswordHasher
 )
-from module.auth.core.token_scheme.token_sheme import AccessTokenScheme
-from module.auth.core.token_scheme.oauth2_bearer_token_scheme import (
-    create_oauth2_bearer_access_token_scheme
+from module.auth.core.access_token.scheme import (
+    AccessTokenScheme, create_oauth2_bearer_access_token_scheme
 )
-from module.auth.core.token_util.token_util import AccessTokenUtil
-from module.auth.core.token_util.jwt_token_util import JWTAccessTokenUtil
+from module.auth.core.access_token.util import (
+    AccessTokenUtil, JWTAccessTokenUtil
+)
+from module.auth.core.refresh_token.util import (
+    RefreshTokenUtil, JWTRefreshTokenUtil
+)
 
 assert Authorizer
 assert RPCAuthorizer
@@ -19,3 +22,5 @@ assert AccessTokenScheme
 assert create_oauth2_bearer_access_token_scheme
 assert AccessTokenUtil
 assert JWTAccessTokenUtil
+assert RefreshTokenUtil
+assert JWTRefreshTokenUtil
