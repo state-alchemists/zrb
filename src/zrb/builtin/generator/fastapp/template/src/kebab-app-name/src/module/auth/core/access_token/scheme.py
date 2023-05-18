@@ -33,6 +33,6 @@ def create_oauth2_bearer_access_token_scheme(
                 username=guest_user.username,
                 expire_seconds=300
             )
-        return access_token_util.decode(token, parse_expire_token=False)
+        return access_token_util.decode(token, parse_expired_token=False)
 
     return oauth2_bearer_token_scheme

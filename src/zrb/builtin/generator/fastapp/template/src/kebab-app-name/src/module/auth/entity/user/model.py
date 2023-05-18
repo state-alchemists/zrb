@@ -134,7 +134,7 @@ class UserModel(
         self, refresh_token: str, access_token: str
     ) -> TokenResponse:
         access_token_data = self.access_token_util.decode(
-            access_token, parse_expire_token=True
+            access_token, parse_expired_token=True
         )
         refresh_token_data = self.access_token_util.decode(refresh_token)
         if access_token_data.user_id != refresh_token_data.user_id:

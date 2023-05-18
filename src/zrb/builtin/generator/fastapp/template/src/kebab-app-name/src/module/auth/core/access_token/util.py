@@ -15,7 +15,7 @@ class AccessTokenUtil(ABC):
 
     @abstractmethod
     def decode(
-        self, token_str: str, parse_expire_token: bool = False
+        self, token_str: str, parse_expired_token: bool = False
     ) -> AccessTokenData:
         pass
 
