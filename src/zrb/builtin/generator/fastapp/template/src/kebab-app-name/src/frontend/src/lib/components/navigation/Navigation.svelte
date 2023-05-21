@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import Menu from './Menu.svelte';
     import type { SingleNavData } from './type';
-    import { getAuthorization, initAuthStore, login, logout } from '../../auth/auth';
+    import { getAuthorization, initAuthStore, login, logout } from '../../auth/helper';
     import { userIdStore } from '../../auth/store';
 	import { getNavDataPermissions } from './helper';
 
