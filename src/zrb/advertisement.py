@@ -8,7 +8,7 @@ advertisements: List[Advertisement] = [
         content='\n'.join([
             'Support zrb growth and development!',
             '☕ Donate at: https://stalchmst.com/donation',
-            '🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zaruba',
+            '🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb',
             '🐤 Follow us at: https://twitter.com/zarubastalchmst'
         ]),
         time_pattern='.*'
