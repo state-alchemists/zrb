@@ -14,7 +14,7 @@
         const accessToken = await ensureAccessToken();
         try {
             const response = await axios.post(
-                '/api/v1/library/books', row, {headers: {Authorization: `Bearer ${accessToken}`}}
+                '/api/v1/kebab-module-name/kebab-plural-entity-name', row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
                 await goto('../');
@@ -35,12 +35,8 @@
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
   <h2 class="text-xl font-bold mb-4">New Book</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="code">Code</label>
-        <input type="text" class="input w-full" id="code" placeholder="Code" bind:value={row.code}>
-    </div>
-    <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="title">Title</label>
-        <input type="text" class="input w-full" id="title" placeholder="Title" bind:value={row.title}>
+        <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
+        <input type="text" class="input w-full" id="kebab-column-name" placeholder="Human readable column name" bind:value={row.snake_column_name}>
     </div>
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>
     <a href="../" class="btn">Cancel</a>

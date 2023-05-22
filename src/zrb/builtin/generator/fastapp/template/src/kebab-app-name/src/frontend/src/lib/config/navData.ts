@@ -6,9 +6,9 @@ export const navData: SingleNavData[] = [
         title: 'Auth',
         url: '#',
         submenus: [
-            {title: 'Permission', url: 'auth/permission', permission: 'auth:permission:get'},
-            {title: 'Group', url: 'auth/group', permission: 'auth:group:get'},
-            {title: 'User', url: 'auth/user', permission: 'auth:user:get'},
+            {title: 'Permission', url: '/auth/permission', permission: 'auth:permission:get'},
+            {title: 'Group', url: '/auth/group', permission: 'auth:group:get'},
+            {title: 'User', url: '/auth/user', permission: 'auth:user:get'},
         ]
     },
     {title: 'About', url: '/about'},

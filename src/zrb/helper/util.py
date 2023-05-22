@@ -73,6 +73,10 @@ def to_human_readable(text: Optional[str]) -> str:
     ])
 
 
+def to_capitalized_human_readable(text: Optional[str]) -> str:
+    return to_human_readable(text).capitalize()
+
+
 def _to_space_separated(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = text.replace('-', ' ').replace('_', ' ')

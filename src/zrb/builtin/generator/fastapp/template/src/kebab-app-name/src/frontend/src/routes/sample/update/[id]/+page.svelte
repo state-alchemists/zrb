@@ -1,23 +1,49 @@
 <script lang="ts">
     import axios from 'axios';
-	import { ensureAccessToken } from '$lib/auth/helper';
+	import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
+	import { ensureAccessToken } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
 
-    let data: any = {}
+    export let data: {id?: string} = {};
+
+    let row: any = {}
     let isAlertVisible: boolean = false;
     let isSaving: boolean = false;
     let errorMessage: string = '';
+
+    onMount(async() => {
+        await loadRow();
+    });
+
+    async function loadRow() {
+        const accessToken = await ensureAccessToken();
+        try {
+            const response = await axios.get(
+                `/api/v1/library/books/${data.id}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
+            );
+            if (response?.status == 200 && response?.data) {
+                row = response.data;
+                return;
+            }
+            errorMessage = 'Unknown error';
+        } catch(error) {
+            console.error(error);
+            errorMessage = getErrorMessage(error);
+        }
+        isAlertVisible = true;
+    }
 
     async function onSaveClick() {
         isSaving = true
         const accessToken = await ensureAccessToken();
         try {
-            const response = await axios.post(
-                '/api/v1/library/books', data, {headers: {Authorization: `Bearer ${accessToken}`}}
+            const response = await axios.put(
+                `/api/v1/library/books/${data.id}`, row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
-                await goto('../');
+                await goto('../../');
                 return;
             }
             errorMessage = 'Unknown error';
@@ -36,14 +62,14 @@
   <h2 class="text-xl font-bold mb-4">Update Book</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="code">Code</label>
-        <input type="text" class="input w-full" id="code" placeholder="Code" bind:value={data.code}>
+        <input type="text" class="input w-full" id="code" placeholder="Code" bind:value={row.code}>
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="code">Title</label>
-        <input type="text" class="input w-full" id="title" placeholder="Title" bind:value={data.title}>
+        <input type="text" class="input w-full" id="title" placeholder="Title" bind:value={row.title}>
     </div>
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>
-    <a href="../" class="btn">Cancel</a>
+    <a href="../../" class="btn">Cancel</a>
 
     <div class="alert alert-error shadow-lg mt-5 {isAlertVisible? 'visible': 'hidden'}">
         <div>

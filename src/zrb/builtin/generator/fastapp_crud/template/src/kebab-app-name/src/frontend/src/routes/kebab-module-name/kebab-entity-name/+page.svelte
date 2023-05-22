@@ -25,7 +25,7 @@
             const encodedKeyword = encodeURIComponent(keyword);
             const offset = limit * pageIndex
             const response = await axios.get(
-                `/api/v1/library/books?limit=${limit}&offset=${offset}&keyword=${encodedKeyword}`,
+                `/api/v1/kebab-module-name/kebab-plural-entity-name?limit=${limit}&offset=${offset}&keyword=${encodedKeyword}`,
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data) {
@@ -86,8 +86,7 @@
         <thead>
             <tr>
                 <th></th>
-                <th>Code</th>
-                <th>Title</th>
+                <th>Human readable column name</th>
                 <th></th>
             </tr>
         </thead>
@@ -95,8 +94,7 @@
             {#each rows as row}
                 <tr>
                     <th>{row.id}</th>
-                    <td>{row.code}</td>
-                    <td>{row.title}</td>
+                    <td>{row.snake_column_name}</td>
                     <td>
                         <a class="btn" href="./detail/{row.id}">Detail</a>
                         <a class="btn" href="./update/{row.id}">Update</a>

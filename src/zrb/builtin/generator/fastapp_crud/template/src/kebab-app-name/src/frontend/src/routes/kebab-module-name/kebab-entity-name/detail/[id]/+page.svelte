@@ -1,23 +1,28 @@
 <script lang="ts">
     import axios from 'axios';
-    import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { ensureAccessToken } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
 
-    let row: any = {}
-    let isAlertVisible: boolean = false;
-    let isSaving: boolean = false;
-    let errorMessage: string = '';
+    export let data: {id?: string} = {};
 
-    async function onSaveClick() {
-        isSaving = true
+    let row: any = {};
+    let isAlertVisible: boolean = false;
+    let errorMessage: string = '';
+ 
+    onMount(async() => {
+        await loadRow();
+    });
+
+    async function loadRow() {
         const accessToken = await ensureAccessToken();
         try {
-            const response = await axios.post(
-                '/api/v1/library/books', row, {headers: {Authorization: `Bearer ${accessToken}`}}
+            const response = await axios.get(
+                `/api/v1/kebab-module-name/kebab-plural-entity-name/${data.id}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
             );
-            if (response?.status == 200) {
-                await goto('../');
+            if (response?.status == 200 && response?.data) {
+                row = response.data;
                 return;
             }
             errorMessage = 'Unknown error';
@@ -26,24 +31,17 @@
             errorMessage = getErrorMessage(error);
         }
         isAlertVisible = true;
-        isSaving = false;
     }
 </script>
-
 <h1 class="text-3xl">Book</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">New Book</h2>
+  <h2 class="text-xl font-bold mb-4">Show Book {data.id}</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="code">Code</label>
-        <input type="text" class="input w-full" id="code" placeholder="Code" bind:value={row.code}>
+        <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
+        <span id="kebab-column-name">{row.snake_column_name}</span>
     </div>
-    <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="title">Title</label>
-        <input type="text" class="input w-full" id="title" placeholder="Title" bind:value={row.title}>
-    </div>
-    <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>
-    <a href="../" class="btn">Cancel</a>
+    <a href="../../" class="btn btn-primary">Show others</a>
 
     <div class="alert alert-error shadow-lg mt-5 {isAlertVisible? 'visible': 'hidden'}">
         <div>

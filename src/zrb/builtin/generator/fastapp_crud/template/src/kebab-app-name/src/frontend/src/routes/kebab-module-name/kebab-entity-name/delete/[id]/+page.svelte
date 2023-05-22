@@ -19,7 +19,7 @@
         const accessToken = await ensureAccessToken();
         try {
             const response = await axios.get(
-                `/api/v1/library/books/${data.id}`,
+                `/api/v1/kebab-module-name/kebab-plural-entity-name/${data.id}`,
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data) {
@@ -38,7 +38,7 @@
         const accessToken = await ensureAccessToken();
         try {
             const response = await axios.delete(
-                `/api/v1/library/books/${data.id}`,
+                `/api/v1/kebab-module-name/kebab-plural-entity-name/${data.id}`,
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data) {
@@ -58,12 +58,8 @@
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
   <h2 class="text-xl font-bold mb-4">Delete Book {data.id}</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="code">Code</label>
-        <span id="code">{row.code}</span>
-    </div>
-    <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="title">Title</label>
-        <span id="title">{row.title}</span>
+        <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
+        <span id="kebab-column-name">{row.snake_column_name}</span>
     </div>
     <a href="#top" class="btn btn-accent" on:click={onDeleteClick}>Delete</a>
     <a href="../../" class="btn">Cancel</a>
