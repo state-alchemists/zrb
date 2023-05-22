@@ -9,6 +9,7 @@ pydantic==1.10.6
 psycopg2-binary==2.9.6
 python-jose==3.3.0
 uvicorn==0.20.0
+watchfiles==0.19.0
 python-multipart==0.0.6
 
 # for testing

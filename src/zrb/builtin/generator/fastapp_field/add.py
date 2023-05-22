@@ -1,13 +1,13 @@
 from typing import Any
-from ..._group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....runner import runner
 from .._common.input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     column_name_input, column_type_input
 )
 from .._common.helper import validate_project_dir
+from ..._group import project_add_group
+from ....task.task import Task
+from ....task.decorator import python_task
+from ....runner import runner
 from ....helper import util
 from ....helper.codemod.add_property_to_class import add_property_to_class
 from ....helper.codemod.add_key_value_to_dict import add_key_value_to_dict
@@ -15,6 +15,7 @@ from ....helper.file.text import read_text_file_async, write_text_file_async
 
 import asyncio
 import os
+import re
 
 current_dir = os.path.dirname(__file__)
 
@@ -78,10 +79,16 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
     column_name = kwargs.get('column_name')
     column_type = kwargs.get('column_name')
     kebab_app_name = util.to_kebab_case(app_name)
+    kebab_module_name = util.to_kebab_case(module_name)
     snake_module_name = util.to_snake_case(module_name)
+    kebab_entity_name = util.to_kebab_case(entity_name)
     snake_entity_name = util.to_snake_case(entity_name)
     pascal_entity_name = util.to_pascal_case(entity_name)
     snake_column_name = util.to_snake_case(column_name)
+    kebab_column_name = util.to_kebab_case(column_name)
+    capitalized_human_readable_column_name = util.to_capitalized_human_readable( # noqa
+        column_name
+    )
     await asyncio.gather(
         asyncio.create_task(add_column_to_test(
             task, project_dir, kebab_app_name, snake_module_name,
@@ -97,8 +104,200 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
             snake_entity_name, pascal_entity_name, snake_column_name,
             column_type
         )),
+        asyncio.create_task(add_column_to_list_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
+        asyncio.create_task(add_column_to_detail_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, kebab_column_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
+        asyncio.create_task(add_column_to_delete_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, kebab_column_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
+        asyncio.create_task(add_column_to_update_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, kebab_column_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
+        asyncio.create_task(add_column_to_insert_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, kebab_column_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
     )
     task.print_out('Success')
+
+
+async def add_column_to_insert_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    kebab_column_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, 'new', '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add field to insert page')
+    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    subst = '\\n'.join([
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '}>', # noqa
+        '\\1</div>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        regex, subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
+
+
+async def add_column_to_update_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    kebab_column_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, 'update', '[id]', '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add field to update page')
+    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    subst = '\\n'.join([
+        '\\1<div class="mb-4">', 
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '}>', # noqa
+        '\\1</div>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        regex, subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
+
+
+async def add_column_to_delete_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    kebab_column_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, 'delete', '[id]', '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add field to delete page')
+    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    subst = '\\n'.join([
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>', # noqa
+        '\\1</div>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        regex, subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
+
+
+async def add_column_to_detail_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    kebab_column_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, 'detail', '[id]', '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add field to detail page')
+    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    subst = '\\n'.join([
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>',  # noqa
+        '\\1</div>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        regex, subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
+
+
+async def add_column_to_list_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    # process header
+    task.print_out('Add column header to table')
+    header_regex = r"(.*)(<!-- DON'T DELETE: insert new column header here-->)"
+    header_subst = '\\n'.join([
+        f'\\1<th>{capitalized_human_readable_column_name}</th>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        header_regex, header_subst, html_content, 0, re.MULTILINE
+    )
+    # process column
+    task.print_out('Add column to table')
+    column_regex = r"(.*)(<!-- DON'T DELETE: insert new column here-->)"
+    column_subst = '\\n'.join([
+        '\\1<td>{row.' + snake_column_name + '}</td>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        column_regex, column_subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
 
 
 async def add_column_to_test(

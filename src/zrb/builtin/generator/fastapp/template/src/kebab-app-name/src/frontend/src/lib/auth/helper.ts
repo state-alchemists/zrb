@@ -1,6 +1,6 @@
 import axios from 'axios';
 import jwt_decode from 'jwt-decode';
-import { authAccessTokenCookieKey, authRefreshTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/config';
+import { authAccessTokenCookieKey, authRefreshTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/app';
 import { userIdStore, userNameStore } from './store';
 import type { AccessTokenData } from './type';
 import Cookies from 'js-cookie';
@@ -19,7 +19,7 @@ export async function getAuthorization(permissions: string[]): Promise<{[key: st
                 headers: { Authorization: `Bearer ${accessToken}` }
             }
         );
-        if (response && response.status == 200 && response.data && response.data) {
+        if (response && response.status == 200 && response.data) {
             return response.data;
         }
         throw new Error('Invalid response');

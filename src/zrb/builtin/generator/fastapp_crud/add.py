@@ -5,15 +5,16 @@ from ....task.decorator import python_task
 from ....task.cmd_task import CmdTask
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
+from ....helper import util
+from ....helper.codemod.add_import_module import add_import_module
+from ....helper.codemod.append_code_to_function import append_code_to_function
+from ....helper.file.text import read_text_file_async, write_text_file_async
 from .._common.input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     plural_entity_name_input, main_column_name_input
 )
 from .._common.helper import validate_project_dir
-from ....helper import util
-from ....helper.codemod.add_import_module import add_import_module
-from ....helper.codemod.append_code_to_function import append_code_to_function
-from ....helper.file.text import read_text_file_async, write_text_file_async
+from .add_navigation import create_add_navigation_task
 
 import asyncio
 import os
@@ -128,26 +129,11 @@ prepare_codemod = CmdTask(
     ]
 )
 
-
-nav_file_path = '{{input.project_dir}}/src/{{util.to_kebab_case(input.app_name)}}/src/frontend/src/lib/config/navData.ts' # noqa
-var_name = 'navData'
-title = '{{util.to_pascal_case(input.entity_name)}}'
-url = '{{util.to_kebab_case(input.module_name)}}/{{util.to_kebab_case(input.entity_name)}}' # noqa
-permission = '{{util.to_snake_case(input.module_name)}}:{{util.to_snake_case(input.entity_name)}}:get' # noqa
-add_navigation = CmdTask(
-    name='add-navigation',
-    inputs=[
-        project_dir_input,
-        app_name_input,
-        module_name_input,
-        entity_name_input,
-    ],
+add_navigation = create_add_navigation_task(
     upstreams=[
         copy_resource,
         prepare_codemod,
-    ],
-    retry=0,
-    cmd=f'node {codemod_dir}/dist/addNav.js "{nav_file_path}" "{var_name}" "{title}" "{url}" "{permission}"' # noqa
+    ]
 )
 
 

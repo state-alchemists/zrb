@@ -7,7 +7,7 @@ from ..task_input.base_input import BaseInput
 from ..helper.file.copy_tree import copy_tree
 from ..helper.util import (
     to_camel_case, to_pascal_case, to_kebab_case, to_snake_case,
-    to_human_readable
+    to_human_readable, to_capitalized_human_readable
 )
 
 import os
@@ -129,6 +129,7 @@ class ResourceMaker(BaseTask):
             'camel': to_camel_case,
             'snake': to_snake_case,
             'human readable': to_human_readable,
+            'Human readable': to_capitalized_human_readable,
         }
         keys = list(rendered_replacements.keys())
         for key in keys:
