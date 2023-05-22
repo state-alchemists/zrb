@@ -87,6 +87,7 @@
             <tr>
                 <th></th>
                 <th>Human readable column name</th>
+                <!-- DON'T DELETE: insert new column header here-->
                 <th></th>
             </tr>
         </thead>
@@ -95,6 +96,7 @@
                 <tr>
                     <th>{row.id}</th>
                     <td>{row.snake_column_name}</td>
+                    <!-- DON'T DELETE: insert new column here-->
                     <td>
                         <a class="btn" href="./detail/{row.id}">Detail</a>
                         <a class="btn" href="./update/{row.id}">Update</a>

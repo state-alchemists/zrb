@@ -41,6 +41,7 @@
         <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
         <span id="kebab-column-name">{row.snake_column_name}</span>
     </div>
+    <!-- DON'T DELETE: insert new field here-->
     <a href="../../" class="btn btn-primary">Show others</a>
 
     <div class="alert alert-error shadow-lg mt-5 {isAlertVisible? 'visible': 'hidden'}">
