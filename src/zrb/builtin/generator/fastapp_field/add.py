@@ -119,10 +119,82 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
             kebab_entity_name, kebab_column_name, snake_column_name,
             capitalized_human_readable_column_name
         )),
+        asyncio.create_task(add_column_to_update_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, kebab_column_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
+        asyncio.create_task(add_column_to_insert_page(
+            task, project_dir, kebab_app_name, kebab_module_name,
+            kebab_entity_name, kebab_column_name, snake_column_name,
+            capitalized_human_readable_column_name
+        )),
     )
     task.print_out('Success')
 
-# TODO: insert and update
+
+async def add_column_to_insert_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    kebab_column_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, 'new', '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add field to insert page')
+    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    subst = '\\n'.join([
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '}>', # noqa
+        '\\1</div>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        regex, subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
+
+
+async def add_column_to_update_page(
+    task: Task,
+    project_dir: str,
+    kebab_app_name: str,
+    kebab_module_name: str,
+    kebab_entity_name: str,
+    kebab_column_name: str,
+    snake_column_name: str,
+    capitalized_human_readable_column_name: str
+):
+    list_page_file_path = os.path.join(
+        project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
+        kebab_module_name, kebab_entity_name, 'update', '[id]', '+page.svelte'
+    )
+    task.print_out(f'Read HTML from: {list_page_file_path}')
+    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add field to update page')
+    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    subst = '\\n'.join([
+        '\\1<div class="mb-4">', 
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '}>', # noqa
+        '\\1</div>',
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        regex, subst, html_content, 0, re.MULTILINE
+    )
+    task.print_out(f'Write modified HTML to: {list_page_file_path}')
+    await write_text_file_async(list_page_file_path, html_content)
 
 
 async def add_column_to_delete_page(
@@ -137,17 +209,17 @@ async def add_column_to_delete_page(
 ):
     list_page_file_path = os.path.join(
         project_dir, 'src', kebab_app_name, 'src', 'frontend', 'src', 'routes',
-        kebab_module_name, kebab_entity_name, 'detail', '[id]', '+page.svelte'
+        kebab_module_name, kebab_entity_name, 'delete', '[id]', '+page.svelte'
     )
     task.print_out(f'Read HTML from: {list_page_file_path}')
     html_content = await read_text_file_async(list_page_file_path)
-    task.print_out('Add column column header to table')
+    task.print_out('Add field to delete page')
     regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
     subst = '\\n'.join([
-        '<div class="mb-4">',
-        f'    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
-        f'    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>', # noqa
-        '</div>',
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>', # noqa
+        '\\1</div>',
         '\\1\\2'
     ])
     html_content = re.sub(
@@ -173,13 +245,13 @@ async def add_column_to_detail_page(
     )
     task.print_out(f'Read HTML from: {list_page_file_path}')
     html_content = await read_text_file_async(list_page_file_path)
-    task.print_out('Add column column header to table')
+    task.print_out('Add field to detail page')
     regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
     subst = '\\n'.join([
-        '<div class="mb-4">',
-        f'    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
-        f'    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>',  # noqa
-        '</div>',
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
+        f'\\1    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>',  # noqa
+        '\\1</div>',
         '\\1\\2'
     ])
     html_content = re.sub(
@@ -205,7 +277,7 @@ async def add_column_to_list_page(
     task.print_out(f'Read HTML from: {list_page_file_path}')
     html_content = await read_text_file_async(list_page_file_path)
     # process header
-    task.print_out('Add column column header to table')
+    task.print_out('Add column header to table')
     header_regex = r"(.*)(<!-- DON'T DELETE: insert new column header here-->)"
     header_subst = '\\n'.join([
         f'\\1<th>{capitalized_human_readable_column_name}</th>',
@@ -215,7 +287,7 @@ async def add_column_to_list_page(
         header_regex, header_subst, html_content, 0, re.MULTILINE
     )
     # process column
-    task.print_out('Add column column to table')
+    task.print_out('Add column to table')
     column_regex = r"(.*)(<!-- DON'T DELETE: insert new column here-->)"
     column_subst = '\\n'.join([
         '\\1<td>{row.' + snake_column_name + '}</td>',
