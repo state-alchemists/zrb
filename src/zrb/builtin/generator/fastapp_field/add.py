@@ -146,8 +146,8 @@ async def add_column_to_delete_page(
     subst = '\\n'.join([
         '<div class="mb-4">',
         f'    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
-        f'    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>',
-        '</div>' # noqa
+        f'    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>', # noqa
+        '</div>',
         '\\1\\2'
     ])
     html_content = re.sub(
@@ -178,8 +178,8 @@ async def add_column_to_detail_page(
     subst = '\\n'.join([
         '<div class="mb-4">',
         f'    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
-        f'    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>',
-        '</div>' # noqa
+        f'    <span id="{kebab_column_name}">' + '{row.' + snake_column_name + '}</span>',  # noqa
+        '</div>',
         '\\1\\2'
     ])
     html_content = re.sub(
