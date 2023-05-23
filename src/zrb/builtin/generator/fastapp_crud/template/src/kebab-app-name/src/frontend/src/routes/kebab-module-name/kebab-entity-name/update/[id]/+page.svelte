@@ -2,7 +2,7 @@
     import axios from 'axios';
 	import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-	import { ensureAccessToken } from '$lib/auth/helper';
+	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
 
     export let data: {id?: string} = {};
@@ -11,10 +11,22 @@
     let isAlertVisible: boolean = false;
     let isSaving: boolean = false;
     let errorMessage: string = '';
+    let allowUpdate: boolean = false;
 
     onMount(async() => {
+        await loadAuthorization();
+        if (!allowUpdate) {
+            goto('/');
+        }
         await loadRow();
     });
+
+    async function loadAuthorization() {
+        const authorization = await getAuthorization([
+            'snake_module_name:snake_entity_name:update',
+        ]);
+        allowUpdate = authorization['snake_module_name:snake_entity_name:update'] || false;
+    }
 
     async function loadRow() {
         const accessToken = await ensureAccessToken();

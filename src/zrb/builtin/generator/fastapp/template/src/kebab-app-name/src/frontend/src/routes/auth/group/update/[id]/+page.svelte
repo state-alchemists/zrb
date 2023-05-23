@@ -5,35 +5,57 @@
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
 
+    export let data: {id?: string} = {};
+
     let row: any = {}
     let isAlertVisible: boolean = false;
     let isSaving: boolean = false;
     let errorMessage: string = '';
-    let allowInsert: boolean = false;
+    let allowUpdate: boolean = false;
 
     onMount(async() => {
         await loadAuthorization();
-        if (!allowInsert) {
+        if (!allowUpdate) {
             goto('/');
         }
+        await loadRow();
     });
 
     async function loadAuthorization() {
         const authorization = await getAuthorization([
-            'snake_module_name:snake_entity_name:insert',
+            'auth:group:update',
         ]);
-        allowInsert = authorization['snake_module_name:snake_entity_name:insert'] || false;
+        allowUpdate = authorization['auth:group:update'] || false;
+    }
+
+    async function loadRow() {
+        const accessToken = await ensureAccessToken();
+        try {
+            const response = await axios.get(
+                `/api/v1/auth/groups/${data.id}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
+            );
+            if (response?.status == 200 && response?.data) {
+                row = response.data;
+                return;
+            }
+            errorMessage = 'Unknown error';
+        } catch(error) {
+            console.error(error);
+            errorMessage = getErrorMessage(error);
+        }
+        isAlertVisible = true;
     }
 
     async function onSaveClick() {
         isSaving = true
         const accessToken = await ensureAccessToken();
         try {
-            const response = await axios.post(
-                '/api/v1/kebab-module-name/kebab-plural-entity-name', row, {headers: {Authorization: `Bearer ${accessToken}`}}
+            const response = await axios.put(
+                `/api/v1/auth/groups/${data.id}`, row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
-                await goto('../');
+                await goto('../../');
                 return;
             }
             errorMessage = 'Unknown error';
@@ -49,14 +71,14 @@
 <h1 class="text-3xl">Book</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">New Book</h2>
+  <h2 class="text-xl font-bold mb-4">Update Book</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
-        <input type="text" class="input w-full" id="kebab-column-name" placeholder="Human readable column name" bind:value={row.snake_column_name}>
+        <label class="block text-gray-700 font-bold mb-2" for="name">Name</label>
+        <input type="text" class="input w-full" id="name" placeholder="Name" bind:value={row.name}>
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>
-    <a href="../" class="btn">Cancel</a>
+    <a href="../../" class="btn">Cancel</a>
 
     <div class="alert alert-error shadow-lg mt-5 {isAlertVisible? 'visible': 'hidden'}">
         <div>

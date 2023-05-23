@@ -31,17 +31,17 @@
 
     async function loadAuthorization() {
         const authorization = await getAuthorization([
-            'snake_module_name:snake_entity_name:get',
-            'snake_module_name:snake_entity_name:get_by_id',
-            'snake_module_name:snake_entity_name:insert',
-            'snake_module_name:snake_entity_name:update',
-            'snake_module_name:snake_entity_name:delete'
+            'auth:group:get',
+            'auth:group:get_by_id',
+            'auth:group:insert',
+            'auth:group:update',
+            'auth:group:delete'
         ]);
-        allowGet = authorization['snake_module_name:snake_entity_name:get'] || false;
-        allowGetById = authorization['snake_module_name:snake_entity_name:get_by_id'] || false;
-        allowInsert = authorization['snake_module_name:snake_entity_name:insert'] || false;
-        allowUpdate = authorization['snake_module_name:snake_entity_name:update'] || false;
-        allowDelete = authorization['snake_module_name:snake_entity_name:delete'] || false;
+        allowGet = authorization['auth:group:get'] || false;
+        allowGetById = authorization['auth:group:get_by_id'] || false;
+        allowInsert = authorization['auth:group:insert'] || false;
+        allowUpdate = authorization['auth:group:update'] || false;
+        allowDelete = authorization['auth:group:delete'] || false;
     }
 
     async function loadRows() {
@@ -50,7 +50,7 @@
             const encodedKeyword = encodeURIComponent(keyword);
             const offset = limit * pageIndex
             const response = await axios.get(
-                `/api/v1/kebab-module-name/kebab-plural-entity-name?limit=${limit}&offset=${offset}&keyword=${encodedKeyword}`,
+                `/api/v1/auth/groups?limit=${limit}&offset=${offset}&keyword=${encodedKeyword}`,
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data) {
@@ -113,7 +113,7 @@
         <thead>
             <tr>
                 <th></th>
-                <th>Human readable column name</th>
+                <th>Name</th>
                 <!-- DON'T DELETE: insert new column header here-->
                 <th></th>
             </tr>
@@ -122,7 +122,7 @@
             {#each rows as row}
                 <tr>
                     <th>{row.id}</th>
-                    <td>{row.snake_column_name}</td>
+                    <td>{row.name}</td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>
                         {#if allowGetById}

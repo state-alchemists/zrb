@@ -44,14 +44,14 @@ async def validate(*args: Any, **kwargs: Any):
         raise Exception(
             f'Automation directory does not exist: {automation_dir}'
         )
-    source_dir = os.path.join(
+    app_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )
-    if not os.path.exists(source_dir):
-        raise Exception(f'Source does not exist: {source_dir}')
-    module_path = os.path.join(source_dir, 'module', snake_module_name)
-    if os.path.exists(module_path):
-        raise Exception(f'Module directory already exists: {module_path}')
+    if not os.path.exists(app_dir):
+        raise Exception(f'App directory does not exist: {app_dir}')
+    module_path = os.path.join(app_dir, 'src', 'module', snake_module_name)
+    if not os.path.exists(module_path):
+        raise Exception(f'Module directory does not exist: {module_path}')
     entity_path = os.path.join(module_path, 'entity', snake_entity_name)
     if os.path.exists(entity_path):
         raise Exception(f'Entity directory already exists: {entity_path}')

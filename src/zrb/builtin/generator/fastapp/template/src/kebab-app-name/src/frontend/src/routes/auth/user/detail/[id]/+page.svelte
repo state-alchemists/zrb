@@ -5,35 +5,37 @@
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
 
-    let row: any = {}
-    let isAlertVisible: boolean = false;
-    let isSaving: boolean = false;
-    let errorMessage: string = '';
-    let allowInsert: boolean = false;
+    export let data: {id?: string} = {};
 
+    let row: any = {};
+    let isAlertVisible: boolean = false;
+    let errorMessage: string = '';
+    let allowGetById: boolean = false;
+ 
     onMount(async() => {
         await loadAuthorization();
-        if (!allowInsert) {
+        if (!allowGetById) {
             goto('/');
         }
+        await loadRow();
     });
 
     async function loadAuthorization() {
         const authorization = await getAuthorization([
-            'snake_module_name:snake_entity_name:insert',
+            'auth:user:get_by_id',
         ]);
-        allowInsert = authorization['snake_module_name:snake_entity_name:insert'] || false;
+        allowGetById = authorization['auth:user:get_by_id'] || false;
     }
 
-    async function onSaveClick() {
-        isSaving = true
+    async function loadRow() {
         const accessToken = await ensureAccessToken();
         try {
-            const response = await axios.post(
-                '/api/v1/kebab-module-name/kebab-plural-entity-name', row, {headers: {Authorization: `Bearer ${accessToken}`}}
+            const response = await axios.get(
+                `/api/v1/auth/users/${data.id}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
             );
-            if (response?.status == 200) {
-                await goto('../');
+            if (response?.status == 200 && response?.data) {
+                row = response.data;
                 return;
             }
             errorMessage = 'Unknown error';
@@ -42,21 +44,18 @@
             errorMessage = getErrorMessage(error);
         }
         isAlertVisible = true;
-        isSaving = false;
     }
 </script>
-
 <h1 class="text-3xl">Book</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">New Book</h2>
+  <h2 class="text-xl font-bold mb-4">Show Book {data.id}</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
-        <input type="text" class="input w-full" id="kebab-column-name" placeholder="Human readable column name" bind:value={row.snake_column_name}>
+        <label class="block text-gray-700 font-bold mb-2" for="username">Username</label>
+        <span id="username">{row.username}</span>
     </div>
     <!-- DON'T DELETE: insert new field here-->
-    <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>
-    <a href="../" class="btn">Cancel</a>
+    <a href="../../" class="btn btn-primary">Show others</a>
 
     <div class="alert alert-error shadow-lg mt-5 {isAlertVisible? 'visible': 'hidden'}">
         <div>

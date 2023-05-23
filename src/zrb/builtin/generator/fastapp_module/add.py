@@ -30,6 +30,7 @@ current_dir = os.path.dirname(__file__)
 @python_task(
     name='validate',
     inputs=[project_dir_input, app_name_input, module_name_input],
+    retry=0,
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
@@ -44,12 +45,12 @@ async def validate(*args: Any, **kwargs: Any):
         raise Exception(
             f'Automation directory does not exist: {automation_dir}'
         )
-    source_dir = os.path.join(
+    app_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )
-    if not os.path.exists(source_dir):
-        raise Exception(f'Source does not exist: {source_dir}')
-    module_path = os.path.join(source_dir, 'module', snake_module_name)
+    if not os.path.exists(app_dir):
+        raise Exception(f'App directory does not exist: {app_dir}')
+    module_path = os.path.join(app_dir, 'src', 'module', snake_module_name)
     if os.path.exists(module_path):
         raise Exception(f'Module directory already exists: {module_path}')
 

@@ -663,7 +663,8 @@ class BaseTask(TaskModel):
         self.log_info('Task is ready')
         if show_info:
             if show_advertisement:
-                get_advertisement(advertisements).show()
+                selected_advertisement = get_advertisement(advertisements)
+                selected_advertisement.show()
             self.show_done_info()
             self.show_run_command()
         return True

@@ -1,7 +1,8 @@
 <script lang="ts">
     import axios from 'axios';
 	import { onMount } from 'svelte';
-	import { ensureAccessToken } from '$lib/auth/helper';
+    import { goto } from '$app/navigation';
+	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
 
     export let data: {id?: string} = {};
@@ -9,10 +10,22 @@
     let row: any = {};
     let isAlertVisible: boolean = false;
     let errorMessage: string = '';
+    let allowGetById: boolean = false;
  
     onMount(async() => {
+        await loadAuthorization();
+        if (!allowGetById) {
+            goto('/');
+        }
         await loadRow();
     });
+
+    async function loadAuthorization() {
+        const authorization = await getAuthorization([
+            'snake_module_name:snake_entity_name:get_by_id',
+        ]);
+        allowGetById = authorization['snake_module_name:snake_entity_name:get_by_id'] || false;
+    }
 
     async function loadRow() {
         const accessToken = await ensureAccessToken();

@@ -20,9 +20,9 @@
 
     async function loadAuthorization() {
         const authorization = await getAuthorization([
-            'snake_module_name:snake_entity_name:insert',
+            'auth:permission:insert',
         ]);
-        allowInsert = authorization['snake_module_name:snake_entity_name:insert'] || false;
+        allowInsert = authorization['auth:permission:insert'] || false;
     }
 
     async function onSaveClick() {
@@ -30,7 +30,7 @@
         const accessToken = await ensureAccessToken();
         try {
             const response = await axios.post(
-                '/api/v1/kebab-module-name/kebab-plural-entity-name', row, {headers: {Authorization: `Bearer ${accessToken}`}}
+                '/api/v1/auth/permissions', row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
                 await goto('../');
@@ -51,8 +51,8 @@
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
   <h2 class="text-xl font-bold mb-4">New Book</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
-        <input type="text" class="input w-full" id="kebab-column-name" placeholder="Human readable column name" bind:value={row.snake_column_name}>
+        <label class="block text-gray-700 font-bold mb-2" for="name">Name</label>
+        <input type="text" class="input w-full" id="name" placeholder="Name" bind:value={row.name}>
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>

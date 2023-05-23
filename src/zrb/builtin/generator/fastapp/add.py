@@ -37,11 +37,11 @@ async def validate(*args: Any, **kwargs: Any):
         raise Exception(
             f'Automation directory already exists: {automation_dir}'
         )
-    source_dir = os.path.join(
+    app_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )
-    if os.path.exists(source_dir):
-        raise Exception(f'Source already exists: {source_dir}')
+    if os.path.exists(app_dir):
+        raise Exception(f'App directory already exists: {app_dir}')
 
 
 copy_resource = ResourceMaker(
