@@ -76,7 +76,7 @@
     }
 </script>
 
-<h1 class="text-3xl">Book</h1>
+<h1 class="text-3xl">Human readable entity name</h1>
 <div class="overflow-x-auto">
 
     <div class="flex items-center mb-5 mt-5">

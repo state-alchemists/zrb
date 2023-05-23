@@ -76,7 +76,7 @@
     }
 </script>
 
-<h1 class="text-3xl">Book</h1>
+<h1 class="text-3xl">Group</h1>
 <div class="overflow-x-auto">
 
     <div class="flex items-center mb-5 mt-5">
@@ -114,6 +114,7 @@
             <tr>
                 <th></th>
                 <th>Name</th>
+                <th>Description</th>
                 <!-- DON'T DELETE: insert new column header here-->
                 <th></th>
             </tr>
@@ -123,6 +124,7 @@
                 <tr>
                     <th>{row.id}</th>
                     <td>{row.name}</td>
+                    <td>{row.description}</td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>
                         {#if allowGetById}
