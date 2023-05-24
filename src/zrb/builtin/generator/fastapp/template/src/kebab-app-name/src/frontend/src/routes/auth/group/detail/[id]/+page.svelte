@@ -49,7 +49,7 @@
 <h1 class="text-3xl">Group</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">Show Book {data.id}</h2>
+  <h2 class="text-xl font-bold mb-4">Show Group {data.id}</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="name">Name</label>
         <span id="name">{row.name}</span>

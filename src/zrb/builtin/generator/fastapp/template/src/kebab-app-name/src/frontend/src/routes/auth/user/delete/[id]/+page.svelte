@@ -68,7 +68,7 @@
 <h1 class="text-3xl">User</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">Delete Book {data.id}</h2>
+  <h2 class="text-xl font-bold mb-4">Delete User {data.id}</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="username">Username</label>
         <span id="username">{row.username}</span>
