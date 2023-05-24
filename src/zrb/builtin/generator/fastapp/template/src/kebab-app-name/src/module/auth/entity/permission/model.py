@@ -1,4 +1,5 @@
-from core.model import RepoModel
+from core.messagebus.messagebus import Publisher
+from module.log.core.historical_repo_model import HistoricalRepoModel
 from module.auth.schema.permission import (
     Permission, PermissionData, PermissionResult
 )
@@ -6,12 +7,13 @@ from module.auth.entity.permission.repo import PermissionRepo
 
 
 class PermissionModel(
-    RepoModel[Permission, PermissionData, PermissionResult]
+    HistoricalRepoModel[Permission, PermissionData, PermissionResult]
 ):
     schema_result_cls = PermissionResult
+    log_entity_name = 'permission'
 
-    def __init__(self, repo: PermissionRepo):
-        self.repo = repo
+    def __init__(self, repo: PermissionRepo, publisher: Publisher):
+        super().__init__(repo, publisher)
 
     async def ensure_permission(self, data: PermissionData):
         try:

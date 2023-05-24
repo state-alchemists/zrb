@@ -13,9 +13,6 @@
     let errorMessage: string = '';
     let allowGet: boolean = false;
     let allowGetById: boolean = false;
-    let allowInsert: boolean = false;
-    let allowUpdate: boolean = false;
-    let allowDelete: boolean = false;
 
     let limitOptions: Array<number> = [5, 10, 30, 50, 100];
     let pageIndexes: Array<number> = [];
@@ -33,15 +30,9 @@
         const authorization = await getAuthorization([
             'log:activity:get',
             'log:activity:get_by_id',
-            'log:activity:insert',
-            'log:activity:update',
-            'log:activity:delete'
         ]);
         allowGet = authorization['log:activity:get'] || false;
         allowGetById = authorization['log:activity:get_by_id'] || false;
-        allowInsert = authorization['log:activity:insert'] || false;
-        allowUpdate = authorization['log:activity:update'] || false;
-        allowDelete = authorization['log:activity:delete'] || false;
     }
 
     async function loadRows() {
@@ -74,6 +65,17 @@
         pageIndex = index;
         await loadRows();
     }
+
+    function toObject(jsonString: string | undefined): object {
+        try {
+            if (jsonString) {
+                return JSON.parse(jsonString);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+        return {};
+    }
 </script>
 
 <h1 class="text-3xl">Activity</h1>
@@ -96,9 +98,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
         </button>
-        {#if allowInsert}
-            <a class="btn ml-5" href="./new">New</a>
-        {/if}
     </div>
 
     <div class="alert alert-error shadow-lg mt-5 mb-5 {isAlertVisible? 'visible': 'hidden'}">
@@ -126,17 +125,15 @@
                     <th>{row.id}</th>
                     <td>{row.action}</td>
                     <td>{row.entity}</td>
-                    <td>{row.data}</td>
+                    <td>
+                        {#each Object.entries(toObject(row.data)) as [key, value]}
+                            <li><b>{key}:</b> {value}</li>
+                        {/each}
+                    </td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>
                         {#if allowGetById}
                             <a class="btn" href="./detail/{row.id}">Detail</a>
-                        {/if}
-                        {#if allowUpdate}
-                            <a class="btn" href="./update/{row.id}">Update</a>
-                        {/if}
-                        {#if allowDelete}
-                            <a class="btn btn-accent" href="./delete/{row.id}">Delete</a>
                         {/if}
                     </td>
                 </tr>

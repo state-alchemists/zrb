@@ -45,6 +45,17 @@
         }
         isAlertVisible = true;
     }
+
+    function toObject(jsonString: string | undefined): object {
+        try {
+            if (jsonString) {
+                return JSON.parse(jsonString);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+        return {};
+    }
 </script>
 <h1 class="text-3xl">Activity</h1>
 
@@ -60,7 +71,11 @@
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="data">Data</label>
-        <span id="data">{row.data}</span>
+        <span id="data">
+            {#each Object.entries(toObject(row.data)) as [key, value]}
+                <li><b>{key}:</b> {value}</li>
+            {/each}
+        </span>
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="../../" class="btn btn-primary">Show others</a>
