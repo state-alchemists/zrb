@@ -27,3 +27,6 @@ async def register_permission():
     await ensure_entity_permission(
         module_name='auth', entity_name='user'
     )
+    await ensure_entity_permission(
+        module_name='log', entity_name='activity'
+    )

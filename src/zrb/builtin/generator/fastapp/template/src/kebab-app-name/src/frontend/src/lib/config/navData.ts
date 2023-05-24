@@ -11,4 +11,11 @@ export const navData: SingleNavData[] = [
             {title: 'User', url: '/auth/user', permission: 'auth:user:get'},
         ]
     },
+    {
+        title: 'Log',
+        url: '#',
+        submenus: [
+            {title: 'Activity', url: '/log/activity', permission: 'log:activity:get'},
+        ]
+    },
 ]

@@ -193,3 +193,38 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+
+  kebab-app-name-log:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
+    image: ${IMAGE:-fastapp}
+    container_name: fastapp_log
+    hostname: snake_app_name_log
+    env_file:
+    - src/template.env
+    - all-module-disabled.env
+    environment:
+      APP_NAME: ${APP_NAME:-fastapp}-log-service
+      APP_PORT: ${APP_LOG_MODULE_PORT:-8083}
+      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
+      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
+      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/fastapp}
+      APP_ENABLE_MESSAGE_CONSUMER: 'true'
+      APP_ENABLE_RPC_SERVER: 'true'
+      APP_ENABLE_API: 'false'
+      APP_ENABLE_FRONTEND: 'false'
+      APP_ENABLE_LOG_MODULE: 'true'
+    ports:
+    - ${APP_LOG_HOST_MODULE_PORT:-8082}:${APP_LOG_MODULE_PORT:-8082}
+    restart: on-failure
+    profiles:
+    - microservices
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl --fail http://localhost:${APP_PORT:-8080}/readiness || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10

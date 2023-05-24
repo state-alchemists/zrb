@@ -117,3 +117,6 @@ cors_max_age: int = int(os.getenv(
 app_enable_auth_module = str_to_boolean(os.environ.get(
     'APP_ENABLE_AUTH_MODULE', 'true'
 ))
+app_enable_log_module = str_to_boolean(os.environ.get(
+    'APP_ENABLE_LOG_MODULE', 'true'
+))
