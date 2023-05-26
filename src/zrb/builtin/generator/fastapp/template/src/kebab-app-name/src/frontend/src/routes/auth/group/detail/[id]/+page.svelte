@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
+	import ArrayOfObjectUlView from '$lib/components/arrayOfObject/arrayOfObjectUlView.svelte';
 
     export let data: {id?: string} = {};
 
@@ -53,6 +54,10 @@
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="name">Name</label>
         <span id="name">{row.name}</span>
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="permissions">Permissions</label>
+        <ArrayOfObjectUlView id="permissions" class="list-disc" data={row.permissions} captionKey="name" />
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="description">Description</label>

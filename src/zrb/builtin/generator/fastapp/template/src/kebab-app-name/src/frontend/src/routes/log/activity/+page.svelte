@@ -66,7 +66,7 @@
         await loadRows();
     }
 
-    function toObject(jsonString: string | undefined): object {
+    function strToObject(jsonString: string | undefined): object {
         try {
             if (jsonString) {
                 return JSON.parse(jsonString);
@@ -126,9 +126,11 @@
                     <td>{row.action}</td>
                     <td>{row.entity}</td>
                     <td>
-                        {#each Object.entries(toObject(row.data)) as [key, value]}
-                            <li><b>{key}:</b> {value}</li>
-                        {/each}
+                        <ul class="list-disc">
+                            {#each Object.entries(strToObject(row.data)) as [key, value]}
+                                <li><b>{key}:</b> {value}</li>
+                            {/each}
+                        </ul>
                     </td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>

@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
 	import { getErrorMessage } from '$lib/error/helper';
+	import ArrayOfObjectUlView from '$lib/components/arrayOfObject/arrayOfObjectUlView.svelte';
 
     let limit: number = 5;
     let pageIndex: number = 0;
@@ -123,7 +124,12 @@
             {#each rows as row}
                 <tr>
                     <th>{row.id}</th>
-                    <td>{row.name}</td>
+                    <td>
+                        {row.name}
+                        {#if row.permissions && row.permissions.length > 0 }
+                            <ArrayOfObjectUlView class="list-disc" data={row.permissions} captionKey="name" />
+                        {/if}
+                    </td>
                     <td>{row.description}</td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>

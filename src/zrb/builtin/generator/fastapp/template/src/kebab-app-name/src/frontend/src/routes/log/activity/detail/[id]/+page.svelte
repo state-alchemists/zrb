@@ -46,7 +46,7 @@
         isAlertVisible = true;
     }
 
-    function toObject(jsonString: string | undefined): object {
+    function strToObject(jsonString: string | undefined): object {
         try {
             if (jsonString) {
                 return JSON.parse(jsonString);
@@ -72,9 +72,11 @@
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="data">Data</label>
         <span id="data">
-            {#each Object.entries(toObject(row.data)) as [key, value]}
-                <li><b>{key}:</b> {value}</li>
-            {/each}
+            <ul class="list-disc">
+                {#each Object.entries(strToObject(row.data)) as [key, value]}
+                    <li><b>{key}:</b> {typeof(value) == 'object' ? JSON.stringify(value) : value}</li>
+                {/each}
+            </ul>
         </span>
     </div>
     <!-- DON'T DELETE: insert new field here-->
