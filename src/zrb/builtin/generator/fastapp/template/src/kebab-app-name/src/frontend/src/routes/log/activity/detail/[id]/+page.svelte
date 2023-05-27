@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
+    import JsonView from '$lib/components/json/jsonView.svelte';
 
     export let data: {id?: string} = {};
 
@@ -45,17 +46,6 @@
         }
         isAlertVisible = true;
     }
-
-    function strToObject(jsonString: string | undefined): object {
-        try {
-            if (jsonString) {
-                return JSON.parse(jsonString);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-        return {};
-    }
 </script>
 <h1 class="text-3xl">Activity</h1>
 
@@ -71,13 +61,7 @@
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="data">Data</label>
-        <span id="data">
-            <ul class="list-disc">
-                {#each Object.entries(strToObject(row.data)) as [key, value]}
-                    <li><b>{key}:</b> {typeof(value) == 'object' ? JSON.stringify(value) : value}</li>
-                {/each}
-            </ul>
-        </span>
+        <JsonView id="data" class="overflow-x-auto" data={row.data ? JSON.parse(row.data): ''} />
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="../../" class="btn btn-primary">Show others</a>

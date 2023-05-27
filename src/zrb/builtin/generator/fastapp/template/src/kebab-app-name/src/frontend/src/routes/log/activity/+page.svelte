@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
 	import { getErrorMessage } from '$lib/error/helper';
+    import JsonView from '$lib/components/json/jsonView.svelte';
 
     let limit: number = 5;
     let pageIndex: number = 0;
@@ -65,17 +66,6 @@
         pageIndex = index;
         await loadRows();
     }
-
-    function strToObject(jsonString: string | undefined): object {
-        try {
-            if (jsonString) {
-                return JSON.parse(jsonString);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-        return {};
-    }
 </script>
 
 <h1 class="text-3xl">Activity</h1>
@@ -125,13 +115,7 @@
                     <th>{row.id}</th>
                     <td>{row.action}</td>
                     <td>{row.entity}</td>
-                    <td>
-                        <ul class="list-disc">
-                            {#each Object.entries(strToObject(row.data)) as [key, value]}
-                                <li><b>{key}:</b> {value}</li>
-                            {/each}
-                        </ul>
-                    </td>
+                    <td><JsonView class="overflow-x-auto" data={row.data ? JSON.parse(row.data): ''} /></td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>
                         {#if allowGetById}

@@ -127,7 +127,7 @@
                     <td>
                         {row.name}
                         {#if row.permissions && row.permissions.length > 0 }
-                            <ArrayOfObjectUlView class="list-disc" data={row.permissions} captionKey="name" />
+                            <ArrayOfObjectUlView class="list-disc list-inside" data={row.permissions} captionKey="name" />
                         {/if}
                     </td>
                     <td>{row.description}</td>
