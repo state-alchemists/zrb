@@ -4,7 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
 	import { getErrorMessage } from '$lib/error/helper';
-	import ArrayOfObjectBadges from '$lib/components/arrayOfObject/arrayOfObjectBadges.svelte';
+	import ArrayOfObjectDiv from '$lib/components/arrayOfObject/arrayOfObjectDiv.svelte';
 
     let limit: number = 5;
     let pageIndex: number = 0;
@@ -115,6 +115,7 @@
             <tr>
                 <th></th>
                 <th>Name</th>
+                <th>Permissions</th>
                 <th>Description</th>
                 <!-- DON'T DELETE: insert new column header here-->
                 <th></th>
@@ -124,11 +125,9 @@
             {#each rows as row}
                 <tr>
                     <th>{row.id}</th>
+                    <td>{row.name}</td>
                     <td>
-                        {row.name}
-                        {#if row.permissions && row.permissions.length > 0 }
-                            <ArrayOfObjectBadges class="badge badge-outline" data={row.permissions} captionKey="name" />
-                        {/if}
+                        <ArrayOfObjectDiv class="badge badge-outline mr-2" data={row.permissions} captionKey="name" />
                     </td>
                     <td>{row.description}</td>
                     <!-- DON'T DELETE: insert new column here-->

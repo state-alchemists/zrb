@@ -14,7 +14,6 @@
         data.map((row) => rowToStr(row)).join(separator)
     }
 </script>
-{dataToStr(data)}
-    {#each data as row}
-        <span class="badge" {...$$restProps}>{rowToStr(row)}</span>
-    {/each}
+{#each data as row}
+    <div class="badge" {...$$restProps}>{rowToStr(row)}</div>
+{/each}

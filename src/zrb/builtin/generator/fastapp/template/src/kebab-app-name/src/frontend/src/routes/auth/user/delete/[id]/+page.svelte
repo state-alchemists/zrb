@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
+	import ArrayOfObjectUl from '$lib/components/arrayOfObject/arrayOfObjectUl.svelte';
 
     export let data: {id?: string} = {};
 
@@ -80,6 +81,14 @@
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="email">Email</label>
         <span id="email">{row.email}</span>
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="groups">Groups</label>
+        <ArrayOfObjectUl id="groups" class="list-disc list-inside" data={row.groups} captionKey="name" />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="permissions">Permissions</label>
+        <ArrayOfObjectUl id="permissions" class="list-disc list-inside" data={row.permissions} captionKey="name" />
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="description">Description</label>

@@ -101,7 +101,7 @@
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="permissions">Permissions</label>
-        <ArrayOfObjectCheckboxes class="input w-full input-bordered w-full max-w-xs" id="permissions" valueKey="id" captionKey="name" caption="Permissions" placeholder="Type permission" fetchOptions={fetchPermissions} bind:value={row.permissions} />
+        <ArrayOfObjectCheckboxes class="input w-full input-bordered w-full max-w-xs" id="permissions" valueKey="id" captionKey="name" caption="Permissions" placeholder="Filter permissions" fetchOptions={fetchPermissions} bind:value={row.permissions} />
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="description">Description</label>
