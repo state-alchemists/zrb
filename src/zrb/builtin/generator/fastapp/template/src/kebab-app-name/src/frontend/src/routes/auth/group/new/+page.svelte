@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
+    import ArrayOfObjectCheckboxes from '$lib/components/arrayOfObject/input/arrayOfObjectCheckboxes.svelte';
 
     let row: any = {}
     let isAlertVisible: boolean = false;
@@ -44,6 +45,26 @@
         isAlertVisible = true;
         isSaving = false;
     }
+
+    async function fetchPermissions(keyword: string): Promise<any[]> {
+        const accessToken = await ensureAccessToken();
+        try {
+            const encodedKeyword = encodeURIComponent(keyword);
+            const response = await axios.get(
+                `/api/v1/auth/permissions?limit=30&keyword=${encodedKeyword}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
+            );
+            if (response?.status == 200 && response?.data?.data) {
+                return response.data.data;
+            }
+            errorMessage = 'Unknown error';
+        } catch(error) {
+            console.error(error);
+            errorMessage = getErrorMessage(error);
+        }
+        isAlertVisible = true;
+        return [];
+    }
 </script>
 
 <h1 class="text-3xl">Group</h1>
@@ -52,11 +73,15 @@
   <h2 class="text-xl font-bold mb-4">New Group</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="name">Name</label>
-        <input type="text" class="input w-full" id="name" placeholder="Name" bind:value={row.name}>
+        <input type="text" class="input w-full" id="name" placeholder="Name" bind:value={row.name} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="permissions">Permissions</label>
+        <ArrayOfObjectCheckboxes class="input w-full input-bordered w-full max-w-xs" id="permissions" valueKey="id" captionKey="name" caption="Permissions" placeholder="Type permission" fetchOptions={fetchPermissions} bind:value={row.permissions} />
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="description">Description</label>
-        <input type="text" class="input w-full" id="description" placeholder="Description" bind:value={row.description}>
+        <input type="text" class="input w-full" id="description" placeholder="Description" bind:value={row.description} />
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>

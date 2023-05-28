@@ -4,7 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
 	import { getErrorMessage } from '$lib/error/helper';
-	import ArrayOfObjectUlView from '$lib/components/arrayOfObject/arrayOfObjectUlView.svelte';
+	import ArrayOfObjectBadges from '$lib/components/arrayOfObject/arrayOfObjectBadges.svelte';
 
     let limit: number = 5;
     let pageIndex: number = 0;
@@ -127,7 +127,7 @@
                     <td>
                         {row.name}
                         {#if row.permissions && row.permissions.length > 0 }
-                            <ArrayOfObjectUlView class="list-disc list-inside" data={row.permissions} captionKey="name" />
+                            <ArrayOfObjectBadges class="badge badge-outline" data={row.permissions} captionKey="name" />
                         {/if}
                     </td>
                     <td>{row.description}</td>
