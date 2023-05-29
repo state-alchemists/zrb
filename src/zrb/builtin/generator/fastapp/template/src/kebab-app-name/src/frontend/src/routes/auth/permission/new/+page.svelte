@@ -52,11 +52,11 @@
   <h2 class="text-xl font-bold mb-4">New Permission</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="name">Name</label>
-        <input type="text" class="input w-full" id="name" placeholder="Name" bind:value={row.name}>
+        <input type="text" class="input w-full" id="name" placeholder="Name" bind:value={row.name} />
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="description">Description</label>
-        <input type="text" class="input w-full" id="description" placeholder="Description" bind:value={row.description}>
+        <input type="text" class="input w-full" id="description" placeholder="Description" bind:value={row.description} />
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>

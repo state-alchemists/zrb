@@ -77,22 +77,18 @@ class UserDBRepo(
     def _schema_data_to_db_entity_map(
         self, db: Session, user_data: UserData
     ) -> Mapping[str, Any]:
-        return {
-            'username': user_data.username,
-            'phone': user_data.phone,
-            'email': user_data.email,
-            'hashed_password': self.password_hasher.hash_password(
+        db_entity_map = super()._schema_data_to_db_entity_map(db, user_data)
+        # Transform permissions
+        db_entity_map['permissions'] = db.query(DBEntityPermission).filter(
+            DBEntityPermission.id.in_(user_data.permissions)
+        ).all()
+        # Transform groups
+        db_entity_map['groups'] = db.query(DBEntityGroup).filter(
+            DBEntityGroup.id.in_(user_data.groups)
+        ).all()
+        # add hashed password if necessary
+        if user_data.password != '':
+            db_entity_map['hashed_password'] = self.password_hasher.hash_password( # noqa
                 user_data.password
-            ),
-            'description': user_data.description,
-            'permissions': db.query(DBEntityPermission).filter(
-                DBEntityPermission.id.in_(user_data.permissions)
-            ).all(),
-            'groups': db.query(DBEntityGroup).filter(
-                DBEntityGroup.id.in_(user_data.groups)
-            ).all(),
-            'created_at': user_data.created_at,
-            'created_by': user_data.created_by,
-            'updated_at': user_data.updated_at,
-            'updated_by': user_data.updated_by,
-        }
+            )
+        return db_entity_map

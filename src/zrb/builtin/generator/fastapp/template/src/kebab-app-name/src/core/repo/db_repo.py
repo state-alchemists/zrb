@@ -27,7 +27,6 @@ class DBRepo(Repo[Schema, SchemaData]):
         self.logger = logger
         self.engine = engine
         self.db_entity_attribute_names: List[str] = dir(self.db_entity_cls)
-        self.schema_attribute_names: List[str] = dir(self.schema_cls)
         self._keyword_fields: Optional[List[InstrumentedAttribute]] = None
 
     async def get_by_id(self, id: str) -> Schema:

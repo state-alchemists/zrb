@@ -154,7 +154,7 @@ async def add_column_to_insert_page(
     subst = '\\n'.join([
         '\\1<div class="mb-4">',
         f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
-        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '}>', # noqa
+        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '} />', # noqa
         '\\1</div>',
         '\\1\\2'
     ])
@@ -184,9 +184,9 @@ async def add_column_to_update_page(
     task.print_out('Add field to update page')
     regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
     subst = '\\n'.join([
-        '\\1<div class="mb-4">', 
+        '\\1<div class="mb-4">',
         f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
-        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '}>', # noqa
+        f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '} />', # noqa
         '\\1</div>',
         '\\1\\2'
     ])

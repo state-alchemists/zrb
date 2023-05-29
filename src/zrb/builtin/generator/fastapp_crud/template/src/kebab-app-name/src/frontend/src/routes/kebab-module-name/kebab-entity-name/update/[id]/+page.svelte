@@ -74,7 +74,7 @@
   <h2 class="text-xl font-bold mb-4">Update Human readable entity name</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
-        <input type="text" class="input w-full" id="kebab-column-name" placeholder="Human readable column name" bind:value={row.snake_column_name}>
+        <input type="text" class="input w-full" id="kebab-column-name" placeholder="Human readable column name" bind:value={row.snake_column_name} />
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>
