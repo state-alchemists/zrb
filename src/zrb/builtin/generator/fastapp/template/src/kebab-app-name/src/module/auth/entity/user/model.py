@@ -1,5 +1,6 @@
 from typing import Optional, List, Mapping
-from core.model import RepoModel
+from core.messagebus.messagebus import Publisher
+from module.log.core.historical_repo_model import HistoricalRepoModel
 from module.auth.schema.user import (
     User, UserData, UserResult, UserLogin
 )
@@ -12,13 +13,15 @@ from module.auth.entity.permission.model import PermissionModel
 
 
 class UserModel(
-    RepoModel[User, UserData, UserResult]
+    HistoricalRepoModel[User, UserData, UserResult]
 ):
     schema_result_cls = UserResult
+    log_entity_name = 'user'
 
     def __init__(
         self,
         repo: UserRepo,
+        publisher: Publisher,
         permission_model: PermissionModel,
         access_token_util: AccessTokenUtil,
         access_token_expire_seconds: int,
@@ -28,7 +31,7 @@ class UserModel(
         admin_user: Optional[User] = None,
         admin_user_password: str = ''
     ):
-        self.repo = repo
+        super().__init__(repo, publisher)
         self.permission_model = permission_model
         self.access_token_util = access_token_util
         self.access_token_expire_seconds = access_token_expire_seconds

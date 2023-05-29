@@ -59,7 +59,8 @@ copy_resource = ResourceMaker(
         'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
         'ENV_PREFIX': '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         'app-image-name': '{{input.app_image_name}}',
-        'httpAuthPort': '{{util.coalesce(input.http_port, "3000") + 1}}'
+        'httpAuthPort': '{{util.coalesce(input.http_port, "3000") + 1}}',
+        'httpLogPort': '{{util.coalesce(input.http_port, "3000") + 2}}'
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',

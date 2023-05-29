@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
     import { getErrorMessage } from '$lib/error/helper';
+    import ArrayOfObjectCheckboxes from '$lib/components/arrayOfObject/input/arrayOfObjectCheckboxes.svelte';
 
     let row: any = {}
     let isAlertVisible: boolean = false;
@@ -44,15 +45,79 @@
         isAlertVisible = true;
         isSaving = false;
     }
+
+    async function fetchPermissions(keyword: string): Promise<any[]> {
+        const accessToken = await ensureAccessToken();
+        try {
+            const encodedKeyword = encodeURIComponent(keyword);
+            const response = await axios.get(
+                `/api/v1/auth/permissions?limit=30&keyword=${encodedKeyword}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
+            );
+            if (response?.status == 200 && response?.data?.data) {
+                return response.data.data;
+            }
+            errorMessage = 'Unknown error';
+        } catch(error) {
+            console.error(error);
+            errorMessage = getErrorMessage(error);
+        }
+        isAlertVisible = true;
+        return [];
+    }
+
+    async function fetchGroups(keyword: string): Promise<any[]> {
+        const accessToken = await ensureAccessToken();
+        try {
+            const encodedKeyword = encodeURIComponent(keyword);
+            const response = await axios.get(
+                `/api/v1/auth/groups?limit=30&keyword=${encodedKeyword}`,
+                {headers: {Authorization: `Bearer ${accessToken}`}}
+            );
+            if (response?.status == 200 && response?.data?.data) {
+                return response.data.data;
+            }
+            errorMessage = 'Unknown error';
+        } catch(error) {
+            console.error(error);
+            errorMessage = getErrorMessage(error);
+        }
+        isAlertVisible = true;
+        return [];
+    }
 </script>
 
-<h1 class="text-3xl">Book</h1>
+<h1 class="text-3xl">User</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">New Book</h2>
+  <h2 class="text-xl font-bold mb-4">New User</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="username">Username</label>
-        <input type="text" class="input w-full" id="username" placeholder="Username" bind:value={row.username}>
+        <input type="text" class="input w-full" id="username" placeholder="Username" bind:value={row.username} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="phone">Phone</label>
+        <input type="text" class="input w-full" id="phone" placeholder="phone" bind:value={row.phone} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="email">Email</label>
+        <input type="email" class="input w-full" id="email" placeholder="email" bind:value={row.email} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="password">Password</label>
+        <input type="password" class="input w-full" id="password" placeholder="password" bind:value={row.password} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="groups">Groups</label>
+        <ArrayOfObjectCheckboxes class="input w-full input-bordered max-w-xs" id="groups" valueKey="id" captionKey="name" caption="Groups" placeholder="Filter groups" fetchOptions={fetchGroups} bind:value={row.groups} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="permissions">Permissions</label>
+        <ArrayOfObjectCheckboxes class="input w-full input-bordered max-w-xs" id="permissions" valueKey="id" captionKey="name" caption="Permissions" placeholder="Filter permissions" fetchOptions={fetchPermissions} bind:value={row.permissions} />
+    </div>
+    <div class="mb-4">
+        <label class="block text-gray-700 font-bold mb-2" for="description">Description</label>
+        <input type="text" class="input w-full" id="description" placeholder="Description" bind:value={row.description} />
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="#top" class="btn btn-primary {isSaving ? 'btn-disabled': '' }" on:click={onSaveClick}>Save</a>

@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
 	import { ensureAccessToken, getAuthorization } from '$lib/auth/helper';
 	import { getErrorMessage } from '$lib/error/helper';
+	import ArrayOfObjectDiv from '$lib/components/arrayOfObject/arrayOfObjectDiv.svelte';
 
     let limit: number = 5;
     let pageIndex: number = 0;
@@ -76,7 +77,7 @@
     }
 </script>
 
-<h1 class="text-3xl">Book</h1>
+<h1 class="text-3xl">User</h1>
 <div class="overflow-x-auto">
 
     <div class="flex items-center mb-5 mt-5">
@@ -114,6 +115,11 @@
             <tr>
                 <th></th>
                 <th>Username</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Groups</th>
+                <th>Permissions</th>
+                <th>Description</th>
                 <!-- DON'T DELETE: insert new column header here-->
                 <th></th>
             </tr>
@@ -123,6 +129,15 @@
                 <tr>
                     <th>{row.id}</th>
                     <td>{row.username}</td>
+                    <td>{row.phone}</td>
+                    <td>{row.email}</td>
+                    <td>
+                        <ArrayOfObjectDiv class="badge badge-outline mr-2" data={row.groups} captionKey="name" />
+                    </td>
+                    <td>
+                        <ArrayOfObjectDiv class="badge badge-outline mr-2" data={row.permissions} captionKey="name" />
+                    </td>
+                    <td>{row.description}</td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>
                         {#if allowGetById}

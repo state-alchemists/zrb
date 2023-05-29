@@ -16,7 +16,6 @@ class UserBase(BaseDateTimeSchema):
 
 class UserData(UserBase):
     password: str
-    groups: List[str]
 
 
 class User(UserBase):

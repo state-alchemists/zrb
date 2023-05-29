@@ -118,11 +118,12 @@ start_snake_app_name_gateway = CmdTask(
     env_files=[
        EnvFile(
             env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
-        ), 
+        ),
     ],
     envs=[
         local_app_broker_type_env,
         local_app_port_env,
+        Env(name='APP_DB_AUTO_MIGRATE', default='false', os_name=''),
         Env(name='APP_ENABLE_MESSAGE_CONSUMER', default='false', os_name=''),
         Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),
     ],

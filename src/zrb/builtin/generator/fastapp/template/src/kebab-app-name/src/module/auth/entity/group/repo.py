@@ -32,14 +32,9 @@ class GroupDBRepo(
     def _schema_data_to_db_entity_map(
         self, db: Session, group_data: GroupData
     ) -> Mapping[str, Any]:
-        return {
-            'name': group_data.name,
-            'description': group_data.description,
-            'permissions': db.query(DBEntityPermission).filter(
-                DBEntityPermission.id.in_(group_data.permissions)
-            ).all(),
-            'created_at': group_data.created_at,
-            'created_by': group_data.created_by,
-            'updated_at': group_data.updated_at,
-            'updated_by': group_data.updated_by,
-        }
+        db_entity_map = super()._schema_data_to_db_entity_map(db, group_data)
+        # Transform permissions
+        db_entity_map['permissions'] = db.query(DBEntityPermission).filter(
+            DBEntityPermission.id.in_(group_data.permissions)
+        ).all()
+        return db_entity_map

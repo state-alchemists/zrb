@@ -191,7 +191,7 @@ def _get_new_docker_compose_service_definition(
                 'context': './src'
             },
             'image': '${IMAGE:-' + kebab_app_name + '}',
-            'container_name': f'{snake_app_name}_{snake_module_name}',
+            'container_name': f'{snake_app_name}_{snake_module_name}_service',
             'hostname': f'snake_app_name_{snake_module_name}',
             'env_file': [
                 'src/template.env',

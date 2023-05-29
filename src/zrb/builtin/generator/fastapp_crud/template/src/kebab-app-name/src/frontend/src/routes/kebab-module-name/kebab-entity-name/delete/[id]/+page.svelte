@@ -65,10 +65,10 @@
         isAlertVisible = true;
     }
 </script>
-<h1 class="text-3xl">Book</h1>
+<h1 class="text-3xl">Human readable entity name</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">Delete Book {data.id}</h2>
+  <h2 class="text-xl font-bold mb-4">Delete Human readable entity name {data.id}</h2>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="kebab-column-name">Human readable column name</label>
         <span id="kebab-column-name">{row.snake_column_name}</span>
