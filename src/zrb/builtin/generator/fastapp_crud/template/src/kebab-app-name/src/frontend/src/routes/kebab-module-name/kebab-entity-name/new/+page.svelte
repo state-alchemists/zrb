@@ -16,6 +16,8 @@
         if (!allowInsert) {
             goto('/');
         }
+        row.snake_column_name = '';
+        // DON'T DELETE: set field default value here
     });
 
     async function loadAuthorization() {

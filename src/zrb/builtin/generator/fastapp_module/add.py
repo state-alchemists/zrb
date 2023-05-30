@@ -224,7 +224,8 @@ def _get_new_docker_compose_service_definition(
                 'interval': '5s',
                 'timeout': '3s',
                 'retries': 10
-            }
+            },
+            'networks': ['zrb']
         }
     }
 

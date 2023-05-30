@@ -115,7 +115,7 @@
                     <th>{row.id}</th>
                     <td>{row.action}</td>
                     <td>{row.entity}</td>
-                    <td><JsonView class="overflow-x-auto" data={row.data ? JSON.parse(row.data): ''} /></td>
+                    <td><JsonView class="overflow-x-auto overflow-y-auto max-h-36" data={row.data ? JSON.parse(row.data): ''} /></td>
                     <!-- DON'T DELETE: insert new column here-->
                     <td>
                         {#if allowGetById}

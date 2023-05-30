@@ -149,9 +149,18 @@ async def add_column_to_insert_page(
     )
     task.print_out(f'Read HTML from: {list_page_file_path}')
     html_content = await read_text_file_async(list_page_file_path)
+    task.print_out('Add default value to insert page')
+    default_value_regex = r"(.*)(// DON'T DELETE: set field default value here)"
+    default_value_subst = '\\n'.join([
+        f"\\1row.{snake_column_name} = '';",
+        '\\1\\2'
+    ])
+    html_content = re.sub(
+        default_value_regex, default_value_subst, html_content, 0, re.MULTILINE
+    )
     task.print_out('Add field to insert page')
-    regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
-    subst = '\\n'.join([
+    field_regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
+    field_subst = '\\n'.join([
         '\\1<div class="mb-4">',
         f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>', # noqa
         f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value=' + '{row.' + snake_column_name + '} />', # noqa
@@ -159,7 +168,7 @@ async def add_column_to_insert_page(
         '\\1\\2'
     ])
     html_content = re.sub(
-        regex, subst, html_content, 0, re.MULTILINE
+        field_regex, field_subst, html_content, 0, re.MULTILINE
     )
     task.print_out(f'Write modified HTML to: {list_page_file_path}')
     await write_text_file_async(list_page_file_path, html_content)

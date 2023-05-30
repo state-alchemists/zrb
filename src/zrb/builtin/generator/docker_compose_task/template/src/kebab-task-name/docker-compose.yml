@@ -1,4 +1,6 @@
 version: '3'
+networks:
+  zrb:
 services:
   myapp:
     build: image
@@ -16,3 +18,5 @@ services:
       interval: 5s
       timeout: 1s
       retries: 30
+    networks:
+      - zrb

@@ -61,7 +61,7 @@
     </div>
     <div class="mb-4">
         <label class="block text-gray-700 font-bold mb-2" for="data">Data</label>
-        <JsonView id="data" class="overflow-x-auto" data={row.data ? JSON.parse(row.data): ''} />
+        <JsonView id="data" class="overflow-x-auto oveflow-y-auto max-h-64" data={row.data ? JSON.parse(row.data): ''} />
     </div>
     <!-- DON'T DELETE: insert new field here-->
     <a href="../../" class="btn btn-primary">Show others</a>
