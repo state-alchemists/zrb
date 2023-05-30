@@ -61,7 +61,3 @@ zrb project add fastapp-field \
     --entity-name "book" \
     --column-name "title" \
     --column-type "str"
-
-echo '🤖 Disable auto-install-pip'
-cp template.env .env
-echo 'export PROJECT_AUTO_INSTALL_PIP=0' >> .env

@@ -119,7 +119,7 @@ playground = CmdTask(
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
         'echo "🤖 Remove playground"',
-        'rm -Rf playground',
+        'sudo rm -Rf playground',
         'echo "🤖 Create playground"',
         'cp -R playground-template playground',
         'cd ${ZRB_PROJECT_DIR}/playground',
@@ -131,6 +131,7 @@ playground = CmdTask(
         'echo "      cd ${ZRB_PROJECT_DIR}/playground/my-project"',
         'echo "🤖 And start hacking around. Good luck :)"',
     ],
-    retry=0
+    retry=0,
+    preexec_fn=None
 )
 runner.register(playground)

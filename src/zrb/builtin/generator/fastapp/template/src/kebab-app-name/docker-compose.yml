@@ -1,6 +1,7 @@
 version: '3'
+networks:
+  zrb:
 services:
-
 
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
@@ -41,6 +42,8 @@ services:
       interval: 5s
       timeout: 1s
       retries: 30
+    networks:
+      - zrb
 
 
   redpanda-console:
@@ -56,6 +59,8 @@ services:
     depends_on:
       - redpanda
     restart: on-failure
+    networks:
+      - zrb
 
 
   rabbitmq:
@@ -76,6 +81,8 @@ services:
       interval: 5s
       timeout: 1s
       retries: 30
+    networks:
+      - zrb
 
   
   postgresql:
@@ -87,8 +94,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-snake_app_name}
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
     ports:
     - ${POSTGRES_HOST_PORT:-5432}:5432
+    networks:
+      - zrb
 
 
   adminer:
@@ -98,6 +109,8 @@ services:
     restart: on-failure
     ports:
     - ${ADMINER_HOST_PORT:-9001}:8080
+    networks:
+      - zrb
 
 
   kebab-app-name:
@@ -125,6 +138,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - zrb
 
 
   kebab-app-name-gateway:
@@ -158,6 +173,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - zrb
 
 
   kebab-app-name-auth:
@@ -193,6 +210,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - zrb
 
 
   kebab-app-name-log:
@@ -228,3 +247,5 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - zrb

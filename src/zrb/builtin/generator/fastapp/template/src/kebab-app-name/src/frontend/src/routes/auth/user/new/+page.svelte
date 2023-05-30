@@ -17,6 +17,14 @@
         if (!allowInsert) {
             goto('/');
         }
+        row.username = '';
+        row.phone = '';
+        row.email = '';
+        row.password = '';
+        row.groups = [];
+        row.permissions = [];
+        row.description = '';
+        // DON'T DELETE: set field default value here
     });
 
     async function loadAuthorization() {
