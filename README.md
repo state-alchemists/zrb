@@ -1,6 +1,6 @@
 # Zrb (WIP): Your Faithful Companion
 
-![](https://raw.githubusercontent.com/state-alchemists/zrb/master/images/zrb/android-chrome-192x192.png)
+![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
 
 Zrb is a task runner to help you automate day-to-day tasks.
 # Installation
