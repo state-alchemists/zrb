@@ -84,7 +84,7 @@ function getOldAccessToken(): string | undefined {
     return Cookies.get(authAccessTokenCookieKey); 
 }
 
-export async function login(identity: string, password: string): Promise<boolean> {
+export async function login(identity: string, password: string) {
     try {
         const response = await axios.post(loginApiUrl, {identity, password});
         if (response && response.status == 200 && response.data && response.data.access_token && response.data.refresh_token) {
@@ -92,13 +92,13 @@ export async function login(identity: string, password: string): Promise<boolean
             const refreshToken: string = response.data.refresh_token;
             saveToken(accessToken, refreshToken);
             setAuthStoreByAccessToken(accessToken);
-            return true;
+            return;
         }
+        throw new Error('Unknown error');
     } catch(error) {
-        console.error(error);
+        logout();
+        throw(error);
     }
-    logout();
-    return false;
 }
 
 function saveToken(accessToken: string, refreshToken: string) {

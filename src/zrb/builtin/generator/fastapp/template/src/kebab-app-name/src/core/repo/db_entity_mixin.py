@@ -1,12 +1,12 @@
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.orm import declarative_mixin
 
-import uuid
+from ulid import ULID
 import datetime
 
 
 def generate_primary_key() -> str:
-    return str(uuid.uuid4())
+    return str(ULID())
 
 
 @declarative_mixin

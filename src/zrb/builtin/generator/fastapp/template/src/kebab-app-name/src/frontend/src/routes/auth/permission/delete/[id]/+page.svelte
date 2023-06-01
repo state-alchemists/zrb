@@ -35,15 +35,18 @@
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data) {
+                errorMessage = '';
+                isAlertVisible = false;
                 row = response.data;
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
     }
 
     async function onDeleteClick() {
@@ -54,15 +57,18 @@
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data) {
+                errorMessage = '';
+                isAlertVisible = false;
                 await goto('../../');
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
     }
 </script>
 <h1 class="text-3xl">Permission</h1>

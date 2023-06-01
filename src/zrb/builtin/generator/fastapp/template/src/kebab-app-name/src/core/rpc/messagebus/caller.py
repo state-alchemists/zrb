@@ -2,7 +2,7 @@ from typing import Any, Callable
 from core.messagebus.messagebus import Admin, Consumer, Publisher
 from core.rpc.rpc import Caller, Message, Result
 import logging
-import uuid
+from ulid import ULID
 import asyncio
 
 
@@ -25,7 +25,7 @@ class MessagebusCaller(Caller):
         self.check_reply_interval = check_reply_interval
 
     async def call(self, rpc_name: str, *args: Any, **kwargs: Any):
-        random_uuid = str(uuid.uuid4())
+        random_uuid = str(ULID())
         reply_event_name = f'reply_{rpc_name}_{random_uuid}'
         await self.admin.create_events([reply_event_name])
         reply_consumer = self.consumer_factory()

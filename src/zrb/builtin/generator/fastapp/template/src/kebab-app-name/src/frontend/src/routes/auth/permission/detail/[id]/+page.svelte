@@ -36,14 +36,17 @@
             );
             if (response?.status == 200 && response?.data) {
                 row = response.data;
+                errorMessage = '';
+                isAlertVisible = false;
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
     }
 </script>
 <h1 class="text-3xl">Permission</h1>

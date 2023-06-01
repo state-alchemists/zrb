@@ -42,14 +42,17 @@
                 fetchedRow.permissions = fetchedRow.permissions.map((permissionObj: any) => permissionObj.id)
                 fetchedRow.groups = fetchedRow.groups.map((groupObj: any) => groupObj.id)
                 row = fetchedRow;
+                errorMessage = '';
+                isAlertVisible = false;
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
     }
 
     async function onSaveClick() {
@@ -60,15 +63,18 @@
                 `/api/v1/auth/users/${data.id}`, row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
+                errorMessage = '';
+                isAlertVisible = false;
                 await goto('../../');
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
         isSaving = false;
     }
 

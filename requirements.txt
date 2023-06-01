@@ -36,3 +36,5 @@ bcrypt==4.0.1
 python-multipart==0.0.6
 httpx==0.24.0
 asgi-lifespan==2.1.0
+python-ulid==1.1.0
+prometheus-fastapi-instrumentator==6.0.0
