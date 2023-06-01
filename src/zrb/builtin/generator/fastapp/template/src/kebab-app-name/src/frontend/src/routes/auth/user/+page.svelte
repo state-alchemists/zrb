@@ -61,14 +61,17 @@
                 for (let i = 0; i*limit < count; i++)  {
                     pageIndexes.push(i);
                 }
+                errorMessage = '';
+                isAlertVisible = false;
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
     }
 
     async function onPaginationClick(index: number) {
@@ -155,12 +158,12 @@
         </tbody>
     </table>
 
-    <div class="btn-group justify-center w-full">
+    <div class="join mt-5 justify-center w-full">
         {#each pageIndexes as pageIndexOption}
             {#if pageIndexOption == pageIndex}
-                <button class="btn btn-disabled">{pageIndexOption + 1}</button>
+                <button class="btn btn-disabled join-item">{pageIndexOption + 1}</button>
             {:else}
-                <button class="btn" on:click={async () => await onPaginationClick(pageIndexOption)}>
+                <button class="btn join-item" on:click={async () => await onPaginationClick(pageIndexOption)}>
                     {pageIndexOption + 1}
                 </button>
             {/if}

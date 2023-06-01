@@ -8,7 +8,7 @@ from sqlalchemy.sql._typing import _ColumnExpressionArgument
 from core.repo.search_filter import SearchFilter
 from core.repo.repo import Repo
 
-import uuid
+from ulid import ULID
 import datetime
 import logging
 
@@ -82,7 +82,7 @@ class DBRepo(Repo[Schema, SchemaData]):
                 **self._schema_data_to_db_entity_map(db, data),
             )
             if 'id' in self.db_entity_attribute_names:
-                new_id = str(uuid.uuid4())
+                new_id = self.generate_id()
                 db_entity.id = new_id
             if 'created_at' in self.db_entity_attribute_names:
                 db_entity.created_at = datetime.datetime.utcnow()
@@ -100,6 +100,9 @@ class DBRepo(Repo[Schema, SchemaData]):
             raise
         finally:
             db.close()
+
+    def generate_id(self) -> str:
+        return str(ULID())
 
     async def update(self, id: str, data: SchemaData) -> Schema:
         '''

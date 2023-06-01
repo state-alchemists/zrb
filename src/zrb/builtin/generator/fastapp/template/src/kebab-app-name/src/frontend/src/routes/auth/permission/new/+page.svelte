@@ -36,6 +36,8 @@
                 '/api/v1/auth/permissions', row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
+                errorMessage = '';
+                isAlertVisible = false;
                 await goto('../');
                 return;
             }
