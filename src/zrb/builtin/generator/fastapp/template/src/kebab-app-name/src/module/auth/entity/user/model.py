@@ -42,13 +42,16 @@ class UserModel(
         self.admin_user_pasword = admin_user_password
 
     async def insert(self, data: UserData) -> User:
-        if self.admin_user is not None and self.is_admin(id):
+        if (
+            self.admin_user is not None and
+            data.username == self.admin_user.username
+        ):
             raise ValueError(
-                'Invalid username: {data.username} is used by admin'
+                f'Invalid username: {data.username} is used by admin'
             )
         if data.username == self.guest_user.username:
             raise ValueError(
-                'Invalid username: {data.username} is used by guest'
+                f'Invalid username: {data.username} is used by guest'
             )
         return await super().insert(data)
 
@@ -60,7 +63,7 @@ class UserModel(
                 )
             if data.username == self.admin_user.username:
                 raise ValueError(
-                    'Invalid username: {data.username} is used by admin'
+                    f'Invalid username: {data.username} is used by admin'
                 )
         if self.is_guest(id):
             raise ValueError(
@@ -68,7 +71,7 @@ class UserModel(
             )
         if data.username == self.guest_user.username:
             raise ValueError(
-                'Invalid username: {data.username} is used by guest'
+                f'Invalid username: {data.username} is used by guest'
             )
         return await super().update(id, data)
 

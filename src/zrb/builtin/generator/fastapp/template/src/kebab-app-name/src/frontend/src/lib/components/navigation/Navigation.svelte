@@ -6,7 +6,9 @@
     import { getAuthorization, initAuthStore, login, logout } from '../../auth/helper';
     import { userIdStore } from '../../auth/store';
 	import { getNavDataPermissions } from './helper';
+	import { getErrorMessage } from '$lib/error/helper';
 
+    export let id: string = 'main-navbar';
     export let logo: string;
     export let brand: string;
     export let navData: SingleNavData[];
@@ -19,6 +21,9 @@
     let password: string;
     let userId = '';
     let authorization: {[key: string]: boolean} = {};
+    let isAlertVisible: boolean = false;
+    let errorMessage: string = '';
+    let isLoginModalOpen = false;
 
     userIdStore.subscribe(async (value) => {
         userId = value;
@@ -29,22 +34,35 @@
         await initAuthStore();
     });
 
-    async function onLoginClick() {
-        const loginSuccess = await login(identity, password);
-        if (loginSuccess) {
-            await goto('/');
-            return;
+    async function onLoginClick(event: any) {
+        try {
+            await login(identity, password);
+            isAlertVisible = false;
+            isLoginModalOpen = false;
+        } catch (error) {
+            errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        alert('salah');
     }
 
-    async function onLogoutClick() {
+    function onLoginLinkClick() {
+        isLoginModalOpen = true;
+    }
+
+    async function onLogoutLinkClick() {
         logout();
         await goto('/');
     }
+
+    function closeDetails() {
+        const details = document.querySelectorAll(`#${id} details[open]`);
+        details.forEach(detail => {
+            detail.removeAttribute('open');
+        });
+   }
 </script>
 
-<div class="navbar sticky top-0 bg-base-100 z-50">
+<div id={id} class="navbar sticky top-0 bg-base-100 z-50">
     <div class="flex-1">
         <img class="h-8 mr-3" src={logo} alt="Logo">
         <a href="/" class="btn btn-ghost normal-case text-xl">{brand}</a>
@@ -52,18 +70,18 @@
     <div class="flex-none">
         <ul class="menu menu-horizontal px-1">
             {#each navData as singleNavData}
-                <Menu singleNavData={singleNavData} authorization={authorization} />
+                <Menu singleNavData={singleNavData} authorization={authorization} closeDetails={closeDetails} />
             {/each}
             {#if userId == ''}
-                <li><a href="#login-modal" class="px-4">{loginTitle}</a></li>
+                <li><a href="#login-modal" class="px-4" on:click={onLoginLinkClick}>{loginTitle}</a></li>
             {:else}
-                <li><a href="#top" class="px-4" on:click={onLogoutClick}>{logoutTitle}</a></li>
+                <li><a href="#top" class="px-4" on:click={onLogoutLinkClick}>{logoutTitle}</a></li>
             {/if}
         </ul>
     </div>
 </div>
 
-<div class="modal" id="login-modal">
+<dialog class="modal" id="login-modal" class:modal-open={isLoginModalOpen}>
     <form class="modal-box">
         <div class="mb-6">
             <label class="block text-gray-700 font-bold mb-2" for="identity">Identity</label>
@@ -76,5 +94,11 @@
         <div class="modal-action">
             <a href="#top" class="btn btn-primary" on:click={onLoginClick}>Sign in</a>
         </div>
+        <div class="alert alert-error shadow-lg mt-5 {isAlertVisible? 'visible': 'hidden'}">
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>{errorMessage}</span>
+            </div>
+        </div>
     </form>
-</div>
+</dialog>

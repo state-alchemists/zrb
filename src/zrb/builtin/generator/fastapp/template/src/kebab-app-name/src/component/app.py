@@ -1,6 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from config import (
     app_name, app_enable_frontend, cors_allow_credentials, cors_allow_headers,
     cors_allow_methods, cors_allow_origin_regex, cors_allow_origins,
@@ -11,6 +12,7 @@ from component.app_lifespan import app_lifespan
 from component.frontend_index import frontend_index_response
 
 app = FastAPI(title=app_name, lifespan=app_lifespan)
+Instrumentator().instrument(app).expose(app)
 
 if app_enable_frontend:
     @app.middleware("http")

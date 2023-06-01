@@ -38,15 +38,18 @@
                 '/api/v1/auth/groups', row, {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200) {
+                errorMessage = '';
+                isAlertVisible = false;
                 await goto('../');
                 return;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
         isSaving = false;
     }
 
@@ -59,14 +62,17 @@
                 {headers: {Authorization: `Bearer ${accessToken}`}}
             );
             if (response?.status == 200 && response?.data?.data) {
+                errorMessage = '';
+                isAlertVisible = false;
                 return response.data.data;
             }
             errorMessage = 'Unknown error';
+            isAlertVisible = true;
         } catch(error) {
             console.error(error);
             errorMessage = getErrorMessage(error);
+            isAlertVisible = true;
         }
-        isAlertVisible = true;
         return [];
     }
 </script>
