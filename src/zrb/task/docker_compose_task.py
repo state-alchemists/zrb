@@ -148,7 +148,7 @@ class DockerComposeTask(CmdTask):
         ])
         cmd_str = '\n'.join([
             setup_cmd_str,
-            f'docker compose {options} {self.compose_cmd} {flags} {args}',
+            f'docker-compose {options} {self.compose_cmd} {flags} {args}',
         ])
         self.log_info(f'Command: {cmd_str}')
         return cmd_str

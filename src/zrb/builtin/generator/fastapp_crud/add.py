@@ -77,7 +77,9 @@ copy_resource = ResourceMaker(
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    excludes=[]
+    excludes=[
+        '*/__pycache__',
+    ]
 )
 
 
