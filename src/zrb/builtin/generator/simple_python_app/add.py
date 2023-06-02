@@ -63,7 +63,10 @@ copy_resource = ResourceMaker(
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
     locks=[new_task_app_lock],
-    excludes=['*/deployment/venv']
+    excludes=[
+        '*/deployment/venv',
+        '*/__pycache__',
+    ]
 )
 
 register_local_app_module = create_register_app_module(

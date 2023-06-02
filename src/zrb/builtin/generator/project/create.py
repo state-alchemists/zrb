@@ -41,7 +41,10 @@ copy_resource = ResourceMaker(
     replacement_mutator=copy_resource_replacement_mutator,
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{input.project_dir}}',
-    locks=['{{input.project_dir}}/zrb_init.py']
+    locks=['{{input.project_dir}}/zrb_init.py'],
+    excludes=[
+        '*/__pycache__',
+    ]
 )
 
 add_project_task = create_add_project_automation_task(

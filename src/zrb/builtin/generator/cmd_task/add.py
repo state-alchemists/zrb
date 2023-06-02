@@ -46,7 +46,10 @@ copy_resource = ResourceMaker(
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    locks=[new_task_lock]
+    locks=[new_task_lock],
+    excludes=[
+        '*/__pycache__',
+    ]
 )
 
 register_task_module = create_register_task_module(

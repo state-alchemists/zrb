@@ -66,6 +66,7 @@ copy_resource = ResourceMaker(
     destination_path='{{ input.project_dir }}',
     locks=[new_task_app_lock],
     excludes=[
+        '*/__pycache__',
         '*/deployment/venv',
         '*/src/kebab-app-name/venv',
         '*/src/kebab-app-name/src/frontend/node_modules',
