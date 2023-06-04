@@ -1,364 +1,84 @@
-# Zrb (WIP): Your Faithful Companion
+# Zrb: Your Faithful Companion
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
 
-Zrb is a task runner to help you automate day-to-day tasks.
+Zrb is a CLI-based task runner and low-code platform. Once installed, you can automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
+
+To use Zrb, you need to be familiar with CLI.
 # Installation
+
+Installing Zrb is as easy as typing the following command in your terminal:
 
 ```bash
 pip install zrb
 ```
 
-# Create a project
+If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` to install them.
 
-A project is a directory containing a Python file named `zrb_init.py`.
+# Main prerequisites
 
-The recommended way to create a Zrb project is by using Zrb built-in generator. To create a Zrb project using the built-in generator, you can invoke the following command:
+Since Zrb is written in Python, you need to install a few things before installing Zrb:
+
+- `Python`
+- `Pip`
+- `Venv`
+
+If you are using Ubuntu, the following command should work:
+
+```bash
+sudo apt-get install python3 python3-pip python3-venv python-is-python3
+```
+
+If you are using Mac, the following command might work:
+
+```bash
+# Make sure you have homebrew installed, see: https://brew.sh/
+brew install python3
+ln -s venv/bin/pip3 /usr/local/bin/pip
+ln -s venv/bin/python3 /usr/local/bin/python
+```
+
+# Other prerequisites
+
+If you want to generate applications using Zrb and run them on your computer, you will also need:
+
+- `Node.Js` and `Npm`. 
+    - You need Node.Js to modify/transpile frontend code into static files.
+    - You can visit [Node.Js website](https://nodejs.org/en) for installation instructions.
+- `Docker` and `Docker-compose` plugin.
+    - You need `Docker` and `Docker-compose` plugin to
+        - Run `Docker-compose` based tasks
+        - Run some application prerequisites like RabbitMQ, Postgre, or Redpanda. 
+    - The easiest way to install `Docker`, `Docker-compose` plugin, and local `Kubernetes` is by using [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+    - You can also install `Docker` and `Docker-compose` plugin by following [Docker installation guide](docker-compose).
+-  `Kubernetes` cluster.
+    - Zrb allows you to deploy your applications into `Kubernetes`.
+    - To test it locally, you will need a [minikube](https://minikube.sigs.k8s.io/docs/) or other alternatives. However, the easiest way is by enabling `Kubernetes` on your `Docker Desktop`.
+
+# Getting started
+
+To get started, you can create a project as follow:
 
 ```bash
 zrb project create --project-dir=my-project
 ```
 
-To start working on the project, you can invoke the following command:
+A project is a directory containing `zrb_init.py` and other resources.
 
-```bash
-source project.sh
-```
+Once you create a project, you can start defining tasks. To understand why we need to define tasks, plese visit [tasks documentation](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/task.md).
 
-The command will make you a Python virtual environment, as well as install necessary Python packages.
+Zrb supports the following tasks:
 
-## Create a very minimal project
+- [Python task](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/python-task.md)
+- [Cmd task](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/cmd-task.md)
+- [Docker-Compose task](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/docker-compose-task.md)
+- [Checkers](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/checker.md)
+    - [HTTP checker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/http-checker.md)
+    - [Port checker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/port-checker.md)
+    - [Path checker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/path-checker.md)
+- [Resource maker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/resource-maker.md)
 
-Aside from the built-in generator, you can also make a project manually by invoking the following command:
-
-```bash
-mkdir my-project
-cd my-project
-touch zrb_init.py
-```
-
-This might be useful for demo/experimentation.
-
-# Define tasks
-
-Zrb comes with many types of tasks:
-
-- Python task
-- Cmd task
-- Docker compose task
-- Http checker
-- Port Checker
-- Path Checker
-- Resource maker
-
-Every task has its inputs, environments, and upstreams. By defining the upstreams, you can make several tasks run in parallel. Let's see the following example:
-
-```
-install-pip --------------------------------------> run-server
-                                             |
-install-node-modules  ---> build-frontend ----
-```
-
-```python
-# File location: zrb_init.py
-from zrb import CmdTask, HttpChecker, EnvFile, runner
-
-# Install pip package for requirements.txt in src directory
-install_pip_packages = CmdTask(
-    name='install-pip',
-    cmd='pip install -r requirements.txt',
-    cwd='src'
-)
-
-# Install node modules in src/frontend directory
-install_node_modules = CmdTask(
-    name='install-node-modules',
-    cmd='npm install --save-dev',
-    cwd='src/frontend'
-)
-
-# Build src/frontend
-# To build the frontend, you need to make sure that node_modules has already been installed.
-build_frontend = CmdTask(
-    name='build-frontend',
-    cmd='npm run build',
-    cwd='src/frontend',
-    upstreams=[install_node_modules]
-)
-
-# Start the server.
-# In order to start the server, you need to make sure that:
-# - Necessary pip packages has been already installed
-# - Frontend has already been built
-# By default it should use environment defined in `src/template.env`.
-# You can set the port using environment variable WEB_PORT
-# This WEB_PORT environment will be translated into PORT variable internally
-# You can use the port to check whether a server is ready or not.
-run_server = CmdTask(
-    name='run-server',
-    envs=[
-        Env(name='PORT', os_name='WEB_PORT', default='3000')
-    ],
-    env_files=[
-        EnvFile(env_file='src/template.env', prefix='WEB')
-    ]
-    cmd='python main.py',
-    cwd='src',
-    upstreams=[
-        install_pip_packages,
-        build_frontend
-    ],
-    checkers=[HTTPChecker(port='{{env.PORT}}')],
-)
-runner.register(run_server)
-```
-
-Once defined, you can start the server by invoking the following command:
-
-```bash
-zrb run-server
-```
-
-Zrb will make sure that the tasks are executed in order based on their upstreams.
-You will also see that `install-pip-packages` and `install-node-modules` are executed in parallel since they are independent of each other.
-
-# Define a Python task
-
-Defining a Python task is simple.
-
-```python
-from zrb import python_task, Env, StrInput, runner
-
-@python_task(
-    name='say-hello',
-    inputs=[
-        StrInput(name='name')
-    ],
-    envs=[
-        Env(name='PYTHONUNBUFFERED', default=1)
-    ],
-    runner=runner
-)
-def say_hello(*args, **kwargs) -> str:
-    name = kwargs.get('name')
-    greetings = f'Hello, {name}'
-    task = kwargs.get('_task')
-    task.print_out(greetings)
-    return greetings
-```
-
-You can then run the task by invoking:
-
-```
-zrb say-hello --name=John
-```
-
-Python task is very powerful to do complex logic. You can also use `async` function if you think you need to.
-
-# Define a Cmd task
-
-You can define a Cmd task by using `CmdTask` class.
-
-```python
-from zrb import CmdTask, StrInput, Env, runner
-
-say_hello = CmdTask(
-    name='say-hello',
-    inputs=[
-        StrInput(name='name')
-    ],
-    envs=[
-        Env(name='SOME_ENV')
-    ],
-    cmd='echo {{input.name}}'
-)
-runner.register(say_hello)
-```
-
-If you need a multi-line command, you can also define the command as a list:
-
-```python
-from zrb import CmdTask, StrInput, Env, runner
-
-say_hello = CmdTask(
-    name='say-hello',
-    inputs=[
-        StrInput(name='name')
-    ],
-    envs=[
-        Env(name='SOME_ENV')
-    ],
-    cmd=[
-        'echo {{input.name}}',
-        'echo Yeay!!!'
-    ]
-)
-runner.register(say_hello)
-```
-
-However, if your command is too long, you can also load it from other file:
-
-
-```python
-from zrb import CmdTask, StrInput, Env, runner
-
-say_hello = CmdTask(
-    name='say-hello',
-    inputs=[
-        StrInput(name='name')
-    ],
-    envs=[
-        Env(name='SOME_ENV')
-    ],
-    cmd_path='hello_script.sh'
-)
-runner.register(say_hello)
-```
-
-
-You can then run the task by invoking:
-
-```
-zrb say-hello --name=John
-```
-
-
-# Define a Docker Compose task
-
-Docker Compose is a convenient way to run containers on your local computer.
-
-Suppose you have the following Docker Compose file:
-
-```yaml
-# docker-compose.yml file
-version: '3'
-
-services:
-  # The load balancer
-  nginx:
-    image: nginx:1.16.0-alpine
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "${HOST_PORT:-8080}:80"
-```
-
-You can define a task to run your Docker Compose file (i.e., `docker compose up`) like this:
-
-```python
-from zrb import DockerComposeTask, HTTPChecker, Env, runner
-
-run_container = DockerComposeTask(
-    name='run-container',
-    compose_cmd='up',
-    compose_file='docker-compose.yml',
-    envs=[
-        Env(name='HOST_PORT', default='3000')
-    ],
-    checkers=[
-        HTTPChecker(
-            name='check-readiness', port='{{env.HOST_PORT}}'
-        )
-    ]
-)
-runner.register(run_container)
-```
-
-# Define checkers
-
-Some tasks might run forever, and you need a way to make sure whether those tasks are ready or not.
-
-Let's say you invoke `npm run build:watch`. This command will build your Node.js App into `dist` directory, as well as watch the changes and rebuild your app as soon as there are some changes.
-
-- You need to start the server after the app has been built for the first time.
-- You can do this by checking whether the `dist` folder already exists or not.
-- You can use `PathChecker` for this purpose
-
-Let's see how to do this:
-
-```python
-from zrb import CmdTask, PathChecker, Env, EnvFile, runner
-
-build_frontend = CmdTask(
-    name='build-frontend',
-    cmd='npm run build',
-    cwd='src/frontend',
-    checkers=[
-        PathChecker(path='src/frontend/dist')
-    ]
-)
-
-run_server = CmdTask(
-    name='run-server',
-    envs=[
-        Env(name='PORT', os_name='WEB_PORT', default='3000')
-    ],
-    env_files=[
-        EnvFile(env_file='src/template.env', prefix='WEB')
-    ]
-    cmd='python main.py',
-    cwd='src',
-    upstreams=[
-        build_frontend
-    ],
-    checkers=[HTTPChecker(port='{{env.PORT}}')],
-)
-runner.register(run_server)
-```
-
-Aside from `PathChecker`, Zrb also has `HTTPChecker` and `PortChecker`.
-
-# Define a resource maker
-
-ResourceMaker is used to generate resources. Let's say you have a `template` folder containing a file named `app_name.py`:
-
-```python
-# file: template/app_name.py
-message = 'Hello world_name'
-print(message)
-```
-
-You can define a ResourceMaker like this:
-
-```python
-from zrb import ResourceMaker, StrInput, runner
-
-create_hello_world = ResourceMaker(
-    name='create-hello-world',
-    inputs=[
-        StrInput('app-name'),
-        StrInput('world-name'),
-    ],
-    replacements={
-        'app_name': '{{input.app_name}}',
-        'world_name': '{{input.world_name}}',
-    },
-    template_path='template',
-    destination_path='.',
-)
-runner.register(create_hello_world)
-```
-
-Now when you invoke the task, you will get a new file as expected:
-
-```bash
-zrb create-hello-world --app-name=wow --world-name=kalimdor
-echo ./wow.py
-```
-
-The result will be:
-
-```python
-# file: template/wow.py
-message = 'Hello kalimdor'
-print(message)
-```
-
-This is a very powerful building block to build anything based on the template.
-
-# Using Zrb to build an application (WIP)
-
-You can use Zrb to build a powerful application with a few commands:
+You can also add an application to your project and start/deploy it as a monnolithic or microservices:
 
 ```bash
 # Create a project
@@ -388,9 +108,6 @@ zrb project start-fastapp-container
 # Deploy fastapp
 zrb project deploy-fastapp
 ```
-
-You should notice that every module in `fastapp` can be deployed/treated as microservices.
-
 # Autoloaded tasks
 
 Zrb will automatically load the following task definitions:
