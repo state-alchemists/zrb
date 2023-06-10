@@ -9,7 +9,9 @@ services:
     hostname: snake_app_name
     env_file: 'src/template.env'
     environment:
-      APP_PORT: ${APP_PORT:-8080}
+      APP_HOST: ${APP_HOST}
+      APP_MESSAGE: ${APP_MESSAGE}
+      APP_PORT: ${APP_PORT}
     ports:
     - "${HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: on-failure
