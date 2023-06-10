@@ -19,7 +19,7 @@ compose_envs = [
 ]
 compose_env_file = EnvFile(
     env_file=os.path.join(APP_DIR, 'template.env'),
-    prefix='CONTAINER_ENV_PREFIX'
+    prefix=compose_env_prefix
 )
 
 ###############################################################################

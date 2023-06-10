@@ -167,6 +167,9 @@ compose_env_file = EnvFile(
     env_file=os.path.join(CURRENT_DIR, 'config', 'docker-compose.env'),
     prefix='CONTAINER_ENV_PREFIX'
 )
+app_env_file = EnvFile(
+    env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
+)
 
 ###############################################################################
 # Env Definitions

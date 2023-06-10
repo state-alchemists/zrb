@@ -1,15 +1,14 @@
-from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
+from zrb import CmdTask, DockerComposeTask, Task, Env, runner
 from zrb.builtin._group import project_group
 from ._common import (
-    CURRENT_DIR, APP_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME,
-    SKIP_SUPPORT_CONTAINER_EXECUTION, SKIP_LOCAL_MONOLITH_EXECUTION,
-    SKIP_LOCAL_MICROSERVICES_EXECUTION,
+    CURRENT_DIR, APP_DIR, RESOURCE_DIR, SKIP_SUPPORT_CONTAINER_EXECUTION,
+    SKIP_LOCAL_MONOLITH_EXECUTION, SKIP_LOCAL_MICROSERVICES_EXECUTION,
     rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker,
     kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker, app_local_checker,
     local_input, mode_input, host_input, https_input, image_input,
-    local_app_port_env, local_app_broker_type_env,
+    local_app_port_env, local_app_broker_type_env, app_env_file
 )
 from .image import build_snake_app_name_image
 from .frontend import build_snake_app_name_frontend
@@ -84,11 +83,7 @@ start_monolith_snake_app_name = CmdTask(
         prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
-    env_files=[
-        EnvFile(
-            env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
-        ),
-    ],
+    env_files=[app_env_file],
     envs=[
         local_app_broker_type_env,
         local_app_port_env,
@@ -115,11 +110,7 @@ start_snake_app_name_gateway = CmdTask(
         prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
-    env_files=[
-       EnvFile(
-            env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
-        ),
-    ],
+    env_files=[app_env_file],
     envs=[
         local_app_broker_type_env,
         local_app_port_env,
