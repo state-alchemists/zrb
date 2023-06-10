@@ -33,9 +33,7 @@ remove_snake_app_name_container = DockerComposeTask(
     compose_cmd='down',
     compose_env_prefix=compose_env_prefix,
     env_files=[compose_env_file],
-    envs=[
-        image_env,
-    ],
+    envs=[image_env],
 )
 runner.register(remove_snake_app_name_container)
 
@@ -61,9 +59,7 @@ start_snake_app_name_container = DockerComposeTask(
     compose_cmd='up',
     compose_env_prefix=compose_env_prefix,
     env_files=[compose_env_file],
-    envs=[
-        image_env,
-    ],
+    envs=[image_env],
     checkers=[
         app_container_checker,
         rabbitmq_checker,
@@ -87,8 +83,6 @@ stop_snake_app_name_container = DockerComposeTask(
     compose_cmd='stop',
     compose_env_prefix=compose_env_prefix,
     env_files=[compose_env_file],
-    envs=[
-        image_env,
-    ],
+    envs=[image_env],
 )
 runner.register(stop_snake_app_name_container)

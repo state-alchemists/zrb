@@ -1,11 +1,12 @@
-from zrb import DockerComposeTask, Env, HTTPChecker, runner
+from zrb import DockerComposeTask, Env, EnvFile, HTTPChecker, runner
 from zrb.builtin._group import project_group
 from ._common import (
-    RESOURCE_DIR,
+    RESOURCE_DIR, APP_DIR,
     local_input, host_input, https_input, image_input,
     image_env
 )
 from .image import build_snake_app_name_image
+import os
 
 compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 compose_envs = [
@@ -16,6 +17,10 @@ compose_envs = [
         default='httpPort'
     ),
 ]
+compose_env_file = EnvFile(
+    env_file=os.path.join(APP_DIR, 'template.env'),
+    prefix='CONTAINER_ENV_PREFIX'
+)
 
 ###############################################################################
 # Task Definitions
@@ -30,6 +35,7 @@ remove_snake_app_name_container = DockerComposeTask(
     compose_cmd='down',
     compose_env_prefix=compose_env_prefix,
     envs=compose_envs,
+    env_files=[compose_env_file],
 )
 runner.register(remove_snake_app_name_container)
 
@@ -42,6 +48,7 @@ stop_snake_app_name_container = DockerComposeTask(
     compose_cmd='stop',
     compose_env_prefix=compose_env_prefix,
     envs=compose_envs,
+    env_files=[compose_env_file],
 )
 runner.register(stop_snake_app_name_container)
 
@@ -65,6 +72,7 @@ start_snake_app_name_container = DockerComposeTask(
     compose_cmd='up',
     compose_env_prefix=compose_env_prefix,
     envs=compose_envs,
+    env_files=[compose_env_file],
     checkers=[
         HTTPChecker(
             name='check-kebab-app-name',
