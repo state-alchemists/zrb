@@ -435,7 +435,7 @@ class MyTask(BaseTask):
 
 ## `create_main_loop`
 
-Method to create main_loop, so that your task is accessible as a function.
+Method to create main-loop. Once a main-loop is created, you can perform a function call to it.
 
 Example:
 
@@ -457,5 +457,16 @@ show_banner = CmdTask(
 show_banner_loop = show_banner.create_main_loop()
 print(show_banner_loop())
 ```
+
+# Type of Tasks
+
+There are many task types in Zrb:
+
+- [CmdTask](cmd-task.md)
+- [Task (pythonTask)](python-task.md)
+- [DockerComposeTask](docker-compose-task.md)
+- [Checkers](checkers.md)
+
+You can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation, but make sure you have read the documentation first.
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)

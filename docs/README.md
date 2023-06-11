@@ -1,7 +1,7 @@
 # Table of Content
 
 - [Getting Started](getting-started.md)
-- [Concepts](concept/README.md)
+- [Concepts](concepts/README.md)
 - [Configurations](configurations.md)
 - [Tutorials](tutorials/README.md)
 - [Troubleshooting](troubleshooting/README.md)

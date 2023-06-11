@@ -1,7 +1,10 @@
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+
 # Cmd task
 
+You can use CmdTask to run CLI commands.
 
-You can define a Cmd task by using `CmdTask` class.
+Let's see the following example:
 
 ```python
 from zrb import CmdTask, StrInput, Env, runner
@@ -59,10 +62,10 @@ say_hello = CmdTask(
 runner.register(say_hello)
 ```
 
-
 You can then run the task by invoking:
 
-```
+```bash
 zrb say-hello --name=John
 ```
 
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)

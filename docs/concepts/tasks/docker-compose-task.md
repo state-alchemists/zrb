@@ -1,3 +1,5 @@
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+
 # Docker-Compose task
 
 Docker Compose is a convenient way to run containers on your local computer.
@@ -38,3 +40,11 @@ run_container = DockerComposeTask(
 )
 runner.register(run_container)
 ```
+
+You can then run the task by invoking:
+
+```bash
+zrb run-container
+```
+
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
