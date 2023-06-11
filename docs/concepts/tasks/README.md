@@ -1,3 +1,5 @@
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)
+
 # Task
 
 Zrb supports the following tasks:
@@ -81,3 +83,4 @@ zrb run-server
 Zrb will make sure that the tasks are executed in order based on their upstreams.
 You will also see that `install-pip-packages` and `install-node-modules` are executed in parallel since they are independent of each other.
 
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)

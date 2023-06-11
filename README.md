@@ -132,57 +132,11 @@ If you want to generate applications using Zrb and run them on your computer, yo
 
 # 🏁 Getting started
 
-To get started, you can create a project as follow:
+We have a nice [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics.
 
-```bash
-zrb project create --project-dir=my-project
-```
+Make sure to check it out.
 
-A project is a directory containing `zrb_init.py` and other resources.
 
-Once you create a project, you can start defining tasks. To understand why we need to define tasks, plese visit [tasks documentation](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/task.md).
-
-Zrb supports the following tasks:
-
-- [Python task](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/python-task.md)
-- [Cmd task](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/cmd-task.md)
-- [Docker-Compose task](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/docker-compose-task.md)
-- [Checkers](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/checker.md)
-    - [HTTP checker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/http-checker.md)
-    - [Port checker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/port-checker.md)
-    - [Path checker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/path-checker.md)
-- [Resource maker](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/resource-maker.md)
-
-You can also add an application to your project and start/deploy it as a monnolithic or microservices:
-
-```bash
-# Create a project
-zrb project create --project-dir my-project --project-name "My Project"
-cd my-project
-
-# Create a Fastapp
-zrb project add fastapp --project-dir . --app-name "fastapp" --http-port 3000
-
-# Add library module to fastapp
-zrb project add fastapp-module --project-dir . --app-name "fastapp" --module-name "library"
-
-# Add entity named "books"
-zrb project add fastapp-crud --project-dir . --app-name "fastapp" --module-name "library" \
-    --entity-name "book" --plural-entity-name "books" --column-name "code"
-
-# Add column to the entity
-zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name "library" \
-    --entity-name "book" --column-name "title" --column-type "str"
-
-# Run Fastapp
-zrb project start-fastapp
-
-# Run Fastapp as container
-zrb project start-fastapp-container
-
-# Deploy fastapp
-zrb project deploy-fastapp
-```
 # Autoloaded tasks
 
 Zrb will automatically load the following task definitions:
