@@ -6,7 +6,7 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 To use Zrb, you need to be familiar with CLI.
 
-For example, you can build a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application, add some fields to it, and deploy the application as monolith/microservices by invoking the following command:
+Let's see how you can build a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application, add some fields to it, and deploy the application as monolith/microservices by invoking the following commands:
 
 ```bash
 # Create a project
@@ -40,9 +40,9 @@ zrb project start-fastapp-container --fastapp-mode "microservices"
 zrb project deploy-fastapp
 ```
 
-See [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) for more cool tricks.
+You can also visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) for more cool tricks.
 
-If you don't fear to code, you can even make your automation command using Python:
+If you are not afraid to code, you can even define your automation commands, extending Zrb capability greatly:
 
 ```python
 # filename: zrb_init.py
@@ -138,6 +138,10 @@ If you want to generate applications using Zrb and run them on your computer, yo
 # 🏁 Getting started
 
 We have a nice [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
+
+# 📖 Documentation
+
+You can visit [Zrb documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) for more detail information.
 
 # ☕ Donation
 
