@@ -2,6 +2,94 @@
 
 # Task
 
+Tasks are the building block of automation. In general, all tasks are extended from `BaseTask`.
+
+```
+                               BaseTask
+  ┌------┬---------┬--------------┼------------┬------------┐					
+  |      |         |              |            |            |
+Task  CmdTask ResourceMaker  HttpChecker  PathChecker  PortChecker
+         |
+DockerComposeTask
+```
+
+All tasks share some common properties and methods.
+
+Let's see the following task declaration:
+
+```python
+from zrb import Task, IntInput, Env, EnvFile, Group, runner
+
+arasaka = Group(name='arasaka')
+jupyterlab = Group(name='jupyterlab', parent=arasaka)
+
+show_banner = CmdTask(
+    name='show-banner',
+    icon='🧪',
+    color='yellow',
+    description='Show banner',
+    group=arasaka,
+    cmd=[
+        'figlet Arasaka'
+    ]
+)
+runner.register(show_banner)
+
+start_jupyterlab = CmdTask(
+    name='start',
+    icon='🧪',
+    color='green',
+    description='Start Jupyterlab',
+    group=jupyterlab,
+    inputs=[
+        IntInput(name='jupyterlab-port', default=8080)
+    ],
+    upstreams=[show_banner],
+    cmd='jupyter lab --no-browser --port={{input.jupyterlab_port}}'
+    checkers=[
+        PortChecker(port='{{input.jupyterlab_port}}')
+    ]
+)
+runner.register(start_jupyterlab)
+```
+
+# Task properties
+
+## `name`
+
+## `icon`
+
+## `color`
+
+## `description`
+
+## `group`
+
+## `inputs`
+
+## `envs`
+
+## `env_files`
+
+## `upstreams`
+
+## `checkers`
+
+## `retry`
+
+## `retry_interval`
+
+## `skip_execution`
+
+# Task methods
+
+## `run`
+
+## `check`
+
+## `create_main_loop`
+
+
 Zrb supports the following tasks:
 
 - [Python task](./python-task.md)
