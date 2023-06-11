@@ -375,7 +375,9 @@ No matter how complex your task will be, the flow will be similar:
 - You modify the task
 - You run the task
 
-Do you know that you can make and deploy a CRUD application without even touching the source code with Zrb? Check out [our tutorials](tutorials/README.md) for more cool tricks.
+To learn more about tasks and other concepts, you can visit [the concept section](concepts/README.md).
+
+BTW, do you know that you can make and deploy a CRUD application without even touching your IDE/text editor? Check out [our tutorials](tutorials/README.md) for more cool tricks.
 
 
 🔖 [Table of Contents](README.md)

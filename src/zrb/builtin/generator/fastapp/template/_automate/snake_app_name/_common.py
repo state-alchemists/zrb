@@ -118,8 +118,8 @@ app_local_checker = HTTPChecker(
 
 local_input = BoolInput(
     name='local-kebab-app-name',
-    description='Use "kebab-app-name" from local machine',
-    prompt='Use "kebab-app-name" from local machine?',
+    description='Use "kebab-app-name" on local machine',
+    prompt='Use "kebab-app-name" on local machine?',
     default=True
 )
 

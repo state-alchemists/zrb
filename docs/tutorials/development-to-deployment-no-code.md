@@ -21,11 +21,14 @@ zrb project add fastapp-crud --project-dir . --app-name "fastapp" --module-name 
 zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name "library" \
     --entity-name "book" --column-name "title" --column-type "str"
 
-# Run Fastapp
-zrb project start-fastapp
+# Run Fastapp as monolith
+zrb project start-fastapp --fastapp-mode "monolith"
+
+# Run Fastapp as microservices
+zrb project start-fastapp --fastapp-mode "microservices"
 
 # Run Fastapp as container
-zrb project start-fastapp-container
+zrb project start-fastapp-container --fastapp-mode "microservices"
 
 # Deploy fastapp
 zrb project deploy-fastapp
