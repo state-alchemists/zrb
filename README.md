@@ -1,11 +1,82 @@
-# Zrb: Your Faithful Companion
+# 🤖 Zrb: Your Faithful Companion
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
 
-Zrb is a CLI-based task runner and low-code platform. Once installed, you can automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
+Zrb is a CLI-based automation tool and low-code platform. Once installed, you can automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
 
 To use Zrb, you need to be familiar with CLI.
-# Installation
+
+For example, you can build a CRUD application, add some fields to it, and deploy the application as monolith/microservices by invoking the following command:
+
+```bash
+# Create a project
+zrb project create --project-dir my-project --project-name "My Project"
+cd my-project
+
+# Create a Fastapp
+zrb project add fastapp --project-dir . --app-name "fastapp" --http-port 3000
+
+# Add library module to fastapp
+zrb project add fastapp-module --project-dir . --app-name "fastapp" --module-name "library"
+
+# Add entity named "books"
+zrb project add fastapp-crud --project-dir . --app-name "fastapp" --module-name "library" \
+    --entity-name "book" --plural-entity-name "books" --column-name "code"
+
+# Add column to the entity
+zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name "library" \
+    --entity-name "book" --column-name "title" --column-type "str"
+
+# Run Fastapp as monolith
+zrb project start-fastapp --fastapp-mode "monolith"
+
+# Run Fastapp as microservices
+zrb project start-fastapp --fastapp-mode "microservices"
+
+# Run Fastapp as container
+zrb project start-fastapp-container --fastapp-mode "microservices"
+
+# Deploy fastapp and all it's dependencies to kubernetes
+zrb project deploy-fastapp
+```
+
+If you don't afraid to code, Zrb also allows you to define your automation command using Python:
+
+```python
+# filename: zrb_init.py
+from zrb import runner, CmdTask, StrInput
+
+hello = CmdTask(
+    name='hello',
+    inputs=[StrInput(name='name', description='Name', default='world')],
+    cmd='echo Hello {{input.name}}'
+)
+runner.register(hello)
+```
+
+Once defined, the command will be accessible:
+
+```
+zrb hello
+Name [world]: Go Frendi
+🤖 ➜  2023-06-10T21:20:19.850063 ⚙ 10008 ➤ 1 of 3 • 🐷            zrb hello • Run script: echo Hello Go Frendi
+🤖 ➜  2023-06-10T21:20:19.850362 ⚙ 10008 ➤ 1 of 3 • 🐷            zrb hello • Current working directory: /home/gofrendi/zrb/playground
+🤖 ➜  2023-06-10T21:20:19.857585 ⚙ 10009 ➤ 1 of 3 • 🐷            zrb hello • Hello Go Frendi
+Support zrb growth and development!
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+🤖 ➜  2023-06-10T21:20:19.898304 ⚙ 10009 ➤ 1 of 3 • 🐷            zrb hello • zrb hello completed in 0.11999917030334473 seconds
+To run again: zrb hello --name "Go Frendi"
+Hello Go Frendi
+```
+
+You can also define task's dependencies so that you can define a single task that run multiple things at once.
+
+
+To learn more about task, you can click on [the documentation](https://github.com/state-alchemists/zrb/blob/main/docs/concepts/task.md).
+
+# 🫰 Installation
 
 Installing Zrb is as easy as typing the following command in your terminal:
 
@@ -13,23 +84,23 @@ Installing Zrb is as easy as typing the following command in your terminal:
 pip install zrb
 ```
 
-If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` to install them.
+If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` subsection to install them.
 
-# Main prerequisites
+# ✅ Main prerequisites
 
 Since Zrb is written in Python, you need to install a few things before installing Zrb:
 
-- `Python`
-- `Pip`
-- `Venv`
+- 🐍 `Python`
+- 📦 `Pip`
+- 🏝️ `Venv`
 
-If you are using Ubuntu, the following command should work:
+If you are using 🐧 Ubuntu, the following command should work:
 
 ```bash
 sudo apt-get install python3 python3-pip python3-venv python-is-python3
 ```
 
-If you are using Mac, the following command might work:
+If you are using 🍎 Mac, the following command will work:
 
 ```bash
 # Make sure you have homebrew installed, see: https://brew.sh/
@@ -38,24 +109,28 @@ ln -s venv/bin/pip3 /usr/local/bin/pip
 ln -s venv/bin/python3 /usr/local/bin/python
 ```
 
-# Other prerequisites
+If you prefer Python distribution like [conda](https://docs.conda.io/en/latest/), that might work as well.
+
+# ✔️ Other prerequisites
 
 If you want to generate applications using Zrb and run them on your computer, you will also need:
 
-- `Node.Js` and `Npm`. 
+- 🐸 `Node.Js` and `Npm`. 
     - You need Node.Js to modify/transpile frontend code into static files.
     - You can visit [Node.Js website](https://nodejs.org/en) for installation instructions.
-- `Docker` and `Docker-compose` plugin.
+- 🐋 `Docker` and `Docker-compose` plugin.
     - You need `Docker` and `Docker-compose` plugin to
         - Run `Docker-compose` based tasks
         - Run some application prerequisites like RabbitMQ, Postgre, or Redpanda. 
     - The easiest way to install `Docker`, `Docker-compose` plugin, and local `Kubernetes` is by using [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-    - You can also install `Docker` and `Docker-compose` plugin by following [Docker installation guide](docker-compose).
--  `Kubernetes` cluster.
+    - You can also install `Docker` and `Docker-compose` plugin by following [Docker installation guide](https://docs.docker.com/engine/install/).
+-  ☸️ `Kubernetes` cluster.
     - Zrb allows you to deploy your applications into `Kubernetes`.
     - To test it locally, you will need a [minikube](https://minikube.sigs.k8s.io/docs/) or other alternatives. However, the easiest way is by enabling `Kubernetes` on your `Docker Desktop`.
+- 🦆 `Pulumi`
+    - You need Pulumi to deploy your applications
 
-# Getting started
+# 🏁 Getting started
 
 To get started, you can create a project as follow:
 
@@ -211,7 +286,7 @@ The following configurations are available:
 
 # Quirks
 
-- No one is sure how to pronounce Zrb. Let's keep it that way.
+- Zrb is spelled `Zaruba`.
 - If not set, `PYTHONUNBUFFERED` will be set to `1`.
 - Once `zrb_init.py` is loaded, Zrb will automatically:
     - Set `ZRB_PROJECT_DIR` to `zrb_init.py`'s parent directory.

@@ -1,6 +1,7 @@
 version: '3'
 networks:
   zrb:
+    name: zrb
 services:
 
   redpanda:
