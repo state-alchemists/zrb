@@ -1,7 +1,7 @@
 🔖 [Table of Contents](../README.md)
 
-# Troubleshooting
+# Concepts
 
-- [Enable shell completion](enable-shell-completion.md)
+- [Tasks](tasks/README.md)
 
 🔖 [Table of Contents](../README.md)
