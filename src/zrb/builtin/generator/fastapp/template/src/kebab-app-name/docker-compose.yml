@@ -1,6 +1,7 @@
 version: '3'
 networks:
   zrb:
+    name: zrb
 services:
 
   redpanda:
@@ -229,7 +230,7 @@ services:
       APP_PORT: ${APP_LOG_MODULE_PORT:-8083}
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
-      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/fastapp}
+      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
       APP_ENABLE_MESSAGE_CONSUMER: 'true'
       APP_ENABLE_RPC_SERVER: 'true'
       APP_ENABLE_API: 'false'

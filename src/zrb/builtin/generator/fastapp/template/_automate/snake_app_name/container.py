@@ -7,7 +7,7 @@ from ._common import (
     kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker,
     local_input, mode_input, host_input, https_input, image_input,
-    compose_env_file, image_env
+    app_env_file, compose_env_file, image_env
 )
 from .image import build_snake_app_name_image
 
@@ -32,10 +32,11 @@ remove_snake_app_name_container = DockerComposeTask(
     setup_cmd=f'export COMPOSE_PROFILES={all_compose_profiles}',
     compose_cmd='down',
     compose_env_prefix=compose_env_prefix,
-    env_files=[compose_env_file],
-    envs=[
-        image_env,
+    env_files=[
+        app_env_file,
+        compose_env_file
     ],
+    envs=[image_env]
 )
 runner.register(remove_snake_app_name_container)
 
@@ -60,10 +61,11 @@ start_snake_app_name_container = DockerComposeTask(
     setup_cmd=f'export COMPOSE_PROFILES={start_compose_profiles}',
     compose_cmd='up',
     compose_env_prefix=compose_env_prefix,
-    env_files=[compose_env_file],
-    envs=[
-        image_env,
+    env_files=[
+        app_env_file,
+        compose_env_file
     ],
+    envs=[image_env],
     checkers=[
         app_container_checker,
         rabbitmq_checker,
@@ -86,9 +88,10 @@ stop_snake_app_name_container = DockerComposeTask(
     setup_cmd=f'export COMPOSE_PROFILES={all_compose_profiles}',
     compose_cmd='stop',
     compose_env_prefix=compose_env_prefix,
-    env_files=[compose_env_file],
-    envs=[
-        image_env,
+    env_files=[
+        app_env_file,
+        compose_env_file
     ],
+    envs=[image_env]
 )
 runner.register(stop_snake_app_name_container)

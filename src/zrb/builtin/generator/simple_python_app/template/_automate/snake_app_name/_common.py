@@ -18,8 +18,8 @@ TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 
 local_input = BoolInput(
     name='local-kebab-app-name',
-    description='Use "kebab-app-name" from local machine',
-    prompt='Use "kebab-app-name" from local machine?',
+    description='Use "kebab-app-name" on local machine',
+    prompt='Use "kebab-app-name" on local machine?',
     default=True
 )
 
