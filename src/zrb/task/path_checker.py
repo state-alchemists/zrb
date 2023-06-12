@@ -45,8 +45,8 @@ class PathChecker(BaseTask):
             retry_interval=0,
             skip_execution=skip_execution,
         )
-        self.path = path
-        self.show_error_interval = show_error_interval
+        self._path = path
+        self._show_error_interval = show_error_interval
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -54,13 +54,13 @@ class PathChecker(BaseTask):
         return super().create_main_loop(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        path = self.render_str(self.path)
+        path = self.render_str(self._path)
         wait_time = 0
         while not self._check_path(
             path=path,
-            should_print_error=wait_time >= self.show_error_interval
+            should_print_error=wait_time >= self._show_error_interval
         ):
-            if wait_time >= self.show_error_interval:
+            if wait_time >= self._show_error_interval:
                 wait_time = 0
             await asyncio.sleep(self.checking_interval)
             wait_time += self.checking_interval

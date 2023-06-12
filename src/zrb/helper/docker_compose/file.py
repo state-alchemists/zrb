@@ -4,19 +4,19 @@ from ruamel.yaml import YAML, CommentedMap
 
 def read_compose_file(file_name: str) -> Any:
     yaml = YAML()
-    with open(file_name, 'r') as file:
-        data = yaml.load(file)
+    with open(file_name, 'r') as f:
+        data = yaml.load(f)
     return data
 
 
-def add_services(file_name: str, new_services: Mapping[str, str]):
+def write_compose_file(file_name: str, data: Any):
     yaml = YAML()
-    with open(file_name, 'r') as f:
-        data = yaml.load(f)
-        # data = round_trip_load(f, preserve_quotes=True)
-    data = CommentedMap(data)
-    data['services'].update(CommentedMap(new_services))
-    # Write the modified data structure back to the file
     with open(file_name, 'w') as f:
         yaml.dump(data, f)
-        # round_trip_dump(data, f)
+
+
+def add_services(file_name: str, new_services: Mapping[str, str]):
+    data = read_compose_file(file_name)
+    data = CommentedMap(data)
+    data['services'].update(CommentedMap(new_services))
+    write_compose_file(file_name, data)

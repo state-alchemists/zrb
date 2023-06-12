@@ -98,16 +98,16 @@ class CmdTask(BaseTask):
         max_error_line = self.ensure_non_negative(
             max_error_line, 'Find negative max_error_line'
         )
-        self.cmd = cmd
-        self.cmd_path = cmd_path
+        self._cmd = cmd
+        self._cmd_path = cmd_path
         self._set_cwd(cwd)
-        self.max_output_size = max_output_line
-        self.max_error_size = max_error_line
+        self._max_output_size = max_output_line
+        self._max_error_size = max_error_line
         self._output_buffer: Iterable[str] = []
         self._error_buffer: Iterable[str] = []
         if executable is None and default_shell != '':
             executable = default_shell
-        self.executable = executable
+        self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
 
@@ -143,7 +143,7 @@ class CmdTask(BaseTask):
             stderr=asyncio.subprocess.PIPE,
             env=env,
             shell=True,
-            executable=self.executable,
+            executable=self._executable,
             close_fds=True,
             preexec_fn=self._preexec_fn,
             bufsize=0
@@ -161,7 +161,7 @@ class CmdTask(BaseTask):
         if return_code != 0:
             self.log_info(f'Exit status: {return_code}')
             raise Exception(
-                f'Process {self.name} exited ({return_code}): {error}'
+                f'Process {self._name} exited ({return_code}): {error}'
             )
         return CmdResult(output, error)
 
@@ -190,11 +190,11 @@ class CmdTask(BaseTask):
         # Handle messages in queue
         stdout_log_process = asyncio.create_task(self._log_from_queue(
             stdout_queue, self.print_out,
-            self._output_buffer, self.max_output_size
+            self._output_buffer, self._max_output_size
         ))
         stderr_log_process = asyncio.create_task(self._log_from_queue(
             stderr_queue, self.print_err,
-            self._error_buffer, self.max_error_size
+            self._error_buffer, self._max_error_size
         ))
         # wait process
         await process.wait()
@@ -207,7 +207,7 @@ class CmdTask(BaseTask):
         await stderr_log_process
 
     def _get_cmd_str(self) -> str:
-        return self._create_cmd_str(self.cmd_path, self.cmd)
+        return self._create_cmd_str(self._cmd_path, self._cmd)
 
     def _create_cmd_str(
         self, cmd_path: str, cmd: Union[str, Iterable[str]]

@@ -50,13 +50,13 @@ class HTTPChecker(BaseTask):
             retry_interval=0,
             skip_execution=skip_execution
         )
-        self.host = host
-        self.port = port
-        self.timeout = timeout
-        self.method = method
-        self.url = url
-        self.is_https = is_https
-        self.show_error_interval = show_error_interval
+        self._host = host
+        self._port = port
+        self._timeout = timeout
+        self._method = method
+        self._url = url
+        self._is_https = is_https
+        self._show_error_interval = show_error_interval
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -64,12 +64,12 @@ class HTTPChecker(BaseTask):
         return super().create_main_loop(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        is_https = self.render_bool(self.is_https)
-        method = self.render_str(self.method)
-        host = self.render_str(self.host)
-        port = self.render_int(self.port)
-        url = self.render_str(self.url)
-        timeout = self.render_int(self.timeout)
+        is_https = self.render_bool(self._is_https)
+        method = self.render_str(self._method)
+        host = self.render_str(self._host)
+        port = self.render_int(self._port)
+        url = self.render_str(self._url)
+        timeout = self.render_int(self._timeout)
         wait_time = 0
         while not self._check_connection(
             method=method,
@@ -78,9 +78,9 @@ class HTTPChecker(BaseTask):
             url=url,
             is_https=is_https,
             timeout=timeout,
-            should_print_error=wait_time >= self.show_error_interval
+            should_print_error=wait_time >= self._show_error_interval
         ):
-            if wait_time >= self.show_error_interval:
+            if wait_time >= self._show_error_interval:
                 wait_time = 0
             await asyncio.sleep(self.checking_interval)
             wait_time += self.checking_interval

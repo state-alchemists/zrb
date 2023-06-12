@@ -49,30 +49,36 @@ class Group():
         description: Optional[str] = None,
         parent: Optional[TGroup] = None
     ):
-        self.name = name
-        self.description = description
-        self.parent = parent
+        self._name = name
+        self._description = description
+        self._parent = parent
         if parent is not None:
-            parent.children.append(self)
-        self.children: List[TGroup] = []
-        self.tasks: List[TTask] = []
+            parent._children.append(self)
+        self._children: List[TGroup] = []
+        self._tasks: List[TTask] = []
 
     def get_cmd_name(self) -> str:
-        return to_cmd_name(self.name)
+        return to_cmd_name(self._name)
 
     def get_complete_name(self) -> str:
         cmd_name = self.get_cmd_name()
-        if self.parent is None:
+        if self._parent is None:
             return cmd_name
-        parent_cmd_name = self.parent.get_complete_name()
+        parent_cmd_name = self._parent.get_complete_name()
         return f'{parent_cmd_name} {cmd_name}'
 
     def get_id(self) -> str:
         group_id = self.get_cmd_name()
-        if self.parent is None:
+        if self._parent is None:
             return group_id
-        parent_group_id = self.parent.get_id()
+        parent_group_id = self._parent.get_id()
         return f'{parent_group_id} {group_id}'
+
+    def get_tasks(self) -> List[TTask]:
+        return self._tasks
+    
+    def get_children(self) -> List[TGroup]:
+        return self._children
 
 
 class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
@@ -107,11 +113,11 @@ class TimeTracker():
 class AttemptTracker():
 
     def __init__(self, retry: int = 2):
-        self.retry = retry
+        self._retry = retry
         self._attempt: int = 1
 
     def get_max_attempt(self) -> int:
-        return self.retry + 1
+        return self._retry + 1
 
     def get_attempt(self) -> int:
         return self._attempt
@@ -159,13 +165,13 @@ class FinishTracker():
 class PidModel():
 
     def __init__(self):
-        self.zrb_task_pid: int = os.getpid()
+        self._zrb_task_pid: int = os.getpid()
 
     def set_task_pid(self, pid: int):
-        self.zrb_task_pid = pid
+        self._zrb_task_pid = pid
 
     def get_task_pid(self) -> int:
-        return self.zrb_task_pid
+        return self._zrb_task_pid
 
 
 @typechecked
@@ -183,12 +189,12 @@ class TaskModel(
         retry: int = 2,
     ):
         # init properties
-        self.name = name
-        self.group = group
-        self.envs = envs
-        self.env_files = env_files
-        self.icon = icon
-        self.color = color
+        self._name = name
+        self._group = group
+        self._envs = envs
+        self._env_files = env_files
+        self._icon = icon
+        self._color = color
         # init parent classes
         PidModel.__init__(self)
         FinishTracker.__init__(self)
@@ -209,17 +215,23 @@ class TaskModel(
         self._all_inputs: Optional[List[BaseInput]] = None
 
     def get_icon(self) -> str:
-        if self.icon is None or self.icon == '':
-            self.icon = get_random_icon()
-        return self.icon
+        if self._icon is None or self._icon == '':
+            self._icon = get_random_icon()
+        return self._icon
 
     def get_color(self) -> str:
-        if self.color is None or not is_valid_color(self.color):
-            self.color = get_random_color()
-        return self.color
+        if self._color is None or not is_valid_color(self._color):
+            self._color = get_random_color()
+        return self._color
 
     def get_cmd_name(self) -> str:
-        return to_cmd_name(self.name)
+        return to_cmd_name(self._name)
+
+    def get_env_files(self) -> List[EnvFile]:
+        return self._env_files
+
+    def get_envs(self) -> List[Env]:
+        return self._envs
 
     def ensure_non_negative(self, value: float, error_label: str) -> float:
         if value < 0:
@@ -424,8 +436,8 @@ class TaskModel(
         # - self.env_files should have lower priority then self.envs
         # - First self.envs/self.env_files should be overriden by the next
         self.log_info('Merging task envs, task env files, and native envs')
-        envs: List[Env] = self._deduplicate_env(self.envs)
-        for env_file in reverse(self.env_files):
+        envs: List[Env] = self._deduplicate_env(self._envs)
+        for env_file in reverse(self._env_files):
             envs += env_file.get_envs()
         for env_name in os.environ:
             envs.append(Env(name=env_name, os_name=env_name, renderable=False))
@@ -471,10 +483,10 @@ class TaskModel(
         if self._has_cli_interface:
             executable_prefix += self._get_executable_name() + ' '
         cmd_name = self.get_cmd_name()
-        if self.group is None:
+        if self._group is None:
             self._complete_name = f'{executable_prefix}{cmd_name}'
             return self._complete_name
-        group_cmd_name = self.group.get_complete_name()
+        group_cmd_name = self._group.get_complete_name()
         self._complete_name = f'{executable_prefix}{group_cmd_name} {cmd_name}'
         return self._complete_name
 
@@ -531,7 +543,7 @@ class BaseTask(TaskModel):
         if checking_interval == 0:
             checking_interval = 0.05 if len(checkers) == 0 else 0.1
         if group is not None:
-            group.tasks.append(self)
+            group._tasks.append(self)
         self.inputs = inputs
         self.description = description
         self.retry_interval = retry_interval
@@ -585,7 +597,7 @@ class BaseTask(TaskModel):
     def get_description(self) -> str:
         if self.description != '':
             return self.description
-        return self.name
+        return self._name
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True

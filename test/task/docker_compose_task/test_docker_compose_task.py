@@ -1,4 +1,4 @@
-from zrb.task.docker_compose_task import DockerComposeTask
+from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig, Env, EnvFile
 
 import pathlib
 import os
@@ -9,11 +9,20 @@ def test_docker_compose_task_simple():
     resource_path = os.path.join(dir_path, 'resource')
     docker_compose_task = DockerComposeTask(
         name='simple',
-        compose_file=os.path.join(resource_path, 'docker-compose-simple.yml')
+        compose_file=os.path.join(resource_path, 'docker-compose-simple.yml'),
+        compose_service_configs={
+            'myapp_simple': ServiceConfig(
+                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+            )
+        },
+        compose_flags=['--build']
     )
     main_loop = docker_compose_task.create_main_loop()
     result = main_loop()
     assert 'Hello, Compose!' in result.output
+    assert 'As above so below' in result.output
+    assert 'As below so above' in result.output
 
 
 def test_docker_compose_task_with_cwd_and_compose_file():
@@ -23,10 +32,19 @@ def test_docker_compose_task_with_cwd_and_compose_file():
         name='simple',
         cwd=resource_path,
         compose_file='docker-compose-simple.yml',
+        compose_service_configs={
+            'myapp_simple': ServiceConfig(
+                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+            )
+        },
+        compose_flags=['--build']
     )
     main_loop = docker_compose_task.create_main_loop()
     result = main_loop()
     assert 'Hello, Compose!' in result.output
+    assert 'As above so below' in result.output
+    assert 'As below so above' in result.output
 
 
 def test_docker_compose_task_with_cwd():
@@ -35,10 +53,19 @@ def test_docker_compose_task_with_cwd():
     docker_compose_task = DockerComposeTask(
         name='simple',
         cwd=resource_path,
+        compose_service_configs={
+            'myapp': ServiceConfig(
+                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+            )
+        },
+        compose_flags=['--build']
     )
     main_loop = docker_compose_task.create_main_loop()
     result = main_loop()
     assert 'Hello, Compose!' in result.output
+    assert 'As above so below' in result.output
+    assert 'As below so above' in result.output
 
 
 def test_docker_compose_task_invalid_compose_file():
@@ -63,7 +90,14 @@ def test_docker_compose_task_simple_no_default_env():
         name='simple',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-no-default-env.yml'
-        )
+        ),
+        compose_service_configs={
+            'myapp_simple_no_default_env': ServiceConfig(
+                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+            )
+        },
+        compose_flags=['--build']
     )
     main_loop = docker_compose_task.create_main_loop()
     # run with env set
@@ -72,6 +106,8 @@ def test_docker_compose_task_simple_no_default_env():
     os.environ['ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE'] = 'Good night'
     result_default = main_loop()
     assert 'Good night' in result_default.output
+    assert 'As above so below' in result_default.output
+    assert 'As below so above' in result_default.output
     del os.environ['ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE']
 
 
@@ -82,7 +118,14 @@ def test_docker_compose_task_simple_map_env():
         name='simple',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-map-env.yml'
-        )
+        ),
+        compose_service_configs={
+            'myapp_simple_map_env': ServiceConfig(
+                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+            )
+        },
+        compose_flags=['--build']
     )
     main_loop = docker_compose_task.create_main_loop()
     # run with no env
@@ -108,7 +151,14 @@ def test_docker_compose_task_simple_list_env():
         name='simple',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-list-env.yml'
-        )
+        ),
+        compose_service_configs={
+            'myapp_simple_list_env': ServiceConfig(
+                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+            )
+        },
+        compose_flags=['--build']
     )
     main_loop = docker_compose_task.create_main_loop()
     # run with no env

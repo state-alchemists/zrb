@@ -3,7 +3,7 @@ from .helper.loader.load_module import load_module
 from .task.decorator import python_task
 from .task.task import Task
 from .task.cmd_task import CmdTask
-from .task.docker_compose_task import DockerComposeTask
+from .task.docker_compose_task import DockerComposeTask, ServiceConfig
 from .task.http_checker import HTTPChecker
 from .task.port_checker import PortChecker
 from .task.path_checker import PathChecker
@@ -28,6 +28,7 @@ assert python_task
 assert Task
 assert CmdTask
 assert DockerComposeTask
+assert ServiceConfig
 assert HTTPChecker
 assert PortChecker
 assert PathChecker

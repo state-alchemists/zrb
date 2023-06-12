@@ -56,12 +56,12 @@ class ResourceMaker(BaseTask):
             retry=0,
             retry_interval=0
         )
-        self.template_path = template_path
-        self.destination_path = destination_path
-        self.excludes = excludes
-        self.replacements = replacements
-        self.replacement_mutator = replacement_mutator
-        self.locks = locks
+        self._template_path = template_path
+        self._destination_path = destination_path
+        self._excludes = excludes
+        self._replacements = replacements
+        self._replacement_mutator = replacement_mutator
+        self._locks = locks
 
     def create_main_loop(
         self, env_prefix: str = '', raise_error: bool = True
@@ -70,10 +70,10 @@ class ResourceMaker(BaseTask):
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         # render parameters
-        template_path = self.render_str(self.template_path)
-        destination_path = self.render_str(self.destination_path)
+        template_path = self.render_str(self._template_path)
+        destination_path = self.render_str(self._destination_path)
         # check scaffold locks
-        for scaffold_lock in self.locks:
+        for scaffold_lock in self._locks:
             self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
             rendered_scaffold_lock = self.render_str(scaffold_lock)
             self.log_debug(f'Rendered scaffold lock: {rendered_scaffold_lock}')
@@ -84,21 +84,21 @@ class ResourceMaker(BaseTask):
                 f'{rendered_scaffold_lock},',
             ]))
         # render excludes
-        self.log_debug(f'Render excludes: {self.excludes}')
+        self.log_debug(f'Render excludes: {self._excludes}')
         excludes = [
             self.render_str(exclude)
-            for exclude in self.excludes
+            for exclude in self._excludes
         ]
         self.log_debug(f'Rendered excludes: {excludes}')
-        self.log_debug(f'Render replacements: {self.replacements}')
+        self.log_debug(f'Render replacements: {self._replacements}')
         rendered_replacements: Mapping[str, str] = {
             old: self.render_str(new)
-            for old, new in self.replacements.items()
+            for old, new in self._replacements.items()
         }
         self.log_debug(f'Rendered replacements: {rendered_replacements}')
-        if self.replacement_mutator is not None:
+        if self._replacement_mutator is not None:
             self.log_debug('Apply replacement mutator')
-            rendered_replacements = self.replacement_mutator(
+            rendered_replacements = self._replacement_mutator(
                 self, rendered_replacements
             )
         self.log_debug(

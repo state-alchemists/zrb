@@ -7,9 +7,9 @@ from ..string.jinja import is_probably_jinja
 def fetch_env_map_from_group(
     env_map: Mapping[str, str], group: Group
 ) -> Mapping[str, str]:
-    for task in group.tasks:
+    for task in group.get_tasks():
         env_map = fetch_env_map_from_task(env_map, task)
-    for sub_group in group.children:
+    for sub_group in group.get_children():
         sub_env_map: Mapping[str, str] = fetch_env_map_from_group(
             env_map, sub_group
         )
@@ -21,10 +21,10 @@ def fetch_env_map_from_task(
     env_map: Mapping[str, str], task: BaseTask
 ):
     task_env_map: Mapping[str, str] = {}
-    for env_file in task.env_files:
+    for env_file in task.get_env_files():
         envs = env_file.get_envs()
         task_env_map = add_envs_to_env_map(task_env_map, envs)
-    task_env_map = add_envs_to_env_map(task_env_map, task.envs)
+    task_env_map = add_envs_to_env_map(task_env_map, task._envs)
     env_map = cascade_env_map(env_map, task_env_map)
     for upstream in task.upstreams:
         task_env_map = fetch_env_map_from_task(env_map, upstream)

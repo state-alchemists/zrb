@@ -34,13 +34,13 @@ class Runner(BaseAction):
 
     def _create_cli_subcommand(self, task: BaseTask) -> click.Group:
         subcommand: CliSubcommand = self._create_cli_command(task)
-        task_group = task.group
+        task_group = task._group
         while task_group is not None:
             group = self._register_sub_command(task_group, subcommand)
-            if task_group.parent is None:
+            if task_group._parent is None:
                 return group
             subcommand = group
-            task_group = task_group.parent
+            task_group = task_group._parent
         return subcommand
 
     def _register_sub_command(
@@ -60,7 +60,7 @@ class Runner(BaseAction):
         if task_group_id in self._registered_groups:
             return self._registered_groups[task_group_id]
         group_cmd_name = task_group.get_cmd_name()
-        group_description = task_group.description
+        group_description = task_group._description
         group = click.Group(name=group_cmd_name, help=group_description)
         self._registered_groups[task_group_id] = group
         return group
