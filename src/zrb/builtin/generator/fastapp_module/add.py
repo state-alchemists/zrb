@@ -196,7 +196,7 @@ def _get_new_docker_compose_service_definition(
             'container_name': f'{snake_app_name}_{snake_module_name}_service',
             'hostname': f'snake_app_name_{snake_module_name}',
             'env_file': [
-                'src/template.common.env',
+                'src/template.env',
                 'all-module-disabled.env'
             ],
             'environment': {

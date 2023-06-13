@@ -25,10 +25,12 @@ host_port_env = Env(
 ###############################################################################
 
 snake_app_name_service_config = ServiceConfig(
-    env_files=EnvFile(
-        env_file=os.path.join(APP_DIR, 'template.env'),
-        prefix='CONTAINER_ENV_PREFIX'
-    )
+    env_files=[
+        EnvFile(
+            env_file=os.path.join(APP_DIR, 'template.env'),
+            prefix='CONTAINER_ENV_PREFIX'
+        )
+    ]
 )
 
 ###############################################################################

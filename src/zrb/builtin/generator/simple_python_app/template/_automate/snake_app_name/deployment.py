@@ -1,10 +1,8 @@
-from typing import List
 from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
 from zrb.builtin._group import project_group
-from .image import push_snake_app_name_image
+from .image import push_snake_app_name_image, image_input, image_env
 from ._common import (
-    CURRENT_DIR, DEPLOYMENT_DIR, TEMPLATE_ENV_FILE_NAME,
-    image_input, image_env
+    CURRENT_DIR, DEPLOYMENT_DIR, TEMPLATE_ENV_FILE_NAME
 )
 import os
 

@@ -17,7 +17,7 @@ import pathlib
 
 @typechecked
 class ServiceConfig():
-    def __init__(self, envs: List[Env], env_files: List[EnvFile]):
+    def __init__(self, envs: List[Env] = [], env_files: List[EnvFile] = []):
         self._envs = envs
         self._env_files = env_files
 

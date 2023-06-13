@@ -29,13 +29,13 @@ SKIP_SUPPORT_CONTAINER_EXECUTION = ' '.join([
 SKIP_LOCAL_MONOLITH_EXECUTION = ' '.join([
     '{{',
     'not input.local_snake_app_name',
-    'or input.snake_app_name_mode == "microservices"',
+    'or input.snake_app_name_run_mode == "microservices"',
     '}}',
 ])
 SKIP_LOCAL_MICROSERVICES_EXECUTION = ' '.join([
     '{{',
     'not input.local_snake_app_name',
-    'or input.snake_app_name_mode == "monolith"',
+    'or input.snake_app_name_run_mode == "monolith"',
     '}}',
 ])
 
