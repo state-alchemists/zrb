@@ -7,6 +7,10 @@ from .frontend import build_snake_app_name_frontend_once
 from .local import prepare_snake_app_name_backend
 import os
 
+###############################################################################
+# Env file Definitions
+###############################################################################
+
 app_env_file = EnvFile(
     env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='TEST_ENV_PREFIX'
 )

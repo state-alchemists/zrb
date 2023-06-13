@@ -1,16 +1,17 @@
-from zrb import CmdTask, DockerComposeTask, Task, Env, runner
+from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
 from zrb.builtin._group import project_group
 from ._common import (
-    CURRENT_DIR, APP_DIR, RESOURCE_DIR, SKIP_SUPPORT_CONTAINER_EXECUTION,
-    SKIP_LOCAL_MONOLITH_EXECUTION, SKIP_LOCAL_MICROSERVICES_EXECUTION,
+    CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
+    SKIP_SUPPORT_CONTAINER_EXECUTION, SKIP_LOCAL_MONOLITH_EXECUTION,
+    SKIP_LOCAL_MICROSERVICES_EXECUTION,
     rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker,
     kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker, app_local_checker,
-    local_input, mode_input, host_input, https_input, image_input,
-    local_app_port_env, local_app_broker_type_env, app_env_file
+    local_input, run_mode_input, host_input, https_input,
+    local_app_port_env, local_app_broker_type_env
 )
-from .image import build_snake_app_name_image
+from .image import build_snake_app_name_image, image_input
 from .frontend import build_snake_app_name_frontend
 from .container import remove_snake_app_name_container
 from .local_microservices import get_start_microservices
@@ -18,6 +19,15 @@ import os
 
 support_compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
+
+
+###############################################################################
+# Env file Definitions
+###############################################################################
+
+app_env_file = EnvFile(
+    env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
+)
 
 ###############################################################################
 # Task Definitions
@@ -72,7 +82,7 @@ start_monolith_snake_app_name = CmdTask(
     name='start-monolith-kebab-app-name',
     inputs=[
         local_input,
-        mode_input,
+        run_mode_input,
         host_input,
         https_input
     ],
@@ -99,7 +109,7 @@ start_snake_app_name_gateway = CmdTask(
     name='start-kebab-app-name-gateway',
     inputs=[
         local_input,
-        mode_input,
+        run_mode_input,
         host_input,
         https_input
     ],

@@ -1,25 +1,60 @@
 from typing import List
-from zrb import CmdTask, Env, EnvFile, runner
+from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
 from zrb.builtin._group import project_group
 from .image import push_snake_app_name_image
 from ._common import (
     CURRENT_DIR, DEPLOYMENT_DIR, TEMPLATE_ENV_FILE_NAME,
-    image_input, pulumi_stack_input, replica_input, image_env,
-    deployment_replica_env, pulumi_backend_url_env,
-    pulumi_config_passphrase_env
+    image_input, image_env
 )
 import os
+
+###############################################################################
+# Input Definitions
+###############################################################################
+
+replica_input = IntInput(
+    name='kebab-app-name-replica',
+    description='Replica of "kebab-app-name"',
+    prompt='Replica of "kebab-app-name"',
+    default=1,
+)
+
+pulumi_stack_input = StrInput(
+    name='kebab-app-name-pulumi-stack',
+    description='Pulumi stack name for "kebab-app-name"',
+    prompt='Pulumi stack name for "kebab-app-name"',
+    default=os.getenv('ZRB_ENV', 'dev')
+)
+
+###############################################################################
+# Env File Definitions
+###############################################################################
 
 deployment_app_env_file = EnvFile(
     env_file=TEMPLATE_ENV_FILE_NAME, prefix='DEPLOYMENT_APP_ENV_PREFIX'
 )
 
-deployment_envs: List[Env] = [
-    pulumi_backend_url_env,
-    pulumi_config_passphrase_env,
-    image_env,
-    deployment_replica_env,
-]
+###############################################################################
+# Env Definitions
+###############################################################################
+
+pulumi_backend_url_env = Env(
+    name='PULUMI_BACKEND_URL',
+    os_name='PULUMI_ENV_PREFIX_BACKEND_URL',
+    default=f'file://{DEPLOYMENT_DIR}/state'
+)
+
+pulumi_config_passphrase_env = Env(
+    name='PULUMI_CONFIG_PASSPHRASE',
+    os_name='PULUMI_ENV_PREFIX_CONFIG_PASSPHRASE',
+    default='secret'
+)
+
+deployment_replica_env = Env(
+    name='REPLICA',
+    os_name='DEPLOYMENT_ENV_PREFIX',
+    default='{{input.snake_app_name_replica}}'
+)
 
 ###############################################################################
 # Task Definitions
@@ -38,7 +73,12 @@ deploy_snake_app_name = CmdTask(
     upstreams=[push_snake_app_name_image],
     cwd=DEPLOYMENT_DIR,
     env_files=[deployment_app_env_file],
-    envs=deployment_envs,
+    envs=[
+        pulumi_backend_url_env,
+        pulumi_config_passphrase_env,
+        image_env,
+        deployment_replica_env,
+    ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'pulumi-up.sh'),
 )
 runner.register(deploy_snake_app_name)
@@ -53,7 +93,12 @@ destroy_snake_app_name = CmdTask(
     ],
     cwd=DEPLOYMENT_DIR,
     env_files=[deployment_app_env_file],
-    envs=deployment_envs,
+    envs=[
+        pulumi_backend_url_env,
+        pulumi_config_passphrase_env,
+        image_env,
+        deployment_replica_env,
+    ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'pulumi-destroy.sh'),
 )
 runner.register(destroy_snake_app_name)

@@ -1,6 +1,5 @@
 from zrb import (
-    BoolInput, ChoiceInput, StrInput, Env, EnvFile,
-    HTTPChecker, PortChecker
+    BoolInput, ChoiceInput, StrInput, Env, HTTPChecker, PortChecker
 )
 import jsons
 import os
@@ -123,8 +122,8 @@ local_input = BoolInput(
     default=True
 )
 
-mode_input = ChoiceInput(
-    name='kebab-app-name-mode',
+run_mode_input = ChoiceInput(
+    name='kebab-app-name-run-mode',
     description='"kebab-app-name" mode',
     prompt='Do you want to run "kebab-app-name" as monolith or microservices?',
     choices=['monolith', 'microservices'],
@@ -145,53 +144,13 @@ host_input = StrInput(
     default='localhost'
 )
 
-image_input = StrInput(
-    name='kebab-app-name-image',
-    description='Image name of "kebab-app-name"',
-    prompt='Image name of "kebab-app-name"',
-    default='app-image-name:latest'
-)
-
-pulumi_stack_input = StrInput(
-    name='kebab-app-name-pulumi-stack',
-    description='Pulumi stack name for "kebab-app-name"',
-    prompt='Pulumi stack name for "kebab-app-name"',
-    default=os.getenv('ZRB_ENV', 'dev')
-)
-
 ###############################################################################
 # Env file Definitions
 ###############################################################################
 
-compose_env_file = EnvFile(
-    env_file=os.path.join(CURRENT_DIR, 'config', 'docker-compose.env'),
-    prefix='CONTAINER_ENV_PREFIX'
-)
-app_env_file = EnvFile(
-    env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ENV_PREFIX'
-)
-
 ###############################################################################
-# Env Definitions
+# Env fDefinitions
 ###############################################################################
-
-image_env = Env(
-    name='IMAGE',
-    os_name='CONTAINER_ENV_PREFIX_IMAGE',
-    default='{{input.snake_app_name_image}}'
-)
-
-pulumi_backend_url_env = Env(
-    name='PULUMI_BACKEND_URL',
-    os_name='PULUMI_ENV_PREFIX_BACKEND_URL',
-    default=f'file://{DEPLOYMENT_DIR}/state'
-)
-
-pulumi_config_passphrase_env = Env(
-    name='PULUMI_CONFIG_PASSPHRASE',
-    os_name='PULUMI_ENV_PREFIX_CONFIG_PASSPHRASE',
-    default='secret'
-)
 
 local_app_port_env = Env(
     name='APP_PORT',

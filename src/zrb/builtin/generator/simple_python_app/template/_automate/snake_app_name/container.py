@@ -1,25 +1,34 @@
-from zrb import DockerComposeTask, Env, EnvFile, HTTPChecker, runner
+from zrb import (
+    DockerComposeTask, Env, EnvFile, HTTPChecker, ServiceConfig, runner
+)
 from zrb.builtin._group import project_group
 from ._common import (
-    RESOURCE_DIR, APP_DIR,
-    local_input, host_input, https_input, image_input,
-    image_env
+    RESOURCE_DIR, APP_DIR, local_input, host_input, https_input
 )
-from .image import build_snake_app_name_image
+from .image import (
+    image_input, image_env, build_snake_app_name_image
+)
 import os
 
-compose_env_prefix = 'CONTAINER_ENV_PREFIX'
-compose_envs = [
-    image_env,
-    Env(
-        name='HOST_PORT',
-        os_name='CONTAINER_ENV_PREFIX_HOST_PORT',
-        default='httpPort'
-    ),
-]
-compose_env_file = EnvFile(
-    env_file=os.path.join(APP_DIR, 'template.env'),
-    prefix=compose_env_prefix
+###############################################################################
+# Env Definitions
+###############################################################################
+
+host_port_env = Env(
+    name='HOST_PORT',
+    os_name='CONTAINER_ENV_PREFIX_HOST_PORT',
+    default='httpPort'
+)
+
+###############################################################################
+# Service Config Definitions
+###############################################################################
+
+snake_app_name_service_config = ServiceConfig(
+    env_files=EnvFile(
+        env_file=os.path.join(APP_DIR, 'template.env'),
+        prefix='CONTAINER_ENV_PREFIX'
+    )
 )
 
 ###############################################################################
@@ -33,9 +42,14 @@ remove_snake_app_name_container = DockerComposeTask(
     group=project_group,
     cwd=RESOURCE_DIR,
     compose_cmd='down',
-    compose_env_prefix=compose_env_prefix,
-    envs=compose_envs,
-    env_files=[compose_env_file],
+    compose_env_prefix='CONTAINER_ENV_PREFIX',
+    compose_service_configs={
+        'snake_app_name': snake_app_name_service_config
+    },
+    envs=[
+        image_env,
+        host_port_env,
+    ],
 )
 runner.register(remove_snake_app_name_container)
 
@@ -46,9 +60,14 @@ stop_snake_app_name_container = DockerComposeTask(
     group=project_group,
     cwd=RESOURCE_DIR,
     compose_cmd='stop',
-    compose_env_prefix=compose_env_prefix,
-    envs=compose_envs,
-    env_files=[compose_env_file],
+    compose_env_prefix='CONTAINER_ENV_PREFIX',
+    compose_service_configs={
+        'snake_app_name': snake_app_name_service_config
+    },
+    envs=[
+        image_env,
+        host_port_env,
+    ],
 )
 runner.register(stop_snake_app_name_container)
 
@@ -70,9 +89,14 @@ start_snake_app_name_container = DockerComposeTask(
     ],
     cwd=RESOURCE_DIR,
     compose_cmd='up',
-    compose_env_prefix=compose_env_prefix,
-    envs=compose_envs,
-    env_files=[compose_env_file],
+    compose_env_prefix='CONTAINER_ENV_PREFIX',
+    compose_service_configs={
+        'snake_app_name': snake_app_name_service_config
+    },
+    envs=[
+        image_env,
+        host_port_env,
+    ],
     checkers=[
         HTTPChecker(
             name='check-kebab-app-name',
