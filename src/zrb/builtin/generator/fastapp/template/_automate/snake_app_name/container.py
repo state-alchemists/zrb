@@ -3,23 +3,31 @@ from zrb import DockerComposeTask, ServiceConfig, EnvFile, runner
 from zrb.helper.util import to_kebab_case
 from zrb.builtin._group import project_group
 from ._common import (
-    APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
+    APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, RESOURCE_DIR,
     SKIP_CONTAINER_EXECUTION, MODULES,
     app_container_checker, rabbitmq_checker, rabbitmq_management_checker,
-    redpanda_console_checker, kafka_outside_checker,
-    kafka_plaintext_checker, pandaproxy_outside_checker,
-    pandaproxy_plaintext_checker, local_input, run_mode_input, host_input,
-    https_input
+    redpanda_console_checker, kafka_outside_checker, kafka_plaintext_checker,
+    pandaproxy_outside_checker, pandaproxy_plaintext_checker, local_input,
+    run_mode_input, host_input, https_input
 )
 from .image import build_snake_app_name_image, image_input, image_env
+import os
 
-compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 all_compose_profiles = 'monolith,microservices,kafka,rabbitmq'
 start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
 start_mode_compose_profile = '{{input.get("snake_app_name_mode", "monolith")}}'
 start_compose_profiles = ','.join([
     start_broker_compose_profile, start_mode_compose_profile
 ])
+
+###############################################################################
+# Env File Definitions
+###############################################################################
+
+compose_env_file = EnvFile(
+    env_file=os.path.join(CURRENT_DIR, 'config', 'docker-compose.env'),
+    prefix='CONTAINER_ENV_PREFIX'
+)
 
 ###############################################################################
 # Compose Service Config Definitions
@@ -52,7 +60,8 @@ remove_snake_app_name_container = DockerComposeTask(
     compose_cmd='down',
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs=service_configs,
-    envs=[image_env]
+    envs=[image_env],
+    env_files=[compose_env_file]
 )
 runner.register(remove_snake_app_name_container)
 
@@ -79,6 +88,7 @@ start_snake_app_name_container = DockerComposeTask(
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs=service_configs,
     envs=[image_env],
+    env_files=[compose_env_file],
     checkers=[
         app_container_checker,
         rabbitmq_checker,
@@ -102,6 +112,7 @@ stop_snake_app_name_container = DockerComposeTask(
     compose_cmd='stop',
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs=service_configs,
-    envs=[image_env]
+    envs=[image_env],
+    env_files=[compose_env_file]
 )
 runner.register(stop_snake_app_name_container)

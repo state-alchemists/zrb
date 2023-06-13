@@ -17,7 +17,6 @@ from .container import remove_snake_app_name_container
 from .local_microservices import get_start_microservices
 import os
 
-support_compose_env_prefix = 'CONTAINER_ENV_PREFIX'
 start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
 
 
@@ -51,7 +50,7 @@ start_snake_app_name_support_container = DockerComposeTask(
     cwd=RESOURCE_DIR,
     setup_cmd=f'export COMPOSE_PROFILES={start_broker_compose_profile}',
     compose_cmd='up',
-    compose_env_prefix=support_compose_env_prefix,
+    compose_env_prefix='CONTAINER_ENV_PREFIX',
     envs=[
         local_app_broker_type_env,
         local_app_port_env,

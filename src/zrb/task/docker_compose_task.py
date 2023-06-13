@@ -206,13 +206,16 @@ class DockerComposeTask(CmdTask):
         })
         return env_map
 
-    def _get_compose_runtime_file(self, compose_file_name: str):
-        if '.' in compose_file_name:
-            filename_parts = compose_file_name.split('.')
-            filename_parts[-2] += '.runtime'
-            return '.'.join(filename_parts)
-        else:
-            return compose_file_name + '.runtime'
+    def _get_compose_runtime_file(self, compose_file_name: str) -> str:
+        directory, file = os.path.split(compose_file_name)
+        prefix = '_' if file.startswith('.') else '._'
+        file_parts = file.split('.')
+        if len(file_parts) > 1:
+            file_parts[-2] += '.runtime'
+            runtime_file_name = prefix + '.'.join(file_parts)
+            return os.path.join(directory, runtime_file_name)
+        runtime_file_name = prefix + file + '.runtime'
+        return os.path.join(directory, runtime_file_name)
 
     def _get_compose_template_file(self, compose_file: Optional[str]) -> str:
         if compose_file is None:
