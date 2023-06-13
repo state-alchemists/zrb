@@ -3,10 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from config import (
-    app_name, app_enable_frontend, cors_allow_credentials, cors_allow_headers,
-    cors_allow_methods, cors_allow_origin_regex, cors_allow_origins,
-    cors_expose_headers, cors_max_age
+    app_name, app_enable_frontend, app_cors_allow_credentials,
+    app_cors_allow_headers, app_cors_allow_methods,
+    app_cors_allow_origin_regex, app_cors_allow_origins,
+    app_cors_expose_headers, app_cors_max_age, public_brand,
+    public_title, public_auth_access_token_cookie_key,
+    public_auth_refresh_token_cookie_key
 )
+from schema.frontend_config import FrontendConfig
 from component.app_lifespan import app_state
 from component.app_lifespan import app_lifespan
 from component.frontend_index import frontend_index_response
@@ -28,13 +32,13 @@ if app_enable_frontend:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_allow_origins,
-    allow_origin_regex=cors_allow_origin_regex,
-    allow_methods=cors_allow_methods,
-    allow_headers=cors_allow_headers,
-    allow_credentials=cors_allow_credentials,
-    expose_headers=cors_expose_headers,
-    max_age=cors_max_age,
+    allow_origins=app_cors_allow_origins,
+    allow_origin_regex=app_cors_allow_origin_regex,
+    allow_methods=app_cors_allow_methods,
+    allow_headers=app_cors_allow_headers,
+    allow_credentials=app_cors_allow_credentials,
+    expose_headers=app_cors_expose_headers,
+    max_age=app_cors_max_age,
 )
 
 
@@ -79,4 +83,14 @@ def get_application_readiness_status():
         content={'message': 'Service is not ready'},
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         headers={'api-error': 'yes'}
+    )
+
+
+@app.get('/api/v1/frontend/configs', response_model=FrontendConfig)
+def get_configs() -> FrontendConfig:
+    return FrontendConfig(
+        brand=public_brand,
+        title=public_title,
+        access_token_cookie_key=public_auth_access_token_cookie_key,
+        refresh_token_cookie_key=public_auth_refresh_token_cookie_key
     )

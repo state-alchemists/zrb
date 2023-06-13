@@ -124,8 +124,8 @@ local_input = BoolInput(
 
 run_mode_input = ChoiceInput(
     name='kebab-app-name-run-mode',
-    description='"kebab-app-name" mode',
-    prompt='Do you want to run "kebab-app-name" as monolith or microservices?',
+    description='"kebab-app-name" run mode (monolith/microservices)',
+    prompt='Run "kebab-app-name" as a monolith or microservices?',
     choices=['monolith', 'microservices'],
     default='monolith'
 )

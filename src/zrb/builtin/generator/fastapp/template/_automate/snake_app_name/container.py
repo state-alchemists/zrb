@@ -15,7 +15,7 @@ import os
 
 all_compose_profiles = 'monolith,microservices,kafka,rabbitmq'
 start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
-start_mode_compose_profile = '{{input.get("snake_app_name_mode", "monolith")}}'
+start_mode_compose_profile = '{{input.get("snake_app_name_run_mode", "monolith")}}' # noqa
 start_compose_profiles = ','.join([
     start_broker_compose_profile, start_mode_compose_profile
 ])

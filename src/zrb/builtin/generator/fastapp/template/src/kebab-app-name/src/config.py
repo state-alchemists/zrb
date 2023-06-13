@@ -93,30 +93,39 @@ app_kafka_sasl_pass = os.getenv(
     'APP_KAFKA_SASL_PASS', 'admin'
 )
 
-cors_allow_origins: List[str] = json.loads(os.getenv(
+app_cors_allow_origins: List[str] = json.loads(os.getenv(
     'APP_CORS_ALLOW_ORIGINS', '["*"]'
 ))
-cors_allow_origin_regex: str = os.getenv(
+app_cors_allow_origin_regex: str = os.getenv(
     'APP_CORS_ALLOW_ORIGIN_REGEX', ''
 )
-cors_allow_methods: List[str] = json.loads(os.getenv(
+app_cors_allow_methods: List[str] = json.loads(os.getenv(
     'APP_CORS_ALLOW_METHODS', '["*"]'
 ))
-cors_allow_headers: List[str] = json.loads(os.getenv(
+app_cors_allow_headers: List[str] = json.loads(os.getenv(
     'APP_CORS_ALLOW_HEADERS', '["*"]'
 ))
-cors_allow_credentials: bool = str_to_boolean(os.getenv(
+app_cors_allow_credentials: bool = str_to_boolean(os.getenv(
     'APP_CORS_ALLOW_CREDENTIALS', 'false'
 ))
-cors_expose_headers: bool = str_to_boolean(os.getenv(
+app_cors_expose_headers: bool = str_to_boolean(os.getenv(
     'APP_CORS_EXPOSE_HEADERS', 'false'
 ))
-cors_max_age: int = int(os.getenv(
+app_cors_max_age: int = int(os.getenv(
     'APP_CORS_MAX_AGE', '600'
 ))
-app_enable_auth_module = str_to_boolean(os.environ.get(
+app_enable_auth_module = str_to_boolean(os.getenv(
     'APP_ENABLE_AUTH_MODULE', 'true'
 ))
-app_enable_log_module = str_to_boolean(os.environ.get(
+app_enable_log_module = str_to_boolean(os.getenv(
     'APP_ENABLE_LOG_MODULE', 'true'
 ))
+
+public_brand = os.getenv('PUBLIC_BRAND', 'PascalAppName')
+public_title = os.getenv('PUBLIC_TITLE', 'PascalAppName')
+public_auth_access_token_cookie_key = os.getenv(
+    'PUBLIC_AUTH_ACCESS_TOKEN_COOKIE_KEY', 'access_token'
+)
+public_auth_refresh_token_cookie_key = os.getenv(
+    'PUBLIC_AUTH_REFRESH_TOKEN_COOKIE_KEY', 'refresh_token'
+)
