@@ -2,9 +2,16 @@
     import { onMount } from 'svelte';
 	import Navigation from '$lib/components/navigation/Navigation.svelte';
 	import { navData } from '$lib/config/navData';
-	import { appBrand, appTitle } from '$lib/config/app';
+	import { getBrand, getTitle } from '$lib/config/app';
 	import logo from '/static/logo.png';
   	import "../app.css";
+
+	let appBrand = '';
+	let appTitle = '';
+	onMount(async () => {
+		appBrand = await getBrand();	
+		appTitle = await getTitle();	
+	})
 </script>
 
 <title>{appTitle}</title>

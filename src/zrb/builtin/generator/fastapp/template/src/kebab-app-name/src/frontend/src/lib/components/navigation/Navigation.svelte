@@ -50,7 +50,7 @@
     }
 
     async function onLogoutLinkClick() {
-        logout();
+        await logout();
         await goto('/');
     }
 

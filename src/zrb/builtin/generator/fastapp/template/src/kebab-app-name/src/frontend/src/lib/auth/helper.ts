@@ -1,6 +1,6 @@
 import axios from 'axios';
 import jwt_decode from 'jwt-decode';
-import { authAccessTokenCookieKey, authRefreshTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/app';
+import { getAccessTokenCookieKey, getRefreshTokenCookieKey, isAuthorizedApiUrl, loginApiUrl, refreshTokenApiUrl } from '../config/app';
 import { userIdStore, userNameStore } from './store';
 import type { AccessTokenData } from './type';
 import Cookies from 'js-cookie';
@@ -42,7 +42,7 @@ export async function initAuthStore() {
 
 export async function ensureAccessToken(): Promise<string> {
     try {
-        const oldAccessToken = getOldAccessToken();
+        const oldAccessToken = await getOldAccessToken();
         if (oldAccessToken) {
             const oldAccessTokenData: AccessTokenData = decodeAccessToken(oldAccessToken);
             const { expireAt } = oldAccessTokenData;
@@ -51,7 +51,7 @@ export async function ensureAccessToken(): Promise<string> {
                 return oldAccessToken;
             }
         }
-        const oldRefreshToken = getOldRefreshToken();
+        const oldRefreshToken = await getOldRefreshToken();
         if (oldRefreshToken) {
             const response = await axios.post(
                 refreshTokenApiUrl,
@@ -71,17 +71,19 @@ export async function ensureAccessToken(): Promise<string> {
         }
         throw new Error('Cannot refresh token');
     } catch(error) {
-        logout();
+        await logout();
         throw(error);
     }
 }
 
-function getOldRefreshToken(): string | null {
-    return localStorage.getItem(authRefreshTokenCookieKey); 
+async function getOldRefreshToken(): Promise<string | null | undefined> {
+    const refreshTokenCookieKey = await getRefreshTokenCookieKey();
+    return localStorage.getItem(refreshTokenCookieKey); 
 }
 
-function getOldAccessToken(): string | undefined {
-    return Cookies.get(authAccessTokenCookieKey); 
+async function getOldAccessToken(): Promise<string | null | undefined> {
+    const accessTokenCookieKey = await getAccessTokenCookieKey();
+    return Cookies.get(accessTokenCookieKey); 
 }
 
 export async function login(identity: string, password: string) {
@@ -90,25 +92,29 @@ export async function login(identity: string, password: string) {
         if (response && response.status == 200 && response.data && response.data.access_token && response.data.refresh_token) {
             const accessToken: string = response.data.access_token;
             const refreshToken: string = response.data.refresh_token;
-            saveToken(accessToken, refreshToken);
+            await saveToken(accessToken, refreshToken);
             setAuthStoreByAccessToken(accessToken);
             return;
         }
         throw new Error('Unknown error');
     } catch(error) {
-        logout();
+        await logout();
         throw(error);
     }
 }
 
-function saveToken(accessToken: string, refreshToken: string) {
-    Cookies.set(authAccessTokenCookieKey, accessToken);
-    localStorage.setItem(authRefreshTokenCookieKey, refreshToken);
+async function saveToken(accessToken: string, refreshToken: string) {
+    const accessTokenCookieKey = await getAccessTokenCookieKey();
+    const refreshTokenCookieKey = await getRefreshTokenCookieKey();
+    Cookies.set(accessTokenCookieKey, accessToken);
+    localStorage.setItem(refreshTokenCookieKey, refreshToken);
 }
 
-export function logout() {
-    Cookies.remove(authAccessTokenCookieKey);
-    localStorage.removeItem(authRefreshTokenCookieKey);
+export async function logout() {
+    const accessTokenCookieKey = await getAccessTokenCookieKey();
+    const refreshTokenCookieKey = await getRefreshTokenCookieKey();
+    Cookies.remove(accessTokenCookieKey);
+    localStorage.removeItem(refreshTokenCookieKey);
     unsetAuthStore();
 }
 
