@@ -7,7 +7,6 @@
     let isAuthorized: boolean = false;
 
     beforeUpdate(() => {
-        console.log(authorization, singleNavData)
         isAuthorized = shouldShowSingleNavData(singleNavData, authorization);
     });
 
