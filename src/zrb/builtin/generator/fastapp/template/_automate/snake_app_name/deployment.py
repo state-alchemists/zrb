@@ -1,10 +1,9 @@
-from zrb import CmdTask, Env, EnvFile, StrInput, runner
+from zrb import CmdTask, Env, EnvFile, StrInput, ChoiceInput, runner
 from zrb.builtin._group import project_group
 from .image import push_snake_app_name_image
 from ._common import (
     CURRENT_DIR, DEPLOYMENT_DIR, APP_TEMPLATE_ENV_FILE_NAME,
-    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME, MODULES,
-    run_mode_input
+    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME, MODULES
 )
 from .image import image_input, image_env
 import os
@@ -14,6 +13,14 @@ import jsons
 ###############################################################################
 # Input Definitions
 ###############################################################################
+
+deploy_mode_input = ChoiceInput(
+    name='kebab-app-name-deploy-mode',
+    description='"kebab-app-name" deploy mode (monolith/microservices)',
+    prompt='Deploy "kebab-app-name" as a monolith or microservices?',
+    choices=['monolith', 'microservices'],
+    default='monolith'
+)
 
 pulumi_stack_input = StrInput(
     name='kebab-app-name-pulumi-stack',
@@ -60,7 +67,7 @@ deployment_modules_env = Env(
 deployment_mode_env = Env(
     name='MODE',
     os_name='DEPLOYMENT_CONFIG_ENV_PREFIX_MODE',
-    default='{{input.snake_app_name_mode}}'
+    default='{{input.snake_app_name_deploy_mode}}'
 )
 
 ###############################################################################
@@ -75,7 +82,7 @@ deploy_snake_app_name = CmdTask(
     inputs=[
         image_input,
         pulumi_stack_input,
-        run_mode_input,
+        deploy_mode_input,
     ],
     upstreams=[push_snake_app_name_image],
     cwd=DEPLOYMENT_DIR,

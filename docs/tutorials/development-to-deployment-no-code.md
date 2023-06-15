@@ -22,16 +22,18 @@ zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name
     --entity-name "book" --column-name "title" --column-type "str"
 
 # Run Fastapp as monolith
-zrb project start-fastapp --fastapp-mode "monolith"
+zrb project start-fastapp --fastapp-run-mode "monolith"
 
 # Run Fastapp as microservices
-zrb project start-fastapp --fastapp-mode "microservices"
+zrb project start-fastapp --fastapp-run-mode "microservices"
 
 # Run Fastapp as container
-zrb project start-fastapp-container --fastapp-mode "microservices"
+zrb project start-fastapp-container --fastapp-run-mode "microservices"
+zrb project stop-fastapp-container
 
 # Deploy fastapp
-zrb project deploy-fastapp
+docker login
+zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 ```
 
 

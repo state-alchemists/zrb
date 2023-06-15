@@ -214,7 +214,7 @@ def _get_new_docker_compose_service_definition(
             'ports': [
                 f'{app_host_port_env}:{app_container_port_env}'
             ],
-            'restart': 'on-failure',
+            'restart': 'unless-stopped',
             'profiles': [
                 'microservices'
             ],

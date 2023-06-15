@@ -28,21 +28,23 @@ zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name
     --entity-name "book" --column-name "title" --column-type "str"
 
 # Run Fastapp as monolith
-zrb project start-fastapp --fastapp-mode "monolith"
+zrb project start-fastapp --fastapp-run-mode "monolith"
 
 # Run Fastapp as microservices
-zrb project start-fastapp --fastapp-mode "microservices"
+zrb project start-fastapp --fastapp-run-mode "microservices"
 
 # Run Fastapp as container
-zrb project start-fastapp-container --fastapp-mode "microservices"
+zrb project start-fastapp-container --fastapp-run-mode "microservices"
+zrb project stop-fastapp-container
 
 # Deploy fastapp and all it's dependencies to kubernetes
-zrb project deploy-fastapp
+docker login
+zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 ```
 
-Visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) for more cool tricks.
+You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
 
-If you are not afraid to code, you can even define your automation commands:
+Lastly, Zrb also allows you to define your automation commands in Python:
 
 ```python
 # filename: zrb_init.py
@@ -56,7 +58,7 @@ hello = CmdTask(
 runner.register(hello)
 ```
 
-Once defined, your command will be instantly available:
+Once defined, your command will be instantly available from the CLI:
 
 ```bash
 zrb hello
@@ -76,7 +78,7 @@ To run again: zrb hello --name "Go Frendi"
 Hello Go Frendi
 ```
 
-To learn more about tasks you can visit [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md).
+To learn more about this, you can visit [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md).
 
 
 # 🫰 Installation
@@ -151,6 +153,6 @@ Help Red Skull to click the donation button:
 
 # 🎉 Fun fact
 
-> Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garoseries.fandom.com/wiki/Zaruba)
+> Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
 
 ![Madou Ring Zaruba on Kouga's Hand](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/madou-ring-zaruba.jpg)

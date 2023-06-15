@@ -1,4 +1,4 @@
-from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
+from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, ChoiceInput, runner
 from zrb.builtin._group import project_group
 from .image import push_snake_app_name_image, image_input, image_env
 from ._common import (

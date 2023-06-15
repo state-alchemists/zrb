@@ -35,7 +35,7 @@ services:
       KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
       KAFKA_SASL_USER: ${KAFKA_SASL_USER:-admin}
       KAFKA_SASL_PASS: ${KAFKA_SASL_PASS:-admin}
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - kafka
     healthcheck:
@@ -59,7 +59,7 @@ services:
     - kafka
     depends_on:
       - redpanda
-    restart: on-failure
+    restart: unless-stopped
     networks:
       - zrb
 
@@ -74,7 +74,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - rabbitmq
     healthcheck:
@@ -90,7 +90,7 @@ services:
     image: postgres:15.2
     container_name: snake_app_name_postgresql
     hostname: postgresql
-    restart: on-failure
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
@@ -107,7 +107,7 @@ services:
     image: adminer
     container_name: snake_app_name_adminer
     hostname: adminer
-    restart: on-failure
+    restart: unless-stopped
     ports:
     - ${ADMINER_HOST_PORT:-9001}:8080
     networks:
@@ -131,7 +131,7 @@ services:
       APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
     ports:
     - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monolith
     healthcheck:
@@ -166,7 +166,7 @@ services:
       APP_DB_AUTO_MIGRATE: false
     ports:
     - "${APP_GATEWAY_HOST_PORT:-8080}:${APP_GATEWAY_PORT:-8080}"
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - microservices
     healthcheck:
@@ -201,7 +201,7 @@ services:
       APP_ENABLE_AUTH_MODULE: true
     ports:
     - ${APP_AUTH_HOST_MODULE_PORT:-8081}:${APP_AUTH_MODULE_PORT:-8081}
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - microservices
     healthcheck:
@@ -238,7 +238,7 @@ services:
       APP_ENABLE_LOG_MODULE: 'true'
     ports:
     - ${APP_LOG_HOST_MODULE_PORT:-8082}:${APP_LOG_MODULE_PORT:-8082}
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - microservices
     healthcheck:
