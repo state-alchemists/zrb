@@ -21,6 +21,9 @@ Before starting the demo, you need to make sure you have the following software 
 - Venv
 - Docker (with Docker Compose extension)
 - Pulumi
+- Node.Js
+- Npm
+- Zrb
 - Access to a Kubernetes cluster
 
 > __Note:__ Installing docker desktop will give you docker + docker compose extension, as well as local kubernetes cluster (if enabled).
