@@ -70,8 +70,8 @@ class PortChecker(BaseTask):
         ):
             if wait_time >= self._show_error_interval:
                 wait_time = 0
-            await asyncio.sleep(self.checking_interval)
-            wait_time += self.checking_interval
+            await asyncio.sleep(self._checking_interval)
+            wait_time += self._checking_interval
         return True
 
     def _check_port(

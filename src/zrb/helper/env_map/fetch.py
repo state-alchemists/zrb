@@ -26,9 +26,9 @@ def fetch_env_map_from_task(
         task_env_map = add_envs_to_env_map(task_env_map, envs)
     task_env_map = add_envs_to_env_map(task_env_map, task._envs)
     env_map = cascade_env_map(env_map, task_env_map)
-    for upstream in task.upstreams:
+    for upstream in task.get_upstreams():
         task_env_map = fetch_env_map_from_task(env_map, upstream)
-    for checker in task.checkers:
+    for checker in task.get_checkers():
         task_env_map = fetch_env_map_from_task(env_map, checker)
     return env_map
 

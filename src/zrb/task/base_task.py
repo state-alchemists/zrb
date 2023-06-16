@@ -522,7 +522,7 @@ class BaseTask(TaskModel):
         retry: int = 2,
         retry_interval: float = 1,
         run: Optional[Callable[..., Any]] = None,
-        skip_execution: Union[bool, str] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
         TaskModel.__init__(
             self,
@@ -544,13 +544,13 @@ class BaseTask(TaskModel):
             checking_interval = 0.05 if len(checkers) == 0 else 0.1
         if group is not None:
             group._tasks.append(self)
-        self.inputs = inputs
-        self.description = description
-        self.retry_interval = retry_interval
-        self.upstreams = upstreams
-        self.checkers = checkers
-        self.checking_interval = checking_interval
-        self.skip_execution = skip_execution
+        self._inputs = inputs
+        self._description = description
+        self._retry_interval = retry_interval
+        self._upstreams = upstreams
+        self._checkers = checkers
+        self._checking_interval = checking_interval
+        self._skip_execution = skip_execution
         self._is_check_triggered: bool = False
         self._is_checked: bool = False
         self._is_execution_triggered: bool = False
@@ -558,6 +558,12 @@ class BaseTask(TaskModel):
         self._run_function: Optional[Callable[..., Any]] = run
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
+
+    def get_checkers(self) -> Iterable[TTask]:
+        return self._checkers
+
+    def get_upstreams(self) -> Iterable[TTask]:
+        return self._upstreams
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -585,18 +591,18 @@ class BaseTask(TaskModel):
         if self._all_inputs is not None:
             return self._all_inputs
         inputs: Iterable[BaseInput] = []
-        for upstream in self.upstreams:
+        for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
             inputs += upstream_inputs
-        inputs += self.inputs
+        inputs += self._inputs
         self._all_inputs = ensure_uniqueness(
             inputs, lambda x, y: x.name == y.name
         )
         return inputs
 
     def get_description(self) -> str:
-        if self.description != '':
-            return self.description
+        if self._description != '':
+            return self._description
         return self._name
 
     def create_main_loop(
@@ -670,7 +676,7 @@ class BaseTask(TaskModel):
         self.log_info('Start checking')
         while not await self._cached_check():
             self.log_debug('Task is not ready')
-            await asyncio.sleep(self.checking_interval)
+            await asyncio.sleep(self._checking_interval)
         self.end_timer()
         self.log_info('Task is ready')
         if show_info:
@@ -718,14 +724,14 @@ class BaseTask(TaskModel):
           this will return True once every self.checkers is completed
         - Otherwise, this will return check method's return value.
         '''
-        if len(self.checkers) == 0:
+        if len(self._checkers) == 0:
             return await self.check()
         self.log_debug('Waiting execution to be started')
         while not self._is_execution_started:
             # Don't start checking before the execution itself has been started
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
-        for checker_task in self.checkers:
+        for checker_task in self._checkers:
             check_coroutines.append(
                 asyncio.create_task(checker_task._run_all())
             )
@@ -737,7 +743,7 @@ class BaseTask(TaskModel):
         await self.mark_start()
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
-        for upstream_task in self.upstreams:
+        for upstream_task in self._upstreams:
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
@@ -749,14 +755,14 @@ class BaseTask(TaskModel):
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self._is_execution_triggered:
-            self.log_debug('Skip execution because execution flag is True')
+            self.log_debug('Execution has been triggered somewhere else')
             return
-        self.log_debug('Set execution flag to True')
+        self.log_debug('Set execution triggered flag to True')
         self._is_execution_triggered = True
         self.log_debug('Start running')
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
-        for upstream_task in self.upstreams:
+        for upstream_task in self._upstreams:
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
             ))
@@ -764,16 +770,16 @@ class BaseTask(TaskModel):
         await asyncio.gather(*upstream_check_processes)
         # mark execution as started, so that checkers can start checking
         self._is_execution_started = True
-        if self.render_bool(self.skip_execution):
+        local_kwargs = dict(kwargs)
+        local_kwargs['_task'] = self
+        if await self._check_skip_execution(*args, **local_kwargs):
             self.log_info(
-                f'Skip execution because config: {self.skip_execution}'
+                f'Skip execution because config: {self._skip_execution}'
             )
             await self.mark_as_done()
             return None
         # start running task
         result: Any
-        local_kwargs = dict(kwargs)
-        local_kwargs['_task'] = self
         while self.should_attempt():
             try:
                 self.log_debug(
@@ -787,9 +793,16 @@ class BaseTask(TaskModel):
                 attempt = self.get_attempt()
                 self.log_error(f'Encounter error on attempt {attempt}')
                 self.increase_attempt()
-                await asyncio.sleep(self.retry_interval)
+                await asyncio.sleep(self._retry_interval)
         await self.mark_as_done()
         return result
+
+    async def _check_skip_execution(self, *args: Any, **kwargs: Any) -> bool:
+        if callable(self._skip_execution):
+            if inspect.iscoroutinefunction(self._skip_execution):
+                return await self._skip_execution(*args, **kwargs)
+            return self._skip_execution(*args, **kwargs)
+        return self.render_bool(self._skip_execution)
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
@@ -805,7 +818,7 @@ class BaseTask(TaskModel):
         new_kwargs.update(self._input_map)
         upstream_coroutines = []
         # set uplstreams keyval
-        for upstream_task in self.upstreams:
+        for upstream_task in self._upstreams:
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix
@@ -814,8 +827,8 @@ class BaseTask(TaskModel):
         # set checker keyval
         local_env_map = self.get_env_map()
         checker_coroutines = []
-        for checker_task in self.checkers:
-            checker_task.inputs += self.inputs
+        for checker_task in self._checkers:
+            checker_task._inputs += self._inputs
             checker_task._inject_env_map(local_env_map, override=True)
             checker_coroutines.append(asyncio.create_task(
                 checker_task._set_keyval(

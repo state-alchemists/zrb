@@ -32,6 +32,30 @@ app_env_file = EnvFile(
 # Task Definitions
 ###############################################################################
 
+init_snake_app_name_support_container = DockerComposeTask(
+    icon='🔥',
+    name='init-kebab-app-name-support-container',
+    inputs=[
+        local_input,
+        host_input,
+        image_input,
+    ],
+    skip_execution=SKIP_SUPPORT_CONTAINER_EXECUTION,
+    upstreams=[
+        build_snake_app_name_image,
+        remove_snake_app_name_container
+    ],
+    cwd=RESOURCE_DIR,
+    setup_cmd=f'export COMPOSE_PROFILES={start_broker_compose_profile}',
+    compose_cmd='up',
+    compose_flags=['-d'],
+    compose_env_prefix='CONTAINER_ENV_PREFIX',
+    envs=[
+        local_app_broker_type_env,
+        local_app_port_env,
+    ],
+)
+
 start_snake_app_name_support_container = DockerComposeTask(
     icon='🐳',
     name='start-kebab-app-name-support-container',
@@ -43,13 +67,11 @@ start_snake_app_name_support_container = DockerComposeTask(
         image_input,
     ],
     skip_execution=SKIP_SUPPORT_CONTAINER_EXECUTION,
-    upstreams=[
-        build_snake_app_name_image,
-        remove_snake_app_name_container
-    ],
+    upstreams=[init_snake_app_name_support_container],
     cwd=RESOURCE_DIR,
     setup_cmd=f'export COMPOSE_PROFILES={start_broker_compose_profile}',
-    compose_cmd='up',
+    compose_cmd='logs',
+    compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     envs=[
         local_app_broker_type_env,

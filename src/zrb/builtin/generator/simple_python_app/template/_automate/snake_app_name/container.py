@@ -73,6 +73,32 @@ stop_snake_app_name_container = DockerComposeTask(
 )
 runner.register(stop_snake_app_name_container)
 
+init_snake_app_name_container = DockerComposeTask(
+    icon='🔥',
+    name='init-kebab-app-name-container',
+    inputs=[
+        local_input,
+        host_input,
+        image_input,
+    ],
+    skip_execution='{{not input.local_snake_app_name}}',
+    upstreams=[
+        build_snake_app_name_image,
+        remove_snake_app_name_container
+    ],
+    cwd=RESOURCE_DIR,
+    compose_cmd='up',
+    compose_flags=['-d'],
+    compose_env_prefix='CONTAINER_ENV_PREFIX',
+    compose_service_configs={
+        'snake_app_name': snake_app_name_service_config
+    },
+    envs=[
+        image_env,
+        host_port_env,
+    ],
+)
+
 start_snake_app_name_container = DockerComposeTask(
     icon='🐳',
     name='start-kebab-app-name-container',
@@ -85,12 +111,10 @@ start_snake_app_name_container = DockerComposeTask(
         image_input,
     ],
     skip_execution='{{not input.local_snake_app_name}}',
-    upstreams=[
-        build_snake_app_name_image,
-        remove_snake_app_name_container
-    ],
+    upstreams=[init_snake_app_name_container],
     cwd=RESOURCE_DIR,
-    compose_cmd='up',
+    compose_cmd='logs',
+    compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs={
         'snake_app_name': snake_app_name_service_config

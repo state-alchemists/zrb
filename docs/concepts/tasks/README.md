@@ -105,7 +105,7 @@ Waiting ----> Started ---┫                  ^
 - `Ready`: The task is ready. Some tasks are automatically stopped after ready, but some others keep running in the background (e.g., web server, scheduler, etc)
 - `Stopped`: The task is no longer running.
 
-# Task properties
+# Task parameters
 
 In common, every Zrb tasks has some properties.
 
@@ -396,10 +396,12 @@ Inter retry interval.
 
 ## `skip_execution`
 
-Boolean or Jinja syntax that return boolean. If `skip_execution` is evaluated to `True`, then the task will be considered as completed without being started.
+Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
+
+If `skip_execution` is evaluated to `True`, then the task will be considered as completed without being started.
 
 - __Required:__ False
-- __Possible values:__ Boolean or Jinja syntax that return boolean.
+- __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
 - __Default value:__ `False`
 
 
