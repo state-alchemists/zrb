@@ -8,6 +8,7 @@ from .task.http_checker import HTTPChecker
 from .task.port_checker import PortChecker
 from .task.path_checker import PathChecker
 from .task.resource_maker import ResourceMaker, Replacement, ReplacementMutator
+from .task.flow_task import FlowTask, FlowNode
 from .task_input.input import Input
 from .task_input.bool_input import BoolInput
 from .task_input.choice_input import ChoiceInput
@@ -33,6 +34,8 @@ assert HTTPChecker
 assert PortChecker
 assert PathChecker
 assert ResourceMaker
+assert FlowTask
+assert FlowNode
 assert Replacement
 assert ReplacementMutator
 assert Input

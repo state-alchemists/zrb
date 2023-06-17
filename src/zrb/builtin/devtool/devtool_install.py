@@ -1,3 +1,5 @@
+from typing import List
+from ...task.flow_task import FlowTask, FlowNode
 from ...task.installer.factory import create_installer
 from ...task_input.str_input import StrInput
 from ...task_input.bool_input import BoolInput
@@ -5,6 +7,11 @@ from ...runner import runner
 import os
 
 dir_path = os.path.dirname(__file__)
+
+
+def create_config_installer(config_file: str, destinations: List[str]):
+    # TODO: fully replace create_installer
+    pass
 
 
 # GVM
