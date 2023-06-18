@@ -27,8 +27,8 @@ class PortChecker(BaseTask):
         timeout: Union[int, str] = 5,
         upstreams: Iterable[BaseTask] = [],
         checking_interval: float = 0.1,
-        skip_execution: Union[bool, str] = False,
-        show_error_interval: float = 5
+        show_error_interval: float = 5,
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
         BaseTask.__init__(
             self,

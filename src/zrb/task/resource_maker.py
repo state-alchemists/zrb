@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Mapping, Optional
+from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
 from .base_task import BaseTask, Group
 from ..task_env.env import Env
@@ -38,7 +38,8 @@ class ResourceMaker(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         upstreams: Iterable[BaseTask] = [],
-        locks: Iterable[str] = []
+        locks: Iterable[str] = [],
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
         BaseTask.__init__(
             self,
@@ -54,7 +55,8 @@ class ResourceMaker(BaseTask):
             checkers=[],
             checking_interval=0.1,
             retry=0,
-            retry_interval=0
+            retry_interval=0,
+            skip_execution=skip_execution
         )
         self._template_path = template_path
         self._destination_path = destination_path

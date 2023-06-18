@@ -73,7 +73,7 @@ class CmdTask(BaseTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
         BaseTask.__init__(
             self,

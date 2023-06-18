@@ -84,8 +84,8 @@ class FlowTask(BaseTask):
         checking_interval: float = 0,
         retry: int = 2,
         retry_interval: float = 1,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
-        nodes: List[Union[FlowNode, List[FlowNode]]] = []
+        nodes: List[Union[FlowNode, List[FlowNode]]] = [],
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
         final_upstreams: List[Task] = upstreams
         for node in nodes:

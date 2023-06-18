@@ -26,7 +26,7 @@ def python_task(
     checking_interval: float = 0.1,
     retry: int = 2,
     retry_interval: float = 1,
-    skip_execution: Union[str, bool] = False,
+    skip_execution: Union[bool, str, Callable[..., bool]] = False,
     runner: Optional[Runner] = None
 ) -> Callable[[Callable[..., Any]], Task]:
     def _create_task(fn: Callable[..., Any]) -> Task:
