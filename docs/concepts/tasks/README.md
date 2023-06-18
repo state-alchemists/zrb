@@ -1,21 +1,45 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)
 
+
+# Type of Tasks
+
+There are many task types in Zrb. Every task has their own specific use-cases:
+
+
+- [CmdTask](cmd-task.md): Run a CLI command
+- [Task (python task)](python-task.md): Run a Python function
+- [DockerComposeTask](docker-compose-task.md): Run a Docker compose Command
+- [Resource Maker](resource-maker.md): Generate artifacts/resources based on templates
+- [FlowTask](flow-task.md): Put `CmdTask` and `python task` into single flow.
+- [Checkers (HttpChecker, PortChecker, and PathChecker)](checkers.md): Check parent task's readiness.
+
+As every task are extended from `BaseTask`, you will see that most of them share some common parameters.
+
+
+```
+                              BaseTask
+                                 │
+                                 │
+  ┌──────┬───────────┬───────────┼───────────┬───────────┬──────────┐
+  │      │           │           │           │           │          │
+  │      │           │           │           │           │          │
+  ▼      ▼           ▼           ▼           ▼           ▼          ▼
+Task  CmdTask  ResourceMaker  FlowTask  HttpChecker PortChecker PathChecker
+         │
+         │
+         ▼
+   DockerComposeTask
+```
+
+Aside from the documentation, you can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation.
+
+> __Note:__ Never initiate `BaseTask` directly, use `Task` instead.
+
 # Task overview
 
-Tasks are the building block of automation. In general, all tasks are extended from `BaseTask`.
+Tasks are building blocks of your automation.
 
-```
-                               BaseTask
-  ┌------┬---------┬--------------┼--------┬------------┬----------┐					
-  |      |         |              |        |            |          |
-Task  CmdTask ResourceMaker  FlowTask  HttpChecker  PathChecker  PortChecker
-         |
-DockerComposeTask
-```
-
-All tasks share some common properties and methods.
-
-Let's see the following task declaration:
+Let's see how you can define tasks and connect them to each others:
 
 ```python
 from zrb import CmdTask, IntInput, Env, Group, runner, PortChecker
@@ -71,58 +95,57 @@ start_jupyterlab = CmdTask(
 runner.register(start_jupyterlab)
 ```
 
+
 You can try to run `start_jupyterlab` task as follow:
 
 ```bash
 export EMPLOYEE="Yorinobu Arasaka"
-zrb jupyterlab start
+
+# The following command will
+# - Show Arasaka Banner
+# - Start jupyterlab on the port you choose (by default it is 8080)
+zrb jupyterlab start 
 ```
 
-The command will:
-- Show you an Arasaka banner
-- Welcome Yorinobu Arasaka
-- Start Jupyterlab on the port you choose (by default it is `8080`)
+As `start_jupyterlab` has `show_banner` as it's upstream, you can expect the `show_banner` to be executed prior to `start_jupyterlab`.
 
-Task might have multiple upstreams. Task upstreams will be executed concurrently.
+A task might also have multiple upstreams. In that case, the upstreams will be executed concurrently.
+
+> __Note:__ Only tasks registered to `runner` are directly accessible from the CLI.
 
 # Task Lifecycle
 
 Task has it's own lifecycle.
 
 ```
-   ┏-----------------------------┐
-   |                             v
-   |                     ┏---> Ready ---> Stopped
-Waiting ----> Started ---┫                  ^	
-                ^        ┗---> Failed ------┛
-                |                |
-                └----------------┛
+   ┌────────────────────────────┐
+   │                            │
+   │                            ▼
+   │                     ┌──► Ready ────► Stopped
+   │                     │                   ▲
+Waiting ────► Started ───┤                   │
+                 ▲       │                   │
+                 │       └──► Failed ────────┘
+                 │              │
+                 │              │
+                 │              ▼
+                 └─────────── Retry
 ```
 
 - `Waiting`: Task won't be started until all it's upstreams are ready.
 - `Started`: Zrb has start the task.
 - `Failed`: The task is failed, due to internal error or other causes. A failed task can be retried or stopped, depends on `retries` setting.
+- `Retry`: The task has been failed and now rescheduled to be started.
 - `Ready`: The task is ready. Some tasks are automatically stopped after ready, but some others keep running in the background (e.g., web server, scheduler, etc)
 - `Stopped`: The task is no longer running.
 
-# Type of Tasks
-
-There are many task types in Zrb:
-
-- [CmdTask](cmd-task.md)
-- [Task (pythonTask)](python-task.md)
-- [DockerComposeTask](docker-compose-task.md)
-- [Checkers](checkers.md)
-- [FlowTask](flow-task.md)
-
-You can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation, but make sure you have read the documentation first.
-
 # Task parameters
 
-Every task has different parameters, please refer to each task-specific documentation for further information.
-
+Every task has different parameters, please refer to each [task-specific](#type-of-tasks) documentation for further information.
 
 # Task methods
+
+All tasks share some common methods.
 
 ## `run`
 
