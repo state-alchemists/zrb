@@ -10,7 +10,7 @@ else
 fi
 
 echo "Set {{ input.go_default_version }} as default"
-gvm use {{input.go_default_version}} --default
+gvm use "{{input.go_default_version}}" --default
 
 echo "Please reload your terminal to continue (i.e., source {{ input.config_file }})"
 echo "Happy coding"

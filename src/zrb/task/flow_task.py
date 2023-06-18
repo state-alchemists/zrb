@@ -20,6 +20,7 @@ class FlowNode():
         color: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
         cmd_path: str = '',
+        preexec_fn: Optional[Callable[[], Any]] = None,
         run: Optional[Callable[..., Any]] = None,
     ):
         self._name = name
@@ -30,6 +31,7 @@ class FlowNode():
         self._color = color
         self._cmd = cmd
         self._cmd_path = cmd_path
+        self._preexec_fn = preexec_fn
         self._run_function = run
 
     def to_task(
@@ -59,7 +61,8 @@ class FlowNode():
             icon=self._icon,
             color=self._color,
             cmd=self._cmd,
-            cmd_path=self._cmd_path
+            cmd_path=self._cmd_path,
+            preexec_fn=self._preexec_fn
         )
 
 

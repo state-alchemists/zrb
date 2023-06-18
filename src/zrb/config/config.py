@@ -13,7 +13,14 @@ def get_version():
         return meta["module"]["version"]
 
 
-default_shell = os.getenv('ZRB_SHELL', 'bash')
+def get_current_shell() -> str:
+    current_shell = os.getenv('SHELL', '')
+    if current_shell.endswith('zsh'):
+        return 'zsh'
+    return 'bash'
+
+
+default_shell = os.getenv('ZRB_SHELL', get_current_shell())
 init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
 logging_level = to_logging_level(os.getenv('ZRB_LOGGING_LEVEL', 'WARNING'))
 should_load_builtin = to_boolean(os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1'))

@@ -78,7 +78,7 @@ test = CmdTask(
         'set -e',
         'cd ${ZRB_PROJECT_DIR}',
         'echo "🤖 Perform test"',
-        'pytest {{ "-n auto " if input.parallel else "" }}--ignore-glob=**/template/**/test --ignore=playground --cov=zrb --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
+        'pytest {{ "-n auto " if input.parallel else "" }}--ignore-glob="**/template/**/test" --ignore=playground --cov=zrb --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
     ],
     retry=0,
     checking_interval=1
