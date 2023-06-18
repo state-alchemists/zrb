@@ -115,7 +115,7 @@ A task might also have multiple upstreams. In that case, the upstreams will be e
 
 # Task Lifecycle
 
-Task has it's own lifecycle.
+Every task has it's own lifecycle.
 
 ```
    ┌────────────────────────────┐
