@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
 
-# Cmd task
+# CmdTask
 
 You can use CmdTask to run CLI commands.
 
@@ -67,5 +67,28 @@ You can then run the task by invoking:
 ```bash
 zrb say-hello --name=John
 ```
+
+# CmdTask parameters
+
+Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `CmdTask` has it's own specific parameters.
+
+## `executable`
+
+## `cmd`
+
+## `cmd_path`
+
+## `cwd`
+
+## `max_output_line`
+
+## `max_error_line`
+
+## `preexec_fn`
+
+# CmdTask methods
+
+Please refer to [common task methods](./README.md#common-task-methods).
+
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)

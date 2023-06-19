@@ -1,5 +1,5 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
 
-# Resource Maker
+# ResourceMaker
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)

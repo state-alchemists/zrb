@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
 
-# Docker-Compose task
+# DockerComposeTask
 
 Docker Compose is a convenient way to run containers on your local computer.
 
@@ -46,5 +46,45 @@ You can then run the task by invoking:
 ```bash
 zrb run-container
 ```
+
+# DockerComposeTask parameters
+
+Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `CmdTask` has it's own specific parameters.
+
+## `executable`
+
+## `compose_service_configs`
+
+## `compose_file`
+
+## `compose_cmd`
+
+## `compose_options`
+
+## `compose_flags`
+
+## `compose_args`
+
+## `compose_env_prefix`
+
+## `setup_cmd`
+
+## `setup_cmd_path`
+
+## `cwd`
+
+## `max_output_line`
+
+## `max_error_line`
+
+## `preexec_fn`
+
+
+
+# DockerComposeTask methods
+
+Please refer to [common task methods](./README.md#common-task-methods).
+
+
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)

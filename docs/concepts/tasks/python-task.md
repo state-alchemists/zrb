@@ -77,7 +77,7 @@ You can also use `async` function if you think you need to.
 
 # Task parameters
 
-Please refer to [common task parameters](./README.md#common-task-parameters) as well.
+Every [common task parameters](./README.md#common-task-parameters) are applicable here. Additionally, a `Task` has some specific parameters.
 
 ## `checkers`
 
