@@ -3,19 +3,19 @@
 export PROJECT_DIR=$(pwd)
 echo "🤖 Set project directory to ${PROJECT_DIR}"
 
-if [ ! -d venv ]
+if [ ! -d .venv ]
 then
     echo '🤖 Create virtual environment'
-    python -m venv "${PROJECT_DIR}/venv"
+    python -m venv "${PROJECT_DIR}/.venv"
     echo '🤖 Activate virtual environment'
-    source "${PROJECT_DIR}/venv/bin/activate"
+    source "${PROJECT_DIR}/.venv/bin/activate"
     echo '🤖 Install requirements'
     pip install --upgrade pip
     pip install -r "${PROJECT_DIR}/requirements.txt"
 fi
 
 echo '🤖 Activate virtual environment'
-source "${PROJECT_DIR}/venv/bin/activate"
+source "${PROJECT_DIR}/.venv/bin/activate"
 
 reload() {
 

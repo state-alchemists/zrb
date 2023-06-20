@@ -68,7 +68,7 @@ copy_resource = ResourceMaker(
     excludes=[
         '*/__pycache__',
         '*/deployment/venv',
-        '*/src/kebab-app-name/venv',
+        '*/src/kebab-app-name/.venv',
         '*/src/kebab-app-name/src/frontend/node_modules',
         '*/src/kebab-app-name/src/frontend/build',
         '*/src/kebab-app-name/src/frontend/.svelte-kit',
