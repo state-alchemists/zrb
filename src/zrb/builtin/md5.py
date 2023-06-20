@@ -7,7 +7,9 @@ from ..runner import runner
 import aiofiles
 import hashlib
 
-# Common definitions
+###############################################################################
+# Task Definitions
+###############################################################################
 
 
 @python_task(

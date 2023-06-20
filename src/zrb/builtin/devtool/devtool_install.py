@@ -10,14 +10,22 @@ from ...helper.file.text import read_text_file_async, write_text_file_async
 import os
 
 dir_path = os.path.dirname(__file__)
-
 current_shell = get_current_shell()
+
+###############################################################################
+# Input Definitions
+###############################################################################
+
 terminal_config_file_input = StrInput(
     name='config-file',
     shortcut='c',
     prompt='Config file',
     default='~/zshrc' if current_shell == 'zsh' else '~/.bashrc'
 )
+
+###############################################################################
+# Helper Definitions
+###############################################################################
 
 
 def write_config(
@@ -43,6 +51,10 @@ def write_config(
         await write_text_file_async(rendered_config_file, new_content)
     return set_config
 
+
+###############################################################################
+# Task Definitions
+###############################################################################
 
 install_gvm = FlowTask(
     name='gvm',

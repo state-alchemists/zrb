@@ -87,7 +87,7 @@ start_jupyterlab = CmdTask(
     checkers=[
         PortChecker(port='{{input.jupyterlab_port}}')
     ],
-    retries=2,
+    retry=2,
     retry_interval=3
 )
 
@@ -104,7 +104,7 @@ export EMPLOYEE="Yorinobu Arasaka"
 # The following command will
 # - Show Arasaka Banner
 # - Start jupyterlab on the port you choose (by default it is 8080)
-zrb jupyterlab start 
+zrb arasaka jupyterlab start 
 ```
 
 As `start_jupyterlab` has `show_banner` as it's upstream, you can expect the `show_banner` to be executed prior to `start_jupyterlab`.

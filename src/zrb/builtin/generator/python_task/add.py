@@ -13,9 +13,11 @@ from ....helper import util
 
 import os
 
-# Common definitions
-
 current_dir = os.path.dirname(__file__)
+
+###############################################################################
+# Task Definitions
+###############################################################################
 
 
 @python_task(

@@ -4,6 +4,10 @@ from ..task.decorator import python_task
 from ..task.task import Task
 from ..runner import runner
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 
 @python_task(
     name='solid',

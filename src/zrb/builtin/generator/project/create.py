@@ -9,9 +9,11 @@ from ..project_task.task_factory import create_add_project_automation_task
 
 import os
 
-# Common definitions
-
 current_dir = os.path.dirname(__file__)
+
+###############################################################################
+# Replacement Mutator Definitions
+###############################################################################
 
 
 def copy_resource_replacement_mutator(
@@ -25,7 +27,9 @@ def copy_resource_replacement_mutator(
     return replacements
 
 
-# Task definitions
+###############################################################################
+# Task Definitions
+###############################################################################
 
 copy_resource = ResourceMaker(
     name='copy-resource',

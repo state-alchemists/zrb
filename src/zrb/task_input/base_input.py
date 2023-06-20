@@ -2,6 +2,7 @@ from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
 from ._constant import RESERVED_INPUT_NAMES
 from ..config.config import show_prompt
+from ..helper.string.jinja import is_probably_jinja
 
 
 @typechecked
@@ -37,7 +38,9 @@ class BaseInput():
         self.default = default
         self.help = description if description is not None else name
         self.type = type
-        self.show_default = show_default
+        self.show_default = self._get_initial_show_default(
+            show_default, default
+        )
         self.confirmation_prompt = confirmation_prompt
         self.prompt_required = prompt_required
         self.hide_input = hide_input
@@ -50,6 +53,13 @@ class BaseInput():
         self.show_choices = show_choices
         self.show_envvar = show_envvar
         self.nargs = nargs
+    
+    def _get_initial_show_default(
+        self, show_default: Optional[bool], default: Optional[Any]
+    ) -> Optional[bool]:
+        if show_default is None and is_probably_jinja(default):
+            return False
+        return show_default
 
     def get_name(self) -> str:
         return self.name

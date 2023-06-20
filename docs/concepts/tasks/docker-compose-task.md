@@ -49,7 +49,7 @@ zrb run-container
 
 # DockerComposeTask parameters
 
-Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `CmdTask` has it's own specific parameters.
+Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `DockerComposeTask` has it's own specific parameters.
 
 ## `executable`
 
@@ -80,11 +80,9 @@ Every [task parameters](./task.md#common-task-parameters) are applicable here. A
 ## `preexec_fn`
 
 
-
 # DockerComposeTask methods
 
 Please refer to [common task methods](./README.md#common-task-methods).
-
 
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)

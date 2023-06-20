@@ -3,7 +3,9 @@ from ..task.decorator import python_task
 from ..task_input.str_input import StrInput
 from ..runner import runner
 
-# Common definitions
+###############################################################################
+# Task Definitions
+###############################################################################
 
 
 @python_task(

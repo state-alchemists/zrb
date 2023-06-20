@@ -21,7 +21,7 @@ say_hello_task = Task(
         StrInput(name='name')
     ],
     envs=[
-        Env(name='PYTHONUNBUFFERED', default=1)
+        Env(name='PYTHONUNBUFFERED', default='1')
     ],
     run=say_hello
 )
@@ -53,7 +53,7 @@ from zrb import python_task, Env, StrInput, runner
         StrInput(name='name')
     ],
     envs=[
-        Env(name='PYTHONUNBUFFERED', default=1)
+        Env(name='PYTHONUNBUFFERED', default='1')
     ],
     runner=runner
 )

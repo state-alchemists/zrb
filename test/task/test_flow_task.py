@@ -18,6 +18,15 @@ def test_flow_task():
             FlowNode(
                 name='create-salt',
                 run=lambda *args, **kwargs: "NaCl"
+            ),
+            FlowNode(
+                name='create-saline-water',
+                nodes=[
+                    FlowNode(
+                        name='create-water',
+                        run=lambda *args, **kwargs: "H2O + NaCl"
+                    )
+                ]
             )
         ]
     )

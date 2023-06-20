@@ -19,6 +19,10 @@ import re
 
 current_dir = os.path.dirname(__file__)
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 
 @python_task(
     name='validate',
@@ -131,6 +135,11 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
         )),
     )
     task.print_out('Success')
+
+
+###############################################################################
+# Helper Definitions
+###############################################################################
 
 
 async def add_column_to_insert_page(

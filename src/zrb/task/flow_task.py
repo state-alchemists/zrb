@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable, List, Optional, TypeVar, Union
 from typeguard import typechecked
 from .base_task import BaseTask, Group
 from .task import Task
@@ -6,6 +6,8 @@ from .cmd_task import CmdTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
+
+TFlowNode = TypeVar('TFlowNode', bound='FlowNode')
 
 
 @typechecked
@@ -22,6 +24,7 @@ class FlowNode():
         cmd_path: str = '',
         preexec_fn: Optional[Callable[[], Any]] = None,
         run: Optional[Callable[..., Any]] = None,
+        nodes: List[Union[TFlowNode, List[TFlowNode]]] = []
     ):
         self._name = name
         self._inputs = inputs
@@ -33,6 +36,7 @@ class FlowNode():
         self._cmd_path = cmd_path
         self._preexec_fn = preexec_fn
         self._run_function = run
+        self._nodes = nodes
 
     def to_task(
         self,
@@ -52,7 +56,20 @@ class FlowNode():
                 color=self._color,
                 run=self._run_function
             )
-        return CmdTask(
+        if self._cmd != '' or self._cmd_path != '':
+            return CmdTask(
+                name=self._name,
+                upstreams=upstreams,
+                inputs=inputs + self._inputs,
+                envs=envs + self._envs,
+                env_files=env_files + self._env_files,
+                icon=self._icon,
+                color=self._color,
+                cmd=self._cmd,
+                cmd_path=self._cmd_path,
+                preexec_fn=self._preexec_fn
+            )
+        return FlowTask(
             name=self._name,
             upstreams=upstreams,
             inputs=inputs + self._inputs,
@@ -60,9 +77,7 @@ class FlowNode():
             env_files=env_files + self._env_files,
             icon=self._icon,
             color=self._color,
-            cmd=self._cmd,
-            cmd_path=self._cmd_path,
-            preexec_fn=self._preexec_fn
+            nodes=self._nodes
         )
 
 

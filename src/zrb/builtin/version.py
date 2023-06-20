@@ -3,6 +3,10 @@ from ..task.decorator import python_task
 from ..runner import runner
 from ..config.config import version
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 
 @python_task(
     name='version',

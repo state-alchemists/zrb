@@ -44,7 +44,7 @@ zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 
 You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
 
-Lastly, Zrb also allows you to define your automation commands in Python:
+Zrb also allows you to define your automation commands in Python:
 
 ```python
 # filename: zrb_init.py
@@ -124,13 +124,13 @@ If you want to generate applications using Zrb and run them on your computer, yo
 
 - 🐸 `Node.Js` and `Npm`. 
     - You need Node.Js to modify/transpile frontend code into static files.
-    - You can visit [Node.Js website](https://nodejs.org/en) for installation instructions.
+    - You can visit the [Node.Js website](https://nodejs.org/en) for installation instructions.
 - 🐋 `Docker` and `Docker-compose` plugin.
     - You need `Docker` and `Docker-compose` plugin to
-        - Run `Docker-compose` based tasks
+        - Run docker-compose-based tasks
         - Run some application prerequisites like RabbitMQ, Postgre, or Redpanda. 
     - The easiest way to install `Docker`, `Docker-compose` plugin, and local `Kubernetes` is by using [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-    - You can also install `Docker` and `Docker-compose` plugin by following [Docker installation guide](https://docs.docker.com/engine/install/).
+    - You can also install `Docker` and `Docker-compose` plugin by following the [Docker installation guide](https://docs.docker.com/engine/install/).
 -  ☸️ `Kubernetes` cluster.
     - Zrb allows you to deploy your applications into `Kubernetes`.
     - To test it locally, you will need a [Minikube](https://minikube.sigs.k8s.io/docs/) or other alternatives. However, the easiest way is by enabling `Kubernetes` on your `Docker Desktop`.
@@ -143,7 +143,7 @@ We have a nice [getting started guide](https://github.com/state-alchemists/zrb/b
 
 # 📖 Documentation
 
-You can visit [Zrb documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) for more detail information.
+You can visit [Zrb documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) for more detailed information.
 
 # ☕ Donation
 

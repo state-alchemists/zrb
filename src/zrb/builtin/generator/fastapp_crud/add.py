@@ -22,6 +22,10 @@ import os
 current_dir = os.path.dirname(__file__)
 codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
 
+###############################################################################
+# Task Definitions
+###############################################################################
+
 
 @python_task(
     name='validate',
@@ -151,6 +155,11 @@ add_navigation = create_add_navigation_task(
 async def add_fastapp_crud(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')
+
+
+###############################################################################
+# Helper Definitions
+###############################################################################
 
 
 async def register_api(
