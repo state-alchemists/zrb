@@ -1,6 +1,7 @@
 from typing import Any, Callable, List, Mapping, Union
 from ..action.base_action import BaseAction
 from ..task.base_task import BaseTask, Group as TaskGroup
+from ..helper.string.jinja import is_probably_jinja
 import click
 import sys
 

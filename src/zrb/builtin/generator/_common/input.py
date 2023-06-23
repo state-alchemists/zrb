@@ -27,12 +27,15 @@ app_name_input = StrInput(
     default='app',
 )
 
-app_image_default_namespace = os.getenv('USER', 'library')
+app_image_default_namespace = os.getenv(
+    'PROJECT_IMAGE_DEFAULT_NAMESPACE',
+    'docker.io/' + os.getenv('USER', 'library')
+)
 app_image_name_input = StrInput(
     name='app-image-name',
     description='App image name',
     prompt='App image name',
-    default=f'docker.io/{app_image_default_namespace}/' + '{{util.to_kebab_case(input.app_name)}}',  # noqa
+    default=app_image_default_namespace + '/' + '{{util.to_kebab_case(input.app_name)}}',  # noqa
 )
 
 module_name_input = StrInput(
