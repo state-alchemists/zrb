@@ -34,3 +34,6 @@ dev_tool_install_group = Group(
     name='install', description='Install developer tools',
     parent=dev_tool_group
 )
+git_group = Group(
+    name='git', description='Git related commands'
+)

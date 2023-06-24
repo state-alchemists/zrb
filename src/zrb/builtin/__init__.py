@@ -1,6 +1,7 @@
 from . import base64
 from . import env
 from . import eval
+from . import git
 from . import md5
 from . import principle
 from . import project
@@ -21,6 +22,7 @@ from .generator.fastapp_field import add as generate_fastapp_field
 assert base64
 assert env
 assert eval
+assert git
 assert md5
 assert principle
 assert project

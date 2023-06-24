@@ -21,10 +21,10 @@ async def show(*args: Any, **kwargs: Any):
     env_map = task.get_env_map()
     names = list(env_map.keys())
     names.sort()
+    colored_equal = colored('=', color='grey', attrs=['dark'])
     for name in names:
         value = env_map[name]
         colored_name = colored(name, color='green', attrs=['bold'])
-        colored_equal = colored('=', color='grey', attrs=['dark'])
         colored_value = colored(value, attrs=['bold'])
         task.print_out(f'{colored_name}{colored_equal}{colored_value}')
 
