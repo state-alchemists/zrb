@@ -112,6 +112,7 @@ publish = FlowTask(
     description='Publish new version',
     nodes=[
         FlowNode(name='publish-pip', upstreams=[publish_pip]),
+        FlowNode(name='wait', cmd='sleep 10'),
         FlowNode(name='push_image', upstreams=[push_image]),
     ]
 )
