@@ -6,4 +6,5 @@ playground
 .coverage.*
 .env
 .venv
+.docker-dir
 htmlcov

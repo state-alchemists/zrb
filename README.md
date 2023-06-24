@@ -83,6 +83,8 @@ To learn more about this, you can visit [our getting started guide](https://gith
 
 # 🫰 Installation
 
+## ⚙️ In local machine
+
 Installing Zrb in your system is as easy as typing the following command in your terminal:
 
 ```bash
@@ -92,6 +94,40 @@ pip install zrb
 Just like any other Python package, you can also install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). This will allow you to have many versions of Zrb on the same computer.
 
 > ⚠️ If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` subsection to install them.
+
+## 🐋 With docker
+
+If you prefer to work with `Docker-compose`, you can create a file named `docker-compose.yml`
+
+```yaml
+version: '3'
+networks:
+  zrb:
+    name: zrb
+services:
+
+  zrb:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    image: docker.io/stalchmst/zrb:latest
+    container_name: zrb
+    hostname: zrb
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./zrb-home:/home
+      - ./project:/project
+    networks:
+      - zrb
+    ports:
+      - 3000:3000
+```
+
+Once your docker-compose file is created, you can invoke the following command:
+
+```bash
+docker compose up
+```
 
 # ✅ Main prerequisites
 

@@ -1,46 +1,121 @@
 from zrb import (
-    runner, CmdTask, BoolInput, StrInput, HTTPChecker
+    runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask, FlowNode,
+    Env, BoolInput, StrInput, HTTPChecker
 )
+from zrb.config.config import version
+import os
+
+CURRENT_DIR = os.path.dirname(__file__)
+
+###############################################################################
+# Input Definitions
+###############################################################################
+
+zrb_image_name_input = StrInput(
+    name='zrb-image-name',
+    description='Zrb image name',
+    prompt='Zrb image name',
+    default=f'docker.io/stalchmst/zrb:{version}'
+)
+
+###############################################################################
+# Env Definitions
+###############################################################################
+
+zrb_image_env = Env(
+    name='ZRB_IMAGE',
+    os_name='',
+    default='{{input.zrb_image_name}}'
+)
+
+###############################################################################
+# Task Definitions
+###############################################################################
 
 build = CmdTask(
     name='build',
     description='Build Zrb',
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Build zrb distribution"',
-        'rm -Rf ${ZRB_PROJECT_DIR}/dist',
+        f'rm -Rf {CURRENT_DIR}/dist',
         'git add . -A',
         'flit build',
     ],
 )
 runner.register(build)
 
-publish = CmdTask(
-    name='publish',
+publish_pip = CmdTask(
+    name='publish-pip',
     description='Publish zrb to pypi',
     upstreams=[build],
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Publish zrb to pypi"',
         'flit publish --repository pypi',
     ]
 )
-runner.register(publish)
+runner.register(publish_pip)
 
-publish_test = CmdTask(
-    name='publish-test',
+publish_pip_test = CmdTask(
+    name='publish-pip-test',
     description='Publish zrb to testpypi',
     upstreams=[build],
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Publish zrb to testpypi"',
         'flit publish --repository testpypi',
     ]
 )
-runner.register(publish_test)
+runner.register(publish_pip_test)
+
+prepare_docker = ResourceMaker(
+    name='prepare-docker',
+    description='Create docker directory',
+    template_path=f'{CURRENT_DIR}/docker-template',
+    destination_path=f'{CURRENT_DIR}/.docker-dir',
+    replacements={
+        'zrb_version': version
+    }
+)
+runner.register(prepare_docker)
+
+build_image = DockerComposeTask(
+    name='build-image',
+    description='Build docker image',
+    upstreams=[prepare_docker],
+    inputs=[zrb_image_name_input],
+    envs=[zrb_image_env],
+    cwd=f'{CURRENT_DIR}/.docker-dir',
+    compose_cmd='build',
+    compose_args=['zrb']
+)
+runner.register(build_image)
+
+push_image = DockerComposeTask(
+    name='push-image',
+    description='Push docker image',
+    upstreams=[build_image],
+    inputs=[zrb_image_name_input],
+    envs=[zrb_image_env],
+    cwd=f'{CURRENT_DIR}/.docker-dir',
+    compose_cmd='push',
+    compose_args=['zrb']
+)
+runner.register(push_image)
+
+publish = FlowTask(
+    name='publish',
+    description='Publish new version',
+    nodes=[
+        FlowNode(name='publish-pip', upstreams=[publish_pip]),
+        FlowNode(name='push_image', upstreams=[push_image]),
+    ]
+)
+runner.register(publish)
 
 install_symlink = CmdTask(
     name='install-symlink',
@@ -48,7 +123,7 @@ install_symlink = CmdTask(
     upstreams=[build],
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Install zrb"',
         'flit install --symlink',
     ]
@@ -76,7 +151,7 @@ test = CmdTask(
     upstreams=[install_symlink],
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Perform test"',
         'pytest {{ "-n auto " if input.parallel else "" }}--ignore-glob="**/template/**/test" --ignore=playground --cov=zrb --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
     ],
@@ -100,9 +175,9 @@ serve_test = CmdTask(
     upstreams=[test],
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Serve coverage report"',
-        'python -m http.server {{input.port}} --directory ${ZRB_PROJECT_DIR}/htmlcov',  # noqa
+        f'python -m http.server {{input.port}} --directory {CURRENT_DIR}/htmlcov',  # noqa
     ],
     checkers=[
         HTTPChecker(port='{{input.port}}')
@@ -117,18 +192,18 @@ playground = CmdTask(
     upstreams=[install_symlink],
     cmd=[
         'set -e',
-        'cd ${ZRB_PROJECT_DIR}',
+        f'cd {CURRENT_DIR}',
         'echo "🤖 Remove playground"',
         'sudo rm -Rf playground',
         'echo "🤖 Create playground"',
         'cp -R playground-template playground',
-        'cd ${ZRB_PROJECT_DIR}/playground',
+        f'cd {CURRENT_DIR}/playground',
         'echo "🤖 Generate project"',
         './generate-project.sh',
         'echo "🤖 Change to playground directory:"',
-        'echo "      cd ${ZRB_PROJECT_DIR}/playground"',
+        f'echo "      cd {CURRENT_DIR}/playground"',
         'echo "🤖 Or playground project directory:"',
-        'echo "      cd ${ZRB_PROJECT_DIR}/playground/my-project"',
+        f'echo "      cd {CURRENT_DIR}/playground/my-project"',
         'echo "🤖 And start hacking around. Good luck :)"',
     ],
     retry=0,

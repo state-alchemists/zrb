@@ -17,6 +17,9 @@ fi
 echo '🤖 Activate virtual environment'
 source "${PROJECT_DIR}/.venv/bin/activate"
 
+mkdir -p .docker-dir
+cp -R docker-template/* .docker-dir
+
 reload() {
 
     if [ ! -f "${PROJECT_DIR}/.env" ]

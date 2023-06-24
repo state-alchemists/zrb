@@ -18,6 +18,7 @@ class FlowNode():
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
+        upstreams: Iterable[BaseTask] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
@@ -30,6 +31,7 @@ class FlowNode():
         self._inputs = inputs
         self._envs = envs
         self._env_files = env_files
+        self._upstreams = upstreams
         self._icon = icon
         self._color = color
         self._cmd = cmd
@@ -48,7 +50,7 @@ class FlowNode():
         if self._run_function is not None:
             return Task(
                 name=self._name,
-                upstreams=upstreams,
+                upstreams=upstreams + self._upstreams,
                 inputs=inputs + self._inputs,
                 envs=envs + self._envs,
                 env_files=env_files + self._env_files,
@@ -59,7 +61,7 @@ class FlowNode():
         if self._cmd != '' or self._cmd_path != '':
             return CmdTask(
                 name=self._name,
-                upstreams=upstreams,
+                upstreams=upstreams + self._upstreams,
                 inputs=inputs + self._inputs,
                 envs=envs + self._envs,
                 env_files=env_files + self._env_files,
@@ -71,7 +73,7 @@ class FlowNode():
             )
         return FlowTask(
             name=self._name,
-            upstreams=upstreams,
+            upstreams=upstreams + self._upstreams,
             inputs=inputs + self._inputs,
             envs=envs + self._envs,
             env_files=env_files + self._env_files,

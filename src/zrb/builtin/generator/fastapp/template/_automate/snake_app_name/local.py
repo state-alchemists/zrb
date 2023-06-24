@@ -42,7 +42,6 @@ init_snake_app_name_support_container = DockerComposeTask(
     ],
     skip_execution=SKIP_SUPPORT_CONTAINER_EXECUTION,
     upstreams=[
-        build_snake_app_name_image,
         remove_snake_app_name_container
     ],
     cwd=RESOURCE_DIR,

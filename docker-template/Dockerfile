@@ -31,24 +31,26 @@ RUN  apt-get autoremove -yqq --purge && \
 # Install pyenv
 RUN curl https://pyenv.run | bash
 
-# Configure bash shell
+# Configure pyenv for bash shell
 RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 RUN echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 RUN echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 
+# Install Python 3.10 on pyenv
+RUN bash -c 'source ~/.bashrc && pyenv install 3.10 && pyenv global 3.10'
+
 # Configure zsh shell
+RUN sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
 RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
 RUN echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
 RUN echo 'eval "$(pyenv init -)"' >> ~/.zshrc
 
-# # Use Python 3.10
-RUN echo 'source ~/.bashrc && pyenv install 3.10 && pyenv global 3.10' | bash
-
-# # Install zrb
-RUN echo 'source ~/.bashrc && pip install zrb' | bash
+# Install Zrb on top of pyenv
+RUN bash -c 'source ~/.bashrc && pip install zrb==zrb_version'
 
 # Prepare environments
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set command
-CMD ["sleep", "infinity"]
+CMD ["bash", "-c", "echo 'To start working, invoke: docker exec -it <this-container-name> zsh' && sleep infinity"]
