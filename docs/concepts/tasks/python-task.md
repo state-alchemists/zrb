@@ -141,7 +141,7 @@ Inter retry interval.
 - __Possible values:__ Any number greater or equal to `0`
 - __Default value:__ `0`
 
-# `python_task` parameters
+# python_task parameters
 
 When you create a python task using `python_task` decorator, you can use all parameters defined in [the previous section](#python_task-parameters).
 

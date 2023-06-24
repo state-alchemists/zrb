@@ -2,7 +2,13 @@
 
 # Checkers
 
-Some tasks might run forever, and you need a way to make sure whether those tasks are ready or not.
+Checkers are special type of tasks. You can use checkers to check for other task's readiness.
+
+Currently there are three types of checkers:
+- PathChecker
+- PortChecker
+- HttpChecker
+
 
 Let's say you invoke `npm run build:watch`. This command will build your Node.js App into `dist` directory, as well as watch the changes and rebuild your app as soon as there are some changes.
 

@@ -367,28 +367,78 @@ If `skip_execution` is evaluated to `True`, then the task will be considered as 
 
 Every task share some common methods like `run`, `check`, and `create_main_loop`.
 
-## `run`
+## `get_env_map`
 
-Method to be executed when a task is tarted. You can extend BaseTask and override this method if you think you need to.
+Return task environments as dictionary.
 
 Example:
 
 ```python
+from zrb import Task, Env, python_task, runner
+
+@python_task(
+    name='show-env',
+    envs=[
+        Env(name='POKEMON_NAME', default='charmender'),
+        Env(name='ELEMENT', default='fire'),
+    ],
+    runner=runner
+)
+def show_env(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    inputs = task.get_env_map()
+    return inputs # should return {'POKEMON_NAME': 'charmender', 'ELEMENT': 'fire'}
+```
+
+## `get_input_map`
+
+Return task inputs as dictionary.
+
+Example:
+
+```python
+from zrb import Task, StrInput, python_task, runner
+
+@python_task(
+    name='show-env',
+    inputs=[
+        StrInput(name='pokemon-name', default='charmender'),
+        StrInput(name='element', default='fire'),
+    ],
+    runner=runner
+)
+def show_env(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    inputs = task.get_input_map()
+    return inputs # should return {'pokemon_name': 'charmender', 'element': 'fire'}
+```
+
+## `run`
+
+Method to be executed when a task is started. You can extend `BaseTask` and override this method if you think you need to.
+
+Example:
+
+```python
+from zrb import BaseTask, Task
+
 class MyTask(BaseTask):
 
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        task = kwargs.get('_task') 
+        task: Task = kwargs.get('_task') 
         task.print_out(f'args: {args}, kwargs: {kwargs}')
         return super().run(*args, **kwargs)
 ```
 
 ## `check`
 
-Method to check task readiness. You can extend BaseTask and override this method if you think you need to.
+Method to check task readiness. You can extend `BaseTask` and override this method if you think you need to.
 
 Example:
 
 ```python
+from zrb import BaseTask
+
 class MyTask(BaseTask):
 
     def check(self) -> bool:

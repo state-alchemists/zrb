@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:bookworm-slim
 
 # Create and set workdir
 RUN mkdir -p /project
@@ -21,10 +21,8 @@ RUN apt-get install -y git ncat curl wget inetutils-tools inetutils-ping \
         docker.io docker-compose-plugin zsh python-is-python3 pip \
         build-essential libssl-dev zlib1g-dev \
         libbz2-dev libreadline-dev libsqlite3-dev curl \
-        libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-
-# Remove residual packages
-RUN  apt-get autoremove -yqq --purge && \
+        libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev && \
+    apt-get autoremove -yqq --purge && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -37,7 +35,7 @@ RUN echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >>
 RUN echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 
 # Install Python 3.10 on pyenv
-RUN bash -c 'source ~/.bashrc && pyenv install 3.10 && pyenv global 3.10'
+RUN bash -c 'source ~/.bashrc && pyenv install 3.11 && pyenv global 3.11'
 
 # Configure zsh shell
 RUN sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"

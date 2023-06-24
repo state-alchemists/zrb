@@ -2,7 +2,7 @@
 
 # ResourceMaker
 
-ResourceMaker helps you create resources.
+ResourceMaker helps you create text resources, whether they are code or licenses.
 
 For example, let's say you have the following template under `mit-license-template/license`
 

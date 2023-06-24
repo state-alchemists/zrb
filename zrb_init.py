@@ -2,10 +2,14 @@ from zrb import (
     runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask, FlowNode,
     Env, BoolInput, StrInput, HTTPChecker
 )
-from zrb.config.config import version
 import os
+import tomli
 
 CURRENT_DIR = os.path.dirname(__file__)
+
+with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
+    toml_dict = tomli.load(f)
+    VERSION = toml_dict['project']['version']
 
 ###############################################################################
 # Input Definitions
@@ -15,7 +19,7 @@ zrb_image_name_input = StrInput(
     name='zrb-image-name',
     description='Zrb image name',
     prompt='Zrb image name',
-    default=f'docker.io/stalchmst/zrb:{version}'
+    default=f'docker.io/stalchmst/zrb:{VERSION}'
 )
 
 ###############################################################################
@@ -78,7 +82,7 @@ prepare_docker = ResourceMaker(
     template_path=f'{CURRENT_DIR}/docker-template',
     destination_path=f'{CURRENT_DIR}/.docker-dir',
     replacements={
-        'zrb_version': version
+        'zrb_version': VERSION
     }
 )
 runner.register(prepare_docker)
@@ -94,6 +98,32 @@ build_image = DockerComposeTask(
     compose_args=['zrb']
 )
 runner.register(build_image)
+
+stop_container = DockerComposeTask(
+    name='stop-container',
+    description='remove docker container',
+    upstreams=[prepare_docker],
+    inputs=[zrb_image_name_input],
+    envs=[zrb_image_env],
+    cwd=f'{CURRENT_DIR}/.docker-dir',
+    compose_cmd='down'
+)
+runner.register(stop_container)
+
+start_container = DockerComposeTask(
+    name='start-container',
+    description='Run docker container',
+    upstreams=[
+        build_image,
+        stop_container
+    ],
+    inputs=[zrb_image_name_input],
+    envs=[zrb_image_env],
+    cwd=f'{CURRENT_DIR}/.docker-dir',
+    compose_cmd='up',
+    compose_flags=['-d']
+)
+runner.register(start_container)
 
 push_image = DockerComposeTask(
     name='push-image',
