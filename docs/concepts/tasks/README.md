@@ -371,6 +371,8 @@ Every task share some common methods like `run`, `check`, and `create_main_loop`
 
 Return task environments as dictionary.
 
+This is typically useful if you create a Python task. Zrb won't override `os.environ`, so you can't load task environment using `os.environ.get` or `os.getenv`. Instead, you have to use `task.get_env_map`.
+
 Example:
 
 ```python
@@ -393,6 +395,8 @@ def show_env(*args: Any, **kwargs: Any):
 ## `get_input_map`
 
 Return task inputs as dictionary.
+
+This is typically useful if you create a Python task.
 
 Example:
 
@@ -427,6 +431,7 @@ class MyTask(BaseTask):
     def run(self, *args: Any, **kwargs: Any) -> Any:
         task: Task = kwargs.get('_task') 
         task.print_out(f'args: {args}, kwargs: {kwargs}')
+        # TODO: do anything here
         return super().run(*args, **kwargs)
 ```
 
@@ -442,6 +447,7 @@ from zrb import BaseTask
 class MyTask(BaseTask):
 
     def check(self) -> bool:
+        # TODO: Add your custom checking here
         return super().check()
 ```
 
@@ -467,7 +473,7 @@ show_banner = CmdTask(
 )
 
 show_banner_loop = show_banner.create_main_loop()
-print(show_banner_loop())
+print(show_banner_loop()) # Now you can run your task as a normal python function
 ```
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)

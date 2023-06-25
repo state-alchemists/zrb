@@ -1,5 +1,4 @@
 from typing import Mapping
-from pydantic import BaseModel
 import subprocess
 
 class ModificationState():

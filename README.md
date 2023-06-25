@@ -97,7 +97,7 @@ Just like any other Python package, you can also install Zrb in your [virtual en
 
 ## 🐋 With docker
 
-If you prefer to work with `Docker-compose`, you can create a file named `docker-compose.yml`
+If you prefer to work with Docker, you can create a file named `docker-compose.yml`
 
 ```yaml
 version: '3'
@@ -115,18 +115,23 @@ services:
     hostname: zrb
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./zrb-home:/home
       - ./project:/project
     networks:
       - zrb
     ports:
-      - 3000:3000
+      - 3000:3000 # or/and any other ports you want to expose.
 ```
 
 Once your docker-compose file is created, you can invoke the following command:
 
 ```bash
-docker compose up
+docker compose up -d
+```
+
+You will be able to access Zrb by using docker exec:
+
+```bash
+docker exec -it zrb zsh
 ```
 
 # ✅ Main prerequisites

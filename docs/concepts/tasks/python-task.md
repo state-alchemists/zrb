@@ -143,7 +143,7 @@ Inter retry interval.
 
 # python_task parameters
 
-When you create a python task using `python_task` decorator, you can use all parameters defined in [the previous section](#python_task-parameters).
+When you create a python task using `python_task` decorator, you can use all parameters defined in [the previous section](#task-parameters).
 
 Furthermore, you can also define `runner` parameter.
 
