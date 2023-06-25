@@ -87,10 +87,21 @@ prepare_docker = ResourceMaker(
 )
 runner.register(prepare_docker)
 
+check_pip = HTTPChecker(
+    name='check-pip',
+    is_https=True,
+    host='pypi.org',
+    url=f'pypi/zrb/{VERSION}/json',
+    port=443
+)
+
 build_image = DockerComposeTask(
     name='build-image',
     description='Build docker image',
-    upstreams=[prepare_docker],
+    upstreams=[
+        prepare_docker,
+        check_pip,
+    ],
     inputs=[zrb_image_name_input],
     envs=[zrb_image_env],
     cwd=f'{CURRENT_DIR}/.docker-dir',
@@ -137,13 +148,12 @@ push_image = DockerComposeTask(
 )
 runner.register(push_image)
 
-publish = FlowTask(
+publish = CmdTask(
     name='publish',
     description='Publish new version',
-    nodes=[
-        FlowNode(name='publish-pip', upstreams=[publish_pip]),
-        FlowNode(name='wait', cmd='sleep 10'),
-        FlowNode(name='push_image', upstreams=[push_image]),
+    upstreams=[
+        publish_pip,
+        push_image
     ]
 )
 runner.register(publish)
