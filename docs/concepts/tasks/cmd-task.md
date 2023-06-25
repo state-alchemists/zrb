@@ -37,6 +37,7 @@ say_hello = CmdTask(
     ],
     cmd=[
         'echo {{input.name}}',
+        'echo $_INPUT_NAME', # This will also works
         'echo Yeay!!!'
     ]
 )

@@ -34,7 +34,16 @@ async def show(*args: Any, **kwargs: Any):
     commit = kwargs.get('commit', 'HEAD')
     task: Task = kwargs['_task']
     modified_files = get_modified_files(commit)
-    modified_files.sort()
-    for modified_file in modified_files:
-        task.print_out(colored(modified_file, color='green', attrs=['bold']))
-    return '\n'.join(modified_files)
+    modified_file_keys = list(modified_files.keys())
+    modified_file_keys.sort()
+    for modified_file, state in modified_files.items():
+        if state.minus and state.plus:
+            task.print_out(colored(f'+- {modified_file}', color='yellow'))
+            continue
+        if state.minus:
+            task.print_out(colored(f'-- {modified_file}', color='red'))
+            continue
+        if state.plus:
+            task.print_out(colored(f'++ {modified_file}', color='green'))
+            continue
+    return '\n'.join(modified_file_keys)

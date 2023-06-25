@@ -1,12 +1,4 @@
-from zrb.builtin.env import (
-    show, get
-)
-
-
-def test_show():
-    main_loop = show.create_main_loop()
-    result = main_loop()
-    assert result is None
+from zrb.builtin.env import get
 
 
 def test_get():

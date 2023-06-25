@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
 from .base_task import BaseTask, Group
 from ..task_env.env import Env
@@ -128,10 +128,19 @@ class CmdTask(BaseTask):
         if result.output == '':
             return
         print(result.output)
+    
+    def _get_run_env_map(self) -> Mapping[str, Any]:
+        env_map = self.get_env_map()
+        input_map = self.get_input_map()
+        for input_name, input_value in input_map.items():
+            upper_input_name = '_INPUT_' +  input_name.upper()
+            if upper_input_name not in env_map:
+                env_map[upper_input_name] = f'{input_value}'
+        return env_map
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str()
-        env = self.get_env_map()
+        env_map = self._get_run_env_map()
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
         self.print_out_dark('Current working directory: ' + self.cwd)
         self._output_buffer = []
@@ -141,7 +150,7 @@ class CmdTask(BaseTask):
             cwd=self.cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=env,
+            env=env_map,
             shell=True,
             executable=self._executable,
             close_fds=True,
