@@ -6,6 +6,6 @@ remove_project_containers = Task(
     group=project_group,
     upstreams=[],
     description='Remove project containers',
-    run=lambda *args, **kwargs: kwargs.get('_task').print_out('👌')
+    run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
 )
 runner.register(remove_project_containers)

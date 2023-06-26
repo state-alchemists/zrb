@@ -172,6 +172,6 @@ start_snake_app_name = Task(
         start_monolith_snake_app_name,
         start_snake_app_name_gateway,
     ] + start_microservices,
-    run=lambda *args, **kwargs: kwargs.get('_task').print_out('👌')
+    run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
 )
 runner.register(start_snake_app_name)

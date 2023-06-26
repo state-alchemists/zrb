@@ -1,4 +1,6 @@
+from typing import List
 from zrb.task.flow_task import FlowNode, FlowTask
+from zrb.task.decorator import python_task
 
 
 def test_flow_task():
@@ -6,14 +8,8 @@ def test_flow_task():
         name='flow_task',
         nodes=[
             [
-                FlowNode(
-                    name='create-sodium',
-                    cmd='echo "Na'
-                ),
-                FlowNode(
-                    name='create-clorine',
-                    cmd='echo "Cl'
-                ),
+                FlowNode(name='create-sodium', cmd='echo "Na"'),
+                FlowNode(name='create-chlorine', cmd='echo "Cl"'),
             ],
             FlowNode(
                 name='create-salt',
@@ -36,4 +32,49 @@ def test_flow_task():
         main_loop()
     except Exception:
         is_error = True
-    assert is_error
+    assert not is_error
+
+
+def test_flow_task_with_existing_tasks():
+    outputs: List[str] = []
+
+    @python_task(
+        name='prepare-lab'
+    )
+    def prepare_lab(*args, **kwargs):
+        outputs.append('Lab prepared')
+
+    @python_task(
+        name='create-sodium'
+    )
+    def create_sodium(*args, **kwargs):
+        outputs.append('Na')
+
+    @python_task(
+        name='create-chlorine'
+    )
+    def create_chlorine(*args, **kwargs):
+        outputs.append('Cl')
+
+    @python_task(
+        name='create-salt'
+    )
+    def create_salt(*args, **kwargs):
+        outputs.append('NaCl')
+
+    flow_task = FlowTask(
+        name='flow_task',
+        upstreams=[prepare_lab],
+        nodes=[
+            [
+                FlowNode(name='create-sodium', task=create_sodium),
+                FlowNode(name='create-chlorine', task=create_chlorine)
+            ],
+            FlowNode(name='create-salt', task=create_salt)
+        ]
+    )
+    main_loop = flow_task.create_main_loop()
+    main_loop()
+    assert outputs[0] == 'Lab prepared'
+    assert outputs[3] == 'NaCl'
+

@@ -143,12 +143,12 @@ class FinishTracker():
         self._execution_queue: Optional[asyncio.Queue] = None
         self._counter = 0
 
-    async def mark_start(self):
+    async def mark_awaited(self):
         if self._execution_queue is None:
             self._execution_queue = asyncio.Queue()
         self._counter += 1
 
-    async def mark_as_done(self):
+    async def mark_done(self):
         # Tracker might be started several times
         # However, when the execution is marked as done, it applied globally
         # Thus, we need to send event as much as the counter.
@@ -558,12 +558,18 @@ class BaseTask(TaskModel):
         self._run_function: Optional[Callable[..., Any]] = run
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
+        self._can_add_upstream: bool = True
 
     def get_checkers(self) -> Iterable[TTask]:
         return self._checkers
 
     def get_upstreams(self) -> Iterable[TTask]:
         return self._upstreams
+    
+    def add_upstreams(self, *upstreams: TTask):
+        if not self._can_add_upstream:
+            raise Exception(f'Cannot add upstreams on `{self._name}`')
+        self._upstreams += upstreams
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -591,6 +597,7 @@ class BaseTask(TaskModel):
         if self._all_inputs is not None:
             return self._all_inputs
         inputs: Iterable[BaseInput] = []
+        self._can_add_upstream = False
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
             inputs += upstream_inputs
@@ -629,12 +636,12 @@ class BaseTask(TaskModel):
         kwargs: Mapping[str, Any]
     ):
         self.start_timer()
-        self.log_info('Set keyval')
+        self.log_info('Set input and env map')
         await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
-        self.log_info('Get new kwargs')
+        self.log_info('Set run kwargs')
         new_kwargs = self.get_input_map()
         # make sure args and kwargs['_args'] are the same
-        self.log_info('Get new args')
+        self.log_info('Set run args')
         new_args = copy.deepcopy(args)
         if len(args) == 0 and '_args' in kwargs:
             new_args = kwargs['_args']
@@ -678,7 +685,7 @@ class BaseTask(TaskModel):
             self.log_debug('Task is not ready')
             await asyncio.sleep(self._checking_interval)
         self.end_timer()
-        self.log_info('Task is ready')
+        self.log_info('State: ready')
         if show_info:
             if show_advertisement:
                 selected_advertisement = get_advertisement(advertisements)
@@ -739,10 +746,10 @@ class BaseTask(TaskModel):
         return True
 
     async def _run_all(self, *args: Any, **kwargs: Any) -> Any:
-        self.log_info('Start running')
-        await self.mark_start()
+        await self.mark_awaited()
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
+        self._can_add_upstream = False
         for upstream_task in self._upstreams:
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
@@ -755,13 +762,14 @@ class BaseTask(TaskModel):
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self._is_execution_triggered:
-            self.log_debug('Execution has been triggered somewhere else')
+            self.log_debug('Task has been triggered')
             return
-        self.log_debug('Set execution triggered flag to True')
+        self.log_info('State: triggered')
         self._is_execution_triggered = True
-        self.log_debug('Start running')
+        self.log_info('State: waiting')
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
+        self._can_add_upstream = False
         for upstream_task in self._upstreams:
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
@@ -776,25 +784,30 @@ class BaseTask(TaskModel):
             self.log_info(
                 f'Skip execution because config: {self._skip_execution}'
             )
-            await self.mark_as_done()
+            self.log_info('State: stopped')
+            await self.mark_done()
             return None
         # start running task
         result: Any
         while self.should_attempt():
             try:
                 self.log_debug(
-                    f'Invoke run with args: {args} and kwargs: {local_kwargs}'
+                    f'Started with args: {args} and kwargs: {local_kwargs}'
                 )
+                self.log_info('State: started')
                 result = await self.run(*args, **local_kwargs)
                 break
             except Exception:
+                self.log_info('State: failed')
                 if self.is_last_attempt():
                     raise
                 attempt = self.get_attempt()
                 self.log_error(f'Encounter error on attempt {attempt}')
                 self.increase_attempt()
                 await asyncio.sleep(self._retry_interval)
-        await self.mark_as_done()
+                self.log_info('State: retry')
+        await self.mark_done()
+        self.log_info('State: stopped')
         return result
 
     async def _check_skip_execution(self, *args: Any, **kwargs: Any) -> bool:
@@ -818,6 +831,7 @@ class BaseTask(TaskModel):
         new_kwargs.update(self._input_map)
         upstream_coroutines = []
         # set uplstreams keyval
+        self._can_add_upstream = False
         for upstream_task in self._upstreams:
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(

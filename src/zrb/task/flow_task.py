@@ -7,6 +7,8 @@ from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
 
+import copy
+
 TFlowNode = TypeVar('TFlowNode', bound='FlowNode')
 
 
@@ -15,6 +17,7 @@ class FlowNode():
     def __init__(
         self,
         name: str,
+        task: Optional[BaseTask] = None,
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
@@ -28,6 +31,7 @@ class FlowNode():
         nodes: List[Union[TFlowNode, List[TFlowNode]]] = []
     ):
         self._name = name
+        self._task = task
         self._inputs = inputs
         self._envs = envs
         self._env_files = env_files
@@ -47,6 +51,12 @@ class FlowNode():
         envs: List[Env] = [],
         env_files: List[EnvFile] = [],
     ):
+        if self._task is not None:
+            task = copy.deepcopy(self._task)
+            additional_upstreams = self._upstreams + upstreams
+            if len(upstreams) > 0:
+                task.add_upstreams(*additional_upstreams)
+            return task
         if self._run_function is not None:
             return Task(
                 name=self._name,
@@ -133,7 +143,7 @@ class FlowTask(BaseTask):
             retry=retry,
             retry_interval=retry_interval,
             skip_execution=skip_execution,
-            run=lambda *args, **kwargs: kwargs.get('_task').print_out('👌')
+            run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
         )
 
     def _get_flow_nodes(
