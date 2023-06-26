@@ -76,5 +76,7 @@ def test_flow_task_with_existing_tasks():
     main_loop = flow_task.create_main_loop()
     main_loop()
     assert outputs[0] == 'Lab prepared'
+    assert 'Na' in outputs
+    assert 'Cl' in outputs
     assert outputs[3] == 'NaCl'
 

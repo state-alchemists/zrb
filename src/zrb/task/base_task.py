@@ -344,56 +344,70 @@ class TaskModel(
             if override or key not in self._env_map:
                 self._env_map[key] = val
 
-    def render_any(self, val: Any) -> Any:
+    def render_any(
+        self, val: Any, data: Optional[Mapping[str, Any]] = None
+    ) -> Any:
         if isinstance(val, str):
-            return self.render_str(val)
+            return self.render_str(val, data)
         return val
 
-    def render_float(self, val: Union[str, float]) -> float:
+    def render_float(
+        self, val: Union[str, float], data: Optional[Mapping[str, Any]] = None
+    ) -> float:
         if isinstance(val, str):
-            return float(self.render_str(val))
+            return float(self.render_str(val, data))
         return val
 
-    def render_int(self, val: Union[str, int]) -> int:
+    def render_int(
+        self, val: Union[str, int], data: Optional[Mapping[str, Any]] = None
+    ) -> int:
         if isinstance(val, str):
-            return int(self.render_str(val))
+            return int(self.render_str(val, data))
         return val
 
-    def render_bool(self, val: Union[str, bool]) -> bool:
+    def render_bool(
+        self, val: Union[str, bool], data: Optional[Mapping[str, Any]] = None
+    ) -> bool:
         if isinstance(val, str):
-            return to_boolean(self.render_str(val))
+            return to_boolean(self.render_str(val, data))
         return val
 
-    def render_str(self, val: str) -> str:
+    def render_str(
+        self, val: str, data: Optional[Mapping[str, Any]] = None
+    ) -> str:
         if val in self._rendered_str:
             return self._rendered_str[val]
         if not is_probably_jinja(val):
             return val
         template = jinja2.Template(val)
-        data = self._get_render_data()
-        self.log_debug(f'Render string template: {val}, with data: {data}')
+        render_data = self._get_render_data(additional_data=data)
+        self.log_debug(f'Render string: {val}, with data: {render_data}')
         try:
-            rendered_text = template.render(data)
+            rendered_text = template.render(render_data)
             self.log_debug(f'Get rendered result: {rendered_text}')
         except Exception:
-            raise Exception(f'Fail to render "{val}" with data: {data}')
+            raise Exception(f'Fail to render "{val}" with data: {render_data}')
         self._rendered_str[val] = rendered_text
         return rendered_text
 
-    def render_file(self, location: str) -> str:
+    def render_file(
+        self, location: str, data: Optional[Mapping[str, Any]] = None
+    ) -> str:
         location_dir = os.path.dirname(location)
         env = jinja2.Environment(
             loader=AnyExtensionFileSystemLoader([location_dir])
         )
         template = env.get_template(location)
-        data = self._get_render_data()
-        data['TEMPLATE_DIR'] = location_dir
-        self.log_debug(f'Render template file: {template}, with data: {data}')
-        rendered_text = template.render(data)
+        render_data = self._get_render_data(additional_data=data)
+        render_data['TEMPLATE_DIR'] = location_dir
+        self.log_debug(f'Render template: {template} with data: {render_data}')
+        rendered_text = template.render(render_data)
         self.log_debug(f'Get rendered result: {rendered_text}')
         return rendered_text
 
-    def _get_render_data(self) -> Mapping[str, Any]:
+    def _get_render_data(
+        self, additional_data: Optional[Mapping[str, Any]] = None
+    ) -> Mapping[str, Any]:
         if self._render_data is not None:
             return self._render_data
         render_data = dict(DEFAULT_RENDER_DATA)
@@ -401,6 +415,8 @@ class TaskModel(
             'env': self._env_map,
             'input': self._input_map,
         })
+        if additional_data is not None:
+            render_data.update(additional_data)
         self._render_data = render_data
         return render_data
 
@@ -565,7 +581,7 @@ class BaseTask(TaskModel):
 
     def get_upstreams(self) -> Iterable[TTask]:
         return self._upstreams
-    
+
     def add_upstreams(self, *upstreams: TTask):
         if not self._can_add_upstream:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
