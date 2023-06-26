@@ -69,6 +69,8 @@ class HTTPChecker(BaseTask):
         host = self.render_str(self._host)
         port = self.render_int(self._port)
         url = self.render_str(self._url)
+        if not url.startswith('/'):
+            url = '/' + url
         timeout = self.render_int(self._timeout)
         wait_time = 0
         while not self._check_connection(
