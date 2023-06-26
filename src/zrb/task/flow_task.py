@@ -6,6 +6,7 @@ from .cmd_task import CmdTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
+from ..helper.accessories.name import get_random_name
 
 import copy
 
@@ -16,7 +17,7 @@ TFlowNode = TypeVar('TFlowNode', bound='FlowNode')
 class FlowNode():
     def __init__(
         self,
-        name: str,
+        name: str = '',
         task: Optional[BaseTask] = None,
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
@@ -30,7 +31,7 @@ class FlowNode():
         run: Optional[Callable[..., Any]] = None,
         nodes: List[Union[TFlowNode, List[TFlowNode]]] = []
     ):
-        self._name = name
+        self._name = name if name != '' else get_random_name()
         self._task = task
         self._inputs = inputs
         self._envs = envs

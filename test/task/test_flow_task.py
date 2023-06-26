@@ -67,10 +67,10 @@ def test_flow_task_with_existing_tasks():
         upstreams=[prepare_lab],
         nodes=[
             [
-                FlowNode(name='create-sodium', task=create_sodium),
-                FlowNode(name='create-chlorine', task=create_chlorine)
+                FlowNode(task=create_sodium),
+                FlowNode(task=create_chlorine)
             ],
-            FlowNode(name='create-salt', task=create_salt)
+            FlowNode(task=create_salt)
         ]
     )
     main_loop = flow_task.create_main_loop()
