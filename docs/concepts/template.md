@@ -37,63 +37,9 @@ The following render data are always available:
     - `_task`: Representation of current task object, only accessible from `task` property
     - `_kwargs`: Map representation of current task input keyword arguments, only accessible from `task` property
     - `_args`: List representation of current task input arguments, only accessible from `task` property
+- `env`: Map representation of task environment. Only accessible from task property.
 
-
-
-
-# Render data for input default value
-
-You can use all common render data for your input default value.
-
-For example:
-
-```python
-from zrb import CmdTask, runner, StrInput:
-
-pull_image = CmdTask(
-    name='pull-image',
-    inputs=[
-        StrInput(
-            name='image-name',
-            default='docker.io/gofrendi/{{util.to_kebab_case(input.app_name)}}'
-        )
-    ],
-    cmd='docker pull {{input.image_name}}'
-)
-```
-
-# Render data for environment default value
-
-You can use all common render data for you environment default value. Additionally, you can access `input` value as well.
-
-Notice that input name will be automatically snake-cased, for example:
-
-```python
-from zrb import CmdTask, runner, StrInput, Env:
-
-pull_image = CmdTask(
-    name='pull-image',
-    inputs=[
-        StrInput(
-            name='image-name',
-            default='docker.io/gofrendi/{{util.to_kebab_case(input.app_name)}}'
-        )
-    ],
-    envs=[
-        Env(name='IMAGE', default='{{input.image_name}}')
-    ]
-    cmd=[
-        'echo "pulling $IMAGE"',
-        'docker pull $IMAGE'
-    ]
-)
-``` 
-
-# Render data for task properties
-
-As for task properties, you can use all common render data, along with `input` and `env`.
-
-For example:
+# Example
 
 ```python
 from zrb import CmdTask, runner
