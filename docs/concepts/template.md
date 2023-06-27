@@ -2,11 +2,16 @@
 
 # Template
 
-You can use Jinja template for task input's default value, task environment' default value, and several task's properties.
+You can use [Jinja template](https://jinja.palletsprojects.com/en/3.1.x/templates) for
+- task input's default value
+- task environment's default value
+- several task's properties like `cmd`, `cmd_path`, `setup_cmd`, etc.
+
+There are several render data you can use. Some are always available, while some others are only available in specific properties
 
 # Common render data
 
-There are some common render data you can use:
+The following render data are always available:
 
 - `datetime`: Python datetime module
 - `os`: Python os module
@@ -23,6 +28,18 @@ There are some common render data you can use:
     - `to_boolean(text)`: Convert text to boolean. This function handle case-insensitive text, but it will throw an error if the text is neither true/false value representation.
         - True value: `true`, `1`, `yes`, `y`, `active`
         - False value: `false`, `0`, `0`, `n`, `inactive`
+
+# Special render data
+
+
+- `input`: Map representation task input's value. Accessible when you set `task environment`'s property or any `task` property.
+    - `<snake_case_key>`: All task key inputs are snake-cased. These keys are accessible when you set `task environment`'s default property or any `task` property.
+    - `_task`: Representation of current task object, only accessible from `task` property
+    - `_kwargs`: Map representation of current task input keyword arguments, only accessible from `task` property
+    - `_args`: List representation of current task input arguments, only accessible from `task` property
+
+
+
 
 # Render data for input default value
 
