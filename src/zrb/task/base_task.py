@@ -76,7 +76,7 @@ class Group():
 
     def get_tasks(self) -> List[TTask]:
         return self._tasks
-    
+
     def get_children(self) -> List[TGroup]:
         return self._children
 
@@ -332,9 +332,11 @@ class TaskModel(
         return self._filled_complete_name
 
     def get_input_map(self) -> Mapping[str, Any]:
+        # This return reference to input map, so input map can be updated
         return self._input_map
 
     def get_env_map(self) -> Mapping[str, str]:
+        # This return reference to env map, so env map can be updated
         return self._env_map
 
     def _inject_env_map(
@@ -408,6 +410,12 @@ class TaskModel(
     def _get_render_data(
         self, additional_data: Optional[Mapping[str, Any]] = None
     ) -> Mapping[str, Any]:
+        self._ensure_cached_render_data()
+        if additional_data is None:
+            return self._render_data
+        return {**self._render_data, **additional_data}
+
+    def _ensure_cached_render_data(self):
         if self._render_data is not None:
             return self._render_data
         render_data = dict(DEFAULT_RENDER_DATA)
@@ -415,8 +423,6 @@ class TaskModel(
             'env': self._env_map,
             'input': self._input_map,
         })
-        if additional_data is not None:
-            render_data.update(additional_data)
         self._render_data = render_data
         return render_data
 
@@ -574,7 +580,7 @@ class BaseTask(TaskModel):
         self._run_function: Optional[Callable[..., Any]] = run
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
-        self._can_add_upstream: bool = True
+        self._allow_add_upstream: bool = True
 
     def get_checkers(self) -> Iterable[TTask]:
         return self._checkers
@@ -583,7 +589,7 @@ class BaseTask(TaskModel):
         return self._upstreams
 
     def add_upstreams(self, *upstreams: TTask):
-        if not self._can_add_upstream:
+        if not self._allow_add_upstream:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
         self._upstreams += upstreams
 
@@ -613,7 +619,7 @@ class BaseTask(TaskModel):
         if self._all_inputs is not None:
             return self._all_inputs
         inputs: Iterable[BaseInput] = []
-        self._can_add_upstream = False
+        self._allow_add_upstream = False
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
             inputs += upstream_inputs
@@ -651,23 +657,27 @@ class BaseTask(TaskModel):
         args: Iterable[Any],
         kwargs: Mapping[str, Any]
     ):
-        self.start_timer()
-        self.log_info('Set input and env map')
-        await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
-        self.log_info('Set run kwargs')
-        new_kwargs = self.get_input_map()
-        # make sure args and kwargs['_args'] are the same
-        self.log_info('Set run args')
-        new_args = copy.deepcopy(args)
-        if len(args) == 0 and '_args' in kwargs:
-            new_args = kwargs['_args']
-        new_kwargs['_args'] = new_args
-        # inject self as kwargs['_task']
-        new_kwargs['_task'] = self
-        self._args = new_args
-        self._kwargs = new_kwargs
-        # run the task
         try:
+            self.start_timer()
+            self.log_info('Set input and env map')
+            await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
+            self.log_info('Set run kwargs')
+            # self.get_input_map() will return reference to input map.
+            # When new_kwargs is updated,
+            # input map will be updated as well, changing render_str
+            # or render_template behaviour
+            new_kwargs = self.get_input_map()
+            # make sure args and kwargs['_args'] are the same
+            self.log_info('Set run args')
+            new_args = copy.deepcopy(args)
+            if len(args) == 0 and '_args' in kwargs:
+                new_args = kwargs['_args']
+            new_kwargs['_args'] = new_args
+            # inject self as kwargs['_task']
+            new_kwargs['_task'] = self
+            self._args = new_args
+            self._kwargs = new_kwargs
+            # run the task
             coroutines = [
                 asyncio.create_task(self._loop_check(show_info=True)),
                 asyncio.create_task(self._run_all(*new_args, **new_kwargs))
@@ -765,7 +775,7 @@ class BaseTask(TaskModel):
         await self.mark_awaited()
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
-        self._can_add_upstream = False
+        self._allow_add_upstream = False
         for upstream_task in self._upstreams:
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
@@ -785,7 +795,7 @@ class BaseTask(TaskModel):
         self.log_info('State: waiting')
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
-        self._can_add_upstream = False
+        self._allow_add_upstream = False
         for upstream_task in self._upstreams:
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
@@ -847,7 +857,7 @@ class BaseTask(TaskModel):
         new_kwargs.update(self._input_map)
         upstream_coroutines = []
         # set uplstreams keyval
-        self._can_add_upstream = False
+        self._allow_add_upstream = False
         for upstream_task in self._upstreams:
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(
