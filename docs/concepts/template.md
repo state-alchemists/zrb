@@ -2,11 +2,16 @@
 
 # Template
 
-You can use Jinja template for task input's default value, task environment' default value, and several task's properties.
+You can use [Jinja template](https://jinja.palletsprojects.com/en/3.1.x/templates) for
+- task input's default value
+- task environment's default value
+- several task's properties like `cmd`, `cmd_path`, `setup_cmd`, etc.
+
+There are several render data you can use. Some are always available, while some others are only available in specific properties
 
 # Common render data
 
-There are some common render data you can use:
+The following render data are always available:
 
 - `datetime`: Python datetime module
 - `os`: Python os module
@@ -24,59 +29,17 @@ There are some common render data you can use:
         - True value: `true`, `1`, `yes`, `y`, `active`
         - False value: `false`, `0`, `0`, `n`, `inactive`
 
-# Render data for input default value
+# Special render data
 
-You can use all common render data for your input default value.
 
-For example:
+- `input`: Map representation task input's value. Accessible when you set `task environment`'s property or any `task` property.
+    - `<snake_case_key>`: All task key inputs are snake-cased. These keys are accessible when you set `task environment`'s default property or any `task` property.
+    - `_task`: Representation of current task object, only accessible from `task` property
+    - `_kwargs`: Map representation of current task input keyword arguments, only accessible from `task` property
+    - `_args`: List representation of current task input arguments, only accessible from `task` property
+- `env`: Map representation of task environment. Only accessible from task property.
 
-```python
-from zrb import CmdTask, runner, StrInput:
-
-pull_image = CmdTask(
-    name='pull-image',
-    inputs=[
-        StrInput(
-            name='image-name',
-            default='docker.io/gofrendi/{{util.to_kebab_case(input.app_name)}}'
-        )
-    ],
-    cmd='docker pull {{input.image_name}}'
-)
-```
-
-# Render data for environment default value
-
-You can use all common render data for you environment default value. Additionally, you can access `input` value as well.
-
-Notice that input name will be automatically snake-cased, for example:
-
-```python
-from zrb import CmdTask, runner, StrInput, Env:
-
-pull_image = CmdTask(
-    name='pull-image',
-    inputs=[
-        StrInput(
-            name='image-name',
-            default='docker.io/gofrendi/{{util.to_kebab_case(input.app_name)}}'
-        )
-    ],
-    envs=[
-        Env(name='IMAGE', default='{{input.image_name}}')
-    ]
-    cmd=[
-        'echo "pulling $IMAGE"',
-        'docker pull $IMAGE'
-    ]
-)
-``` 
-
-# Render data for task properties
-
-As for task properties, you can use all common render data, along with `input` and `env`.
-
-For example:
+# Example
 
 ```python
 from zrb import CmdTask, runner
