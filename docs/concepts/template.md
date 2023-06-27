@@ -29,7 +29,7 @@ The following render data are always available:
         - True value: `true`, `1`, `yes`, `y`, `active`
         - False value: `false`, `0`, `0`, `n`, `inactive`
 
-# Special render data
+# Specific render data
 
 
 - `input`: Map representation task input's value. Accessible when you set `task environment`'s property or any `task` property.
@@ -42,11 +42,15 @@ The following render data are always available:
 # Example
 
 ```python
-from zrb import CmdTask, runner
+from zrb import CmdTask, StrInput, Env, runner
 
 demo = CmdTask(
     name='demo',
     inputs=[
+        StrInput(
+            name='app-name',
+            default='my-app'
+        ),
         StrInput(
             name='image-name',
             default='docker.io/gofrendi/{{util.to_kebab_case(input.app_name)}}'
@@ -57,10 +61,10 @@ demo = CmdTask(
     ],
     cmd=[
         'echo {{ input._args.0 }}',
-        'echo {% for arg in input._args %}{{ arg }}{% endfor %}',
-        'echo Image name (via input): {{ input.image_name }}',
-        'echo Image name (via env): {{ env.IMAGE }}',
-        'echo Image name (via env variable): $IMAGE',
+        '{% for arg in input._args %}echo "{{ arg }} ";{% endfor %}',
+        'echo "Image name (via input): {{ input.image_name }}"',
+        'echo "Image name (via env): {{ env.IMAGE }}"',
+        'echo "Image name (via env variable): $IMAGE"',
     ]
 )
 runner.register(demo)
@@ -69,7 +73,19 @@ runner.register(demo)
 You can try to invoke:
 
 ```
-zrb demo --image-name docker.io/my-image one two three
+zrb demo --app-name my-app one two three
+```
+
+The result will be:
+
+```
+one
+one
+two
+three
+Image name (via input): docker.io/my-app
+Image name (via env): docker.io/my-app
+Image name (via env variable): docker.io/my-app
 ```
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
