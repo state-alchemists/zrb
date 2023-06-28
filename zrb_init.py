@@ -22,6 +22,13 @@ zrb_image_name_input = StrInput(
     default=f'docker.io/stalchmst/zrb:{VERSION}'
 )
 
+zrb_latest_image_name_input = StrInput(
+    name='zrb-image-name',
+    description='Zrb image name',
+    prompt='Zrb image name',
+    default=f'docker.io/stalchmst/zrb:latest'
+)
+
 ###############################################################################
 # Env Definitions
 ###############################################################################
@@ -30,6 +37,12 @@ zrb_image_env = Env(
     name='ZRB_IMAGE',
     os_name='',
     default='{{input.zrb_image_name}}'
+)
+
+zrb_latest_image_env = Env(
+    name='ZRB_IMAGE',
+    os_name='',
+    default='{{input.zrb_image_latest_name}}'
 )
 
 ###############################################################################
@@ -110,6 +123,21 @@ build_image = DockerComposeTask(
 )
 runner.register(build_image)
 
+build_latest_image = DockerComposeTask(
+    name='build-latest-image',
+    description='Build docker image',
+    upstreams=[
+        prepare_docker,
+        check_pip,
+    ],
+    inputs=[zrb_latest_image_name_input],
+    envs=[zrb_latest_image_env],
+    cwd=f'{CURRENT_DIR}/.docker-dir',
+    compose_cmd='build',
+    compose_args=['zrb']
+)
+runner.register(build_latest_image)
+
 stop_container = DockerComposeTask(
     name='stop-container',
     description='remove docker container',
@@ -148,12 +176,25 @@ push_image = DockerComposeTask(
 )
 runner.register(push_image)
 
+push_latest_image = DockerComposeTask(
+    name='push-latest-image',
+    description='Push docker image',
+    upstreams=[build_latest_image],
+    inputs=[zrb_latest_image_name_input],
+    envs=[zrb_latest_image_env],
+    cwd=f'{CURRENT_DIR}/.docker-dir',
+    compose_cmd='push',
+    compose_args=['zrb']
+)
+runner.register(push_latest_image)
+
 publish = CmdTask(
     name='publish',
     description='Publish new version',
     upstreams=[
         publish_pip,
-        push_image
+        push_image,
+        push_latest_image
     ]
 )
 runner.register(publish)
