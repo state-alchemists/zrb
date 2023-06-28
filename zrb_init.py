@@ -188,13 +188,13 @@ push_latest_image = DockerComposeTask(
 )
 runner.register(push_latest_image)
 
-publish = CmdTask(
+publish = FlowTask(
     name='publish',
     description='Publish new version',
-    upstreams=[
-        publish_pip,
-        push_image,
-        push_latest_image
+    nodes=[
+        FlowNode(task=publish_pip),
+        FlowNode(task=push_image),
+        FlowNode(task=push_latest_image),
     ]
 )
 runner.register(publish)
