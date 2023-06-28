@@ -23,10 +23,10 @@ zrb_image_name_input = StrInput(
 )
 
 zrb_latest_image_name_input = StrInput(
-    name='zrb-image-name',
+    name='zrb-latest-image-name',
     description='Zrb image name',
     prompt='Zrb image name',
-    default=f'docker.io/stalchmst/zrb:latest'
+    default='docker.io/stalchmst/zrb:latest'
 )
 
 ###############################################################################
@@ -42,7 +42,7 @@ zrb_image_env = Env(
 zrb_latest_image_env = Env(
     name='ZRB_IMAGE',
     os_name='',
-    default='{{input.zrb_image_latest_name}}'
+    default='{{input.zrb_latest_image_name}}'
 )
 
 ###############################################################################
