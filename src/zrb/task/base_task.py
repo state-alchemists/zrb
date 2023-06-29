@@ -281,7 +281,7 @@ class BaseTask(
         print(result)
 
     async def _loop_check(self, show_info: bool = False) -> bool:
-        self.log_info('Start checking')
+        self.log_info('Start readiness checking')
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self._checking_interval)
@@ -318,7 +318,6 @@ class BaseTask(
                 await asyncio.sleep(0.1)
             return True
         self._is_check_triggered = True
-        self.log_debug('Start checking')
         check_result = await self._check()
         if check_result:
             self._is_ready = True

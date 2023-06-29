@@ -1,18 +1,21 @@
 from ..log import logger
+from ..accessories.color import colored
+
+import importlib.util
 import os
 import re
-import importlib.util
-from ..accessories.color import colored
 
 pattern = re.compile('[^a-zA-Z0-9]')
 
 
 def load_module(script_path: str):
-    if os.path.isfile(script_path):
-        logger.info(colored(f'Load {script_path}', attrs=['dark']))
-        module_name = pattern.sub('', script_path)
-        spec = importlib.util.spec_from_file_location(module_name, script_path)
-        # Create a module from the spec
-        module = importlib.util.module_from_spec(spec)
-        # Execute the module code
-        spec.loader.exec_module(module)
+    if not os.path.isfile(script_path):
+        return
+    module_name = pattern.sub('', script_path)
+    logger.info(colored('Get module spec', attrs=['dark']))
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    logger.info(colored('Create module', attrs=['dark']))
+    module = importlib.util.module_from_spec(spec)
+    logger.info(colored('Exec module', attrs=['dark']))
+    spec.loader.exec_module(module)
+    logger.info(colored('Module executed', attrs=['dark']))

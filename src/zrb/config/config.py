@@ -21,7 +21,8 @@ def get_current_shell() -> str:
 
 
 default_shell = os.getenv('ZRB_SHELL', get_current_shell())
-init_scripts = os.getenv('ZRB_INIT_SCRIPTS', '').split(':')
+init_script_str = os.getenv('ZRB_INIT_SCRIPTS', '')
+init_scripts = init_script_str.split(':') if init_script_str != '' else []
 logging_level = to_logging_level(os.getenv('ZRB_LOGGING_LEVEL', 'WARNING'))
 should_load_builtin = to_boolean(os.getenv('ZRB_SHOULD_LOAD_BUILTIN', '1'))
 env_prefix = os.getenv('ZRB_ENV', '')

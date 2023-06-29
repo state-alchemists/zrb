@@ -1,53 +1,65 @@
 # PascalProjectName
 
-This is a Zrb project.
+PascalProjectName is a [Zrb](https://pypi.org/project/zrb/) project.
 
-To learn more about Zrb, please visit the [Zrb homepage](https://pypi.org/project/zrb/).
+There are two directories in the project:
 
-# PascalProjectName Directory Structure
+- `_autmate`: This directory contains Zrb task definitions
+- `src`: This directory contains all source code and resources.
 
-```
-.
-    _automate/
-        <your-automation-script>.py
-    src/
-        <your-source-code>
-    .gitignore
-    project.sh
-    README.md
-    requirements.txt
-    template.env
-    venv
-    zrb_init.py
-```
+To learn more about the project, you can visit [Zrb getting started page](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md).
 
-All automation scripts should be put in `_automate` directory and should be imported at `zrb_init.py`.
+# Prerequisites
 
-All other resources like application source code, Dockerfile, Helm charts, etc should be located under `src`.
+To start working with PascalProjectName, you need to have:
 
-If your automation script depends on third-party pip packages, add them to `requirements.txt`. To get more information about your existing pip package, you can do:
+- Python 3.9 or higher
+- Pip
+- Venv
 
-```bash
-pip freeze
-# or to get specified package information (e.g., dbt):
-pip freeze | grep dbt
-```
+You can also use [Zrb Docker container](https://github.com/state-alchemists/zrb#-with-docker) if you prefer to work with Docker.
 
-# Activating PascalProjectName
+# Getting started
+
+To get started, you need to activate PascalProjectName virtual environment and install a few packages (including Zrb). You can do this by invoking the following command in your terminal:
 
 ```bash
 source ./project.sh
-zrb
 ```
 
-Once you invoke the command, PascalProjectName virtual environment will be created.
+Once the virtual environment is activated, you will be able to invoke any Zrb commands.
 
-# PascalProjectName Configurations
+To make sure that Zrb is accessible, you can try to invoke the following commands:
 
-See [template.env](template.env)
+```bash
+zrb version
+```
 
-To make your configuration, please copy `template.env` to `.env`
+# Creating an application
 
+You can add a new application to PascalProjectName by invoking the following command:
+
+```bash
+zrb project add fastapp
+```
+
+Once the application is created, you can start it by invoking the following command:
+
+```bash
+zrb project start-<app-name>
+```
+
+You will be able to find the application under PascalProjectName's `src` directory.
+
+# Configuration
+
+To configure PascalProjectName, you need to create a `.env` file.
+
+You can see the default configuration by invoking the following command:
+
+```
+zrb project get-default-env
+```
 
 # Reloading PascalProjectName Configurations
 
@@ -58,20 +70,3 @@ reload
 ```
 
 Please note that PascalProjectName's virtual environment has to be activated first.
-
-# Getting task environments
-
-To get task environments, you can invoke the following command:
-
-```bash
-zrb project get-default-env
-```
-
-It is expected to use the command for informational purposes only.
-You should only override necessary environment variables to keep track of what you need to change.
-
-Being said so, you can also add the default task environments to `.env` by invoking the following command:
-
-```bash
-zrb project get-default-env >> .env
-```
