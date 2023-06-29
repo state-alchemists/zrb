@@ -1,6 +1,4 @@
-from typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union
-)
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from typeguard import typechecked
 from .any_task import AnyTask
 from .base_task_composite import (
@@ -315,7 +313,7 @@ class BaseTask(
 
     async def _cached_check(self) -> bool:
         if self._is_check_triggered:
-            self.log_debug('Waiting checking flag to be set')
+            self.log_debug('Waiting readiness flag to be set')
             while not self._is_ready:
                 await asyncio.sleep(0.1)
             return True
@@ -324,7 +322,7 @@ class BaseTask(
         check_result = await self._check()
         if check_result:
             self._is_ready = True
-            self.log_debug('Set checking flag to True')
+            self.log_debug('Set readiness flag to True')
         return check_result
 
     async def _check(self) -> bool:
