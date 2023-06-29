@@ -155,3 +155,6 @@ class FlowTask(BaseTask):
         if isinstance(node, FlowNode):
             return [node]
         return node
+
+    def __repr__(self) -> str:
+        return f'<FlowTask name={self._name}>'

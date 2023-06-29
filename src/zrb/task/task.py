@@ -5,7 +5,8 @@ from typeguard import typechecked
 @typechecked
 class Task(BaseTask):
     '''
-    Common Task.
-    Exactly the same as BaseTask
+    Alias for BaseTask
     '''
-    pass
+
+    def __repr__(self) -> str:
+        return f'<Task name={self._name}>'

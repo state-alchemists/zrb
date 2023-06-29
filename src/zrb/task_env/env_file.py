@@ -31,3 +31,8 @@ class EnvFile():
                 renderable=self.renderable
             ))
         return envs
+
+    def __repr__(self) -> str:
+        env_file = self.env_file
+        prefix = self.prefix
+        return f'<EnvFile file={env_file} prefix={prefix}>'

@@ -256,3 +256,6 @@ class CmdTask(BaseTask):
         if len(buffer) >= max_size:
             buffer.pop(0)
         buffer.append(new_line)
+
+    def __repr__(self) -> str:
+        return f'<CmdTask name={self._name}>'

@@ -113,6 +113,12 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def inject_env_map(
+        self, env_map: Mapping[str, str], override: bool = False
+    ):
+        pass
+
+    @abstractmethod
     def render_any(
         self, val: Any, data: Optional[Mapping[str, Any]] = None
     ) -> Any:

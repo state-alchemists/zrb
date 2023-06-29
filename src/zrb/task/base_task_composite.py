@@ -90,34 +90,34 @@ class CommonTaskModel():
 class TimeTracker():
 
     def __init__(self):
-        self._start_time: float = 0
-        self._end_time: float = 0
+        self.__start_time: float = 0
+        self.__end_time: float = 0
 
     def _start_timer(self):
-        self._start_time = time.time()
+        self.__start_time = time.time()
 
     def _end_timer(self):
-        self._end_time = time.time()
+        self.__end_time = time.time()
 
     def _get_elapsed_time(self) -> float:
-        return self._end_time - self._start_time
+        return self.__end_time - self.__start_time
 
 
 @typechecked
 class AttemptTracker():
 
     def __init__(self, retry: int = 2):
-        self._retry = retry
-        self._attempt: int = 1
+        self.__retry = retry
+        self.__attempt: int = 1
 
     def _get_max_attempt(self) -> int:
-        return self._retry + 1
+        return self.__retry + 1
 
     def _get_attempt(self) -> int:
-        return self._attempt
+        return self.__attempt
 
     def _increase_attempt(self):
-        self._attempt += 1
+        self.__attempt += 1
 
     def _should_attempt(self) -> bool:
         attempt = self._get_attempt()
@@ -134,38 +134,38 @@ class AttemptTracker():
 class FinishTracker():
 
     def __init__(self):
-        self._execution_queue: Optional[asyncio.Queue] = None
-        self._counter = 0
+        self.__execution_queue: Optional[asyncio.Queue] = None
+        self.__counter = 0
 
     async def _mark_awaited(self):
-        if self._execution_queue is None:
-            self._execution_queue = asyncio.Queue()
-        self._counter += 1
+        if self.__execution_queue is None:
+            self.__execution_queue = asyncio.Queue()
+        self.__counter += 1
 
     async def _mark_done(self):
         # Tracker might be started several times
         # However, when the execution is marked as done, it applied globally
         # Thus, we need to send event as much as the counter.
-        for i in range(self._counter):
-            await self._execution_queue.put(True)
+        for i in range(self.__counter):
+            await self.__execution_queue.put(True)
 
     async def _is_done(self) -> bool:
-        while self._execution_queue is None:
+        while self.__execution_queue is None:
             await asyncio.sleep(0.05)
-        return await self._execution_queue.get()
+        return await self.__execution_queue.get()
 
 
 @typechecked
 class PidModel():
 
     def __init__(self):
-        self._zrb_task_pid: int = os.getpid()
+        self.__task_pid: int = os.getpid()
 
     def _set_task_pid(self, pid: int):
-        self._zrb_task_pid = pid
+        self.__task_pid = pid
 
     def _get_task_pid(self) -> int:
-        return self._zrb_task_pid
+        return self.__task_pid
 
 
 class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
@@ -183,18 +183,24 @@ class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
 class Renderer():
 
     def __init__(self):
-        self._input_map: Mapping[str, Any] = {}
-        self._env_map: Mapping[str, str] = {}
-        self._render_data: Optional[Mapping[str, Any]] = None
-        self._rendered_str: Mapping[str, str] = {}
+        self.__input_map: Mapping[str, Any] = {}
+        self.__env_map: Mapping[str, str] = {}
+        self.__render_data: Optional[Mapping[str, Any]] = None
+        self.__rendered_str: Mapping[str, str] = {}
 
     def get_input_map(self) -> Mapping[str, Any]:
         # This return reference to input map, so input map can be updated
-        return self._input_map
+        return self.__input_map
+
+    def _set_input_map(self, key: str, val: Any):
+        self.__input_map[key] = val
 
     def get_env_map(self) -> Mapping[str, str]:
         # This return reference to env map, so env map can be updated
-        return self._env_map
+        return self.__env_map
+
+    def _set_env_map(self, key: str, val: str):
+        self.__env_map[key] = val
 
     def render_any(
         self, val: Any, data: Optional[Mapping[str, Any]] = None
@@ -227,8 +233,8 @@ class Renderer():
     def render_str(
         self, val: str, data: Optional[Mapping[str, Any]] = None
     ) -> str:
-        if val in self._rendered_str:
-            return self._rendered_str[val]
+        if val in self.__rendered_str:
+            return self.__rendered_str[val]
         if not is_probably_jinja(val):
             return val
         template = jinja2.Template(val)
@@ -237,7 +243,7 @@ class Renderer():
             rendered_text = template.render(render_data)
         except Exception:
             raise Exception(f'Fail to render "{val}" with data: {render_data}')
-        self._rendered_str[val] = rendered_text
+        self.__rendered_str[val] = rendered_text
         return rendered_text
 
     def render_file(
@@ -258,18 +264,18 @@ class Renderer():
     ) -> Mapping[str, Any]:
         self._ensure_cached_render_data()
         if additional_data is None:
-            return self._render_data
-        return {**self._render_data, **additional_data}
+            return self.__render_data
+        return {**self.__render_data, **additional_data}
 
     def _ensure_cached_render_data(self):
-        if self._render_data is not None:
-            return self._render_data
+        if self.__render_data is not None:
+            return self.__render_data
         render_data = dict(DEFAULT_RENDER_DATA)
         render_data.update({
-            'env': self._env_map,
-            'input': self._input_map,
+            'env': self.__env_map,
+            'input': self.__input_map,
         })
-        self._render_data = render_data
+        self.__render_data = render_data
         return render_data
 
 

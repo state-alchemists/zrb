@@ -14,11 +14,9 @@ from ..task_input.base_input import BaseInput
 from ..task_input._constant import RESERVED_INPUT_NAMES
 from ..helper.accessories.color import colored
 from ..helper.advertisement import get_advertisement
-from ..helper.list.ensure_uniqueness import ensure_uniqueness
-from ..helper.list.reverse import reverse
 from ..helper.string.double_quote import double_quote
 from ..helper.string.conversion import to_variable_name
-from ..helper.map.conversion import to_str as str_map_to_str
+from ..helper.map.conversion import to_str as map_to_str
 from ..config.config import show_advertisement
 
 import asyncio
@@ -100,22 +98,31 @@ class BaseTask(
         '''
         if self._all_inputs is not None:
             return self._all_inputs
-        inputs: Iterable[BaseInput] = []
         self._allow_add_upstream = False
+        self._all_inputs: List[BaseInput] = []
+        existing_input_names: Mapping[str, bool] = {}
+        # Add upstream inputs
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
-            inputs += upstream_inputs
-        inputs += self._inputs
-        self._all_inputs = ensure_uniqueness(
-            inputs, lambda x, y: x.name == y.name
-        )
-        return inputs
+            for upstream_input in upstream_inputs:
+                if upstream_input.name in existing_input_names:
+                    continue
+                self._all_inputs.append(upstream_input)
+                existing_input_names[upstream_input.name] = True
+        # Add task inputs
+        for task_input in self._inputs:
+            if task_input.name in existing_input_names:
+                continue
+            self._all_inputs.append(task_input)
+            existing_input_names[task_input.name] = True
+        return self._all_inputs
 
     def to_function(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., Any]:
-        self.log_info('Create function')
-
+        '''
+        Return a function representing the current task.
+        '''
         def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info('Copy task')
             self_cp = copy.deepcopy(self)
@@ -131,6 +138,16 @@ class BaseTask(
         if not self._allow_add_upstream:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
         self._upstreams += upstreams
+
+    def inject_env_map(
+        self, env_map: Mapping[str, str], override: bool = False
+    ):
+        '''
+        Set new values for current task's env map
+        '''
+        for key, val in env_map.items():
+            if override or key not in self.get_env_map():
+                self._set_env_map(key, val)
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -160,13 +177,6 @@ class BaseTask(
         self.print_out_dark(message)
         self._play_bell()
 
-    def _inject_env_map(
-        self, env_map: Mapping[str, str], override: bool = False
-    ):
-        for key, val in env_map.items():
-            if override or key not in self._env_map:
-                self._env_map[key] = val
-
     def _get_multiline_repr(self, text: str) -> str:
         lines_repr: Iterable[str] = []
         lines = text.split('\n')
@@ -178,57 +188,43 @@ class BaseTask(
         return '\n' + '\n'.join(lines_repr)
 
     async def _set_local_keyval(
-        self,
-        kwargs: Mapping[str, Any],
-        env_prefix: str = ''
+        self, kwargs: Mapping[str, Any], env_prefix: str = ''
     ):
         if self._is_keyval_set:
             return True
         self._is_keyval_set = True
-        # Add self.inputs to input_map
         self.log_info('Set input map')
         for task_input in self.get_all_inputs():
-            map_key = self._get_normalized_input_key(task_input.name)
-            self._input_map[map_key] = self.render_any(
-                kwargs.get(map_key, task_input.default)
+            input_name = self._get_normalized_input_key(task_input.name)
+            input_value = self.render_any(
+                kwargs.get(input_name, task_input.default)
             )
+            self._set_input_map(input_name, input_value)
         self.log_debug(
-            f'Input map:\n{str_map_to_str(self._input_map, item_prefix="  ")}'
+            'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
         )
-        # Construct envs based on self.env_files and self.envs,
-        # - self.env_files should have lower priority then self.envs
-        # - First self.envs/self.env_files should be overriden by the next
         self.log_info('Merging task envs, task env files, and native envs')
-        envs: List[Env] = self._deduplicate_env(self._envs)
-        for env_file in reverse(self._env_files):
-            envs += env_file.get_envs()
-        for env_name in os.environ:
-            envs.append(Env(name=env_name, os_name=env_name, renderable=False))
-        envs = ensure_uniqueness(envs, self._compare_env_name)
-        # Add envs to env_map
-        self.log_info('Set env map')
-        for task_env in envs:
-            env_name = task_env.name
-            if env_name in self._env_map:
-                continue
-            env_value = task_env.get(env_prefix)
-            if task_env.renderable:
+        for env_name, env in self._get_all_envs().items():
+            env_value = env.get(env_prefix)
+            if env.renderable:
                 env_value = self.render_any(env_value)
-            self._env_map[env_name] = env_value
+            self._set_env_map(env_name, env_value)
         self.log_debug(
-            f'Env map:\n{str_map_to_str(self._env_map, item_prefix="  ")}'
+            'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
         )
 
-    def _deduplicate_env(self, envs: Iterable[Env]) -> List[Env]:
-        # If two environment with the same name exists, the second one should
-        # override the first one. But the order of the declaration should not
-        # be changed
-        return reverse(ensure_uniqueness(
-            reverse(envs), self._compare_env_name
-        ))
-
-    def _compare_env_name(self, first_env: Env, second_env: Env) -> bool:
-        return first_env.name == second_env.name
+    def _get_all_envs(self) -> Mapping[str, Env]:
+        all_envs: Mapping[str, Env] = {}
+        for env_name in os.environ:
+            all_envs[env_name] = Env(
+                name=env_name, os_name=env_name, renderable=False
+            )
+        for env_file in self._env_files:
+            for env in env_file.get_envs():
+                all_envs[env.name] = env
+        for env in self._envs:
+            all_envs[env.name] = env
+        return all_envs
 
     def _get_normalized_input_key(self, key: str) -> str:
         if key in RESERVED_INPUT_NAMES:
@@ -247,24 +243,21 @@ class BaseTask(
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
-            # new_kwargs is bound to self._input_map
-            # Any changes on new_kwargs will affect self._input_map
-            # Thus, change self._render_str/self._render_file behavior as well
-            new_kwargs = self.get_input_map()
+            input_map = self.get_input_map()
             # make sure args and kwargs['_args'] are the same
             self.log_info('Set run args')
             new_args = copy.deepcopy(args)
             if len(args) == 0 and '_args' in kwargs:
                 new_args = kwargs['_args']
-            new_kwargs['_args'] = new_args
-            # inject self as kwargs['_task']
-            new_kwargs['_task'] = self
+            input_map['_args'] = new_args
+            # inject self as input_map['_task']
+            input_map['_task'] = self
             self._args = new_args
-            self._kwargs = new_kwargs
+            self._kwargs = input_map
             # run the task
             coroutines = [
                 asyncio.create_task(self._loop_check(show_info=True)),
-                asyncio.create_task(self._run_all(*new_args, **new_kwargs))
+                asyncio.create_task(self._run_all(*new_args, **input_map))
             ]
             results = await asyncio.gather(*coroutines)
             result = results[-1]
@@ -438,7 +431,7 @@ class BaseTask(
         await self._set_local_keyval(kwargs=kwargs, env_prefix=env_prefix)
         # get new_kwargs for upstream and checkers
         new_kwargs = copy.deepcopy(kwargs)
-        new_kwargs.update(self._input_map)
+        new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
         # set uplstreams keyval
         self._allow_add_upstream = False
@@ -453,7 +446,7 @@ class BaseTask(
         checker_coroutines = []
         for checker_task in self._checkers:
             checker_task._inputs += self._inputs
-            checker_task._inject_env_map(local_env_map, override=True)
+            checker_task.inject_env_map(local_env_map, override=True)
             checker_coroutines.append(asyncio.create_task(
                 checker_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix
@@ -462,3 +455,6 @@ class BaseTask(
         # wait for checker and upstreams
         coroutines = checker_coroutines + upstream_coroutines
         await asyncio.gather(*coroutines)
+
+    def __repr__(self) -> str:
+        return f'<Task name={self._name}>'

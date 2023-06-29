@@ -137,3 +137,6 @@ class HTTPChecker(BaseTask):
         if is_https:
             return HTTPSConnection(host, port, timeout=timeout)
         return HTTPConnection(host, port, timeout=timeout)
+
+    def __repr__(self) -> str:
+        return f'<HttpChecker name={self._name}>'

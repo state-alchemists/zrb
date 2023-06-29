@@ -92,3 +92,6 @@ class PathChecker(BaseTask):
 
     def _get_label(self, path: str) -> str:
         return f'Checking {path}'
+
+    def __repr__(self) -> str:
+        return f'<PathChecker name={self._name}>'

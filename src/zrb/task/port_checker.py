@@ -103,3 +103,6 @@ class PortChecker(BaseTask):
 
     def _get_label(self, host: str, port: int) -> str:
         return f'Checking {host}:{port}'
+
+    def __repr__(self) -> str:
+        return f'<PortChecker name={self._name}>'
