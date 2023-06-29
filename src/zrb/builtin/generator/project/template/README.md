@@ -51,6 +51,8 @@ zrb project start-<app-name>
 
 You will be able to find the application under PascalProjectName's `src` directory.
 
+Zrb also allows you to create CRUD entities on your application. Please visit [Zrb's development-to-deployment tutorial](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/development-to-deployment-no-code.md) to learn more.
+
 # Configuration
 
 To configure PascalProjectName, you need to create a `.env` file.
@@ -61,12 +63,4 @@ You can see the default configuration by invoking the following command:
 zrb project get-default-env
 ```
 
-# Reloading PascalProjectName Configurations
-
-To reload your configurations, you can invoke the following command:
-
-```bash
-reload
-```
-
-Please note that PascalProjectName's virtual environment has to be activated first.
+Once the environment file is updated, you can reload PascalProjectName by invoking `reload` in the terminal.
