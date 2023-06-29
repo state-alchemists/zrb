@@ -457,4 +457,4 @@ class BaseTask(
         await asyncio.gather(*coroutines)
 
     def __repr__(self) -> str:
-        return f'<Task name={self._name}>'
+        return f'<BaseTask name={self._name}>'
