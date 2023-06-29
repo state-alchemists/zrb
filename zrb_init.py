@@ -129,6 +129,7 @@ build_latest_image = DockerComposeTask(
     upstreams=[
         prepare_docker,
         check_pip,
+        build_image,
     ],
     inputs=[zrb_latest_image_name_input],
     envs=[zrb_latest_image_env],
@@ -179,7 +180,10 @@ runner.register(push_image)
 push_latest_image = DockerComposeTask(
     name='push-latest-image',
     description='Push docker image',
-    upstreams=[build_latest_image],
+    upstreams=[
+        build_latest_image,
+        push_image,
+    ],
     inputs=[zrb_latest_image_name_input],
     envs=[zrb_latest_image_env],
     cwd=f'{CURRENT_DIR}/.docker-dir',
@@ -193,7 +197,6 @@ publish = FlowTask(
     description='Publish new version',
     nodes=[
         FlowNode(task=publish_pip),
-        FlowNode(task=push_image),
         FlowNode(task=push_latest_image),
     ]
 )
