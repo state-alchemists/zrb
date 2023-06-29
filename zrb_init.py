@@ -25,7 +25,7 @@ zrb_image_name_input = StrInput(
 zrb_latest_image_name_input = StrInput(
     name='zrb-latest-image-name',
     description='Zrb latest image name',
-    prompt='Zrb image name',
+    prompt='Zrb latest image name',
     default='docker.io/stalchmst/zrb:latest'
 )
 
