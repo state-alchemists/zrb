@@ -27,7 +27,7 @@ def test_resource_maker():
     )
 
     # first attempt should succeed
-    first_attempt_loop = code_maker.create_main_loop()
+    first_attempt_loop = code_maker.to_function()
     result = first_attempt_loop()
     assert result
     # excluded should not exists
@@ -59,7 +59,7 @@ def test_resource_maker():
     # second attempt should failed
     is_error = False
     try:
-        second_attempt_loop = code_maker.create_main_loop()
+        second_attempt_loop = code_maker.to_function()
         result = second_attempt_loop()
     except Exception:
         is_error = True

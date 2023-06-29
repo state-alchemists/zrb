@@ -10,8 +10,8 @@ def test_task_with_no_runner():
         name='simple-no-error',
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result
 
 
@@ -23,8 +23,8 @@ def test_task_with_predefined_runner():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result == 'hello'
 
 
@@ -37,8 +37,8 @@ def test_task_with_skip_execution():
         retry=0,
         skip_execution=True
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result is None
 
 
@@ -56,8 +56,8 @@ def test_task_with_input():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop(name='Dumbledore', favorite_drink='Elixir')
+    function = task.to_function()
+    result = function(name='Dumbledore', favorite_drink='Elixir')
     assert result == 'hello Dumbledore, your favorite drink is Elixir'
 
 
@@ -75,8 +75,8 @@ def test_task_with_default_input():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result == 'hello Nicholas Flamel, your favorite drink is Elixir'
 
 
@@ -94,8 +94,8 @@ def test_task_with_templated_input_without_kwarg():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result == 'hello Nicholas Flamel, aka Nicholas Flamel'
 
 
@@ -113,8 +113,8 @@ def test_task_with_templated_input_and_partial_kwarg():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop(name='Alchemist')
+    function = task.to_function()
+    result = function(name='Alchemist')
     assert result == 'hello Alchemist, aka Alchemist'
 
 
@@ -133,8 +133,8 @@ def test_task_with_templated_input():
         retry=0
     )
     # Name and alias provided
-    main_loop = task.create_main_loop()
-    result = main_loop(name='Nicholas Flamel', alias='Alchemist')
+    function = task.to_function()
+    result = function(name='Nicholas Flamel', alias='Alchemist')
     assert result == 'hello Nicholas Flamel, aka Alchemist'
 
 
@@ -155,12 +155,12 @@ def test_task_with_templated_env():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
+    function = task.to_function()
     if 'ZRB_TEST_TASK_ENV_1' in os.environ:
         del os.environ['ZRB_TEST_TASK_ENV_1']
     if 'ZRB_TEST_TASK_ENV_2' in os.environ:
         del os.environ['ZRB_TEST_TASK_ENV_2']
-    result = main_loop()
+    result = function()
     assert result == 'Elixir of immortality'
 
 
@@ -176,8 +176,8 @@ def test_task_with_env_file():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result == 'blue'
 
 
@@ -197,11 +197,11 @@ def test_task_with_env_file_and_prefix():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
+    function = task.to_function()
     if 'ZRB_TEST_TASK_WITH_ENV_AND_PREFIX_COLOR' in os.environ:
         del os.environ['ZRB_TEST_TASK_WITH_ENV_AND_PREFIX_COLOR']
     os.environ['ZRB_TEST_TASK_WITH_ENV_AND_PREFIX_COLOR'] = 'red'
-    result = main_loop()
+    result = function()
     assert result == 'red'
     del os.environ['ZRB_TEST_TASK_WITH_ENV_AND_PREFIX_COLOR']
 
@@ -224,14 +224,14 @@ def test_task_env_with_none_as_os_name():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
+    function = task.to_function()
     if 'ZRB_TEST_TASK_OS_NAME_NONE_COLOR' in os.environ:
         del os.environ['ZRB_TEST_TASK_OS_NAME_NONE_COLOR']
     if 'COLOR' in os.environ:
         del os.environ['COLOR']
     os.environ['ZRB_TEST_TASK_OS_NAME_NONE_COLOR'] = 'red'
     os.environ['COLOR'] = 'cyan'
-    result = main_loop()
+    result = function()
     assert result == 'cyan'
     del os.environ['ZRB_TEST_TASK_OS_NAME_NONE_COLOR']
     del os.environ['COLOR']
@@ -256,14 +256,14 @@ def test_task_env_with_empty_string_as_os_name():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
+    function = task.to_function()
     if 'ZRB_TEST_TASK_OS_NAME_EMPTY_COLOR' in os.environ:
         del os.environ['ZRB_TEST_TASK_OS_NAME_EMPTY_COLOR']
     if 'COLOR' in os.environ:
         del os.environ['COLOR']
     os.environ['ZRB_TEST_TASK_OS_NAME_EMPTY_COLOR'] = 'red'
     os.environ['COLOR'] = 'cyan'
-    result = main_loop()
+    result = function()
     assert result == 'green'
     del os.environ['ZRB_TEST_TASK_OS_NAME_EMPTY_COLOR']
     del os.environ['COLOR']
@@ -289,6 +289,6 @@ def test_task_redeclared_env():
         run=_run,
         retry=0
     )
-    main_loop = task.create_main_loop()
-    result = main_loop()
+    function = task.to_function()
+    result = function()
     assert result == 'yellow'

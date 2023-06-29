@@ -5,24 +5,24 @@ from zrb.builtin.principle import (
 
 
 def test_show_dry_principle():
-    main_loop = show_dry_principle.create_main_loop()
-    result = main_loop()
+    function = show_dry_principle.to_function()
+    result = function()
     assert result is None
 
 
 def test_show_kiss_principle():
-    main_loop = show_kiss_principle.create_main_loop()
-    result = main_loop()
+    function = show_kiss_principle.to_function()
+    result = function()
     assert result is None
 
 
 def test_show_solid_principle():
-    main_loop = show_solid_principle.create_main_loop()
-    result = main_loop()
+    function = show_solid_principle.to_function()
+    result = function()
     assert result is None
 
 
 def test_show_yagni_principle():
-    main_loop = show_yagni_principle.create_main_loop()
-    result = main_loop()
+    function = show_yagni_principle.to_function()
+    result = function()
     assert result is None

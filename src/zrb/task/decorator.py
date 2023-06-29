@@ -2,12 +2,12 @@ from typing import (
     Any, Callable, Iterable, Optional, Union
 )
 from typeguard import typechecked
+from ..task.any_task import AnyTask
 from ..task_input.base_input import BaseInput
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
-from ..task.base_task import Group
+from ..task_group.group import Group
 from ..action.runner import Runner
-from .base_task import BaseTask
 from .task import Task
 
 
@@ -21,8 +21,8 @@ def python_task(
     icon: Optional[str] = None,
     color: Optional[str] = None,
     description: str = '',
-    upstreams: Iterable[BaseTask] = [],
-    checkers: Iterable[BaseTask] = [],
+    upstreams: Iterable[AnyTask] = [],
+    checkers: Iterable[AnyTask] = [],
     checking_interval: float = 0.1,
     retry: int = 2,
     retry_interval: float = 1,

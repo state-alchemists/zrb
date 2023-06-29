@@ -1,8 +1,10 @@
 from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
-from .base_task import BaseTask, Group
+from .any_task import AnyTask
+from .base_task import BaseTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
+from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..config.config import default_shell
 
@@ -65,8 +67,8 @@ class CmdTask(BaseTask):
         cmd: Union[str, Iterable[str]] = '',
         cmd_path: str = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
-        upstreams: Iterable[BaseTask] = [],
-        checkers: Iterable[BaseTask] = [],
+        upstreams: Iterable[AnyTask] = [],
+        checkers: Iterable[AnyTask] = [],
         checking_interval: float = 0,
         retry: int = 2,
         retry_interval: float = 1,
@@ -92,12 +94,8 @@ class CmdTask(BaseTask):
             retry_interval=retry_interval,
             skip_execution=skip_execution
         )
-        max_output_line = self.ensure_non_negative(
-            max_output_line, 'Find negative max_output_line'
-        )
-        max_error_line = self.ensure_non_negative(
-            max_error_line, 'Find negative max_error_line'
-        )
+        max_output_line = max_output_line if max_output_line > 0 else 1
+        max_error_line = max_error_line if max_error_line > 0 else 1
         self._cmd = cmd
         self._cmd_path = cmd_path
         self._set_cwd(cwd)
@@ -119,21 +117,21 @@ class CmdTask(BaseTask):
             return
         self.cwd: Union[str, pathlib.Path] = cwd
 
-    def create_main_loop(
+    def to_function(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., CmdResult]:
-        return super().create_main_loop(env_prefix, raise_error)
+        return super().to_function(env_prefix, raise_error)
 
     def _print_result(self, result: CmdResult):
         if result.output == '':
             return
         print(result.output)
-    
+
     def _get_run_env_map(self) -> Mapping[str, Any]:
         env_map = self.get_env_map()
         input_map = self.get_input_map()
         for input_name, input_value in input_map.items():
-            upper_input_name = '_INPUT_' +  input_name.upper()
+            upper_input_name = '_INPUT_' + input_name.upper()
             if upper_input_name not in env_map:
                 env_map[upper_input_name] = f'{input_value}'
         return env_map
@@ -157,7 +155,7 @@ class CmdTask(BaseTask):
             preexec_fn=self._preexec_fn,
             bufsize=0
         )
-        self.set_task_pid(process.pid)
+        self._set_task_pid(process.pid)
         self._process = process
         atexit.register(self._at_exit)
         await self._wait_process(process)

@@ -9,8 +9,8 @@ def test_cmd_task():
         name='simple-no-error',
         cmd='echo hello'
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == 'hello'
 
 
@@ -19,10 +19,10 @@ def test_cmd_task_with_error():
         name='simple-error',
         cmd='forbidden command'
     )
-    main_loop = cmd_task.create_main_loop()
+    function = cmd_task.to_function()
     is_error: bool = False
     try:
-        main_loop()
+        function()
     except Exception:
         is_error = True
     assert is_error
@@ -36,8 +36,8 @@ def test_cmd_task_with_multiline_command():
             'echo hello again',
         ]
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == '\n'.join(['hello', 'hello again'])
 
 
@@ -47,8 +47,8 @@ def test_cmd_task_with_cmd_path():
         name='simple-no-error',
         cmd_path=os.path.join(dir_path, 'templates', 'hello.sh')
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == 'Hello, World!'
 
 
@@ -62,8 +62,8 @@ def test_cmd_task_with_upstream_with_no_error():
         cmd='echo hello',
         upstreams=[upstream_task]
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == 'hello'
 
 
@@ -77,10 +77,10 @@ def test_cmd_task_with_upstream_with_error():
         cmd='echo hello',
         upstreams=[upstream_task]
     )
-    main_loop = cmd_task.create_main_loop()
+    function = cmd_task.to_function()
     is_error: bool = False
     try:
-        main_loop()
+        function()
     except Exception:
         is_error = True
     assert is_error
@@ -98,8 +98,8 @@ def test_cmd_task_with_upstream_containing_inputs():
         cmd='echo hello {{input.name}}',
         upstreams=[upstream]
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop(name='Dumbledore')
+    function = cmd_task.to_function()
+    result = function(name='Dumbledore')
     assert result.output == 'hello Dumbledore'
 
 
@@ -123,8 +123,8 @@ def test_cmd_task_with_diamond_upstream():
         cmd='echo hello',
         upstreams=[upstream_1, upstream_2]
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == 'hello'
 
 
@@ -138,8 +138,8 @@ def test_cmd_task_with_checker_with_no_error():
         cmd='echo hello',
         checkers=[checker]
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == 'hello'
 
 
@@ -153,10 +153,10 @@ def test_cmd_task_with_checker_with_error():
         cmd='echo hello',
         checkers=[checker]
     )
-    main_loop = cmd_task.create_main_loop()
+    function = cmd_task.to_function()
     is_error: bool = False
     try:
-        main_loop()
+        function()
     except Exception:
         is_error = True
     assert is_error
@@ -174,6 +174,6 @@ def test_cmd_task_with_long_output():
         ],
         max_output_line=3,
     )
-    main_loop = cmd_task.create_main_loop()
-    result = main_loop()
+    function = cmd_task.to_function()
+    result = function()
     assert result.output == '\n'.join(['3', '4', '5'])

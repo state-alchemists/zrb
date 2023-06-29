@@ -1,8 +1,10 @@
 from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
-from .base_task import BaseTask, Group
+from .base_task import BaseTask
+from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
+from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.file.copy_tree import copy_tree
 from ..helper.util import (
@@ -37,7 +39,7 @@ class ResourceMaker(BaseTask):
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        upstreams: Iterable[BaseTask] = [],
+        upstreams: Iterable[AnyTask] = [],
         locks: Iterable[str] = [],
         skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
@@ -65,10 +67,10 @@ class ResourceMaker(BaseTask):
         self._replacement_mutator = replacement_mutator
         self._locks = locks
 
-    def create_main_loop(
+    def to_function(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., bool]:
-        return super().create_main_loop(env_prefix, raise_error)
+        return super().to_function(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         # render parameters

@@ -1,5 +1,6 @@
 from typing import List, Mapping
-from ...task.base_task import Group, BaseTask
+from ...task_group.group import Group
+from ...task.any_task import AnyTask
 from ...task_env.env import Env
 from ..string.jinja import is_probably_jinja
 
@@ -18,7 +19,7 @@ def fetch_env_map_from_group(
 
 
 def fetch_env_map_from_task(
-    env_map: Mapping[str, str], task: BaseTask
+    env_map: Mapping[str, str], task: AnyTask
 ):
     task_env_map: Mapping[str, str] = {}
     for env_file in task.get_env_files():

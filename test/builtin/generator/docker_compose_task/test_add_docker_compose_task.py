@@ -15,14 +15,14 @@ def test_add_docker_compose_task():
     if os.path.exists(project_path):
         shutil.rmtree(project_path)
 
-    create_project_loop = create_project.create_main_loop()
+    create_project_loop = create_project.to_function()
     create_project_loop(project_dir=project_path)
 
     automate_path = os.path.join(project_path, '_automate')
     src_path = os.path.join(project_path, 'src')
 
     # first attempt should success
-    first_attempt_loop = add_docker_compose_task.create_main_loop()
+    first_attempt_loop = add_docker_compose_task.to_function()
     first_attempt_loop(
         project_dir=project_path, task_name='composeTask'
     )
@@ -44,7 +44,7 @@ def test_add_docker_compose_task():
     # second attempt should fail
     is_error = False
     try:
-        second_attempt_loop = add_docker_compose_task.create_main_loop()
+        second_attempt_loop = add_docker_compose_task.to_function()
         second_attempt_loop(
             project_dir=project_path, task_name='composeTask'
         )

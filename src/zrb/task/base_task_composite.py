@@ -1,0 +1,426 @@
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from typeguard import typechecked
+from .any_task import AnyTask
+from ..helper.string.conversion import to_boolean, to_cmd_name
+from ..helper.string.jinja import is_probably_jinja
+from ..helper.render_data import DEFAULT_RENDER_DATA
+from ..helper.log import logger
+from ..helper.accessories.color import colored, get_random_color
+from ..helper.accessories.icon import get_random_icon
+from ..helper.util import coalesce_str
+from ..task_input.base_input import BaseInput
+from ..task_group.group import Group
+from ..task_env.env import Env
+from ..task_env.env_file import EnvFile
+
+import asyncio
+import datetime
+import os
+import time
+import jinja2
+import sys
+
+LOG_NAME_LENGTH = 20
+
+
+@typechecked
+class CommonTaskModel():
+    def __init__(
+        self,
+        name: str,
+        group: Optional[Group] = None,
+        description: str = '',
+        inputs: List[BaseInput] = [],
+        envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
+        icon: Optional[str] = None,
+        color: Optional[str] = None,
+        retry: int = 2,
+        retry_interval: float = 1,
+        upstreams: Iterable[AnyTask] = [],
+        checkers: Iterable[AnyTask] = [],
+        checking_interval: float = 0,
+        run: Optional[Callable[..., Any]] = None,
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
+    ):
+        self._name = name
+        self._group = group
+        if group is not None:
+            group.add_task(self)
+        self._description = coalesce_str(description, name)
+        self._inputs = inputs
+        self._envs = envs
+        self._env_files = env_files
+        self._icon = coalesce_str(icon, get_random_icon())
+        self._color = coalesce_str(color, get_random_color())
+        self._retry = retry
+        self._retry_interval = retry_interval
+        self._upstreams = upstreams
+        self._checkers = checkers
+        self._checking_interval = checking_interval
+        self._run_function: Optional[Callable[..., Any]] = run
+        self._skip_execution = skip_execution
+
+    def get_icon(self) -> str:
+        return self._icon
+
+    def get_color(self) -> str:
+        return self._color
+
+    def get_env_files(self) -> List[EnvFile]:
+        return self._env_files
+
+    def get_envs(self) -> List[Env]:
+        return self._envs
+
+    def get_checkers(self) -> Iterable[AnyTask]:
+        return self._checkers
+
+    def get_upstreams(self) -> Iterable[AnyTask]:
+        return self._upstreams
+
+    def get_description(self) -> str:
+        return self._description
+
+    def get_cmd_name(self) -> str:
+        return to_cmd_name(self._name)
+
+
+@typechecked
+class TimeTracker():
+
+    def __init__(self):
+        self._start_time: float = 0
+        self._end_time: float = 0
+
+    def _start_timer(self):
+        self._start_time = time.time()
+
+    def _end_timer(self):
+        self._end_time = time.time()
+
+    def _get_elapsed_time(self) -> float:
+        return self._end_time - self._start_time
+
+
+@typechecked
+class AttemptTracker():
+
+    def __init__(self, retry: int = 2):
+        self._retry = retry
+        self._attempt: int = 1
+
+    def _get_max_attempt(self) -> int:
+        return self._retry + 1
+
+    def _get_attempt(self) -> int:
+        return self._attempt
+
+    def _increase_attempt(self):
+        self._attempt += 1
+
+    def _should_attempt(self) -> bool:
+        attempt = self._get_attempt()
+        max_attempt = self._get_max_attempt()
+        return attempt <= max_attempt
+
+    def _is_last_attempt(self) -> bool:
+        attempt = self._get_attempt()
+        max_attempt = self._get_max_attempt()
+        return attempt >= max_attempt
+
+
+@typechecked
+class FinishTracker():
+
+    def __init__(self):
+        self._execution_queue: Optional[asyncio.Queue] = None
+        self._counter = 0
+
+    async def _mark_awaited(self):
+        if self._execution_queue is None:
+            self._execution_queue = asyncio.Queue()
+        self._counter += 1
+
+    async def _mark_done(self):
+        # Tracker might be started several times
+        # However, when the execution is marked as done, it applied globally
+        # Thus, we need to send event as much as the counter.
+        for i in range(self._counter):
+            await self._execution_queue.put(True)
+
+    async def _is_done(self) -> bool:
+        while self._execution_queue is None:
+            await asyncio.sleep(0.05)
+        return await self._execution_queue.get()
+
+
+@typechecked
+class PidModel():
+
+    def __init__(self):
+        self._zrb_task_pid: int = os.getpid()
+
+    def _set_task_pid(self, pid: int):
+        self._zrb_task_pid = pid
+
+    def _get_task_pid(self) -> int:
+        return self._zrb_task_pid
+
+
+class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
+    def get_source(self, environment, template):
+        for search_dir in self.searchpath:
+            file_path = os.path.join(search_dir, template)
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as file:
+                    contents = file.read()
+                return contents, file_path, lambda: False
+        raise jinja2.TemplateNotFound(template)
+
+
+@typechecked
+class Renderer():
+
+    def __init__(self):
+        self._input_map: Mapping[str, Any] = {}
+        self._env_map: Mapping[str, str] = {}
+        self._render_data: Optional[Mapping[str, Any]] = None
+        self._rendered_str: Mapping[str, str] = {}
+
+    def get_input_map(self) -> Mapping[str, Any]:
+        # This return reference to input map, so input map can be updated
+        return self._input_map
+
+    def get_env_map(self) -> Mapping[str, str]:
+        # This return reference to env map, so env map can be updated
+        return self._env_map
+
+    def render_any(
+        self, val: Any, data: Optional[Mapping[str, Any]] = None
+    ) -> Any:
+        if isinstance(val, str):
+            return self.render_str(val, data)
+        return val
+
+    def render_float(
+        self, val: Union[str, float], data: Optional[Mapping[str, Any]] = None
+    ) -> float:
+        if isinstance(val, str):
+            return float(self.render_str(val, data))
+        return val
+
+    def render_int(
+        self, val: Union[str, int], data: Optional[Mapping[str, Any]] = None
+    ) -> int:
+        if isinstance(val, str):
+            return int(self.render_str(val, data))
+        return val
+
+    def render_bool(
+        self, val: Union[str, bool], data: Optional[Mapping[str, Any]] = None
+    ) -> bool:
+        if isinstance(val, str):
+            return to_boolean(self.render_str(val, data))
+        return val
+
+    def render_str(
+        self, val: str, data: Optional[Mapping[str, Any]] = None
+    ) -> str:
+        if val in self._rendered_str:
+            return self._rendered_str[val]
+        if not is_probably_jinja(val):
+            return val
+        template = jinja2.Template(val)
+        render_data = self._get_render_data(additional_data=data)
+        try:
+            rendered_text = template.render(render_data)
+        except Exception:
+            raise Exception(f'Fail to render "{val}" with data: {render_data}')
+        self._rendered_str[val] = rendered_text
+        return rendered_text
+
+    def render_file(
+        self, location: str, data: Optional[Mapping[str, Any]] = None
+    ) -> str:
+        location_dir = os.path.dirname(location)
+        env = jinja2.Environment(
+            loader=AnyExtensionFileSystemLoader([location_dir])
+        )
+        template = env.get_template(location)
+        render_data = self._get_render_data(additional_data=data)
+        render_data['TEMPLATE_DIR'] = location_dir
+        rendered_text = template.render(render_data)
+        return rendered_text
+
+    def _get_render_data(
+        self, additional_data: Optional[Mapping[str, Any]] = None
+    ) -> Mapping[str, Any]:
+        self._ensure_cached_render_data()
+        if additional_data is None:
+            return self._render_data
+        return {**self._render_data, **additional_data}
+
+    def _ensure_cached_render_data(self):
+        if self._render_data is not None:
+            return self._render_data
+        render_data = dict(DEFAULT_RENDER_DATA)
+        render_data.update({
+            'env': self._env_map,
+            'input': self._input_map,
+        })
+        self._render_data = render_data
+        return render_data
+
+
+@typechecked
+class TaskModelWithPrinterAndTracker(
+    CommonTaskModel, PidModel, TimeTracker
+):
+    def __init__(
+        self,
+        name: str,
+        group: Optional[Group] = None,
+        description: str = '',
+        inputs: List[BaseInput] = [],
+        envs: Iterable[Env] = [],
+        env_files: Iterable[EnvFile] = [],
+        icon: Optional[str] = None,
+        color: Optional[str] = None,
+        retry: int = 2,
+        retry_interval: float = 1,
+        upstreams: Iterable[AnyTask] = [],
+        checkers: Iterable[AnyTask] = [],
+        checking_interval: float = 0,
+        run: Optional[Callable[..., Any]] = None,
+        skip_execution: Union[bool, str, Callable[..., bool]] = False
+
+    ):
+        self._filled_complete_name: Optional[str] = None
+        self._has_cli_interface = False
+        self._complete_name: Optional[str] = None
+        CommonTaskModel.__init__(
+            self,
+            name=name,
+            group=group,
+            description=description,
+            inputs=inputs,
+            envs=envs,
+            env_files=env_files,
+            icon=icon,
+            color=color,
+            retry=retry,
+            retry_interval=retry_interval,
+            upstreams=upstreams,
+            checkers=checkers,
+            checking_interval=checking_interval,
+            run=run,
+            skip_execution=skip_execution,
+        )
+        PidModel.__init__(self)
+        TimeTracker.__init__(self)
+
+    def log_debug(self, message: Any):
+        prefix = self._get_log_prefix()
+        colored_message = colored(
+            f'{prefix} • {message}', attrs=['dark']
+        )
+        logger.debug(colored_message)
+
+    def log_warn(self, message: Any):
+        prefix = self._get_log_prefix()
+        colored_message = colored(
+            f'{prefix} • {message}', attrs=['dark']
+        )
+        logger.warning(colored_message)
+
+    def log_info(self, message: Any):
+        prefix = self._get_log_prefix()
+        colored_message = colored(
+            f'{prefix} • {message}', attrs=['dark']
+        )
+        logger.info(colored_message)
+
+    def log_error(self, message: Any):
+        prefix = self._get_log_prefix()
+        colored_message = colored(
+            f'{prefix} • {message}', color='red', attrs=['bold']
+        )
+        logger.error(colored_message, exc_info=True)
+
+    def log_critical(self, message: Any):
+        prefix = self._get_log_prefix()
+        colored_message = colored(
+            f'{prefix} • {message}', color='red', attrs=['bold']
+        )
+        logger.critical(colored_message, exc_info=True)
+
+    def print_out(self, msg: Any):
+        prefix = self._get_colored_print_prefix()
+        print(f'🤖 ➜  {prefix} • {msg}'.rstrip(), file=sys.stderr)
+
+    def print_err(self, msg: Any):
+        prefix = self._get_colored_print_prefix()
+        print(f'🤖 ⚠  {prefix} • {msg}'.rstrip(), file=sys.stderr)
+
+    def print_out_dark(self, msg: Any):
+        self.print_out(colored(msg, attrs=['dark']))
+
+    def _play_bell(self):
+        print('\a', end='', file=sys.stderr)
+
+    def _get_colored_print_prefix(self) -> str:
+        return self._get_colored(self._get_print_prefix())
+
+    def _get_colored(self, text: str) -> str:
+        return colored(text, color=self.get_color())
+
+    def _get_print_prefix(self) -> str:
+        common_prefix = self._get_common_prefix(show_time=True)
+        icon = self.get_icon()
+        truncated_name = self._get_filled_complete_name()
+        return f'{common_prefix} • {icon} {truncated_name}'
+
+    def _get_log_prefix(self) -> str:
+        common_prefix = self._get_common_prefix(show_time=False)
+        icon = self.get_icon()
+        filled_name = self._get_filled_complete_name()
+        return f'{common_prefix} • {icon} {filled_name}'
+
+    def _get_common_prefix(self, show_time: bool) -> str:
+        attempt = self._get_attempt()
+        max_attempt = self._get_max_attempt()
+        pid = self._get_task_pid()
+        if show_time:
+            now = datetime.datetime.now().isoformat()
+            return f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
+        return f'⚙ {pid} ➤ {attempt} of {max_attempt}'
+
+    def _get_filled_complete_name(self) -> str:
+        if self._filled_complete_name is not None:
+            return self._filled_complete_name
+        complete_name = self._get_complete_name()
+        self._filled_complete_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
+        return self._filled_complete_name
+
+    def _get_complete_name(self) -> str:
+        if self._complete_name is not None:
+            return self._complete_name
+        executable_prefix = ''
+        if self._has_cli_interface:
+            executable_prefix += self._get_executable_name() + ' '
+        cmd_name = self.get_cmd_name()
+        if self._group is None:
+            self._complete_name = f'{executable_prefix}{cmd_name}'
+            return self._complete_name
+        group_cmd_name = self._group.get_complete_name()
+        self._complete_name = f'{executable_prefix}{group_cmd_name} {cmd_name}'
+        return self._complete_name
+
+    def _get_executable_name(self) -> str:
+        if len(sys.argv) > 0 and sys.argv[0] != '':
+            return os.path.basename(sys.argv[0])
+        return 'zrb'
+
+    def set_has_cli_interface(self):
+        self._has_cli_interface = True

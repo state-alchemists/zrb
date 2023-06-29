@@ -1,8 +1,10 @@
 from typing import Any, Callable, Iterable, Optional, Union
 from typeguard import typechecked
-from .base_task import BaseTask, Group
+from .base_task import BaseTask
+from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
+from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 
 import asyncio
@@ -23,7 +25,7 @@ class PathChecker(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         path: str = '',
-        upstreams: Iterable[BaseTask] = [],
+        upstreams: Iterable[AnyTask] = [],
         checking_interval: float = 0.1,
         show_error_interval: float = 5,
         skip_execution: Union[bool, str, Callable[..., bool]] = False
@@ -48,10 +50,10 @@ class PathChecker(BaseTask):
         self._path = path
         self._show_error_interval = show_error_interval
 
-    def create_main_loop(
+    def to_function(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., bool]:
-        return super().create_main_loop(env_prefix, raise_error)
+        return super().to_function(env_prefix, raise_error)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         path = self.render_str(self._path)

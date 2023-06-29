@@ -368,7 +368,7 @@ If `skip_execution` is evaluated to `True`, then the task will be considered as 
 
 # Common task methods
 
-Every task share some common methods like `run`, `check`, and `create_main_loop`.
+Every task share some common methods like `run`, `check`, and `to_function`.
 
 ## `get_env_map`
 
@@ -454,7 +454,7 @@ class MyTask(BaseTask):
         return super().check()
 ```
 
-## `create_main_loop`
+## `to_function`
 
 Method to create main-loop. Once a main-loop is created, you can perform a function call to it.
 
@@ -475,7 +475,7 @@ show_banner = CmdTask(
     ]
 )
 
-show_banner_loop = show_banner.create_main_loop()
+show_banner_loop = show_banner.to_function()
 print(show_banner_loop()) # Now you can run your task as a normal python function
 ```
 

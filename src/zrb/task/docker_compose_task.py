@@ -1,9 +1,10 @@
 from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from typeguard import typechecked
-from .base_task import BaseTask, Group
 from .cmd_task import CmdTask, CmdResult
+from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
+from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.string.double_quote import double_quote
 from ..helper.docker_compose.file import read_compose_file, write_compose_file
@@ -51,8 +52,8 @@ class DockerComposeTask(CmdTask):
         setup_cmd: Union[str, Iterable[str]] = '',
         setup_cmd_path: str = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
-        upstreams: Iterable[BaseTask] = [],
-        checkers: Iterable[BaseTask] = [],
+        upstreams: Iterable[AnyTask] = [],
+        checkers: Iterable[AnyTask] = [],
         checking_interval: float = 0.1,
         retry: int = 2,
         retry_interval: float = 1,

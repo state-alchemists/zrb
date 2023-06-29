@@ -1,10 +1,12 @@
 from typing import Any, Callable, Iterable, List, Optional, TypeVar, Union
 from typeguard import typechecked
-from .base_task import BaseTask, Group
+from .base_task import BaseTask
+from .any_task import AnyTask
 from .task import Task
 from .cmd_task import CmdTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
+from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
 from ..helper.accessories.name import get_random_name
 
@@ -18,7 +20,7 @@ class FlowNode():
     def __init__(
         self,
         name: str = '',
-        task: Optional[BaseTask] = None,
+        task: Optional[AnyTask] = None,
         inputs: Iterable[BaseInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
@@ -47,7 +49,7 @@ class FlowNode():
 
     def to_task(
         self,
-        upstreams: List[BaseTask] = [],
+        upstreams: List[AnyTask] = [],
         inputs: List[BaseInput] = [],
         envs: List[Env] = [],
         env_files: List[EnvFile] = [],
@@ -107,8 +109,8 @@ class FlowTask(BaseTask):
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        upstreams: Iterable[BaseTask] = [],
-        checkers: Iterable[BaseTask] = [],
+        upstreams: Iterable[AnyTask] = [],
+        checkers: Iterable[AnyTask] = [],
         checking_interval: float = 0,
         retry: int = 2,
         retry_interval: float = 1,

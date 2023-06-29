@@ -26,10 +26,10 @@ def test_flow_task():
             )
         ]
     )
-    main_loop = flow_task.create_main_loop()
+    function = flow_task.to_function()
     is_error: bool = False
     try:
-        main_loop()
+        function()
     except Exception:
         is_error = True
     assert not is_error
@@ -73,8 +73,8 @@ def test_flow_task_with_existing_tasks():
             FlowNode(task=create_salt)
         ]
     )
-    main_loop = flow_task.create_main_loop()
-    main_loop()
+    function = flow_task.to_function()
+    function()
     assert outputs[0] == 'Lab prepared'
     assert 'Na' in outputs
     assert 'Cl' in outputs

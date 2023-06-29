@@ -1,7 +1,7 @@
 from typing import Any, Callable, List, Mapping, Union
 from ..action.base_action import BaseAction
-from ..task.base_task import BaseTask, Group as TaskGroup
-from ..helper.string.jinja import is_probably_jinja
+from ..task_group.group import Group as TaskGroup
+from ..task.any_task import AnyTask
 import click
 import sys
 
@@ -21,7 +21,7 @@ class Runner(BaseAction):
         self._top_levels: List[CliSubcommand] = []
         self._subcommands: Mapping[str, List[click.Group]] = {}
 
-    def register(self, task: BaseTask):
+    def register(self, task: AnyTask):
         BaseAction.register(self, task)
         task.set_has_cli_interface()
 
@@ -33,7 +33,7 @@ class Runner(BaseAction):
                 cli.add_command(subcommand)
         return cli
 
-    def _create_cli_subcommand(self, task: BaseTask) -> click.Group:
+    def _create_cli_subcommand(self, task: AnyTask) -> click.Group:
         subcommand: CliSubcommand = self._create_cli_command(task)
         task_group = task._group
         while task_group is not None:
@@ -66,14 +66,14 @@ class Runner(BaseAction):
         self._registered_groups[task_group_id] = group
         return group
 
-    def _create_cli_command(self, task: BaseTask) -> click.Command:
+    def _create_cli_command(self, task: AnyTask) -> click.Command:
         task_inputs = task.get_all_inputs()
         task_cmd_name = task.get_cmd_name()
         task_description = task.get_description()
-        task_main_loop = task.create_main_loop(
+        task_function = task.to_function(
             env_prefix=self.env_prefix, raise_error=True
         )
-        callback = self._wrap_task_main_loop(task_main_loop)
+        callback = self._wrap_task_function(task_function)
         command = click.Command(
             callback=callback, name=task_cmd_name, help=task_description
         )
@@ -91,12 +91,12 @@ class Runner(BaseAction):
             command.params.append(click.Option(param_decl, **options))
         return command
 
-    def _wrap_task_main_loop(
-        self, main_loop: Callable[..., Any]
+    def _wrap_task_function(
+        self, function: Callable[..., Any]
     ) -> Callable[..., Any]:
-        def wrapped_main_loop(*args: Any, **kwargs: Any) -> Any:
+        def wrapped_function(*args: Any, **kwargs: Any) -> Any:
             try:
-                main_loop(*args, **kwargs)
+                function(*args, **kwargs)
             except Exception:
                 sys.exit(1)
-        return wrapped_main_loop
+        return wrapped_function

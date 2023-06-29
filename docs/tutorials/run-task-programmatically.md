@@ -13,11 +13,11 @@ cmd_task = CmdTask(
     cmd='echo hello'
 )
 
-# Create main loop
-main_loop = cmd_task.create_main_loop(env_prefix='')
+# Create function
+function = cmd_task.to_function(env_prefix='')
 
-# Invoke main loop, and show the result
-result = main_loop()
+# Invoke function, and show the result
+result = function()
 print(result.output)
 ```
 

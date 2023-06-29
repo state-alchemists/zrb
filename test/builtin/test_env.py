@@ -2,6 +2,6 @@ from zrb.builtin.env import get
 
 
 def test_get():
-    main_loop = get.create_main_loop()
-    result = main_loop()
+    function = get.to_function()
+    result = function()
     assert len(result.keys()) > 0

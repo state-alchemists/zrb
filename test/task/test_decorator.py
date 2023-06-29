@@ -8,6 +8,6 @@ def test_task_with_decorated_runner():
     async def hello(*args, **kwargs) -> str:
         return 'hello'
 
-    main_loop = hello.create_main_loop()
-    result = main_loop()
+    function = hello.to_function()
+    result = function()
     assert result == 'hello'
