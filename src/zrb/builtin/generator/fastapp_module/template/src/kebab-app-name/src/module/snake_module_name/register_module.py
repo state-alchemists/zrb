@@ -1,5 +1,5 @@
 from config import (
-    app_enable_rpc_server, app_enable_message_consumer, app_enable_api,
+    app_enable_rpc_server, app_enable_event_handler, app_enable_api,
     app_enable_snake_module_name_module
 )
 from component.log import logger
@@ -24,7 +24,7 @@ def register_snake_module_name():
             rpc_caller=rpc_caller,
             publisher=publisher
         )
-    if app_enable_message_consumer:
+    if app_enable_event_handler:
         register_event(
             logger=logger,
             consumer=consumer,

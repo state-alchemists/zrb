@@ -7,9 +7,9 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql._typing import _ColumnExpressionArgument
 from core.repo.search_filter import SearchFilter
 from core.repo.repo import Repo
+from helper.value import utcnow
 
 from ulid import ULID
-import datetime
 import logging
 
 Schema = TypeVar('Schema', bound=BaseModel)
@@ -85,9 +85,9 @@ class DBRepo(Repo[Schema, SchemaData]):
                 new_id = self.generate_id()
                 db_entity.id = new_id
             if 'created_at' in self.db_entity_attribute_names:
-                db_entity.created_at = datetime.datetime.utcnow()
+                db_entity.created_at = utcnow()
             if 'updated_at' in self.db_entity_attribute_names:
-                db_entity.updated_at = datetime.datetime.utcnow()
+                db_entity.updated_at = utcnow()
             db.add(db_entity)
             db.commit()
             db.refresh(db_entity)
@@ -119,7 +119,7 @@ class DBRepo(Repo[Schema, SchemaData]):
                     continue
                 setattr(db_entity, field, value)
             if 'updated_at' in self.db_entity_attribute_names:
-                db_entity.updated_at = datetime.datetime.utcnow()
+                db_entity.updated_at = utcnow()
             db.add(db_entity)
             db.commit()
             db.refresh(db_entity)

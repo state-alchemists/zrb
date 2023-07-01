@@ -148,7 +148,7 @@ services:
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
       APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
-      APP_ENABLE_MESSAGE_CONSUMER: false
+      APP_ENABLE_EVENT_HANDLER: false
       APP_ENABLE_RPC_SERVER: false
       APP_ENABLE_API: true
       APP_ENABLE_FRONTEND: true
@@ -183,7 +183,7 @@ services:
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
       APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
-      APP_ENABLE_MESSAGE_CONSUMER: true
+      APP_ENABLE_EVENT_HANDLER: true
       APP_ENABLE_RPC_SERVER: true
       APP_ENABLE_API: false
       APP_ENABLE_FRONTEND: false
@@ -220,7 +220,7 @@ services:
       APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
       APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
       APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
-      APP_ENABLE_MESSAGE_CONSUMER: 'true'
+      APP_ENABLE_EVENT_HANDLER: 'true'
       APP_ENABLE_RPC_SERVER: 'true'
       APP_ENABLE_API: 'false'
       APP_ENABLE_FRONTEND: 'false'

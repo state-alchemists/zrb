@@ -51,7 +51,7 @@ def get_app_monolith_env_map(
     for module_name in modules:
         env_name = get_module_flag_env_name(module_name)
         env_map[env_name] = 'true'
-    env_map['APP_ENABLE_MESSAGE_CONSUMER'] = 'true'
+    env_map['APP_ENABLE_EVENT_HANDLER'] = 'true'
     env_map['APP_ENABLE_RPC_SERVER'] = 'true'
     env_map['APP_ENABLE_FRONTEND'] = 'true'
     env_map['APP_ENABLE_API'] = 'true'
@@ -65,7 +65,7 @@ def get_app_gateway_env_map(
     for module_name in modules:
         env_name = get_module_flag_env_name(module_name)
         env_map[env_name] = 'true'
-    env_map['APP_ENABLE_MESSAGE_CONSUMER'] = 'false'
+    env_map['APP_ENABLE_EVENT_HANDLER'] = 'false'
     env_map['APP_ENABLE_RPC_SERVER'] = 'false'
     env_map['APP_ENABLE_FRONTEND'] = 'true'
     env_map['APP_ENABLE_API'] = 'true'
@@ -85,7 +85,7 @@ def get_app_service_env_map(
             env_map[env_name] = 'true'
             continue
         env_map[env_name] = 'false'
-    env_map['APP_ENABLE_MESSAGE_CONSUMER'] = 'true'
+    env_map['APP_ENABLE_EVENT_HANDLER'] = 'true'
     env_map['APP_ENABLE_RPC_SERVER'] = 'true'
     env_map['APP_ENABLE_FRONTEND'] = 'false'
     env_map['APP_ENABLE_API'] = 'false'

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from config import (
-    app_name, app_enable_message_consumer, app_enable_rpc_server,
+    app_name, app_enable_event_handler, app_enable_rpc_server,
     app_enable_frontend, app_db_auto_migrate
 )
 from config import app_src_dir
@@ -21,7 +21,7 @@ async def app_lifespan(app: FastAPI):
     if app_db_auto_migrate:
         await migrate()
     app_state.set_liveness(True)
-    if app_enable_message_consumer:
+    if app_enable_event_handler:
         create_task(consumer.start(), on_error=set_not_ready_on_error)
     if app_enable_rpc_server:
         create_task(rpc_server.start(), on_error=set_not_ready_on_error)
@@ -35,6 +35,6 @@ async def app_lifespan(app: FastAPI):
     app_state.set_readiness(True)
     logger.info(f'{app_name} started')
     yield
-    if app_enable_message_consumer:
+    if app_enable_event_handler:
         await consumer.stop()
     logger.info(f'{app_name} closed')

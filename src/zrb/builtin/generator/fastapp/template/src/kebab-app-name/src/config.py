@@ -61,8 +61,8 @@ app_enable_rpc_server: bool = str_to_boolean(os.getenv(
     'APP_ENABLE_RPC_SERVER', 'true'
 ))
 
-app_enable_message_consumer: bool = str_to_boolean(os.getenv(
-    'APP_ENABLE_MESSAGE_CONSUMER', 'true'
+app_enable_event_handler: bool = str_to_boolean(os.getenv(
+    'APP_ENABLE_EVENT_HANDLER', 'true'
 ))
 
 app_enable_frontend: bool = str_to_boolean(os.getenv(

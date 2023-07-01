@@ -203,7 +203,7 @@ def _get_new_docker_compose_service_definition(
             },
             'image': '${IMAGE:-' + kebab_app_name + '}',
             'container_name': f'{snake_app_name}_{snake_module_name}_service',
-            'hostname': f'snake_app_name_{snake_module_name}',
+            'hostname': f'{snake_app_name}_{snake_module_name}',
             'env_file': [
                 'src/template.env',
                 'all-module-disabled.env'
@@ -214,7 +214,7 @@ def _get_new_docker_compose_service_definition(
                 'APP_RMQ_CONNECTION': '${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}', # noqa
                 'APP_KAFKA_BOOTSTRAP_SERVERS': '${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}', # noqa
                 'APP_DB_CONNECTION': '${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/' + snake_app_name + '}', # noqa
-                'APP_ENABLE_MESSAGE_CONSUMER': 'true',
+                'APP_ENABLE_EVENT_HANDLER': 'true',
                 'APP_ENABLE_RPC_SERVER': 'true',
                 'APP_ENABLE_API': 'false',
                 'APP_ENABLE_FRONTEND': 'false',

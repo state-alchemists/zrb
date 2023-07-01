@@ -145,7 +145,7 @@ start_snake_app_name_gateway = CmdTask(
         local_app_broker_type_env,
         local_app_port_env,
         Env(name='APP_DB_AUTO_MIGRATE', default='false', os_name=''),
-        Env(name='APP_ENABLE_MESSAGE_CONSUMER', default='false', os_name=''),
+        Env(name='APP_ENABLE_EVENT_HANDLER', default='false', os_name=''),
         Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),

@@ -59,6 +59,41 @@ Furthermore, you can also visit `http://localhost:httpPort/docs` to access the A
 
 You can see all available configurations on [`template.env`](src/template.env). If you need to override the configuration, you can provide environment variables with `ENV_PREFIX_` prefix to the ones specified in the `template.env`.
 
+There are several configurations you need to know.
+
+Auth related config
+
+- `ENV_PREFIX_APP_AUTH_ADMIN_ACTIVE`: determine whether there is an admin user or not
+    - default value: `true`
+- `ENV_PREFIX_ADMIN_USERNAME`: Admin username
+    - default value: `root`
+- `ENV_PREFIX_ADMIN_PASSWORD`: Admin password
+    - default value: `toor`
+- `ENV_PREFIX_APP_PORT`: Application port
+    - default value: `httpPort`
+
+Messaging config:
+
+- `ENV_PREFIX_APP_BROKER_TYPE`: Messaging platform to be used (i.e., `rabbitmq`, `kafka`, or `mock`)
+    - default value: `rabbitmq`
+
+Feature flags:
+
+- `ENV_PREFIX_APP_ENABLE_EVENT_HANDLER`: Whether enable event handler or not
+    - default value: `true`
+- `ENV_PREFIX_APP_ENABLE_RPC_SERVER`: Whether enable RPC server or not
+    - default value: `true`
+- `ENV_PREFIX_APP_ENABLE_FRONTEND`: Whether enable Frontend or not
+    - default value: `true`
+- `ENV_PREFIX_APP_ENABLE_API`: Whether enable API or not
+    - default value: `true`
+- `ENV_PREFIX_APP_ENABLE_AUTH_MODULE`: Whether enable Auth module or not
+    - default value: `true`
+- `ENV_PREFIX_APP_ENABLE_LOG_MODULE`: Whether enable Log module or not
+    - default value: `true`
+- `ENV_PREFIX_APP_ENABLE_<MODULE_NAME>_MODULE`: Whether enable `<MODULE_NAME>` module or not
+    - default value: `true`
+
 
 # Adding modules, entities, or fields
 
@@ -130,29 +165,45 @@ You will also need `Pulumi` if you want to deploy PascalAppName into your Kubern
                     - `repo.py`
             - `schema/`: Pydantic schemas for the current module.
 - `test/`: Test scripts.
-    - `<modules-name>/`
-    - `test_*.py`
+    - `<modules-name>/`: Test scripts for modules.
+    - `test_*.py`: Core test scripts.
 
 
-# Constraints
+# Decisions and Constraints
 
+## Frontend
 - PascalAppName's Frontend is served as static files and is built before runtime (not SSR/Server Side Rendering). That's mean.
     - The SEO is probably not good.
     - The page load is sensibly good.
+- We use Svelte for Frontend because it is easier to read/learn compared to React, Vue, or Angular.
 - At the moment, the frontend use:
     - Sveltekit
     - TailwindCSS
     - DaisyUI
-- Currently PascalAppName supports some messaging platforms:
+
+## Database
+
+- PascalAppName uses SQLAlchemy to handle
+    - Database connection
+    - Database migration
+    - Data manipulation
+- To create a custom database implementation, you need to create an implementation that complies with `core.repo.Repo`.
+
+## Messaging
+
+- Currently, PascalAppName supports some messaging platforms:
     - Rabbitmq (default):
         - `APP_BROKER_TYPE=rabbitmq`
     - Kafka/Redpanda
         - `APP_BROKER_TYPE=kafka`
-    - No messaging platform
+    - No messaging platform, a.k.a: in memory. This will only work properly if you run PascalAppName as a monolith.
         - `APP_BROKER_TYPE=mock`
 - To create custom event handlers, you need to implement two interfaces:
     - `core.messagebus.Publisher`
     - `core.messagebus.Server`
+
+## RPC
+
 - Currently, RPC implementation depends on the messaging platforms. It is possible to override this behavior by creating you custom implementation. There are two interfaces you need to override:
     - `core.rpc.Caller`
     - `core.rpc.Server`
