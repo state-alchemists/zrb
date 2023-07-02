@@ -97,6 +97,10 @@ register_test_app_module = create_register_app_module(
     module='test', upstreams=[register_deployment_app_module]
 )
 
+register_load_test_app_module = create_register_app_module(
+    module='load_test', upstreams=[register_test_app_module]
+)
+
 add_project_task = create_add_project_automation_task(
     upstreams=[copy_resource]
 )
@@ -183,6 +187,7 @@ register_destroy = create_register_app_task(
         register_image_app_module,
         register_deployment_app_module,
         register_test_app_module,
+        register_load_test_app_module,
         register_start,
         register_start_container,
         register_stop_container,

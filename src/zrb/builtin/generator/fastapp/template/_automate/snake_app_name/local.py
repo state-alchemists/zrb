@@ -11,7 +11,7 @@ from ._common import (
     local_input, run_mode_input, host_input, https_input,
     local_app_port_env, local_app_broker_type_env
 )
-from .image import build_snake_app_name_image, image_input
+from .image import image_input
 from .frontend import build_snake_app_name_frontend
 from .container import remove_snake_app_name_container
 from .local_microservices import get_start_microservices
@@ -153,7 +153,6 @@ start_snake_app_name_gateway = CmdTask(
         app_local_checker,
     ]
 )
-runner.register(start_snake_app_name_gateway)
 
 start_microservices = get_start_microservices(
     upstreams=[

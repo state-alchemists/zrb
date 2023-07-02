@@ -21,7 +21,9 @@ app_env_file = EnvFile(
 
 
 @python_task(
+    icon='🧪',
     name='remove-kebab-app-name-test-db',
+    group=project_group,
     runner=runner
 )
 def remove_snake_app_name_test_db(*args, **kwargs):
@@ -33,6 +35,7 @@ def remove_snake_app_name_test_db(*args, **kwargs):
 test_snake_app_name = CmdTask(
     icon='🚤',
     name='test-kebab-app-name',
+    group=project_group,
     inputs=[
         StrInput(
             name='kebab-app-name-test',
@@ -46,7 +49,6 @@ test_snake_app_name = CmdTask(
         prepare_snake_app_name_backend,
         remove_snake_app_name_test_db,
     ],
-    group=project_group,
     cwd=RESOURCE_DIR,
     env_files=[app_env_file],
     envs=[

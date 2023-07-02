@@ -12,6 +12,7 @@ The purpose of PascalAppName is to:
 - Give you a good experience while developing/testing things locally.
 - Assure you that your application is always ready to be deployed as microservices.
 
+You can learn more about PascalAppName's modular monolith concept in our [documentation](docs/modular-monolith/README.md).
 
 # Run PascalAppName as a monolith
 
@@ -54,6 +55,21 @@ You can change the default username and password by providing `ENV_PREFIX_APP_AU
 
 Furthermore, you can also visit `http://localhost:httpPort/docs` to access the API specification.
 
+# Deploying to Kubernetes
+
+To deploy PascalAppName to Kubernetes, you need to have [Pulumi](https://www.pulumi.com/) installed. You also need access to a container registry like [Docker Hub](https://hub.docker.com/) and to the Kubernetes cluster itself.
+
+The easiest way to set up Kubernetes on your local computer is by installing [Docker Desktop](https://www.docker.com/products/docker-desktop/). Once you installed Docker Desktop, you can go to `setting | Kubernetes` to enable your local Kubernetes cluster.
+
+Finally, you can invoke the following command:
+
+```bash
+# Deploy PascalAppName to Kubernetes as a monolith
+zrb project deploy-kebab-app-name --kebab-app-name monolith
+
+# Deploy PascalAppName to Kubernetes as a microservices
+zrb project deploy-kebab-app-name --kebab-app-name microservices
+```
 
 # Configuration
 

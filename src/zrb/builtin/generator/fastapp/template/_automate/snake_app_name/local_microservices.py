@@ -4,7 +4,8 @@ from zrb.helper.util import to_snake_case, to_kebab_case
 from ._common import (
     CURRENT_DIR, APP_DIR, SKIP_LOCAL_MICROSERVICES_EXECUTION,
     APP_TEMPLATE_ENV_FILE_NAME, MODULES,
-    local_app_broker_type_env, local_input, run_mode_input, host_input, https_input
+    local_app_broker_type_env, local_input, run_mode_input, host_input,
+    https_input
 )
 import os
 
@@ -75,6 +76,5 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
                 service_checker,
             ]
         )
-        runner.register(start_service)
         start_microservices.append(start_service)
     return start_microservices

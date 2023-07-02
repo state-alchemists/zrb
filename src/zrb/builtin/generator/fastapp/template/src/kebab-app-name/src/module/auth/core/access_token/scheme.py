@@ -26,7 +26,7 @@ def create_oauth2_bearer_access_token_scheme(
     ) -> AccessTokenData:
         token: Optional[str] = await oauth2_scheme(request)
         if token is None:
-            request.cookies.get(token_cookie_key, None)
+            token = request.cookies.get(token_cookie_key, None)
         if token is None:
             return AccessTokenData(
                 user_id=guest_user.id,
