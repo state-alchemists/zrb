@@ -20,6 +20,7 @@ class RMQConsumer(Consumer):
         rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 5,
         retry_interval: int = 5,
+        prefetch_count: int = 20,
         identifier='rmq-consumer'
     ):
         self.logger = logger
@@ -34,6 +35,7 @@ class RMQConsumer(Consumer):
         self.serializer = must_get_message_serializer(serializer)
         self.retry = retry
         self.retry_interval = retry_interval
+        self.prefetch_count = prefetch_count
         self._handlers: Mapping[str, TEventHandler] = {}
         self._is_start_triggered = False
         self._is_stop_triggered = False
@@ -116,6 +118,7 @@ class RMQConsumer(Consumer):
             ):
                 self.logger.info(f'🐰 [{self.identifier}] Get consumer channel')
                 self.channel = await self.connection.channel()
+                self.channel.basic_qos(prefetch_count=self.prefetch_count)
                 self.logger.info(
                     f'🐰 [{self.identifier}] Consumer channel created'
                 )

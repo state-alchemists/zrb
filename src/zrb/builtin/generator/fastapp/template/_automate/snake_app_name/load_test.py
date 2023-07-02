@@ -30,14 +30,14 @@ web_port_input = IntInput(
 
 users_input = IntInput(
     name='kebab-app-name-load-test-users',
-    default=10,
+    default=200,
     description='Load test users',
     prompt='Load test users',
 )
 
 spawn_rate_input = IntInput(
     name='kebab-app-name-load-test-spawn-rate',
-    default=1,
+    default=10,
     description='Load test spawn rate',
     prompt='Load test spawn rate',
 )

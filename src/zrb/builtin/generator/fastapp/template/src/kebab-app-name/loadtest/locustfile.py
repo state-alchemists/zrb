@@ -11,8 +11,12 @@ admin_password = os.getenv('APP_AUTH_ADMIN_PASSWORD', 'toor')
 class QuickstartUser(HttpUser):
     wait_time = between(1, 5)
 
+    @task(2)
+    def homepage(self):
+        self.client.get('/')
+
     @task
-    def hello_world(self):
+    def permissions(self):
         self.client.get('/api/v1/auth/permissions')
 
     def on_start(self):
