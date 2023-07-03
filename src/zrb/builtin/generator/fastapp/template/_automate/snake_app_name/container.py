@@ -1,10 +1,9 @@
-from typing import Mapping
-from zrb import DockerComposeTask, ServiceConfig, EnvFile, runner
+from typing import Mapping, Any
+from zrb import DockerComposeTask, ServiceConfig, EnvFile, runner, Task
 from zrb.helper.util import to_kebab_case
 from zrb.builtin._group import project_group
 from ._common import (
-    APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, RESOURCE_DIR,
-    SKIP_CONTAINER_EXECUTION, MODULES,
+    APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, RESOURCE_DIR, MODULES,
     app_container_checker, rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker, kafka_plaintext_checker,
     pandaproxy_outside_checker, pandaproxy_plaintext_checker, local_input,
@@ -13,12 +12,34 @@ from ._common import (
 from .image import build_snake_app_name_image, image_input, image_env
 import os
 
-all_compose_profiles = 'monolith,microservices,kafka,rabbitmq'
-start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
-start_mode_compose_profile = '{{input.get("snake_app_name_run_mode", "monolith")}}' # noqa
-start_compose_profiles = ','.join([
-    start_broker_compose_profile, start_mode_compose_profile
-])
+###############################################################################
+# Functions
+###############################################################################
+
+
+def setup_runtime_compose_profile(*args: Any, **kwargs: Any) -> str:
+    task: Task = kwargs.get('_task')
+    env_map = task.get_env_map()
+    compose_profiles = ','.join([
+        env_map.get('APP_PBROKER_TYPE', 'rabbitmq'),
+        kwargs.get('snake_app_name_run_mode', 'monolith'),
+    ])
+    return f'export COMPOSE_PROFILES={compose_profiles}'
+
+
+def setup_all_compose_profile(*args: Any, **kwargs: Any) -> str:
+    compose_profiles = ','.join([
+        'monolith',
+        'microservices',
+        'kafka',
+        'rabbitmq'
+    ])
+    return f'export COMPOSE_PROFILES={compose_profiles}'
+
+
+def skip_execution(*args: Any, **kwargs: Any) -> bool:
+    return not kwargs.get('local_snake_app_name', True)
+
 
 ###############################################################################
 # Env File Definitions
@@ -56,7 +77,7 @@ remove_snake_app_name_container = DockerComposeTask(
     description='Rumove human readable app name container',
     group=project_group,
     cwd=RESOURCE_DIR,
-    setup_cmd=f'export COMPOSE_PROFILES={all_compose_profiles}',
+    setup_cmd=setup_all_compose_profile,
     compose_cmd='down',
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs=service_configs,
@@ -75,13 +96,13 @@ init_snake_app_name_container = DockerComposeTask(
         host_input,
         image_input,
     ],
-    skip_execution=SKIP_CONTAINER_EXECUTION,
+    skip_execution=skip_execution,
     upstreams=[
         build_snake_app_name_image,
         remove_snake_app_name_container
     ],
     cwd=RESOURCE_DIR,
-    setup_cmd=f'export COMPOSE_PROFILES={start_compose_profiles}',
+    setup_cmd=setup_runtime_compose_profile,
     compose_cmd='up',
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
@@ -102,10 +123,10 @@ start_snake_app_name_container = DockerComposeTask(
         https_input,
         image_input,
     ],
-    skip_execution=SKIP_CONTAINER_EXECUTION,
+    skip_execution=skip_execution,
     upstreams=[init_snake_app_name_container],
     cwd=RESOURCE_DIR,
-    setup_cmd=f'export COMPOSE_PROFILES={start_compose_profiles}',
+    setup_cmd=setup_runtime_compose_profile,
     compose_cmd='logs',
     compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
@@ -131,7 +152,7 @@ stop_snake_app_name_container = DockerComposeTask(
     description='Stop human readable app name container',
     group=project_group,
     cwd=RESOURCE_DIR,
-    setup_cmd=f'export COMPOSE_PROFILES={all_compose_profiles}',
+    setup_cmd=setup_all_compose_profile,
     compose_cmd='stop',
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs=service_configs,

@@ -1,9 +1,9 @@
+from typing import Any
 from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
 from zrb.builtin._group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
-    SKIP_SUPPORT_CONTAINER_EXECUTION, SKIP_LOCAL_MONOLITH_EXECUTION,
-    SKIP_LOCAL_MICROSERVICES_EXECUTION,
+    skip_local_microservices_execution,
     rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker,
     kafka_plaintext_checker, pandaproxy_outside_checker,
@@ -17,7 +17,33 @@ from .container import remove_snake_app_name_container
 from .local_microservices import get_start_microservices
 import os
 
-start_broker_compose_profile = '{{env.get("APP_BROKER_TYPE", "rabbitmq")}}'
+###############################################################################
+# Functions
+###############################################################################
+
+
+def setup_support_compose_profile(*args: Any, **kwargs: Any) -> str:
+    task: Task = kwargs.get('_task')
+    env_map = task.get_env_map()
+    compose_profiles = ','.join([
+        env_map.get('APP_PBROKER_TYPE', 'rabbitmq'),
+    ])
+    return f'export COMPOSE_PROFILES={compose_profiles}'
+
+
+def skip_support_container_execution(*args: Any, **kwargs: Any) -> bool:
+    if not kwargs.get('local_snake_app_name', True):
+        return True
+    task: Task = kwargs.get('_task')
+    env_map = task.get_env_map()
+    broker_type = env_map.get('APP_BROKER_TYPE', 'rabbitmq')
+    return broker_type not in ['rabbitmq', 'kafka']
+
+
+def skip_local_monolith_execution(*args: Any, **kwargs: Any) -> bool:
+    if not kwargs.get('local_snake_app_name', True):
+        return True
+    return kwargs.get('snake_app_name_run_mode', 'monolith') != 'monolith'
 
 
 ###############################################################################
@@ -40,12 +66,12 @@ init_snake_app_name_support_container = DockerComposeTask(
         host_input,
         image_input,
     ],
-    skip_execution=SKIP_SUPPORT_CONTAINER_EXECUTION,
+    skip_execution=skip_support_container_execution,
     upstreams=[
         remove_snake_app_name_container
     ],
     cwd=RESOURCE_DIR,
-    setup_cmd=f'export COMPOSE_PROFILES={start_broker_compose_profile}',
+    setup_cmd=setup_support_compose_profile,
     compose_cmd='up',
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
@@ -65,10 +91,10 @@ start_snake_app_name_support_container = DockerComposeTask(
         https_input,
         image_input,
     ],
-    skip_execution=SKIP_SUPPORT_CONTAINER_EXECUTION,
+    skip_execution=skip_support_container_execution,
     upstreams=[init_snake_app_name_support_container],
     cwd=RESOURCE_DIR,
-    setup_cmd=f'export COMPOSE_PROFILES={start_broker_compose_profile}',
+    setup_cmd=setup_support_compose_profile,
     compose_cmd='logs',
     compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
@@ -106,7 +132,7 @@ start_monolith_snake_app_name = CmdTask(
         host_input,
         https_input
     ],
-    skip_execution=SKIP_LOCAL_MONOLITH_EXECUTION,
+    skip_execution=skip_local_monolith_execution,
     upstreams=[
         start_snake_app_name_support_container,
         build_snake_app_name_frontend,
@@ -133,7 +159,7 @@ start_snake_app_name_gateway = CmdTask(
         host_input,
         https_input
     ],
-    skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION,
+    skip_execution=skip_local_microservices_execution,
     upstreams=[
         start_snake_app_name_support_container,
         build_snake_app_name_frontend,

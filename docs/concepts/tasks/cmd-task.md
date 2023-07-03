@@ -118,6 +118,7 @@ runner.register(say_hello)
 - __Possible values:__ 
     - String representing the command
     - List of string representing multiline command
+    - Function returning a string
 - __Default value:__ Empty string.
 
 

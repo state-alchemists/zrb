@@ -30,7 +30,7 @@ def test_cmd_task_with_error():
 
 def test_cmd_task_with_multiline_command():
     cmd_task = CmdTask(
-        name='simple-no-error',
+        name='multiline-no-error',
         cmd=[
             'echo hello',
             'echo hello again',
@@ -41,10 +41,22 @@ def test_cmd_task_with_multiline_command():
     assert result.output == '\n'.join(['hello', 'hello again'])
 
 
+def test_cmd_task_with_function_command():
+    cmd_task = CmdTask(
+        name='simple-no-error',
+        cmd=lambda *args, **kwargs: '\n'.join([
+            'echo hello', 'echo hello again'
+        ])
+    )
+    function = cmd_task.to_function()
+    result = function()
+    assert result.output == '\n'.join(['hello', 'hello again'])
+
+
 def test_cmd_task_with_cmd_path():
     dir_path = pathlib.Path(__file__).parent.absolute()
     cmd_task = CmdTask(
-        name='simple-no-error',
+        name='cmd-path-no-error',
         cmd_path=os.path.join(dir_path, 'templates', 'hello.sh')
     )
     function = cmd_task.to_function()

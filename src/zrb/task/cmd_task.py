@@ -64,7 +64,7 @@ class CmdTask(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         executable: Optional[str] = None,
-        cmd: Union[str, Iterable[str]] = '',
+        cmd: Union[str, Iterable[str], Callable[..., str]] = '',
         cmd_path: str = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
@@ -137,7 +137,7 @@ class CmdTask(BaseTask):
         return env_map
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
-        cmd = self._get_cmd_str()
+        cmd = self._get_cmd_str(*args, **kwargs)
         env_map = self._get_run_env_map()
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
         self.print_out_dark('Current working directory: ' + self.cwd)
@@ -213,14 +213,20 @@ class CmdTask(BaseTask):
         await stdout_log_process
         await stderr_log_process
 
-    def _get_cmd_str(self) -> str:
-        return self._create_cmd_str(self._cmd_path, self._cmd)
+    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
+        return self._create_cmd_str(self._cmd_path, self._cmd, *args, **kwargs)
 
     def _create_cmd_str(
-        self, cmd_path: str, cmd: Union[str, Iterable[str]]
+        self,
+        cmd_path: str,
+        cmd: Union[str, Iterable[str], Callable[..., str]],
+        *args: Any,
+        **kwargs: Any
     ) -> str:
         if cmd_path != '':
             return self.render_file(cmd_path)
+        if callable(cmd):
+            return cmd(*args, **kwargs)
         if isinstance(cmd, str):
             return self.render_str(cmd)
         return self.render_str('\n'.join(list(cmd)))

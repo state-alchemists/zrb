@@ -1,8 +1,8 @@
 from typing import List
-from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile, runner
+from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile
 from zrb.helper.util import to_snake_case, to_kebab_case
 from ._common import (
-    CURRENT_DIR, APP_DIR, SKIP_LOCAL_MICROSERVICES_EXECUTION,
+    CURRENT_DIR, APP_DIR, skip_local_microservices_execution,
     APP_TEMPLATE_ENV_FILE_NAME, MODULES,
     local_app_broker_type_env, local_input, run_mode_input, host_input,
     https_input
@@ -55,7 +55,7 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
             url='/readiness',
             port='{{env.APP_PORT}}',
             is_https='{{input.snake_app_name_https}}',
-            skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION
+            skip_execution=skip_local_microservices_execution
         )
         # Create start_service
         start_service = CmdTask(
@@ -66,7 +66,7 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
                 host_input,
                 https_input
             ],
-            skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION,
+            skip_execution=skip_local_microservices_execution,
             upstreams=upstreams,
             cwd=APP_DIR,
             env_files=service_env_files,

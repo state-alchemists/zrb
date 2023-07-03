@@ -1,3 +1,4 @@
+from typing import Any
 from zrb import (
     BoolInput, ChoiceInput, StrInput, Env, HTTPChecker, PortChecker
 )
@@ -19,30 +20,20 @@ APP_DIR = os.path.join(RESOURCE_DIR, 'src')
 APP_FRONTEND_DIR = os.path.join(APP_DIR, 'frontend')
 APP_FRONTEND_BUILD_DIR = os.path.join(APP_FRONTEND_DIR, 'build')
 APP_TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
-SKIP_CONTAINER_EXECUTION = '{{not input.local_snake_app_name}}'
-SKIP_SUPPORT_CONTAINER_EXECUTION = ' '.join([
-    '{{',
-    'not input.local_snake_app_name',
-    'or env.get("APP_BROKER_TYPE") not in ["rabbitmq", "kafka"]',
-    '}}',
-])
-SKIP_LOCAL_MONOLITH_EXECUTION = ' '.join([
-    '{{',
-    'not input.local_snake_app_name',
-    'or input.snake_app_name_run_mode == "microservices"',
-    '}}',
-])
-SKIP_LOCAL_MICROSERVICES_EXECUTION = ' '.join([
-    '{{',
-    'not input.local_snake_app_name',
-    'or input.snake_app_name_run_mode == "monolith"',
-    '}}',
-])
-
 MODULE_CONFIG_PATH = os.path.join(CURRENT_DIR, 'config', 'modules.json')
 with open(MODULE_CONFIG_PATH) as file:
     MODULE_JSON_STR = file.read()
 MODULES = jsons.loads(MODULE_JSON_STR)
+
+###############################################################################
+# Functions
+###############################################################################
+
+
+def skip_local_microservices_execution(*args: Any, **kwargs: Any) -> bool:
+    if not kwargs.get('local_snake_app_name', True):
+        return True
+    return kwargs.get('snake_app_name_run_mode', 'monolith') != 'microservices'
 
 
 ###############################################################################
@@ -108,7 +99,7 @@ app_local_checker = HTTPChecker(
     url='/readiness',
     port='{{env.APP_PORT}}',
     is_https='{{input.snake_app_name_https}}',
-    skip_execution=SKIP_LOCAL_MICROSERVICES_EXECUTION
+    skip_execution=skip_local_microservices_execution
 )
 
 ###############################################################################

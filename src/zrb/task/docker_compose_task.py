@@ -49,7 +49,7 @@ class DockerComposeTask(CmdTask):
         compose_flags: Iterable[str] = [],
         compose_args: Iterable[str] = [],
         compose_env_prefix: str = '',
-        setup_cmd: Union[str, Iterable[str]] = '',
+        setup_cmd: Union[str, Iterable[str], Callable[..., str]] = '',
         setup_cmd_path: str = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
@@ -234,9 +234,9 @@ class DockerComposeTask(CmdTask):
             return os.path.join(self.cwd, compose_file)
         raise Exception(f'Invalid compose file: {compose_file}')
 
-    def _get_cmd_str(self) -> str:
+    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
         setup_cmd_str = self._create_cmd_str(
-            self._setup_cmd_path, self._setup_cmd
+            self._setup_cmd_path, self._setup_cmd, *args, **kwargs
         )
         command_options = dict(self._compose_options)
         command_options['--file'] = self._compose_runtime_file
