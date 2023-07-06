@@ -119,7 +119,7 @@ services:
     networks:
       - zrb
     ports:
-      - 3000:3000 # or/and any other ports you want to expose.
+      - 3001:3001 # or/and any other ports you want to expose.
 ```
 
 Once your docker-compose file is created, you can invoke the following command:

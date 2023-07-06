@@ -4,6 +4,10 @@ networks:
     name: zrb
 services:
 
+  #############################################################################
+  # Message bus
+  #############################################################################
+
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
     container_name: snake_app_name_redpanda
@@ -44,7 +48,7 @@ services:
       timeout: 1s
       retries: 30
     networks:
-      - zrb
+    - zrb
 
 
   redpanda-console:
@@ -58,10 +62,10 @@ services:
     profiles:
     - kafka
     depends_on:
-      - redpanda
+    - redpanda
     restart: unless-stopped
     networks:
-      - zrb
+    - zrb
 
 
   rabbitmq:
@@ -83,9 +87,12 @@ services:
       timeout: 1s
       retries: 30
     networks:
-      - zrb
+    - zrb
 
-  
+  #############################################################################
+  # Database
+  #############################################################################
+
   postgresql:
     image: postgres:15.2
     container_name: snake_app_name_postgresql
@@ -96,12 +103,139 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-snake_app_name}
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+    - ./postgres-data:/var/lib/postgresql/data
     ports:
     - ${POSTGRES_HOST_PORT:-5432}:5432
     networks:
-      - zrb
+    - zrb
 
+
+  #############################################################################
+  # Monitoring (see: https://github.com/livingdocsIO/monitoring)
+  #############################################################################
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.45.0
+    container_name: snake_app_name_cadvisor
+    hostname: cadvisor
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    command: --docker_only=true --store_container_labels=false
+    ports: ["9081:8080"]
+    volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:rw
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+    - /dev/disk/:/dev/disk:ro
+    networks:
+    - zrb
+    privileged: true
+
+  grafana:
+    image: grafana/grafana:8.3.2
+    container_name: snake_app_name_grafana
+    hostname: grafana
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    ports: ["3000:3000"]
+    volumes:
+    - ./monitoring/grafana/datasource.yaml:/etc/grafana/provisioning/datasources/monitoring.yaml
+    - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    networks:
+    - zrb
+    # user: "1000:1000"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.30.0
+    container_name: snake_app_name_jaeger
+    hostname: jaeger
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    # ports: ["6831:6831/udp", "6832:6832/udp", "14250:14250", "14269:14269", "16686:16686"]
+    ports: ["6831:6831/udp", "6832:6832/udp"]
+    networks:
+    - zrb
+    mem_limit: 512m
+    environment:
+    - SPAN_STORAGE_TYPE=badger
+    - BADGER_EPHEMERAL=false
+    - BADGER_DIRECTORY_KEY=/badger/key
+    - BADGER_DIRECTORY_VALUE=/badger/data
+    - BADGER_SPAN_STORE_TTL=168h0m0s
+    # user: "1000:1000"
+
+  loki:
+    image: grafana/loki:2.4.1
+    container_name: snake_app_name_loki
+    hostname: loki
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    ports: ["3100:3100"]
+    mem_limit: 512m
+    volumes:
+    - ./monitoring/loki/loki.yaml:/etc/loki/local-config.yaml
+    - /var/log:/var/log:ro
+    networks:
+    - zrb
+    # user: "1000:1000"
+
+  opentelemetry-collector:
+    image: otel/opentelemetry-collector:0.58.0
+    container_name: snake_app_name_opentelemetry_collector
+    hostname: opentelemetry-collector
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    command: --config=/conf/otel-collector.config.yaml
+    # ports: ["9464:9464", "55680:55680", "55681:55681"]
+    ports: ["9464:9464"]
+    volumes:
+    - ./monitoring/otel/otel-collector.yaml:/conf/otel-collector.config.yaml
+    networks:
+    - zrb
+
+  prometheus:
+    image: prom/prometheus:v2.31.2
+    container_name: snake_app_name_prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    command: --config.file=/etc/prometheus/prometheus.yaml --web.route-prefix=/ --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --web.enable-lifecycle --web.enable-admin-api
+    ports: ["9090:9090"]
+    volumes:
+    - ./monitoring/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
+    networks:
+    - zrb
+    # user: "1000:1000"
+    mem_limit: 512m
+
+  vector:
+    image: timberio/vector:0.23.3-alpine
+    container_name: snake_app_name_vector
+    hostname: vector
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    ports: ["8383:8383", "8686:8686", "9160:9160", "4545:4545/udp"]
+    volumes:
+    - ./monitoring/vector/vector.toml:/etc/vector/vector.toml
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+    - zrb
+    depends_on: [loki, prometheus]
+    mem_limit: 100m
+    # environment:
+      # - VECTOR_LOG=debug
+
+  #############################################################################
+  # PascalAppName Monolith
+  #############################################################################
 
   kebab-app-name:
     build:
@@ -129,8 +263,12 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - zrb
+    - zrb
 
+
+  #############################################################################
+  # PascalAppName Microservices
+  #############################################################################
 
   kebab-app-name-gateway:
     build:
@@ -164,7 +302,7 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - zrb
+    - zrb
 
 
   kebab-app-name-auth:
@@ -201,7 +339,7 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - zrb
+    - zrb
 
 
   kebab-app-name-log:
@@ -238,4 +376,4 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - zrb
+    - zrb

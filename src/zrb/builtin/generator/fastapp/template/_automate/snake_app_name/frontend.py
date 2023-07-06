@@ -39,7 +39,6 @@ build_snake_app_name_frontend_once = CmdTask(
     icon='🚤',
     name='build-kebab-app-name-frontend_once',
     description='Build frontend for human readable app name',
-    group=project_group,
     cwd=APP_FRONTEND_DIR,
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'build-frontend.sh'),
     checkers=[

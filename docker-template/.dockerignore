@@ -1,2 +1,2 @@
 docker-compose.yml
-._docker-compose.runtime.yml
+._docker-compose.*.runtime.yml

@@ -19,7 +19,7 @@ zrb project add docker-compose-task \
     --project-dir . \
     --task-name "run-container" \
     --compose-command "up" \
-    --http-port 3000
+    --http-port 3001
 
 echo '🤖 Add python-task'
 zrb project add python-task \
@@ -30,13 +30,13 @@ echo '🤖 Add simple-python-app'
 zrb project add simple-python-app \
     --project-dir . \
     --app-name "simple" \
-    --http-port 3001
+    --http-port 3002
 
 echo '🤖 Add fastapp'
 zrb project add fastapp \
     --project-dir . \
     --app-name "fastapp" \
-    --http-port 3002
+    --http-port 3003
 
 echo '🤖 Add fastapp module'
 zrb project add fastapp-module \

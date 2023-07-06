@@ -6,6 +6,7 @@ from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
+from ..helper.string.conversion import to_cmd_name
 from ..helper.string.double_quote import double_quote
 from ..helper.docker_compose.file import read_compose_file, write_compose_file
 from ..helper.docker_compose.fetch_external_env import (
@@ -210,12 +211,17 @@ class DockerComposeTask(CmdTask):
     def _get_compose_runtime_file(self, compose_file_name: str) -> str:
         directory, file = os.path.split(compose_file_name)
         prefix = '_' if file.startswith('.') else '._'
+        runtime_prefix = self.get_cmd_name()
+        if self._group is not None:
+            group_prefix = to_cmd_name(self._group.get_complete_name())
+            runtime_prefix = f'{group_prefix}-{runtime_prefix}'
+        runtime_prefix = '.' + runtime_prefix + '.runtime'
         file_parts = file.split('.')
         if len(file_parts) > 1:
-            file_parts[-2] += '.runtime'
+            file_parts[-2] += runtime_prefix
             runtime_file_name = prefix + '.'.join(file_parts)
             return os.path.join(directory, runtime_file_name)
-        runtime_file_name = prefix + file + '.runtime'
+        runtime_file_name = prefix + file + runtime_prefix
         return os.path.join(directory, runtime_file_name)
 
     def _get_compose_template_file(self, compose_file: Optional[str]) -> str:

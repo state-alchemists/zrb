@@ -29,7 +29,7 @@ def test_docker_compose_task_with_cwd_and_compose_file():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
     docker_compose_task = DockerComposeTask(
-        name='simple',
+        name='with-cwd-and-compose-file',
         cwd=resource_path,
         compose_file='docker-compose-simple.yml',
         compose_service_configs={
@@ -51,7 +51,7 @@ def test_docker_compose_task_with_cwd():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
     docker_compose_task = DockerComposeTask(
-        name='simple',
+        name='with-cwd',
         cwd=resource_path,
         compose_service_configs={
             'myapp': ServiceConfig(
@@ -87,7 +87,7 @@ def test_docker_compose_task_simple_no_default_env():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
     docker_compose_task = DockerComposeTask(
-        name='simple',
+        name='simple-no-default-env',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-no-default-env.yml'
         ),
@@ -115,7 +115,7 @@ def test_docker_compose_task_simple_map_env():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
     docker_compose_task = DockerComposeTask(
-        name='simple',
+        name='simple-map-env',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-map-env.yml'
         ),
@@ -148,7 +148,7 @@ def test_docker_compose_task_simple_list_env():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
     docker_compose_task = DockerComposeTask(
-        name='simple',
+        name='simple-list-env',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-list-env.yml'
         ),

@@ -61,7 +61,7 @@ copy_resource = ResourceMaker(
     upstreams=[validate],
     replacements={
         'taskName': '{{input.task_name}}',
-        'httpPort': '{{util.coalesce(input.http_port, "3000")}}',
+        'httpPort': '{{util.coalesce(input.http_port, "3001")}}',
         'composeCommand': '{{ util.coalesce(input.compose_command, "up") }}',
         'ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}',
     },

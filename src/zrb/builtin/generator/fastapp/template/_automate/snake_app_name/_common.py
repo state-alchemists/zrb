@@ -106,6 +106,13 @@ app_local_checker = HTTPChecker(
 # Input Definitions
 ###############################################################################
 
+enable_monitoring_input = BoolInput(
+    name='enable-kebab-app-name-monitoring',
+    description='Enable "kebab-app-name" monitoring',
+    prompt='Enable "kebab-app-name" monitoring?',
+    default=False
+)
+
 local_input = BoolInput(
     name='local-kebab-app-name',
     description='Use "kebab-app-name" on local machine',

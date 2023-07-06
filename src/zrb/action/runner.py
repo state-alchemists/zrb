@@ -1,5 +1,4 @@
-from typing import Any, Callable, List, Mapping, Union
-from ..action.base_action import BaseAction
+from typing import Any, Callable, Iterable, List, Mapping, Union
 from ..task_group.group import Group as TaskGroup
 from ..task.any_task import AnyTask
 import click
@@ -8,21 +7,21 @@ import sys
 CliSubcommand = Union[click.Group, click.Command]
 
 
-class Runner(BaseAction):
+class Runner():
     '''
     Runner class.
     Any tasks registered to the runner will be accessible from the terminal
     '''
 
     def __init__(self, env_prefix: str = ''):
-        BaseAction.__init__(self)
-        self.env_prefix = env_prefix
+        self._env_prefix = env_prefix
+        self._tasks: Iterable[AnyTask] = []
         self._registered_groups: Mapping[str, click.Group] = {}
         self._top_levels: List[CliSubcommand] = []
         self._subcommands: Mapping[str, List[click.Group]] = {}
 
     def register(self, task: AnyTask):
-        BaseAction.register(self, task)
+        self._tasks.append(task)
         task.set_has_cli_interface()
 
     def serve(self, cli: click.Group) -> click.Group:
@@ -71,7 +70,7 @@ class Runner(BaseAction):
         task_cmd_name = task.get_cmd_name()
         task_description = task.get_description()
         task_function = task.to_function(
-            env_prefix=self.env_prefix, raise_error=True
+            env_prefix=self._env_prefix, raise_error=True
         )
         callback = self._wrap_task_function(task_function)
         command = click.Command(

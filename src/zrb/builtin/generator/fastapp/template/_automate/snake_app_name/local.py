@@ -4,11 +4,10 @@ from zrb.builtin._group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
     skip_local_microservices_execution,
-    rabbitmq_checker, rabbitmq_management_checker,
-    redpanda_console_checker, kafka_outside_checker,
-    kafka_plaintext_checker, pandaproxy_outside_checker,
-    pandaproxy_plaintext_checker, app_local_checker,
-    local_input, run_mode_input, host_input, https_input,
+    rabbitmq_checker, rabbitmq_management_checker, redpanda_console_checker,
+    kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
+    pandaproxy_plaintext_checker, app_local_checker, local_input,
+    run_mode_input, enable_monitoring_input, host_input, https_input,
     local_app_port_env, local_app_broker_type_env
 )
 from .image import image_input
@@ -25,10 +24,13 @@ import os
 def setup_support_compose_profile(*args: Any, **kwargs: Any) -> str:
     task: Task = kwargs.get('_task')
     env_map = task.get_env_map()
-    compose_profiles = ','.join([
+    compose_profiles = [
         env_map.get('APP_PBROKER_TYPE', 'rabbitmq'),
-    ])
-    return f'export COMPOSE_PROFILES={compose_profiles}'
+    ]
+    if kwargs.get('enable_snake_app_name_monitoring', False):
+        compose_profiles.append('monitoring')
+    compose_profile_str = ','.join(compose_profiles)
+    return f'export COMPOSE_PROFILES={compose_profile_str}'
 
 
 def skip_support_container_execution(*args: Any, **kwargs: Any) -> bool:
@@ -87,6 +89,7 @@ start_snake_app_name_support_container = DockerComposeTask(
     description='Start human readable app name container',
     inputs=[
         local_input,
+        enable_monitoring_input,
         host_input,
         https_input,
         image_input,
