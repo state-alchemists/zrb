@@ -33,7 +33,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Find a record by id.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             search_filter = self.db_entity_cls.id == id
             db_entity = self._get_one_by_criterion(db, search_filter)
@@ -48,7 +48,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Find multiple records by keyword with limit and offset.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             search_filter = self._ensure_search_filter(search_filter)
             criterion = self._search_filter_to_criterion(search_filter)
@@ -64,7 +64,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Count records by keyword.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             search_filter = self._ensure_search_filter(search_filter)
             criterion = self._search_filter_to_criterion(search_filter)
@@ -76,7 +76,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Insert a new record.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             db_entity = self.db_entity_cls(
                 **self._schema_data_to_db_entity_map(db, data),
@@ -108,7 +108,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Update a record.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             db_entity = self._get_one_by_criterion(
                 db, self.db_entity_cls.id == id
@@ -137,7 +137,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         '''
         Delete a record.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             db_entity = self._get_one_by_criterion(
                 db, self.db_entity_cls.id == id
@@ -153,7 +153,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         finally:
             db.close()
 
-    def _create_db_session(self) -> Session:
+    def _get_db_session(self) -> Session:
         '''
         Return a db session.
         '''
@@ -243,7 +243,9 @@ class DBRepo(Repo[Schema, SchemaData]):
         The result is usually used to invoke find/count.
         '''
         keyword = search_filter.keyword
-        like_keyword = '%{}%'.format(keyword) if keyword != '' else '%'
+        if keyword == '':
+            return True
+        like_keyword = '%{}%'.format(keyword)
         keyword_criterion = [
             keyword_field.like(like_keyword)
             for keyword_field in self._get_keyword_fields()

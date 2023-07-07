@@ -53,7 +53,7 @@ class UserDBRepo(
         self.password_hasher = password_hasher
 
     async def get_by_user_login(self, user_login: UserLogin) -> User:
-        db = self._create_db_session()
+        db = self._get_db_session()
         db_users: List[DBEntityUser] = []
         try:
             search_filter = or_(

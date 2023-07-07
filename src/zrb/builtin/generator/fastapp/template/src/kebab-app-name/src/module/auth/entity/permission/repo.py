@@ -27,7 +27,7 @@ class PermissionDBRepo(
         '''
         Find permission by name.
         '''
-        db = self._create_db_session()
+        db = self._get_db_session()
         try:
             search_filter = DBEntityPermission.name == name
             db_permission = self._get_one_by_criterion(db, search_filter)
