@@ -1,42 +1,44 @@
 # Build dependencies
-flit==3.8.0         # better builder
+flit==3.9.0         # better builder
 twine==4.0.2        # pip package uploader
-keyring==23.13.1    # authenticator (used by twine)
+keyring==24.2.0     # authenticator (used by twine)
 
 # Zrb dependencies (should be copied to `pyproject.toml`)
-click==8.1.3        # CLI framework
+click==8.1.4        # CLI framework
 aiofiles==23.1.0
 typeguard==2.13.3
-termcolor==2.2.0
+termcolor==2.3.0
 Jinja2==3.1.2
 libcst==0.4.9
-python-dotenv==0.21.1
+python-dotenv==1.0.0
 jsons==1.6.3
-ruamel.yaml==0.17.21
-setuptools==49.2.1
-autopep8==2.0.1     # Autoformatter
+ruamel.yaml==0.17.32
+setuptools==68.0.0
+autopep8==2.0.2     # Autoformatter
 tomli==2.0.1
 
 # Zrb dev dependencies (should be copied to `pyproject.toml`)
 flake8==6.0.0       # Linter
-pytest==7.2.1
-pytest-cov==4.0.0
-pytest-xdist==3.2.0
+pytest==7.4.0
+pytest-cov==4.1.0
+pytest-xdist==3.3.1
 pytest-asyncio==0.21.0
 
 # Other dependencies (just for auto-completion, not included in `pyproject.toml`)
-pulumi==3.56.0
-pulumi-kubernetes==3.24.1
-fastapi==0.95.0
-aiormq==6.7.4
-aiokafka==0.8.0
-alembic==1.10.3
-SQLAlchemy==2.0.9
+pulumi==3.74.0
+pulumi-kubernetes==3.30.1
+fastapi==0.100.0
+aiormq==6.7.6
+aiokafka==0.8.1
+alembic==1.11.1
+SQLAlchemy==2.0.18
 python-jose==3.3.0
 bcrypt==4.0.1
 python-multipart==0.0.6
 httpx==0.24.0
 asgi-lifespan==2.1.0
 python-ulid==1.1.0
-prometheus-fastapi-instrumentator==6.0.0
 locust==2.15.1
+opentelemetry-distro==0.39b0
+opentelemetry-exporter-otlp==1.18.0
+opentelemetry-instrumentation-fastapi==0.39b0

@@ -117,10 +117,10 @@ class FlowTask(BaseTask):
         nodes: List[Union[FlowNode, List[FlowNode]]] = [],
         skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
-        final_upstreams: List[Task] = upstreams
+        final_upstreams: List[AnyTask] = upstreams
         for node in nodes:
             flow_nodes = self._get_flow_nodes(node)
-            new_upstreams: List[Task] = [
+            new_upstreams: List[AnyTask] = [
                 flow_node.to_task(
                     upstreams=final_upstreams,
                     inputs=inputs,

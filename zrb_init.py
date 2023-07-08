@@ -226,19 +226,13 @@ test = CmdTask(
             prompt='Test (i.e., test/file.py::test_name)',
             default=''
         ),
-        BoolInput(
-            name='parallel',
-            description='Whether doing parallel testing or not',
-            prompt='Parallel testing?',
-            default=True
-        )
     ],
     upstreams=[install_symlink],
     cmd=[
         'set -e',
         f'cd {CURRENT_DIR}',
         'echo "🤖 Perform test"',
-        'pytest {{ "-n auto " if input.parallel else "" }}--ignore-glob="**/template/**/test" --ignore=playground --cov=zrb --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
+        'pytest --ignore-glob="**/template/**/test" --ignore=playground --cov=zrb --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
     ],
     retry=0,
     checking_interval=1
