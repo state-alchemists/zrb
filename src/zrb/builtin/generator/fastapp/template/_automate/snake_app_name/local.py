@@ -8,7 +8,7 @@ from ._common import (
     kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker, app_local_checker, local_input,
     run_mode_input, enable_monitoring_input, host_input, https_input,
-    local_app_port_env, local_app_broker_type_env
+    local_app_port_env, local_app_broker_type_env, app_enable_otel_env
 )
 from .image import image_input
 from .frontend import build_snake_app_name_frontend
@@ -131,6 +131,7 @@ start_monolith_snake_app_name = CmdTask(
     name='start-monolith-kebab-app-name',
     inputs=[
         local_input,
+        enable_monitoring_input,
         run_mode_input,
         host_input,
         https_input
@@ -146,6 +147,7 @@ start_monolith_snake_app_name = CmdTask(
     envs=[
         local_app_broker_type_env,
         local_app_port_env,
+        app_enable_otel_env,
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
     checkers=[
@@ -158,6 +160,7 @@ start_snake_app_name_gateway = CmdTask(
     name='start-kebab-app-name-gateway',
     inputs=[
         local_input,
+        enable_monitoring_input,
         run_mode_input,
         host_input,
         https_input
@@ -169,13 +172,16 @@ start_snake_app_name_gateway = CmdTask(
         prepare_snake_app_name_backend,
     ],
     cwd=APP_DIR,
-    env_files=[app_env_file],
+    env_files=[
+        app_env_file,
+    ],
     envs=[
         local_app_broker_type_env,
         local_app_port_env,
         Env(name='APP_DB_AUTO_MIGRATE', default='false', os_name=''),
         Env(name='APP_ENABLE_EVENT_HANDLER', default='false', os_name=''),
         Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),
+        app_enable_otel_env,
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
     checkers=[

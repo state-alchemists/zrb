@@ -5,17 +5,17 @@ from ._common import (
     CURRENT_DIR, APP_DIR, skip_local_microservices_execution,
     APP_TEMPLATE_ENV_FILE_NAME, MODULES,
     local_app_broker_type_env, local_input, run_mode_input, host_input,
-    https_input
+    https_input, enable_monitoring_input, app_enable_otel_env
 )
 import os
 
 
 def get_start_microservices(upstreams: List[Task]) -> List[Task]:
-    service_disable_module_envs: List[Env] = []
+    service_disable_all_module_envs: List[Env] = []
     for index, module in enumerate(MODULES):
         snake_module_name = to_snake_case(module)
         upper_snake_module_name = snake_module_name.upper()
-        service_disable_module_envs.append(Env(
+        service_disable_all_module_envs.append(Env(
             name=f'APP_ENABLE_{upper_snake_module_name}_MODULE',
             os_name='',
             default='false'
@@ -43,11 +43,6 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
             os_name='',
             default='true'
         )
-        service_envs = service_disable_module_envs + [
-            local_app_broker_type_env,
-            service_app_port_env,
-            service_enable_module_env
-        ]
         # Create service_checker
         service_checker = HTTPChecker(
             name=f'check-kebab-app-name-{kebab_module_name}-service',
@@ -64,13 +59,19 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
                 local_input,
                 run_mode_input,
                 host_input,
-                https_input
+                https_input,
+                enable_monitoring_input,
             ],
             skip_execution=skip_local_microservices_execution,
             upstreams=upstreams,
             cwd=APP_DIR,
             env_files=service_env_files,
-            envs=service_envs,
+            envs=service_disable_all_module_envs + [
+                local_app_broker_type_env,
+                service_app_port_env,
+                service_enable_module_env,
+                app_enable_otel_env
+            ],
             cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
             checkers=[
                 service_checker,

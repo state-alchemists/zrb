@@ -7,7 +7,8 @@ from ._common import (
     app_container_checker, rabbitmq_checker, rabbitmq_management_checker,
     redpanda_console_checker, kafka_outside_checker, kafka_plaintext_checker,
     pandaproxy_outside_checker, pandaproxy_plaintext_checker, local_input,
-    run_mode_input, enable_monitoring_input, host_input, https_input
+    run_mode_input, enable_monitoring_input, host_input, https_input,
+    app_enable_otel_env
 )
 from .image import build_snake_app_name_image, image_input, image_env
 import os
@@ -113,7 +114,10 @@ init_snake_app_name_container = DockerComposeTask(
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
     compose_service_configs=service_configs,
-    envs=[image_env],
+    envs=[
+        image_env,
+        app_enable_otel_env,
+    ],
     env_files=[compose_env_file],
 )
 

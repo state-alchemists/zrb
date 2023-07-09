@@ -114,10 +114,10 @@ services:
   # Monitoring
   #############################################################################
 
-  zookeeper-1:
+  zookeeper:
     image: bitnami/zookeeper:3.7.1
-    container_name: snake_app_name_zookeeper_1
-    hostname: zookeeper-1
+    container_name: snake_app_name_zookeeper
+    hostname: zookeeper
     restart: on-failure
     profiles:
     - monitoring
@@ -126,13 +126,15 @@ services:
     - "2181:2181"
     - "2888:2888"
     - "3888:3888"
-    volumes:
-    - ./data/zookeeper-1:/bitnami/zookeeper
+    # volumes:
+    # - ./monitoring/zookeeper/data/zookeeper-1:/bitnami/zookeeper
     environment:
     - ZOO_SERVER_ID=1
     # - ZOO_SERVERS=0.0.0.0:2888:3888,zookeeper-2:2888:3888,zookeeper-3:2888:3888
     - ALLOW_ANONYMOUS_LOGIN=yes
     - ZOO_AUTOPURGE_INTERVAL=1
+    networks:
+    - zrb
 
 
   clickhouse:
@@ -144,9 +146,7 @@ services:
     - monitoring
     tty: true
     depends_on:
-    - zookeeper-1
-    # - zookeeper-2
-    # - zookeeper-3
+    - zookeeper
     logging:
       options:
         max-size: 50m
@@ -167,34 +167,38 @@ services:
     - "8123:8123"
     - "9181:9181"
     volumes:
-    - ./clickhouse-config.xml:/etc/clickhouse-server/config.xml
-    - ./clickhouse-users.xml:/etc/clickhouse-server/users.xml
-    - ./custom-function.xml:/etc/clickhouse-server/custom-function.xml
-    - ./clickhouse-cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
-    - ./data/clickhouse/:/var/lib/clickhouse/
-    - ./user_scripts:/var/lib/clickhouse/user_scripts/
+    - ./monitoring/clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.xml
+    - ./monitoring/clickhouse/clickhouse-users.xml:/etc/clickhouse-server/users.xml
+    - ./monitoring/clickhouse/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+    - ./monitoring/clickhouse/clickhouse-cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+    - ./monitoring/clickhouse/user_scripts:/var/lib/clickhouse/user_scripts/
+    # - ./monitoring/clickhouse/data/clickhouse/:/var/lib/clickhouse/
+    networks:
+    - zrb
 
 
   alertmanager:
     image: signoz/alertmanager:${ALERTMANAGER_TAG:-0.23.1}
-    container_name: snake_app_name_alertmanager
+    container_name: snake_app_name_monitoring_alertmanager
     hostname: alertmanager
     restart: on-failure
     profiles:
     - monitoring
-    volumes:
-    - ./data/alertmanager:/data
+    # volumes:
+    # - ./monitoring/alertmanager/data/alertmanager:/data
     depends_on:
       query-service:
         condition: service_healthy
     command:
     - --queryService.url=http://query-service:8085
     - --storage.path=/data
+    networks:
+    - zrb
 
 
   query-service:
     image: signoz/query-service:${DOCKER_TAG:-0.22.0}
-    container_name: snake_app_name_query_service
+    container_name: snake_app_name_monitoring_query_service
     hostname: query-service
     restart: on-failure
     profiles:
@@ -204,9 +208,9 @@ services:
     #   - "6060:6060"     # pprof port
     #   - "8080:8080"     # query-service port
     volumes:
-    - ./prometheus.yml:/root/config/prometheus.yml
-    - ../dashboards:/root/config/dashboards
-    - ./data/signoz/:/var/lib/signoz/
+    - ./monitoring/query-service/prometheus.yml:/root/config/prometheus.yml
+    - ./monitoring/query-service/dashboards:/root/config/dashboards
+    - ./monitoring/query-service/data/signoz/:/var/lib/signoz/
     environment:
     - ClickHouseUrl=tcp://clickhouse:9000/?database=signoz_traces
     - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
@@ -224,11 +228,13 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+    networks:
+    - zrb
 
 
   frontend:
     image: signoz/frontend:${DOCKER_TAG:-0.22.0}
-    container_name: snake_app_name_frontend
+    container_name: snake_app_name_monitoring_frontend
     hostname: frontend
     restart: on-failure
     profiles:
@@ -240,11 +246,13 @@ services:
     - "3301:3301"
     volumes:
     - ./monitoring/frontend/nginx-config.conf:/etc/nginx/conf.d/default.conf
+    networks:
+    - zrb
 
 
   otel-collector:
     image: signoz/signoz-otel-collector:${OTELCOL_TAG:-0.79.2}
-    container_name: snake_app_name_otel_collector
+    container_name: snake_app_name_monitoring_otel_collector
     hostname: otel-collector
     restart: on-failure
     profiles:
@@ -273,18 +281,20 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+    networks:
+    - zrb
 
 
   otel-collector-metrics:
     image: signoz/signoz-otel-collector:${OTELCOL_TAG:-0.79.2}
-    container_name: snake_app_name_otel_collector_metrics
+    container_name: snake_app_name_monitoring_otel_collector_metrics
     hostname: otel_collector_metrics
     restart: on-failure
     profiles:
     - monitoring
     command: ["--config=/etc/otel-collector-metrics-config.yaml", "--feature-gates=-pkg.translator.prometheus.NormalizeName"]
     volumes:
-      - ./otel-collector-metrics-config.yaml:/etc/otel-collector-metrics-config.yaml
+      - ./monitoring/otel-collector-metrics/otel-collector-metrics-config.yaml:/etc/otel-collector-metrics-config.yaml
     # ports:
     #   - "1777:1777"     # pprof extension
     #   - "8888:8888"     # OtelCollector internal metrics
@@ -293,6 +303,8 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+    networks:
+    - zrb
 
 
   #############################################################################

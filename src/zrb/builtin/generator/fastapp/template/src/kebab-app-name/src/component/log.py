@@ -1,20 +1,48 @@
 from config import app_logging_level
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
+    OTLPLogExporter
+)
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
 import logging
 
-# create logger
+##############################################################################
+# Create logger
+##############################################################################
 logger = logging.getLogger('src')
 logger.setLevel(app_logging_level)
 
-ch = logging.StreamHandler()
-ch.setLevel(app_logging_level)
+##############################################################################
+# Formatter log handler
+##############################################################################
 
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(app_logging_level)
 # create formatter
 formatter = logging.Formatter(
     '%(levelname)s:\t%(message)s'
 )
-
-# add formatter to ch
-ch.setFormatter(formatter)
-
+# set stream handler's formatter
+stream_handler.setFormatter(formatter)
 # add ch to logger
-logger.addHandler(ch)
+logger.addHandler(stream_handler)
+
+##############################################################################
+# Open telemetry log handler
+##############################################################################
+
+# create logger providers
+otlp_logger_provider = LoggerProvider()
+# set the providers
+set_logger_provider(otlp_logger_provider)
+otlp_log_exporter = OTLPLogExporter()
+# add the batch processors to the trace provider
+otlp_logger_provider.add_log_record_processor(
+    BatchLogRecordProcessor(otlp_log_exporter)
+)
+otlp_log_handler = LoggingHandler(
+    level=app_logging_level, logger_provider=otlp_logger_provider
+)
+logger.addHandler(otlp_log_handler)

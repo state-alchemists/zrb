@@ -13,4 +13,4 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 COPY --from=frontend-builder /frontend/build /home/frontend/build
-CMD uvicorn main:app --host "$APP_HOST" --port "$APP_PORT"
+CMD ./start.sh
