@@ -1,4 +1,6 @@
-from config import app_logging_level
+from config import (
+    app_logging_level, app_enable_otel, app_otel_exporter_otlp_endpoint
+)
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
     OTLPLogExporter
@@ -33,16 +35,19 @@ logger.addHandler(stream_handler)
 # Open telemetry log handler
 ##############################################################################
 
-# create logger providers
-otlp_logger_provider = LoggerProvider()
-# set the providers
-set_logger_provider(otlp_logger_provider)
-otlp_log_exporter = OTLPLogExporter()
-# add the batch processors to the trace provider
-otlp_logger_provider.add_log_record_processor(
-    BatchLogRecordProcessor(otlp_log_exporter)
-)
-otlp_log_handler = LoggingHandler(
-    level=app_logging_level, logger_provider=otlp_logger_provider
-)
-logger.addHandler(otlp_log_handler)
+if app_enable_otel:
+    # create logger providers
+    otlp_logger_provider = LoggerProvider()
+    # set the providers
+    set_logger_provider(otlp_logger_provider)
+    otlp_log_exporter = OTLPLogExporter(
+        endpoint=app_otel_exporter_otlp_endpoint
+    )
+    # add the batch processors to the trace provider
+    otlp_logger_provider.add_log_record_processor(
+        BatchLogRecordProcessor(otlp_log_exporter)
+    )
+    otlp_log_handler = LoggingHandler(
+        level=app_logging_level, logger_provider=otlp_logger_provider
+    )
+    logger.addHandler(otlp_log_handler)

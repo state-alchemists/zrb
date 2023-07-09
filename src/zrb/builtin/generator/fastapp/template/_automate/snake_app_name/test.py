@@ -66,7 +66,12 @@ test_snake_app_name = CmdTask(
             name='APP_AUTH_ADMIN_ACTIVE',
             os_name='',
             default='true'
-        )
+        ),
+        Env(
+            name='APP',
+            os_name='APP_ENABLE_OTEL',
+            default='false'
+        ),
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'test.sh'),
     retry=0

@@ -1,5 +1,5 @@
 from typing import Mapping, Any
-from zrb import DockerComposeTask, ServiceConfig, EnvFile, runner, Task
+from zrb import DockerComposeTask, Env, ServiceConfig, EnvFile, runner, Task
 from zrb.helper.util import to_kebab_case
 from zrb.builtin._group import project_group
 from ._common import (
@@ -63,14 +63,31 @@ compose_env_file = EnvFile(
 service_config_env_file = EnvFile(
     env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='CONTAINER_ENV_PREFIX'
 )
+service_config_otel_exporter_otlp_endpoint_env = Env(
+    name='APP_OTEL_EXPORTER_OTLP_ENDPOINT',
+    os_name='',
+    default='http://otel-collector:4317'
+)
+
 service_configs: Mapping[str, ServiceConfig] = {
-    'kebab-app-name': ServiceConfig(env_files=[service_config_env_file])
+    # monolith service config
+    'kebab-app-name': ServiceConfig(
+        env_files=[service_config_env_file],
+        envs=[
+            service_config_otel_exporter_otlp_endpoint_env,
+        ]
+    )
 }
+
+# microservices service config
 modules = ['gateway'] + MODULES
 for module in modules:
     service_name = 'kebab-app-name-' + to_kebab_case(module)
     service_configs[service_name] = ServiceConfig(
-        env_files=[service_config_env_file]
+        env_files=[service_config_env_file],
+        envs=[
+            service_config_otel_exporter_otlp_endpoint_env,
+        ]
     )
 
 ###############################################################################

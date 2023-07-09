@@ -30,9 +30,9 @@ then
     APP_PORT="8080"
 fi
 
-if [ -z "$APP_OTEL_EXPORTER_OLTP_ENDPOINT" ]
+if [ -z "$APP_OTEL_EXPORTER_OTLP_ENDPOINT" ]
 then
-    APP_OTEL_EXPORTER_OLTP_ENDPOINT="http://localhost:4317"
+    APP_OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
 fi
 
 ##############################################################################
@@ -43,7 +43,7 @@ if [ $(_to_boolean "$APP_ENABLE_OTEL") = "true" ]
 then
     echo "Start uvicorn with instrumentation"
     OTEL_RESOURCE_ATTRIBUTES="service.name=${APP_NAME}" \
-        OTEL_EXPORTER_OTLP_ENDPOINT="$APP_OTEL_EXPORTER_OLTP_ENDPOINT" \
+        OTEL_EXPORTER_OTLP_ENDPOINT="$APP_OTEL_EXPORTER_OTLP_ENDPOINT" \
         opentelemetry-instrument uvicorn main:app --host "$APP_HOST" --port "$APP_PORT"
 else
     # reload should only performed if otel is disabled
