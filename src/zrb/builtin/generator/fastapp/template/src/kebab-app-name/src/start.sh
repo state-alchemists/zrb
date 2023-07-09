@@ -41,7 +41,7 @@ fi
 
 if [ $(_to_boolean "$APP_ENABLE_OTEL") = "true" ]
 then
-    echo "Start uvicorn with instrumentation"
+    echo "Start uvicorn with instrumentation, service name: ${APP_NAME}"
     OTEL_RESOURCE_ATTRIBUTES="service.name=${APP_NAME}" \
         OTEL_EXPORTER_OTLP_ENDPOINT="$APP_OTEL_EXPORTER_OTLP_ENDPOINT" \
         opentelemetry-instrument uvicorn main:app --host "$APP_HOST" --port "$APP_PORT"

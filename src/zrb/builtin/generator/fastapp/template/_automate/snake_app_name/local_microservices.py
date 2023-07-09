@@ -11,48 +11,11 @@ import os
 
 
 def get_start_microservices(upstreams: List[Task]) -> List[Task]:
-    service_disable_all_module_envs: List[Env] = []
-    for index, module in enumerate(MODULES):
-        snake_module_name = to_snake_case(module)
-        upper_snake_module_name = snake_module_name.upper()
-        service_disable_all_module_envs.append(Env(
-            name=f'APP_ENABLE_{upper_snake_module_name}_MODULE',
-            os_name='',
-            default='false'
-        ))
+    disable_all_module_envs = _get_disable_all_module_envs()
     start_microservices: List[Task] = []
-    for index, module in enumerate(MODULES):
-        kebab_module_name = to_kebab_case(module)
-        snake_module_name = to_snake_case(module)
-        upper_snake_module_name = snake_module_name.upper()
-        # Create service_env_file
-        service_template_env_file = EnvFile(
-            env_file=APP_TEMPLATE_ENV_FILE_NAME,
-            prefix=f'ENV_PREFIX_{upper_snake_module_name}'
-        )
-        service_env_files = [service_template_env_file]
-        # Create service_envs
-        service_port_str = str(httpPort + index + 1)
-        service_app_port_env = Env(
-            name='APP_PORT',
-            os_name=f'ENV_PREFIX_{upper_snake_module_name}_APP_PORT',
-            default=service_port_str
-        )
-        service_enable_module_env = Env(
-            name=f'APP_ENABLE_{upper_snake_module_name}_MODULE',
-            os_name='',
-            default='true'
-        )
-        # Create service_checker
-        service_checker = HTTPChecker(
-            name=f'check-kebab-app-name-{kebab_module_name}-service',
-            host='{{input.snake_app_name_host}}',
-            url='/readiness',
-            port='{{env.APP_PORT}}',
-            is_https='{{input.snake_app_name_https}}',
-            skip_execution=skip_local_microservices_execution
-        )
-        # Create start_service
+    for module_index, module_name in enumerate(MODULES):
+        kebab_module_name = to_kebab_case(module_name)
+        # Define start service task
         start_service = CmdTask(
             name=f'start-kebab-app-name-{kebab_module_name}-service',
             inputs=[
@@ -65,17 +28,74 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
             skip_execution=skip_local_microservices_execution,
             upstreams=upstreams,
             cwd=APP_DIR,
-            env_files=service_env_files,
-            envs=service_disable_all_module_envs + [
-                local_app_broker_type_env,
-                service_app_port_env,
-                service_enable_module_env,
-                app_enable_otel_env
-            ],
+            env_files=[_get_service_env_file(module_name)],
+            envs=disable_all_module_envs + _get_service_envs(
+                httpPort, module_index, module_name
+            ),
             cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
             checkers=[
-                service_checker,
+                HTTPChecker(
+                    name=f'check-kebab-app-name-{kebab_module_name}-service',
+                    host='{{input.snake_app_name_host}}',
+                    url='/readiness',
+                    port='{{env.APP_PORT}}',
+                    is_https='{{input.snake_app_name_https}}',
+                    skip_execution=skip_local_microservices_execution
+                )
             ]
         )
         start_microservices.append(start_service)
     return start_microservices
+
+
+def _get_service_envs(
+    base_port: int, module_index: int, module_name: str
+) -> List[Env]:
+    kebab_module_name = to_kebab_case(module_name)
+    snake_module_name = to_snake_case(module_name)
+    upper_snake_module_name = snake_module_name.upper()
+    # Define service env
+    app_port_env = Env(
+        name='APP_PORT',
+        os_name=f'ENV_PREFIX_{upper_snake_module_name}_APP_PORT',
+        default=str(base_port + module_index + 1)
+    )
+    enable_module_env = Env(
+        name=f'APP_ENABLE_{upper_snake_module_name}_MODULE',
+        os_name='',
+        default='true'
+    )
+    app_name_env = Env(
+        name='APP_NAME',
+        os_name=f'ENV_PREFIX_{upper_snake_module_name}_APP_NAME',
+        default=f'kebab-app-name-{kebab_module_name}-service'
+    )
+    return [
+        local_app_broker_type_env,
+        app_enable_otel_env,
+        app_port_env,
+        app_name_env,
+        enable_module_env,
+    ]
+
+
+def _get_service_env_file(module_name: str) -> EnvFile:
+    snake_module_name = to_snake_case(module_name)
+    upper_snake_module_name = snake_module_name.upper()
+    return EnvFile(
+        env_file=APP_TEMPLATE_ENV_FILE_NAME,
+        prefix=f'ENV_PREFIX_{upper_snake_module_name}'
+    )
+
+
+def _get_disable_all_module_envs() -> List[Env]:
+    disable_all_module_envs: List[Env] = []
+    for module in MODULES:
+        snake_module_name = to_snake_case(module)
+        upper_snake_module_name = snake_module_name.upper()
+        disable_all_module_envs.append(Env(
+            name=f'APP_ENABLE_{upper_snake_module_name}_MODULE',
+            os_name='',
+            default='false'
+        ))
+    return disable_all_module_envs
