@@ -63,25 +63,25 @@ redpanda_console_checker = HTTPChecker(
 
 kafka_plaintext_checker = PortChecker(
     name='check-kafka-plaintext',
-    port='{{env.get("KAFKA_PLAINTEXT_HOST_PORT", "29092")}}',
+    port='{{env.get("KAFKA_INTERNAL_HOST_PORT", "29092")}}',
     skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
 )
 
 kafka_outside_checker = PortChecker(
     name='check-kafka-outside',
-    port='{{env.get("KAFKA_OUTSIDE_HOST_PORT", "9092")}}',
+    port='{{env.get("KAFKA_EXTERNAL_HOST_PORT", "9092")}}',
     skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
 )
 
 pandaproxy_plaintext_checker = PortChecker(
     name='check-pandaproxy-plaintext',
-    port='{{env.get("PANDAPROXY_PLAINTEXT_HOST_PORT", "29092")}}',
+    port='{{env.get("PANDAPROXY_INTERNAL_HOST_PORT", "29092")}}',
     skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
 )
 
 pandaproxy_outside_checker = PortChecker(
     name='check-pandaproxy-outside',
-    port='{{env.get("PANDAPROXY_OUTSIDE_HOST_PORT", "9092")}}',
+    port='{{env.get("PANDAPROXY_EXTERNAL_HOST_PORT", "9092")}}',
     skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
 )
 
