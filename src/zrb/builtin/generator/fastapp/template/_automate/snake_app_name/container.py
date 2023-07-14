@@ -1,14 +1,12 @@
 from typing import Mapping, Any
 from zrb import DockerComposeTask, Env, ServiceConfig, EnvFile, runner, Task
-from zrb.helper.util import to_kebab_case
 from zrb.builtin._group import project_group
 from ._common import (
-    APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, RESOURCE_DIR, MODULES,
-    app_container_checker, rabbitmq_checker, rabbitmq_management_checker,
-    redpanda_console_checker, kafka_outside_checker, kafka_plaintext_checker,
-    pandaproxy_outside_checker, pandaproxy_plaintext_checker, local_input,
-    run_mode_input, enable_monitoring_input, host_input, https_input,
-    app_enable_otel_env
+    APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR, MODULES, app_container_checker,
+    rabbitmq_checker, rabbitmq_management_checker, redpanda_console_checker,
+    kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
+    pandaproxy_plaintext_checker, local_input, run_mode_input,
+    enable_monitoring_input, host_input, https_input, app_enable_otel_env
 )
 from .image import build_snake_app_name_image, image_input, image_env
 import os
@@ -52,7 +50,7 @@ def skip_execution(*args: Any, **kwargs: Any) -> bool:
 ###############################################################################
 
 compose_env_file = EnvFile(
-    env_file=os.path.join(CURRENT_DIR, 'config', 'docker-compose.env'),
+    env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
     prefix='CONTAINER_ENV_PREFIX'
 )
 

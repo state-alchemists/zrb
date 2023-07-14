@@ -151,7 +151,7 @@ async def _create_microservice_config(
             upper_snake_module_name
         )),
         asyncio.create_task(_append_compose_env(
-            task, modules, project_dir, snake_app_name, upper_snake_module_name
+            task, modules, project_dir, kebab_app_name, upper_snake_module_name
         ))
     )
 
@@ -245,12 +245,11 @@ async def _append_compose_env(
     task: Task,
     modules: List[str],
     project_dir: str,
-    snake_app_name: str,
+    kebab_app_name: str,
     upper_snake_module_name: str
 ):
     compose_template_env_path = os.path.join(
-        project_dir, '_automate', snake_app_name, 'config',
-        'docker-compose.env'
+        project_dir, 'src', kebab_app_name, 'docker-compose.env'
     )
     compose_env_map = dotenv_values(compose_template_env_path)
     host_port = int(compose_env_map.get('APP_GATEWAY_HOST_PORT', '8080'))

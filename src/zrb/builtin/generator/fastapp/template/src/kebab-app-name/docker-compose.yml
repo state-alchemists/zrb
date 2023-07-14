@@ -34,7 +34,7 @@ services:
     - ${KAFKA_EXTERNAL_HOST_PORT:-9092}:9092
     - ${KAFKA_INTERNAL_HOST_PORT:-29092}:29092
     - ${PANDAPROXY_EXTERNAL_HOST_PORT:-8082}:8082
-    - ${PANDAPROXY_INTERNAL_HOST_PORT}:28082
+    - ${PANDAPROXY_INTERNAL_HOST_PORT:-28082}:28082
     environment:
       KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
       KAFKA_SASL_USER: ${KAFKA_SASL_USER:-admin}
@@ -119,7 +119,7 @@ services:
     image: bitnami/zookeeper:3.7.1
     container_name: snake_app_name_zookeeper
     hostname: zookeeper
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     user: root
@@ -139,7 +139,7 @@ services:
     image: clickhouse/clickhouse-server:22.8.8-alpine
     container_name: snake_app_name_clickhouse
     hostname: clickhouse
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     tty: true
@@ -179,7 +179,7 @@ services:
     image: signoz/alertmanager:0.23.1
     container_name: snake_app_name_monitoring_alertmanager
     hostname: alertmanager
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     # volumes:
@@ -195,10 +195,10 @@ services:
 
 
   query-service:
-    image: signoz/query-service:0.22.0
+    image: signoz/query-service:0.23.0
     container_name: snake_app_name_monitoring_query_service
     hostname: query-service
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     command: ["-config=/root/config/prometheus.yml"]
@@ -231,10 +231,10 @@ services:
 
 
   frontend:
-    image: signoz/frontend:0.22.0
+    image: signoz/frontend:0.23.0
     container_name: snake_app_name_monitoring_frontend
     hostname: frontend
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     depends_on:
@@ -252,7 +252,7 @@ services:
     image: signoz/signoz-otel-collector:0.79.2
     container_name: snake_app_name_monitoring_otel_collector
     hostname: otel-collector
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     command: ["--config=/etc/otel-collector-config.yaml", "--feature-gates=-pkg.translator.prometheus.NormalizeName"]
@@ -287,7 +287,7 @@ services:
     image: signoz/signoz-otel-collector:0.79.2
     container_name: snake_app_name_monitoring_otel_collector_metrics
     hostname: otel_collector_metrics
-    restart: on-failure
+    restart: unless-stopped
     profiles:
     - monitoring
     command: ["--config=/etc/otel-collector-metrics-config.yaml", "--feature-gates=-pkg.translator.prometheus.NormalizeName"]

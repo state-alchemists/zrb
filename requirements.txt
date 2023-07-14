@@ -39,6 +39,6 @@ httpx==0.24.0
 asgi-lifespan==2.1.0
 python-ulid==1.1.0
 locust==2.15.1
-opentelemetry-distro==0.39b0
-opentelemetry-exporter-otlp==1.18.0
-opentelemetry-instrumentation-fastapi==0.39b0
+opentelemetry-distro==0.40b0
+opentelemetry-exporter-otlp==1.19.0
+opentelemetry-instrumentation-fastapi==0.40b0
