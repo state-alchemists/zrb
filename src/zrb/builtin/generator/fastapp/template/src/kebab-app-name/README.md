@@ -44,7 +44,7 @@ zrb project start-kebab-app-name-container --kebab-app-name-run-mode microservic
 
 # Accessing the web interface
 
-Once you start the application, you can visit [`http://localhost:httpPort`](http://localhost:httpPort) in your browser. By default, the application will run on port httpPort, but you can change the port by providing `ENV_PREFIX_APP_PORT`.
+Once you start the application, you can visit [`http://localhost:appHttpPort`](http://localhost:appHttpPort) in your browser. By default, the application will run on port appHttpPort, but you can change the port by providing `ENV_PREFIX_APP_PORT`.
 
 To log in as admin, you can use the following credential:
 
@@ -53,7 +53,7 @@ To log in as admin, you can use the following credential:
 
 You can change the default username and password by providing `ENV_PREFIX_APP_AUTH_ADMIN_USERNAME` and `ENV_PREFIX_APP_AUTH_ADMIN_PASSWORD`.
 
-Furthermore, you can also visit `http://localhost:httpPort/docs` to access the API specification.
+Furthermore, you can also visit `http://localhost:appHttpPort/docs` to access the API specification.
 
 # Deploying to Kubernetes
 
@@ -86,7 +86,7 @@ Auth related config
 - `ENV_PREFIX_ADMIN_PASSWORD`: Admin password
     - default value: `toor`
 - `ENV_PREFIX_APP_PORT`: Application port
-    - default value: `httpPort`
+    - default value: `appHttpPort`
 
 Messaging config:
 

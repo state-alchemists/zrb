@@ -44,7 +44,7 @@ spawn_rate_input = IntInput(
 
 url_input = StrInput(
     name='kebab-app-name-load-test-url',
-    default='http://localhost:httpPort',
+    default='http://localhost:appHttpPort',
     description='Load test url',
     prompt='Load test url',
 )

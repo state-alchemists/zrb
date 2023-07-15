@@ -3,7 +3,8 @@ from zrb.builtin._group import project_group
 from .image import push_snake_app_name_image
 from ._common import (
     CURRENT_DIR, DEPLOYMENT_DIR, APP_TEMPLATE_ENV_FILE_NAME,
-    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME, MODULES
+    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME, MODULES,
+    enable_monitoring_input
 )
 from .image import image_input, image_env
 import os
@@ -70,6 +71,12 @@ deployment_mode_env = Env(
     default='{{input.snake_app_name_deploy_mode}}'
 )
 
+deployment_enable_monitoring_env = Env(
+    name='ENABLE_MONITORING',
+    os_name='DEPLOYMENT_CONFIG_ENV_PREFIX_ENABLE_MONITORING',
+    default='{{ 1 if input.enable_snake_app_name_monitoring else 0 }}'
+)
+
 ###############################################################################
 # Task Definitions
 ###############################################################################
@@ -83,6 +90,7 @@ deploy_snake_app_name = CmdTask(
         image_input,
         pulumi_stack_input,
         deploy_mode_input,
+        enable_monitoring_input,
     ],
     upstreams=[push_snake_app_name_image],
     cwd=DEPLOYMENT_DIR,
@@ -96,6 +104,7 @@ deploy_snake_app_name = CmdTask(
         image_env,
         deployment_modules_env,
         deployment_mode_env,
+        deployment_enable_monitoring_env,
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'pulumi-up.sh'),
 )

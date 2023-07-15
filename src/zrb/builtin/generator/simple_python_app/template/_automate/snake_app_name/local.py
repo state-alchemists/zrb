@@ -33,7 +33,7 @@ start_snake_app_name = CmdTask(
         Env(
             name='APP_PORT',
             os_name='ENV_PREFIX_APP_PORT',
-            default='httpPort'
+            default='appHttpPort'
         )
     ],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),

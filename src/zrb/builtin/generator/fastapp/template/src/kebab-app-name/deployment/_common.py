@@ -10,6 +10,10 @@ CURRENT_DIR: str = os.path.dirname(__file__)
 MODE: str = os.getenv('MODE', 'monolith')
 NAMESPACE: str = os.getenv('NAMESPACE', 'default')
 
+ENABLE_MONITORING: bool = os.getenv('ENABLE_MONITORING', '0') in [
+    '1', 'true', 'True', 'Yes', 'yes', 'Y', 'y'
+]
+
 MODULE_JSON_STR: str = os.getenv('MODULES', '[]')
 MODULES: List[str] = jsons.loads(MODULE_JSON_STR)
 
@@ -27,15 +31,31 @@ if BROKER_TYPE == '':
 RABBITMQ_AUTH_USERNAME: str = os.getenv('RABBITMQ_AUTH_USERNAME', 'root')
 RABBITMQ_AUTH_PASSWORD: str = os.getenv('RABBITMQ_AUTH_PASSWORD', 'toor')
 
-REDPANDA_AUTH_SASL_ENABLED: bool = os.getenv('REDPANDA_AUTH_SASL_ENABLED', 'true').lower() == 'true'  # noqa
-REDPANDA_AUTH_MECHANISM: str = os.getenv('REDPANDA_AUTH_MECHANISM', 'SCRAM-SHA-512')  # noqa
-REDPANDA_AUTH_USER_NAME: str = os.getenv('REDPANDA_AUTH_USER_NAME')
-REDPANDA_AUTH_USER_PASSWORD: str = os.getenv('REDPANDA_AUTH_USER_PASSWORD')
+REDPANDA_AUTH_SASL_ENABLED: bool = os.getenv(
+    'REDPANDA_AUTH_SASL_ENABLED', 'true'
+).lower() == 'true'
+REDPANDA_AUTH_MECHANISM: str = os.getenv(
+    'REDPANDA_AUTH_MECHANISM', 'SCRAM-SHA-512'
+)
+REDPANDA_AUTH_USER_NAME: str = os.getenv('REDPANDA_AUTH_USER_NAME', 'root')
+REDPANDA_AUTH_USER_PASSWORD: str = os.getenv(
+    'REDPANDA_AUTH_USER_PASSWORD', 'toor'
+)
 
-POSTGRESQL_AUTH_POSTGRES_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_POSTGRES_PASSWORD')  # noqa
-POSTGRESQL_AUTH_USERNAME: str = os.getenv('POSTGRESQL_AUTH_USERNAME')
-POSTGRESQL_AUTH_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_PASSWORD')
-POSTGRESQL_DB: str = os.getenv('POSTGRESQL_DB')
+POSTGRESQL_AUTH_POSTGRES_PASSWORD: str = os.getenv(
+    'POSTGRESQL_AUTH_POSTGRES_PASSWORD'
+)
+POSTGRESQL_AUTH_USERNAME: str = os.getenv('POSTGRESQL_AUTH_USERNAME', 'root')
+POSTGRESQL_AUTH_PASSWORD: str = os.getenv('POSTGRESQL_AUTH_PASSWORD', 'toor')
+POSTGRESQL_DB: str = os.getenv('POSTGRESQL_DB', 'snake_app_name')
+
+SIGNOZ_CLICKHOUSE_NAMESPACE: str = os.getenv(
+    'SIGNOZ_CLICKHOUSE_NAMESPACE', NAMESPACE
+)
+SIGNOZ_CLICKHOUSE_USER: str = os.getenv('SIGNOZ_CLICKHOUSE_USER', 'root')
+SIGNOZ_CLICKHOUSE_PASSWORD: str = os.getenv(
+    'SIGNOZ_CLICKHOUSE_PASSWORD', 'toor'
+)
 
 
 def get_app_monolith_env_map(
@@ -55,6 +75,8 @@ def get_app_monolith_env_map(
     env_map['APP_ENABLE_RPC_SERVER'] = 'true'
     env_map['APP_ENABLE_FRONTEND'] = 'true'
     env_map['APP_ENABLE_API'] = 'true'
+    env_map['APP_ENABLE_OTEL'] = 'true' if ENABLE_MONITORING else 'false'
+    env_map['APP_OTEL_EXPORTER_OTLP_ENDPOINT'] = 'http://signoz-otel-collector:4317'  # noqa
     return env_map
 
 

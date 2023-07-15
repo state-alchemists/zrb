@@ -1,6 +1,6 @@
 '''A Kubernetes Python Pulumi program to deploy kebab-app-name'''
 
-from _common import MODE, BROKER_TYPE
+from _common import MODE, BROKER_TYPE, ENABLE_MONITORING
 from app_helper import (
     create_app_monolith_deployment, create_app_monolith_service,
     create_app_microservices_deployments, create_app_microservices_services
@@ -8,6 +8,7 @@ from app_helper import (
 from helm_postgresql_helper import create_postgresql
 from helm_rabbitmq_helper import create_rabbitmq
 from helm_redpanda_helper import create_redpanda
+from helm_signoz_helper import create_signoz
 
 import pulumi
 
@@ -21,6 +22,9 @@ elif BROKER_TYPE == 'kafka':
     redpanda = create_redpanda()
     pulumi.export('broker', redpanda.resources)
 
+if ENABLE_MONITORING:
+    signoz = create_signoz()
+    pulumi.export('signoz', signoz.resources)
 
 if MODE == 'microservices':
     deployments = create_app_microservices_deployments()

@@ -19,4 +19,4 @@ sources:
 - https://github.com/signoz/charts/
 - https://github.com/ClickHouse/ClickHouse
 type: application
-version: 23.12.1
+version: 23.12.2

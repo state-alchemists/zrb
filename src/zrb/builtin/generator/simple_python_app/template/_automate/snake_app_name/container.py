@@ -17,7 +17,7 @@ import os
 host_port_env = Env(
     name='HOST_PORT',
     os_name='CONTAINER_ENV_PREFIX_HOST_PORT',
-    default='httpPort'
+    default='appHttpPort'
 )
 
 ###############################################################################

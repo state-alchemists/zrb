@@ -30,7 +30,7 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
             cwd=APP_DIR,
             env_files=[_get_service_env_file(module_name)],
             envs=disable_all_module_envs + _get_service_envs(
-                httpPort, module_index, module_name
+                appHttpPort, module_index, module_name
             ),
             cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
             checkers=[

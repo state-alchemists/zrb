@@ -89,7 +89,7 @@ app_container_checker = HTTPChecker(
     name='check-kebab-app-name-container',
     host='{{input.snake_app_name_host}}',
     url='/readiness',
-    port='{{env.get("HOST_PORT", "httpPort")}}',
+    port='{{env.get("HOST_PORT", "appHttpPort")}}',
     is_https='{{input.snake_app_name_https}}'
 )
 
@@ -149,7 +149,7 @@ host_input = StrInput(
 local_app_port_env = Env(
     name='APP_PORT',
     os_name='ENV_PREFIX_APP_PORT',
-    default='httpPort'
+    default='appHttpPort'
 )
 
 local_app_broker_type_env = Env(

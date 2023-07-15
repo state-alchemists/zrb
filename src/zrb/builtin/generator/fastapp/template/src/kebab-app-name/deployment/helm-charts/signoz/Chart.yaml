@@ -1,14 +1,14 @@
 apiVersion: v2
-appVersion: 0.22.0
+appVersion: 0.23.0
 dependencies:
 - condition: clickhouse.enabled
   name: clickhouse
   repository: https://signoz.github.io/charts
-  version: 23.12.1
+  version: 23.12.2
 - condition: k8s-infra.enabled
   name: k8s-infra
   repository: https://signoz.github.io/charts
-  version: 0.9.1
+  version: 0.9.2
 - condition: cert-manager.enabled
   name: cert-manager
   repository: https://charts.jetstack.io
@@ -49,4 +49,4 @@ sources:
 - https://github.com/signoz/alertmanager
 - https://github.com/signoz/signoz-otel-collector
 type: application
-version: 0.18.1
+version: 0.19.0

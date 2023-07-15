@@ -58,7 +58,7 @@ copy_resource = ResourceMaker(
     upstreams=[validate],
     replacements={
         'appName': '{{input.app_name}}',
-        'httpPort': '{{util.coalesce(input.http_port, "3001")}}',
+        'appHttpPort': '{{util.coalesce(input.http_port, "3001")}}',
         'ENV_PREFIX': '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         'app-image-name': '{{input.app_image_name}}',
         'httpAuthPort': '{{util.coalesce(input.http_port, "3001") + 1}}',
