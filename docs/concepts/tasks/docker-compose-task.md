@@ -90,12 +90,16 @@ runner.register(start_container)
 
 ## `compose_file`
 
-Your docker-compose file path. If not set, Zrb will try to find the following files in your `cwd`:
+Your docker-compose file path.
+
+If not set, Zrb will try to find the following files in your `cwd`:
 
 - `compose.yml`
 - `compose.yaml`
 - `docker-compose.yml`
 - `docker-compose.yaml`
+
+Zrb will throws error if no `compose_file` found.
 
 - __Required:__ False
 - __Possible values:__ String representing the docker compose file or `None`.
