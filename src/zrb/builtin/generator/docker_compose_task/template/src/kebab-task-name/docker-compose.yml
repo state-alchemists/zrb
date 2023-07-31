@@ -5,9 +5,9 @@ networks:
 services:
   myapp:
     build: image
-    image: kebab-task-name
-    container_name: snake_task_name
-    hostname: snake_task_name
+    image: ${IMAGE:-kebab-task-name}
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-task-name
+    hostname: kebab-task-name
     environment:
       APP_MESSAGE: '${MESSAGE:-Hello, world!}'
       APP_PORT: '${CONTAINER_PORT:-8080}'

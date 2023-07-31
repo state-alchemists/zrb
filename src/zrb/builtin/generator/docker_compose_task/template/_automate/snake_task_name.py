@@ -1,4 +1,4 @@
-from zrb import DockerComposeTask, HTTPChecker, Env, runner
+from zrb import DockerComposeTask, HTTPChecker, Env, EnvFile, runner
 from zrb.builtin._group import project_group
 import os
 
@@ -21,17 +21,13 @@ snake_task_name = DockerComposeTask(
     cwd=RESOURCE_DIR,
     compose_cmd='composeCommand',
     compose_env_prefix='ENV_PREFIX',
+    env_files=[
+        EnvFile(
+            env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
+            prefix='ENV_PREFIX'
+        )
+    ],
     envs=[
-        Env(
-            name='MESSAGE',
-            os_name='ENV_PREFIX_MESSAGE',
-            default='Salve Mane'
-        ),
-        Env(
-            name='CONTAINER_PORT',
-            os_name='ENV_PREFIX_CONTAINER_PORT',
-            default='3000'
-        ),
         Env(
             name='HOST_PORT',
             os_name='ENV_PREFIX_HOST_PORT',

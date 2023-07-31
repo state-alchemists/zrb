@@ -10,7 +10,7 @@ services:
 
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
-    container_name: snake_app_name_redpanda
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_redpanda
     hostname: redpanda
     # Redpanda docker configuration: https://docs.redpanda.com/docs/reference/docker-compose/#configure-redpanda-in-docker
     # Redpanda node configuration example: https://docs.redpanda.com/docs/reference/node-configuration-sample/
@@ -53,7 +53,7 @@ services:
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:v2.2.2
-    container_name: snake_app_name_redpanda_console
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_redpanda_console
     hostname: redpanda-console
     ports:
     - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
@@ -70,7 +70,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: snake_app_name_rabbitmq
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_rabbitmq
     hostname: rabbitmq
     ports:
     - "${RABBITMQ_HOST_PORT:-5672}:5672"
@@ -95,7 +95,7 @@ services:
 
   postgresql:
     image: postgres:15.2
-    container_name: snake_app_name_postgresql
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_postgresql
     hostname: postgresql
     restart: unless-stopped
     environment:
@@ -117,7 +117,7 @@ services:
 
   zookeeper:
     image: bitnami/zookeeper:3.7.1
-    container_name: snake_app_name_zookeeper
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_zookeeper
     hostname: zookeeper
     restart: unless-stopped
     profiles:
@@ -137,7 +137,7 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:22.8.8-alpine
-    container_name: snake_app_name_clickhouse
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_clickhouse
     hostname: clickhouse
     restart: unless-stopped
     profiles:
@@ -177,7 +177,7 @@ services:
 
   alertmanager:
     image: signoz/alertmanager:0.23.1
-    container_name: snake_app_name_monitoring_alertmanager
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_alertmanager
     hostname: alertmanager
     restart: unless-stopped
     profiles:
@@ -196,15 +196,15 @@ services:
 
   query-service:
     image: signoz/query-service:0.23.0
-    container_name: snake_app_name_monitoring_query_service
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_query_service
     hostname: query-service
     restart: unless-stopped
     profiles:
     - monitoring
     command: ["-config=/root/config/prometheus.yml"]
-    # ports:
-    #   - "6060:6060"     # pprof port
-    #   - "8080:8080"     # query-service port
+    ports:
+      - "0:6060"     # pprof port
+      - "0:8080"     # query-service port
     volumes:
     - ./monitoring/query-service/prometheus.yml:/root/config/prometheus.yml
     - ./monitoring/query-service/dashboards:/root/config/dashboards
@@ -232,7 +232,7 @@ services:
 
   frontend:
     image: signoz/frontend:0.23.0
-    container_name: snake_app_name_monitoring_frontend
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_frontend
     hostname: frontend
     restart: unless-stopped
     profiles:
@@ -250,7 +250,7 @@ services:
 
   otel-collector:
     image: signoz/signoz-otel-collector:0.79.2
-    container_name: snake_app_name_monitoring_otel_collector
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_otel_collector
     hostname: otel-collector
     restart: unless-stopped
     profiles:
@@ -265,17 +265,17 @@ services:
     - DOCKER_MULTI_NODE_CLUSTER=false
     - LOW_CARDINAL_EXCEPTION_GROUPING=false
     ports:
-    # - "1777:1777"     # pprof extension
+    - "1777:1777"     # pprof extension
     - "${OTEL_COLLECTOR_GRPC_HOST_PORT:-4317}:4317"     # OTLP gRPC receiver
     - "${OTEL_COLLECTOR_HTTP_HOST_PORT:-4318}:4318"     # OTLP HTTP receiver
-    # - "8888:8888"     # OtelCollector internal metrics
-    # - "8889:8889"     # signoz spanmetrics exposed by the agent
-    # - "9411:9411"     # Zipkin port
-    # - "13133:13133"   # health check extension
-    # - "14250:14250"   # Jaeger gRPC
-    # - "14268:14268"   # Jaeger thrift HTTP
-    # - "55678:55678"   # OpenCensus receiver
-    # - "55679:55679"   # zPages extension
+    - "0:8888"     # OtelCollector internal metrics
+    - "0:8889"     # signoz spanmetrics exposed by the agent
+    - "0:9411"     # Zipkin port
+    - "0:13133"   # health check extension
+    - "0:14250"   # Jaeger gRPC
+    - "0:14268"   # Jaeger thrift HTTP
+    - "0:55678"   # OpenCensus receiver
+    - "0:55679"   # zPages extension
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -285,19 +285,19 @@ services:
 
   otel-collector-metrics:
     image: signoz/signoz-otel-collector:0.79.2
-    container_name: snake_app_name_monitoring_otel_collector_metrics
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_otel_collector_metrics
     hostname: otel_collector_metrics
     restart: unless-stopped
     profiles:
     - monitoring
     command: ["--config=/etc/otel-collector-metrics-config.yaml", "--feature-gates=-pkg.translator.prometheus.NormalizeName"]
     volumes:
-      - ./monitoring/otel-collector-metrics/otel-collector-metrics-config.yaml:/etc/otel-collector-metrics-config.yaml
-    # ports:
-    #   - "1777:1777"     # pprof extension
-    #   - "8888:8888"     # OtelCollector internal metrics
-    #   - "13133:13133"   # Health check extension
-    #   - "55679:55679"   # zPages extension
+    - ./monitoring/otel-collector-metrics/otel-collector-metrics-config.yaml:/etc/otel-collector-metrics-config.yaml
+    ports:
+    - "0:1777"     # pprof extension
+    - "0:8888"     # OtelCollector internal metrics
+    - "0:13133"   # Health check extension
+    - "0:55679"   # zPages extension
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -314,8 +314,8 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-app-name}
-    container_name: snake_app_name
-    hostname: snake_app_name
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name
+    hostname: kebab-app-name
     env_file:
     - 'src/template.env'
     environment:
@@ -347,8 +347,8 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-app-name}
-    container_name: snake_app_name_gateway
-    hostname: snake_app_name_gateway
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_gateway
+    hostname: kebab-app-name_gateway
     env_file:
     - 'src/template.env'
     - 'all-module-enabled.env'
@@ -381,9 +381,9 @@ services:
     build:
       dockerfile: Dockerfile
       context: ./src
-    image: ${IMAGE:-fastapp}
-    container_name: snake_app_name_auth
-    hostname: snake_app_name_auth
+    image: ${IMAGE:-kebab-app-name}
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_auth
+    hostname: kebab-app-name_auth
     env_file:
     - src/template.env
     - all-module-disabled.env
@@ -418,9 +418,9 @@ services:
     build:
       dockerfile: Dockerfile
       context: ./src
-    image: ${IMAGE:-fastapp}
-    container_name: snake_app_name_log
-    hostname: snake_app_name_log
+    image: ${IMAGE:-kebab-app-name}
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_log
+    hostname: kebab-app-name_log
     env_file:
     - src/template.env
     - all-module-disabled.env
