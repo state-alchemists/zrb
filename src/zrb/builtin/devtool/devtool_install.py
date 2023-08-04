@@ -219,6 +219,7 @@ install_pulumi = FlowTask(
     name='pulumi',
     group=dev_tool_install_group,
     description='Universal infrastructure as code',
+    inputs=[terminal_config_file_input],
     nodes=[
         FlowNode(
             name='install-pulumi',
