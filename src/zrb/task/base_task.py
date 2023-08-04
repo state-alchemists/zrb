@@ -99,6 +99,12 @@ class BaseTask(
         self._allow_add_upstream = False
         self._all_inputs: List[BaseInput] = []
         existing_input_names: Mapping[str, bool] = {}
+        # Add task inputs
+        for task_input in self._inputs:
+            if task_input.name in existing_input_names:
+                continue
+            self._all_inputs.append(task_input)
+            existing_input_names[task_input.name] = True
         # Add upstream inputs
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
@@ -107,12 +113,6 @@ class BaseTask(
                     continue
                 self._all_inputs.append(upstream_input)
                 existing_input_names[upstream_input.name] = True
-        # Add task inputs
-        for task_input in self._inputs:
-            if task_input.name in existing_input_names:
-                continue
-            self._all_inputs.append(task_input)
-            existing_input_names[task_input.name] = True
         return self._all_inputs
 
     def to_function(

@@ -11,6 +11,15 @@ from .image import (
 import os
 
 ###############################################################################
+# Env File Definitions
+###############################################################################
+
+compose_env_file = EnvFile(
+    env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
+    prefix='CONTAINER_ENV_PREFIX'
+)
+
+###############################################################################
 # Env Definitions
 ###############################################################################
 
@@ -48,6 +57,7 @@ remove_snake_app_name_container = DockerComposeTask(
     compose_service_configs={
         'snake_app_name': snake_app_name_service_config
     },
+    env_files=[compose_env_file],
     envs=[
         image_env,
         host_port_env,
@@ -66,6 +76,7 @@ stop_snake_app_name_container = DockerComposeTask(
     compose_service_configs={
         'snake_app_name': snake_app_name_service_config
     },
+    env_files=[compose_env_file],
     envs=[
         image_env,
         host_port_env,
@@ -93,6 +104,7 @@ init_snake_app_name_container = DockerComposeTask(
     compose_service_configs={
         'snake_app_name': snake_app_name_service_config
     },
+    env_files=[compose_env_file],
     envs=[
         image_env,
         host_port_env,
@@ -119,6 +131,7 @@ start_snake_app_name_container = DockerComposeTask(
     compose_service_configs={
         'snake_app_name': snake_app_name_service_config
     },
+    env_files=[compose_env_file],
     envs=[
         image_env,
         host_port_env,
