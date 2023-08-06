@@ -10,7 +10,7 @@ import sys
 
 
 def create_cli() -> click.Group:
-    cli = click.Group(name='zrb', help='Your faithful companion.')
+    cli = click.Group(name='zrb', help='Super framework for your super app.')
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:
         logger.info(colored(

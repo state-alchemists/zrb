@@ -41,7 +41,7 @@ zrb
 ```
 Usage: zrb [OPTIONS] COMMAND [ARGS]...
 
-  Your faithful companion.
+  Super framework for your super app.
 
 Options:
   --help  Show this message and exit.
