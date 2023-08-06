@@ -20,7 +20,7 @@ terminal_config_file_input = StrInput(
     name='config-file',
     shortcut='c',
     prompt='Config file',
-    default='~/zshrc' if current_shell == 'zsh' else '~/.bashrc'
+    default='~/.zshrc' if current_shell == 'zsh' else '~/.bashrc'
 )
 
 ###############################################################################

@@ -1,4 +1,4 @@
-# 🤖 Zrb: Your Faithful Companion
+# 🤖 Zrb: Super framework for your super app
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
 
