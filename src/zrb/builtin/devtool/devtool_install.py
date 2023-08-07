@@ -20,7 +20,7 @@ terminal_config_file_input = StrInput(
     name='config-file',
     shortcut='c',
     prompt='Config file',
-    default='~/zshrc' if current_shell == 'zsh' else '~/.bashrc'
+    default='~/.zshrc' if current_shell == 'zsh' else '~/.bashrc'
 )
 
 ###############################################################################
@@ -219,6 +219,7 @@ install_pulumi = FlowTask(
     name='pulumi',
     group=dev_tool_install_group,
     description='Universal infrastructure as code',
+    inputs=[terminal_config_file_input],
     nodes=[
         FlowNode(
             name='install-pulumi',

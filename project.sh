@@ -3,7 +3,7 @@
 export PROJECT_DIR=$(pwd)
 echo "🤖 Set project directory to ${PROJECT_DIR}"
 
-if [ ! -d .venv ]
+if [ ! -d "${PROJECT_DIR}/.venv" ]
 then
     echo '🤖 Create virtual environment'
     python -m venv "${PROJECT_DIR}/.venv"
