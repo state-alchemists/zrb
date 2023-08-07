@@ -35,11 +35,8 @@ To publish Zrb, you can do the following:
 
 ```bash
 source ./project.sh
+docker login -U stalchmst
 
-# Publish Zrb to TestPypi
-zrb publish-test
-
-# Publish Zrb to Pypi
 zrb publish
 ```
 
