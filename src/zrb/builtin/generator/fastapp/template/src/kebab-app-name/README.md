@@ -115,7 +115,7 @@ Feature flags:
 
 There are CLI commands to help you add modules, entities, and fields into PascalAppName.
 
-For simple CRUD, you won't need to code at all. Please see [Zrb tutorial](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/development-to-deployment-no-code.md) for more details.
+For simple CRUD, you won't need to code at all. Please see [Zrb tutorial](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/development-to-deployment-low-code.md) for more details.
 
 
 # Prerequisites

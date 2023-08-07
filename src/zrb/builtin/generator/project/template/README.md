@@ -51,7 +51,7 @@ zrb project start-<app-name>
 
 You will be able to find the application under PascalProjectName's `src` directory.
 
-Zrb also allows you to create CRUD entities on your application. Please visit [Zrb's development-to-deployment tutorial](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/development-to-deployment-no-code.md) to learn more.
+Zrb also allows you to create CRUD entities on your application. Please visit [Zrb's development-to-deployment tutorial](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/development-to-deployment-low-code.md) to learn more.
 
 # Configuration
 
