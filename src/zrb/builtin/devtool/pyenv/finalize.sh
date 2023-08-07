@@ -1,6 +1,6 @@
-set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
+set -e
 if [ ! -d "${HOME}/.pyenv/versions/{{ input.python_default_version }}" ]
 then
     echo "Install Python {{ input.python_default_version }}"

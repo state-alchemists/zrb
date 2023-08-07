@@ -1,6 +1,6 @@
-set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
+set -e
 if [ ! -d "${HOME}/.nvm/versions/{{ input.node_default_version }}" ]
 then
     echo "Install {{ input.node_default_version }}"

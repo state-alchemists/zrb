@@ -1,6 +1,6 @@
-set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
+set -e
 if [ ! -d "${HOME}/.gvm/gos/{{ input.go_default_version }}" ]
 then
     echo "Install {{ input.go_default_version }}"

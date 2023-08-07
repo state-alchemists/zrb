@@ -1,6 +1,6 @@
-set -e
 source {{ os.path.expandvars(os.path.expanduser(input.config_file)) }}
 
+set -e
 {% if input.install_java %}
 echo "Install Java"
 sdk install java
