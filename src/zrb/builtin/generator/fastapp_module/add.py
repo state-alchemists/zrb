@@ -202,18 +202,15 @@ def _get_new_docker_compose_service_definition(
                 'context': './src'
             },
             'image': '${IMAGE:-' + kebab_app_name + '}',
-            'container_name': f'{snake_app_name}_{snake_module_name}_service',
-            'hostname': f'{snake_app_name}_{snake_module_name}',
+            'container_name': f'{kebab_app_name}-{kebab_module_name}-service',
+            'hostname': f'{kebab_app_name}-{kebab_module_name}-service',
             'env_file': [
                 'src/template.env',
                 'all-module-disabled.env'
             ],
             'environment': {
                 'APP_NAME': '${APP_NAME:-' + kebab_app_name + '}-' + f'{kebab_module_name}-service', # noqa
-                'APP_PORT': app_container_port_env,  # noqa
-                'APP_RMQ_CONNECTION': '${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}', # noqa
-                'APP_KAFKA_BOOTSTRAP_SERVERS': '${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}', # noqa
-                'APP_DB_CONNECTION': '${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/' + snake_app_name + '}', # noqa
+                'APP_PORT': app_container_port_env,
                 'APP_ENABLE_EVENT_HANDLER': 'true',
                 'APP_ENABLE_RPC_SERVER': 'true',
                 'APP_ENABLE_API': 'false',
@@ -229,8 +226,8 @@ def _get_new_docker_compose_service_definition(
             ],
             'healthcheck': {
                 'test': [
-                    "CMD-SHELL",
-                    "curl --fail http://localhost:${APP_PORT:-8080}/readiness || exit 1" # noqa
+                    'CMD-SHELL',
+                    'curl --fail http://localhost:' + app_container_port_env + '/readiness || exit 1' # noqa
                 ],
                 'interval': '5s',
                 'timeout': '3s',

@@ -146,18 +146,6 @@ host_input = StrInput(
 # Env fDefinitions
 ###############################################################################
 
-local_app_port_env = Env(
-    name='APP_PORT',
-    os_name='ENV_PREFIX_APP_PORT',
-    default='appHttpPort'
-)
-
-local_app_broker_type_env = Env(
-    name='APP_BROKER_TYPE',
-    os_name='ENV_PREFIX_APP_BROKER_TYPE',
-    default='rabbitmq'
-)
-
 app_enable_otel_env = Env(
     name='APP_ENABLE_OTEL',
     default='{{ "1" if input.enable_snake_app_name_monitoring else "0" }}'
