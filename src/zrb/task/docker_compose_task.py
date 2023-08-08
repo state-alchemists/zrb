@@ -117,10 +117,11 @@ class DockerComposeTask(CmdTask):
     def _generate_compose_runtime_file(self):
         compose_data = read_compose_file(self._compose_template_file)
         for service, service_config in self._compose_service_configs.items():
-            envs = service_config.get_envs()
+            envs: List[Env] = []
             env_files = service_config.get_env_files()
             for env_file in env_files:
                 envs += env_file.get_envs()
+            envs += service_config.get_envs()
             compose_data = self._add_service_env(compose_data, service, envs)
         write_compose_file(self._compose_runtime_file, compose_data)
 

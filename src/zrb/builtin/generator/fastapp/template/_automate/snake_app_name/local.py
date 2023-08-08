@@ -1,18 +1,17 @@
-from typing import Any
+from typing import Any, List
 from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
 from zrb.builtin._group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
-    skip_local_microservices_execution,
-    rabbitmq_checker, rabbitmq_management_checker, redpanda_console_checker,
+    skip_local_microservices_execution, rabbitmq_checker,
+    rabbitmq_management_checker, redpanda_console_checker,
     kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
-    pandaproxy_plaintext_checker, app_local_checker, local_input,
-    run_mode_input, enable_monitoring_input, host_input, https_input,
-    local_app_port_env, local_app_broker_type_env, app_enable_otel_env
+    pandaproxy_plaintext_checker, app_local_checker, local_input, https_input,
+    run_mode_input, enable_monitoring_input, host_input, app_enable_otel_env
 )
 from .image import image_input
 from .frontend import build_snake_app_name_frontend
-from .container import remove_snake_app_name_container
+from .container import remove_snake_app_name_container, compose_env_file
 from .local_microservices import get_start_microservices
 import os
 
@@ -24,9 +23,10 @@ import os
 def setup_support_compose_profile(*args: Any, **kwargs: Any) -> str:
     task: Task = kwargs.get('_task')
     env_map = task.get_env_map()
-    compose_profiles = [
-        env_map.get('APP_PBROKER_TYPE', 'rabbitmq'),
-    ]
+    compose_profiles: List[str] = []
+    broker_type = env_map.get('APP_BROKER_TYPE', 'rabbitmq')
+    if broker_type in ['rabbitmq', 'kafka']:
+        compose_profiles.append(broker_type)
     if kwargs.get('enable_snake_app_name_monitoring', False):
         compose_profiles.append('monitoring')
     compose_profile_str = ','.join(compose_profiles)
@@ -34,12 +34,7 @@ def setup_support_compose_profile(*args: Any, **kwargs: Any) -> str:
 
 
 def skip_support_container_execution(*args: Any, **kwargs: Any) -> bool:
-    if not kwargs.get('local_snake_app_name', True):
-        return True
-    task: Task = kwargs.get('_task')
-    env_map = task.get_env_map()
-    broker_type = env_map.get('APP_BROKER_TYPE', 'rabbitmq')
-    return broker_type not in ['rabbitmq', 'kafka']
+    return not kwargs.get('local_snake_app_name', True)
 
 
 def skip_local_monolith_execution(*args: Any, **kwargs: Any) -> bool:
@@ -77,10 +72,7 @@ init_snake_app_name_support_container = DockerComposeTask(
     compose_cmd='up',
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
-    envs=[
-        local_app_broker_type_env,
-        local_app_port_env,
-    ],
+    env_files=[compose_env_file]
 )
 
 start_snake_app_name_support_container = DockerComposeTask(
@@ -101,10 +93,7 @@ start_snake_app_name_support_container = DockerComposeTask(
     compose_cmd='logs',
     compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ENV_PREFIX',
-    envs=[
-        local_app_broker_type_env,
-        local_app_port_env,
-    ],
+    env_files=[compose_env_file],
     checkers=[
         rabbitmq_checker,
         rabbitmq_management_checker,
@@ -144,11 +133,7 @@ start_monolith_snake_app_name = CmdTask(
     ],
     cwd=APP_DIR,
     env_files=[app_env_file],
-    envs=[
-        local_app_broker_type_env,
-        local_app_port_env,
-        app_enable_otel_env,
-    ],
+    envs=[app_enable_otel_env],
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
     checkers=[
         app_local_checker,
@@ -176,8 +161,6 @@ start_snake_app_name_gateway = CmdTask(
         app_env_file,
     ],
     envs=[
-        local_app_broker_type_env,
-        local_app_port_env,
         Env(name='APP_DB_AUTO_MIGRATE', default='false', os_name=''),
         Env(name='APP_ENABLE_EVENT_HANDLER', default='false', os_name=''),
         Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),

@@ -2,7 +2,7 @@ from zrb import CmdTask, Env, EnvFile, PathChecker, runner
 from zrb.builtin._group import project_group
 from ._common import (
     APP_FRONTEND_DIR, APP_FRONTEND_BUILD_DIR, CURRENT_DIR,
-    APP_TEMPLATE_ENV_FILE_NAME, local_app_port_env
+    APP_TEMPLATE_ENV_FILE_NAME
 )
 import os
 
@@ -29,7 +29,6 @@ build_snake_app_name_frontend = CmdTask(
         ),
     ],
     envs=[
-        local_app_port_env,
         Env(name='WATCH', os_name='', default='1')
     ]
 )
@@ -53,7 +52,6 @@ build_snake_app_name_frontend_once = CmdTask(
         ),
     ],
     envs=[
-        local_app_port_env,
         Env(name='WATCH', os_name='', default='0')
     ]
 )

@@ -10,7 +10,7 @@ services:
 
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_redpanda
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-redpanda
     hostname: redpanda
     # Redpanda docker configuration: https://docs.redpanda.com/docs/reference/docker-compose/#configure-redpanda-in-docker
     # Redpanda node configuration example: https://docs.redpanda.com/docs/reference/node-configuration-sample/
@@ -53,7 +53,7 @@ services:
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:v2.2.2
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_redpanda_console
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-redpanda-console
     hostname: redpanda-console
     ports:
     - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
@@ -70,7 +70,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_rabbitmq
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-rabbitmq
     hostname: rabbitmq
     ports:
     - "${RABBITMQ_HOST_PORT:-5672}:5672"
@@ -95,7 +95,7 @@ services:
 
   postgresql:
     image: postgres:15.2
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_postgresql
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-postgresql
     hostname: postgresql
     restart: unless-stopped
     environment:
@@ -117,7 +117,7 @@ services:
 
   zookeeper:
     image: bitnami/zookeeper:3.7.1
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_zookeeper
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-zookeeper
     hostname: zookeeper
     restart: unless-stopped
     profiles:
@@ -137,7 +137,7 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:22.8.8-alpine
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_clickhouse
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-clickhouse
     hostname: clickhouse
     restart: unless-stopped
     profiles:
@@ -177,7 +177,7 @@ services:
 
   alertmanager:
     image: signoz/alertmanager:0.23.1
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_alertmanager
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-monitoring-alertmanager
     hostname: alertmanager
     restart: unless-stopped
     profiles:
@@ -196,7 +196,7 @@ services:
 
   query-service:
     image: signoz/query-service:0.23.0
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_query_service
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-monitoring-query-service
     hostname: query-service
     restart: unless-stopped
     profiles:
@@ -232,7 +232,7 @@ services:
 
   frontend:
     image: signoz/frontend:0.23.0
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_frontend
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-monitoring-frontend
     hostname: frontend
     restart: unless-stopped
     profiles:
@@ -250,7 +250,7 @@ services:
 
   otel-collector:
     image: signoz/signoz-otel-collector:0.79.2
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_otel_collector
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-monitoring-otel-collector
     hostname: otel-collector
     restart: unless-stopped
     profiles:
@@ -285,7 +285,7 @@ services:
 
   otel-collector-metrics:
     image: signoz/signoz-otel-collector:0.79.2
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_monitoring_otel_collector_metrics
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-monitoring-otel-collector-metrics
     hostname: otel_collector_metrics
     restart: unless-stopped
     profiles:
@@ -321,9 +321,6 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}
       APP_PORT: ${APP_PORT:-8080}
-      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
-      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
-      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
     ports:
     - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: unless-stopped
@@ -347,17 +344,14 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-app-name}
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_gateway
-    hostname: kebab-app-name_gateway
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-gateway
+    hostname: kebab-app-name-gateway
     env_file:
     - 'src/template.env'
     - 'all-module-enabled.env'
     environment:
       APP_NAME: ${APP_NAME:-kebab-app-name}-gateway
       APP_PORT: ${APP_GATEWAY_PORT:-8080}
-      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
-      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
-      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
       APP_ENABLE_EVENT_HANDLER: false
       APP_ENABLE_RPC_SERVER: false
       APP_ENABLE_API: true
@@ -377,22 +371,19 @@ services:
     - zrb
 
 
-  kebab-app-name-auth:
+  kebab-app-name-auth-service:
     build:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-app-name}
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_auth
-    hostname: kebab-app-name_auth
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-auth-service
+    hostname: kebab-app-name-auth-service
     env_file:
     - src/template.env
     - all-module-disabled.env
     environment:
       APP_NAME: ${APP_NAME:-fastapp}-auth-service
       APP_PORT: ${APP_AUTH_MODULE_PORT:-8081}
-      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
-      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
-      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
       APP_ENABLE_EVENT_HANDLER: true
       APP_ENABLE_RPC_SERVER: true
       APP_ENABLE_API: false
@@ -406,7 +397,7 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - curl --fail http://localhost:${APP_PORT:-8080}/readiness || exit 1
+      - curl --fail http://localhost:${APP_AUTH_MODULE_PORT:-8081}/readiness || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
@@ -414,22 +405,19 @@ services:
     - zrb
 
 
-  kebab-app-name-log:
+  kebab-app-name-log-service:
     build:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-app-name}
-    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name_log
-    hostname: kebab-app-name_log
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-app-name-log-service
+    hostname: kebab-app-name-log-service
     env_file:
     - src/template.env
     - all-module-disabled.env
     environment:
       APP_NAME: ${APP_NAME:-fastapp}-log-service
-      APP_PORT: ${APP_LOG_MODULE_PORT:-8083}
-      APP_RMQ_CONNECTION: ${APP_CONTAINER_RMQ_CONNECTION:-amqp://guest:guest@rabbitmq/}
-      APP_KAFKA_BOOTSTRAP_SERVERS: ${APP_CONTAINER_KAFKA_BOOTSTRAP_SERVERS:-redpanda:9092}
-      APP_DB_CONNECTION: ${APP_CONTAINER_DB_CONNECTION:-postgresql+psycopg2://postgres:admin@postgresql:5432/snake_app_name}
+      APP_PORT: ${APP_LOG_MODULE_PORT:-8082}
       APP_ENABLE_EVENT_HANDLER: 'true'
       APP_ENABLE_RPC_SERVER: 'true'
       APP_ENABLE_API: 'false'
@@ -443,7 +431,7 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - curl --fail http://localhost:${APP_PORT:-8080}/readiness || exit 1
+      - curl --fail http://localhost:${APP_LOG_MODULE_PORT:-8082}/readiness || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
