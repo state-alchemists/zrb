@@ -5,7 +5,7 @@ import string
 def get_random_name(
     separator: str = '-',
     add_random_digit: bool = True,
-    digit_count: int = 3
+    digit_count: int = 4
 ) -> str:
     prefixes = [
         "aurum", "argentum", "platinum", "mercurius", "sulfur", "sal",

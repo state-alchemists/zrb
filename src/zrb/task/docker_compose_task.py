@@ -6,6 +6,7 @@ from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
 from ..task_input.base_input import BaseInput
+from ..helper.accessories.name import get_random_name
 from ..helper.string.conversion import to_cmd_name
 from ..helper.string.double_quote import double_quote
 from ..helper.docker_compose.file import read_compose_file, write_compose_file
@@ -112,7 +113,11 @@ class DockerComposeTask(CmdTask):
 
     async def run(self, *args, **kwargs: Any) -> CmdResult:
         self._generate_compose_runtime_file()
-        return await super().run(*args, **kwargs)
+        try:
+            result = await super().run(*args, **kwargs)
+        finally:
+            os.remove(self._compose_runtime_file)
+        return result
 
     def _generate_compose_runtime_file(self):
         compose_data = read_compose_file(self._compose_template_file)
@@ -216,6 +221,9 @@ class DockerComposeTask(CmdTask):
         if self._group is not None:
             group_prefix = to_cmd_name(self._group.get_complete_name())
             runtime_prefix = f'{group_prefix}-{runtime_prefix}'
+        runtime_prefix += '-' + get_random_name(
+            separator='-', add_random_digit=True, digit_count=3
+        )
         runtime_prefix = '.' + runtime_prefix + '.runtime'
         file_parts = file.split('.')
         if len(file_parts) > 1:
