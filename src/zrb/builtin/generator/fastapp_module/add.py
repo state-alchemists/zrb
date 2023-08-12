@@ -202,7 +202,7 @@ def _get_new_docker_compose_service_definition(
                 'context': './src'
             },
             'image': '${IMAGE:-' + kebab_app_name + '}',
-            'container_name': f'{kebab_app_name}-{kebab_module_name}-service',
+            'container_name': '${CONTAINER_PREFIX:-my}-' + f'{kebab_app_name}-{kebab_module_name}-service', # noqa
             'hostname': f'{kebab_app_name}-{kebab_module_name}-service',
             'env_file': [
                 'src/template.env',
