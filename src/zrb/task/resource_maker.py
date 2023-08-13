@@ -40,8 +40,8 @@ class ResourceMaker(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         upstreams: Iterable[AnyTask] = [],
-        locks: Iterable[str] = [],
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        skip_parsing: Optional[Iterable[str]] = None
     ):
         BaseTask.__init__(
             self,
@@ -65,7 +65,16 @@ class ResourceMaker(BaseTask):
         self._excludes = excludes
         self._replacements = replacements
         self._replacement_mutator = replacement_mutator
-        self._locks = locks
+        self._set_skip_parsing(skip_parsing)
+
+    def _set_skip_parsing(self, skip_parsing: Optional[Iterable[str]]):
+        if skip_parsing is not None:
+            self._skip_parsing: Iterable[str] = skip_parsing
+            return
+        self._skip_parsing: Iterable[str] = [
+            '*.mp3', '*.pdf', '*.exe', '*.dll', '*.bin', '*.iso', '*.png',
+            '*.jpg', '*.gif', '*.ico'
+        ]
 
     def to_function(
         self, env_prefix: str = '', raise_error: bool = True
@@ -76,24 +85,11 @@ class ResourceMaker(BaseTask):
         # render parameters
         template_path = self.render_str(self._template_path)
         destination_path = self.render_str(self._destination_path)
-        # check scaffold locks
-        for scaffold_lock in self._locks:
-            self.log_debug(f'Render scaaffold lock: {scaffold_lock}')
-            rendered_scaffold_lock = self.render_str(scaffold_lock)
-            self.log_debug(f'Rendered scaffold lock: {rendered_scaffold_lock}')
-            if not os.path.exists(rendered_scaffold_lock):
-                continue
-            raise Exception(' '.join([
-                'Operation cancelled since resource already exists:',
-                f'{rendered_scaffold_lock},',
-            ]))
         # render excludes
         self.log_debug(f'Render excludes: {self._excludes}')
-        excludes = [
-            self.render_str(exclude)
-            for exclude in self._excludes
-        ]
+        excludes = [self.render_str(exclude) for exclude in self._excludes]
         self.log_debug(f'Rendered excludes: {excludes}')
+        # render replacements
         self.log_debug(f'Render replacements: {self._replacements}')
         rendered_replacements: Mapping[str, str] = {
             old: self.render_str(new)
@@ -116,11 +112,13 @@ class ResourceMaker(BaseTask):
         self.print_out_dark(f'Destination: {destination_path}')
         self.print_out_dark(f'Replacements: {rendered_replacements}')
         self.print_out_dark(f'Excludes: {excludes}')
+        self.print_out_dark(f'Skip parsing: {self._skip_parsing}')
         await copy_tree(
             src=template_path,
             dst=destination_path,
             replacements=rendered_replacements,
-            excludes=excludes
+            excludes=excludes,
+            skip_parsing=self._skip_parsing
         )
         return True
 

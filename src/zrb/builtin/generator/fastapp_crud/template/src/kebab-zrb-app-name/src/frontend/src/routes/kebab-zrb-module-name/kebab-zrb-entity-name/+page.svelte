@@ -79,7 +79,7 @@
     }
 </script>
 
-<h1 class="text-3xl">Human readable entity name</h1>
+<h1 class="text-3xl">Human readable zrb entity name</h1>
 <div class="overflow-x-auto">
 
     <div class="flex items-center mb-5 mt-5">
@@ -116,7 +116,7 @@
         <thead>
             <tr>
                 <th></th>
-                <th>Human readable column name</th>
+                <th>Human readable zrb column name</th>
                 <!-- DON'T DELETE: insert new column header here-->
                 <th></th>
             </tr>

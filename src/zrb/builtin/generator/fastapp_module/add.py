@@ -10,7 +10,6 @@ from .._common.input import (
     module_name_input
 )
 from .._common.helper import validate_project_dir
-from .._common.lock import new_task_app_lock
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_function_call import add_function_call
@@ -73,7 +72,6 @@ copy_resource = ResourceMaker(
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    locks=[new_task_app_lock],
     excludes=[
         '*/__pycache__',
     ]

@@ -74,8 +74,7 @@ Every [task parameters](./task.md#common-task-parameters) are applicable here. A
 
 ## excludes
 
-## locks
-
+## skip_parsing
 
 # ResourceMaker methods
 

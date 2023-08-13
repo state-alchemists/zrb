@@ -49,12 +49,12 @@
         }
     }
 </script>
-<h1 class="text-3xl">Human readable entity name</h1>
+<h1 class="text-3xl">Human readable zrb entity name</h1>
 
 <form class="max-w-md mx-auto bg-gray-100 p-6 rounded-md mt-5 mb-5">
-  <h2 class="text-xl font-bold mb-4">Show Human readable entity name {data.id}</h2>
+  <h2 class="text-xl font-bold mb-4">Show Human readable zrb entity name {data.id}</h2>
     <div class="mb-4">
-        <label class="block text-gray-700 font-bold mb-2" for="kebab-zrb-column-name">Human readable column name</label>
+        <label class="block text-gray-700 font-bold mb-2" for="kebab-zrb-column-name">Human readable zrb column name</label>
         <span id="kebab-zrb-column-name">{row.snake_zrb_column_name}</span>
     </div>
     <!-- DON'T DELETE: insert new field here-->

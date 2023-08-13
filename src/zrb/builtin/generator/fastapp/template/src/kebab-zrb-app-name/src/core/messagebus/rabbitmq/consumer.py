@@ -118,7 +118,9 @@ class RMQConsumer(Consumer):
             ):
                 self.logger.info(f'🐰 [{self.identifier}] Get consumer channel')
                 self.channel = await self.connection.channel()
-                self.channel.basic_qos(prefetch_count=self.prefetch_count)
+                await self.channel.basic_qos(
+                    prefetch_count=self.prefetch_count
+                )
                 self.logger.info(
                     f'🐰 [{self.identifier}] Consumer channel created'
                 )
