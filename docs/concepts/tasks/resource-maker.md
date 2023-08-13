@@ -7,7 +7,7 @@ ResourceMaker helps you create text resources, whether they are code or licenses
 For example, let's say you have the following template under `mit-license-template/license`
 
 ```
-Copyright (c) <year> <copyright holders>
+Copyright (c) <zrb_year> <zrb_copyright_holders>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -48,8 +48,8 @@ add_mit_license = ResourceMaker(
     destination_path='{{input.destination}}',
     template_path=os.path.join(CURRENT_DIR, 'mit-license-template'),
     replacements={
-        '<year>': '{{input.year}}',
-        '<copyright holders>': '{{input.copyright_holder}}',
+        '<zrb_year>': '{{input.year}}',
+        '<zrb_copyright_holders>': '{{input.copyright_holder}}',
     }
 )
 
@@ -74,8 +74,7 @@ Every [task parameters](./task.md#common-task-parameters) are applicable here. A
 
 ## excludes
 
-## locks
-
+## skip_parsing
 
 # ResourceMaker methods
 

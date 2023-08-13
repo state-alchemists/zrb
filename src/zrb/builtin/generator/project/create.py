@@ -1,6 +1,7 @@
-from typing import Mapping
+from typing import Any, Mapping
 from ..._group import project_group
 from ....task.cmd_task import CmdTask
+from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
@@ -19,11 +20,11 @@ current_dir = os.path.dirname(__file__)
 def copy_resource_replacement_mutator(
     task: ResourceMaker, replacements: Mapping[str, str]
 ) -> Mapping[str, str]:
-    replacements['baseProjectDir'] = os.path.basename(
-        replacements.get('projectDir', '')
+    replacements['zrbBaseProjectDir'] = os.path.basename(
+        replacements.get('zrbProjectDir', '')
     )
-    if replacements.get('projectName', '') == '':
-        replacements['projectName'] = replacements.get('baseProjectDir', '')
+    if replacements.get('zrbProjectName', '') == '':
+        replacements['zrbProjectName'] = replacements.get('zrbBaseProjectDir', '')
     return replacements
 
 
@@ -31,21 +32,33 @@ def copy_resource_replacement_mutator(
 # Task Definitions
 ###############################################################################
 
+
+@python_task(
+    name='validate',
+    inputs=[project_dir_input],
+    retry=0,
+)
+async def validate(*args: Any, **kwargs: Any):
+    project_dir = kwargs.get('project_dir')
+    if os.path.isfile(os.path.join(project_dir, 'zrb_init.py')):
+        raise Exception(f'Project directory already exists: {project_dir}')
+
+
 copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=[
         project_dir_input,
         project_name_input
     ],
+    upstreams=[validate],
     replacements={
-        'projectDir': '{{input.project_dir}}',
-        'projectName': '{{input.project_name}}',
+        'zrbProjectDir': '{{input.project_dir}}',
+        'zrbProjectName': '{{input.project_name}}',
         'zrbVersion': version,
     },
     replacement_mutator=copy_resource_replacement_mutator,
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{input.project_dir}}',
-    locks=['{{input.project_dir}}/zrb_init.py'],
     excludes=[
         '*/__pycache__',
     ]

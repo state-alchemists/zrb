@@ -8,7 +8,6 @@ from .._common.input import (
     project_dir_input, task_name_input
 )
 from .._common.helper import validate_project_dir, create_register_task_module
-from .._common.lock import new_task_lock
 from ....helper import util
 
 import os
@@ -46,11 +45,10 @@ copy_resource = ResourceMaker(
     ],
     upstreams=[validate],
     replacements={
-        'taskName': '{{input.task_name}}',
+        'zrbTaskName': '{{input.task_name}}',
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    locks=[new_task_lock],
     excludes=[
         '*/__pycache__',
     ]

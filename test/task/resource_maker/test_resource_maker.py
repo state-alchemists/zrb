@@ -20,10 +20,9 @@ def test_resource_maker():
         destination_path=destination_path,
         excludes=['*/excluded'],
         replacements={
-            'app_name': 'my_app',
-            '3000': '8080'
-        },
-        locks=[destination_path]
+            'zrb_app_name': 'my_app',
+            '212133000': '8080'
+        }
     )
 
     # first attempt should succeed
@@ -55,15 +54,6 @@ def test_resource_maker():
         '    return True',
         ''
     ])
-
-    # second attempt should failed
-    is_error = False
-    try:
-        second_attempt_loop = code_maker.to_function()
-        result = second_attempt_loop()
-    except Exception:
-        is_error = True
-    assert is_error
 
 
 def read_file(file_name: str) -> str:

@@ -45,7 +45,7 @@ RUN echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >>
 RUN echo 'eval "$(pyenv init -)"' >> ~/.zshrc
 
 # Install Zrb on top of pyenv
-RUN bash -c 'source ~/.bashrc && pip install zrb==zrb_version'
+RUN bash -c 'source ~/.bashrc && pip install zrb==ZRB_VERSION'
 
 # Prepare environments
 ENV DEBIAN_FRONTEND=noninteractive

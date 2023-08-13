@@ -9,7 +9,6 @@ from .._common.input import (
    project_dir_input, task_name_input, http_port_input, env_prefix_input
 )
 from .._common.helper import validate_project_dir, create_register_task_module
-from .._common.lock import new_task_lock
 from ....helper import util
 
 import os
@@ -60,14 +59,13 @@ copy_resource = ResourceMaker(
     ],
     upstreams=[validate],
     replacements={
-        'taskName': '{{input.task_name}}',
-        'httpPort': '{{util.coalesce(input.http_port, "3001")}}',
-        'composeCommand': '{{ util.coalesce(input.compose_command, "up") }}',
-        'ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}',
+        'zrbTaskName': '{{input.task_name}}',
+        'zrbHttpPort': '{{util.coalesce(input.http_port, "3001")}}',
+        'zrbComposeCommand': '{{ util.coalesce(input.compose_command, "up") }}', # noqa
+        'ZRB_ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}', # noqa
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
-    locks=[new_task_lock]
 )
 
 register_task_module = create_register_task_module(

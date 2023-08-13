@@ -1,6 +1,6 @@
-# PascalProjectName
+# PascalZrbProjectName
 
-PascalProjectName is a [Zrb](https://pypi.org/project/zrb/) project.
+PascalZrbProjectName is a [Zrb](https://pypi.org/project/zrb/) project.
 
 There are two directories in the project:
 
@@ -11,7 +11,7 @@ To learn more about the project, you can visit [Zrb getting started page](https:
 
 # Prerequisites
 
-To start working with PascalProjectName, you need to have:
+To start working with PascalZrbProjectName, you need to have:
 
 - Python 3.9 or higher
 - Pip
@@ -21,7 +21,7 @@ You can also use [Zrb Docker container](https://github.com/state-alchemists/zrb#
 
 # Getting started
 
-To get started, you need to activate PascalProjectName virtual environment and install a few packages (including Zrb). You can do this by invoking the following command in your terminal:
+To get started, you need to activate PascalZrbProjectName virtual environment and install a few packages (including Zrb). You can do this by invoking the following command in your terminal:
 
 ```bash
 source ./project.sh
@@ -37,7 +37,7 @@ zrb version
 
 # Creating an application
 
-You can add a new application to PascalProjectName by invoking the following command:
+You can add a new application to PascalZrbProjectName by invoking the following command:
 
 ```bash
 zrb project add fastapp
@@ -49,13 +49,13 @@ Once the application is created, you can start it by invoking the following comm
 zrb project start-<app-name>
 ```
 
-You will be able to find the application under PascalProjectName's `src` directory.
+You will be able to find the application under PascalZrbProjectName's `src` directory.
 
 Zrb also allows you to create CRUD entities on your application. Please visit [Zrb's development-to-deployment tutorial](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/development-to-deployment-low-code.md) to learn more.
 
 # Configuration
 
-To configure PascalProjectName, you need to create a `.env` file.
+To configure PascalZrbProjectName, you need to create a `.env` file.
 
 You can see the default configuration by invoking the following command:
 
@@ -63,4 +63,4 @@ You can see the default configuration by invoking the following command:
 zrb project get-default-env
 ```
 
-Once the environment file is updated, you can reload PascalProjectName by invoking `reload` in the terminal.
+Once the environment file is updated, you can reload PascalZrbProjectName by invoking `reload` in the terminal.

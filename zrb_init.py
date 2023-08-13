@@ -95,7 +95,7 @@ prepare_docker = ResourceMaker(
     template_path=f'{CURRENT_DIR}/docker-template',
     destination_path=f'{CURRENT_DIR}/.docker-dir',
     replacements={
-        'zrb_version': VERSION
+        'ZRB_VERSION': VERSION
     }
 )
 runner.register(prepare_docker)
