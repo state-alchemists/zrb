@@ -19,11 +19,11 @@ current_dir = os.path.dirname(__file__)
 def copy_resource_replacement_mutator(
     task: ResourceMaker, replacements: Mapping[str, str]
 ) -> Mapping[str, str]:
-    replacements['baseProjectDir'] = os.path.basename(
-        replacements.get('projectDir', '')
+    replacements['zrbBaseProjectDir'] = os.path.basename(
+        replacements.get('zrbProjectDir', '')
     )
-    if replacements.get('projectName', '') == '':
-        replacements['projectName'] = replacements.get('baseProjectDir', '')
+    if replacements.get('zrbProjectName', '') == '':
+        replacements['zrbProjectName'] = replacements.get('zrbBaseProjectDir', '')
     return replacements
 
 
