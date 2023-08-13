@@ -1,6 +1,6 @@
-from config_app_name import port
+from config_zrb_app_name import port
 
 
 def start():
-    print(f'starting app_name on port {port}')
+    print(f'starting zrb_app_name on port {port}')
     return True

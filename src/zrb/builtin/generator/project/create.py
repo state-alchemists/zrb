@@ -38,8 +38,8 @@ copy_resource = ResourceMaker(
         project_name_input
     ],
     replacements={
-        'projectDir': '{{input.project_dir}}',
-        'projectName': '{{input.project_name}}',
+        'zrbProjectDir': '{{input.project_dir}}',
+        'zrbProjectName': '{{input.project_name}}',
         'zrbVersion': version,
     },
     replacement_mutator=copy_resource_replacement_mutator,

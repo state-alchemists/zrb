@@ -44,7 +44,7 @@ copy_resource = ResourceMaker(
     ],
     upstreams=[validate],
     replacements={
-        'taskName': '{{input.task_name}}',
+        'zrbTaskName': '{{input.task_name}}',
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',

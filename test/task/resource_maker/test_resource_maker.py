@@ -20,7 +20,7 @@ def test_resource_maker():
         destination_path=destination_path,
         excludes=['*/excluded'],
         replacements={
-            'app_name': 'my_app',
+            'zrb_app_name': 'my_app',
             '3000': '8080'
         },
         locks=[destination_path]

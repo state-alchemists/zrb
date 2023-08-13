@@ -68,8 +68,8 @@ copy_resource = ResourceMaker(
     ],
     upstreams=[validate],
     replacements={
-        'appName': '{{input.app_name}}',
-        'moduleName': '{{input.module_name}}',
+        'zrbAppName': '{{input.app_name}}',
+        'zrbModuleName': '{{input.module_name}}',
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
