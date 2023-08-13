@@ -30,7 +30,7 @@ image_env = Env(
 build_snake_zrb_app_name_image = DockerComposeTask(
     icon='🏭',
     name='build-kebab-zrb-app-name-image',
-    description='Build human readable app name image',
+    description='Build human readable zrb app name image',
     group=project_group,
     inputs=[
         local_input,
@@ -50,7 +50,7 @@ runner.register(build_snake_zrb_app_name_image)
 push_snake_zrb_app_name_image = DockerComposeTask(
     icon='📰',
     name='push-kebab-zrb-app-name-image',
-    description='Push human readable app name image',
+    description='Push human readable zrb app name image',
     group=project_group,
     inputs=[
         local_input,

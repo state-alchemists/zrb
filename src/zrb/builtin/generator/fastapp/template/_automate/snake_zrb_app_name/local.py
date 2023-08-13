@@ -78,7 +78,7 @@ init_snake_zrb_app_name_support_container = DockerComposeTask(
 start_snake_zrb_app_name_support_container = DockerComposeTask(
     icon='🐳',
     name='start-kebab-zrb-app-name-support-container',
-    description='Start human readable app name container',
+    description='Start human readable zrb app name container',
     inputs=[
         local_input,
         enable_monitoring_input,
@@ -108,7 +108,7 @@ start_snake_zrb_app_name_support_container = DockerComposeTask(
 prepare_snake_zrb_app_name_backend = CmdTask(
     icon='🚤',
     name='prepare-kebab-zrb-app-name-backend',
-    description='Prepare backend for human readable app name',
+    description='Prepare backend for human readable zrb app name',
     group=project_group,
     cwd=APP_DIR,
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'prepare-backend.sh'),
@@ -183,7 +183,7 @@ start_microservices = get_start_microservices(
 start_snake_zrb_app_name = Task(
     icon='🚤',
     name='start-kebab-zrb-app-name',
-    description='Start human readable app name',
+    description='Start human readable zrb app name',
     group=project_group,
     upstreams=[
         start_monolith_snake_zrb_app_name,

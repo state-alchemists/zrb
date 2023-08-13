@@ -9,7 +9,7 @@ from zrb.builtin._group import project_group
 
 @python_task(
     name='kebab-zrb-task-name',
-    description='human readable task name',
+    description='human readable zrb task name',
     group=project_group,
     runner=runner
 )

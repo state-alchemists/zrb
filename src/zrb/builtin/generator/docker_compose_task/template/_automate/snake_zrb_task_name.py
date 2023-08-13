@@ -16,7 +16,7 @@ RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-zrb-task-name')
 
 snake_zrb_task_name = DockerComposeTask(
     name='kebab-zrb-task-name',
-    description='human readable task name',
+    description='human readable zrb task name',
     group=project_group,
     cwd=RESOURCE_DIR,
     compose_cmd='zrbComposeCommand',

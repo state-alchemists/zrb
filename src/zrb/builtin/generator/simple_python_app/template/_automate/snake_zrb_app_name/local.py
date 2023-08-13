@@ -19,7 +19,7 @@ app_env_file = EnvFile(env_file=TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
 start_snake_zrb_app_name = CmdTask(
     icon='🚤',
     name='start-kebab-zrb-app-name',
-    description='Start human readable app name',
+    description='Start human readable zrb app name',
     group=project_group,
     inputs=[
         local_input,

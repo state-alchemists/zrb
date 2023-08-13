@@ -64,7 +64,7 @@ load_test_env_file = EnvFile(
 prepare_snake_zrb_app_name_load_test = CmdTask(
     icon='🚤',
     name='prepare-kebab-zrb-app-name-load-test',
-    description='Prepare load test for human readable app name',
+    description='Prepare load test for human readable zrb app name',
     group=project_group,
     cwd=LOAD_TEST_DIR,
     cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'prepare-load-test.sh'),
@@ -74,7 +74,7 @@ runner.register(prepare_snake_zrb_app_name_load_test)
 load_test_snake_zrb_app_name_load_test = CmdTask(
     icon='🧪',
     name='load-test-kebab-zrb-app-name',
-    description='Load test human readable app name',
+    description='Load test human readable zrb app name',
     group=project_group,
     upstreams=[prepare_snake_zrb_app_name_load_test],
     inputs=[

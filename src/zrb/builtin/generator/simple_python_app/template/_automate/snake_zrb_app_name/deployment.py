@@ -61,7 +61,7 @@ deployment_replica_env = Env(
 deploy_snake_zrb_app_name = CmdTask(
     icon='🚧',
     name='deploy-kebab-zrb-app-name',
-    description='Deploy human readable app name',
+    description='Deploy human readable zrb app name',
     group=project_group,
     inputs=[
         image_input,
@@ -84,7 +84,7 @@ runner.register(deploy_snake_zrb_app_name)
 destroy_snake_zrb_app_name = CmdTask(
     icon='💨',
     name='destroy-kebab-zrb-app-name',
-    description='Remove human readable app name deployment',
+    description='Remove human readable zrb app name deployment',
     group=project_group,
     inputs=[
         pulumi_stack_input,

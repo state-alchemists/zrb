@@ -61,8 +61,8 @@ copy_resource = ResourceMaker(
         'zrbAppHttpPort': '{{util.coalesce(input.http_port, "3001")}}',
         'ZRB_ENV_PREFIX': '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         'zrb-app-image-name': '{{input.app_image_name}}',
-        'zrbHttpAuthPort': '{{util.coalesce(input.http_port, "3001") + 1}}',
-        'zrbHttpLogPort': '{{util.coalesce(input.http_port, "3001") + 2}}'
+        'zrbAppHttpAuthPort': '{{util.coalesce(input.http_port, "3001") + 1}}',
+        'zrbAppHttpLogPort': '{{util.coalesce(input.http_port, "3001") + 2}}'
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',

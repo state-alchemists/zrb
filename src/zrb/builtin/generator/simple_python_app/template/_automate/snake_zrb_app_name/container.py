@@ -49,7 +49,7 @@ snake_zrb_app_name_service_config = ServiceConfig(
 remove_snake_zrb_app_name_container = DockerComposeTask(
     icon='💨',
     name='remove-kebab-zrb-app-name-container',
-    description='Remove human readable app name container',
+    description='Remove human readable zrb app name container',
     group=project_group,
     cwd=RESOURCE_DIR,
     compose_cmd='down',
@@ -68,7 +68,7 @@ runner.register(remove_snake_zrb_app_name_container)
 stop_snake_zrb_app_name_container = DockerComposeTask(
     icon='⛔',
     name='stop-kebab-zrb-app-name-container',
-    description='Stop human readable app name container',
+    description='Stop human readable zrb app name container',
     group=project_group,
     cwd=RESOURCE_DIR,
     compose_cmd='stop',
@@ -114,7 +114,7 @@ init_snake_zrb_app_name_container = DockerComposeTask(
 start_snake_zrb_app_name_container = DockerComposeTask(
     icon='🐳',
     name='start-kebab-zrb-app-name-container',
-    description='Start human readable app name container',
+    description='Start human readable zrb app name container',
     group=project_group,
     inputs=[
         local_input,
