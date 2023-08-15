@@ -18,6 +18,7 @@ from .generator.fastapp import add as generate_fastapp
 from .generator.fastapp_module import add as generate_fastapp_module
 from .generator.fastapp_crud import add as generate_fastapp_crud
 from .generator.fastapp_field import add as generate_fastapp_field
+from .generator.pip_package import add as generate_pip_package
 
 assert base64
 assert env
@@ -39,3 +40,4 @@ assert generate_fastapp
 assert generate_fastapp_module
 assert generate_fastapp_crud
 assert generate_fastapp_field
+assert generate_pip_package

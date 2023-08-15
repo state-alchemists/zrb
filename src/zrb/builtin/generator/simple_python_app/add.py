@@ -8,7 +8,10 @@ from .._common.input import (
     project_dir_input, app_name_input, app_image_name_input, http_port_input,
     env_prefix_input
 )
-from .._common.helper import validate_project_dir, create_register_app_module
+from .._common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation,
+    create_register_app_module
+)
 from ..project_task.task_factory import (
     create_add_project_automation_task, create_register_app_task
 )
@@ -29,15 +32,9 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
-    automation_dir = os.path.join(
-        project_dir, '_automate', util.to_snake_case(app_name)
-    )
-    if os.path.exists(automation_dir):
-        raise Exception(
-            f'Automation directory already exists: {automation_dir}'
-        )
+    validate_inexisting_automation(project_dir, app_name)
     source_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )

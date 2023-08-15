@@ -9,7 +9,7 @@ from .._common.input import (
     project_dir_input, app_name_input,
     module_name_input
 )
-from .._common.helper import validate_project_dir
+from .._common.helper import validate_existing_project_dir
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_function_call import add_function_call
@@ -37,7 +37,7 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
     snake_module_name = util.to_snake_case(module_name)

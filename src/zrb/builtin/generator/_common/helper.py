@@ -9,9 +9,30 @@ from .input import project_dir_input, task_name_input, app_name_input
 import os
 
 
-def validate_project_dir(project_dir: str):
+def validate_existing_project_dir(project_dir: str):
     if not os.path.isfile(os.path.join(project_dir, 'zrb_init.py')):
         raise Exception(f'Not a project: {project_dir}')
+
+
+def validate_inexisting_automation(project_dir: str, automation_name: str):
+    validate_inexisting_automation_package(project_dir, automation_name)
+    validate_inexisting_automation_module(project_dir, automation_name)
+
+
+def validate_inexisting_automation_package(project_dir: str, package_name: str):
+    package_dir = os.path.join(
+        project_dir, '_automate', f'{util.to_snake_case(package_name)}'
+    )
+    if os.path.exists(package_dir):
+        raise Exception(f'Automation package already exists: {package_dir}')
+
+
+def validate_inexisting_automation_module(project_dir: str, module_name: str):
+    module_file = os.path.join(
+        project_dir, '_automate', f'{util.to_snake_case(module_name)}.py'
+    )
+    if os.path.exists(module_file):
+        raise Exception(f'Automation module already exists: {module_file}')
 
 
 def create_register_task_module(
@@ -25,13 +46,14 @@ def create_register_task_module(
     async def task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir')
-        validate_project_dir(project_dir)
+        validate_existing_project_dir(project_dir)
         task_name = kwargs.get('task_name')
-        task.print_out(f'Register module: _automate.{task_name}')
+        snake_task_name = util.to_snake_case(task_name)
+        task.print_out(f'Register module: _automate.{snake_task_name}')
         await register_module_to_project(
             project_dir=project_dir,
             module_name='.'.join([
-                '_automate', util.to_snake_case(task_name)
+                '_automate', util.to_snake_case(snake_task_name)
             ])
         )
     return task
@@ -48,10 +70,10 @@ def create_register_app_module(
     async def task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir')
-        validate_project_dir(project_dir)
+        validate_existing_project_dir(project_dir)
         app_name = kwargs.get('app_name')
-        task.print_out(f'Register module: _automate.{app_name}.{module}')
         snake_app_name = util.to_snake_case(app_name)
+        task.print_out(f'Register module: _automate.{snake_app_name}.{module}')
         await register_module_to_project(
             project_dir=project_dir,
             module_name='.'.join([

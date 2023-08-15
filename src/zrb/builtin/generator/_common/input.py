@@ -107,3 +107,11 @@ env_prefix_input = StrInput(
     prompt='OS environment prefix',
     default='{{util.to_snake_case(util.coalesce(input.app_name, input.task_name, "MY")).upper()}}',  # noqa
 )
+
+package_name_input = StrInput(
+    name='package-name',
+    shortcut='p',
+    description='Package name',
+    prompt='Package name',
+    default=get_random_name()
+)

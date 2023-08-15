@@ -13,7 +13,7 @@ from .._common.input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     plural_entity_name_input, main_column_name_input
 )
-from .._common.helper import validate_project_dir
+from .._common.helper import validate_existing_project_dir
 from .add_navigation import create_add_navigation_task
 
 import asyncio
@@ -35,7 +35,7 @@ codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
     entity_name = kwargs.get('entity_name')

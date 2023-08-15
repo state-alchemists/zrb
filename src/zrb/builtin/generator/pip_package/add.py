@@ -1,18 +1,20 @@
 from typing import Any
 from ..._group import project_add_group
-from ....task.task import Task
 from ....task.decorator import python_task
+from ....task.task import Task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import project_dir_input, task_name_input
+from .._common.input import project_dir_input, package_name_input
 from .._common.helper import (
     validate_existing_project_dir, validate_inexisting_automation,
-    create_register_task_module
+    register_module_to_project
 )
+from ....helper import util
 
 import os
 
 current_dir = os.path.dirname(__file__)
+
 
 ###############################################################################
 # Task Definitions
@@ -23,25 +25,25 @@ current_dir = os.path.dirname(__file__)
     name='validate',
     inputs=[
         project_dir_input,
-        task_name_input,
+        package_name_input
     ]
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_existing_project_dir(project_dir)
-    task_name = kwargs.get('task_name')
-    validate_inexisting_automation(project_dir, task_name)
+    package_name = kwargs.get('package_name')
+    validate_inexisting_automation(project_dir, package_name)
 
 
 copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=[
         project_dir_input,
-        task_name_input,
+        package_name_input
     ],
     upstreams=[validate],
     replacements={
-        'zrbTaskName': '{{input.task_name}}',
+        'zrbPackageName': '{{input.package_name}}',
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',
@@ -50,17 +52,38 @@ copy_resource = ResourceMaker(
     ]
 )
 
-register_task_module = create_register_task_module(
+
+@python_task(
+    name='register-automation',
+    inputs=[
+        project_dir_input,
+        package_name_input
+    ],
     upstreams=[copy_resource]
 )
+async def register_automation(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    project_dir = kwargs.get('project_dir')
+    validate_existing_project_dir(project_dir)
+    package_name = kwargs.get('app_name')
+    module = 'local'
+    task.print_out(f'Register module: _automate.{package_name}.{module}')
+    snake_package_name = util.to_snake_case(package_name)
+    await register_module_to_project(
+        project_dir=project_dir,
+        module_name='.'.join([
+            '_automate', snake_package_name, module
+        ]),
+        alias=f'{snake_package_name}_{module}'
+    )
 
 
 @python_task(
-    name='cmd-task',
+    name='pip-package',
     group=project_add_group,
-    upstreams=[register_task_module],
+    upstreams=[register_automation],
     runner=runner
 )
-async def add_cmd_task(*args: Any, **kwargs: Any):
+async def add_python_task(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')

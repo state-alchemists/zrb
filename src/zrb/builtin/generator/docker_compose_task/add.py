@@ -8,7 +8,10 @@ from ....runner import runner
 from .._common.input import (
    project_dir_input, task_name_input, http_port_input, env_prefix_input
 )
-from .._common.helper import validate_project_dir, create_register_task_module
+from .._common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation,
+    create_register_task_module
+)
 from ....helper import util
 
 import os
@@ -29,13 +32,9 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     task_name = kwargs.get('task_name')
-    automation_file = os.path.join(
-        project_dir, '_automate', f'{util.to_snake_case(task_name)}.py'
-    )
-    if os.path.exists(automation_file):
-        raise Exception(f'Automation file already exists: {automation_file}')
+    validate_inexisting_automation(project_dir, task_name)
     source_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(task_name)}'
     )
