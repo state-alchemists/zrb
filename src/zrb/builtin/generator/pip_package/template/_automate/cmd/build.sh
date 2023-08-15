@@ -2,5 +2,8 @@ PYTHONUNBUFFERED=1
 echo "Activate virtual environment"
 source .venv/bin/activate
 
-echo "Run start.sh"
-./start.sh
+echo "Git add"
+git add . -A
+
+echo "Build"
+flit build
