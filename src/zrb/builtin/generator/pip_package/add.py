@@ -6,7 +6,7 @@ from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from .._common.input import (
     project_dir_input, package_name_input, package_description_input,
-    package_homepage_input, package_bugtracker_input,
+    package_homepage_input, package_bug_tracker_input,
     package_author_name_input, package_author_email_input
 )
 from .._common.helper import (
@@ -46,7 +46,7 @@ copy_resource = ResourceMaker(
         package_name_input,
         package_description_input,
         package_homepage_input,
-        package_bugtracker_input,
+        package_bug_tracker_input,
         package_author_name_input,
         package_author_email_input
     ],
@@ -55,7 +55,7 @@ copy_resource = ResourceMaker(
         'zrbPackageName': '{{input.package_name}}',
         'zrbPackageDescription': '{{input.package_description}}',
         'zrbPackageHomepage': '{{input.package_homepage}}',
-        'zrbPackageBugTracker': '{{input.package_bugtracker}}',
+        'zrbPackageBugTracker': '{{input.package_bug_tracker}}',
         'zrbPackageAuthorName': '{{input.package_author_name}}',
         'zrbPackageAuthorEmail': '{{input.package_author_email}}'
     },
@@ -79,7 +79,7 @@ async def register_automation(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     project_dir = kwargs.get('project_dir')
     validate_existing_project_dir(project_dir)
-    package_name = kwargs.get('app_name')
+    package_name = kwargs.get('package_name')
     module = 'local'
     task.print_out(f'Register module: _automate.{package_name}.{module}')
     snake_package_name = util.to_snake_case(package_name)

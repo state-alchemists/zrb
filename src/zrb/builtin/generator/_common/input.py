@@ -3,6 +3,8 @@ from ....task_input.int_input import IntInput
 from ....helper.accessories.name import get_random_name
 import os
 
+SYSTEM_USER = os.getenv('USER', 'incognito')
+
 project_dir_input = StrInput(
     name='project-dir',
     shortcut='d',
@@ -29,7 +31,7 @@ app_name_input = StrInput(
 
 app_image_default_namespace = os.getenv(
     'PROJECT_IMAGE_DEFAULT_NAMESPACE',
-    'docker.io/' + os.getenv('USER', 'library')
+    'docker.io/' + SYSTEM_USER
 )
 app_image_name_input = StrInput(
     name='app-image-name',
@@ -127,26 +129,26 @@ package_homepage_input = StrInput(
     name='package-homepage',
     description='Package homepage',
     prompt='Package homepage',
-    default='https://github.com/{{util.to_kebab_case(input.package_name)}}'
+    default='https://github.com/' + SYSTEM_USER + '/{{util.to_kebab_case(input.package_name)}}'  # noqa
 )
 
-package_bugtracker_input = StrInput(
+package_bug_tracker_input = StrInput(
     name='package-bug-tracker',
     description='Package bug tracker',
     prompt='Package bug tracker',
-    default='https://github.com/{{util.to_kebab_case(input.package_name)}}/issues' # noqa
+    default='https://github.com/' + SYSTEM_USER + '/{{util.to_kebab_case(input.package_name)}}/issues' # noqa
 )
 
 package_author_name_input = StrInput(
     name='package-author-name',
     prompt='Package author name',
     description='Package author name',
-    default='{{env.USER}}'
+    default=SYSTEM_USER
 )
 
 package_author_email_input = StrInput(
     name='package-author-email',
     prompt='Package author email',
     description='Package author email',
-    default='{{env.USER}}@gmail.com'
+    default=f'{SYSTEM_USER}@gmail.com'
 )

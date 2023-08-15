@@ -28,7 +28,7 @@ test = []
 "Bug Tracker" = "zrbPackageBugTracker"
 
 [project.scripts]
-kebab-zrb-package-name = "kebab-zrb-package-name.__main__:hello"
+kebab-zrb-package-name = "snake_zrb_package_name.__main__:hello"
 
 [tool.pytest.ini_options]
 pythonpath = [
