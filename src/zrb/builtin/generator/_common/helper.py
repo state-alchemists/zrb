@@ -19,7 +19,9 @@ def validate_inexisting_automation(project_dir: str, automation_name: str):
     validate_inexisting_automation_module(project_dir, automation_name)
 
 
-def validate_inexisting_automation_package(project_dir: str, package_name: str):
+def validate_inexisting_automation_package(
+    project_dir: str, package_name: str
+):
     package_dir = os.path.join(
         project_dir, '_automate', f'{util.to_snake_case(package_name)}'
     )

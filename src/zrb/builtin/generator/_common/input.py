@@ -115,3 +115,38 @@ package_name_input = StrInput(
     prompt='Package name',
     default=get_random_name()
 )
+
+package_description_input = StrInput(
+    name='package-description',
+    description='Package description',
+    prompt='Package description',
+    default='My super package'
+)
+
+package_homepage_input = StrInput(
+    name='package-homepage',
+    description='Package homepage',
+    prompt='Package homepage',
+    default='https://github.com/{{util.to_kebab_case(input.package_name)}}'
+)
+
+package_bugtracker_input = StrInput(
+    name='package-bug-tracker',
+    description='Package bug tracker',
+    prompt='Package bug tracker',
+    default='https://github.com/{{util.to_kebab_case(input.package_name)}}/issues' # noqa
+)
+
+package_author_name_input = StrInput(
+    name='package-author-name',
+    prompt='Package author name',
+    description='Package author name',
+    default='{{env.USER}}'
+)
+
+package_author_email_input = StrInput(
+    name='package-author-email',
+    prompt='Package author email',
+    description='Package author email',
+    default='{{env.USER}}@gmail.com'
+)

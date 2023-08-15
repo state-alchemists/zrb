@@ -4,7 +4,11 @@ from ....task.decorator import python_task
 from ....task.task import Task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import project_dir_input, package_name_input
+from .._common.input import (
+    project_dir_input, package_name_input, package_description_input,
+    package_homepage_input, package_bugtracker_input,
+    package_author_name_input, package_author_email_input
+)
 from .._common.helper import (
     validate_existing_project_dir, validate_inexisting_automation,
     register_module_to_project
@@ -39,11 +43,21 @@ copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=[
         project_dir_input,
-        package_name_input
+        package_name_input,
+        package_description_input,
+        package_homepage_input,
+        package_bugtracker_input,
+        package_author_name_input,
+        package_author_email_input
     ],
     upstreams=[validate],
     replacements={
         'zrbPackageName': '{{input.package_name}}',
+        'zrbPackageDescription': '{{input.package_description}}',
+        'zrbPackageHomepage': '{{input.package_homepage}}',
+        'zrbPackageBugTracker': '{{input.package_bugtracker}}',
+        'zrbPackageAuthorName': '{{input.package_author_name}}',
+        'zrbPackageAuthorEmail': '{{input.package_author_email}}'
     },
     template_path=os.path.join(current_dir, 'template'),
     destination_path='{{ input.project_dir }}',

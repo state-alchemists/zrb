@@ -16,7 +16,7 @@ from ....helper import util
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Task Definitions
@@ -63,7 +63,7 @@ copy_resource = ResourceMaker(
         'zrbComposeCommand': '{{ util.coalesce(input.compose_command, "up") }}', # noqa
         'ZRB_ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}', # noqa
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
 )
 
