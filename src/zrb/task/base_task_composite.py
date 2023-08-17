@@ -361,16 +361,19 @@ class TaskModelWithPrinterAndTracker(
         )
         logger.critical(colored_message, exc_info=True)
 
-    def print_out(self, msg: Any):
+    def print_out(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
-        print(f'🤖 ➜  {prefix} • {msg}'.rstrip(), file=sys.stderr)
+        message_str = f'{message}'.rstrip() if trim_message else f'{message}'
+        print(f'🤖 ➜  {prefix} • {message_str}', file=sys.stderr)
 
-    def print_err(self, msg: Any):
+    def print_err(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
-        print(f'🤖 ⚠  {prefix} • {msg}'.rstrip(), file=sys.stderr)
+        message_str = f'{message}'.rstrip() if trim_message else f'{message}'
+        print(f'🤖 ⚠  {prefix} • {message_str}', file=sys.stderr)
 
-    def print_out_dark(self, msg: Any):
-        self.print_out(colored(msg, attrs=['dark']))
+    def print_out_dark(self, message: Any, trim_message: bool = True):
+        message_str = f'{message}'
+        self.print_out(colored(message_str, attrs=['dark']), trim_message)
 
     def _play_bell(self):
         print('\a', end='', file=sys.stderr)

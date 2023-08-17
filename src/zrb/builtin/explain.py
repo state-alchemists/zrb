@@ -7,7 +7,9 @@ from ..runner import runner
 
 def show_lines(task: Task, *lines: str):
     separator = '\n    '
-    task.print_out(separator + separator.join(lines))
+    task.print_out(
+        '\n' + separator + separator.join(lines) + '\n', trim_message=False
+    )
 
 
 ###############################################################################
@@ -90,5 +92,5 @@ async def explain_kiss(*args: Any, **kwargs: Any):
         'S - Simple',
         'S - Stupid',
         '',
-        'KISS, an acronym for "Keep it simple, stupid!", is a design principle noted by the U.S. Navy in 1960. First seen partly in American English by at least 1938, the KISS principle states that most systems work best if they are kept simple rather than made complicated; therefore, simplicity should be a key goal in design, and unnecessary complexity should be avoided.'
+        'KISS, an acronym for "Keep it simple, stupid!", is a design principle noted by the U.S. Navy in 1960. First seen partly in American English by at least 1938, the KISS principle states that most systems work best if they are kept simple rather than made complicated; therefore, simplicity should be a key goal in design, and unnecessary complexity should be avoided.' # noqa
     )
