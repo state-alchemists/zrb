@@ -9,7 +9,7 @@ from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.append_code_to_function import append_code_to_function
 from ....helper.file.text import read_text_file_async, write_text_file_async
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     plural_entity_name_input, main_column_name_input
 )

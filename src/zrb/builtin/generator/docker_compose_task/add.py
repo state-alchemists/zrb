@@ -5,13 +5,13 @@ from ....task.decorator import python_task
 from ....task_input.str_input import StrInput
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import (
+from .._common.task_input import (
    project_dir_input, task_name_input, http_port_input, env_prefix_input
 )
 from .._common.helper import (
-    validate_existing_project_dir, validate_inexisting_automation,
-    create_register_task_module
+    validate_existing_project_dir, validate_inexisting_automation
 )
+from .._common.task_factory import create_register_module
 from ....helper import util
 
 import os
@@ -67,7 +67,9 @@ copy_resource = ResourceMaker(
     destination_path='{{ input.project_dir }}',
 )
 
-register_task_module = create_register_task_module(
+register_module = create_register_module(
+    module_path='_automate.{{util.to_snake_case(input.task_name)}}',
+    inputs=[task_name_input],
     upstreams=[copy_resource]
 )
 
@@ -75,7 +77,7 @@ register_task_module = create_register_task_module(
 @python_task(
     name='docker-compose-task',
     group=project_add_group,
-    upstreams=[register_task_module],
+    upstreams=[register_module],
     runner=runner
 )
 async def add_docker_compose_task(*args: Any, **kwargs: Any):

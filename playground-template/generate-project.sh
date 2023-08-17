@@ -72,5 +72,9 @@ zrb project add pip-package \
     --package-author-name "Go Frendi" \
     --package-author-email "gofrendiasgard@gmail.com" \
 
+echo '🤖 Add generator'
+zrb project add app-generator \
+    --template-name "airflow"
+
 echo '🤖 Test'
 zrb project test-fastapp

@@ -4,11 +4,11 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import project_dir_input, task_name_input
+from .._common.task_input import project_dir_input, task_name_input
 from .._common.helper import (
-    validate_existing_project_dir, validate_inexisting_automation,
-    create_register_task_module
+    validate_existing_project_dir, validate_inexisting_automation
 )
+from .._common.task_factory import create_register_module
 
 import os
 
@@ -50,7 +50,9 @@ copy_resource = ResourceMaker(
     ]
 )
 
-register_task_module = create_register_task_module(
+register_module = create_register_module(
+    module_path='_automate.{{util.to_snake_case(input.task_name)}}',
+    inputs=[task_name_input],
     upstreams=[copy_resource]
 )
 
@@ -58,7 +60,7 @@ register_task_module = create_register_task_module(
 @python_task(
     name='cmd-task',
     group=project_add_group,
-    upstreams=[register_task_module],
+    upstreams=[register_module],
     runner=runner
 )
 async def add_cmd_task(*args: Any, **kwargs: Any):

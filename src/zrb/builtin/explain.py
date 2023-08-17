@@ -94,3 +94,34 @@ async def explain_kiss(*args: Any, **kwargs: Any):
         '',
         'KISS, an acronym for "Keep it simple, stupid!", is a design principle noted by the U.S. Navy in 1960. First seen partly in American English by at least 1938, the KISS principle states that most systems work best if they are kept simple rather than made complicated; therefore, simplicity should be a key goal in design, and unnecessary complexity should be avoided.' # noqa
     )
+
+
+@python_task(
+    name='zen-of-python',
+    group=explain_group,
+    description='Explain Zen of Python',
+    runner=runner
+)
+async def explain_zen_of_python(*args: Any, **kwargs: Any):
+    show_lines(
+        kwargs['_task'],
+        'Beautiful is better than ugly.',
+        'Explicit is better than implicit.',
+        'Simple is better than complex.',
+        'Complex is better than complicated.',
+        'Flat is better than nested.',
+        'Sparse is better than dense.',
+        'Readability counts.',
+        'Special cases aren\'t special enough to break the rules.',
+        'Although practicality beats purity.',
+        'Errors should never pass silently.',
+        'Unless explicitly silenced.',
+        'In the face of ambiguity, refuse the temptation to guess.',
+        'There should be one-- and preferably only one --obvious way to do it.', # noqa
+        'Although that way may not be obvious at first unless you\'re Dutch.',
+        'Now is better than never.',
+        'Although never is often better than *right* now.',
+        'If the implementation is hard to explain, it\'s a bad idea.',
+        'If the implementation is easy to explain, it may be a good idea.',
+        'Namespaces are one honking great idea -- let\'s do more of those!',
+    )

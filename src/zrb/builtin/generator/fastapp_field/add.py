@@ -1,5 +1,5 @@
 from typing import Any
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     column_name_input, column_type_input
 )

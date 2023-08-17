@@ -1,7 +1,7 @@
 from typing import List
 from ....task.task import Task
 from ....task.cmd_task import CmdTask
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
 )
 

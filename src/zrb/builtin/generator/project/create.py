@@ -5,8 +5,8 @@ from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
-from .._common.input import project_dir_input, project_name_input
-from ..project_task.task_factory import create_add_project_automation_task
+from .._common.task_input import project_dir_input, project_name_input
+from ..project_task.task_factory import create_ensure_project_tasks
 
 import os
 
@@ -24,7 +24,9 @@ def copy_resource_replacement_mutator(
         replacements.get('zrbProjectDir', '')
     )
     if replacements.get('zrbProjectName', '') == '':
-        replacements['zrbProjectName'] = replacements.get('zrbBaseProjectDir', '')
+        replacements['zrbProjectName'] = replacements.get(
+            'zrbBaseProjectDir', ''
+        )
     return replacements
 
 
@@ -64,14 +66,14 @@ copy_resource = ResourceMaker(
     ]
 )
 
-add_project_task = create_add_project_automation_task(
+ensure_project_tasks = create_ensure_project_tasks(
     upstreams=[copy_resource]
 )
 
 create_project = CmdTask(
     name='create',
     group=project_group,
-    upstreams=[add_project_task],
+    upstreams=[ensure_project_tasks],
     inputs=[project_dir_input],
     cmd=[
         'set -e',

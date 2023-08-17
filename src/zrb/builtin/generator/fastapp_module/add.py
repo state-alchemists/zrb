@@ -5,7 +5,7 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input,
     module_name_input
 )

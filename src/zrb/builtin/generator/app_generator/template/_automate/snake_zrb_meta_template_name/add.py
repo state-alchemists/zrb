@@ -1,21 +1,10 @@
 from typing import Any
-from ..._group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from .._common.task_input import (
-    project_dir_input, app_name_input, app_image_name_input, http_port_input,
-    env_prefix_input
+from zrb.builtin import group
+from zrb import Task, python_task, ResourceMaker, runner
+from zrb.helper import util
+from zrb.builtin.generator import (
+    task_input, task_factory, helper, project_task_factory as ptask_factory
 )
-from .._common.helper import (
-    validate_existing_project_dir, validate_inexisting_automation
-)
-from .._common.task_factory import create_register_module
-from ..project_task.task_factory import (
-    create_ensure_project_tasks, create_register_app_task
-)
-from ....helper import util
 
 import os
 
@@ -28,13 +17,16 @@ current_dir = os.path.dirname(__file__)
 
 @python_task(
     name='validate',
-    inputs=[project_dir_input, app_name_input],
+    inputs=[
+        task_input.project_dir_input,
+        task_input.app_name_input
+    ],
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_existing_project_dir(project_dir)
+    helper.validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
-    validate_inexisting_automation(project_dir, app_name)
+    helper.validate_inexisting_automation(project_dir, app_name)
     source_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )
@@ -45,11 +37,11 @@ async def validate(*args: Any, **kwargs: Any):
 copy_resource = ResourceMaker(
     name='copy-resource',
     inputs=[
-        project_dir_input,
-        app_name_input,
-        app_image_name_input,
-        http_port_input,
-        env_prefix_input,
+        task_input.project_dir_input,
+        task_input.app_name_input,
+        task_input.app_image_name_input,
+        task_input.http_port_input,
+        task_input.env_prefix_input,
     ],
     upstreams=[validate],
     replacements={
@@ -66,39 +58,39 @@ copy_resource = ResourceMaker(
     ]
 )
 
-register_local_module = create_register_module(
+register_local_module = task_factory.create_register_module(
     module_path='_automate.{{util.to_snake_case(input.app_name)}}.local',
     alias='{{util.to_snake_case(input.app_name)}}_local',
-    inputs=[app_name_input],
+    inputs=[task_input.app_name_input],
     upstreams=[copy_resource]
 )
 
-register_container_module = create_register_module(
+register_container_module = task_factory.create_register_module(
     module_path='_automate.{{util.to_snake_case(input.app_name)}}.container',
     alias='{{util.to_snake_case(input.app_name)}}_container',
-    inputs=[app_name_input],
+    inputs=[task_input.app_name_input],
     upstreams=[register_local_module]
 )
 
-register_image_module = create_register_module(
+register_image_module = task_factory.create_register_module(
     module_path='_automate.{{util.to_snake_case(input.app_name)}}.image',
     alias='{{util.to_snake_case(input.app_name)}}_image',
-    inputs=[app_name_input],
+    inputs=[task_input.app_name_input],
     upstreams=[register_container_module]
 )
 
-register_deployment_module = create_register_module(
+register_deployment_module = task_factory.create_register_module(
     module_path='_automate.{{util.to_snake_case(input.app_name)}}.deployment',
     alias='{{util.to_snake_case(input.app_name)}}_deployment',
-    inputs=[app_name_input],
+    inputs=[task_input.app_name_input],
     upstreams=[register_image_module]
 )
 
-ensure_project_tasks = create_ensure_project_tasks(
+ensure_project_tasks = ptask_factory.create_ensure_project_tasks(
     upstreams=[copy_resource]
 )
 
-register_start = create_register_app_task(
+register_start = ptask_factory.create_register_app_task(
     task_name='register-start',
     project_task_file_name='start_project.py',
     project_task_name='start',
@@ -107,7 +99,7 @@ register_start = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_start_container = create_register_app_task(
+register_start_container = ptask_factory.create_register_app_task(
     task_name='register-start-container',
     project_task_file_name='start_project_containers.py',
     project_task_name='start-containers',
@@ -116,7 +108,7 @@ register_start_container = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_stop_container = create_register_app_task(
+register_stop_container = ptask_factory.create_register_app_task(
     task_name='register-stop-container',
     project_task_file_name='stop_project_containers.py',
     project_task_name='stop-containers',
@@ -125,7 +117,7 @@ register_stop_container = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_remove_container = create_register_app_task(
+register_remove_container = ptask_factory.create_register_app_task(
     task_name='register-remove-container',
     project_task_file_name='remove_project_containers.py',
     project_task_name='remove-containers',
@@ -134,7 +126,7 @@ register_remove_container = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_push_image = create_register_app_task(
+register_push_image = ptask_factory.create_register_app_task(
     task_name='register-push-image',
     project_task_file_name='push_project_images.py',
     project_task_name='push-images',
@@ -143,7 +135,7 @@ register_push_image = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_build_image = create_register_app_task(
+register_build_image = ptask_factory.create_register_app_task(
     task_name='register-build-image',
     project_task_file_name='build_project_images.py',
     project_task_name='build-images',
@@ -152,7 +144,7 @@ register_build_image = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_deploy = create_register_app_task(
+register_deploy = ptask_factory.create_register_app_task(
     task_name='register-deploy',
     project_task_file_name='deploy_project.py',
     project_task_name='deploy',
@@ -161,7 +153,7 @@ register_deploy = create_register_app_task(
     upstreams=[ensure_project_tasks]
 )
 
-register_destroy = create_register_app_task(
+register_destroy = ptask_factory.create_register_app_task(
     task_name='register-destroy',
     project_task_file_name='destroy_project.py',
     project_task_name='destroy',
@@ -173,7 +165,7 @@ register_destroy = create_register_app_task(
 
 @python_task(
     name='simple-python-app',
-    group=project_add_group,
+    group=group.project_add_group,
     upstreams=[
         register_local_module,
         register_container_module,

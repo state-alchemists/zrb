@@ -1,0 +1,1 @@
+pulumi up --skip-preview

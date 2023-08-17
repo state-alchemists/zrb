@@ -9,7 +9,7 @@ from .task.port_checker import PortChecker
 from .task.path_checker import PathChecker
 from .task.resource_maker import ResourceMaker, Replacement, ReplacementMutator
 from .task.flow_task import FlowTask, FlowNode
-from .task_input.input import Input
+from .task_input.task_input import Input
 from .task_input.bool_input import BoolInput
 from .task_input.choice_input import ChoiceInput
 from .task_input.float_input import FloatInput

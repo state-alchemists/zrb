@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from .._common.input import project_dir_input, app_name_input
+from .._common.task_input import project_dir_input, app_name_input
 from ....task.decorator import python_task
 from ....task.task import Task
 from ....helper import util
@@ -13,48 +13,44 @@ import os
 current_dir = os.path.dirname(__file__)
 
 
-def create_add_project_automation_task(
+def create_ensure_project_tasks(
     upstreams: Optional[List[Task]] = None
 ) -> Task:
     @python_task(
-        name='add-project-automation',
+        name='ensure-project-tasks',
         inputs=[project_dir_input],
         upstreams=[] if upstreams is None else upstreams
     )
     async def _task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir', '.')
-        task.print_out('Create project automation modules if not exist')
-        await _add_project_automation(project_dir)
+        task.print_out('Create project tasks if not exist')
+        if os.path.exists(os.path.join(project_dir, '_automate', '_project')):
+            return
+        await copy_tree(
+            src=os.path.join(current_dir, 'template'),
+            dst=project_dir
+        )
+        project_task_module_path = '_automate._project'
+        zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
+        code = await read_text_file_async(zrb_init_path)
+        import_alias = project_task_module_path.split('.')[-1]
+        code = add_import_module(
+            code=code,
+            module_path=project_task_module_path,
+            alias=import_alias
+        )
+        code = add_assert_resource(code, import_alias)
+        await write_text_file_async(zrb_init_path, code)
     return _task
-
-
-async def _add_project_automation(project_dir: str):
-    if os.path.exists(os.path.join(project_dir, '_automate', '_project')):
-        return
-    await copy_tree(
-        src=os.path.join(current_dir, 'template'),
-        dst=project_dir
-    )
-    project_task_module_path = '_automate._project'
-    zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
-    code = await read_text_file_async(zrb_init_path)
-    import_alias = project_task_module_path.split('.')[-1]
-    code = add_import_module(
-        code=code,
-        module_path=project_task_module_path,
-        alias=import_alias
-    )
-    code = add_assert_resource(code, import_alias)
-    await write_text_file_async(zrb_init_path, code)
 
 
 def create_register_app_task(
     task_name: str,
-    project_automation_file_name: str,
-    project_automation_task_name: str,
-    app_automation_file_name: str,
-    app_automation_task_var_name_tpl: str,
+    project_task_file_name: str,
+    project_task_name: str,
+    app_task_file_name: str,
+    app_task_var_name_tpl: str,
     upstreams: Optional[List[Task]] = None,
 ):
     @python_task(
@@ -68,16 +64,16 @@ def create_register_app_task(
         app_name = kwargs.get('app_name')
         snake_app_name = util.to_snake_case(app_name)
         abs_app_automation_file_name = os.path.join(
-            project_dir, '_automate', snake_app_name, app_automation_file_name
+            project_dir, '_automate', snake_app_name, app_task_file_name
         )
-        app_automation_task_var_name = app_automation_task_var_name_tpl.format(
+        app_automation_task_var_name = app_task_var_name_tpl.format(
             snake_app_name=snake_app_name
         )
         project_automation_dir = os.path.join(
             project_dir, '_automate', '_project'
         )
         project_automation_path = os.path.join(
-            project_automation_dir, f'{project_automation_file_name}'
+            project_automation_dir, f'{project_task_file_name}'
         )
         upstream_task_rel_file_path = os.path.relpath(
             abs_app_automation_file_name, project_automation_path
@@ -102,7 +98,7 @@ def create_register_app_task(
             resource=app_automation_task_var_name
         )
         code = add_upstream_to_task(
-            code, project_automation_task_name, app_automation_task_var_name
+            code, project_task_name, app_automation_task_var_name
         )
         await write_text_file_async(project_automation_path, code)
     return _task
