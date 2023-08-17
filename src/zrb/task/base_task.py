@@ -271,7 +271,7 @@ class BaseTask(
     def _print_result(self, result: Any):
         '''
         Print result to stdout so that it can be processed further.
-        e.g.: echo $(zrb show principle solid) > solid-principle.txt
+        e.g.: echo $(zrb explain solid) > solid-principle.txt
 
         You need to override this method
         if you want to show the result differently.

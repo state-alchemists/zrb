@@ -56,7 +56,7 @@ Commands:
   hello             hello
   make              Make things
   md5               MD5 operations
-  principle         Principle related commands
+  explain           Explain things 
   project           Project management
   register-trainer  register-trainer
   start-server      start-server

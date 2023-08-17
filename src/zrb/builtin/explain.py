@@ -1,0 +1,94 @@
+from typing import Any
+from ._group import explain_group
+from ..task.decorator import python_task
+from ..task.task import Task
+from ..runner import runner
+
+
+def show_lines(task: Task, *lines: str):
+    separator = '\n    '
+    task.print_out(separator + separator.join(lines))
+
+
+###############################################################################
+# Task Definitions
+###############################################################################
+
+
+@python_task(
+    name='solid',
+    group=explain_group,
+    description='Explain SOLID principle',
+    runner=runner
+)
+async def explain_solid(*args: Any, **kwargs: Any):
+    show_lines(
+        kwargs['_task'],
+        'S - Single Responsibility Principle',
+        'O - Open/Closed Principle',
+        'L - Liskov’s Substitution Principle',
+        'I - Interface Segregation Principle',
+        'D - Dependency Inversion Principle',
+        '',
+        'In software development, Object-Oriented Design plays a crucial role when it comes to writing flexible, scalable, maintainable, and reusable code. There are so many benefits of using OOD but every developer should also have the knowledge of the SOLID principle for good object-oriented design in programming. The SOLID principle was introduced by Robert C. Martin, also known as Uncle Bob and it is a coding standard in programming.', # noqa
+        '',
+        'The SOLID principle helps in reducing tight coupling. Tight coupling means a group of classes are highly dependent on one another which you should avoid in your code. Opposite of tight coupling is loose coupling and your code is considered as a good code when it has loosely-coupled classes. Loosely coupled classes minimize changes in your code, helps in making code more reusable, maintainable, flexible and stable.', # noqa
+    )
+
+
+@python_task(
+    name='yagni',
+    group=explain_group,
+    description='Explain YAGNI principle',
+    runner=runner
+)
+async def explain_yagni(*args: Any, **kwargs: Any):
+    show_lines(
+        kwargs['_task'],
+        'Y - You',
+        'A - Aren\'t',
+        'G - Gonna',
+        'N - Need',
+        'I - It',
+        '',
+        'YAGNI principle ("You Aren\'t Gonna Need It") is a practice in software development which states that features should only be added when required.', # noqa
+        '',
+        'As a part of the extreme programming (XP) philosophy, YAGNI trims away excess and inefficiency in development to facilitate the desired increased frequency of releases.', # noqa
+    )
+
+
+@python_task(
+    name='dry',
+    group=explain_group,
+    description='Explain DRY principle',
+    runner=runner
+)
+async def explain_dry(*args: Any, **kwargs: Any):
+    show_lines(
+        kwargs['_task'],
+        'D - Don\'t',
+        'R - Repeat',
+        'Y - Yourself',
+        '',
+        '"Don\'t repeat yourself" (DRY) is a principle of software development aimed at reducing repetition of information which is likely to change, replacing it with abstractions that are less likely to change, or using data normalization which avoids redundancy in the first place.', # noqa
+        '',
+        'The DRY principle is stated as "Every piece of knowledge must have a single, unambiguous, authoritative representation within a system". The principle has been formulated by Andy Hunt and Dave Thomas in their book The Pragmatic Programmer.', # noqa
+    )
+
+
+@python_task(
+    name='kiss',
+    group=explain_group,
+    description='Explain KISS principle',
+    runner=runner
+)
+async def explain_kiss(*args: Any, **kwargs: Any):
+    show_lines(
+        kwargs['_task'],
+        'K - Keep',
+        'I - It',
+        'S - Simple',
+        'S - Stupid',
+        '',
+        'KISS, an acronym for "Keep it simple, stupid!", is a design principle noted by the U.S. Navy in 1960. First seen partly in American English by at least 1938, the KISS principle states that most systems work best if they are kept simple rather than made complicated; therefore, simplicity should be a key goal in design, and unnecessary complexity should be avoided.'
+    )

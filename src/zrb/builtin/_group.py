@@ -15,11 +15,8 @@ ubuntu_group = Group(
 ubuntu_install_group = Group(
     name='install', description='Install things on ubuntu', parent=ubuntu_group
 )
-principle_group = Group(
-    name='principle', description='Principle related commands'
-)
-principle_show_group = Group(
-    name='show', description='Showing principles', parent=principle_group
+explain_group = Group(
+    name='explain', description='Explain things'
 )
 base64_group = Group(
     name='base64', description='Base64 operations'

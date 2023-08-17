@@ -424,12 +424,12 @@ install_helix = FlowTask(
         ),
         [
             FlowNode(
-                name='create-gruvbox-transparent-theme',
+                name='create-helix-theme',
                 run=write_config(
                     template_file=os.path.join(
-                        dir_path, 'helix', 'resource', 'themes', 'gruvbox_transparent.toml'
+                        dir_path, 'helix', 'resource', 'themes', 'gruvbox_transparent.toml' # noqa
                     ),
-                    config_file='~/.config/helix/themes/gruvbox_transparent.toml',
+                    config_file='~/.config/helix/themes/gruvbox_transparent.toml', # noqa
                     remove_old_config=True
                 ),
                 preexec_fn=None
