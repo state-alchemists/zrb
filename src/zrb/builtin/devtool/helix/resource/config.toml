@@ -1,0 +1,10 @@
+theme = "gruvbox_transparent"
+
+[editor]
+line-number = "relative"
+mouse = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"

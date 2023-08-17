@@ -41,7 +41,17 @@ def test_cmd_task_with_multiline_command():
     assert result.output == '\n'.join(['hello', 'hello again'])
 
 
-def test_cmd_task_with_function_command():
+def test_cmd_task_with_function_returning_str_command():
+    cmd_task = CmdTask(
+        name='simple-no-error',
+        cmd=lambda *args, **kwargs: 'echo hello',
+    )
+    function = cmd_task.to_function()
+    result = function()
+    assert result.output == 'hello'
+
+
+def test_cmd_task_with_function_returning_str_list_command():
     cmd_task = CmdTask(
         name='simple-no-error',
         cmd=lambda *args, **kwargs: '\n'.join([
@@ -57,11 +67,52 @@ def test_cmd_task_with_cmd_path():
     dir_path = pathlib.Path(__file__).parent.absolute()
     cmd_task = CmdTask(
         name='cmd-path-no-error',
-        cmd_path=os.path.join(dir_path, 'templates', 'hello.sh')
+        cmd_path=os.path.join(dir_path, 'templates', 'hello-world.sh')
     )
     function = cmd_task.to_function()
     result = function()
     assert result.output == 'Hello, World!'
+
+
+def test_cmd_task_with_multiline_cmd_path():
+    dir_path = pathlib.Path(__file__).parent.absolute()
+    cmd_task = CmdTask(
+        name='cmd-path-no-error',
+        cmd_path=[
+            os.path.join(dir_path, 'templates', 'hello-heaven.sh'),
+            os.path.join(dir_path, 'templates', 'hello-world.sh')
+        ]
+    )
+    function = cmd_task.to_function()
+    result = function()
+    assert result.output == '\n'.join(['Hello, Heaven!', 'Hello, World!'])
+
+
+def test_cmd_task_with_function_returning_str_cmd_path():
+    dir_path = pathlib.Path(__file__).parent.absolute()
+    cmd_path = os.path.join(dir_path, 'templates', 'hello-world.sh')
+    cmd_task = CmdTask(
+        name='cmd-path-no-error',
+        cmd_path=lambda *args, **kwargs: cmd_path
+    )
+    function = cmd_task.to_function()
+    result = function()
+    assert result.output == 'Hello, World!'
+
+
+def test_cmd_task_with_function_returning_str_list_cmd_path():
+    dir_path = pathlib.Path(__file__).parent.absolute()
+    cmd_path = [
+        os.path.join(dir_path, 'templates', 'hello-heaven.sh'),
+        os.path.join(dir_path, 'templates', 'hello-world.sh')
+    ]
+    cmd_task = CmdTask(
+        name='cmd-path-no-error',
+        cmd_path=lambda *args, **kwargs: cmd_path
+    )
+    function = cmd_task.to_function()
+    result = function()
+    assert result.output == '\n'.join(['Hello, Heaven!', 'Hello, World!'])
 
 
 def test_cmd_task_with_upstream_with_no_error():

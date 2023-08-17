@@ -129,3 +129,5 @@ KUBE_PS1_PREFIX=''
 KUBE_PS1_SUFFIX=' '
 KUBE_PS1_CTX_COLOR=cyan
 PROMPT='$(kube_ps1)'$PROMPT
+
+export COLORTERM=truecolor
