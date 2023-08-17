@@ -111,7 +111,10 @@ prepare_snake_zrb_app_name_backend = CmdTask(
     description='Prepare backend for human readable zrb app name',
     group=project_group,
     cwd=APP_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'prepare-backend.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'app-prepare-backend.sh'),
+    ]
 )
 runner.register(prepare_snake_zrb_app_name_backend)
 
@@ -134,7 +137,10 @@ start_monolith_snake_zrb_app_name = CmdTask(
     cwd=APP_DIR,
     env_files=[app_env_file],
     envs=[app_enable_otel_env],
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'app-start.sh'),
+    ],
     checkers=[
         app_local_checker,
     ]
@@ -166,7 +172,10 @@ start_snake_zrb_app_name_gateway = CmdTask(
         Env(name='APP_ENABLE_RPC_SERVER', default='false', os_name=''),
         app_enable_otel_env,
     ],
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'app-start.sh'),
+    ],
     checkers=[
         app_local_checker,
     ]

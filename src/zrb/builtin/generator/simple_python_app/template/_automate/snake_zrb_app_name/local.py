@@ -36,7 +36,10 @@ start_snake_zrb_app_name = CmdTask(
             default='zrbAppHttpPort'
         )
     ],
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'app-activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'app-start.sh'),
+    ],
     checkers=[
         HTTPChecker(
             name='check-kebab-zrb-app-name',

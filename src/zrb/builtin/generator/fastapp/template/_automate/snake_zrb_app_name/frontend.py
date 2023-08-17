@@ -16,7 +16,7 @@ build_snake_zrb_app_name_frontend = CmdTask(
     description='Build frontend for human readable zrb app name',
     group=project_group,
     cwd=APP_FRONTEND_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'build-frontend.sh'),
+    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'app-build-frontend.sh'),
     checkers=[
         PathChecker(
             name='check-kebab-zrb-app-name-frontend-build',
@@ -39,7 +39,7 @@ build_snake_zrb_app_name_frontend_once = CmdTask(
     name='build-kebab-zrb-app-name-frontend_once',
     description='Build frontend for human readable zrb app name',
     cwd=APP_FRONTEND_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'build-frontend.sh'),
+    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'app-build-frontend.sh'),
     checkers=[
         PathChecker(
             name='check-kebab-zrb-app-name-frontend-build',
