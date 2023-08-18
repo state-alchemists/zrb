@@ -21,24 +21,23 @@ tomli==2.0.1
 flake8==6.0.0       # Linter
 pytest==7.4.0
 pytest-cov==4.1.0
-pytest-xdist==3.3.1
 pytest-asyncio==0.21.0
 
 # Other dependencies (just for auto-completion, not included in `pyproject.toml`)
-pulumi==3.74.0
-pulumi-kubernetes==3.30.1
-fastapi==0.100.0
-aiormq==6.7.6
+pulumi==3.78.1
+pulumi-kubernetes==4.1.0
+fastapi==0.101.1
+aiormq==6.7.7
 aiokafka==0.8.1
-alembic==1.11.1
+alembic==1.11.3
 SQLAlchemy==2.0.18
 python-jose==3.3.0
 bcrypt==4.0.1
 python-multipart==0.0.6
-httpx==0.24.0
+httpx==0.24.1
 asgi-lifespan==2.1.0
 python-ulid==1.1.0
-locust==2.15.1
+locust==2.16.1
 opentelemetry-distro==0.40b0
 opentelemetry-exporter-otlp==1.19.0
 opentelemetry-instrumentation-fastapi==0.40b0

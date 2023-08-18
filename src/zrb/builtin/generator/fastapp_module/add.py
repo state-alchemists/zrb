@@ -5,11 +5,11 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input,
     module_name_input
 )
-from .._common.helper import validate_project_dir
+from .._common.helper import validate_existing_project_dir
 from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_function_call import add_function_call
@@ -23,7 +23,7 @@ import asyncio
 import os
 import jsons
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Task Definitions
@@ -37,7 +37,7 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
     snake_module_name = util.to_snake_case(module_name)
@@ -70,7 +70,7 @@ copy_resource = ResourceMaker(
         'zrbAppName': '{{input.app_name}}',
         'zrbModuleName': '{{input.module_name}}',
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',

@@ -4,19 +4,27 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input, app_image_name_input, http_port_input,
     env_prefix_input
 )
-from .._common.helper import validate_project_dir, create_register_app_module
+from .._common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation
+)
+from .._common.task_factory import create_register_module
 from ..project_task.task_factory import (
-    create_add_project_automation_task, create_register_app_task
+    create_ensure_project_tasks, create_add_build_images_upstream,
+    create_add_deploy_upstream, create_add_destroy_upstream,
+    create_add_push_images_upstream, create_add_remove_containers_upstream,
+    create_add_start_containers_upstream, create_add_start_upstream,
+    create_add_stop_containers_upstream
 )
 from ....helper import util
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
+SNAKE_APP_NAME_TPL = '{{util.to_snake_case(input.app_name)}}'
 
 ###############################################################################
 # Task Definitions
@@ -29,15 +37,9 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
-    automation_dir = os.path.join(
-        project_dir, '_automate', util.to_snake_case(app_name)
-    )
-    if os.path.exists(automation_dir):
-        raise Exception(
-            f'Automation directory already exists: {automation_dir}'
-        )
+    validate_inexisting_automation(project_dir, app_name)
     app_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(app_name)}'
     )
@@ -63,7 +65,7 @@ copy_resource = ResourceMaker(
         'zrbAppHttpAuthPort': '{{util.coalesce(input.http_port, "3001") + 1}}',
         'zrbAppHttpLogPort': '{{util.coalesce(input.http_port, "3001") + 2}}'
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',
@@ -75,104 +77,106 @@ copy_resource = ResourceMaker(
     ]
 )
 
-register_local_app_module = create_register_app_module(
-    module='local', upstreams=[copy_resource]
-)
-
-register_container_app_module = create_register_app_module(
-    module='container', upstreams=[register_local_app_module]
-)
-
-register_image_app_module = create_register_app_module(
-    module='image', upstreams=[register_container_app_module]
-)
-
-register_deployment_app_module = create_register_app_module(
-    module='deployment', upstreams=[register_image_app_module]
-)
-
-register_test_app_module = create_register_app_module(
-    module='test', upstreams=[register_deployment_app_module]
-)
-
-register_load_test_app_module = create_register_app_module(
-    module='load_test', upstreams=[register_test_app_module]
-)
-
-add_project_task = create_add_project_automation_task(
+register_local_module = create_register_module(
+    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.local',
+    alias=f'{SNAKE_APP_NAME_TPL}_local',
+    inputs=[app_name_input],
     upstreams=[copy_resource]
 )
 
-register_start = create_register_app_task(
-    task_name='register-start',
-    project_automation_file_name='start_project.py',
-    project_automation_task_name='start',
-    app_automation_file_name='local.py',
-    app_automation_task_var_name_tpl='start_{snake_app_name}',
-    upstreams=[add_project_task]
+register_container_module = create_register_module(
+    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.container',
+    alias=f'{SNAKE_APP_NAME_TPL}_container',
+    inputs=[app_name_input],
+    upstreams=[register_local_module]
 )
 
-register_start_container = create_register_app_task(
-    task_name='register-start-container',
-    project_automation_file_name='start_project_containers.py',
-    project_automation_task_name='start-containers',
-    app_automation_file_name='container.py',
-    app_automation_task_var_name_tpl='start_{snake_app_name}_container',
-    upstreams=[add_project_task]
+register_image_module = create_register_module(
+    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.image',
+    alias=f'{SNAKE_APP_NAME_TPL}_image',
+    inputs=[app_name_input],
+    upstreams=[register_container_module]
 )
 
-register_stop_container = create_register_app_task(
-    task_name='register-stop-container',
-    project_automation_file_name='stop_project_containers.py',
-    project_automation_task_name='stop-containers',
-    app_automation_file_name='container.py',
-    app_automation_task_var_name_tpl='stop_{snake_app_name}_container',
-    upstreams=[add_project_task]
+register_deployment_module = create_register_module(
+    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.deployment',
+    alias=f'{SNAKE_APP_NAME_TPL}_deployment',
+    inputs=[app_name_input],
+    upstreams=[register_image_module]
 )
 
-register_remove_container = create_register_app_task(
-    task_name='register-remove-container',
-    project_automation_file_name='remove_project_containers.py',
-    project_automation_task_name='remove-containers',
-    app_automation_file_name='container.py',
-    app_automation_task_var_name_tpl='remove_{snake_app_name}_container',
-    upstreams=[add_project_task]
+register_test_module = create_register_module(
+    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.test',
+    alias=f'{SNAKE_APP_NAME_TPL}_test',
+    inputs=[app_name_input],
+    upstreams=[register_deployment_module]
 )
 
-register_push_image = create_register_app_task(
-    task_name='register-push-image',
-    project_automation_file_name='push_project_images.py',
-    project_automation_task_name='push-images',
-    app_automation_file_name='image.py',
-    app_automation_task_var_name_tpl='push_{snake_app_name}_image',
-    upstreams=[add_project_task]
+register_load_test_module = create_register_module(
+    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.load_test',
+    alias=f'{SNAKE_APP_NAME_TPL}_load_test',
+    inputs=[app_name_input],
+    upstreams=[register_test_module]
 )
 
-register_build_image = create_register_app_task(
-    task_name='register-build-image',
-    project_automation_file_name='build_project_images.py',
-    project_automation_task_name='build-images',
-    app_automation_file_name='image.py',
-    app_automation_task_var_name_tpl='build_{snake_app_name}_image',
-    upstreams=[add_project_task]
+ensure_project_tasks = create_ensure_project_tasks(
+    upstreams=[copy_resource]
 )
 
-register_deploy = create_register_app_task(
-    task_name='register-deploy',
-    project_automation_file_name='deploy_project.py',
-    project_automation_task_name='deploy',
-    app_automation_file_name='deployment.py',
-    app_automation_task_var_name_tpl='deploy_{snake_app_name}',
-    upstreams=[add_project_task]
+add_start = create_add_start_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.local',
+    upstream_task_var=f'start_{SNAKE_APP_NAME_TPL}',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
 )
 
-register_destroy = create_register_app_task(
-    task_name='register-destroy',
-    project_automation_file_name='destroy_project.py',
-    project_automation_task_name='destroy',
-    app_automation_file_name='deployment.py',
-    app_automation_task_var_name_tpl='destroy_{snake_app_name}',
-    upstreams=[add_project_task]
+add_start_container = create_add_start_containers_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.container',
+    upstream_task_var=f'start_{SNAKE_APP_NAME_TPL}_container',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
+)
+
+add_stop_container = create_add_stop_containers_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.container',
+    upstream_task_var=f'stop_{SNAKE_APP_NAME_TPL}_container',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
+)
+
+add_remove_container = create_add_remove_containers_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.container',
+    upstream_task_var=f'remove_{SNAKE_APP_NAME_TPL}_container',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
+)
+
+add_build_image = create_add_build_images_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.image',
+    upstream_task_var=f'build_{SNAKE_APP_NAME_TPL}_image',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
+)
+
+add_push_image = create_add_push_images_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.image',
+    upstream_task_var=f'push_{SNAKE_APP_NAME_TPL}_image',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
+)
+
+add_deploy = create_add_deploy_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.deployment',
+    upstream_task_var=f'deploy_{SNAKE_APP_NAME_TPL}',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
+)
+
+add_destroy = create_add_destroy_upstream(
+    upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.deployment',
+    upstream_task_var=f'destroy_{SNAKE_APP_NAME_TPL}',
+    upstreams=[ensure_project_tasks],
+    inputs=[app_name_input]
 )
 
 
@@ -180,20 +184,20 @@ register_destroy = create_register_app_task(
     name='fastapp',
     group=project_add_group,
     upstreams=[
-        register_local_app_module,
-        register_container_app_module,
-        register_image_app_module,
-        register_deployment_app_module,
-        register_test_app_module,
-        register_load_test_app_module,
-        register_start,
-        register_start_container,
-        register_stop_container,
-        register_remove_container,
-        register_build_image,
-        register_push_image,
-        register_deploy,
-        register_destroy
+        register_local_module,
+        register_container_module,
+        register_image_module,
+        register_deployment_module,
+        register_test_module,
+        register_load_test_module,
+        add_start,
+        add_start_container,
+        add_stop_container,
+        add_remove_container,
+        add_build_image,
+        add_push_image,
+        add_deploy,
+        add_destroy
     ],
     runner=runner
 )

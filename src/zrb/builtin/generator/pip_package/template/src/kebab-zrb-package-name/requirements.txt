@@ -1,0 +1,4 @@
+# Build dependencies
+flit==3.9.0         # better builder
+twine==4.0.2        # pip package uploader
+keyring==24.2.0     # authenticator (used by twine)

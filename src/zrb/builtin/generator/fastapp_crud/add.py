@@ -9,18 +9,18 @@ from ....helper import util
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.append_code_to_function import append_code_to_function
 from ....helper.file.text import read_text_file_async, write_text_file_async
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     plural_entity_name_input, main_column_name_input
 )
-from .._common.helper import validate_project_dir
+from .._common.helper import validate_existing_project_dir
 from .add_navigation import create_add_navigation_task
 
 import asyncio
 import os
 
-current_dir = os.path.dirname(__file__)
-codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
+CURRENT_DIR = os.path.dirname(__file__)
+CODEMOD_DIR = os.path.join(CURRENT_DIR, 'nodejs', 'codemod')
 
 ###############################################################################
 # Task Definitions
@@ -35,7 +35,7 @@ codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
     entity_name = kwargs.get('entity_name')
@@ -79,7 +79,7 @@ copy_resource = ResourceMaker(
         'zrbPluralEntityName': '{{input.plural_entity_name}}',
         'zrbColumnName': '{{input.column_name}}',
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',
@@ -128,7 +128,7 @@ async def register_crud(*args: Any, **kwargs: Any):
 
 prepare_codemod = CmdTask(
     name='prepare-codemod',
-    cwd=codemod_dir,
+    cwd=CODEMOD_DIR,
     cmd=[
         'npm install --save-dev',
         'node_modules/.bin/tsc'

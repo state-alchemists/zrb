@@ -61,3 +61,20 @@ zrb project add fastapp-field \
     --entity-name "book" \
     --column-name "title" \
     --column-type "str"
+
+echo '🤖 Add python package'
+zrb project add pip-package \
+    --project-dir . \
+    --package-name "zrb-playground-test" \
+    --package-description "A test package" \
+    --package-homepage "https://github.com/state-alchemists/zrb" \
+    --package-bug-tracker "https://github.com/state-alchemists/zrb/issues" \
+    --package-author-name "Go Frendi" \
+    --package-author-email "gofrendiasgard@gmail.com" \
+
+echo '🤖 Add generator'
+zrb project add app-generator \
+    --template-name "airflow"
+
+echo '🤖 Test'
+zrb project test-fastapp

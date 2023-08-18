@@ -1,108 +1,180 @@
 from typing import Any, List, Optional
-from .._common.input import project_dir_input, app_name_input
+from .._common.task_input import project_dir_input
+from .._common.task_factory import create_add_upstream
 from ....task.decorator import python_task
 from ....task.task import Task
-from ....helper import util
+from ....task_input.task_input import Input
 from ....helper.codemod.add_import_module import add_import_module
-from ....helper.codemod.add_upstream_to_task import add_upstream_to_task
 from ....helper.codemod.add_assert_resource import add_assert_resource
 from ....helper.file.copy_tree import copy_tree
 from ....helper.file.text import read_text_file_async, write_text_file_async
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 
-def create_add_project_automation_task(
+def create_ensure_project_tasks(
     upstreams: Optional[List[Task]] = None
 ) -> Task:
+    '''
+    Create a task to ensure there are project tasks under `_automate/_project`
+    '''
     @python_task(
-        name='add-project-automation',
+        name='ensure-project-tasks',
         inputs=[project_dir_input],
         upstreams=[] if upstreams is None else upstreams
     )
     async def _task(*args: Any, **kwargs: Any):
         task: Task = kwargs.get('_task')
         project_dir = kwargs.get('project_dir', '.')
-        task.print_out('Create project automation modules if not exist')
-        await _add_project_automation(project_dir)
-    return _task
-
-
-async def _add_project_automation(project_dir: str):
-    if os.path.exists(os.path.join(project_dir, '_automate', '_project')):
-        return
-    await copy_tree(
-        src=os.path.join(current_dir, 'template'),
-        dst=project_dir
-    )
-    project_task_module_path = '_automate._project'
-    zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
-    code = await read_text_file_async(zrb_init_path)
-    import_alias = project_task_module_path.split('.')[-1]
-    code = add_import_module(
-        code=code,
-        module_path=project_task_module_path,
-        alias=import_alias
-    )
-    code = add_assert_resource(code, import_alias)
-    await write_text_file_async(zrb_init_path, code)
-
-
-def create_register_app_task(
-    task_name: str,
-    project_automation_file_name: str,
-    project_automation_task_name: str,
-    app_automation_file_name: str,
-    app_automation_task_var_name_tpl: str,
-    upstreams: Optional[List[Task]] = None,
-):
-    @python_task(
-        name=task_name,
-        inputs=[project_dir_input, app_name_input],
-        upstreams=[] if upstreams is None else upstreams
-    )
-    async def _task(*args: Any, **kwargs: Any):
-        task: Task = kwargs.get('_task')
-        project_dir = kwargs.get('project_dir', '.')
-        app_name = kwargs.get('app_name')
-        snake_app_name = util.to_snake_case(app_name)
-        abs_app_automation_file_name = os.path.join(
-            project_dir, '_automate', snake_app_name, app_automation_file_name
+        task.print_out('Create project tasks if not exist')
+        if os.path.exists(os.path.join(project_dir, '_automate', '_project')):
+            return
+        await copy_tree(
+            src=os.path.join(CURRENT_DIR, 'template'),
+            dst=project_dir
         )
-        app_automation_task_var_name = app_automation_task_var_name_tpl.format(
-            snake_app_name=snake_app_name
-        )
-        project_automation_dir = os.path.join(
-            project_dir, '_automate', '_project'
-        )
-        project_automation_path = os.path.join(
-            project_automation_dir, f'{project_automation_file_name}'
-        )
-        upstream_task_rel_file_path = os.path.relpath(
-            abs_app_automation_file_name, project_automation_path
-        )
-        # normalize `..` parts
-        upstream_module_parts = [
-            part if part != '..' else ''
-            for part in upstream_task_rel_file_path.split(os.path.sep)
-        ]
-        # remove .py extenstion
-        last_part = upstream_module_parts[-1]
-        upstream_module_parts[-1] = os.path.splitext(last_part)[0]
-        # turn into module path
-        upstream_module_path = '.'.join(upstream_module_parts)
-        task.print_out(
-            f'Add {app_automation_task_var_name} to project automation'
-        )
-        code = await read_text_file_async(project_automation_path)
+        project_task_module_path = '_automate._project'
+        zrb_init_path = os.path.join(project_dir, 'zrb_init.py')
+        code = await read_text_file_async(zrb_init_path)
+        import_alias = project_task_module_path.split('.')[-1]
         code = add_import_module(
             code=code,
-            module_path=upstream_module_path,
-            resource=app_automation_task_var_name
+            module_path=project_task_module_path,
+            alias=import_alias
         )
-        code = add_upstream_to_task(
-            code, project_automation_task_name, app_automation_task_var_name
-        )
-        await write_text_file_async(project_automation_path, code)
+        code = add_assert_resource(code, import_alias)
+        await write_text_file_async(zrb_init_path, code)
     return _task
+
+
+def create_add_build_images_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('build_project_images.py'),
+        task_name='build-images',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_deploy_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('deploy_project.py'),
+        task_name='deploy',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_destroy_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('destroy_project.py'),
+        task_name='destroy',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_push_images_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('push_project_images.py'),
+        task_name='push-images',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_remove_containers_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('remove_project_containers.py'),
+        task_name='remove-containers',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_start_containers_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('start_project_containers.py'),
+        task_name='start-containers',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_start_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('start_project.py'),
+        task_name='start',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def create_add_stop_containers_upstream(
+    upstream_module: str,
+    upstream_task_var: str,
+    inputs: Optional[List[Input]] = None,
+    upstreams: Optional[List[Task]] = None
+) -> Task:
+    return create_add_upstream(
+        task_file_name=_get_project_task_file('stop_project_containers.py'),
+        task_name='stop-containers',
+        upstream_module=upstream_module,
+        upstream_task_var=upstream_task_var,
+        inputs=inputs,
+        upstreams=upstreams
+    )
+
+
+def _get_project_task_file(task_file_name: str):
+    return os.path.join('_automate', '_project', task_file_name)

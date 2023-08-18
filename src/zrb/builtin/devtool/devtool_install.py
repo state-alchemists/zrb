@@ -39,7 +39,8 @@ def write_config(
         rendered_template_file = os.path.expandvars(os.path.expanduser(
             task.render_str(template_file)
         ))
-        if remove_old_config:
+        if remove_old_config and os.path.exists(rendered_config_file):
+            task.print_out(f'Removing {rendered_config_file}')
             os.remove(rendered_config_file)
         additional_content = await read_text_file_async(
             rendered_template_file
@@ -48,6 +49,7 @@ def write_config(
         if os.path.exists(rendered_config_file):
             content = await read_text_file_async(rendered_config_file) + '\n'
         new_content = content + additional_content
+        task.print_out(f'Writing content to {rendered_config_file}')
         await write_text_file_async(rendered_config_file, new_content)
     return set_config
 
@@ -409,3 +411,42 @@ install_terraform = FlowTask(
     retry=0
 )
 runner.register(install_terraform)
+
+install_helix = FlowTask(
+    name='helix',
+    group=dev_tool_install_group,
+    description='Post modern text editor',
+    nodes=[
+        FlowNode(
+            name='install-helix',
+            cmd_path=os.path.join(dir_path, 'helix', 'install.sh'),
+            preexec_fn=None
+        ),
+        [
+            FlowNode(
+                name='create-helix-theme',
+                run=write_config(
+                    template_file=os.path.join(
+                        dir_path, 'helix', 'resource', 'themes', 'gruvbox_transparent.toml' # noqa
+                    ),
+                    config_file='~/.config/helix/themes/gruvbox_transparent.toml', # noqa
+                    remove_old_config=True
+                ),
+                preexec_fn=None
+            ),
+            FlowNode(
+                name='configure-helix',
+                run=write_config(
+                    template_file=os.path.join(
+                        dir_path, 'helix', 'resource', 'config.toml'
+                    ),
+                    config_file='~/.config/helix/config.toml',
+                    remove_old_config=True
+                ),
+                preexec_fn=None
+            ),
+        ],
+    ],
+    retry=0
+)
+runner.register(install_helix)

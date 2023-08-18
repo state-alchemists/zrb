@@ -5,15 +5,18 @@ from ....task.decorator import python_task
 from ....task_input.str_input import StrInput
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import (
+from .._common.task_input import (
    project_dir_input, task_name_input, http_port_input, env_prefix_input
 )
-from .._common.helper import validate_project_dir, create_register_task_module
+from .._common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation
+)
+from .._common.task_factory import create_register_module
 from ....helper import util
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Task Definitions
@@ -29,13 +32,9 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     task_name = kwargs.get('task_name')
-    automation_file = os.path.join(
-        project_dir, '_automate', f'{util.to_snake_case(task_name)}.py'
-    )
-    if os.path.exists(automation_file):
-        raise Exception(f'Automation file already exists: {automation_file}')
+    validate_inexisting_automation(project_dir, task_name)
     source_dir = os.path.join(
         project_dir, 'src', f'{util.to_kebab_case(task_name)}'
     )
@@ -64,11 +63,13 @@ copy_resource = ResourceMaker(
         'zrbComposeCommand': '{{ util.coalesce(input.compose_command, "up") }}', # noqa
         'ZRB_ENV_PREFIX': '{{ util.coalesce(input.env_prefix, "MY").upper() }}', # noqa
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
 )
 
-register_task_module = create_register_task_module(
+register_module = create_register_module(
+    module_path='_automate.{{util.to_snake_case(input.task_name)}}',
+    inputs=[task_name_input],
     upstreams=[copy_resource]
 )
 
@@ -76,7 +77,7 @@ register_task_module = create_register_task_module(
 @python_task(
     name='docker-compose-task',
     group=project_add_group,
-    upstreams=[register_task_module],
+    upstreams=[register_module],
     runner=runner
 )
 async def add_docker_compose_task(*args: Any, **kwargs: Any):

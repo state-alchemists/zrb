@@ -4,13 +4,15 @@ from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
-from .._common.input import project_dir_input, task_name_input
-from .._common.helper import validate_project_dir, create_register_task_module
-from ....helper import util
+from .._common.task_input import project_dir_input, task_name_input
+from .._common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation
+)
+from .._common.task_factory import create_register_module
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Task Definitions
@@ -26,13 +28,9 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     task_name = kwargs.get('task_name')
-    automation_file = os.path.join(
-        project_dir, '_automate', f'{util.to_snake_case(task_name)}.py'
-    )
-    if os.path.exists(automation_file):
-        raise Exception(f'Automation file already exists: {automation_file}')
+    validate_inexisting_automation(project_dir, task_name)
 
 
 copy_resource = ResourceMaker(
@@ -45,14 +43,16 @@ copy_resource = ResourceMaker(
     replacements={
         'zrbTaskName': '{{input.task_name}}',
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',
     ]
 )
 
-register_task_module = create_register_task_module(
+register_module = create_register_module(
+    module_path='_automate.{{util.to_snake_case(input.task_name)}}',
+    inputs=[task_name_input],
     upstreams=[copy_resource]
 )
 
@@ -60,7 +60,7 @@ register_task_module = create_register_task_module(
 @python_task(
     name='cmd-task',
     group=project_add_group,
-    upstreams=[register_task_module],
+    upstreams=[register_module],
     runner=runner
 )
 async def add_cmd_task(*args: Any, **kwargs: Any):

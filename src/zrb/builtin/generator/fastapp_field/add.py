@@ -1,9 +1,9 @@
 from typing import Any
-from .._common.input import (
+from .._common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     column_name_input, column_type_input
 )
-from .._common.helper import validate_project_dir
+from .._common.helper import validate_existing_project_dir
 from ..._group import project_add_group
 from ....task.task import Task
 from ....task.decorator import python_task
@@ -17,7 +17,7 @@ import asyncio
 import os
 import re
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Task Definitions
@@ -32,7 +32,7 @@ current_dir = os.path.dirname(__file__)
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
-    validate_project_dir(project_dir)
+    validate_existing_project_dir(project_dir)
     app_name = kwargs.get('app_name')
     module_name = kwargs.get('module_name')
     entity_name = kwargs.get('entity_name')
@@ -159,7 +159,7 @@ async def add_column_to_insert_page(
     task.print_out(f'Read HTML from: {list_page_file_path}')
     html_content = await read_text_file_async(list_page_file_path)
     task.print_out('Add default value to insert page')
-    default_value_regex = r"(.*)(// DON'T DELETE: set field default value here)"
+    default_value_regex = r"(.*)(// DON'T DELETE: set field default value here)"  # noqa
     default_value_subst = '\\n'.join([
         f"\\1row.{snake_column_name} = '';",
         '\\1\\2'

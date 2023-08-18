@@ -1,4 +1,5 @@
 import aiofiles
+import os
 
 
 async def read_text_file_async(file_name: str) -> str:
@@ -8,6 +9,7 @@ async def read_text_file_async(file_name: str) -> str:
 
 
 async def write_text_file_async(file_name: str, content: str):
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
     async with aiofiles.open(file_name, mode='w') as file:
         await file.write(content)
 

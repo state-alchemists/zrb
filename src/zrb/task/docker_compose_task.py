@@ -1,6 +1,6 @@
 from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from typeguard import typechecked
-from .cmd_task import CmdTask, CmdResult
+from .cmd_task import CmdTask, CmdResult, CmdVal
 from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
@@ -51,8 +51,8 @@ class DockerComposeTask(CmdTask):
         compose_flags: Iterable[str] = [],
         compose_args: Iterable[str] = [],
         compose_env_prefix: str = '',
-        setup_cmd: Union[str, Iterable[str], Callable[..., str]] = '',
-        setup_cmd_path: str = '',
+        setup_cmd: CmdVal = '',
+        setup_cmd_path: CmdVal = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],

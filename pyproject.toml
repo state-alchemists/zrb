@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "zrb"
-version = "0.0.85"
+version = "0.0.86"
 authors = [
   { name="Go Frendi Gunawan", email="gofrendiasgard@gmail.com" },
 ]
@@ -17,28 +17,27 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
-  "click==8.1.4",
-  "aiofiles==23.1.0",
-  "typeguard==2.13.3",
-  "termcolor==2.3.0",
-  "Jinja2==3.1.2",
-  "libcst==0.4.9",
-  "python-dotenv==1.0.0",
-  "jsons==1.6.3",
-  "ruamel.yaml==0.17.32",
-  "setuptools==68.0.0",
-  "autopep8==2.0.2",
+  "click ~= 8.1.4",
+  "aiofiles ~= 23.1.0",
+  "typeguard ~= 2.13.3",
+  "termcolor ~= 2.3.0",
+  "Jinja2 ~= 3.1.2",
+  "libcst ~= 0.4.9",
+  "python-dotenv ~= 1.0.0",
+  "jsons ~= 1.6.3",
+  "ruamel.yaml ~= 0.17.32",
+  "setuptools ~= 68.0.0",
+  "autopep8 ~= 2.0.2",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "flake8==6.0.0",
+  "flake8 ~= 6.0.0",
 ]
 test = [
-  "pytest==7.4.0",
-  "pytest-cov==4.1.0",
-  "pytest-xdist==3.3.1",
-  "pytest-asyncio==0.21.0",
+  "pytest ~= 7.4.0",
+  "pytest-cov ~= 4.1.0",
+  "pytest-asyncio ~= 0.21.0",
 ]
 
 [project.urls]

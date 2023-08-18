@@ -1,6 +1,6 @@
 from zrb import (
     runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask, FlowNode,
-    Env, BoolInput, StrInput, HTTPChecker
+    Env, StrInput, HTTPChecker
 )
 import os
 import tomli
@@ -52,9 +52,9 @@ zrb_latest_image_env = Env(
 build = CmdTask(
     name='build',
     description='Build Zrb',
+    cwd=CURRENT_DIR,
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Build zrb distribution"',
         f'rm -Rf {CURRENT_DIR}/dist',
         'git add . -A',
@@ -67,9 +67,9 @@ publish_pip = CmdTask(
     name='publish-pip',
     description='Publish zrb to pypi',
     upstreams=[build],
+    cwd=CURRENT_DIR,
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Publish zrb to pypi"',
         'flit publish --repository pypi',
     ]
@@ -80,9 +80,9 @@ publish_pip_test = CmdTask(
     name='publish-pip-test',
     description='Publish zrb to testpypi',
     upstreams=[build],
+    cwd=CURRENT_DIR,
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Publish zrb to testpypi"',
         'flit publish --repository testpypi',
     ]

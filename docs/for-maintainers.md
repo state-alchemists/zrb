@@ -31,7 +31,7 @@ index-servers =
   password = pypi-xxx-xxx
 ```
 
-To publish Zrb, you can do the following:
+To publish Zrb, you can do the following command:
 
 ```bash
 source ./project.sh

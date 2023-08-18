@@ -32,7 +32,10 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
             envs=disable_all_module_envs + _get_service_envs(
                 zrbAppHttpPort, module_index, module_name
             ),
-            cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'start.sh'),
+            cmd_path=[
+                os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+                os.path.join(CURRENT_DIR, 'cmd', 'app-start.sh'),
+            ],
             checkers=[
                 HTTPChecker(
                     name=f'check-kebab-zrb-app-name-{kebab_module_name}-service',

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "kebab-zrb-package-name"
+version = "0.0.1"
+authors = [
+  { name="zrbPackageAuthorName", email="zrbPackageAuthorEmail" },
+]
+description = "zrbPackageDescription"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Operating System :: OS Independent",
+]
+dependencies = []
+ 
+
+[project.optional-dependencies]
+dev = []
+test = []
+
+[project.urls]
+"Homepage" = "zrbPackageHomepage"
+"Bug Tracker" = "zrbPackageBugTracker"
+
+[project.scripts]
+kebab-zrb-package-name = "snake_zrb_package_name.__main__:hello"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]

@@ -14,6 +14,8 @@ import os
 import pathlib
 import signal
 
+CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
+
 
 class CmdResult():
     def __init__(self, output: str, error: str):
@@ -64,8 +66,8 @@ class CmdTask(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         executable: Optional[str] = None,
-        cmd: Union[str, Iterable[str], Callable[..., str]] = '',
-        cmd_path: str = '',
+        cmd: CmdVal = '',
+        cmd_path: CmdVal = '',
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
@@ -217,16 +219,25 @@ class CmdTask(BaseTask):
         return self._create_cmd_str(self._cmd_path, self._cmd, *args, **kwargs)
 
     def _create_cmd_str(
-        self,
-        cmd_path: str,
-        cmd: Union[str, Iterable[str], Callable[..., str]],
-        *args: Any,
-        **kwargs: Any
+        self, cmd_path: CmdVal, cmd: CmdVal, *args: Any, **kwargs: Any
     ) -> str:
-        if cmd_path != '':
-            return self.render_file(cmd_path)
+        if not isinstance(cmd_path, str) or cmd_path != '':
+            if callable(cmd_path):
+                return self._render_cmd_path_str(cmd_path(*args, **kwargs))
+            return self._render_cmd_path_str(cmd_path)
         if callable(cmd):
-            return cmd(*args, **kwargs)
+            return self._render_cmd_str(cmd(*args, **kwargs))
+        return self._render_cmd_str(cmd)
+
+    def _render_cmd_path_str(self, cmd_path: Union[str, Iterable[str]]) -> str:
+        if isinstance(cmd_path, str):
+            return self.render_file(cmd_path)
+        return '\n'.join([
+            self.render_file(cmd_path_str)
+            for cmd_path_str in cmd_path
+        ])
+
+    def _render_cmd_str(self, cmd: Union[str, Iterable[str]]) -> str:
         if isinstance(cmd, str):
             return self.render_str(cmd)
         return self.render_str('\n'.join(list(cmd)))

@@ -67,7 +67,10 @@ prepare_snake_zrb_app_name_load_test = CmdTask(
     description='Prepare load test for human readable zrb app name',
     group=project_group,
     cwd=LOAD_TEST_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'prepare-load-test.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'app-prepare-load-test.sh'),
+    ]
 )
 runner.register(prepare_snake_zrb_app_name_load_test)
 
@@ -86,6 +89,9 @@ load_test_snake_zrb_app_name_load_test = CmdTask(
     ],
     cwd=LOAD_TEST_DIR,
     env_files=[load_test_env_file],
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'load-test.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'app-load-test.sh'),
+    ]
 )
 runner.register(load_test_snake_zrb_app_name_load_test)

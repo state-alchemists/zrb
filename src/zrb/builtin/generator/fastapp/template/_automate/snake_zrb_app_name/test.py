@@ -73,7 +73,7 @@ test_snake_zrb_app_name = CmdTask(
             default='false'
         ),
     ],
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'test.sh'),
+    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'app-test.sh'),
     retry=0
 )
 runner.register(test_snake_zrb_app_name)
