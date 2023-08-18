@@ -17,7 +17,7 @@ import asyncio
 import os
 import re
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Task Definitions

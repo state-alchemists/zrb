@@ -16,7 +16,7 @@ from .._common.task_factory import create_register_module
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 
 ###############################################################################
@@ -58,7 +58,7 @@ copy_resource = ResourceMaker(
         'zrbPackageAuthorName': '{{input.package_author_name}}',
         'zrbPackageAuthorEmail': '{{input.package_author_email}}'
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',

@@ -7,14 +7,14 @@ from .._common.task_input import (
 
 import os
 
-current_dir = os.path.dirname(__file__)
-codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
+CURRENT_DIR = os.path.dirname(__file__)
+CODEMOD_DIR = os.path.join(CURRENT_DIR, 'nodejs', 'codemod')
 
-nav_config_file_path = '{{input.project_dir}}/src/{{util.to_kebab_case(input.app_name)}}/src/frontend/src/lib/config/navData.ts' # noqa
-nav_var_name = 'navData'
-nav_title = '{{util.to_pascal_case(input.entity_name)}}'
-nav_url = '/{{util.to_kebab_case(input.module_name)}}/{{util.to_kebab_case(input.entity_name)}}' # noqa
-nav_permission = '{{util.to_snake_case(input.module_name)}}:{{util.to_snake_case(input.entity_name)}}:get' # noqa
+NAV_CONFIG_FILE_PATH = '{{input.project_dir}}/src/{{util.to_kebab_case(input.app_name)}}/src/frontend/src/lib/config/navData.ts' # noqa
+ENV_VAR_NAME = 'navData'
+NAV_TITLE = '{{util.to_pascal_case(input.entity_name)}}'
+NAV_URL = '/{{util.to_kebab_case(input.module_name)}}/{{util.to_kebab_case(input.entity_name)}}' # noqa
+NAV_PERMISSION = '{{util.to_snake_case(input.module_name)}}:{{util.to_snake_case(input.entity_name)}}:get' # noqa
 
 
 def create_add_navigation_task(upstreams: List[Task]) -> Task:
@@ -28,5 +28,5 @@ def create_add_navigation_task(upstreams: List[Task]) -> Task:
         ],
         upstreams=upstreams,
         retry=0,
-        cmd=f'node {codemod_dir}/dist/addNav.js "{nav_config_file_path}" "{nav_var_name}" "{nav_title}" "{nav_url}" "{nav_permission}"' # noqa
+        cmd=f'node {CODEMOD_DIR}/dist/addNav.js "{NAV_CONFIG_FILE_PATH}" "{ENV_VAR_NAME}" "{NAV_TITLE}" "{NAV_URL}" "{NAV_PERMISSION}"' # noqa
     )

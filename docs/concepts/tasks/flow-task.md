@@ -9,23 +9,23 @@ FlowTask allows you to compose several unrelated tasks/actions into a single tas
 from zrb import FlowTask, FlowNode, CmdTask, HttpChecker, runner
 import os
 
-current_dir = os.dirname(__file__)
+CURRENT_DIR = os.dirname(__file__)
 
 prepare_backend = CmdTask(
     name='prepare-backend',
-    cwd=os.path.join(current_dir, 'app', 'backend'),
+    cwd=os.path.join(CURRENT_DIR, 'app', 'backend'),
     cmd='pip install -r requirements.txt'
 )
 
 prepare_frontend = CmdTask(
     name='prepare-backend',
-    cwd=os.path.join(current_dir, 'app', 'frontend'),
+    cwd=os.path.join(CURRENT_DIR, 'app', 'frontend'),
     cmd='npm install && npm run build'
 )
 
 start_app = CmdTask(
     name='start-app',
-    cwd=os.path.join(current_dir, 'app', 'backend'),
+    cwd=os.path.join(CURRENT_DIR, 'app', 'backend'),
     cmd='uvicorn main:app --port 8080',
     checkers=[
         HttpChecker(port=8080)

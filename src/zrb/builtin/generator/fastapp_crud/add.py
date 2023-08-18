@@ -19,8 +19,8 @@ from .add_navigation import create_add_navigation_task
 import asyncio
 import os
 
-current_dir = os.path.dirname(__file__)
-codemod_dir = os.path.join(current_dir, 'nodejs', 'codemod')
+CURRENT_DIR = os.path.dirname(__file__)
+CODEMOD_DIR = os.path.join(CURRENT_DIR, 'nodejs', 'codemod')
 
 ###############################################################################
 # Task Definitions
@@ -79,7 +79,7 @@ copy_resource = ResourceMaker(
         'zrbPluralEntityName': '{{input.plural_entity_name}}',
         'zrbColumnName': '{{input.column_name}}',
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',
@@ -128,7 +128,7 @@ async def register_crud(*args: Any, **kwargs: Any):
 
 prepare_codemod = CmdTask(
     name='prepare-codemod',
-    cwd=codemod_dir,
+    cwd=CODEMOD_DIR,
     cmd=[
         'npm install --save-dev',
         'node_modules/.bin/tsc'

@@ -10,7 +10,7 @@ from ..project_task.task_factory import create_ensure_project_tasks
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 ###############################################################################
 # Replacement Mutator Definitions
@@ -59,7 +59,7 @@ copy_resource = ResourceMaker(
         'zrbVersion': version,
     },
     replacement_mutator=copy_resource_replacement_mutator,
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{input.project_dir}}',
     excludes=[
         '*/__pycache__',

@@ -14,7 +14,7 @@ from .._common.task_factory import create_register_module
 
 import os
 
-current_dir = os.path.dirname(__file__)
+CURRENT_DIR = os.path.dirname(__file__)
 
 
 template_name_input = StrInput(
@@ -55,7 +55,7 @@ copy_resource = ResourceMaker(
     replacements={
         'zrbMetaTemplateName': '{{input.template_name}}',
     },
-    template_path=os.path.join(current_dir, 'template'),
+    template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
     excludes=[
         '*/__pycache__',
