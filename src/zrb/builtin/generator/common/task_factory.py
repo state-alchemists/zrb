@@ -5,7 +5,7 @@ from .helper import validate_existing_project_dir, register_module_to_project
 from ....task.decorator import python_task
 from ....task.any_task import AnyTask
 from ....task.task import Task
-from ....task_input.base_input import BaseInput
+from ....task_input.any_input import AnyInput
 from ....helper.file.text import read_text_file_async, write_text_file_async
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_upstream_to_task import add_upstream_to_task
@@ -15,7 +15,7 @@ import os
 @typechecked
 def create_register_module(
     module_path: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None,
     alias: Optional[str] = None
 ) -> Task:
@@ -50,7 +50,7 @@ def create_add_upstream(
     task_name: str,
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     @python_task(

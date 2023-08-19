@@ -6,14 +6,18 @@ class AnyInput(ABC):
     '''
     Task Input specification
     '''
-    @abstractmethod()
+    @abstractmethod
     def get_name(self) -> str:
         pass
 
-    @abstractmethod()
+    @abstractmethod
+    def get_default(self) -> Any:
+        pass
+
+    @abstractmethod
     def get_param_decl(self) -> List[str]:
         pass
 
-    @abstractmethod()
+    @abstractmethod
     def get_options(self) -> Mapping[str, Any]:
         pass

@@ -5,18 +5,16 @@ from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
-from ..task_input.base_input import BaseInput
+from ..task_input.any_input import AnyInput
 from ..helper.file.copy_tree import copy_tree
 from ..helper.util import (
     to_camel_case, to_pascal_case, to_kebab_case, to_snake_case,
     to_human_readable, to_capitalized_human_readable
 )
 
-import os
-
 Replacement = Mapping[str, str]
 ReplacementMutator = Callable[
-    [BaseTask, Replacement],
+    [AnyTask, Replacement],
     Replacement
 ]
 
@@ -33,7 +31,7 @@ class ResourceMaker(BaseTask):
         replacement_mutator: Optional[ReplacementMutator] = None,
         excludes: Iterable[str] = [],
         group: Optional[Group] = None,
-        inputs: Iterable[BaseInput] = [],
+        inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,

@@ -3,7 +3,7 @@ from typeguard import typechecked
 from ....task.decorator import python_task
 from ....task.any_task import AnyTask
 from ....task.task import Task
-from ....task_input.base_input import BaseInput
+from ....task_input.any_input import AnyInput
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_assert_resource import add_assert_resource
 from ....helper.file.copy_tree import copy_tree
@@ -55,7 +55,7 @@ def create_ensure_project_tasks(
 def create_add_build_images_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -72,7 +72,7 @@ def create_add_build_images_upstream(
 def create_add_deploy_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -89,7 +89,7 @@ def create_add_deploy_upstream(
 def create_add_destroy_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -106,7 +106,7 @@ def create_add_destroy_upstream(
 def create_add_push_images_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -123,7 +123,7 @@ def create_add_push_images_upstream(
 def create_add_remove_containers_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -140,7 +140,7 @@ def create_add_remove_containers_upstream(
 def create_add_start_containers_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -157,7 +157,7 @@ def create_add_start_containers_upstream(
 def create_add_start_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
@@ -174,7 +174,7 @@ def create_add_start_upstream(
 def create_add_stop_containers_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[BaseInput]] = None,
+    inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(

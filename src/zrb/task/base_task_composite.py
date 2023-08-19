@@ -8,7 +8,7 @@ from ..helper.log import logger
 from ..helper.accessories.color import colored, get_random_color
 from ..helper.accessories.icon import get_random_icon
 from ..helper.util import coalesce_str
-from ..task_input.base_input import BaseInput
+from ..task_input.any_input import AnyInput
 from ..task_group.group import Group
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
@@ -30,7 +30,7 @@ class CommonTaskModel():
         name: str,
         group: Optional[Group] = None,
         description: str = '',
-        inputs: List[BaseInput] = [],
+        inputs: List[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
@@ -288,7 +288,7 @@ class TaskModelWithPrinterAndTracker(
         name: str,
         group: Optional[Group] = None,
         description: str = '',
-        inputs: List[BaseInput] = [],
+        inputs: List[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,

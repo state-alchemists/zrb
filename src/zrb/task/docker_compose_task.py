@@ -5,7 +5,7 @@ from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
-from ..task_input.base_input import BaseInput
+from ..task_input.any_input import AnyInput
 from ..helper.accessories.name import get_random_name
 from ..helper.string.conversion import to_cmd_name
 from ..helper.string.double_quote import double_quote
@@ -37,7 +37,7 @@ class DockerComposeTask(CmdTask):
         self,
         name: str,
         group: Optional[Group] = None,
-        inputs: Iterable[BaseInput] = [],
+        inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,

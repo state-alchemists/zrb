@@ -7,7 +7,7 @@ from .cmd_task import CmdTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
-from ..task_input.base_input import BaseInput
+from ..task_input.any_input import AnyInput
 from ..helper.accessories.name import get_random_name
 
 import copy
@@ -21,10 +21,10 @@ class FlowNode():
         self,
         name: str = '',
         task: Optional[AnyTask] = None,
-        inputs: Iterable[BaseInput] = [],
+        inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
-        upstreams: Iterable[BaseTask] = [],
+        upstreams: Iterable[AnyTask] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
         cmd: Union[str, Iterable[str]] = '',
@@ -50,7 +50,7 @@ class FlowNode():
     def to_task(
         self,
         upstreams: List[AnyTask] = [],
-        inputs: List[BaseInput] = [],
+        inputs: List[AnyInput] = [],
         envs: List[Env] = [],
         env_files: List[EnvFile] = [],
     ):
@@ -103,7 +103,7 @@ class FlowTask(BaseTask):
         self,
         name: str,
         group: Optional[Group] = None,
-        inputs: Iterable[BaseInput] = [],
+        inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
