@@ -1,7 +1,9 @@
+from typeguard import typechecked
 import random
 import string
 
 
+@typechecked
 def get_random_name(
     separator: str = '-',
     add_random_digit: bool = True,

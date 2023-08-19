@@ -1,6 +1,7 @@
+from typeguard import typechecked
 from ..runner import runner
-from .loader.load_module import load_module
 from ..config.config import init_scripts, should_load_builtin
+from .loader.load_module import load_module
 from .log import logger
 from .accessories.color import colored
 
@@ -9,6 +10,7 @@ import os
 import sys
 
 
+@typechecked
 def create_cli() -> click.Group:
     cli = click.Group(name='zrb', help='Super framework for your super app.')
     # load from ZRB_INIT_SCRIPTS environment
@@ -31,6 +33,7 @@ def create_cli() -> click.Group:
     return cli
 
 
+@typechecked
 def _load_zrb_init(project_dir: str):
     project_script = os.path.join(project_dir, 'zrb_init.py')
     if not os.path.isfile(project_script):
@@ -43,6 +46,7 @@ def _load_zrb_init(project_dir: str):
     load_module(script_path=project_script)
 
 
+@typechecked
 def _get_new_python_path(project_dir: str) -> str:
     current_python_path = os.getenv('PYTHONPATH')
     if current_python_path is None or current_python_path == '':

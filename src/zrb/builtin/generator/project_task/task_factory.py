@@ -1,20 +1,23 @@
 from typing import Any, List, Optional
-from .._common.task_input import project_dir_input
-from .._common.task_factory import create_add_upstream
+from typeguard import typechecked
 from ....task.decorator import python_task
+from ....task.any_task import AnyTask
 from ....task.task import Task
-from ....task_input.task_input import Input
+from ....task_input.base_input import BaseInput
 from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_assert_resource import add_assert_resource
 from ....helper.file.copy_tree import copy_tree
 from ....helper.file.text import read_text_file_async, write_text_file_async
+from ..common.task_input import project_dir_input
+from ..common.task_factory import create_add_upstream
 import os
 
 CURRENT_DIR = os.path.dirname(__file__)
 
 
+@typechecked
 def create_ensure_project_tasks(
-    upstreams: Optional[List[Task]] = None
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     '''
     Create a task to ensure there are project tasks under `_automate/_project`
@@ -48,11 +51,12 @@ def create_ensure_project_tasks(
     return _task
 
 
+@typechecked
 def create_add_build_images_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('build_project_images.py'),
@@ -64,11 +68,12 @@ def create_add_build_images_upstream(
     )
 
 
+@typechecked
 def create_add_deploy_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('deploy_project.py'),
@@ -80,11 +85,12 @@ def create_add_deploy_upstream(
     )
 
 
+@typechecked
 def create_add_destroy_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('destroy_project.py'),
@@ -96,11 +102,12 @@ def create_add_destroy_upstream(
     )
 
 
+@typechecked
 def create_add_push_images_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('push_project_images.py'),
@@ -112,11 +119,12 @@ def create_add_push_images_upstream(
     )
 
 
+@typechecked
 def create_add_remove_containers_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('remove_project_containers.py'),
@@ -128,11 +136,12 @@ def create_add_remove_containers_upstream(
     )
 
 
+@typechecked
 def create_add_start_containers_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('start_project_containers.py'),
@@ -144,11 +153,12 @@ def create_add_start_containers_upstream(
     )
 
 
+@typechecked
 def create_add_start_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('start_project.py'),
@@ -160,11 +170,12 @@ def create_add_start_upstream(
     )
 
 
+@typechecked
 def create_add_stop_containers_upstream(
     upstream_module: str,
     upstream_task_var: str,
-    inputs: Optional[List[Input]] = None,
-    upstreams: Optional[List[Task]] = None
+    inputs: Optional[List[BaseInput]] = None,
+    upstreams: Optional[List[AnyTask]] = None
 ) -> Task:
     return create_add_upstream(
         task_file_name=_get_project_task_file('stop_project_containers.py'),
@@ -176,5 +187,6 @@ def create_add_stop_containers_upstream(
     )
 
 
-def _get_project_task_file(task_file_name: str):
+@typechecked
+def _get_project_task_file(task_file_name: str) -> str:
     return os.path.join('_automate', '_project', task_file_name)

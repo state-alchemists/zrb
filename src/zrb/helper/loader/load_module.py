@@ -1,3 +1,4 @@
+from typeguard import typechecked
 from ..log import logger
 from ..accessories.color import colored
 
@@ -8,6 +9,7 @@ import re
 pattern = re.compile('[^a-zA-Z0-9]')
 
 
+@typechecked
 def load_module(script_path: str):
     if not os.path.isfile(script_path):
         return

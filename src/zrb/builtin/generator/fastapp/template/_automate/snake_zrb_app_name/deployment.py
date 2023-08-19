@@ -1,5 +1,5 @@
 from zrb import CmdTask, Env, EnvFile, StrInput, ChoiceInput, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 from .image import push_snake_zrb_app_name_image
 from ._common import (
     CURRENT_DIR, DEPLOYMENT_DIR, APP_TEMPLATE_ENV_FILE_NAME,

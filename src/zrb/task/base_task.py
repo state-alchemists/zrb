@@ -9,7 +9,7 @@ from ..task_group.group import Group
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_input.base_input import BaseInput
-from ..task_input._constant import RESERVED_INPUT_NAMES
+from ..task_input.constant import RESERVED_INPUT_NAMES
 from ..helper.accessories.color import colored
 from ..helper.advertisement import get_advertisement
 from ..helper.string.double_quote import double_quote

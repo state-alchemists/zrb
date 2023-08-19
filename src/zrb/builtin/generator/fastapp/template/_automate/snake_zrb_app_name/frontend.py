@@ -1,5 +1,5 @@
 from zrb import CmdTask, Env, EnvFile, PathChecker, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 from ._common import (
     APP_FRONTEND_DIR, APP_FRONTEND_BUILD_DIR, CURRENT_DIR,
     APP_TEMPLATE_ENV_FILE_NAME

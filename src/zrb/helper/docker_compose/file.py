@@ -1,7 +1,9 @@
+from typeguard import typechecked
 from typing import Any, Mapping
 from ruamel.yaml import YAML, CommentedMap
 
 
+@typechecked
 def read_compose_file(file_name: str) -> Any:
     yaml = YAML()
     with open(file_name, 'r') as f:
@@ -9,12 +11,14 @@ def read_compose_file(file_name: str) -> Any:
     return data
 
 
+@typechecked
 def write_compose_file(file_name: str, data: Any):
     yaml = YAML()
     with open(file_name, 'w') as f:
         yaml.dump(data, f)
 
 
+@typechecked
 def add_services(file_name: str, new_services: Mapping[str, str]):
     data = read_compose_file(file_name)
     data = CommentedMap(data)

@@ -1,3 +1,4 @@
+from typeguard import typechecked
 from typing import List, Mapping
 from ...task_group.group import Group
 from ...task.any_task import AnyTask
@@ -5,6 +6,7 @@ from ...task_env.env import Env
 from ..string.jinja import is_probably_jinja
 
 
+@typechecked
 def fetch_env_map_from_group(
     env_map: Mapping[str, str], group: Group
 ) -> Mapping[str, str]:
@@ -18,6 +20,7 @@ def fetch_env_map_from_group(
     return env_map
 
 
+@typechecked
 def fetch_env_map_from_task(
     env_map: Mapping[str, str], task: AnyTask
 ):
@@ -34,6 +37,7 @@ def fetch_env_map_from_task(
     return env_map
 
 
+@typechecked
 def add_envs_to_env_map(
     env_map: Mapping[str, str], envs: List[Env]
 ) -> Mapping[str, str]:
@@ -46,6 +50,7 @@ def add_envs_to_env_map(
     return env_map
 
 
+@typechecked
 def cascade_env_map(
     env_map: Mapping[str, str],
     other_env_map: Mapping[str, str]
@@ -57,12 +62,14 @@ def cascade_env_map(
     return env_map
 
 
+@typechecked
 def get_env_name(env: Env) -> str:
     if env.os_name is None:
         return env.name
     return env.os_name
 
 
+@typechecked
 def get_env_default(env: Env) -> str:
     if is_probably_jinja(env.default):
         return ''

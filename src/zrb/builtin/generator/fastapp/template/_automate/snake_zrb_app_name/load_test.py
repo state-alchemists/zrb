@@ -1,5 +1,5 @@
 from zrb import CmdTask, EnvFile, BoolInput, StrInput, IntInput, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 from ._common import CURRENT_DIR, RESOURCE_DIR
 import os
 
@@ -54,7 +54,8 @@ url_input = StrInput(
 ###############################################################################
 
 load_test_env_file = EnvFile(
-    env_file=LOAD_TEST_TEMPLATE_ENV_FILE_NAME, prefix='LOAD_TEST_ZRB_ENV_PREFIX'
+    env_file=LOAD_TEST_TEMPLATE_ENV_FILE_NAME,
+    prefix='LOAD_TEST_ZRB_ENV_PREFIX'
 )
 
 ###############################################################################

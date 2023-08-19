@@ -1,3 +1,4 @@
+from typeguard import typechecked
 from typing import Any, Optional
 from .string.conversion import to_boolean as conversion_to_boolean
 import re
@@ -6,10 +7,12 @@ import jinja2
 NON_ALPHA_NUM = re.compile(r'[^a-zA-Z0-9]+')
 
 
+@typechecked
 def _is_undefined(value: Any) -> bool:
     return value is None or isinstance(value, jinja2.Undefined)
 
 
+@typechecked
 def coalesce(value: Any, *alternatives: Any) -> Any:
     if not _is_undefined(value):
         return value
@@ -19,6 +22,7 @@ def coalesce(value: Any, *alternatives: Any) -> Any:
     return None
 
 
+@typechecked
 def coalesce_str(value: Any, *alternatives: Any) -> Any:
     if not _is_undefined(value) and value != '':
         return str(value)
@@ -28,6 +32,7 @@ def coalesce_str(value: Any, *alternatives: Any) -> Any:
     return ''
 
 
+@typechecked
 def to_camel_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     pascal = to_pascal_case(text)
@@ -36,6 +41,7 @@ def to_camel_case(text: Optional[str]) -> str:
     return pascal[0].lower() + pascal[1:]
 
 
+@typechecked
 def to_pascal_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = _to_alphanum(text)
@@ -44,6 +50,7 @@ def to_pascal_case(text: Optional[str]) -> str:
     ])
 
 
+@typechecked
 def to_kebab_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = _to_alphanum(text)
@@ -52,6 +59,7 @@ def to_kebab_case(text: Optional[str]) -> str:
     ])
 
 
+@typechecked
 def to_snake_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = _to_alphanum(text)
@@ -60,11 +68,13 @@ def to_snake_case(text: Optional[str]) -> str:
     ])
 
 
+@typechecked
 def _to_alphanum(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     return NON_ALPHA_NUM.sub(' ', text)
 
 
+@typechecked
 def to_human_readable(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     return ' '.join([
@@ -73,10 +83,12 @@ def to_human_readable(text: Optional[str]) -> str:
     ])
 
 
+@typechecked
 def to_capitalized_human_readable(text: Optional[str]) -> str:
     return to_human_readable(text).capitalize()
 
 
+@typechecked
 def _to_space_separated(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ''
     text = text.replace('-', ' ').replace('_', ' ')
@@ -102,5 +114,6 @@ def _to_space_separated(text: Optional[str]) -> str:
     return ' '.join(new_parts).strip(' ')
 
 
+@typechecked
 def to_boolean(text: str) -> bool:
     return conversion_to_boolean(text)

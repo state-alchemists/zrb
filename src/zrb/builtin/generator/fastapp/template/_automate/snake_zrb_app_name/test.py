@@ -1,8 +1,6 @@
 from zrb import CmdTask, StrInput, Env, EnvFile, runner, python_task
-from zrb.builtin._group import project_group
-from ._common import (
-    CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME,
-)
+from zrb.builtin.group import project_group
+from ._common import CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME
 from .frontend import build_snake_zrb_app_name_frontend_once
 from .local import prepare_snake_zrb_app_name_backend
 import os

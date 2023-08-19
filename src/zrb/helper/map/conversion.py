@@ -1,6 +1,8 @@
+from typeguard import typechecked
 from typing import Any, Mapping
 
 
+@typechecked
 def to_str(
     str_map: Mapping[str, Any],
     item_separator: str = '\n',

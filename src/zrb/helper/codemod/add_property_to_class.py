@@ -1,7 +1,9 @@
+from typeguard import typechecked
 from typing import Optional
 import libcst as cst
 
 
+@typechecked
 class AddPropertyTransformer(cst.CSTTransformer):
     def __init__(
         self,
@@ -51,6 +53,7 @@ class AddPropertyTransformer(cst.CSTTransformer):
         return updated_node.with_changes(body=new_body)
 
 
+@typechecked
 def add_property_to_class(
     code: str,
     class_name: str,

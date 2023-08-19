@@ -1,5 +1,5 @@
 from zrb import DockerComposeTask, HTTPChecker, Env, EnvFile, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 import os
 
 ###############################################################################

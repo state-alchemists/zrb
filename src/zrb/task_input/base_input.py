@@ -1,8 +1,7 @@
 from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
-from ._constant import RESERVED_INPUT_NAMES
+from .constant import RESERVED_INPUT_NAMES
 from ..config.config import show_prompt
-from ..helper.string.jinja import is_probably_jinja
 
 
 @typechecked

@@ -1,6 +1,8 @@
+from typeguard import typechecked
 import libcst as cst
 
 
+@typechecked
 class AppendCodeTransformer(cst.CSTTransformer):
     def __init__(self, function_name: str, new_code: str):
         self.function_name = function_name
@@ -20,6 +22,7 @@ class AppendCodeTransformer(cst.CSTTransformer):
         return updated_node
 
 
+@typechecked
 def append_code_to_function(
     code: str, function_name: str, new_code: str
 ) -> str:

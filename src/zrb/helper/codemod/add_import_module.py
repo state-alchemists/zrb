@@ -1,7 +1,9 @@
+from typeguard import typechecked
 from typing import Optional, Union, Tuple
 import libcst as cst
 
 
+@typechecked
 def add_import_module(
     code: str,
     module_path: str,
@@ -87,6 +89,7 @@ def _get_new_import(
     )
 
 
+@typechecked
 def _split_module_path(module_path) -> Tuple[str, str]:
     prefix = ''
     suffix = ''

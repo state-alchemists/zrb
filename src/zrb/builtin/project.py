@@ -1,5 +1,5 @@
 from typing import Any, Mapping
-from ._group import project_group
+from .group import project_group
 from ..task.decorator import python_task
 from ..task_input.bool_input import BoolInput
 from ..runner import runner

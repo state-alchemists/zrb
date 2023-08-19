@@ -1,4 +1,5 @@
 from typing import Any, Callable, Iterable, List, Mapping, Union
+from typeguard import typechecked
 from ..task_group.group import Group as TaskGroup
 from ..task.any_task import AnyTask
 import click
@@ -7,6 +8,7 @@ import sys
 CliSubcommand = Union[click.Group, click.Command]
 
 
+@typechecked
 class Runner():
     '''
     Runner class.
@@ -32,7 +34,9 @@ class Runner():
                 cli.add_command(subcommand)
         return cli
 
-    def _create_cli_subcommand(self, task: AnyTask) -> click.Group:
+    def _create_cli_subcommand(
+        self, task: AnyTask
+    ) -> Union[click.Group, click.Command]:
         subcommand: CliSubcommand = self._create_cli_command(task)
         task_group = task._group
         while task_group is not None:

@@ -1,12 +1,16 @@
+from typeguard import typechecked
 from typing import Mapping
 import subprocess
 
+
+@typechecked
 class ModificationState():
     def __init__(self):
         self.plus: bool = False
         self.minus: bool = False
 
 
+@typechecked
 def get_modified_files(commit: str) -> Mapping[str, ModificationState]:
     exit_status, output = subprocess.getstatusoutput(f'git show {commit}')
     if exit_status != 0:

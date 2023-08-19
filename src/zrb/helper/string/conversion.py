@@ -1,3 +1,4 @@
+from typeguard import typechecked
 import keyword
 import logging
 import re
@@ -16,10 +17,12 @@ LOGGING_LEVEL_MAP = {
 }
 
 
+@typechecked
 def to_cmd_name(name: str) -> str:
     return NON_WORD.sub('-', name).strip('-').lower()
 
 
+@typechecked
 def to_variable_name(string: str) -> str:
     # Replace any non-word characters with underscore
     string = NON_WORD.sub('_', string).strip()
@@ -32,6 +35,7 @@ def to_variable_name(string: str) -> str:
     return string
 
 
+@typechecked
 def to_boolean(string: str) -> bool:
     if string.lower() in ['true', '1', 'yes', 'y', 'active']:
         return True
@@ -40,6 +44,7 @@ def to_boolean(string: str) -> bool:
     raise Exception(f'Cannot infer boolean value from "{string}"')
 
 
+@typechecked
 def to_logging_level(logging_level_str: str) -> int:
     lower_logging_level_str = logging_level_str.lower()
     if lower_logging_level_str in LOGGING_LEVEL_MAP:
