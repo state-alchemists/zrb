@@ -1,6 +1,8 @@
+from typeguard import typechecked
 import libcst as cst
 
 
+@typechecked
 class AddKeyValuePairTransformer(cst.CSTTransformer):
     def __init__(
         self, dict_name: str,

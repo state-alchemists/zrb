@@ -33,7 +33,8 @@ MODULES = jsons.loads(MODULE_JSON_STR)
 def skip_local_microservices_execution(*args: Any, **kwargs: Any) -> bool:
     if not kwargs.get('local_snake_zrb_app_name', True):
         return True
-    return kwargs.get('snake_zrb_app_name_run_mode', 'monolith') != 'microservices'
+    run_mode = kwargs.get('snake_zrb_app_name_run_mode', 'monolith')
+    return run_mode != 'microservices'
 
 
 ###############################################################################

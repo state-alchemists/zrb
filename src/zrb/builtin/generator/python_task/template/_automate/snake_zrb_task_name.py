@@ -1,6 +1,6 @@
 from typing import Any, Mapping
 from zrb import Task, python_task, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 
 ###############################################################################
 # Task Definitions

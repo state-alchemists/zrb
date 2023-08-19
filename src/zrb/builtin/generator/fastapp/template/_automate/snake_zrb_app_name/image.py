@@ -1,5 +1,5 @@
 from zrb import DockerComposeTask, Env, StrInput, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 from ._common import RESOURCE_DIR, local_input
 
 ###############################################################################

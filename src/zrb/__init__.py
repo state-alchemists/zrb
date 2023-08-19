@@ -9,6 +9,7 @@ from .task.port_checker import PortChecker
 from .task.path_checker import PathChecker
 from .task.resource_maker import ResourceMaker, Replacement, ReplacementMutator
 from .task.flow_task import FlowTask, FlowNode
+from .task_input.any_input import AnyInput
 from .task_input.task_input import Input
 from .task_input.bool_input import BoolInput
 from .task_input.choice_input import ChoiceInput
@@ -19,7 +20,7 @@ from .task_input.str_input import StrInput
 from .task_env.env import Env
 from .task_env.env_file import EnvFile
 from .task_group.group import Group
-from .builtin import _group as builtin_group
+from .builtin import group as builtin_group
 from .helper.default_env import inject_default_env
 
 
@@ -38,6 +39,7 @@ assert FlowTask
 assert FlowNode
 assert Replacement
 assert ReplacementMutator
+assert AnyInput
 assert Input
 assert BoolInput
 assert ChoiceInput

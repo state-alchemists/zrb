@@ -1,7 +1,8 @@
 from typing import List
-from ....task.task import Task
+from typeguard import typechecked
+from ....task.any_task import AnyTask
 from ....task.cmd_task import CmdTask
-from .._common.task_input import (
+from ..common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
 )
 
@@ -17,7 +18,8 @@ NAV_URL = '/{{util.to_kebab_case(input.module_name)}}/{{util.to_kebab_case(input
 NAV_PERMISSION = '{{util.to_snake_case(input.module_name)}}:{{util.to_snake_case(input.entity_name)}}:get' # noqa
 
 
-def create_add_navigation_task(upstreams: List[Task]) -> Task:
+@typechecked
+def create_add_navigation_task(upstreams: List[AnyTask]) -> AnyTask:
     return CmdTask(
         name='add-navigation',
         inputs=[

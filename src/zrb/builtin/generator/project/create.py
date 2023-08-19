@@ -1,12 +1,13 @@
 from typing import Any, Mapping
-from ..._group import project_group
+from typeguard import typechecked
+from ..common.task_input import project_dir_input, project_name_input
+from ..project_task.task_factory import create_ensure_project_tasks
+from ...group import project_group
 from ....task.cmd_task import CmdTask
 from ....task.decorator import python_task
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....config.config import version
-from .._common.task_input import project_dir_input, project_name_input
-from ..project_task.task_factory import create_ensure_project_tasks
 
 import os
 
@@ -17,6 +18,7 @@ CURRENT_DIR = os.path.dirname(__file__)
 ###############################################################################
 
 
+@typechecked
 def copy_resource_replacement_mutator(
     task: ResourceMaker, replacements: Mapping[str, str]
 ) -> Mapping[str, str]:

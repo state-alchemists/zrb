@@ -1,6 +1,8 @@
+from typeguard import typechecked
 import libcst as cst
 
 
+@typechecked
 def add_function_call(code: str, function_name: str, parameters: list) -> str:
     """
     Adds a function call statement to the end of a module with the specified

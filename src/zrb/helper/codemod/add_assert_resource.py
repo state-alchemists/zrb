@@ -1,6 +1,8 @@
+from typeguard import typechecked
 import libcst as cst
 
 
+@typechecked
 def add_assert_resource(code: str, resource: str) -> str:
     """
     Adds an assertion statement to the end of a module that checks whether

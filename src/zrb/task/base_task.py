@@ -8,8 +8,8 @@ from ..advertisement import advertisements
 from ..task_group.group import Group
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
-from ..task_input.base_input import BaseInput
-from ..task_input._constant import RESERVED_INPUT_NAMES
+from ..task_input.any_input import AnyInput
+from ..task_input.constant import RESERVED_INPUT_NAMES
 from ..helper.accessories.color import colored
 from ..helper.advertisement import get_advertisement
 from ..helper.string.double_quote import double_quote
@@ -40,7 +40,7 @@ class BaseTask(
         name: str,
         group: Optional[Group] = None,
         description: str = '',
-        inputs: List[BaseInput] = [],
+        inputs: List[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
@@ -81,7 +81,7 @@ class BaseTask(
         )
         # init private properties
         self._is_keyval_set = False  # Flag
-        self._all_inputs: Optional[List[BaseInput]] = None
+        self._all_inputs: Optional[List[AnyInput]] = None
         self._is_check_triggered: bool = False
         self._is_ready: bool = False
         self._is_execution_triggered: bool = False
@@ -90,29 +90,29 @@ class BaseTask(
         self._kwargs: Mapping[str, Any] = {}
         self._allow_add_upstream: bool = True
 
-    def get_all_inputs(self) -> Iterable[BaseInput]:
+    def get_all_inputs(self) -> Iterable[AnyInput]:
         ''''
         Getting all inputs of this task and all its upstream, non-duplicated.
         '''
         if self._all_inputs is not None:
             return self._all_inputs
         self._allow_add_upstream = False
-        self._all_inputs: List[BaseInput] = []
+        self._all_inputs: List[AnyInput] = []
         existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
         for task_input in self._inputs:
-            if task_input.name in existing_input_names:
+            if task_input.get_name() in existing_input_names:
                 continue
             self._all_inputs.append(task_input)
-            existing_input_names[task_input.name] = True
+            existing_input_names[task_input.get_name()] = True
         # Add upstream inputs
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
             for upstream_input in upstream_inputs:
-                if upstream_input.name in existing_input_names:
+                if upstream_input.get_name() in existing_input_names:
                     continue
                 self._all_inputs.append(upstream_input)
-                existing_input_names[upstream_input.name] = True
+                existing_input_names[upstream_input.get_name()] = True
         return self._all_inputs
 
     def to_function(
@@ -193,9 +193,9 @@ class BaseTask(
         self._is_keyval_set = True
         self.log_info('Set input map')
         for task_input in self.get_all_inputs():
-            input_name = self._get_normalized_input_key(task_input.name)
+            input_name = self._get_normalized_input_key(task_input.get_name())
             input_value = self.render_any(
-                kwargs.get(input_name, task_input.default)
+                kwargs.get(input_name, task_input.get_default())
             )
             self._set_input_map(input_name, input_value)
         self.log_debug(
@@ -298,7 +298,7 @@ class BaseTask(
     def _show_run_command(self):
         params: List[str] = [double_quote(arg) for arg in self._args]
         for task_input in self.get_all_inputs():
-            key = task_input.name
+            key = task_input.get_name()
             kwarg_key = self._get_normalized_input_key(key)
             quoted_value = double_quote(str(self._kwargs[kwarg_key]))
             params.append(f'--{key} {quoted_value}')
@@ -420,10 +420,10 @@ class BaseTask(
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
         for task_input in self.get_all_inputs():
-            key = self._get_normalized_input_key(task_input.name)
+            key = self._get_normalized_input_key(task_input.get_name())
             if key in kwargs:
                 continue
-            kwargs[key] = task_input.default
+            kwargs[key] = task_input.get_default()
         # set current task local keyval
         await self._set_local_keyval(kwargs=kwargs, env_prefix=env_prefix)
         # get new_kwargs for upstream and checkers

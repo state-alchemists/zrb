@@ -1,7 +1,5 @@
-from ._common import helper
-from ._common import task_input
-from ._common import task_factory
-from .project_task import task_factory as project_task_factory
+from . import common
+from . import project_task
 from .project.create import create_project
 from .cmd_task.add import add_cmd_task
 from .docker_compose_task.add import add_docker_compose_task
@@ -14,10 +12,8 @@ from .fastapp_field import add as add_fastapp_field
 from .pip_package import add as add_pip_package
 from .app_generator import add as add_app_generator
 
-assert helper
-assert task_input
-assert task_factory
-assert project_task_factory
+assert common
+assert project_task
 assert create_project
 assert add_cmd_task
 assert add_docker_compose_task

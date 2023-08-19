@@ -1,3 +1,4 @@
+from typeguard import typechecked
 from typing import Optional
 from .accessories.color import colored
 from .log import logger
@@ -34,6 +35,7 @@ def inject_default_env():
         os.environ['ZRB_PROJECT_NAME'] = zrb_project_name
 
 
+@typechecked
 def _get_project_dir(project_dir: str) -> Optional[str]:
     project_script = os.path.join(project_dir, 'zrb_init.py')
     if os.path.isfile(project_script):

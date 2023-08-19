@@ -1,5 +1,5 @@
-from typing import Any, Mapping
-from ._group import env_group
+from typing import Any, List
+from .group import env_group
 from ..helper.accessories.color import colored
 from ..task.decorator import python_task
 from ..task.task import Task
@@ -22,9 +22,12 @@ async def get(*args: Any, **kwargs: Any):
     names = list(env_map.keys())
     names.sort()
     colored_equal = colored('=', color='grey', attrs=['dark'])
+    env_lines: List[str] = []
     for name in names:
         value = env_map[name]
         colored_name = colored(name, color='green', attrs=['bold'])
         colored_value = colored(value, attrs=['bold'])
-        task.print_out(f'{colored_name}{colored_equal}{colored_value}')
+        env_lines.append(f'{colored_name}{colored_equal}{colored_value}')
+    line_separator = '\n    '
+    task.print_out(line_separator + line_separator.join(env_lines))
     return env_map

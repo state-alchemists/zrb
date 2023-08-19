@@ -1,18 +1,20 @@
 from ..helper.string.conversion import to_boolean, to_logging_level
+from typeguard import typechecked
 import os
-import pkg_resources
+import importlib.metadata as metadata
 
 
-def get_version():
+@typechecked
+def get_version() -> str:
     try:
-        dist = pkg_resources.get_distribution("zrb")
-        return dist.version
-    except pkg_resources.DistributionNotFound:
+        return metadata.version("zrb")
+    except metadata.PackageNotFoundError:
         import flit
         meta = flit.read_module_metadata("zrb")
-        return meta["module"]["version"]
+        return str(meta["module"]["version"])
 
 
+@typechecked
 def get_current_shell() -> str:
     current_shell = os.getenv('SHELL', '')
     if current_shell.endswith('zsh'):

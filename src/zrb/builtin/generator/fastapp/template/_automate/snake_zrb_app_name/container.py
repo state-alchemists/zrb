@@ -1,7 +1,7 @@
 from typing import Mapping, Any, List
 from zrb import DockerComposeTask, Env, ServiceConfig, EnvFile, runner, Task
 from zrb.helper.util import to_kebab_case
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 from ._common import (
     APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR, MODULES, app_container_checker,
     rabbitmq_checker, rabbitmq_management_checker, redpanda_console_checker,

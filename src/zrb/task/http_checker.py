@@ -6,7 +6,7 @@ from .any_task import AnyTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
-from ..task_input.base_input import BaseInput
+from ..task_input.any_input import AnyInput
 
 import asyncio
 
@@ -18,7 +18,7 @@ class HTTPChecker(BaseTask):
         self,
         name: str = 'http-check',
         group: Optional[Group] = None,
-        inputs: Iterable[BaseInput] = [],
+        inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,

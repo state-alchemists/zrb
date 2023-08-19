@@ -1,12 +1,12 @@
 from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
-from ._constant import RESERVED_INPUT_NAMES
+from .any_input import AnyInput
+from .constant import RESERVED_INPUT_NAMES
 from ..config.config import show_prompt
-from ..helper.string.jinja import is_probably_jinja
 
 
 @typechecked
-class BaseInput():
+class BaseInput(AnyInput):
 
     def __init__(
         self,
@@ -32,54 +32,57 @@ class BaseInput():
     ):
         if name in RESERVED_INPUT_NAMES:
             raise ValueError(f'Forbidden input name: {name}')
-        self.name = name
-        self.shortcut = shortcut
-        self.prompt = prompt
-        self.default = default
-        self.help = description if description is not None else name
-        self.type = type
-        self.show_default = show_default
-        self.confirmation_prompt = confirmation_prompt
-        self.prompt_required = prompt_required
-        self.hide_input = hide_input
-        self.is_flag = is_flag
-        self.flag_value = flag_value
-        self.multiple = multiple
-        self.count = count
-        self.allow_from_autoenv = allow_from_autoenv
-        self.hidden = hidden
-        self.show_choices = show_choices
-        self.show_envvar = show_envvar
-        self.nargs = nargs
+        self._name = name
+        self._shortcut = shortcut
+        self._prompt = prompt
+        self._default = default
+        self._help = description if description is not None else name
+        self._type = type
+        self._show_default = show_default
+        self._confirmation_prompt = confirmation_prompt
+        self._prompt_required = prompt_required
+        self._hide_input = hide_input
+        self._is_flag = is_flag
+        self._flag_value = flag_value
+        self._multiple = multiple
+        self._count = count
+        self._allow_from_autoenv = allow_from_autoenv
+        self._hidden = hidden
+        self._show_choices = show_choices
+        self._show_envvar = show_envvar
+        self._nargs = nargs
 
     def get_name(self) -> str:
-        return self.name
+        return self._name
+
+    def get_default(self) -> Any:
+        return self._default
 
     def get_param_decl(self) -> List[str]:
-        param_decl: List[str] = [f'--{self.name}']
-        if self.shortcut is not None:
-            param_decl.append(f'-{self.shortcut}')
+        param_decl: List[str] = [f'--{self._name}']
+        if self._shortcut is not None:
+            param_decl.append(f'-{self._shortcut}')
         return param_decl
 
     def get_options(self) -> Mapping[str, Any]:
         options: Mapping[str, Any] = {
-            'default': self.default,
-            'help': self.help,
-            'type': self.type,
-            'show_default': self.show_default,
-            'confirmation_prompt': self.confirmation_prompt,
-            'prompt_required': self.prompt_required,
-            'hide_input': self.hide_input,
-            'is_flag': self.is_flag,
-            'flag_value': self.flag_value,
-            'multiple': self.multiple,
-            'count': self.count,
-            'allow_from_autoenv': self.allow_from_autoenv,
-            'hidden': self.hidden,
-            'show_choices': self.show_choices,
-            'show_envvar': self.show_envvar,
-            'nargs': self.nargs
+            'default': self._default,
+            'help': self._help,
+            'type': self._type,
+            'show_default': self._show_default,
+            'confirmation_prompt': self._confirmation_prompt,
+            'prompt_required': self._prompt_required,
+            'hide_input': self._hide_input,
+            'is_flag': self._is_flag,
+            'flag_value': self._flag_value,
+            'multiple': self._multiple,
+            'count': self._count,
+            'allow_from_autoenv': self._allow_from_autoenv,
+            'hidden': self._hidden,
+            'show_choices': self._show_choices,
+            'show_envvar': self._show_envvar,
+            'nargs': self._nargs
         }
         if show_prompt:
-            options['prompt'] = self.prompt
+            options['prompt'] = self._prompt
         return options

@@ -1,6 +1,6 @@
 from typing import Any, List
 from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
     skip_local_microservices_execution, rabbitmq_checker,

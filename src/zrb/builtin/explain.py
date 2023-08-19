@@ -1,10 +1,12 @@
 from typing import Any
-from ._group import explain_group
+from typeguard import typechecked
+from .group import explain_group
 from ..task.decorator import python_task
 from ..task.task import Task
 from ..runner import runner
 
 
+@typechecked
 def show_lines(task: Task, *lines: str):
     separator = '\n    '
     task.print_out(

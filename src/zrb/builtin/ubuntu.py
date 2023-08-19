@@ -1,4 +1,4 @@
-from ._group import ubuntu_group, ubuntu_install_group
+from .group import ubuntu_group, ubuntu_install_group
 from ..task.cmd_task import CmdTask
 from ..runner import runner
 

@@ -1,5 +1,5 @@
 from typing import Any
-from ._group import base64_group
+from .group import base64_group
 from ..task.decorator import python_task
 from ..task_input.str_input import StrInput
 from ..runner import runner

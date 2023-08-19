@@ -1,5 +1,5 @@
 from zrb import CmdTask, runner, StrInput
-from zrb.builtin._group import project_group
+from zrb.builtin.group import project_group
 
 import os
 

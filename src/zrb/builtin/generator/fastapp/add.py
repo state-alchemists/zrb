@@ -1,17 +1,12 @@
 from typing import Any
-from ..._group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from .._common.task_input import (
+from ..common.task_input import (
     project_dir_input, app_name_input, app_image_name_input, http_port_input,
     env_prefix_input
 )
-from .._common.helper import (
+from ..common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
 )
-from .._common.task_factory import create_register_module
+from ..common.task_factory import create_register_module
 from ..project_task.task_factory import (
     create_ensure_project_tasks, create_add_build_images_upstream,
     create_add_deploy_upstream, create_add_destroy_upstream,
@@ -19,6 +14,11 @@ from ..project_task.task_factory import (
     create_add_start_containers_upstream, create_add_start_upstream,
     create_add_stop_containers_upstream
 )
+from ...group import project_add_group
+from ....task.task import Task
+from ....task.decorator import python_task
+from ....task.resource_maker import ResourceMaker
+from ....runner import runner
 from ....helper import util
 
 import os
@@ -123,56 +123,56 @@ ensure_project_tasks = create_ensure_project_tasks(
     upstreams=[copy_resource]
 )
 
-add_start = create_add_start_upstream(
+add_start_upstream = create_add_start_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.local',
     upstream_task_var=f'start_{SNAKE_APP_NAME_TPL}',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_start_container = create_add_start_containers_upstream(
+add_start_container_upstream = create_add_start_containers_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.container',
     upstream_task_var=f'start_{SNAKE_APP_NAME_TPL}_container',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_stop_container = create_add_stop_containers_upstream(
+add_stop_container_upstream = create_add_stop_containers_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.container',
     upstream_task_var=f'stop_{SNAKE_APP_NAME_TPL}_container',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_remove_container = create_add_remove_containers_upstream(
+add_remove_container_upstream = create_add_remove_containers_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.container',
     upstream_task_var=f'remove_{SNAKE_APP_NAME_TPL}_container',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_build_image = create_add_build_images_upstream(
+add_build_image_upstream = create_add_build_images_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.image',
     upstream_task_var=f'build_{SNAKE_APP_NAME_TPL}_image',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_push_image = create_add_push_images_upstream(
+add_push_image_upstream = create_add_push_images_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.image',
     upstream_task_var=f'push_{SNAKE_APP_NAME_TPL}_image',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_deploy = create_add_deploy_upstream(
+add_deploy_upstream = create_add_deploy_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.deployment',
     upstream_task_var=f'deploy_{SNAKE_APP_NAME_TPL}',
     upstreams=[ensure_project_tasks],
     inputs=[app_name_input]
 )
 
-add_destroy = create_add_destroy_upstream(
+add_destroy_upstream = create_add_destroy_upstream(
     upstream_module=f'_automate.{SNAKE_APP_NAME_TPL}.deployment',
     upstream_task_var=f'destroy_{SNAKE_APP_NAME_TPL}',
     upstreams=[ensure_project_tasks],
@@ -190,14 +190,14 @@ add_destroy = create_add_destroy_upstream(
         register_deployment_module,
         register_test_module,
         register_load_test_module,
-        add_start,
-        add_start_container,
-        add_stop_container,
-        add_remove_container,
-        add_build_image,
-        add_push_image,
-        add_deploy,
-        add_destroy
+        add_start_upstream,
+        add_start_container_upstream,
+        add_stop_container_upstream,
+        add_remove_container_upstream,
+        add_build_image_upstream,
+        add_push_image_upstream,
+        add_deploy_upstream,
+        add_destroy_upstream
     ],
     runner=runner
 )

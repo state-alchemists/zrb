@@ -5,7 +5,7 @@ from .base_task import BaseTask
 from ..task_env.env import Env
 from ..task_env.env_file import EnvFile
 from ..task_group.group import Group
-from ..task_input.base_input import BaseInput
+from ..task_input.any_input import AnyInput
 from ..config.config import default_shell
 
 import asyncio
@@ -59,7 +59,7 @@ class CmdTask(BaseTask):
         self,
         name: str,
         group: Optional[Group] = None,
-        inputs: Iterable[BaseInput] = [],
+        inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,

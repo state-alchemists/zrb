@@ -1,5 +1,5 @@
 from typing import Any
-from ._group import git_group
+from .group import git_group
 from ..task.decorator import python_task
 from ..task.task import Task
 from ..task_input.str_input import StrInput

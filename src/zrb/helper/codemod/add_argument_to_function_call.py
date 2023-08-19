@@ -1,6 +1,8 @@
+from typeguard import typechecked
 import libcst as cst
 
 
+@typechecked
 class AddArgumentTransformer(cst.CSTTransformer):
     def __init__(self, function_name: str, argument_name: str):
         self.function_name = function_name
@@ -21,6 +23,7 @@ class AddArgumentTransformer(cst.CSTTransformer):
         return updated_node
 
 
+@typechecked
 def add_argument_to_function_call(
     code: str, function_name: str, argument_name: str
 ) -> str:

@@ -1,6 +1,8 @@
+from typeguard import typechecked
 from typing import Any, List, Mapping
 
 
+@typechecked
 def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
     global_env_dict = {}
     if 'services' not in data:
@@ -24,6 +26,7 @@ def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
     return global_env_dict
 
 
+@typechecked
 def parse_compose_file_env_string(env_str: str) -> Mapping[str, str]:
     env_dict = {}
     stack = []

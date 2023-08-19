@@ -1,4 +1,5 @@
 from typing import Any, Callable, Iterable, List, Mapping, Union
+from typeguard import typechecked
 from ..task_group.group import Group as TaskGroup
 from ..task.any_task import AnyTask
 import click
@@ -7,6 +8,7 @@ import sys
 CliSubcommand = Union[click.Group, click.Command]
 
 
+@typechecked
 class Runner():
     '''
     Runner class.
@@ -32,7 +34,9 @@ class Runner():
                 cli.add_command(subcommand)
         return cli
 
-    def _create_cli_subcommand(self, task: AnyTask) -> click.Group:
+    def _create_cli_subcommand(
+        self, task: AnyTask
+    ) -> Union[click.Group, click.Command]:
         subcommand: CliSubcommand = self._create_cli_command(task)
         task_group = task._group
         while task_group is not None:
@@ -82,9 +86,9 @@ class Runner():
         # if there are inputs with the same name, choose the first.
         registered_input: Mapping[str, bool] = {}
         for task_input in task_inputs:
-            if task_input.name in registered_input:
+            if task_input.get_name() in registered_input:
                 continue
-            registered_input[task_input.name] = True
+            registered_input[task_input.get_name()] = True
             param_decl = task_input.get_param_decl()
             options = task_input.get_options()
             command.params.append(click.Option(param_decl, **options))

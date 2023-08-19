@@ -18,6 +18,7 @@ class Advertisement():
         print(colored(self.content, attrs=['dark']), file=sys.stderr)
 
 
+@typechecked
 def get_advertisement(
     advertisements: Iterable[Advertisement]
 ) -> Optional[Advertisement]:

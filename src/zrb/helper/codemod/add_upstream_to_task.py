@@ -1,6 +1,8 @@
+from typeguard import typechecked
 import libcst as cst
 
 
+@typechecked
 class TaskTransformer(cst.CSTTransformer):
     def __init__(self, task_name: str, upstream_task_name: str):
         super().__init__()
@@ -74,6 +76,7 @@ class TaskTransformer(cst.CSTTransformer):
         )
 
 
+@typechecked
 def add_upstream_to_task(
     code: str, task_name: str, upstream_task_name: str
 ) -> str:
