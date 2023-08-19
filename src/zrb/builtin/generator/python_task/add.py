@@ -1,14 +1,14 @@
 from typing import Any
-from ....task.decorator import python_task
-from ....task.task import Task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from ...group import project_add_group
 from ..common.task_input import project_dir_input, task_name_input
 from ..common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
 )
 from ..common.task_factory import create_register_module
+from ....task.decorator import python_task
+from ....task.task import Task
+from ....task.resource_maker import ResourceMaker
+from ....runner import runner
+from ...group import project_add_group
 
 import os
 

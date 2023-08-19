@@ -1,16 +1,10 @@
 from typing import Any
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from ....helper.util import to_kebab_case
-from ...group import project_add_group
+from ..common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation
+)
 from ..common.task_input import (
     project_dir_input, app_name_input, app_image_name_input, http_port_input,
     env_prefix_input
-)
-from ..common.helper import (
-    validate_existing_project_dir, validate_inexisting_automation
 )
 from ..common.task_factory import create_register_module
 from ..project_task.task_factory import (
@@ -20,6 +14,12 @@ from ..project_task.task_factory import (
     create_add_start_containers_upstream, create_add_start_upstream,
     create_add_stop_containers_upstream
 )
+from ...group import project_add_group
+from ....task.task import Task
+from ....task.decorator import python_task
+from ....task.resource_maker import ResourceMaker
+from ....runner import runner
+from ....helper.util import to_kebab_case
 
 import os
 

@@ -1,4 +1,9 @@
 from typing import Any
+from ..common.task_input import project_dir_input
+from ..common.helper import (
+    validate_existing_project_dir, validate_inexisting_automation
+)
+from ..common.task_factory import create_register_module
 from ...group import project_add_group
 from ....task.decorator import python_task
 from ....task.task import Task
@@ -6,11 +11,6 @@ from ....task.resource_maker import ResourceMaker
 from ....task_input.str_input import StrInput
 from ....helper.accessories.name import get_random_name
 from ....runner import runner
-from ..common.task_input import project_dir_input
-from ..common.helper import (
-    validate_existing_project_dir, validate_inexisting_automation
-)
-from ..common.task_factory import create_register_module
 
 import os
 

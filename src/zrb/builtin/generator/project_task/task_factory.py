@@ -1,5 +1,7 @@
 from typing import Any, List, Optional
 from typeguard import typechecked
+from ..common.task_input import project_dir_input
+from ..common.task_factory import create_add_upstream
 from ....task.decorator import python_task
 from ....task.any_task import AnyTask
 from ....task.task import Task
@@ -8,8 +10,6 @@ from ....helper.codemod.add_import_module import add_import_module
 from ....helper.codemod.add_assert_resource import add_assert_resource
 from ....helper.file.copy_tree import copy_tree
 from ....helper.file.text import read_text_file_async, write_text_file_async
-from ..common.task_input import project_dir_input
-from ..common.task_factory import create_add_upstream
 import os
 
 CURRENT_DIR = os.path.dirname(__file__)

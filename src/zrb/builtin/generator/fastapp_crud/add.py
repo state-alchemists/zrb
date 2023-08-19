@@ -1,18 +1,18 @@
 from typing import Any
+from .task_factory import create_add_navigation_task
+from .helper import register_api, register_permission, register_rpc
+from ..common.task_input import (
+    project_dir_input, app_name_input, module_name_input, entity_name_input,
+    plural_entity_name_input, main_column_name_input
+)
+from ..common.helper import validate_existing_project_dir
+from ...group import project_add_group
 from ....task.task import Task
 from ....task.decorator import python_task
 from ....task.cmd_task import CmdTask
 from ....task.resource_maker import ResourceMaker
 from ....runner import runner
 from ....helper import util
-from ...group import project_add_group
-from ..common.task_input import (
-    project_dir_input, app_name_input, module_name_input, entity_name_input,
-    plural_entity_name_input, main_column_name_input
-)
-from ..common.helper import validate_existing_project_dir
-from .task_factory import create_add_navigation_task
-from .helper import register_api, register_permission, register_rpc
 
 import asyncio
 import os
