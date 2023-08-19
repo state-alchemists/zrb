@@ -86,9 +86,9 @@ class Runner():
         # if there are inputs with the same name, choose the first.
         registered_input: Mapping[str, bool] = {}
         for task_input in task_inputs:
-            if task_input.name in registered_input:
+            if task_input.get_name() in registered_input:
                 continue
-            registered_input[task_input.name] = True
+            registered_input[task_input.get_name()] = True
             param_decl = task_input.get_param_decl()
             options = task_input.get_options()
             command.params.append(click.Option(param_decl, **options))

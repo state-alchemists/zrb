@@ -1,0 +1,19 @@
+from typing import Any, List, Mapping
+from abc import ABC, abstractmethod
+
+
+class AnyInput(ABC):
+    '''
+    Task Input specification
+    '''
+    @abstractmethod()
+    def get_name(self) -> str:
+        pass
+
+    @abstractmethod()
+    def get_param_decl(self) -> List[str]:
+        pass
+
+    @abstractmethod()
+    def get_options(self) -> Mapping[str, Any]:
+        pass
