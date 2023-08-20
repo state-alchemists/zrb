@@ -1,7 +1,15 @@
 version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
 networks:
   zrb:
     name: zrb
+
 services:
 
   zrb:
@@ -9,9 +17,10 @@ services:
       dockerfile: Dockerfile
       context: .
     image: ${ZRB_IMAGE:-docker.io/stalchmst/zrb}
+    logging: *default-logging
     container_name: zrb
     hostname: zrb
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - zrb
+    - zrb

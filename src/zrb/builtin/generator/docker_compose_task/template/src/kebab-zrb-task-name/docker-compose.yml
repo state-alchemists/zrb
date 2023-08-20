@@ -1,11 +1,20 @@
 version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
 networks:
   zrb:
     name: zrb
+
 services:
   myapp:
     build: image
     image: ${IMAGE:-kebab-zrb-task-name}
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-task-name
     hostname: kebab-zrb-task-name
     environment:
