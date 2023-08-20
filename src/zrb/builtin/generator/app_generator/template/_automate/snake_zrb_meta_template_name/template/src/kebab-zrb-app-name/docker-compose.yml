@@ -1,11 +1,20 @@
 version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
 networks:
   zrb:
     name: zrb
+
 services:
   snake_zrb_app_name:
     build: src
     image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name
     hostname: kebab-zrb-app-name
     ports:

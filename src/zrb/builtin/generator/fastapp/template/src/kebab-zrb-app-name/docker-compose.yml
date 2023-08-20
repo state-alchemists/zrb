@@ -1,7 +1,15 @@
 version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
 networks:
   zrb:
     name: zrb
+
 services:
 
   #############################################################################
@@ -10,6 +18,7 @@ services:
 
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-redpanda
     hostname: redpanda
     # Redpanda docker configuration: https://docs.redpanda.com/docs/reference/docker-compose/#configure-redpanda-in-docker
@@ -53,6 +62,7 @@ services:
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:v2.2.2
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-redpanda-console
     hostname: redpanda-console
     ports:
@@ -70,6 +80,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-rabbitmq
     hostname: rabbitmq
     ports:
@@ -95,6 +106,7 @@ services:
 
   postgresql:
     image: postgres:15.2
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-postgresql
     hostname: postgresql
     restart: unless-stopped
@@ -117,6 +129,7 @@ services:
 
   zookeeper:
     image: bitnami/zookeeper:3.7.1
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-zookeeper
     hostname: zookeeper
     restart: unless-stopped
@@ -137,6 +150,7 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:22.8.8-alpine
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-clickhouse
     hostname: clickhouse
     restart: unless-stopped
@@ -145,10 +159,6 @@ services:
     tty: true
     depends_on:
     - zookeeper
-    logging:
-      options:
-        max-size: 50m
-        max-file: "3"
     healthcheck:
       # "clickhouse", "client", "-u ${CLICKHOUSE_USER}", "--password ${CLICKHOUSE_PASSWORD}", "-q 'SELECT 1'"
       test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
@@ -177,6 +187,7 @@ services:
 
   alertmanager:
     image: signoz/alertmanager:0.23.1
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-alertmanager
     hostname: alertmanager
     restart: unless-stopped
@@ -196,6 +207,7 @@ services:
 
   query-service:
     image: signoz/query-service:0.23.0
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-query-service
     hostname: query-service
     restart: unless-stopped
@@ -232,6 +244,7 @@ services:
 
   frontend:
     image: signoz/frontend:0.23.0
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-frontend
     hostname: frontend
     restart: unless-stopped
@@ -250,6 +263,7 @@ services:
 
   otel-collector:
     image: signoz/signoz-otel-collector:0.79.2
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-collector
     hostname: otel-collector
     restart: unless-stopped
@@ -285,6 +299,7 @@ services:
 
   otel-collector-metrics:
     image: signoz/signoz-otel-collector:0.79.2
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-collector-metrics
     hostname: otel_collector_metrics
     restart: unless-stopped
@@ -314,6 +329,7 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name
     hostname: kebab-zrb-app-name
     env_file:
@@ -344,6 +360,7 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-gateway
     hostname: kebab-zrb-app-name-gateway
     env_file:
@@ -376,6 +393,7 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-auth-service
     hostname: kebab-zrb-app-name-auth-service
     env_file:
@@ -410,6 +428,7 @@ services:
       dockerfile: Dockerfile
       context: ./src
     image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-log-service
     hostname: kebab-zrb-app-name-log-service
     env_file:
