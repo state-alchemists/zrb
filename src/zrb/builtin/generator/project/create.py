@@ -12,6 +12,10 @@ from ....config.config import version
 import os
 
 CURRENT_DIR = os.path.dirname(__file__)
+SYSTEM_USER = os.getenv('USER', 'incognito')
+IMAGE_DEFAULT_NAMESPACE = os.getenv(
+    'PROJECT_IMAGE_DEFAULT_NAMESPACE', 'docker.io/' + SYSTEM_USER
+)
 
 ###############################################################################
 # Replacement Mutator Definitions
@@ -58,6 +62,7 @@ copy_resource = ResourceMaker(
     replacements={
         'zrbProjectDir': '{{input.project_dir}}',
         'zrbProjectName': '{{input.project_name}}',
+        'zrbImageDefaultNamespace': IMAGE_DEFAULT_NAMESPACE,
         'zrbVersion': version,
     },
     replacement_mutator=copy_resource_replacement_mutator,

@@ -1,7 +1,12 @@
-FROM python:3.10-slim
+FROM golang:1.21 as build
+WORKDIR /app
+COPY . .
+RUN go build -o web-server main.go
+
+
+FROM zrbMetaTemplateBaseImage
 ENV APP_MESSAGE "Hello, world!"
 ENV APP_PORT 8080
-WORKDIR /home
-COPY . .
-RUN pip install -r requirements.txt
-CMD uvicorn main:app --host "0.0.0.0" --port "$APP_PORT"
+WORKDIR /app
+COPY --from=build /app /app
+CMD ./web-server

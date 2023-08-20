@@ -25,6 +25,13 @@ template_name_input = StrInput(
     default=get_random_name()
 )
 
+template_base_image_input = StrInput(
+    name='template-base-image',
+    shortcut='i',
+    prompt='Base image',
+    default='python:3.10-slim'
+)
+
 
 ###############################################################################
 # Task Definitions
@@ -50,10 +57,12 @@ copy_resource = ResourceMaker(
     inputs=[
         project_dir_input,
         template_name_input,
+        template_base_image_input,
     ],
     upstreams=[validate],
     replacements={
         'zrbMetaTemplateName': '{{input.template_name}}',
+        'zrbMetaTemplateBaseImage': '{{input.template_base_image}}',
     },
     template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
