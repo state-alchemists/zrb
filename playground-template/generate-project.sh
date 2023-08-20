@@ -80,7 +80,7 @@ echo '🤖 Run generator'
 zrb project add coba-app \
     --project-dir . \
     --app-name "coba" \
-    --app-image-name "/coba" \
+    --app-image-name "docker.io/gofrendi/coba" \
     --http-port "8080" \
     --env-prefix "COBA"
 
