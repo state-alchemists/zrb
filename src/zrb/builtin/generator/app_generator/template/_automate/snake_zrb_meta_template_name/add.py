@@ -159,7 +159,7 @@ add_destroy_upstream = create_add_destroy_upstream(
 
 
 @python_task(
-    name='simple-python-app',
+    name='kebab-zrb-meta-template-name',
     group=project_add_group,
     upstreams=[
         register_local_module,
@@ -177,6 +177,6 @@ add_destroy_upstream = create_add_destroy_upstream(
     ],
     runner=runner
 )
-async def add_simple_python_app(*args: Any, **kwargs: Any):
+async def snake_zrb_meta_template_name(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')
