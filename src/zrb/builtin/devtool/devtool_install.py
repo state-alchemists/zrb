@@ -68,7 +68,7 @@ install_gvm = FlowTask(
         StrInput(
             name='go-default-version',
             description='Go default version',
-            default='go1.14'
+            default='go1.21'
         ),
         terminal_config_file_input,
     ],
@@ -429,9 +429,9 @@ install_helix = FlowTask(
                 name='create-helix-theme',
                 run=write_config(
                     template_file=os.path.join(
-                        dir_path, 'helix', 'resource', 'themes', 'gruvbox_transparent.toml' # noqa
+                        dir_path, 'helix', 'resource', 'themes', 'gruvbox_transparent.toml'  # noqa
                     ),
-                    config_file='~/.config/helix/themes/gruvbox_transparent.toml', # noqa
+                    config_file='~/.config/helix/themes/gruvbox_transparent.toml',  # noqa
                     remove_old_config=True
                 ),
                 preexec_fn=None
@@ -444,6 +444,13 @@ install_helix = FlowTask(
                     ),
                     config_file='~/.config/helix/config.toml',
                     remove_old_config=True
+                ),
+                preexec_fn=None
+            ),
+            FlowNode(
+                name='install-language-server',
+                cmd_path=os.path.join(
+                    dir_path, 'helix', 'install-language-server.sh'
                 ),
                 preexec_fn=None
             ),
