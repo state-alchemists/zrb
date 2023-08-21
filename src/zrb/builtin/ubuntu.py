@@ -43,7 +43,7 @@ install_packages = CmdTask(
         'libbz2-dev libreadline-dev libsqlite3-dev libpq-dev python3-dev \\',
         'llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev \\',
         'liblzma-dev python3-openssl bison libblas-dev liblapack-dev \\',
-        'golang gfortran rustc fd-find ripgrep wget curl git ncat \\',
+        'golang gfortran rustc fd-find ripgrep wget curl git ncat unzip \\',
         'cmake make tree tmux zsh neovim xdotool xsel'
     ],
     upstreams=[update_task],
