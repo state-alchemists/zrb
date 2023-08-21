@@ -5,8 +5,8 @@ RUN mkdir -p /project
 WORKDIR /project
 
 # Update and set third party repositories
-RUN apt-get update --fix-missing && apt-get upgrade -y
-RUN apt-get install -y ca-certificates curl gnupg
+RUN apt update --fix-missing && apt upgrade -y
+RUN apt install -y ca-certificates curl gnupg
 RUN install -m 0755 -d /etc/apt/keyrings
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     chmod a+r /etc/apt/keyrings/docker.gpg && \
@@ -14,16 +14,16 @@ RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /
         "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
         "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
     tee /etc/apt/sources.list.d/docker.list > /dev/null
-RUN apt-get update
+RUN apt update
 
 # Install packages
-RUN apt-get install -y git ncat curl wget inetutils-tools inetutils-ping \
+RUN apt install -y git ncat curl wget inetutils-tools inetutils-ping \
         docker.io docker-compose-plugin zsh python-is-python3 pip \
         build-essential libssl-dev zlib1g-dev \
         libbz2-dev libreadline-dev libsqlite3-dev curl \
         libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev && \
-    apt-get autoremove -yqq --purge && \
-    apt-get clean && \
+    apt autoremove -yqq --purge && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install pyenv

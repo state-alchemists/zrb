@@ -191,7 +191,7 @@ show banner
 
 Now let's make the banner cooler with `figlet`. You can do so by editing `_automate/show_banner.py`. If you are using VSCode, you can type `code .` in your terminal.
 
-> ⚠️ We will use `figlet`. Try to type `figlet hello` and see whether things work or not. If you are using Ubuntu, you might need to install figlet by invoking `sudo apt-get install figlet`.
+> ⚠️ We will use `figlet`. Try to type `figlet hello` and see whether things work or not. If you are using Ubuntu, you might need to install figlet by invoking `sudo apt install figlet`.
 
 Make sure to modify the `cmd` property of your `show_banner` task, so that it looks like the following:
 

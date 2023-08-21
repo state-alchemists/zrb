@@ -12,11 +12,20 @@ then
         exit 1
     fi
     set -e
-    sudo apt install zsh
-    sudo chsh -s $(which zsh)
+    sudo apt install -y zsh
 else
     echo "Cannot determine how to install zsh, assuming it has been installed"
 fi
+
+set +e
+which chsh
+if [ "$?" = 0 ]
+then
+    set -e
+    echo "Change default shell to zsh"
+    sudo chsh -s $(which zsh)
+fi
+set -e
 
 echo "Install oh-my-zsh"
 sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended

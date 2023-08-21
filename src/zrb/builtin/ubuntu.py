@@ -12,8 +12,8 @@ update_task = CmdTask(
     group=ubuntu_group,
     description='Update ubuntu',
     cmd=[
-        'sudo apt-get update -y',
-        'sudo apt-get upgrade -y',
+        'sudo apt update',
+        'sudo apt upgrade -y',
     ],
     checking_interval=3,
     preexec_fn=None
@@ -25,7 +25,7 @@ install_toys = CmdTask(
     group=ubuntu_install_group,
     description='Install ubuntu toy packages',
     cmd=[
-        'sudo apt-get install -y lolcat cowsay figlet neofetch',
+        'sudo apt install -y lolcat cowsay figlet neofetch',
     ],
     upstreams=[update_task],
     checking_interval=3,
@@ -38,12 +38,12 @@ install_packages = CmdTask(
     group=ubuntu_install_group,
     description='Install essential ubuntu packages',
     cmd=[
-        'sudo apt-get install -y \\',
+        'sudo apt install -y \\',
         'build-essential python3-distutils libssl-dev zlib1g-dev \\'
         'libbz2-dev libreadline-dev libsqlite3-dev libpq-dev python3-dev \\',
         'llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev \\',
-        'liblzma-dev python3-openssl bison libblas-dev liblapack-dev \\',
-        'golang gfortran rustc fd-find ripgrep wget curl git ncat \\',
+        'liblzma-dev python3-openssl bison libblas-dev liblapack-dev rustc \\',
+        'golang gfortran fd-find ripgrep wget curl git ncat zip unzip \\',
         'cmake make tree tmux zsh neovim xdotool xsel'
     ],
     upstreams=[update_task],

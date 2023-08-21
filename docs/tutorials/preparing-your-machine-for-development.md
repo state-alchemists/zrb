@@ -11,7 +11,7 @@ Zrb is a Python package. So, in order to get started, you will need to have:
 - Venv
 
 ```bash
-sudo apt-get install python-is-python3 python3-dev python3-distutils python3-openssl python3-pip python3-venv
+sudo apt install python-is-python3 python3-dev python3-distutils python3-openssl python3-pip python3-venv
 ```
 
 # Creating venv for setup

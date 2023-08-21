@@ -7,6 +7,14 @@ else
     echo "AWS CLI already downloaded"
 fi
 
+set +e
+apt --version
+if [ "$?" = 0 ]
+then
+    sudo apt install -y unzip
+fi
+set -e 
+
 if [ ! -d "./aws" ]
 then
     echo "Unzip AWS CLI"
