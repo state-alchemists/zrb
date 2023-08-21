@@ -145,7 +145,7 @@ Since Zrb is written in Python, you need to install a few things before installi
 If you are using 🐧 Ubuntu, the following command should work:
 
 ```bash
-sudo apt-get install python3 python3-pip python3-venv python-is-python3
+sudo apt install python3 python3-pip python3-venv python-is-python3
 ```
 
 If you are using 🍎 Mac, the following command will work:

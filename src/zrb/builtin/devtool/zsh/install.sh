@@ -12,7 +12,7 @@ then
         exit 1
     fi
     set -e
-    sudo apt install zsh
+    sudo apt install -y zsh
     sudo chsh -s $(which zsh)
 else
     echo "Cannot determine how to install zsh, assuming it has been installed"

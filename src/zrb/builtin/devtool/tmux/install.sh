@@ -12,7 +12,7 @@ then
         exit 1
     fi
     set -e
-    sudo apt install tmux
+    sudo apt install -y tmux
 else
     echo "Cannot determine how to install tmux, assuming it has been installed"
 fi
