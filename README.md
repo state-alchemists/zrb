@@ -6,6 +6,8 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 To use Zrb, you need to be familiar with CLI.
 
+## Zrb as a low-code framework
+
 Let's see how you can build and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
 
 ```bash
@@ -52,6 +54,9 @@ zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 ```
 
 You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
+
+
+## Zrb as a task-automation framework
 
 Aside from the builtin capabilities, Zrb also allows you to define your automation commands in Python. To do so, you need to create/modify a file named `zrb_init.py`.
 
