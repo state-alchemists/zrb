@@ -6,7 +6,7 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 To use Zrb, you need to be familiar with CLI.
 
-Let's see how you can build a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application, add some fields to it, and deploy the application as monolith/microservices:
+Let's see how you can build and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
 
 ```bash
 # Create a project
@@ -29,7 +29,16 @@ zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name
 
 # Run Fastapp as monolith
 zrb project start-fastapp --fastapp-run-mode "monolith"
+```
 
+You will be able to access the application by pointing your browser to [http://localhost:3000](http://localhost:3000)
+
+![](images/fastapp.png)
+
+Furthermore, you can also run the same application as `microservices`, run the application as `docker containers`, and even doing some deployments into your `kubernetes cluster`.
+
+
+```bash
 # Run Fastapp as microservices
 zrb project start-fastapp --fastapp-run-mode "microservices"
 
@@ -44,7 +53,7 @@ zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 
 You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
 
-Zrb also allows you to define your automation commands in Python:
+Aside from the builtin capabilities, Zrb also allows you to define your automation commands in Python. To do so, you need to create/modify a file named `zrb_init.py`.
 
 ```python
 # filename: zrb_init.py
