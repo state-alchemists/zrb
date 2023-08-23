@@ -284,10 +284,9 @@ playground = CmdTask(
         'echo "🤖 Or playground project directory:"',
         f'echo "      cd {CURRENT_DIR}/playground/my-project"',
         'echo "🤖 You can also test pip package:"',
-        f'echo "      cd {CURRENT_DIR}/playground/my-project/src/zrb-coba-test"',
+        f'echo "      cd {CURRENT_DIR}/playground/my-project/src/zrb-coba-test"',  # noqa
         'echo "      source .venv/bin/activate"',
         'echo "      zrb-coba-test"',
-        'echo "      python -c \"import zrb_coba_test; print(zrb_coba_test.hello())\""',
         'echo "🤖 And start hacking around. Good luck :)"',
     ],
     retry=0,
