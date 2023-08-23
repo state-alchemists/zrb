@@ -2,11 +2,26 @@
 
 kebab-zrb-package-name is a [pypi](https://pypi.org) package.
 
-You can install kebab-zrb-package-name by invoking:
+You can install kebab-zrb-package-name by invoking the following command:
 
-```
+```bash
 pip install kebab-zrb-package-name
 ```
+
+Once kebab-zrb-package-name is installed, you can then run it by invoking the following command:
+
+```bash
+kebab-zrb-package-name
+```
+
+You can also import `kebab-zrb-package-name` into your Python program:
+
+```python
+from snake_zrb_package_name import hello
+
+print(hello())
+```
+
 
 # For maintainers
 
