@@ -4,7 +4,7 @@ PascalZrbProjectName is a [Zrb](https://pypi.org/project/zrb/) project.
 
 There are two directories in the project:
 
-- `_autmate`: This directory contains Zrb task definitions
+- `_automate`: This directory contains Zrb task definitions
 - `src`: This directory contains all source code and resources.
 
 To learn more about the project, you can visit [Zrb getting started page](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md).

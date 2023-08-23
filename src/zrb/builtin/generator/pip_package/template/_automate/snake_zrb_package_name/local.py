@@ -17,7 +17,10 @@ prepare_snake_zrb_package_name = CmdTask(
     description='Prepare venv for human readable zrb package name',
     group=project_group,
     cwd=RESOURCE_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'prepare-venv.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'prepare-venv.sh'),
+    ]
 )
 runner.register(prepare_snake_zrb_package_name)
 
@@ -27,7 +30,10 @@ build_snake_zrb_package_name = CmdTask(
     group=project_group,
     upstreams=[prepare_snake_zrb_package_name],
     cwd=RESOURCE_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'build.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'build.sh'),
+    ]
 )
 runner.register(build_snake_zrb_package_name)
 
@@ -45,7 +51,10 @@ publish_snake_zrb_package_name = CmdTask(
     ],
     upstreams=[build_snake_zrb_package_name],
     cwd=RESOURCE_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'publish.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'publish.sh'),
+    ]
 )
 runner.register(publish_snake_zrb_package_name)
 
@@ -55,6 +64,9 @@ install_snake_zrb_package_name_symlink = CmdTask(
     group=project_group,
     upstreams=[build_snake_zrb_package_name],
     cwd=RESOURCE_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'install-symlink.sh'),
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'cmd', 'activate-venv.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'install-symlink.sh'),
+    ]
 )
 runner.register(install_snake_zrb_package_name_symlink)
