@@ -76,7 +76,7 @@ echo '🤖 Add generator'
 zrb project add app-generator \
     --template-name "coba-app"
 
-echo '🤖 Run generator'
+echo '🤖 Test run generator'
 zrb project add coba-app \
     --project-dir . \
     --app-name "coba" \
@@ -84,5 +84,9 @@ zrb project add coba-app \
     --http-port "8080" \
     --env-prefix "COBA"
 
-echo '🤖 Test'
+echo '🤖 Test fastapp'
 zrb project test-fastapp
+
+echo '🤖 Test Install pip package symlink'
+zrb project install-zrb-coba-test-symlink
+
