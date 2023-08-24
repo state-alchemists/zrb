@@ -93,15 +93,15 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def print_out(self, message: Any):
+    def print_out(self, message: Any, trim_message: bool = True):
         pass
 
     @abstractmethod
-    def print_err(self, message: Any):
+    def print_err(self, message: Any, trim_message: bool = True):
         pass
 
     @abstractmethod
-    def print_out_dark(self, message: Any):
+    def print_out_dark(self, message: Any, trim_message: bool = True):
         pass
 
     @abstractmethod
