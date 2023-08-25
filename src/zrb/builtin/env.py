@@ -1,9 +1,9 @@
 from typing import Any, List
-from .group import env_group
-from ..helper.accessories.color import colored
-from ..task.decorator import python_task
-from ..task.task import Task
-from ..runner import runner
+from zrb.builtin.group import env_group
+from zrb.helper.accessories.color import colored
+from zrb.task.decorator import python_task
+from zrb.task.task import Task
+from zrb.runner import runner
 
 ###############################################################################
 # Task Definitions

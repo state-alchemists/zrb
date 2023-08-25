@@ -1,6 +1,6 @@
 from typeguard import typechecked
 from typing import Any, Optional
-from .string.conversion import to_boolean as conversion_to_boolean
+from zrb.helper.string.conversion import to_boolean as conversion_to_boolean
 import re
 import jinja2
 

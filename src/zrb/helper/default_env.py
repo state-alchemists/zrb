@@ -1,7 +1,7 @@
 from typeguard import typechecked
 from typing import Optional
-from .accessories.color import colored
-from .log import logger
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 import os
 
 

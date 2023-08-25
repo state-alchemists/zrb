@@ -1,4 +1,4 @@
-from .action.runner import Runner
-from .config.config import env_prefix
+from zrb.action.runner import Runner
+from zrb.config.config import env_prefix
 
 runner = Runner(env_prefix=env_prefix)

@@ -1,6 +1,6 @@
 from typing import Any, Optional, Iterable, Union
 from typeguard import typechecked
-from .base_input import BaseInput
+from zrb.task_input.base_input import BaseInput
 import click
 
 

@@ -1,12 +1,12 @@
 from typeguard import typechecked
 from typing import Any, List, Mapping
 from dotenv import dotenv_values
-from ....task.task import Task
-from ....helper.codemod.add_import_module import add_import_module
-from ....helper.codemod.add_function_call import add_function_call
-from ....helper.codemod.append_code_to_function import append_code_to_function
-from ....helper.docker_compose.file import add_services
-from ....helper.file.text import (
+from zrb.task.task import Task
+from zrb.helper.codemod.add_import_module import add_import_module
+from zrb.helper.codemod.add_function_call import add_function_call
+from zrb.helper.codemod.append_code_to_function import append_code_to_function
+from zrb.helper.docker_compose.file import add_services
+from zrb.helper.file.text import (
     read_text_file_async, write_text_file_async, append_text_file_async
 )
 

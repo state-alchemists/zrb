@@ -1,5 +1,5 @@
-from ..config.config import logging_level
-from .accessories.color import colored
+from zrb.config.config import logging_level
+from zrb.helper.accessories.color import colored
 import logging
 
 # create logger

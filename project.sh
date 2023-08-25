@@ -7,8 +7,6 @@ if [ ! -d "${PROJECT_DIR}/.venv" ]
 then
     echo '🤖 Create virtual environment'
     python -m venv "${PROJECT_DIR}/.venv"
-    echo '🤖 Activate virtual environment'
-    source "${PROJECT_DIR}/.venv/bin/activate"
 fi
 
 echo '🤖 Activate virtual environment'

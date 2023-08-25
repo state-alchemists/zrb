@@ -1,7 +1,7 @@
 from typing import List, Optional
 from typeguard import typechecked
 from dotenv import dotenv_values
-from .env import Env
+from zrb.task_env.env import Env
 
 
 @typechecked

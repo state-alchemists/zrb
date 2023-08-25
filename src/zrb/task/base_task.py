@@ -1,21 +1,21 @@
 from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from typeguard import typechecked
-from .any_task import AnyTask
-from .base_task_composite import (
+from zrb.task.any_task import AnyTask
+from zrb.task.base_task_composite import (
     AttemptTracker, FinishTracker, Renderer, TaskModelWithPrinterAndTracker
 )
-from ..advertisement import advertisements
-from ..task_group.group import Group
-from ..task_env.env import Env
-from ..task_env.env_file import EnvFile
-from ..task_input.any_input import AnyInput
-from ..task_input.constant import RESERVED_INPUT_NAMES
-from ..helper.accessories.color import colored
-from ..helper.advertisement import get_advertisement
-from ..helper.string.double_quote import double_quote
-from ..helper.string.conversion import to_variable_name
-from ..helper.map.conversion import to_str as map_to_str
-from ..config.config import show_advertisement
+from zrb.advertisement import advertisements
+from zrb.task_group.group import Group
+from zrb.task_env.env import Env
+from zrb.task_env.env_file import EnvFile
+from zrb.task_input.any_input import AnyInput
+from zrb.task_input.constant import RESERVED_INPUT_NAMES
+from zrb.helper.accessories.color import colored
+from zrb.helper.advertisement import get_advertisement
+from zrb.helper.string.double_quote import double_quote
+from zrb.helper.string.conversion import to_variable_name
+from zrb.helper.map.conversion import to_str as map_to_str
+from zrb.config.config import show_advertisement
 
 import asyncio
 import copy

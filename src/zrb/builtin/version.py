@@ -1,7 +1,7 @@
 from typing import Any
-from ..task.decorator import python_task
-from ..runner import runner
-from ..config.config import version
+from zrb.task.decorator import python_task
+from zrb.runner import runner
+from zrb.config.config import version
 
 ###############################################################################
 # Task Definitions

@@ -1,12 +1,12 @@
 from typing import Any, Callable, Iterable, Mapping, Optional, Union
 from typeguard import typechecked
-from .any_task import AnyTask
-from .base_task import BaseTask
-from ..task_env.env import Env
-from ..task_env.env_file import EnvFile
-from ..task_group.group import Group
-from ..task_input.any_input import AnyInput
-from ..config.config import default_shell
+from zrb.task.any_task import AnyTask
+from zrb.task.base_task import BaseTask
+from zrb.task_env.env import Env
+from zrb.task_env.env_file import EnvFile
+from zrb.task_group.group import Group
+from zrb.task_input.any_input import AnyInput
+from zrb.config.config import default_shell
 
 import asyncio
 import atexit

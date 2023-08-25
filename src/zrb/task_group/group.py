@@ -1,7 +1,7 @@
 from typing import List, Optional, TypeVar
 from typeguard import typechecked
-from ..task.any_task import AnyTask
-from ..helper.string.conversion import to_cmd_name
+from zrb.task.any_task import AnyTask
+from zrb.helper.string.conversion import to_cmd_name
 
 TGroup = TypeVar('TGroup', bound='Group')
 

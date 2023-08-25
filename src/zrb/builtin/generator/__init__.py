@@ -1,16 +1,20 @@
-from . import common
-from . import project_task
-from .project.create import create_project
-from .cmd_task.add import add_cmd_task
-from .docker_compose_task.add import add_docker_compose_task
-from .python_task.add import add_python_task
-from .simple_python_app import add as add_simple_python_app
-from .fastapp import add as add_fastapp
-from .fastapp_module import add as add_fastapp_module
-from .fastapp_crud import add as add_fastapp_crud
-from .fastapp_field import add as add_fastapp_field
-from .pip_package import add as add_pip_package
-from .app_generator import add as add_app_generator
+from zrb.builtin.generator import common
+from zrb.builtin.generator import project_task
+from zrb.builtin.generator.project.create import create_project
+from zrb.builtin.generator.cmd_task.add import add_cmd_task
+from zrb.builtin.generator.docker_compose_task.add import (
+    add_docker_compose_task
+)
+from zrb.builtin.generator.python_task.add import add_python_task
+from zrb.builtin.generator.simple_python_app import (
+    add as add_simple_python_app
+)
+from zrb.builtin.generator.fastapp import add as add_fastapp
+from zrb.builtin.generator.fastapp_module import add as add_fastapp_module
+from zrb.builtin.generator.fastapp_crud import add as add_fastapp_crud
+from zrb.builtin.generator.fastapp_field import add as add_fastapp_field
+from zrb.builtin.generator.pip_package import add as add_pip_package
+from zrb.builtin.generator.app_generator import add as add_app_generator
 
 assert common
 assert project_task

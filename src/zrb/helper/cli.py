@@ -1,9 +1,9 @@
 from typeguard import typechecked
-from ..runner import runner
-from ..config.config import init_scripts, should_load_builtin
-from .loader.load_module import load_module
-from .log import logger
-from .accessories.color import colored
+from zrb.runner import runner
+from zrb.config.config import init_scripts, should_load_builtin
+from zrb.helper.loader.load_module import load_module
+from zrb.helper.log import logger
+from zrb.helper.accessories.color import colored
 
 import click
 import os
@@ -22,7 +22,7 @@ def create_cli() -> click.Group:
     # Load default tasks
     if should_load_builtin:
         logger.info(colored('Load builtins', attrs=['dark']))
-        from .. import builtin
+        from zrb import builtin
         assert builtin
     # Load zrb_init.py
     project_dir = os.getenv('ZRB_PROJECT_DIR', os.getcwd())

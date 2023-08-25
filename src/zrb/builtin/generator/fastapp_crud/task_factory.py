@@ -1,8 +1,8 @@
 from typing import List
 from typeguard import typechecked
-from ....task.any_task import AnyTask
-from ....task.cmd_task import CmdTask
-from ..common.task_input import (
+from zrb.task.any_task import AnyTask
+from zrb.task.cmd_task import CmdTask
+from zrb.builtin.generator.common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
 )
 

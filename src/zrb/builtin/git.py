@@ -1,11 +1,11 @@
 from typing import Any
-from .group import git_group
-from ..task.decorator import python_task
-from ..task.task import Task
-from ..task_input.str_input import StrInput
-from ..runner import runner
-from ..helper.git.detect_changes import get_modified_files
-from ..helper.accessories.color import colored
+from zrb.builtin.group import git_group
+from zrb.task.decorator import python_task
+from zrb.task.task import Task
+from zrb.task_input.str_input import StrInput
+from zrb.runner import runner
+from zrb.helper.git.detect_changes import get_modified_files
+from zrb.helper.accessories.color import colored
 
 
 ###############################################################################

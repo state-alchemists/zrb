@@ -1,6 +1,6 @@
-from .group import ubuntu_group, ubuntu_install_group
-from ..task.cmd_task import CmdTask
-from ..runner import runner
+from zrb.builtin.group import ubuntu_group, ubuntu_install_group
+from zrb.task.cmd_task import CmdTask
+from zrb.runner import runner
 
 ###############################################################################
 # Task Definitions
