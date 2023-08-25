@@ -1,16 +1,16 @@
-from . import group
-from . import base64
-from . import env
-from . import eval
-from . import git
-from . import md5
-from . import explain
-from . import project
-from . import ubuntu
-from . import update
-from . import version
-from . import devtool
-from . import generator
+from zrb.builtin import group
+from zrb.builtin import base64
+from zrb.builtin import env
+from zrb.builtin import eval
+from zrb.builtin import git
+from zrb.builtin import md5
+from zrb.builtin import explain
+from zrb.builtin import project
+from zrb.builtin import ubuntu
+from zrb.builtin import update
+from zrb.builtin import version
+from zrb.builtin import devtool
+from zrb.builtin import generator
 
 assert group
 assert base64

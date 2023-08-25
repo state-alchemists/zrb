@@ -1,14 +1,14 @@
 from typing import Any
-from ..common.task_input import project_dir_input, task_name_input
-from ..common.helper import (
+from zrb.builtin.generator.common.task_input import project_dir_input, task_name_input
+from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
 )
-from ..common.task_factory import create_register_module
-from ...group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
+from zrb.builtin.generator.common.task_factory import create_register_module
+from zrb.builtin.group import project_add_group
+from zrb.task.task import Task
+from zrb.task.decorator import python_task
+from zrb.task.resource_maker import ResourceMaker
+from zrb.runner import runner
 
 import os
 

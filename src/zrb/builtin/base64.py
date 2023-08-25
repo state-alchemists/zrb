@@ -1,8 +1,8 @@
 from typing import Any
-from .group import base64_group
-from ..task.decorator import python_task
-from ..task_input.str_input import StrInput
-from ..runner import runner
+from zrb.builtin.group import base64_group
+from zrb.task.decorator import python_task
+from zrb.task_input.str_input import StrInput
+from zrb.runner import runner
 
 import base64
 

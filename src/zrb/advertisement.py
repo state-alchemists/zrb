@@ -1,5 +1,5 @@
 from typing import List
-from .helper.advertisement import Advertisement
+from zrb.helper.advertisement import Advertisement
 
 # flake8: noqa E501
 

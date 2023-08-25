@@ -1,8 +1,8 @@
 from typing import Any, List, Mapping, Optional, Union
 from typeguard import typechecked
-from .any_input import AnyInput
-from .constant import RESERVED_INPUT_NAMES
-from ..config.config import show_prompt
+from zrb.task_input.any_input import AnyInput
+from zrb.task_input.constant import RESERVED_INPUT_NAMES
+from zrb.config.config import show_prompt
 
 
 @typechecked

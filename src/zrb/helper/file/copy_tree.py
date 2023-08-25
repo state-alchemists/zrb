@@ -1,8 +1,8 @@
 from typing import Iterable, Mapping, Optional
 from typeguard import typechecked
-from .text import read_text_file_async, write_text_file_async
-from ..string.parse_replacement import parse_replacement
-from ..log import logger
+from zrb.helper.file.text import read_text_file_async, write_text_file_async
+from zrb.helper.string.parse_replacement import parse_replacement
+from zrb.helper.log import logger
 
 import os
 import shutil

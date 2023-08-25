@@ -2,9 +2,9 @@ from typing import (
     Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
 )
 from abc import ABC, abstractmethod
-from ..task_env.env_file import EnvFile
-from ..task_env.env import Env
-from ..task_input.any_input import AnyInput
+from zrb.task_env.env_file import EnvFile
+from zrb.task_env.env import Env
+from zrb.task_input.any_input import AnyInput
 
 TAnyTask = TypeVar('TAnyTask', bound='AnyTask')
 

@@ -1,19 +1,19 @@
 from typing import Any
-from .helper import (
+from zrb.builtin.generator.fastapp_field.helper import (
     add_column_to_delete_page, add_column_to_detail_page,
     add_column_to_insert_page, add_column_to_list_page, add_column_to_repo,
     add_column_to_schema, add_column_to_test, add_column_to_update_page
 )
-from ..common.task_input import (
+from zrb.builtin.generator.common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     column_name_input, column_type_input
 )
-from ..common.helper import validate_existing_project_dir
-from ...group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....runner import runner
-from ....helper import util
+from zrb.builtin.generator.common.helper import validate_existing_project_dir
+from zrb.builtin.group import project_add_group
+from zrb.task.task import Task
+from zrb.task.decorator import python_task
+from zrb.runner import runner
+from zrb.helper import util
 
 import asyncio
 import os

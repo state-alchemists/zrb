@@ -1,6 +1,6 @@
-from ....task_input.str_input import StrInput
-from ....task_input.int_input import IntInput
-from ....helper.accessories.name import get_random_name
+from zrb.task_input.str_input import StrInput
+from zrb.task_input.int_input import IntInput
+from zrb.helper.accessories.name import get_random_name
 import os
 
 SYSTEM_USER = os.getenv('USER', 'incognito')

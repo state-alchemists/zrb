@@ -1,25 +1,25 @@
 from typing import Any
-from ..common.helper import (
+from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
 )
-from ..common.task_input import (
+from zrb.builtin.generator.common.task_input import (
     project_dir_input, app_name_input, app_image_name_input, http_port_input,
     env_prefix_input
 )
-from ..common.task_factory import create_register_module
-from ..project_task.task_factory import (
+from zrb.builtin.generator.common.task_factory import create_register_module
+from zrb.builtin.generator.project_task.task_factory import (
     create_ensure_project_tasks, create_add_build_images_upstream,
     create_add_deploy_upstream, create_add_destroy_upstream,
     create_add_push_images_upstream, create_add_remove_containers_upstream,
     create_add_start_containers_upstream, create_add_start_upstream,
     create_add_stop_containers_upstream
 )
-from ...group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from ....helper.util import to_kebab_case
+from zrb.builtin.group import project_add_group
+from zrb.task.task import Task
+from zrb.task.decorator import python_task
+from zrb.task.resource_maker import ResourceMaker
+from zrb.runner import runner
+from zrb.helper.util import to_kebab_case
 
 import os
 

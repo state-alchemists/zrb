@@ -1,6 +1,6 @@
 from typing import Iterable, Optional
 from typeguard import typechecked
-from .accessories.color import colored
+from zrb.helper.accessories.color import colored
 
 import datetime
 import random

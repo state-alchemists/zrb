@@ -1,8 +1,8 @@
 from typeguard import typechecked
-from ....task.task import Task
-from ....helper.codemod.add_import_module import add_import_module
-from ....helper.codemod.append_code_to_function import append_code_to_function
-from ....helper.file.text import read_text_file_async, write_text_file_async
+from zrb.task.task import Task
+from zrb.helper.codemod.add_import_module import add_import_module
+from zrb.helper.codemod.append_code_to_function import append_code_to_function
+from zrb.helper.file.text import read_text_file_async, write_text_file_async
 import os
 
 

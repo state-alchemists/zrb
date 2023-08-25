@@ -1,9 +1,9 @@
 from typeguard import typechecked
 from typing import List, Mapping
-from ...task_group.group import Group
-from ...task.any_task import AnyTask
-from ...task_env.env import Env
-from ..string.jinja import is_probably_jinja
+from zrb.task_group.group import Group
+from zrb.task.any_task import AnyTask
+from zrb.task_env.env import Env
+from zrb.helper.string.jinja import is_probably_jinja
 
 
 @typechecked

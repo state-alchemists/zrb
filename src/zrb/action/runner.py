@@ -1,7 +1,7 @@
 from typing import Any, Callable, Iterable, List, Mapping, Union
 from typeguard import typechecked
-from ..task_group.group import Group as TaskGroup
-from ..task.any_task import AnyTask
+from zrb.task_group.group import Group as TaskGroup
+from zrb.task.any_task import AnyTask
 import click
 import sys
 

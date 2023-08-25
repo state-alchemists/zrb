@@ -1,6 +1,6 @@
 from typeguard import typechecked
-from ..log import logger
-from ..accessories.color import colored
+from zrb.helper.log import logger
+from zrb.helper.accessories.color import colored
 
 import importlib.util
 import os

@@ -1,19 +1,19 @@
 from typing import Any
-from .helper import (
+from zrb.builtin.generator.fastapp_module.helper import (
     create_microservice_config, register_module, register_migration,
     create_app_config, append_all_enabled_env, append_all_disabled_env,
     append_src_template_env, append_deployment_template_env
 )
-from ..common.helper import validate_existing_project_dir
-from ..common.task_input import (
+from zrb.builtin.generator.common.helper import validate_existing_project_dir
+from zrb.builtin.generator.common.task_input import (
     project_dir_input, app_name_input, module_name_input
 )
-from ...group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from ....helper import util
+from zrb.builtin.group import project_add_group
+from zrb.task.task import Task
+from zrb.task.decorator import python_task
+from zrb.task.resource_maker import ResourceMaker
+from zrb.runner import runner
+from zrb.helper import util
 
 import asyncio
 import os

@@ -1,15 +1,15 @@
 from typing import Any, List, Optional
 from typeguard import typechecked
-from ..common.task_input import project_dir_input
-from ..common.task_factory import create_add_upstream
-from ....task.decorator import python_task
-from ....task.any_task import AnyTask
-from ....task.task import Task
-from ....task_input.any_input import AnyInput
-from ....helper.codemod.add_import_module import add_import_module
-from ....helper.codemod.add_assert_resource import add_assert_resource
-from ....helper.file.copy_tree import copy_tree
-from ....helper.file.text import read_text_file_async, write_text_file_async
+from zrb.builtin.generator.common.task_input import project_dir_input
+from zrb.builtin.generator.common.task_factory import create_add_upstream
+from zrb.task.decorator import python_task
+from zrb.task.any_task import AnyTask
+from zrb.task.task import Task
+from zrb.task_input.any_input import AnyInput
+from zrb.helper.codemod.add_import_module import add_import_module
+from zrb.helper.codemod.add_assert_resource import add_assert_resource
+from zrb.helper.file.copy_tree import copy_tree
+from zrb.helper.file.text import read_text_file_async, write_text_file_async
 import os
 
 CURRENT_DIR = os.path.dirname(__file__)

@@ -1,18 +1,22 @@
 from typing import Any
-from .task_factory import create_add_navigation_task
-from .helper import register_api, register_permission, register_rpc
-from ..common.task_input import (
+from zrb.builtin.generator.fastapp_crud.task_factory import (
+    create_add_navigation_task
+)
+from zrb.builtin.generator.fastapp_crud.helper import (
+    register_api, register_permission, register_rpc
+)
+from zrb.builtin.generator.common.task_input import (
     project_dir_input, app_name_input, module_name_input, entity_name_input,
     plural_entity_name_input, main_column_name_input
 )
-from ..common.helper import validate_existing_project_dir
-from ...group import project_add_group
-from ....task.task import Task
-from ....task.decorator import python_task
-from ....task.cmd_task import CmdTask
-from ....task.resource_maker import ResourceMaker
-from ....runner import runner
-from ....helper import util
+from zrb.builtin.generator.common.helper import validate_existing_project_dir
+from zrb.builtin.group import project_add_group
+from zrb.task.task import Task
+from zrb.task.decorator import python_task
+from zrb.task.cmd_task import CmdTask
+from zrb.task.resource_maker import ResourceMaker
+from zrb.runner import runner
+from zrb.helper import util
 
 import asyncio
 import os
