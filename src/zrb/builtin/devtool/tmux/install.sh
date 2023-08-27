@@ -5,7 +5,7 @@ then
 elif [ "{{ platform.system() }}" = "Linux" ]
 then
     set +e
-    apt --version
+    which apt
     if [ "$?" != 0 ]
     then
         >&2 echo "apt not found"

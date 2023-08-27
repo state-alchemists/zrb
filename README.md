@@ -35,7 +35,7 @@ zrb project start-fastapp --fastapp-run-mode "monolith"
 
 You will be able to access the application by pointing your browser to [http://localhost:3000](http://localhost:3000)
 
-![](images/fastapp.png)
+![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/fastapp.png)
 
 Furthermore, you can also run the same application as `microservices`, run the application as `docker containers`, and even doing some deployments into your `kubernetes cluster`.
 

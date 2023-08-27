@@ -459,3 +459,17 @@ install_helix = FlowTask(
     retry=0
 )
 runner.register(install_helix)
+
+install_selenium = FlowTask(
+    name='selenium',
+    group=dev_tool_install_group,
+    description='Selenium + Chrome web driver',
+    nodes=[
+        FlowNode(
+            name='install-selenium',
+            cmd_path=os.path.join(dir_path, 'selenium', 'install.sh'),
+            preexec_fn=None
+        )
+    ]
+)
+runner.register(install_selenium)
