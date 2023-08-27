@@ -21,8 +21,7 @@ chrome_driver=$(curl "https://chromedriver.storage.googleapis.com/LATEST_RELEASE
 echo "$chrome_driver"
 
 echo "Download chrome driver"
-curl -Lo chromedriver_linux64.zip "https://chromedriver.storage.googleapis.com/\
-${chrome_driver}/chromedriver_linux64.zip"
+curl -Lo chromedriver_linux64.zip "https://chromedriver.storage.googleapis.com/${chrome_driver}/chromedriver_linux64.zip"
 
 echo "Install chrome driver"
 mkdir -p "${HOME}/chromedriver/stable"
