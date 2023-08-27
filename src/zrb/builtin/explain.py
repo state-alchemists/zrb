@@ -20,12 +20,12 @@ def show_lines(task: Task, *lines: str):
 
 
 @python_task(
-    name='solid',
+    name='solid-principle',
     group=explain_group,
     description='Explain SOLID principle',
     runner=runner
 )
-async def explain_solid(*args: Any, **kwargs: Any):
+async def explain_solid_principle(*args: Any, **kwargs: Any):
     show_lines(
         kwargs['_task'],
         'S - Single Responsibility Principle',
@@ -41,12 +41,12 @@ async def explain_solid(*args: Any, **kwargs: Any):
 
 
 @python_task(
-    name='yagni',
+    name='yagni-principle',
     group=explain_group,
     description='Explain YAGNI principle',
     runner=runner
 )
-async def explain_yagni(*args: Any, **kwargs: Any):
+async def explain_yagni_principle(*args: Any, **kwargs: Any):
     show_lines(
         kwargs['_task'],
         'Y - You',
@@ -62,12 +62,12 @@ async def explain_yagni(*args: Any, **kwargs: Any):
 
 
 @python_task(
-    name='dry',
+    name='dry-principle',
     group=explain_group,
     description='Explain DRY principle',
     runner=runner
 )
-async def explain_dry(*args: Any, **kwargs: Any):
+async def explain_dry_principle(*args: Any, **kwargs: Any):
     show_lines(
         kwargs['_task'],
         'D - Don\'t',
@@ -81,12 +81,12 @@ async def explain_dry(*args: Any, **kwargs: Any):
 
 
 @python_task(
-    name='kiss',
+    name='kiss-principle',
     group=explain_group,
     description='Explain KISS principle',
     runner=runner
 )
-async def explain_kiss(*args: Any, **kwargs: Any):
+async def explain_kiss_principle(*args: Any, **kwargs: Any):
     show_lines(
         kwargs['_task'],
         'K - Keep',

@@ -5,12 +5,13 @@ then
 elif [ "{{ platform.system() }}" = "Linux" ]
 then
     set +e
-    apt --version
+    which apt
     if [ "$?" != 0 ]
     then
         >&2 echo "apt not found"
         exit 1
     fi
+    sudo apt install xclip
     set -e
     sudo add-apt-repository ppa:maveonair/helix-editor -y
     sudo apt update

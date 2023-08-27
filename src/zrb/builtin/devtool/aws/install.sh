@@ -8,7 +8,7 @@ else
 fi
 
 set +e
-apt --version
+which apt
 if [ "$?" = 0 ]
 then
     sudo apt install -y unzip
