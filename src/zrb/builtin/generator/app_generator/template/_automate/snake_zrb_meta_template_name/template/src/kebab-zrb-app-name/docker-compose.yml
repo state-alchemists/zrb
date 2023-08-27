@@ -11,7 +11,8 @@ networks:
     name: zrb
 
 services:
-  snake_zrb_app_name:
+
+  kebab-zrb-app-name:
     build: src
     image: ${IMAGE:-kebab-zrb-app-name}
     logging: *default-logging
