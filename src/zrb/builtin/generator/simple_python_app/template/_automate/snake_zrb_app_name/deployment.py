@@ -34,7 +34,7 @@ deployment_app_env_file = EnvFile(
     prefix='DEPLOYMENT_APP_ZRB_ENV_PREFIX'
 )
 
-deployment_env_file = EnvFile(
+deployment_config_env_file = EnvFile(
     env_file=DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
     prefix='DEPLOYMENT_CONFIG_ZRB_ENV_PREFIX'
 )
@@ -78,7 +78,7 @@ deploy_snake_zrb_app_name = CmdTask(
     upstreams=[push_snake_zrb_app_name_image],
     cwd=DEPLOYMENT_DIR,
     env_files=[
-        deployment_env_file,
+        deployment_config_env_file,
         deployment_app_env_file,
     ],
     envs=[
@@ -104,7 +104,7 @@ destroy_snake_zrb_app_name = CmdTask(
     ],
     cwd=DEPLOYMENT_DIR,
     env_files=[
-        deployment_env_file,
+        deployment_config_env_file,
         deployment_app_env_file,
     ],
     envs=[
