@@ -8,6 +8,7 @@ from zrb.builtin.group import project_add_group
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
 from zrb.task.resource_maker import ResourceMaker
+from zrb.task_input.int_input import IntInput
 from zrb.task_input.str_input import StrInput
 from zrb.helper.accessories.name import get_random_name
 from zrb.runner import runner
@@ -28,8 +29,17 @@ template_name_input = StrInput(
 template_base_image_input = StrInput(
     name='template-base-image',
     shortcut='i',
+    description='Template base image',
     prompt='Base image',
     default='python:3.10-slim'
+)
+
+template_default_app_port_input = IntInput(
+    name='template-default-app-port',
+    shortcut='p',
+    description='Template default app port',
+    prompt='Default app port',
+    default=8080
 )
 
 
@@ -58,11 +68,13 @@ copy_resource = ResourceMaker(
         project_dir_input,
         template_name_input,
         template_base_image_input,
+        template_default_app_port_input,
     ],
     upstreams=[validate],
     replacements={
         'zrbMetaTemplateName': '{{input.template_name}}',
         'zrbMetaTemplateBaseImage': '{{input.template_base_image}}',
+        'zrbMetaTemplateDefaultAppPort': '{{input.template_default_app_port}}',
     },
     template_path=os.path.join(CURRENT_DIR, 'template'),
     destination_path='{{ input.project_dir }}',
