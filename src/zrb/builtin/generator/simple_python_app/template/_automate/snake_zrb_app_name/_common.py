@@ -9,8 +9,11 @@ CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-zrb-app-name')
 DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, 'deployment')
+DEPLOYMENT_TEMPLATE_ENV_FILE_NAME = os.path.join(
+    DEPLOYMENT_DIR, 'template.env'
+)
 APP_DIR = os.path.join(RESOURCE_DIR, 'src')
-TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
+APP_TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 
 ###############################################################################
 # Input Definitions

@@ -1,7 +1,7 @@
 from zrb import CmdTask, Env, EnvFile, HTTPChecker, runner
 from zrb.builtin.group import project_group
 from ._common import (
-    CURRENT_DIR, APP_DIR, TEMPLATE_ENV_FILE_NAME,
+    CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME,
     local_input, host_input, https_input
 )
 import os
@@ -10,7 +10,7 @@ import os
 # Env File Definitions
 ###############################################################################
 
-app_env_file = EnvFile(env_file=TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
+app_env_file = EnvFile(env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
 
 ###############################################################################
 # Task Definitions
