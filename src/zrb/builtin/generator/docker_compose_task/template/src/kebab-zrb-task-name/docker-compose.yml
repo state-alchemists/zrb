@@ -11,7 +11,8 @@ networks:
     name: zrb
 
 services:
-  myapp:
+
+  kebab-zrb-task-name:
     build: image
     image: ${IMAGE:-kebab-zrb-task-name}
     logging: *default-logging

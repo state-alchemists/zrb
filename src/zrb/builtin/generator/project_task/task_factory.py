@@ -35,7 +35,8 @@ def create_ensure_project_tasks(
             return
         await copy_tree(
             src=os.path.join(CURRENT_DIR, 'template'),
-            dst=project_dir
+            dst=project_dir,
+            excludes=['*/__pycache__'],
         )
         project_task_module_path = '_automate._project'
         zrb_init_path = os.path.join(project_dir, 'zrb_init.py')

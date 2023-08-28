@@ -1,9 +1,8 @@
 from typing import Any
 from zrb.builtin.group import project_add_group
-from zrb import Task, python_task, ResourceMaker, runner
+from zrb import Task, python_task, ResourceMaker, runner, IntInput
 from zrb.builtin.generator.common.task_input import (
-    project_dir_input, app_name_input, app_image_name_input, env_prefix_input,
-    http_port_input
+    project_dir_input, app_name_input, app_image_name_input, env_prefix_input
 )
 from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
@@ -22,6 +21,18 @@ import os
 CURRENT_DIR = os.path.dirname(__file__)
 SNAKE_APP_NAME_TPL = '{{util.to_snake_case(input.app_name)}}'
 KEBAB_APP_NAME_TPL = '{{util.to_kebab_case(app_name)}}'
+
+###############################################################################
+# Task Inputs
+###############################################################################
+
+app_port_input = IntInput(
+    name='app-port',
+    shortcut='p',
+    description='HTTP port',
+    prompt='HTTP port',
+    default=8080,
+)
 
 ###############################################################################
 # Task Definitions
@@ -51,13 +62,13 @@ copy_resource = ResourceMaker(
         project_dir_input,
         app_name_input,
         app_image_name_input,
-        http_port_input,
+        app_port_input,
         env_prefix_input,
     ],
     upstreams=[validate],
     replacements={
         'zrbAppName': '{{input.app_name}}',
-        'zrbAppHttpPort': '{{util.coalesce(input.http_port, "3000")}}',
+        'zrbAppPort': '{{util.coalesce(input.app_port, "8080")}}',
         'ZRB_ENV_PREFIX': '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         'zrb-app-image-name': '{{input.app_image_name}}'
     },
