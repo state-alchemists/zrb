@@ -47,6 +47,7 @@ start_snake_zrb_app_name = CmdTask(
             name='check-kebab-zrb-app-name',
             host='{{input.snake_zrb_app_name_host}}',
             port='{{env.APP_PORT}}',
+            url='/',
             is_https='{{input.snake_zrb_app_name_https}}'
         )
     ]
