@@ -120,7 +120,8 @@ validate_helm = CmdTask(
     name='validate-helm',
     inputs=[download_helm_chart_input],
     skip_execution='{{ not input.download_helm_chart}}',
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'check-helm.sh')
+    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'check-helm.sh'),
+    retry=0
 )
 
 
@@ -132,17 +133,18 @@ validate_helm = CmdTask(
         build_custom_image_input,
         is_container_only_input,
     ],
-    upstreams=[validate_helm]
+    upstreams=[validate_helm],
+    retry=0
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get('project_dir')
     validate_existing_project_dir(project_dir)
     template_name = kwargs.get('template_name')
     validate_inexisting_automation(project_dir, template_name)
-    is_container_only_input: bool = kwargs.get('is_container_only_input')
-    build_custom_image_input: bool = kwargs.get('build_custom_image_input')
+    is_container_only_input: bool = kwargs.get('is_container_only')
+    build_custom_image_input: bool = kwargs.get('build_custom_image')
     if not is_container_only_input and not build_custom_image_input:
-        raise Exception('Should build custom image in Non container-only app')
+        raise Exception('Non is-container-only app should build-custom-image')
 
 
 copy_base_resource = ResourceMaker(
@@ -190,7 +192,6 @@ copy_container_only_resource = ResourceMaker(
     excludes=['*/__pycache__']
 )
 
-# TODO: This override port/http checker, probably should use custom checker
 copy_custom_image_resource = ResourceMaker(
     name='copy-custom-image-resource',
     inputs=[
@@ -206,7 +207,7 @@ copy_custom_image_resource = ResourceMaker(
 
 copy_resource = CmdTask(
     name='copy-resource',
-    upstreams=[copy_container_custom_image_resource],
+    upstreams=[copy_custom_image_resource],
     cmd='echo Resource copied'
 )
 

@@ -1,11 +1,8 @@
-from zrb import (
-    DockerComposeTask, Env, EnvFile, ServiceConfig, runner, PortChecker,
-)
+from zrb import DockerComposeTask, Env, EnvFile, ServiceConfig, runner
 from zrb.builtin.group import project_group
-from ._common import (
-    RESOURCE_DIR, APP_DIR, local_input, host_input
-)
+from ._common import RESOURCE_DIR, APP_DIR, local_input, host_input
 from .image import image_input, image_env
+from .checker import snake_zrb_app_name_container_checker
 import os
 
 ###############################################################################
@@ -133,11 +130,7 @@ start_snake_zrb_app_name_container = DockerComposeTask(
         host_port_env,
     ],
     checkers=[
-        PortChecker(
-            name='check-kebab-zrb-app-name',
-            host='{{input.snake_zrb_app_name_host}}',
-            port='{{env.HOST_PORT}}',
-        ),
+        snake_zrb_app_name_container_checker,
     ]
 )
 runner.register(start_snake_zrb_app_name_container)

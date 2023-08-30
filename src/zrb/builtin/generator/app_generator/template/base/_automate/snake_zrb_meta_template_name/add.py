@@ -174,8 +174,6 @@ add_destroy_upstream = create_add_destroy_upstream(
         add_start_container_upstream,
         add_stop_container_upstream,
         add_remove_container_upstream,
-        add_build_image_upstream,
-        add_push_image_upstream,
         add_deploy_upstream,
         add_destroy_upstream
     ],

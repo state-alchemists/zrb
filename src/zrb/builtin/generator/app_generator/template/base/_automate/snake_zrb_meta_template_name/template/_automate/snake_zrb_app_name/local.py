@@ -1,8 +1,9 @@
-from zrb import CmdTask, Env, EnvFile, PortChecker, runner
+from zrb import CmdTask, Env, EnvFile, runner
 from zrb.builtin.group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, local_input, host_input
 )
+from .checker import snake_zrb_app_name_checker
 import os
 
 ###############################################################################
@@ -41,11 +42,7 @@ start_snake_zrb_app_name = CmdTask(
         os.path.join(CURRENT_DIR, 'cmd', 'app-start.sh'),
     ],
     checkers=[
-        PortChecker(
-            name='check-kebab-zrb-app-name',
-            host='{{input.snake_zrb_app_name_host}}',
-            port='{{env.APP_PORT}}',
-        )
+        snake_zrb_app_name_checker,
     ]
 )
 runner.register(start_snake_zrb_app_name)
