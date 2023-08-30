@@ -19,6 +19,9 @@ import os
 
 CURRENT_DIR = os.path.dirname(__file__)
 
+###############################################################################
+# Task Input Definitions
+###############################################################################
 
 template_name_input = StrInput(
     name='template-name',
@@ -170,10 +173,16 @@ copy_http_port_resource = ResourceMaker(
     name='copy-http-port-resource',
     inputs=[
         project_dir_input,
-        is_http_port_input
+        template_name_input,
+        is_http_port_input,
+        default_app_port_input,
     ],
     skip_execution='{{ not input.is_http_port }}',
     upstreams=[copy_base_resource],
+    replacements={
+        'zrbMetaTemplateName': '{{input.template_name}}',
+        'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
+    },
     template_path=os.path.join(CURRENT_DIR, 'template', 'http_port'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
@@ -183,10 +192,14 @@ copy_container_only_resource = ResourceMaker(
     name='copy-non-container-only-resource',
     inputs=[
         project_dir_input,
+        template_name_input,
         is_container_only_input
     ],
     skip_execution='{{ not input.is_container_only }}',
     upstreams=[copy_http_port_resource],
+    replacements={
+        'zrbMetaTemplateName': '{{input.template_name}}',
+    },
     template_path=os.path.join(CURRENT_DIR, 'template', 'container_only'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
@@ -196,10 +209,18 @@ copy_custom_image_resource = ResourceMaker(
     name='copy-custom-image-resource',
     inputs=[
         project_dir_input,
-        build_custom_image_input
+        template_name_input,
+        base_image_input,
+        build_custom_image_input,
+        default_app_port_input,
     ],
     skip_execution='{{ not input.build_custom_image }}',
     upstreams=[copy_container_only_resource],
+    replacements={
+        'zrbMetaTemplateName': '{{input.template_name}}',
+        'zrbMetaTemplateBaseImage': '{{input.base_image}}',
+        'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
+    },
     template_path=os.path.join(CURRENT_DIR, 'template', 'build_custom_image'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
@@ -239,6 +260,6 @@ register_module = create_register_module(
     ],
     runner=runner
 )
-async def add_python_task(*args: Any, **kwargs: Any):
+async def add_app_generator(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')
