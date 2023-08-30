@@ -77,8 +77,17 @@ register_module = create_register_module(
     name='pip-package',
     group=project_add_group,
     upstreams=[register_module],
+    inputs=[
+        project_dir_input,
+        package_name_input,
+        package_description_input,
+        package_homepage_input,
+        package_bug_tracker_input,
+        package_author_name_input,
+        package_author_email_input
+    ],
     runner=runner
 )
-async def add_python_task(*args: Any, **kwargs: Any):
+async def add_pip_package(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     task.print_out('Success')
