@@ -65,7 +65,7 @@ zrb project add fastapp-field \
 echo '🤖 Add python package'
 zrb project add pip-package \
     --project-dir . \
-    --package-name "zrb-coba-test" \
+    --package-name "zrb-package-test" \
     --package-description "A test package" \
     --package-homepage "https://github.com/state-alchemists/zrb" \
     --package-bug-tracker "https://github.com/state-alchemists/zrb/issues" \
@@ -74,19 +74,19 @@ zrb project add pip-package \
 
 echo '🤖 Add generator'
 zrb project add app-generator \
-    --template-name "coba-app"
+    --template-name "coba"
 
 echo '🤖 Test run generator'
-zrb project add coba-app \
+zrb project add coba \
     --project-dir . \
-    --app-name "coba" \
+    --app-name "coba-1" \
     --app-image-name "docker.io/gofrendi/coba" \
     --app-port "8080" \
-    --env-prefix "COBA"
+    --env-prefix "COBA_1"
 
 echo '🤖 Test fastapp'
 zrb project test-fastapp
 
 echo '🤖 Test Install pip package symlink'
-zrb project install-zrb-coba-test-symlink
+zrb project install-zrb-package-test-symlink
 
