@@ -101,18 +101,11 @@ register_container_module = create_register_module(
     upstreams=[register_local_module]
 )
 
-register_image_module = create_register_module(
-    module_path=f'_automate.{SNAKE_APP_NAME_TPL}.image',
-    alias=f'{SNAKE_APP_NAME_TPL}_image',
-    inputs=[app_name_input],
-    upstreams=[register_container_module]
-)
-
 register_deployment_module = create_register_module(
     module_path=f'_automate.{SNAKE_APP_NAME_TPL}.deployment',
     alias=f'{SNAKE_APP_NAME_TPL}_deployment',
     inputs=[app_name_input],
-    upstreams=[register_image_module]
+    upstreams=[register_container_module]
 )
 
 ensure_project_tasks = create_ensure_project_tasks(
@@ -168,7 +161,6 @@ add_destroy_upstream = create_add_destroy_upstream(
     upstreams=[
         register_local_module,
         register_container_module,
-        register_image_module,
         register_deployment_module,
         add_start_upstream,
         add_start_container_upstream,

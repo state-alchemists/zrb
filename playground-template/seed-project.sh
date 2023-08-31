@@ -65,7 +65,7 @@ zrb project add fastapp-field \
 echo '🤖 Add python package'
 zrb project add pip-package \
     --project-dir . \
-    --package-name "zrb-package-test" \
+    --package-name "zrb-pkg" \
     --package-description "A test package" \
     --package-homepage "https://github.com/state-alchemists/zrb" \
     --package-bug-tracker "https://github.com/state-alchemists/zrb/issues" \
@@ -74,19 +74,49 @@ zrb project add pip-package \
 
 echo '🤖 Add generator'
 zrb project add app-generator \
-    --template-name "coba"
+    --template-name "gen"
+
+echo '🤖 Add generator (maximum feature)'
+zrb project add app-generator \
+    --template-name "gen-max" \
+    --build-custom-image true \
+    --is-container-only true \
+    --is-http-port true \
+    --use-helm true \
+    --download-helm-chart true
+
+echo '🤖 Add generator (No custom image)'
+zrb project add app-generator \
+    --template-name "gen-no-custom-image" \
+    --build-custom-image false \
+    --is-container-only true
 
 echo '🤖 Test run generator'
-zrb project add coba \
+zrb project add gen \
     --project-dir . \
-    --app-name "coba-1" \
+    --app-name "app" \
     --app-image-name "docker.io/gofrendi/coba" \
     --app-port "8080" \
-    --env-prefix "COBA_1"
+    --env-prefix "APP"
+
+echo '🤖 Test run generator (maximum feature)'
+zrb project add gen-max \
+    --project-dir . \
+    --app-name "app-max" \
+    --app-image-name "docker.io/gofrendi/coba" \
+    --app-port "8081" \
+    --env-prefix "APP"
+
+echo '🤖 Test run generator (no custom image)'
+zrb project add gen-no-custom-image \
+    --project-dir . \
+    --app-name "app-no-custom-image" \
+    --app-image-name "docker.io/gofrendi/coba" \
+    --app-port "8082" \
+    --env-prefix "APP"
 
 echo '🤖 Test fastapp'
 zrb project test-fastapp
 
 echo '🤖 Test Install pip package symlink'
-zrb project install-zrb-package-test-symlink
-
+zrb project install-zrb-pkg-symlink

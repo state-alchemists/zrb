@@ -68,7 +68,7 @@ is_http_port_input = BoolInput(
     default=False
 )
 
-use_helm_chart_input = BoolInput(
+use_helm_input = BoolInput(
     name='use-helm',
     description='Whether using helm for deployment or not',
     prompt=' '.join([
@@ -251,7 +251,7 @@ register_module = create_register_module(
         base_image_input,
         build_custom_image_input,
         is_container_only_input,
-        use_helm_chart_input,
+        use_helm_input,
         helm_repo_name_input,
         helm_repo_url_input,
         helm_chart_name_input,

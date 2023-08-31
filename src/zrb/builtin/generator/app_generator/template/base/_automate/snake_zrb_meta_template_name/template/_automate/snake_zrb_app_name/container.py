@@ -1,7 +1,6 @@
 from zrb import DockerComposeTask, Env, EnvFile, ServiceConfig, runner
 from zrb.builtin.group import project_group
 from ._common import RESOURCE_DIR, APP_DIR, local_input, host_input
-from .image import image_input, image_env
 from .checker import snake_zrb_app_name_container_checker
 import os
 
@@ -54,7 +53,6 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
     },
     env_files=[compose_env_file],
     envs=[
-        image_env,
         host_port_env,
     ],
 )
@@ -73,7 +71,6 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     },
     env_files=[compose_env_file],
     envs=[
-        image_env,
         host_port_env,
     ],
 )
@@ -85,7 +82,6 @@ init_snake_zrb_app_name_container = DockerComposeTask(
     inputs=[
         local_input,
         host_input,
-        image_input,
     ],
     skip_execution='{{not input.local_snake_zrb_app_name}}',
     upstreams=[
@@ -100,7 +96,6 @@ init_snake_zrb_app_name_container = DockerComposeTask(
     },
     env_files=[compose_env_file],
     envs=[
-        image_env,
         host_port_env,
     ],
 )
@@ -113,7 +108,6 @@ start_snake_zrb_app_name_container = DockerComposeTask(
     inputs=[
         local_input,
         host_input,
-        image_input,
     ],
     skip_execution='{{not input.local_snake_zrb_app_name}}',
     upstreams=[init_snake_zrb_app_name_container],
@@ -126,7 +120,6 @@ start_snake_zrb_app_name_container = DockerComposeTask(
     },
     env_files=[compose_env_file],
     envs=[
-        image_env,
         host_port_env,
     ],
     checkers=[

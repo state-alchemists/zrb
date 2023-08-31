@@ -1,6 +1,5 @@
 from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
 from zrb.builtin.group import project_group
-from .image import image_input, image_env
 from ._common import (
     CURRENT_DIR, DEPLOYMENT_DIR, APP_TEMPLATE_ENV_FILE_NAME,
     DEPLOYMENT_TEMPLATE_ENV_FILE_NAME
@@ -71,7 +70,6 @@ deploy_snake_zrb_app_name = CmdTask(
     description='Deploy human readable zrb app name',
     group=project_group,
     inputs=[
-        image_input,
         replica_input,
         pulumi_stack_input,
     ],
@@ -83,7 +81,6 @@ deploy_snake_zrb_app_name = CmdTask(
     envs=[
         pulumi_backend_url_env,
         pulumi_config_passphrase_env,
-        image_env,
         deployment_replica_env,
     ],
     cmd_path=[
@@ -109,7 +106,6 @@ destroy_snake_zrb_app_name = CmdTask(
     envs=[
         pulumi_backend_url_env,
         pulumi_config_passphrase_env,
-        image_env,
         deployment_replica_env,
     ],
     cmd_path=[
