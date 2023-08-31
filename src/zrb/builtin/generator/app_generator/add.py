@@ -114,6 +114,31 @@ download_helm_chart_input = BoolInput(
     default=True
 )
 
+###############################################################################
+# Task Properties
+###############################################################################
+
+inputs = [
+    project_dir_input,
+    template_name_input,
+    default_app_port_input,
+    is_http_port_input,
+    base_image_input,
+    build_custom_image_input,
+    is_container_only_input,
+    use_helm_input,
+    helm_repo_name_input,
+    helm_repo_url_input,
+    helm_chart_name_input,
+    helm_chart_version_input,
+    download_helm_chart_input,
+]
+
+replacements = {
+    'zrbMetaTemplateName': '{{input.template_name}}',
+    'zrbMetaTemplateBaseImage': '{{input.base_image}}',
+    'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
+}
 
 ###############################################################################
 # Task Definitions
@@ -130,12 +155,7 @@ validate_helm = CmdTask(
 
 @python_task(
     name='validate',
-    inputs=[
-        project_dir_input,
-        template_name_input,
-        build_custom_image_input,
-        is_container_only_input,
-    ],
+    inputs=inputs,
     upstreams=[validate_helm],
     retry=0
 )
@@ -152,18 +172,9 @@ async def validate(*args: Any, **kwargs: Any):
 
 copy_base_resource = ResourceMaker(
     name='copy-base-resource',
-    inputs=[
-        project_dir_input,
-        template_name_input,
-        base_image_input,
-        default_app_port_input,
-    ],
+    inputs=inputs,
     upstreams=[validate],
-    replacements={
-        'zrbMetaTemplateName': '{{input.template_name}}',
-        'zrbMetaTemplateBaseImage': '{{input.base_image}}',
-        'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
-    },
+    replacements=replacements,
     template_path=os.path.join(CURRENT_DIR, 'template', 'base'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
@@ -171,70 +182,72 @@ copy_base_resource = ResourceMaker(
 
 copy_http_port_resource = ResourceMaker(
     name='copy-http-port-resource',
-    inputs=[
-        project_dir_input,
-        template_name_input,
-        is_http_port_input,
-        default_app_port_input,
-    ],
+    inputs=inputs,
     skip_execution='{{ not input.is_http_port }}',
     upstreams=[copy_base_resource],
-    replacements={
-        'zrbMetaTemplateName': '{{input.template_name}}',
-        'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
-    },
-    template_path=os.path.join(CURRENT_DIR, 'template', 'http_port'),
+    replacements=replacements,
+    template_path=os.path.join(CURRENT_DIR, 'template', 'http-port'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
 )
 
 copy_container_only_resource = ResourceMaker(
-    name='copy-non-container-only-resource',
-    inputs=[
-        project_dir_input,
-        template_name_input,
-        is_container_only_input
-    ],
+    name='copy-container-only-resource',
+    inputs=inputs,
     skip_execution='{{ not input.is_container_only }}',
     upstreams=[copy_http_port_resource],
-    replacements={
-        'zrbMetaTemplateName': '{{input.template_name}}',
-    },
-    template_path=os.path.join(CURRENT_DIR, 'template', 'container_only'),
+    replacements=replacements,
+    template_path=os.path.join(CURRENT_DIR, 'template', 'container-only'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
 )
 
 copy_custom_image_resource = ResourceMaker(
     name='copy-custom-image-resource',
-    inputs=[
-        project_dir_input,
-        template_name_input,
-        base_image_input,
-        build_custom_image_input,
-        default_app_port_input,
-    ],
+    inputs=inputs,
     skip_execution='{{ not input.build_custom_image }}',
     upstreams=[copy_container_only_resource],
-    replacements={
-        'zrbMetaTemplateName': '{{input.template_name}}',
-        'zrbMetaTemplateBaseImage': '{{input.base_image}}',
-        'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
-    },
-    template_path=os.path.join(CURRENT_DIR, 'template', 'build_custom_image'),
+    replacements=replacements,
+    template_path=os.path.join(CURRENT_DIR, 'template', 'build-custom-image'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
 )
 
+copy_helm_local_resource = ResourceMaker(
+    name='copy-helm-local-resource',
+    inputs=inputs,
+    skip_execution='{{ not (input.use_helm and not input.download_helm_chart) }}',
+    upstreams=[copy_custom_image_resource],
+    replacements=replacements,
+    template_path=os.path.join(CURRENT_DIR, 'template', 'helm-local'),
+    destination_path='{{ input.project_dir }}',
+    excludes=['*/__pycache__']
+)
+
+copy_helm_local_resource = ResourceMaker(
+    name='copy-helm-remote-resource',
+    inputs=inputs,
+    skip_execution='{{ not (input.use_helm and input.download_helm_chart) }}',
+    upstreams=[copy_custom_image_resource],
+    replacements=replacements,
+    template_path=os.path.join(CURRENT_DIR, 'template', 'helm-remote'),
+    destination_path='{{ input.project_dir }}',
+    excludes=['*/__pycache__']
+)
+
+
 copy_resource = CmdTask(
     name='copy-resource',
-    upstreams=[copy_custom_image_resource],
+    upstreams=[
+        copy_helm_local_resource,
+        copy_helm_local_resource,
+    ],
     cmd='echo Resource copied'
 )
 
 register_module = create_register_module(
-    module_path='_automate.{{util.to_snake_case(input.template_name)}}.add',
-    alias='{{util.to_snake_case(input.template_name)}}_add',
+    module_path='_automate.generate_{{util.to_snake_case(input.template_name)}}.add',
+    alias='generate_{{util.to_snake_case(input.template_name)}}',
     inputs=[template_name_input],
     upstreams=[copy_resource]
 )
@@ -244,20 +257,7 @@ register_module = create_register_module(
     name='app-generator',
     group=project_add_group,
     upstreams=[register_module],
-    inputs=[
-        template_name_input,
-        default_app_port_input,
-        is_http_port_input,
-        base_image_input,
-        build_custom_image_input,
-        is_container_only_input,
-        use_helm_input,
-        helm_repo_name_input,
-        helm_repo_url_input,
-        helm_chart_name_input,
-        helm_chart_version_input,
-        download_helm_chart_input,
-    ],
+    inputs=inputs,
     runner=runner
 )
 async def add_app_generator(*args: Any, **kwargs: Any):
