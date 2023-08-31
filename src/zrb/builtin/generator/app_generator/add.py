@@ -36,7 +36,7 @@ base_image_input = StrInput(
     shortcut='i',
     description='Template base image',
     prompt='Base image',
-    default='python:3.10-slim'
+    default='stalchmst/moku:1.0.0'
 )
 
 default_app_port_input = IntInput(
@@ -213,6 +213,7 @@ copy_custom_image_resource = ResourceMaker(
     excludes=['*/__pycache__']
 )
 
+# Run if: use-helm and download-helm-chart
 copy_helm_local_resource = ResourceMaker(
     name='copy-helm-local-resource',
     inputs=inputs,
@@ -224,7 +225,8 @@ copy_helm_local_resource = ResourceMaker(
     excludes=['*/__pycache__']
 )
 
-copy_helm_local_resource = ResourceMaker(
+# Run if: use-helm and not download-helm-chart
+copy_helm_remote_resource = ResourceMaker(
     name='copy-helm-remote-resource',
     inputs=inputs,
     skip_execution='{{ not (input.use_helm and input.download_helm_chart) }}',
@@ -240,9 +242,9 @@ copy_resource = CmdTask(
     name='copy-resource',
     upstreams=[
         copy_helm_local_resource,
-        copy_helm_local_resource,
+        copy_helm_remote_resource,
     ],
-    cmd='echo Resource copied'
+    cmd='echo Resource copied',
 )
 
 register_module = create_register_module(
