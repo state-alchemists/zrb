@@ -1,6 +1,5 @@
 from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
 from zrb.builtin.group import project_group
-from .image import push_snake_zrb_app_name_image, image_input, image_env
 from ._common import (
     CURRENT_DIR, DEPLOYMENT_DIR, APP_TEMPLATE_ENV_FILE_NAME,
     DEPLOYMENT_TEMPLATE_ENV_FILE_NAME
@@ -34,7 +33,7 @@ deployment_app_env_file = EnvFile(
     prefix='DEPLOYMENT_APP_ZRB_ENV_PREFIX'
 )
 
-deployment_env_file = EnvFile(
+deployment_config_env_file = EnvFile(
     env_file=DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
     prefix='DEPLOYMENT_CONFIG_ZRB_ENV_PREFIX'
 )
@@ -71,20 +70,17 @@ deploy_snake_zrb_app_name = CmdTask(
     description='Deploy human readable zrb app name',
     group=project_group,
     inputs=[
-        image_input,
         replica_input,
         pulumi_stack_input,
     ],
-    upstreams=[push_snake_zrb_app_name_image],
     cwd=DEPLOYMENT_DIR,
     env_files=[
-        deployment_env_file,
+        deployment_config_env_file,
         deployment_app_env_file,
     ],
     envs=[
         pulumi_backend_url_env,
         pulumi_config_passphrase_env,
-        image_env,
         deployment_replica_env,
     ],
     cmd_path=[
@@ -104,13 +100,12 @@ destroy_snake_zrb_app_name = CmdTask(
     ],
     cwd=DEPLOYMENT_DIR,
     env_files=[
-        deployment_env_file,
+        deployment_config_env_file,
         deployment_app_env_file,
     ],
     envs=[
         pulumi_backend_url_env,
         pulumi_config_passphrase_env,
-        image_env,
         deployment_replica_env,
     ],
     cmd_path=[

@@ -1,14 +1,11 @@
 from zrb import (
     DockerComposeTask, Env, EnvFile, ServiceConfig, runner, PortChecker,
-    # HTTPChecker
 )
 from zrb.builtin.group import project_group
 from ._common import (
-    RESOURCE_DIR, APP_DIR, local_input, host_input, https_input
+    RESOURCE_DIR, APP_DIR, local_input, host_input
 )
-from .image import (
-    image_input, image_env, build_snake_zrb_app_name_image
-)
+from .image import image_input, image_env, build_snake_zrb_app_name_image
 import os
 
 ###############################################################################
@@ -95,8 +92,8 @@ init_snake_zrb_app_name_container = DockerComposeTask(
     ],
     skip_execution='{{not input.local_snake_zrb_app_name}}',
     upstreams=[
+        remove_snake_zrb_app_name_container,
         build_snake_zrb_app_name_image,
-        remove_snake_zrb_app_name_container
     ],
     cwd=RESOURCE_DIR,
     compose_cmd='up',
@@ -120,7 +117,6 @@ start_snake_zrb_app_name_container = DockerComposeTask(
     inputs=[
         local_input,
         host_input,
-        https_input,
         image_input,
     ],
     skip_execution='{{not input.local_snake_zrb_app_name}}',
@@ -138,18 +134,11 @@ start_snake_zrb_app_name_container = DockerComposeTask(
         host_port_env,
     ],
     checkers=[
-        # TODO: choose one, PortChecker or HTTPChecker
         PortChecker(
             name='check-kebab-zrb-app-name',
             host='{{input.snake_zrb_app_name_host}}',
             port='{{env.HOST_PORT}}',
         ),
-        # HTTPChecker(
-        #     name='check-kebab-zrb-app-name',
-        #     host='{{input.snake_zrb_app_name_host}}',
-        #     port='{{env.HOST_PORT}}',
-        #     is_https='{{input.snake_zrb_app_name_https}}'
-        # ),
     ]
 )
 runner.register(start_snake_zrb_app_name_container)

@@ -4,7 +4,7 @@ COPY . .
 RUN go build -o web-server main.go
 
 
-FROM zrbMetaTemplateBaseImage
+FROM zrbMetaBaseImage
 ENV APP_MESSAGE "Hello, world!"
 ENV APP_PORT 8080
 WORKDIR /app

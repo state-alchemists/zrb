@@ -1,8 +1,8 @@
 from typing import Any
 from zrb.builtin.group import project_add_group
-from zrb import Task, python_task, ResourceMaker, runner, IntInput
+from zrb import Task, python_task, ResourceMaker, runner, IntInput, StrInput
 from zrb.builtin.generator.common.task_input import (
-    project_dir_input, app_name_input, app_image_name_input, env_prefix_input
+    project_dir_input, app_image_name_input, env_prefix_input
 )
 from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
@@ -26,12 +26,20 @@ KEBAB_APP_NAME_TPL = '{{util.to_kebab_case(app_name)}}'
 # Task Inputs
 ###############################################################################
 
+app_name_input = StrInput(
+    name='app-name',
+    shortcut='a',
+    description='App name',
+    prompt='App name',
+    default='zrbMetaTemplateName',
+)
+
 app_port_input = IntInput(
     name='app-port',
     shortcut='p',
     description='HTTP port',
     prompt='HTTP port',
-    default=8080,
+    default=zrbMetaDefaultAppPort,
 )
 
 ###############################################################################
