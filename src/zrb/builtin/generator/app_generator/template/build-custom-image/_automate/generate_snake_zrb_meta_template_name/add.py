@@ -39,7 +39,7 @@ app_port_input = IntInput(
     shortcut='p',
     description='HTTP port',
     prompt='HTTP port',
-    default=zrbMetaTemplateDefaultAppPort,
+    default=zrbMetaDefaultAppPort,
 )
 
 ###############################################################################

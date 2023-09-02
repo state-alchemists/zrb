@@ -34,7 +34,7 @@ template_name_input = StrInput(
 base_image_input = StrInput(
     name='base-image',
     shortcut='i',
-    description='Template base image',
+    description='Base image',
     prompt='Base image',
     default='stalchmst/moku:1.0.0'
 )
@@ -42,9 +42,9 @@ base_image_input = StrInput(
 default_app_port_input = IntInput(
     name='default-app-port',
     shortcut='p',
-    description='Template default app port',
+    description='Default app port',
     prompt='Default app port',
-    default=8080
+    default='8080'
 )
 
 build_custom_image_input = BoolInput(
@@ -79,41 +79,6 @@ use_helm_input = BoolInput(
     default=False
 )
 
-helm_repo_name_input = StrInput(
-    name='helm-repo-name',
-    description='Helm repo name',
-    prompt='Helm repo name',
-    default='bitnami'
-)
-
-helm_repo_url_input = StrInput(
-    name='helm-repo-url',
-    description='Helm repo URL',
-    prompt='Helm repo URL',
-    default='https://charts.bitnami.com/bitnami'
-)
-
-helm_chart_name_input = StrInput(
-    name='helm-chart-name',
-    description='Helm chart name',
-    prompt='Helm chart name',
-    default='nginx'
-)
-
-helm_chart_version_input = StrInput(
-    name='helm-chart-version',
-    description='Helm chart version',
-    prompt='Helm chart version',
-    default='15.2.0'
-)
-
-download_helm_chart_input = BoolInput(
-    name='download-helm-chart',
-    description='Whether downloading helm chart or not',
-    prompt='Download helm chart',
-    default=True
-)
-
 ###############################################################################
 # Task Properties
 ###############################################################################
@@ -127,36 +92,22 @@ inputs = [
     build_custom_image_input,
     is_container_only_input,
     use_helm_input,
-    helm_repo_name_input,
-    helm_repo_url_input,
-    helm_chart_name_input,
-    helm_chart_version_input,
-    download_helm_chart_input,
 ]
 
 replacements = {
     'zrbMetaTemplateName': '{{input.template_name}}',
-    'zrbMetaTemplateBaseImage': '{{input.base_image}}',
-    'zrbMetaTemplateDefaultAppPort': '{{input.default_app_port}}',
+    'zrbMetaBaseImage': '{{input.base_image}}',
+    'zrbMetaDefaultAppPort': '{{input.default_app_port}}',
 }
 
 ###############################################################################
 # Task Definitions
 ###############################################################################
 
-validate_helm = CmdTask(
-    name='validate-helm',
-    inputs=[download_helm_chart_input],
-    skip_execution='{{ not input.download_helm_chart}}',
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'check-helm.sh'),
-    retry=0
-)
-
 
 @python_task(
     name='validate',
     inputs=inputs,
-    upstreams=[validate_helm],
     retry=0
 )
 async def validate(*args: Any, **kwargs: Any):
@@ -214,41 +165,27 @@ copy_custom_image_resource = ResourceMaker(
 )
 
 # Run if: use-helm and download-helm-chart
-copy_helm_local_resource = ResourceMaker(
-    name='copy-helm-local-resource',
+copy_helm_resource = ResourceMaker(
+    name='copy-helm-resource',
     inputs=inputs,
-    skip_execution='{{ not (input.use_helm and not input.download_helm_chart) }}',
+    skip_execution='{{ not input.use_helm }}',
     upstreams=[copy_custom_image_resource],
     replacements=replacements,
-    template_path=os.path.join(CURRENT_DIR, 'template', 'helm-local'),
+    template_path=os.path.join(CURRENT_DIR, 'template', 'use-helm'),
     destination_path='{{ input.project_dir }}',
     excludes=['*/__pycache__']
 )
-
-# Run if: use-helm and not download-helm-chart
-copy_helm_remote_resource = ResourceMaker(
-    name='copy-helm-remote-resource',
-    inputs=inputs,
-    skip_execution='{{ not (input.use_helm and input.download_helm_chart) }}',
-    upstreams=[copy_custom_image_resource],
-    replacements=replacements,
-    template_path=os.path.join(CURRENT_DIR, 'template', 'helm-remote'),
-    destination_path='{{ input.project_dir }}',
-    excludes=['*/__pycache__']
-)
-
 
 copy_resource = CmdTask(
     name='copy-resource',
     upstreams=[
-        copy_helm_local_resource,
-        copy_helm_remote_resource,
+        copy_helm_resource,
     ],
     cmd='echo Resource copied',
 )
 
 register_module = create_register_module(
-    module_path='_automate.generate_{{util.to_snake_case(input.template_name)}}.add',
+    module_path='_automate.generate_{{util.to_snake_case(input.template_name)}}.add',  # noqa
     alias='generate_{{util.to_snake_case(input.template_name)}}',
     inputs=[template_name_input],
     upstreams=[copy_resource]
