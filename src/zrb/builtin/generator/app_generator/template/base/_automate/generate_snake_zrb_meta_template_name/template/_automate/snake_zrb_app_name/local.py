@@ -1,9 +1,9 @@
-from zrb import CmdTask, Env, EnvFile, HTTPChecker, runner
+from zrb import CmdTask, Env, EnvFile, runner
 from zrb.builtin.group import project_group
 from ._common import (
-    CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME,
-    local_input, host_input, https_input
+    CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, local_input, host_input
 )
+from .checker import snake_zrb_app_name_checker
 import os
 
 ###############################################################################
@@ -26,7 +26,6 @@ start_snake_zrb_app_name = CmdTask(
     inputs=[
         local_input,
         host_input,
-        https_input
     ],
     skip_execution='{{not input.local_snake_zrb_app_name}}',
     cwd=APP_DIR,
@@ -43,12 +42,7 @@ start_snake_zrb_app_name = CmdTask(
         os.path.join(CURRENT_DIR, 'cmd', 'app-start.sh'),
     ],
     checkers=[
-        HTTPChecker(
-            name='check-kebab-zrb-app-name',
-            host='{{input.snake_zrb_app_name_host}}',
-            port='{{env.APP_PORT}}',
-            is_https='{{input.snake_zrb_app_name_https}}'
-        )
+        snake_zrb_app_name_checker,
     ]
 )
 runner.register(start_snake_zrb_app_name)

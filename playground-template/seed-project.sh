@@ -62,31 +62,60 @@ zrb project add fastapp-field \
     --column-name "title" \
     --column-type "str"
 
+echo '🧪🤖 Test fastapp'
+zrb project test-fastapp
+
 echo '🤖 Add python package'
 zrb project add pip-package \
     --project-dir . \
-    --package-name "zrb-coba-test" \
+    --package-name "zrb-pkg" \
     --package-description "A test package" \
     --package-homepage "https://github.com/state-alchemists/zrb" \
     --package-bug-tracker "https://github.com/state-alchemists/zrb/issues" \
     --package-author-name "Go Frendi" \
     --package-author-email "gofrendiasgard@gmail.com" \
 
+echo '🧪🤖 Test Install pip package symlink'
+zrb project install-zrb-pkg-symlink
+
 echo '🤖 Add generator'
 zrb project add app-generator \
-    --template-name "coba-app"
+    --template-name "app"
 
-echo '🤖 Test run generator'
-zrb project add coba-app \
+echo '🧪🤖 Test run generator'
+zrb project add app \
     --project-dir . \
-    --app-name "coba" \
+    --app-name "app" \
     --app-image-name "docker.io/gofrendi/coba" \
     --app-port "8080" \
-    --env-prefix "COBA"
+    --env-prefix "APP"
 
-echo '🤖 Test fastapp'
-zrb project test-fastapp
+echo '🤖 Add generator (maximum feature)'
+zrb project add app-generator \
+    --template-name "app-max" \
+    --build-custom-image true \
+    --is-container-only true \
+    --is-http-port true \
+    --use-helm true \
 
-echo '🤖 Test Install pip package symlink'
-zrb project install-zrb-coba-test-symlink
+echo '🧪🤖 Test run generator (maximum feature)'
+zrb project add app-max \
+    --project-dir . \
+    --app-name "app-max" \
+    --app-image-name "docker.io/gofrendi/coba" \
+    --app-port "8081" \
+    --env-prefix "APP"
 
+echo '🤖 Add generator (No custom image)'
+zrb project add app-generator \
+    --template-name "app-no-custom-image" \
+    --build-custom-image false \
+    --is-container-only true
+
+echo '🧪🤖 Test run generator (no custom image)'
+zrb project add app-no-custom-image \
+    --project-dir . \
+    --app-name "app-no-custom-image" \
+    --app-image-name "docker.io/gofrendi/coba" \
+    --app-port "8082" \
+    --env-prefix "APP"

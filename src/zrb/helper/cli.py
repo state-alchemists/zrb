@@ -1,6 +1,6 @@
 from typeguard import typechecked
 from zrb.runner import runner
-from zrb.config.config import init_scripts, should_load_builtin
+from zrb.config.config import init_scripts, should_load_builtin, version
 from zrb.helper.loader.load_module import load_module
 from zrb.helper.log import logger
 from zrb.helper.accessories.color import colored
@@ -9,10 +9,30 @@ import click
 import os
 import sys
 
+HELP = f'''
+                bb
+   zzzzz rr rr  bb
+     zz  rrr  r bbbbbb
+    zz   rr     bb   bb
+   zzzzz rr     bbbbbb   {version}
+   _ _ . .  . _ .  _ . . .
+
+Super framework for your super app.
+
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+'''
+
+
+class MultilineHelpClickGroup(click.Group):
+    def format_help_text(self, ctx, formatter):
+        formatter.write(self.help)
+
 
 @typechecked
 def create_cli() -> click.Group:
-    cli = click.Group(name='zrb', help='Super framework for your super app.')
+    zrb_cli_group = MultilineHelpClickGroup(name='zrb', help=HELP)
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:
         logger.info(colored(
@@ -29,7 +49,7 @@ def create_cli() -> click.Group:
     _load_zrb_init(project_dir)
     # Serve all tasks registered to runner
     logger.info(colored('Serve CLI', attrs=['dark']))
-    cli = runner.serve(cli)
+    cli = runner.serve(zrb_cli_group)
     return cli
 
 
