@@ -26,7 +26,6 @@ from zrb.task_group.group import Group
 from zrb.builtin import group as builtin_group
 from zrb.helper.default_env import inject_default_env
 
-
 assert runner
 assert load_module
 assert AnyTask

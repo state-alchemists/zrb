@@ -59,6 +59,7 @@ def _load_zrb_init(project_dir: str):
     if not os.path.isfile(project_script):
         return
     sys.path.append(project_dir)
+    logger.info(colored(f'Set sys.path to {sys.path}', attrs=['dark']))
     python_path = _get_new_python_path(project_dir)
     logger.info(colored(f'Set PYTHONPATH to {python_path}', attrs=['dark']))
     os.environ['PYTHONPATH'] = python_path
