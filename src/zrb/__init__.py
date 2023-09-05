@@ -23,7 +23,6 @@ from zrb.task_input.str_input import StrInput
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
-from zrb.builtin import group as builtin_group
 from zrb.helper.default_env import inject_default_env
 
 assert runner
@@ -53,6 +52,5 @@ assert StrInput
 assert Env
 assert EnvFile
 assert Group
-assert builtin_group
 
 inject_default_env()
