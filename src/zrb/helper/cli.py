@@ -32,6 +32,7 @@ class MultilineHelpClickGroup(click.Group):
 
 @typechecked
 def create_cli() -> click.Group:
+    logger.info(colored('Prepare CLI', attrs=['dark']))
     zrb_cli_group = MultilineHelpClickGroup(name='zrb', help=HELP)
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:

@@ -6,17 +6,21 @@ import os
 
 
 def inject_default_env():
+    # Check injection flag
+    if '__ZRB_DEFAULT_ENV_INJECTED' in os.environ:
+        return
+    # Inject PYTHONUNBUFFERED
     if 'PYTHONUNBUFFERED' not in os.environ:
         logger.info(colored('Set PYTHONUNBUFFERED to 1', attrs=['dark']))
         os.environ['PYTHONUNBUFFERED'] = '1'
-
+    # Inject ZRB_HOME_DIR
     zrb_home_dir = os.path.dirname(os.path.dirname(__file__))
     if 'ZRB_HOME_DIR' not in os.environ:
         logger.info(colored(
             f'Set ZRB_HOME_DIR to {zrb_home_dir}', attrs=['dark']
         ))
         os.environ['ZRB_HOME_DIR'] = zrb_home_dir
-
+    # Inject ZRB_PROJECT_DIR
     logger.info(colored('Getting project directory', attrs=['dark']))
     current_dir = os.getcwd()
     zrb_project_dir = _get_project_dir(current_dir)
@@ -26,13 +30,15 @@ def inject_default_env():
         f'Set ZRB_PROJECT_DIR to {zrb_project_dir}', attrs=['dark']
     ))
     os.environ['ZRB_PROJECT_DIR'] = zrb_project_dir
-
+    # Inject ZRB_PROJECT_NAME
     if 'ZRB_PROJECT_NAME' not in os.environ:
         zrb_project_name = os.path.basename(zrb_project_dir)
         logger.info(colored(
             f'Set ZRB_PROJECT_NAME to {zrb_project_name}', attrs=['dark']
         ))
         os.environ['ZRB_PROJECT_NAME'] = zrb_project_name
+    # Set injection flag
+    os.environ['__ZRB_DEFAULT_ENV_INJECTED'] = '1'
 
 
 @typechecked
