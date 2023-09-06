@@ -7,7 +7,6 @@ keyring==24.2.0     # authenticator (used by twine)
 click~=8.1.4        # CLI framework
 aiofiles~=23.1.0
 beartype~=0.15.0
-# typeguard~=2.13.3
 termcolor~=2.3.0
 Jinja2~=3.1.2
 libcst~=0.4.9
