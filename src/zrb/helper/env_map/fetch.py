@@ -1,5 +1,5 @@
-from typeguard import typechecked
-from typing import List, Mapping
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import List, Mapping
 from zrb.task_group.group import Group
 from zrb.task.any_task import AnyTask
 from zrb.task_env.env import Env

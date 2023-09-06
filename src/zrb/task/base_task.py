@@ -1,5 +1,5 @@
-from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
-from typeguard import typechecked
+from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task_composite import (
     AttemptTracker, FinishTracker, Renderer, TaskModelWithPrinterAndTracker
@@ -46,10 +46,10 @@ class BaseTask(
         icon: Optional[str] = None,
         color: Optional[str] = None,
         retry: int = 2,
-        retry_interval: float = 1,
+        retry_interval: Union[float, int] = 1,
         upstreams: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: float = 0,
+        checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
         skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):

@@ -1,5 +1,5 @@
-from typing import Any, Mapping
-from typeguard import typechecked
+from zrb.helper.typing import Any, Mapping
+from zrb.helper.typecheck import typechecked
 from zrb.builtin.generator.common.task_input import (
     project_dir_input, project_name_input
 )

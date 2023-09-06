@@ -1,5 +1,5 @@
 from zrb.task.base_task import BaseTask
-from typeguard import typechecked
+from zrb.helper.typecheck import typechecked
 
 
 @typechecked

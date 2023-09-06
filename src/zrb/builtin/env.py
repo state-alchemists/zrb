@@ -1,4 +1,4 @@
-from typing import Any, List
+from zrb.helper.typing import Any, List
 from zrb.builtin.group import env_group
 from zrb.helper.accessories.color import colored
 from zrb.task.decorator import python_task

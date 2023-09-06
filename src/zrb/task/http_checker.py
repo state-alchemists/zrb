@@ -1,5 +1,5 @@
-from typing import Any, Callable, Iterable, Optional, Union
-from typeguard import typechecked
+from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
+from zrb.helper.typecheck import typechecked
 from http.client import HTTPConnection, HTTPSConnection
 from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask

@@ -1,4 +1,4 @@
-from typeguard import typechecked
+from zrb.helper.typecheck import typechecked
 import random
 
 

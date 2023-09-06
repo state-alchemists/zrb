@@ -1,5 +1,5 @@
 from zrb.helper.string.conversion import to_boolean, to_logging_level
-from typeguard import typechecked
+from zrb.helper.typecheck import typechecked
 import os
 import importlib.metadata as metadata
 

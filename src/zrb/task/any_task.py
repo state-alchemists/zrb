@@ -1,4 +1,4 @@
-from typing import (
+from zrb.helper.typing import (
     Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
 )
 from abc import ABC, abstractmethod

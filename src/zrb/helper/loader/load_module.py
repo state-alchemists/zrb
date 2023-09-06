@@ -1,4 +1,4 @@
-from typeguard import typechecked
+from zrb.helper.typecheck import typechecked
 from zrb.helper.log import logger
 from zrb.helper.accessories.color import colored
 

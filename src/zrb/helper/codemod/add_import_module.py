@@ -1,5 +1,5 @@
-from typeguard import typechecked
-from typing import Optional, Union, Tuple
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Optional, Union, Tuple
 import libcst as cst
 
 

@@ -1,4 +1,4 @@
-from typeguard import typechecked
+from zrb.helper.typecheck import typechecked
 from zrb.runner import runner
 from zrb.config.config import init_scripts, should_load_builtin, version
 from zrb.helper.loader.load_module import load_module

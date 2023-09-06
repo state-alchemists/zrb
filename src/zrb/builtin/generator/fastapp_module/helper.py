@@ -1,5 +1,5 @@
-from typeguard import typechecked
-from typing import Any, List, Mapping
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, List, Mapping
 from dotenv import dotenv_values
 from zrb.task.task import Task
 from zrb.helper.codemod.add_import_module import add_import_module

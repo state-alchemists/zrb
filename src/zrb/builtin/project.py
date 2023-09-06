@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from zrb.helper.typing import Any, Mapping
 from zrb.builtin.group import project_group
 from zrb.task.decorator import python_task
 from zrb.task_input.bool_input import BoolInput

@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping
+from zrb.helper.typing import Any, List, Mapping
 from abc import ABC, abstractmethod
 
 

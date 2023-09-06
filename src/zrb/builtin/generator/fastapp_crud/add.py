@@ -1,4 +1,4 @@
-from typing import Any
+from zrb.helper.typing import Any
 from zrb.builtin.generator.fastapp_crud.task_factory import (
     create_add_navigation_task
 )

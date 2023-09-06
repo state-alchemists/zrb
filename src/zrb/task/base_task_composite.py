@@ -1,5 +1,5 @@
-from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
-from typeguard import typechecked
+from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.helper.string.conversion import to_boolean, to_cmd_name
 from zrb.helper.string.jinja import is_probably_jinja
@@ -36,10 +36,10 @@ class CommonTaskModel():
         icon: Optional[str] = None,
         color: Optional[str] = None,
         retry: int = 2,
-        retry_interval: float = 1,
+        retry_interval: Union[float, int] = 1,
         upstreams: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: float = 0,
+        checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
         skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
@@ -294,10 +294,10 @@ class TaskModelWithPrinterAndTracker(
         icon: Optional[str] = None,
         color: Optional[str] = None,
         retry: int = 2,
-        retry_interval: float = 1,
+        retry_interval: Union[int, float] = 1,
         upstreams: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: float = 0,
+        checking_interval: Union[int, float] = 0,
         run: Optional[Callable[..., Any]] = None,
         skip_execution: Union[bool, str, Callable[..., bool]] = False
 
