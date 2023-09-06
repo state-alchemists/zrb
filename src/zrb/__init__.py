@@ -1,5 +1,4 @@
 from zrb.runner import runner
-from zrb.helper.loader.load_module import load_module
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
 from zrb.task.task import Task
@@ -26,7 +25,6 @@ from zrb.task_group.group import Group
 from zrb.helper.default_env import inject_default_env
 
 assert runner
-assert load_module
 assert AnyTask
 assert python_task
 assert Task
@@ -54,4 +52,3 @@ assert EnvFile
 assert Group
 
 inject_default_env()
-
