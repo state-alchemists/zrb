@@ -1,4 +1,4 @@
-from typing import Any
+from zrb.helper.typing import Any
 from zrb.builtin.generator.fastapp_module.helper import (
     create_microservice_config, register_module, register_migration,
     create_app_config, append_all_enabled_env, append_all_disabled_env,

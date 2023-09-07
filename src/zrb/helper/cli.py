@@ -1,4 +1,4 @@
-from typeguard import typechecked
+from zrb.helper.typecheck import typechecked
 from zrb.runner import runner
 from zrb.config.config import init_scripts, should_load_builtin, version
 from zrb.helper.loader.load_module import load_module
@@ -32,6 +32,7 @@ class MultilineHelpClickGroup(click.Group):
 
 @typechecked
 def create_cli() -> click.Group:
+    logger.info(colored('Prepare CLI', attrs=['dark']))
     zrb_cli_group = MultilineHelpClickGroup(name='zrb', help=HELP)
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:
@@ -59,6 +60,7 @@ def _load_zrb_init(project_dir: str):
     if not os.path.isfile(project_script):
         return
     sys.path.append(project_dir)
+    logger.info(colored(f'Set sys.path to {sys.path}', attrs=['dark']))
     python_path = _get_new_python_path(project_dir)
     logger.info(colored(f'Set PYTHONPATH to {python_path}', attrs=['dark']))
     os.environ['PYTHONPATH'] = python_path

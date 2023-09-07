@@ -1,4 +1,4 @@
-from typing import Any
+from zrb.helper.typing import Any
 from zrb.builtin.generator.common.task_input import (
    project_dir_input, task_name_input, http_port_input, env_prefix_input
 )

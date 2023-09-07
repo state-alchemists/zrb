@@ -11,7 +11,7 @@
 - Zrb passes several keyword arguments that will be accessible from the task's run method:
     - `_args`: Shell argument when the task is invoked.
     - `_task`: Reference to the current task.
-- You can access the built-in command groups by importing `zrb.builtin_group`.
+- You can access the built-in command groups by importing `zrb.builtin.group`.
 - How environments are loaded:
     - `env_files` has the lowest priority, it will be overridden by `env`
         - The last one takes greater priority

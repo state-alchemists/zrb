@@ -1,5 +1,5 @@
-from typeguard import typechecked
-from typing import Any
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any
 
 
 @typechecked

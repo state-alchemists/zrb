@@ -1,5 +1,3 @@
-from zrb.builtin.generator import common
-from zrb.builtin.generator import project_task
 from zrb.builtin.generator.project.create import create_project
 from zrb.builtin.generator.cmd_task.add import add_cmd_task
 from zrb.builtin.generator.docker_compose_task.add import (
@@ -16,8 +14,6 @@ from zrb.builtin.generator.fastapp_field import add as add_fastapp_field
 from zrb.builtin.generator.pip_package import add as add_pip_package
 from zrb.builtin.generator.app_generator import add as add_app_generator
 
-assert common
-assert project_task
 assert create_project
 assert add_cmd_task
 assert add_docker_compose_task

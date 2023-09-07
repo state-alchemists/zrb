@@ -1,4 +1,4 @@
-from typing import Any
+from zrb.helper.typing import Any
 from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir, validate_inexisting_automation
 )

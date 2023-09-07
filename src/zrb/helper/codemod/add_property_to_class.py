@@ -1,5 +1,5 @@
-from typeguard import typechecked
-from typing import Optional
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Optional
 import libcst as cst
 
 

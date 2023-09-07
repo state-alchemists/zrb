@@ -1,4 +1,4 @@
-from typing import Any
+from zrb.helper.typing import Any
 from zrb.builtin.group import md5_group
 from zrb.task.decorator import python_task
 from zrb.task_input.str_input import StrInput

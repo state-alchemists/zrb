@@ -1,5 +1,5 @@
-from typing import Any, Callable, Iterable, Mapping, Optional, Union
-from typeguard import typechecked
+from zrb.helper.typing import Any, Callable, Iterable, Mapping, Optional, Union
+from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.task_env.env import Env
@@ -71,9 +71,9 @@ class CmdTask(BaseTask):
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: float = 0,
+        checking_interval: Union[float, int] = 0,
         retry: int = 2,
-        retry_interval: float = 1,
+        retry_interval: Union[float, int] = 1,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,

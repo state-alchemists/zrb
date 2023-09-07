@@ -1,4 +1,4 @@
-from typing import Any
+from zrb.helper.typing import Any
 from zrb.builtin.generator.fastapp_field.helper import (
     add_column_to_delete_page, add_column_to_detail_page,
     add_column_to_insert_page, add_column_to_list_page, add_column_to_repo,

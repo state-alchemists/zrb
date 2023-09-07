@@ -1,5 +1,5 @@
-from typing import Iterable, Optional
-from typeguard import typechecked
+from zrb.helper.typing import Iterable, Optional
+from zrb.helper.typecheck import typechecked
 from zrb.helper.accessories.color import colored
 
 import datetime
