@@ -118,7 +118,9 @@ async def validate(*args: Any, **kwargs: Any):
     is_container_only_input: bool = kwargs.get('is_container_only')
     build_custom_image_input: bool = kwargs.get('build_custom_image')
     if not is_container_only_input and not build_custom_image_input:
-        raise Exception('Non is-container-only app should build-custom-image')
+        raise Exception(
+            'Invalid options: Not is-container-only and not build-custom-image'
+        )
 
 
 copy_base_resource = ResourceMaker(
@@ -142,22 +144,11 @@ copy_http_port_resource = ResourceMaker(
     excludes=['*/__pycache__']
 )
 
-copy_container_only_resource = ResourceMaker(
-    name='copy-container-only-resource',
-    inputs=inputs,
-    skip_execution='{{ not input.is_container_only }}',
-    upstreams=[copy_http_port_resource],
-    replacements=replacements,
-    template_path=os.path.join(CURRENT_DIR, 'template', 'container-only'),
-    destination_path='{{ input.project_dir }}',
-    excludes=['*/__pycache__']
-)
-
 copy_custom_image_resource = ResourceMaker(
     name='copy-custom-image-resource',
     inputs=inputs,
     skip_execution='{{ not input.build_custom_image }}',
-    upstreams=[copy_container_only_resource],
+    upstreams=[copy_http_port_resource],
     replacements=replacements,
     template_path=os.path.join(CURRENT_DIR, 'template', 'build-custom-image'),
     destination_path='{{ input.project_dir }}',

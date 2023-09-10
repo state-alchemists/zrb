@@ -1,6 +1,6 @@
-from zrb import DockerComposeTask, Env, EnvFile, ServiceConfig, runner
+from zrb import DockerComposeTask, Env, EnvFile, runner
 from zrb.builtin.group import project_group
-from ._common import RESOURCE_DIR, APP_DIR, local_input, host_input
+from ._common import RESOURCE_DIR, local_input, host_input
 from .checker import snake_zrb_app_name_container_checker
 import os
 
@@ -24,19 +24,6 @@ host_port_env = Env(
 )
 
 ###############################################################################
-# Service Config Definitions
-###############################################################################
-
-snake_zrb_app_name_service_config = ServiceConfig(
-    env_files=[
-        EnvFile(
-            env_file=os.path.join(APP_DIR, 'template.env'),
-            prefix='CONTAINER_ZRB_ENV_PREFIX'
-        )
-    ]
-)
-
-###############################################################################
 # Task Definitions
 ###############################################################################
 
@@ -48,9 +35,6 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
     cwd=RESOURCE_DIR,
     compose_cmd='down',
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
-    compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
-    },
     env_files=[compose_env_file],
     envs=[
         host_port_env,
@@ -66,9 +50,6 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     cwd=RESOURCE_DIR,
     compose_cmd='stop',
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
-    compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
-    },
     env_files=[compose_env_file],
     envs=[
         host_port_env,
@@ -91,9 +72,6 @@ init_snake_zrb_app_name_container = DockerComposeTask(
     compose_cmd='up',
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
-    compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
-    },
     env_files=[compose_env_file],
     envs=[
         host_port_env,
@@ -115,9 +93,6 @@ start_snake_zrb_app_name_container = DockerComposeTask(
     compose_cmd='logs',
     compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
-    compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
-    },
     env_files=[compose_env_file],
     envs=[
         host_port_env,
