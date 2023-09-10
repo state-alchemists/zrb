@@ -119,7 +119,7 @@ async def validate(*args: Any, **kwargs: Any):
     build_custom_image_input: bool = kwargs.get('build_custom_image')
     if not is_container_only_input and not build_custom_image_input:
         raise Exception(
-            'Invalid options: Not is-container-only and not build-custom-image'
+            'Invalid options: Not is-container-only but not build-custom-image'
         )
 
 
