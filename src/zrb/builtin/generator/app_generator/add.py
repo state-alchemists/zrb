@@ -155,12 +155,22 @@ copy_custom_image_resource = ResourceMaker(
     excludes=['*/__pycache__']
 )
 
-# Run if: use-helm and download-helm-chart
+copy_http_port_custom_image_resource = ResourceMaker(
+    name='copy-http-port-custom-image-resource',
+    inputs=inputs,
+    skip_execution='{{ not input.is_http_port or not input.build_custom_image }}',  # noqa
+    upstreams=[copy_custom_image_resource],
+    replacements=replacements,
+    template_path=os.path.join(CURRENT_DIR, 'template', 'http-port-build-custom-image'),  # noqa
+    destination_path='{{ input.project_dir }}',
+    excludes=['*/__pycache__']
+)
+
 copy_helm_resource = ResourceMaker(
     name='copy-helm-resource',
     inputs=inputs,
     skip_execution='{{ not input.use_helm }}',
-    upstreams=[copy_custom_image_resource],
+    upstreams=[copy_http_port_custom_image_resource],
     replacements=replacements,
     template_path=os.path.join(CURRENT_DIR, 'template', 'use-helm'),
     destination_path='{{ input.project_dir }}',
