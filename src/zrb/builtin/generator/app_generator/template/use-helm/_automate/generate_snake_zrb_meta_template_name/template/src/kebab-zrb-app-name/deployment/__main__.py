@@ -22,4 +22,4 @@ release = Chart(
     )
 )
 
-pulumi.export('helm-release', release.metadata['name'])
+pulumi.export('helm-release', release.resources)
