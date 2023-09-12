@@ -113,7 +113,7 @@ deploy_snake_zrb_app_name = CmdTask(
     ],
     cmd_path=[
         os.path.join(CURRENT_DIR, 'cmd', 'pulumi-init-stack.sh'),
-        os.path.join(CURRENT_DIR, 'cmd', 'pulumi-destroy.sh'),
+        os.path.join(CURRENT_DIR, 'cmd', 'pulumi-up.sh'),
     ]
 )
 runner.register(deploy_snake_zrb_app_name)
