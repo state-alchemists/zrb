@@ -11,3 +11,9 @@ select = "underline"
 
 [editor.soft-wrap]
 enable = true
+
+[editor.file-picker]
+hidden = false
+git-ignore = false
+git-global = false
+git-exclude = false
