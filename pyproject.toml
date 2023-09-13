@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Super framework for your super app"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.8.1"
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
