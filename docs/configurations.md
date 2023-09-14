@@ -79,5 +79,14 @@ Whether Zrb should always show prompt or not.
 - __Default value:__ `true`
 - __Possible value:__ boolean values
 
+## `ZRB_ENABLE_TYPE_CHECKING`
+
+Whether Zrb should check data type or not.
+
+Although it is safer to enable type checking, you can improve Zrb performance by turning off type checking.
+
+- __Default value:__ `true`
+- __Possible value:__ boolean values
+
 
 🔖 [Table of Contents](README.md)
