@@ -137,6 +137,7 @@ class DockerComposeTask(CmdTask):
     ) -> Any:
         # service not found
         if 'services' not in compose_data or service not in compose_data['services']: # noqa
+            self.log_error(f'Cannot find services.{service}')
             return compose_data
         # service has no environment definition
         if 'environment' not in compose_data['services'][service]:

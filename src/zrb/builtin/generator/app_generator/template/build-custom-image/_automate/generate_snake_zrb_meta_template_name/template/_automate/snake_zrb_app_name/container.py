@@ -53,7 +53,7 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
     compose_cmd='down',
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
     compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
+        'kebab-zrb-app-name': snake_zrb_app_name_service_config
     },
     env_files=[compose_env_file],
     envs=[
@@ -72,7 +72,7 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     compose_cmd='stop',
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
     compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
+        'kebab-zrb-app-name': snake_zrb_app_name_service_config
     },
     env_files=[compose_env_file],
     envs=[
@@ -100,7 +100,7 @@ init_snake_zrb_app_name_container = DockerComposeTask(
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
     compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
+        'kebab-zrb-app-name': snake_zrb_app_name_service_config
     },
     env_files=[compose_env_file],
     envs=[
@@ -126,7 +126,7 @@ start_snake_zrb_app_name_container = DockerComposeTask(
     compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
     compose_service_configs={
-        'snake_zrb_app_name': snake_zrb_app_name_service_config
+        'kebab-zrb-app-name': snake_zrb_app_name_service_config
     },
     env_files=[compose_env_file],
     envs=[

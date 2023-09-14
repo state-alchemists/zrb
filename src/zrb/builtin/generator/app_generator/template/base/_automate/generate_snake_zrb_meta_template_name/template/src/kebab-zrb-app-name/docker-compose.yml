@@ -13,10 +13,13 @@ networks:
 services:
 
   kebab-zrb-app-name:
-    image: zrbMetaBaseImage
+    image: ${IMAGE:-zrbMetaBaseImage}
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name
     hostname: kebab-zrb-app-name
+    environment:
+    - APP_PORT=${APP_PORT:-8080}
+    - APP_MESSAGE=${APP_MESSAGE}
     ports:
     - "${HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: unless-stopped
