@@ -13,7 +13,7 @@ networks:
 services:
 
   kebab-zrb-app-name:
-    image: zrbMetaBaseImage
+    image: ${IMAGE:-zrbMetaBaseImage}
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name
     hostname: kebab-zrb-app-name
