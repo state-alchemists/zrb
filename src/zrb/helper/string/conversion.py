@@ -1,4 +1,5 @@
 from zrb.helper.typecheck import typechecked
+from zrb.helper.string.constant import TRUE_STRS, FALSE_STRS
 import keyword
 import logging
 import re
@@ -37,9 +38,9 @@ def to_variable_name(string: str) -> str:
 
 @typechecked
 def to_boolean(string: str) -> bool:
-    if string.lower() in ['true', '1', 'yes', 'y', 'active']:
+    if string.lower() in TRUE_STRS:
         return True
-    if string.lower() in ['false', '0', 'no', 'n', 'inactive']:
+    if string.lower() in FALSE_STRS:
         return False
     raise Exception(f'Cannot infer boolean value from "{string}"')
 
