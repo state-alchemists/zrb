@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Mapping, Optional, Union
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.cmd_task import CmdTask, CmdResult, CmdVal
 from zrb.task.any_task import AnyTask
