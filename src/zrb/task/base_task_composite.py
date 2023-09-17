@@ -1,5 +1,8 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Mapping, Optional, Union
+)
 from zrb.helper.typecheck import typechecked
+from zrb.config.config import show_time
 from zrb.task.any_task import AnyTask
 from zrb.helper.string.conversion import to_boolean, to_cmd_name
 from zrb.helper.string.jinja import is_probably_jinja
@@ -364,12 +367,12 @@ class TaskModelWithPrinterAndTracker(
     def print_out(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
-        print(f'🤖 ➜  {prefix} • {message_str}', file=sys.stderr)
+        print(f'🤖 ○ {prefix} • {message_str}', file=sys.stderr)
 
     def print_err(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
-        print(f'🤖 ⚠  {prefix} • {message_str}', file=sys.stderr)
+        print(f'🤖 △ {prefix} • {message_str}', file=sys.stderr)
 
     def print_out_dark(self, message: Any, trim_message: bool = True):
         message_str = f'{message}'
@@ -385,25 +388,25 @@ class TaskModelWithPrinterAndTracker(
         return colored(text, color=self.get_color())
 
     def _get_print_prefix(self) -> str:
-        common_prefix = self._get_common_prefix(show_time=True)
+        common_prefix = self._get_common_prefix(show_time=show_time)
         icon = self.get_icon()
         truncated_name = self._get_filled_complete_name()
-        return f'{common_prefix} • {icon} {truncated_name}'
+        return f'{common_prefix} {icon} {truncated_name}'
 
     def _get_log_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=False)
         icon = self.get_icon()
         filled_name = self._get_filled_complete_name()
-        return f'{common_prefix} • {icon} {filled_name}'
+        return f'{common_prefix} {icon} {filled_name}'
 
     def _get_common_prefix(self, show_time: bool) -> str:
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
         pid = self._get_task_pid()
         if show_time:
-            now = datetime.datetime.now().isoformat()
-            return f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
-        return f'⚙ {pid} ➤ {attempt} of {max_attempt}'
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+            return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
+        return f'❁ {pid} → {attempt}/{max_attempt}'
 
     def _get_filled_complete_name(self) -> str:
         if self._filled_complete_name is not None:

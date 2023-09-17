@@ -2,6 +2,7 @@ set -e
 echo '🤖 Remove my-project'
 rm -Rf my-project
 export ZRB_SHOW_PROMPT=0
+export ZRB_SHOW_TIME=0
 
 
 echo '🤖 Create my-project'
