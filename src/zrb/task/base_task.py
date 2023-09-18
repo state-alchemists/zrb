@@ -90,7 +90,10 @@ class BaseTask(
         self._is_execution_started: bool = False
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
-        self._allow_add_upstream: bool = True
+        self._allow_add_upstreams: bool = True
+
+    def copy(self) -> AnyTask:
+        return copy.deepcopy(self)
 
     def get_all_inputs(self) -> Iterable[AnyInput]:
         ''''
@@ -98,15 +101,25 @@ class BaseTask(
         '''
         if self._all_inputs is not None:
             return self._all_inputs
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
+        self._allow_add_inputs = False
         self._all_inputs: List[AnyInput] = []
         existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
-        for task_input in self._inputs:
-            if task_input.get_name() in existing_input_names:
+        for input_index, first_occurence_task_input in enumerate(self._inputs):
+            input_name = first_occurence_task_input.get_name()
+            if input_name in existing_input_names:
                 continue
+            # Look for all input with the same name in the current task
+            task_inputs = [
+                candidate
+                for candidate in self._inputs[input_index:]
+                if candidate.get_name() == input_name
+            ]
+            # Get the last input, and add it to _all_inputs
+            task_input = task_inputs[-1]
             self._all_inputs.append(task_input)
-            existing_input_names[task_input.get_name()] = True
+            existing_input_names[input_name] = True
         # Add upstream inputs
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
@@ -125,7 +138,7 @@ class BaseTask(
         '''
         def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info('Copy task')
-            self_cp = copy.deepcopy(self)
+            self_cp = self.copy()
             return asyncio.run(self_cp._run_and_check_all(
                 env_prefix=env_prefix,
                 raise_error=raise_error,
@@ -135,7 +148,7 @@ class BaseTask(
         return function
 
     def add_upstreams(self, *upstreams: AnyTask):
-        if not self._allow_add_upstream:
+        if not self._allow_add_upstreams:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
         self._upstreams += upstreams
 
@@ -214,6 +227,8 @@ class BaseTask(
         )
 
     def _get_all_envs(self) -> Mapping[str, Env]:
+        self._allow_add_envs = False
+        self._allow_add_env_files = False
         all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
             all_envs[env_name] = Env(
@@ -351,7 +366,7 @@ class BaseTask(
         await self._mark_awaited()
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
@@ -371,7 +386,7 @@ class BaseTask(
         self.log_info('State: waiting')
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
@@ -433,7 +448,7 @@ class BaseTask(
         new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
         # set uplstreams keyval
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(

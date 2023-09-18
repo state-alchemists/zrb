@@ -19,6 +19,10 @@ class AnyTask(ABC):
     multiple interfaces since AnyTask is considered atomic.
     '''
     @abstractmethod
+    def copy(self) -> TAnyTask:
+        pass
+
+    @abstractmethod
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
@@ -34,6 +38,46 @@ class AnyTask(ABC):
 
     @abstractmethod
     def add_upstreams(self, *upstreams: TAnyTask):
+        pass
+
+    @abstractmethod
+    def add_inputs(self, *inputs: AnyInput):
+        pass
+
+    @abstractmethod
+    def add_envs(self, *envs: Env):
+        pass
+
+    @abstractmethod
+    def add_env_files(self, *env_files: EnvFile):
+        pass
+
+    @abstractmethod
+    def set_name(self, new_name: str):
+        pass
+
+    @abstractmethod
+    def set_description(self, new_description: str):
+        pass
+
+    @abstractmethod
+    def set_icon(self, new_icon: str):
+        pass
+
+    @abstractmethod
+    def set_color(self, new_color: str):
+        pass
+
+    @abstractmethod
+    def set_retry(self, new_retry: int):
+        pass
+
+    @abstractmethod
+    def set_retry_interval(self, new_retry_interval: Union[float, int]):
+        pass
+
+    @abstractmethod
+    def set_checking_interval(self, new_checking_interval: Union[float, int]):
         pass
 
     @abstractmethod
@@ -58,6 +102,10 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_envs(self) -> List[Env]:
+        pass
+
+    @abstractmethod
+    def get_inputs(self) -> List[AnyInput]:
         pass
 
     @abstractmethod

@@ -63,6 +63,47 @@ class CommonTaskModel():
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
         self._skip_execution = skip_execution
+        self._allow_add_envs = True
+        self._allow_add_env_files = True
+        self._allow_add_inputs = True
+
+    def set_name(self, new_name: str):
+        if self._description == self._name:
+            self._description = new_name
+        self._name = new_name
+
+    def set_description(self, new_description: str):
+        self._description = new_description
+
+    def set_icon(self, new_icon: str):
+        self._icon = new_icon
+
+    def set_color(self, new_color: str):
+        self._color = new_color
+
+    def set_retry(self, new_retry: int):
+        self._retry = new_retry
+
+    def set_retry_interval(self, new_retry_interval: Union[float, int]):
+        self._retry_interval = new_retry_interval
+
+    def set_checking_interval(self, new_checking_interval: Union[float, int]):
+        self._checking_interval = new_checking_interval
+
+    def add_inputs(self, *inputs: AnyInput):
+        if not self._allow_add_inputs:
+            raise Exception(f'Cannot add inputs on `{self._name}`')
+        self._inputs += inputs
+
+    def add_envs(self, *envs: Env):
+        if not self._allow_add_envs:
+            raise Exception(f'Cannot add envs on `{self._name}`')
+        self._envs += envs
+
+    def add_env_files(self, *env_files: EnvFile):
+        if not self._allow_add_env_files:
+            raise Exception(f'Cannot add env_files on `{self._name}`')
+        self._env_files += env_files
 
     def get_icon(self) -> str:
         return self._icon
@@ -75,6 +116,9 @@ class CommonTaskModel():
 
     def get_envs(self) -> List[Env]:
         return self._envs
+
+    def get_inputs(self) -> List[AnyInput]:
+        return self._inputs
 
     def get_checkers(self) -> Iterable[AnyTask]:
         return self._checkers

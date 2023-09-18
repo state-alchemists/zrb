@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
@@ -17,6 +19,7 @@ ReplacementMutator = Callable[
     [AnyTask, Replacement],
     Replacement
 ]
+TResourceMaker = TypeVar('TResourceMaker', bound='ResourceMaker')
 
 
 @typechecked
@@ -64,6 +67,9 @@ class ResourceMaker(BaseTask):
         self._replacements = replacements
         self._replacement_mutator = replacement_mutator
         self._set_skip_parsing(skip_parsing)
+
+    def copy(self) -> TResourceMaker:
+        return super().copy()
 
     def _set_skip_parsing(self, skip_parsing: Optional[Iterable[str]]):
         if skip_parsing is not None:

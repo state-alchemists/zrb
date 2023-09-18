@@ -1,4 +1,4 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
+from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
 from zrb.helper.typecheck import typechecked
 from http.client import HTTPConnection, HTTPSConnection
 from zrb.task.base_task import BaseTask
@@ -9,6 +9,8 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
 import asyncio
+
+THTTPChecker = TypeVar('THTTPChecker', bound='HTTPChecker')
 
 
 @typechecked
@@ -59,6 +61,9 @@ class HTTPChecker(BaseTask):
         self._url = url
         self._is_https = is_https
         self._show_error_interval = show_error_interval
+
+    def copy(self) -> THTTPChecker:
+        return super().copy()
 
     def to_function(
         self, env_prefix: str = '', raise_error: bool = True

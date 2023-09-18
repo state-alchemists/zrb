@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
@@ -15,6 +17,7 @@ import pathlib
 import signal
 
 CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
+TCmdTask = TypeVar('TCmdTask', bound='CmdTask')
 
 
 class CmdResult():
@@ -110,6 +113,9 @@ class CmdTask(BaseTask):
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
+
+    def copy(self) -> TCmdTask:
+        return super().copy()
 
     def _set_cwd(
         self, cwd: Optional[Union[str, pathlib.Path]]

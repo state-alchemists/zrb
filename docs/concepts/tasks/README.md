@@ -370,6 +370,32 @@ If `skip_execution` is evaluated to `True`, then the task will be considered as 
 
 Every task share some common methods like `run`, `check`, and `to_function`.
 
+## `copy`
+
+Deep copy current task
+
+## `add_envs`
+
+## `add_env_files`
+
+## `add_inputs`
+
+## `add_upstreams`
+
+## `set_name`
+
+## `set_description`
+
+## `set_icon`
+
+## `set_color`
+
+## `set_retry`
+
+## `set_retry_interval`
+
+## `set_checking_interval`
+
 ## `get_env_map`
 
 Return task environments as dictionary.

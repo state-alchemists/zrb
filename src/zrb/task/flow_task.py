@@ -12,9 +12,9 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 from zrb.helper.accessories.name import get_random_name
 
-import copy
 
 TFlowNode = TypeVar('TFlowNode', bound='FlowNode')
+TFlowTask = TypeVar('TFlowTask', bound='FlowTask')
 
 
 @typechecked
@@ -57,7 +57,7 @@ class FlowNode():
         env_files: List[EnvFile] = [],
     ):
         if self._task is not None:
-            task = copy.deepcopy(self._task)
+            task: AnyTask = self._task.copy()
             additional_upstreams = self._upstreams + upstreams
             if len(upstreams) > 0:
                 task.add_upstreams(*additional_upstreams)
@@ -150,6 +150,9 @@ class FlowTask(BaseTask):
             skip_execution=skip_execution,
             run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
         )
+
+    def copy(self) -> TFlowTask:
+        return super().copy()
 
     def _get_flow_nodes(
         self, node: Union[FlowNode, List[FlowNode]]

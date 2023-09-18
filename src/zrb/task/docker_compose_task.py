@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union
+    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.cmd_task import CmdTask, CmdResult, CmdVal
@@ -20,6 +20,9 @@ from zrb.helper.docker_compose.fetch_external_env import (
 
 import os
 import pathlib
+
+
+TDockerComposeTask = TypeVar('TDockerComposeTask', bound='DockerComposeTask')
 
 
 @typechecked
@@ -114,6 +117,9 @@ class DockerComposeTask(CmdTask):
             self._env_files += service_config.get_env_files()
             self._envs += service_config.get_envs()
         self._add_compose_envs()
+
+    def copy(self) -> TDockerComposeTask:
+        return super().copy()
 
     async def run(self, *args, **kwargs: Any) -> CmdResult:
         self._generate_compose_runtime_file()
