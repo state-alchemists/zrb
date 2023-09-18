@@ -1,4 +1,4 @@
-# 🤖 Zrb: Super framework for your super app
+# 🤖 Zrb (Read: Zaruba) : A Super Framework for Your Super App
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
 
