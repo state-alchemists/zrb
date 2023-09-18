@@ -148,7 +148,7 @@ class CmdTask(BaseTask):
         cmd = self._get_cmd_str(*args, **kwargs)
         env_map = self._get_run_env_map()
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
-        self.print_out_dark('Current working directory: ' + self.cwd)
+        self.print_out_dark('Working directory: ' + self.cwd)
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(

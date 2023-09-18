@@ -82,14 +82,14 @@ zrb hello
 
 ```
 Name [world]: Go Frendi
-🤖 ○ ◷ 2023-09-17 10:00:51.675 ❁ 38184 → 1/3 🍊            zrb hello • Run script: echo Hello Go Frendi
-🤖 ○ ◷ 2023-09-17 10:00:51.675 ❁ 38184 → 1/3 🍊            zrb hello • Current working directory: /home/gofrendi/playground
-🤖 ○ ◷ 2023-09-17 10:00:51.679 ❁ 38203 → 1/3 🍊            zrb hello • Hello Go Frendi
+🤖 ○ ◷ 2023-09-18 07:37:40.849 ❁ 47932 → 1/3 🍌            zrb hello • Run script: echo Hello Go Frendi
+🤖 ○ ◷ 2023-09-18 07:37:40.849 ❁ 47932 → 1/3 🍌            zrb hello • Working directory: /home/gofrendi/zrb/playground
+🤖 ○ ◷ 2023-09-18 07:37:40.854 ❁ 47933 → 1/3 🍌            zrb hello • Hello Go Frendi
 Support zrb growth and development!
 ☕ Donate at: https://stalchmst.com/donation
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ○ ◷ 2023-09-17 10:00:51.724 ❁ 38203 → 1/3 🍊            zrb hello • zrb hello completed in 0.051410675048828125 seconds
+🤖 ○ ◷ 2023-09-18 07:37:40.899 ❁ 47933 → 1/3 🍌            zrb hello • Completed in 0.052213191986083984 seconds
 To run again: zrb hello --name "Go Frendi"
 Hello Go Frendi
 ```

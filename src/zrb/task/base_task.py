@@ -182,12 +182,8 @@ class BaseTask(
         return await self._is_done()
 
     def _show_done_info(self):
-        complete_name = self._get_complete_name()
         elapsed_time = self._get_elapsed_time()
-        message = '\n'.join([
-            f'{complete_name} completed in {elapsed_time} seconds',
-        ])
-        self.print_out_dark(message)
+        self.print_out_dark(f'Completed in {elapsed_time} seconds')
         self._play_bell()
 
     def _get_multiline_repr(self, text: str) -> str:
