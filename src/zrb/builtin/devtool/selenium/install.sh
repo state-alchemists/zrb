@@ -24,6 +24,7 @@ echo "Download chrome driver"
 curl -Lo chromedriver_linux64.zip "https://chromedriver.storage.googleapis.com/${chrome_driver}/chromedriver_linux64.zip"
 
 echo "Install chrome driver"
+rm -Rf "${HOME}/chromedriver/stable"
 mkdir -p "${HOME}/chromedriver/stable"
 unzip -q "chromedriver_linux64.zip" -d "${HOME}/chromedriver/stable"
 chmod +x "${HOME}/chromedriver/stable/chromedriver"
