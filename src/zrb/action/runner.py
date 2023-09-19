@@ -1,5 +1,7 @@
 from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Union
 from zrb.helper.typecheck import typechecked
+from zrb.helper.log import logger
+from zrb.helper.accessories.color import colored
 from zrb.task_group.group import Group as TaskGroup
 from zrb.task.any_task import AnyTask
 import click
@@ -16,15 +18,20 @@ class Runner():
     '''
 
     def __init__(self, env_prefix: str = ''):
+        logger.info(colored('Create runner', attrs=['dark']))
         self._env_prefix = env_prefix
         self._tasks: Iterable[AnyTask] = []
         self._registered_groups: Mapping[str, click.Group] = {}
         self._top_levels: List[CliSubcommand] = []
         self._subcommands: Mapping[str, List[click.Group]] = {}
+        logger.info(colored('Runner created', attrs=['dark']))
 
     def register(self, task: AnyTask):
+        cmd_name = task.get_cmd_name()
+        logger.debug(colored(f'Register task: {cmd_name}', attrs=['dark']))
         self._tasks.append(task)
         task.set_has_cli_interface()
+        logger.debug(colored(f'Task registered: {cmd_name}', attrs=['dark']))
 
     def serve(self, cli: click.Group) -> click.Group:
         for task in self._tasks:
