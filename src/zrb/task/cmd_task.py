@@ -11,6 +11,7 @@ from zrb.task_input.any_input import AnyInput
 from zrb.config.config import default_shell
 
 import asyncio
+import atexit
 import os
 import pathlib
 import signal
@@ -183,9 +184,15 @@ class CmdTask(BaseTask):
     def _on_kill(self):
         self._set_no_more_attempt()
         try:
-            if self._process.returncode is not None:
+            if self._process.returncode is None:
+                self.log_info(f'Send SIGINT to process {self._process.pid}')
+                os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
+            if self._process.returncode is None:
                 self.log_info(f'Send SIGTERM to process {self._process.pid}')
                 os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
+            if self._process.returncode is None:
+                self.log_info(f'Send SIGKILL to process {self._process.pid}')
+                os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
         except Exception:
             self.log_error(
                 f'Cannot send SIGTERM to process {self._process.pid}'
