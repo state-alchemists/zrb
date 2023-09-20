@@ -17,7 +17,9 @@ with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
 # Group Definitions
 ###############################################################################
 
-playground = Group(name='playground', description='Playground related tasks')
+playground_group = Group(
+    name='playground', description='Playground related tasks'
+)
 
 ###############################################################################
 # Input Definitions
@@ -292,7 +294,7 @@ runner.register(serve_test)
 create_playground = CmdTask(
     name='create',
     description='Create playground',
-    group=playground,
+    group=playground_group,
     upstreams=[skippable_install_symlink],
     cwd=CURRENT_DIR,
     cmd_path=os.path.join(CURRENT_DIR, 'playground-create.sh'),
@@ -311,7 +313,7 @@ runner.register(create_playground)
 test_fastapp_playground = CmdTask(
     name='test-fastapp',
     description='Test Fastapp',
-    group=playground,
+    group=playground_group,
     upstreams=[skippable_create_playground],
     cwd=CURRENT_DIR,
     cmd_path=[
@@ -326,7 +328,7 @@ runner.register(test_fastapp_playground)
 test_install_playground_symlink = CmdTask(
     name='test-install-symlink',
     description='Test installing symlink',
-    group=playground,
+    group=playground_group,
     upstreams=[skippable_create_playground],
     cwd=CURRENT_DIR,
     cmd_path=[
@@ -341,7 +343,7 @@ runner.register(test_install_playground_symlink)
 test_playground = CmdTask(
     name='test',
     description='Test playground',
-    group=playground,
+    group=playground_group,
     upstreams=[
         test_fastapp_playground,
         test_install_playground_symlink
@@ -350,31 +352,3 @@ test_playground = CmdTask(
     retry=0
 )
 runner.register(test_playground)
-
-start_playground = CmdTask(
-    name='start',
-    description='Start playground',
-    group=playground,
-    upstreams=[skippable_create_playground],
-    cwd=CURRENT_DIR,
-    cmd_path=[
-        os.path.join(CURRENT_DIR, 'playground-init.sh'),
-        os.path.join(CURRENT_DIR, 'playground-start.sh')
-    ],
-    retry=0,
-)
-runner.register(start_playground)
-
-start_playground_container = CmdTask(
-    name='start-containers',
-    description='Start playground containers',
-    group=playground,
-    upstreams=[skippable_create_playground],
-    cwd=CURRENT_DIR,
-    cmd_path=[
-        os.path.join(CURRENT_DIR, 'playground-init.sh'),
-        os.path.join(CURRENT_DIR, 'playground-start-containers.sh')
-    ],
-    retry=0,
-)
-runner.register(start_playground_container)

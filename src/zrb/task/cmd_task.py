@@ -11,7 +11,6 @@ from zrb.task_input.any_input import AnyInput
 from zrb.config.config import default_shell
 
 import asyncio
-import atexit
 import os
 import pathlib
 import signal
@@ -113,6 +112,7 @@ class CmdTask(BaseTask):
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
+        self._is_killed_by_signal = False
 
     def copy(self) -> TCmdTask:
         return super().copy()
@@ -165,31 +165,32 @@ class CmdTask(BaseTask):
         )
         self._set_task_pid(process.pid)
         self._process = process
-        atexit.register(self._at_exit)
+        loop = asyncio.get_event_loop()
+        loop.add_signal_handler(signal.SIGINT, self._on_kill)
+        loop.add_signal_handler(signal.SIGTERM, self._on_kill)
         await self._wait_process(process)
-        atexit.unregister(self._at_exit)
-        # get output and error
         output = '\n'.join(self._output_buffer)
         error = '\n'.join(self._error_buffer)
         # get return code
         return_code = process.returncode
-        if return_code != 0:
+        if not self._is_killed_by_signal and return_code != 0:
             self.log_info(f'Exit status: {return_code}')
             raise Exception(
                 f'Process {self._name} exited ({return_code}): {error}'
             )
         return CmdResult(output, error)
 
-    def _at_exit(self):
-        self.retry = 0
-        if self._process.returncode is None:
-            try:
+    def _on_kill(self):
+        self._set_no_more_attempt()
+        try:
+            if self._process.returncode is not None:
                 self.log_info(f'Send SIGTERM to process {self._process.pid}')
                 os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
-            except Exception:
-                self.log_error(
-                    f'Cannot send SIGTERM to process {self._process.pid}'
-                )
+        except Exception:
+            self.log_error(
+                f'Cannot send SIGTERM to process {self._process.pid}'
+            )
+        self._is_killed_by_signal = True
 
     async def _wait_process(self, process: asyncio.subprocess.Process):
         # Create queue
