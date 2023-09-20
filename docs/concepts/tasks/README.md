@@ -390,6 +390,8 @@ Deep copy current task
 
 ## `set_color`
 
+## `set_skip_execution`
+
 ## `set_retry`
 
 ## `set_retry_interval`

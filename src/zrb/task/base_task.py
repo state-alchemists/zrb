@@ -25,8 +25,6 @@ import inspect
 import os
 import sys
 
-MULTILINE_INDENT = ' ' * 8
-
 
 @typechecked
 class BaseTask(
@@ -193,7 +191,7 @@ class BaseTask(
             return lines[0]
         for index, line in enumerate(lines):
             line_number_repr = str(index + 1).rjust(4, '0')
-            lines_repr.append(f'{MULTILINE_INDENT}{line_number_repr} | {line}')
+            lines_repr.append(f'        {line_number_repr} | {line}')
         return '\n' + '\n'.join(lines_repr)
 
     async def _set_local_keyval(

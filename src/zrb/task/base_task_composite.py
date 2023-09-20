@@ -84,6 +84,11 @@ class CommonTaskModel():
     def set_retry(self, new_retry: int):
         self._retry = new_retry
 
+    def set_skip_execution(
+        self, skip_execution: Union[bool, str, Callable[..., bool]]
+    ):
+        self._skip_execution = skip_execution
+
     def set_retry_interval(self, new_retry_interval: Union[float, int]):
         self._retry_interval = new_retry_interval
 
