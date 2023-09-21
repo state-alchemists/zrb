@@ -166,30 +166,32 @@ class CmdTask(BaseTask):
         )
         self._set_task_pid(process.pid)
         self._process = process
-        loop = asyncio.get_event_loop()
-        loop.add_signal_handler(signal.SIGINT, self._on_kill)
-        loop.add_signal_handler(signal.SIGTERM, self._on_kill)
+        atexit.register(self._on_kill)
         await self._wait_process(process)
+        atexit.unregister(self._on_kill)
         output = '\n'.join(self._output_buffer)
         error = '\n'.join(self._error_buffer)
         # get return code
         return_code = process.returncode
-        if not self._is_killed_by_signal and return_code != 0:
+        if return_code != 0:
             self.log_info(f'Exit status: {return_code}')
-            raise Exception(
-                f'Process {self._name} exited ({return_code}): {error}'
-            )
+            if not self._is_killed_by_signal:
+                raise Exception(
+                    f'Process {self._name} exited ({return_code}): {error}'
+                )
         return CmdResult(output, error)
 
     def _on_kill(self):
+        self.log_info(f'Killing {self._name}')
         self._set_no_more_attempt()
+        self._is_killed_by_signal = True
         try:
-            if self._process.returncode is None:
-                self.log_info(f'Send SIGINT to process {self._process.pid}')
-                os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
             if self._process.returncode is None:
                 self.log_info(f'Send SIGTERM to process {self._process.pid}')
                 os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
+            if self._process.returncode is None:
+                self.log_info(f'Send SIGINT to process {self._process.pid}')
+                os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
             if self._process.returncode is None:
                 self.log_info(f'Send SIGKILL to process {self._process.pid}')
                 os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
@@ -197,7 +199,6 @@ class CmdTask(BaseTask):
             self.log_error(
                 f'Cannot send SIGTERM to process {self._process.pid}'
             )
-        self._is_killed_by_signal = True
 
     async def _wait_process(self, process: asyncio.subprocess.Process):
         # Create queue

@@ -3,10 +3,18 @@ from zrb import (
     Env, BoolInput, StrInput, HTTPChecker, Group
 )
 import os
+import sys
 import tomli
 
 CURRENT_DIR = os.path.dirname(__file__)
-IS_PLAYGROUND_EXIST = os.path.isdir(os.path.join(CURRENT_DIR, 'playground'))
+PLAYGROUND_DIR = os.path.join(CURRENT_DIR, 'playground')
+IS_PLAYGROUND_EXIST = os.path.isdir(PLAYGROUND_DIR)
+
+if IS_PLAYGROUND_EXIST:
+    sys.path.append(PLAYGROUND_DIR)
+    from playground import zrb_init
+    assert zrb_init
+
 
 with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
     toml_dict = tomli.load(f)
