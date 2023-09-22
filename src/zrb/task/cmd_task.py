@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
@@ -15,6 +15,7 @@ import atexit
 import os
 import pathlib
 import signal
+import time
 
 CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
 TCmdTask = TypeVar('TCmdTask', bound='CmdTask')
@@ -24,6 +25,12 @@ class CmdResult():
     def __init__(self, output: str, error: str):
         self.output = output
         self.error = error
+
+
+class CmdGlobalState():
+    def __init__(self):
+        self.no_more_attempt: bool = False
+        self.is_killed_by_signal: bool = False
 
 
 @typechecked
@@ -57,6 +64,9 @@ class CmdTask(BaseTask):
     runner.register(run_server)
     ```
     '''
+
+    _pids: List[int] = []
+    _global_state = CmdGlobalState()
 
     def __init__(
         self,
@@ -113,7 +123,6 @@ class CmdTask(BaseTask):
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
-        self._is_killed_by_signal = False
 
     def copy(self) -> TCmdTask:
         return super().copy()
@@ -165,40 +174,81 @@ class CmdTask(BaseTask):
             bufsize=0
         )
         self._set_task_pid(process.pid)
+        self._pids.append(process.pid)
         self._process = process
-        atexit.register(self._on_kill)
+        signal.signal(signal.SIGINT, self._on_kill)
+        signal.signal(signal.SIGTERM, self._on_kill)
+        atexit.register(self._on_exit)
         await self._wait_process(process)
-        atexit.unregister(self._on_kill)
+        self.log_info('Process completed')
+        atexit.unregister(self._on_exit)
         output = '\n'.join(self._output_buffer)
         error = '\n'.join(self._error_buffer)
         # get return code
         return_code = process.returncode
-        if return_code != 0:
-            self.log_info(f'Exit status: {return_code}')
-            if not self._is_killed_by_signal:
-                raise Exception(
-                    f'Process {self._name} exited ({return_code}): {error}'
-                )
+        self.log_info(f'Exit status: {return_code}')
+        if return_code != 0 and not self._global_state.is_killed_by_signal:
+            raise Exception(
+                f'Process {self._name} exited ({return_code}): {error}'
+            )
         return CmdResult(output, error)
 
-    def _on_kill(self):
-        self.log_info(f'Killing {self._name}')
-        self._set_no_more_attempt()
-        self._is_killed_by_signal = True
+    def _should_attempt(self) -> bool:
+        if self._global_state.no_more_attempt:
+            return False
+        return super()._should_attempt()
+
+    def _is_last_attempt(self) -> bool:
+        if self._global_state.no_more_attempt:
+            return True
+        return super()._is_last_attempt()
+
+    def _on_kill(self, signum: Any, frame: Any):
+        self._global_state.no_more_attempt = True
+        self._global_state.is_killed_by_signal = True
+        self.log_info(f'Getting signal {signum}')
+        for pid in self._pids:
+            self._kill_by_pid(pid)
+
+    def _kill_by_pid(self, pid: int):
+        '''
+        Kill a pid, gracefully
+        '''
         try:
-            if self._process.returncode is None:
-                self.log_info(f'Send SIGTERM to process {self._process.pid}')
-                os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
-            if self._process.returncode is None:
-                self.log_info(f'Send SIGINT to process {self._process.pid}')
-                os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
-            if self._process.returncode is None:
+            if self._is_process_exist(pid):
+                self.log_info(f'Send SIGTERM to process {pid}')
+                os.killpg(os.getpgid(pid), signal.SIGTERM)
+                time.sleep(0.5)
+            if self._is_process_exist(pid):
+                self.log_info(f'Send SIGINT to process {pid}')
+                os.killpg(os.getpgid(pid), signal.SIGINT)
+                time.sleep(0.5)
+            if self._is_process_exist(pid):
+                self.log_info(f'Send SIGKILL to process {pid}')
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except Exception:
+            self.log_error(
+                f'Cannot send kill process {pid}'
+            )
+
+    def _is_process_exist(self, pid: int) -> bool:
+        try:
+            os.killpg(os.getpgid(pid), 0)
+            return True
+        except ProcessLookupError:
+            return False
+
+    def _on_exit(self):
+        '''
+        Last attempt to kill current process by sending SIGKILL
+        '''
+        self._global_state.no_more_attempt = True
+        try:
+            if self._is_process_exist(self._process.pid):
                 self.log_info(f'Send SIGKILL to process {self._process.pid}')
                 os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
         except Exception:
-            self.log_error(
-                f'Cannot send SIGTERM to process {self._process.pid}'
-            )
+            self.log_error(f'Cannot send kill process {self._process.pid}')
 
     async def _wait_process(self, process: asyncio.subprocess.Process):
         # Create queue

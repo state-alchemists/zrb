@@ -399,7 +399,7 @@ class BaseTask(
             await self._mark_done()
             return None
         # start running task
-        result: Any
+        result: Any = None
         while self._should_attempt():
             try:
                 self.log_debug(

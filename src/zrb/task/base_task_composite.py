@@ -173,21 +173,14 @@ class AttemptTracker():
         self.__attempt += 1
 
     def _should_attempt(self) -> bool:
-        if self.__no_more_attempt:
-            return False
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
         return attempt <= max_attempt
 
     def _is_last_attempt(self) -> bool:
-        if self.__no_more_attempt:
-            return True
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
         return attempt >= max_attempt
-
-    def _set_no_more_attempt(self):
-        self.__no_more_attempt = True
 
 
 @typechecked
