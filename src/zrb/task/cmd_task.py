@@ -15,6 +15,7 @@ import atexit
 import os
 import pathlib
 import signal
+import sys
 import time
 
 CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
@@ -209,6 +210,14 @@ class CmdTask(BaseTask):
         self.log_info(f'Getting signal {signum}')
         for pid in self._pids:
             self._kill_by_pid(pid)
+        sys.exit(signum)
+
+    def _on_exit(self):
+        '''
+        Last attempt to kill current process by sending SIGKILL
+        '''
+        self._global_state.no_more_attempt = True
+        self._kill_by_pid(self._process.pid)
 
     def _kill_by_pid(self, pid: int):
         '''
@@ -237,18 +246,6 @@ class CmdTask(BaseTask):
             return True
         except ProcessLookupError:
             return False
-
-    def _on_exit(self):
-        '''
-        Last attempt to kill current process by sending SIGKILL
-        '''
-        self._global_state.no_more_attempt = True
-        try:
-            if self._is_process_exist(self._process.pid):
-                self.log_info(f'Send SIGKILL to process {self._process.pid}')
-                os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
-        except Exception:
-            self.log_error(f'Cannot send kill process {self._process.pid}')
 
     async def _wait_process(self, process: asyncio.subprocess.Process):
         # Create queue
