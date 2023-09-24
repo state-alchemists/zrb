@@ -1,17 +1,9 @@
 from zrb.helper.typing import Any
-from zrb.helper.typecheck import typechecked
+from zrb.helper.python_task import show_lines
 from zrb.builtin.group import explain_group
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
 from zrb.runner import runner
-
-
-@typechecked
-def show_lines(task: Task, *lines: str):
-    separator = '\n    '
-    task.print_out(
-        '\n' + separator + separator.join(lines) + '\n', trim_message=False
-    )
 
 
 ###############################################################################

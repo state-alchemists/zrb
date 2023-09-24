@@ -146,7 +146,7 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    def _get_run_env_map(self) -> Mapping[str, Any]:
+    def _get_shell_env_map(self) -> Mapping[str, Any]:
         env_map = self.get_env_map()
         input_map = self.get_input_map()
         for input_name, input_value in input_map.items():
@@ -157,7 +157,7 @@ class CmdTask(BaseTask):
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str(*args, **kwargs)
-        env_map = self._get_run_env_map()
+        env_map = self._get_shell_env_map()
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
         self.print_out_dark('Working directory: ' + self.cwd)
         self._output_buffer = []

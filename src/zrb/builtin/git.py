@@ -7,7 +7,7 @@ from zrb.task_input.bool_input import BoolInput
 from zrb.runner import runner
 from zrb.helper.git.detect_changes import get_modified_file_states
 from zrb.helper.accessories.color import colored
-
+from zrb.helper.python_task import show_lines
 
 ###############################################################################
 # Task Definitions
@@ -15,7 +15,7 @@ from zrb.helper.accessories.color import colored
 
 
 @python_task(
-    name='get-changes',
+    name='get-file-changes',
     group=git_group,
     description='Get modified files',
     inputs=[
@@ -47,7 +47,7 @@ from zrb.helper.accessories.color import colored
     ],
     runner=runner
 )
-async def get_changes(*args: Any, **kwargs: Any):
+async def get_file_changes(*args: Any, **kwargs: Any):
     commit = kwargs.get('commit', 'HEAD')
     include_new = kwargs.get('include_new', True)
     include_removed = kwargs.get('include_removed', True)
@@ -55,18 +55,20 @@ async def get_changes(*args: Any, **kwargs: Any):
     task: Task = kwargs['_task']
     modified_file_states = get_modified_file_states(commit)
     modified_file_keys = []
+    output = []
     for modified_file, state in modified_file_states.items():
         if include_updated and state.minus and state.plus:
-            task.print_out(colored(f'+- {modified_file}', color='yellow'))
+            output.append(colored(f'+- {modified_file}', color='yellow'))
             modified_file_keys.append(modified_file)
             continue
-        if include_removed and state.minus:
-            task.print_out(colored(f'-- {modified_file}', color='red'))
+        if include_removed and state.minus and not state.plus:
+            output.append(colored(f'-- {modified_file}', color='red'))
             modified_file_keys.append(modified_file)
             continue
-        if include_new and state.plus:
-            task.print_out(colored(f'++ {modified_file}', color='green'))
+        if include_new and state.plus and not state.minus:
+            output.append(colored(f'++ {modified_file}', color='green'))
             modified_file_keys.append(modified_file)
             continue
+    show_lines(kwargs['_task'], *output)
     modified_file_keys.sort()
     return '\n'.join(modified_file_keys)

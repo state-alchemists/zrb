@@ -252,21 +252,21 @@ class BaseTask(
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
-            input_map = self.get_input_map()
+            new_kwargs = self.get_input_map()
             # make sure args and kwargs['_args'] are the same
             self.log_info('Set run args')
             new_args = copy.deepcopy(args)
             if len(args) == 0 and '_args' in kwargs:
                 new_args = kwargs['_args']
-            input_map['_args'] = new_args
+            new_kwargs['_args'] = new_args
             # inject self as input_map['_task']
-            input_map['_task'] = self
+            new_kwargs['_task'] = self
             self._args = new_args
-            self._kwargs = input_map
+            self._kwargs = new_kwargs
             # run the task
             coroutines = [
                 asyncio.create_task(self._loop_check(show_info=True)),
-                asyncio.create_task(self._run_all(*new_args, **input_map))
+                asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
             results = await asyncio.gather(*coroutines)
             result = results[-1]
