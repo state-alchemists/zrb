@@ -34,3 +34,6 @@ dev_tool_install_group = Group(
 git_group = Group(
     name='git', description='Git related commands'
 )
+process_group = Group(
+    name='process', description='Process related commands'
+)

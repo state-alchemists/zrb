@@ -207,15 +207,13 @@ class CmdTask(BaseTask):
     def _on_kill(self, signum: Any, frame: Any):
         self._global_state.no_more_attempt = True
         self._global_state.is_killed_by_signal = True
-        self.log_info(f'Getting signal {signum}')
+        self.print_out_dark(f'Getting signal {signum}')
         for pid in self._pids:
             self._kill_by_pid(pid)
+        self.print_out_dark(f'Exiting with signal {signum}')
         sys.exit(signum)
 
     def _on_exit(self):
-        '''
-        Last attempt to kill current process by sending SIGKILL
-        '''
         self._global_state.no_more_attempt = True
         self._kill_by_pid(self._process.pid)
 
@@ -224,21 +222,23 @@ class CmdTask(BaseTask):
         Kill a pid, gracefully
         '''
         try:
+            process_ever_exists = False
             if self._is_process_exist(pid):
-                self.log_info(f'Send SIGTERM to process {pid}')
+                process_ever_exists = True
+                self.print_out_dark(f'Send SIGTERM to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGTERM)
                 time.sleep(0.5)
             if self._is_process_exist(pid):
-                self.log_info(f'Send SIGINT to process {pid}')
+                self.print_out_dark(f'Send SIGINT to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGINT)
                 time.sleep(0.5)
             if self._is_process_exist(pid):
-                self.log_info(f'Send SIGKILL to process {pid}')
+                self.print_out_dark(f'Send SIGKILL to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGKILL)
+            if process_ever_exists:
+                self.print_out_dark(f'Process {pid} is killed successfully')
         except Exception:
-            self.log_error(
-                f'Cannot send kill process {pid}'
-            )
+            self.log_error(f'Cannot kill process {pid}')
 
     def _is_process_exist(self, pid: int) -> bool:
         try:

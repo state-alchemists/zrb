@@ -11,7 +11,7 @@ class ModificationState():
 
 
 @typechecked
-def get_modified_files(commit: str) -> Mapping[str, ModificationState]:
+def get_modified_file_states(commit: str) -> Mapping[str, ModificationState]:
     exit_status, output = subprocess.getstatusoutput(f'git show {commit}')
     if exit_status != 0:
         raise Exception(output)

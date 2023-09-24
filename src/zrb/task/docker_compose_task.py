@@ -21,8 +21,16 @@ from zrb.helper.docker_compose.fetch_external_env import (
 import os
 import pathlib
 
-
+CURRENT_DIR = os.path.dirname(__file__)
 TDockerComposeTask = TypeVar('TDockerComposeTask', bound='DockerComposeTask')
+
+ensure_docker_is_installed = CmdTask(
+    name='ensure-docker-is-installed',
+    cmd_path=os.path.join(
+        CURRENT_DIR, '..', 'builtin', 'devtool', 'docker', 'install.sh'
+    ),
+    preexec_fn=None
+)
 
 
 @typechecked
@@ -84,7 +92,7 @@ class DockerComposeTask(CmdTask):
             description=description,
             executable=executable,
             cwd=cwd,
-            upstreams=upstreams,
+            upstreams=[ensure_docker_is_installed] + upstreams,
             checkers=checkers,
             checking_interval=checking_interval,
             retry=retry,

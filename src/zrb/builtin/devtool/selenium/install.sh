@@ -1,20 +1,36 @@
 set -e
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 
-set +e
-which dpkg
-if [ "$?" = 0 ]
-then
-    sudo dpkg -i google-chrome-stable_current_amd64.deb
-fi
+OS_TYPE=$(uname)
 
-which apt
-if [ "$?" = 0 ]
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
+if [ "$OS_TYPE" = "Linux" ]
 then
+   if command_exists apt
+    then
+        sudo apt install unzip wget
+    else
+        echo "apt does not exists"
+        exit 1
+    fi 
+
+    if command_exists dpkg
+    then
+        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        sudo dpkg -i google-chrome-stable_current_amd64.deb
+    else
+        echo "dpkg does not exists"
+        exit 1
+    fi
+
     sudo apt --fix-broken install
-    sudo apt install unzip
+else
+    echo "Unsupported OS type. Please install zsh manually."
+    exit 1
 fi
-set -e
 
 echo "Get latest chrome driver version"
 chrome_driver=$(curl "https://chromedriver.storage.googleapis.com/LATEST_RELEASE")
