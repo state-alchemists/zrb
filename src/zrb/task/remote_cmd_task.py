@@ -10,11 +10,16 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 from zrb.task.cmd_task import CmdTask, CmdVal
 
+import copy
 import os
 import pathlib
 
-TSingleRemoteCmdTask = TypeVar(
-    'TSingleRemoteCmdTask', bound='SingleRemoteCmdTask'
+
+TSingleBaseRemoteCmdTask = TypeVar(
+    'TSingleBaseRemoteCmdTask', bound='SingleBaseRemoteCmdTask'
+)
+TBaseRemoteCmdTask = TypeVar(
+    'TBaseRemoteCmdTask', bound='BaseRemoteCmdTask'
 )
 
 
@@ -23,9 +28,9 @@ class RemoteConfig:
     def __init__(
         self,
         host: str,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        ssh_key: Optional[str] = None,
+        user: str = '',
+        password: str = '',
+        ssh_key: str = '',
         port: int = 22
     ):
         self.host = host
@@ -96,13 +101,13 @@ class SingleBaseRemoteCmdTask(CmdTask):
         self._post_cmd_path = post_cmd_path
         self._remote_config = remote_config
 
-    def copy(self) -> TSingleRemoteCmdTask:
-        return super().copy()
+    def copy(self) -> TSingleBaseRemoteCmdTask:
+        return copy.deepcopy(self)
 
     def _get_shell_env_map(self) -> Mapping[str, Any]:
         env_map = super()._get_shell_env_map()
         env_map['_CONFIG_HOST'] = self._remote_config.host
-        env_map['_CONFIG_PORT'] = self._remote_config.port
+        env_map['_CONFIG_PORT'] = str(self._remote_config.port)
         env_map['_CONFIG_SSH_KEY'] = self._remote_config.ssh_key
         env_map['_CONFIG_USER'] = self._remote_config.user
         env_map['_CONFIG_PASSWORD'] = self._remote_config.password
@@ -175,7 +180,7 @@ class BaseRemoteCmdTask(BaseTask):
                 retry_interval=retry_interval,
                 max_output_line=max_output_line,
                 max_error_line=max_error_line,
-                prexec_fn=preexec_fn,
+                preexec_fn=preexec_fn,
                 skip_execution=skip_execution
             )
             for index, remote_config in enumerate(list(remote_configs))
@@ -222,17 +227,20 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         pre_cmd = '\n'.join([
             'auth_ssh(){',
             '  if [ "$_CONFIG_SSH_KEY" != "" ]',
-            '    ssh -p "$_CONFIG_PORT" -i "$_CONFIG_SSH_KEY" "${_CONFIG_USER}@${_CONFIG_HOST}', # noqa
+            '  then',
+            '    ssh -p "$_CONFIG_PORT" -i "$_CONFIG_SSH_KEY" "${_CONFIG_USER}@${_CONFIG_HOST}"', # noqa
             '  elif [ "$_CONFIG_PASSWORD" != "" ]',
-            '    sshpass -p "$_CONFIG_PASSWORD" ssh -p "$_CONFIG_PORT" "${_CONFIG_USER}@${_CONFIG_HOST}', # noqa
+            '  then',
+            '    sshpass -p "$_CONFIG_PASSWORD" ssh -p "$_CONFIG_PORT" "${_CONFIG_USER}@${_CONFIG_HOST}"', # noqa
             '  else',
-            '    ssh -p "$_CONFIG_PORT" "${_CONFIG_USER}@${_CONFIG_HOST}', # noqa
+            '    ssh -p "$_CONFIG_PORT" "${_CONFIG_USER}@${_CONFIG_HOST}"', # noqa
             '  fi',
             '}',
             'auth_ssh <<\'ENDSSH\''
         ])
         post_cmd = '<<ENDSSH'
-        BaseRemoteCmdTask(
+        BaseRemoteCmdTask.__init__(
+            self,
             name=name,
             remote_configs=remote_configs,
             group=group,
