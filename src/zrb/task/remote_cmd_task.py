@@ -68,27 +68,27 @@ class SingleBaseRemoteCmdTask(CmdTask):
     ):
         CmdTask.__init__(
             self,
-            name,
-            group,
-            inputs,
-            envs,
-            env_files,
-            icon,
-            color,
-            description,
-            executable,
-            cmd,
-            cmd_path,
-            cwd,
-            upstreams,
-            checkers,
-            checking_interval,
-            retry,
-            retry_interval,
-            max_output_line,
-            max_error_line,
-            preexec_fn,
-            skip_execution
+            name=name,
+            group=group,
+            inputs=inputs,
+            envs=envs,
+            env_files=env_files,
+            icon=icon,
+            color=color,
+            description=description,
+            executable=executable,
+            cmd=cmd,
+            cmd_path=cmd_path,
+            cwd=cwd,
+            upstreams=upstreams,
+            checkers=checkers,
+            checking_interval=checking_interval,
+            retry=retry,
+            retry_interval=retry_interval,
+            max_output_line=max_output_line,
+            max_error_line=max_error_line,
+            preexec_fn=preexec_fn,
+            skip_execution=skip_execution
         )
         self._pre_cmd = pre_cmd
         self._pre_cmd_path = pre_cmd_path
@@ -181,6 +181,7 @@ class BaseRemoteCmdTask(BaseTask):
             for index, remote_config in enumerate(list(remote_configs))
         ]
         BaseTask.__init__(
+            self,
             name=name,
             icon=icon,
             color=color,
