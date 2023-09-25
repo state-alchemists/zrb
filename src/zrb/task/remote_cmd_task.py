@@ -238,7 +238,7 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             '}',
             'auth_ssh <<\'ENDSSH\''
         ])
-        post_cmd = '<<ENDSSH'
+        post_cmd = 'ENDSSH'
         BaseRemoteCmdTask.__init__(
             self,
             name=name,
