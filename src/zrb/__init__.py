@@ -4,6 +4,9 @@ from zrb.task.any_task import AnyTask
 from zrb.task.task import Task
 from zrb.task.cmd_task import CmdTask
 from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
+from zrb.task.remote_cmd_task import (
+    BaseRemoteCmdTask, RemoteConfig, RemoteCmdTask
+)
 from zrb.task.http_checker import HTTPChecker
 from zrb.task.port_checker import PortChecker
 from zrb.task.path_checker import PathChecker
@@ -31,6 +34,9 @@ assert Task
 assert CmdTask
 assert DockerComposeTask
 assert ServiceConfig
+assert BaseRemoteCmdTask
+assert RemoteCmdTask
+assert RemoteConfig
 assert HTTPChecker
 assert PortChecker
 assert PathChecker
