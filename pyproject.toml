@@ -4,13 +4,13 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "zrb"
-version = "0.0.98"
+version = "0.0.99"
 authors = [
   { name="Go Frendi Gunawan", email="gofrendiasgard@gmail.com" },
 ]
 description = "Super framework for your super app"
 readme = "README.md"
-requires-python = ">=3.8.1"
+requires-python = ">=3.10.0"
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",

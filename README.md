@@ -1,8 +1,8 @@
-# 🤖 Zrb: Super framework for your super app
+# 🤖 Zrb (Read: Zaruba) : A Super Framework for Your Super App
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
 
-[Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [Getting started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md)
+[📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md)
 
 Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, you can automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
 
@@ -82,14 +82,14 @@ zrb hello
 
 ```
 Name [world]: Go Frendi
-🤖 ➜  2023-06-10T21:20:19.850063 ⚙ 10008 ➤ 1 of 3 • 🐷            zrb hello • Run script: echo Hello Go Frendi
-🤖 ➜  2023-06-10T21:20:19.850362 ⚙ 10008 ➤ 1 of 3 • 🐷            zrb hello • Current working directory: /home/gofrendi/zrb/playground
-🤖 ➜  2023-06-10T21:20:19.857585 ⚙ 10009 ➤ 1 of 3 • 🐷            zrb hello • Hello Go Frendi
+🤖 ○ ◷ 2023-09-18 07:37:40.849 ❁ 47932 → 1/3 🍌            zrb hello • Run script: echo Hello Go Frendi
+🤖 ○ ◷ 2023-09-18 07:37:40.849 ❁ 47932 → 1/3 🍌            zrb hello • Working directory: /home/gofrendi/zrb/playground
+🤖 ○ ◷ 2023-09-18 07:37:40.854 ❁ 47933 → 1/3 🍌            zrb hello • Hello Go Frendi
 Support zrb growth and development!
 ☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ➜  2023-06-10T21:20:19.898304 ⚙ 10009 ➤ 1 of 3 • 🐷            zrb hello • zrb hello completed in 0.11999917030334473 seconds
+🤖 ○ ◷ 2023-09-18 07:37:40.899 ❁ 47933 → 1/3 🍌            zrb hello • Completed in 0.052213191986083984 seconds
 To run again: zrb hello --name "Go Frendi"
 Hello Go Frendi
 ```

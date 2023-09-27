@@ -1,14 +1,3 @@
-set -e
-
-# Determine OS type
-OS_TYPE=$(uname)
-
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" &> /dev/null
-}
-
-# Install Docker
 if command_exists docker
 then
     echo "Docker is already installed."
@@ -61,7 +50,6 @@ else
     fi
 fi
 
-# Install Docker Compose plugin for yum, dnf, and pacman
 if command_exists docker && ! docker compose version &> /dev/null
 then
     echo "Installing Docker Compose plugin..."

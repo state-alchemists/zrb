@@ -10,6 +10,7 @@ from zrb.builtin import update
 from zrb.builtin import version
 from zrb.builtin import devtool
 from zrb.builtin import generator
+from zrb.builtin import process
 
 assert base64
 assert env
@@ -23,3 +24,4 @@ assert update
 assert version
 assert devtool
 assert generator
+assert process

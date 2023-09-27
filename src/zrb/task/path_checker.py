@@ -1,4 +1,4 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
+from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
@@ -9,6 +9,8 @@ from zrb.task_input.any_input import AnyInput
 
 import asyncio
 import os
+
+TPathChecker = TypeVar('TPathChecker', bound='PathChecker')
 
 
 @typechecked
@@ -49,6 +51,9 @@ class PathChecker(BaseTask):
         )
         self._path = path
         self._show_error_interval = show_error_interval
+
+    def copy(self) -> TPathChecker:
+        return super().copy()
 
     def to_function(
         self, env_prefix: str = '', raise_error: bool = True

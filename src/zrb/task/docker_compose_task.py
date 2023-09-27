@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.cmd_task import CmdTask, CmdResult, CmdVal
 from zrb.task.any_task import AnyTask
@@ -18,6 +20,19 @@ from zrb.helper.docker_compose.fetch_external_env import (
 
 import os
 import pathlib
+
+CURRENT_DIR = os.path.dirname(__file__)
+SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, '..', 'shell-scripts')
+TDockerComposeTask = TypeVar('TDockerComposeTask', bound='DockerComposeTask')
+
+ensure_docker_is_installed = CmdTask(
+    name='ensure-docker-is-installed',
+    cmd_path=[
+        os.path.join(SHELL_SCRIPT_DIR, '_common-util.sh'),
+        os.path.join(SHELL_SCRIPT_DIR, 'ensure-docker-is-installed.sh')
+    ],
+    preexec_fn=None
+)
 
 
 @typechecked
@@ -64,7 +79,8 @@ class DockerComposeTask(CmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        return_upstream_result: bool = False
     ):
         combined_env_files = list(env_files)
         CmdTask.__init__(
@@ -79,7 +95,7 @@ class DockerComposeTask(CmdTask):
             description=description,
             executable=executable,
             cwd=cwd,
-            upstreams=upstreams,
+            upstreams=[ensure_docker_is_installed] + upstreams,
             checkers=checkers,
             checking_interval=checking_interval,
             retry=retry,
@@ -87,7 +103,8 @@ class DockerComposeTask(CmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            skip_execution=skip_execution
+            skip_execution=skip_execution,
+            return_upstream_result=return_upstream_result
         )
         self._setup_cmd = setup_cmd
         self._setup_cmd_path = setup_cmd_path
@@ -112,6 +129,9 @@ class DockerComposeTask(CmdTask):
             self._env_files += service_config.get_env_files()
             self._envs += service_config.get_envs()
         self._add_compose_envs()
+
+    def copy(self) -> TDockerComposeTask:
+        return super().copy()
 
     async def run(self, *args, **kwargs: Any) -> CmdResult:
         self._generate_compose_runtime_file()

@@ -1,5 +1,8 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Mapping, Optional, Union
+)
 from zrb.helper.typecheck import typechecked
+from zrb.config.config import show_time
 from zrb.task.any_task import AnyTask
 from zrb.helper.string.conversion import to_boolean, to_cmd_name
 from zrb.helper.string.jinja import is_probably_jinja
@@ -60,6 +63,52 @@ class CommonTaskModel():
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
         self._skip_execution = skip_execution
+        self._allow_add_envs = True
+        self._allow_add_env_files = True
+        self._allow_add_inputs = True
+
+    def set_name(self, new_name: str):
+        if self._description == self._name:
+            self._description = new_name
+        self._name = new_name
+
+    def set_description(self, new_description: str):
+        self._description = new_description
+
+    def set_icon(self, new_icon: str):
+        self._icon = new_icon
+
+    def set_color(self, new_color: str):
+        self._color = new_color
+
+    def set_retry(self, new_retry: int):
+        self._retry = new_retry
+
+    def set_skip_execution(
+        self, skip_execution: Union[bool, str, Callable[..., bool]]
+    ):
+        self._skip_execution = skip_execution
+
+    def set_retry_interval(self, new_retry_interval: Union[float, int]):
+        self._retry_interval = new_retry_interval
+
+    def set_checking_interval(self, new_checking_interval: Union[float, int]):
+        self._checking_interval = new_checking_interval
+
+    def add_inputs(self, *inputs: AnyInput):
+        if not self._allow_add_inputs:
+            raise Exception(f'Cannot add inputs on `{self._name}`')
+        self._inputs += inputs
+
+    def add_envs(self, *envs: Env):
+        if not self._allow_add_envs:
+            raise Exception(f'Cannot add envs on `{self._name}`')
+        self._envs += envs
+
+    def add_env_files(self, *env_files: EnvFile):
+        if not self._allow_add_env_files:
+            raise Exception(f'Cannot add env_files on `{self._name}`')
+        self._env_files += env_files
 
     def get_icon(self) -> str:
         return self._icon
@@ -72,6 +121,9 @@ class CommonTaskModel():
 
     def get_envs(self) -> List[Env]:
         return self._envs
+
+    def get_inputs(self) -> List[AnyInput]:
+        return self._inputs
 
     def get_checkers(self) -> Iterable[AnyTask]:
         return self._checkers
@@ -109,6 +161,7 @@ class AttemptTracker():
     def __init__(self, retry: int = 2):
         self.__retry = retry
         self.__attempt: int = 1
+        self.__no_more_attempt: bool = False
 
     def _get_max_attempt(self) -> int:
         return self.__retry + 1
@@ -364,12 +417,12 @@ class TaskModelWithPrinterAndTracker(
     def print_out(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
-        print(f'🤖 ➜  {prefix} • {message_str}', file=sys.stderr)
+        print(f'🤖 ○ {prefix} • {message_str}', file=sys.stderr)
 
     def print_err(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
-        print(f'🤖 ⚠  {prefix} • {message_str}', file=sys.stderr)
+        print(f'🤖 △ {prefix} • {message_str}', file=sys.stderr)
 
     def print_out_dark(self, message: Any, trim_message: bool = True):
         message_str = f'{message}'
@@ -385,25 +438,25 @@ class TaskModelWithPrinterAndTracker(
         return colored(text, color=self.get_color())
 
     def _get_print_prefix(self) -> str:
-        common_prefix = self._get_common_prefix(show_time=True)
+        common_prefix = self._get_common_prefix(show_time=show_time)
         icon = self.get_icon()
         truncated_name = self._get_filled_complete_name()
-        return f'{common_prefix} • {icon} {truncated_name}'
+        return f'{common_prefix} {icon} {truncated_name}'
 
     def _get_log_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=False)
         icon = self.get_icon()
         filled_name = self._get_filled_complete_name()
-        return f'{common_prefix} • {icon} {filled_name}'
+        return f'{common_prefix} {icon} {filled_name}'
 
     def _get_common_prefix(self, show_time: bool) -> str:
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
         pid = self._get_task_pid()
         if show_time:
-            now = datetime.datetime.now().isoformat()
-            return f'{now} ⚙ {pid} ➤ {attempt} of {max_attempt}'
-        return f'⚙ {pid} ➤ {attempt} of {max_attempt}'
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+            return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
+        return f'❁ {pid} → {attempt}/{max_attempt}'
 
     def _get_filled_complete_name(self) -> str:
         if self._filled_complete_name is not None:

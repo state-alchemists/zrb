@@ -1,15 +1,33 @@
 from zrb import (
     runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask, FlowNode,
-    Env, StrInput, HTTPChecker
+    Env, BoolInput, StrInput, HTTPChecker, Group
 )
 import os
+import sys
 import tomli
 
 CURRENT_DIR = os.path.dirname(__file__)
+PLAYGROUND_DIR = os.path.join(CURRENT_DIR, 'playground')
+IS_PLAYGROUND_EXIST = os.path.isdir(PLAYGROUND_DIR)
+
+if IS_PLAYGROUND_EXIST:
+    sys.path.append(PLAYGROUND_DIR)
+    from playground import zrb_init
+    assert zrb_init
+
 
 with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
     toml_dict = tomli.load(f)
     VERSION = toml_dict['project']['version']
+
+
+###############################################################################
+# Group Definitions
+###############################################################################
+
+playground_group = Group(
+    name='playground', description='Playground related tasks'
+)
 
 ###############################################################################
 # Input Definitions
@@ -27,6 +45,12 @@ zrb_latest_image_name_input = StrInput(
     description='Zrb latest image name',
     prompt='Zrb latest image name',
     default='docker.io/stalchmst/zrb:latest'
+)
+
+build_zrb_input = BoolInput(name='build-zrb', default=True)
+install_symlink_input = BoolInput(name='install-symlink', default=True)
+create_playground_input = BoolInput(
+    name='create-playground', default=not IS_PLAYGROUND_EXIST
 )
 
 ###############################################################################
@@ -61,6 +85,9 @@ build = CmdTask(
         'flit build',
     ],
 )
+skippable_build: CmdTask = build.copy()
+skippable_build.add_inputs(build_zrb_input)
+skippable_build.set_skip_execution('{{ not input.build_zrb}}')
 runner.register(build)
 
 publish_pip = CmdTask(
@@ -205,7 +232,7 @@ runner.register(publish)
 install_symlink = CmdTask(
     name='install-symlink',
     description='Install Zrb as symlink',
-    upstreams=[build],
+    upstreams=[skippable_build],
     cmd=[
         'set -e',
         f'cd {CURRENT_DIR}',
@@ -213,6 +240,12 @@ install_symlink = CmdTask(
         'flit install --symlink',
     ]
 )
+skippable_install_symlink: CmdTask = install_symlink.copy()
+skippable_install_symlink.add_inputs(
+    build_zrb_input,
+    install_symlink_input
+)
+skippable_install_symlink.set_skip_execution('{{ not input.install_symlink}}')
 runner.register(install_symlink)
 
 test = CmdTask(
@@ -266,30 +299,64 @@ serve_test = CmdTask(
 )
 runner.register(serve_test)
 
-playground = CmdTask(
-    name='playground',
-    upstreams=[install_symlink],
-    cmd=[
-        'set -e',
-        f'cd {CURRENT_DIR}',
-        'echo "🤖 Remove playground"',
-        'sudo rm -Rf playground',
-        'echo "🤖 Create playground"',
-        'cp -R playground-template playground',
-        f'cd {CURRENT_DIR}/playground',
-        'echo "🤖 Seed project"',
-        './seed-project.sh',
-        'echo "🤖 Change to playground directory:"',
-        f'echo "      cd {CURRENT_DIR}/playground"',
-        'echo "🤖 Or playground project directory:"',
-        f'echo "      cd {CURRENT_DIR}/playground/my-project"',
-        'echo "🤖 You can also test pip package:"',
-        f'echo "      cd {CURRENT_DIR}/playground/my-project/src/zrb-coba-test"',  # noqa
-        'echo "      source .venv/bin/activate"',
-        'echo "      zrb-coba-test"',
-        'echo "🤖 And start hacking around. Good luck :)"',
+create_playground = CmdTask(
+    name='create',
+    description='Create playground',
+    group=playground_group,
+    upstreams=[skippable_install_symlink],
+    cwd=CURRENT_DIR,
+    cmd_path=os.path.join(CURRENT_DIR, 'playground-create.sh'),
+    retry=0,
+    preexec_fn=None
+)
+skippable_create_playground: CmdTask = create_playground.copy()
+skippable_create_playground.add_inputs(
+    build_zrb_input,
+    install_symlink_input,
+    create_playground_input
+)
+skippable_create_playground.set_skip_execution('{{ not input.create_playground}}') # noqa
+runner.register(create_playground)
+
+test_fastapp_playground = CmdTask(
+    name='test-fastapp',
+    description='Test Fastapp',
+    group=playground_group,
+    upstreams=[skippable_create_playground],
+    cwd=CURRENT_DIR,
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'playground-init.sh'),
+        os.path.join(CURRENT_DIR, 'playground-test-fastapp.sh')
     ],
     retry=0,
     preexec_fn=None
 )
-runner.register(playground)
+runner.register(test_fastapp_playground)
+
+test_install_playground_symlink = CmdTask(
+    name='test-install-symlink',
+    description='Test installing symlink',
+    group=playground_group,
+    upstreams=[skippable_create_playground],
+    cwd=CURRENT_DIR,
+    cmd_path=[
+        os.path.join(CURRENT_DIR, 'playground-init.sh'),
+        os.path.join(CURRENT_DIR, 'playground-test-install-symlink.sh')
+    ],
+    retry=0,
+    preexec_fn=None
+)
+runner.register(test_install_playground_symlink)
+
+test_playground = CmdTask(
+    name='test',
+    description='Test playground',
+    group=playground_group,
+    upstreams=[
+        test_fastapp_playground,
+        test_install_playground_symlink
+    ],
+    cmd='echo Test performed',
+    retry=0
+)
+runner.register(test_playground)

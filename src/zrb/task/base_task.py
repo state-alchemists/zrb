@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Mapping, Optional, Union
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task_composite import (
@@ -22,8 +24,6 @@ import copy
 import inspect
 import os
 import sys
-
-MULTILINE_INDENT = ' ' * 8
 
 
 @typechecked
@@ -51,7 +51,8 @@ class BaseTask(
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        return_upstream_result: bool = False
     ):
         # init properties
         retry_interval = retry_interval if retry_interval >= 0 else 0
@@ -79,6 +80,7 @@ class BaseTask(
             run=run,
             skip_execution=skip_execution,
         )
+        self._return_upstream_result = return_upstream_result
         # init private properties
         self._is_keyval_set = False  # Flag
         self._all_inputs: Optional[List[AnyInput]] = None
@@ -88,7 +90,10 @@ class BaseTask(
         self._is_execution_started: bool = False
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
-        self._allow_add_upstream: bool = True
+        self._allow_add_upstreams: bool = True
+
+    def copy(self) -> AnyTask:
+        return copy.deepcopy(self)
 
     def get_all_inputs(self) -> Iterable[AnyInput]:
         ''''
@@ -96,15 +101,25 @@ class BaseTask(
         '''
         if self._all_inputs is not None:
             return self._all_inputs
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
+        self._allow_add_inputs = False
         self._all_inputs: List[AnyInput] = []
         existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
-        for task_input in self._inputs:
-            if task_input.get_name() in existing_input_names:
+        for input_index, first_occurence_task_input in enumerate(self._inputs):
+            input_name = first_occurence_task_input.get_name()
+            if input_name in existing_input_names:
                 continue
+            # Look for all input with the same name in the current task
+            task_inputs = [
+                candidate
+                for candidate in self._inputs[input_index:]
+                if candidate.get_name() == input_name
+            ]
+            # Get the last input, and add it to _all_inputs
+            task_input = task_inputs[-1]
             self._all_inputs.append(task_input)
-            existing_input_names[task_input.get_name()] = True
+            existing_input_names[input_name] = True
         # Add upstream inputs
         for upstream in self._upstreams:
             upstream_inputs = upstream.get_all_inputs()
@@ -123,7 +138,7 @@ class BaseTask(
         '''
         def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info('Copy task')
-            self_cp = copy.deepcopy(self)
+            self_cp = self.copy()
             return asyncio.run(self_cp._run_and_check_all(
                 env_prefix=env_prefix,
                 raise_error=raise_error,
@@ -133,7 +148,7 @@ class BaseTask(
         return function
 
     def add_upstreams(self, *upstreams: AnyTask):
-        if not self._allow_add_upstream:
+        if not self._allow_add_upstreams:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
         self._upstreams += upstreams
 
@@ -156,7 +171,7 @@ class BaseTask(
             if inspect.iscoroutinefunction(self._run_function):
                 return await self._run_function(*args, **kwargs)
             return self._run_function(*args, **kwargs)
-        return True
+        return None
 
     async def check(self) -> bool:
         '''
@@ -167,12 +182,8 @@ class BaseTask(
         return await self._is_done()
 
     def _show_done_info(self):
-        complete_name = self._get_complete_name()
         elapsed_time = self._get_elapsed_time()
-        message = '\n'.join([
-            f'{complete_name} completed in {elapsed_time} seconds',
-        ])
-        self.print_out_dark(message)
+        self.print_out_dark(f'Completed in {elapsed_time} seconds')
         self._play_bell()
 
     def _get_multiline_repr(self, text: str) -> str:
@@ -182,7 +193,7 @@ class BaseTask(
             return lines[0]
         for index, line in enumerate(lines):
             line_number_repr = str(index + 1).rjust(4, '0')
-            lines_repr.append(f'{MULTILINE_INDENT}{line_number_repr} | {line}')
+            lines_repr.append(f'        {line_number_repr} | {line}')
         return '\n' + '\n'.join(lines_repr)
 
     async def _set_local_keyval(
@@ -212,6 +223,8 @@ class BaseTask(
         )
 
     def _get_all_envs(self) -> Mapping[str, Env]:
+        self._allow_add_envs = False
+        self._allow_add_env_files = False
         all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
             all_envs[env_name] = Env(
@@ -241,21 +254,21 @@ class BaseTask(
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
-            input_map = self.get_input_map()
+            new_kwargs = self.get_input_map()
             # make sure args and kwargs['_args'] are the same
             self.log_info('Set run args')
             new_args = copy.deepcopy(args)
             if len(args) == 0 and '_args' in kwargs:
                 new_args = kwargs['_args']
-            input_map['_args'] = new_args
+            new_kwargs['_args'] = new_args
             # inject self as input_map['_task']
-            input_map['_task'] = self
+            new_kwargs['_task'] = self
             self._args = new_args
-            self._kwargs = input_map
+            self._kwargs = new_kwargs
             # run the task
             coroutines = [
                 asyncio.create_task(self._loop_check(show_info=True)),
-                asyncio.create_task(self._run_all(*new_args, **input_map))
+                asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
             results = await asyncio.gather(*coroutines)
             result = results[-1]
@@ -269,6 +282,17 @@ class BaseTask(
             self._play_bell()
 
     def _print_result(self, result: Any):
+        if result is None:
+            return
+        if self._return_upstream_result:
+            # if _return_upstream_result, result is list (see: self._run_all)
+            upstream_results = list(result)
+            for upstream_index, upstream_result in enumerate(upstream_results):
+                self._upstreams[upstream_index]._print_result(upstream_result)
+            return
+        self.print_result(result)
+
+    def print_result(self, result: Any):
         '''
         Print result to stdout so that it can be processed further.
         e.g.: echo $(zrb explain solid) > solid-principle.txt
@@ -276,8 +300,6 @@ class BaseTask(
         You need to override this method
         if you want to show the result differently.
         '''
-        if result is None:
-            return
         print(result)
 
     async def _loop_check(self, show_info: bool = False) -> bool:
@@ -349,7 +371,7 @@ class BaseTask(
         await self._mark_awaited()
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
@@ -358,6 +380,8 @@ class BaseTask(
         coroutines.append(self._cached_run(*args, **kwargs))
         # Wait everything to complete
         results = await asyncio.gather(*coroutines)
+        if self._return_upstream_result:
+            return results[0:-1]
         return results[-1]
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
@@ -369,7 +393,7 @@ class BaseTask(
         self.log_info('State: waiting')
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
@@ -388,7 +412,7 @@ class BaseTask(
             await self._mark_done()
             return None
         # start running task
-        result: Any
+        result: Any = None
         while self._should_attempt():
             try:
                 self.log_debug(
@@ -431,7 +455,7 @@ class BaseTask(
         new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
         # set uplstreams keyval
-        self._allow_add_upstream = False
+        self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(

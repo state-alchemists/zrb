@@ -71,10 +71,16 @@ Whether Zrb should load show advertisement or not.
 - __Default value:__ `true`
 - __Possible value:__ boolean values
 
-
 ## `ZRB_SHOW_PROMPT`
 
 Whether Zrb should always show prompt or not.
+
+- __Default value:__ `true`
+- __Possible value:__ boolean values
+
+## `ZRB_SHOW_TIME`
+
+Whether Zrb should log the time or not.
 
 - __Default value:__ `true`
 - __Possible value:__ boolean values

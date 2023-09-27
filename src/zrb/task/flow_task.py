@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Optional, TypeVar, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Optional, TypeVar, Union
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
@@ -10,9 +12,9 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 from zrb.helper.accessories.name import get_random_name
 
-import copy
 
 TFlowNode = TypeVar('TFlowNode', bound='FlowNode')
+TFlowTask = TypeVar('TFlowTask', bound='FlowTask')
 
 
 @typechecked
@@ -31,7 +33,9 @@ class FlowNode():
         cmd_path: str = '',
         preexec_fn: Optional[Callable[[], Any]] = None,
         run: Optional[Callable[..., Any]] = None,
-        nodes: List[Union[TFlowNode, List[TFlowNode]]] = []
+        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        return_upstream_result: bool = False,
+        nodes: List[Union[TFlowNode, List[TFlowNode]]] = [],
     ):
         self._name = name if name != '' else get_random_name()
         self._task = task
@@ -46,6 +50,8 @@ class FlowNode():
         self._preexec_fn = preexec_fn
         self._run_function = run
         self._nodes = nodes
+        self._skip_execution = skip_execution
+        self._return_upstream_result = return_upstream_result
 
     def to_task(
         self,
@@ -55,7 +61,7 @@ class FlowNode():
         env_files: List[EnvFile] = [],
     ):
         if self._task is not None:
-            task = copy.deepcopy(self._task)
+            task: AnyTask = self._task.copy()
             additional_upstreams = self._upstreams + upstreams
             if len(upstreams) > 0:
                 task.add_upstreams(*additional_upstreams)
@@ -69,7 +75,9 @@ class FlowNode():
                 env_files=env_files + self._env_files,
                 icon=self._icon,
                 color=self._color,
-                run=self._run_function
+                run=self._run_function,
+                skip_execution=self._skip_execution,
+                return_upstream_result=self._return_upstream_result
             )
         if self._cmd != '' or self._cmd_path != '':
             return CmdTask(
@@ -82,7 +90,9 @@ class FlowNode():
                 color=self._color,
                 cmd=self._cmd,
                 cmd_path=self._cmd_path,
-                preexec_fn=self._preexec_fn
+                preexec_fn=self._preexec_fn,
+                skip_execution=self._skip_execution,
+                return_upstream_result=self._return_upstream_result
             )
         return FlowTask(
             name=self._name,
@@ -92,7 +102,9 @@ class FlowNode():
             env_files=env_files + self._env_files,
             icon=self._icon,
             color=self._color,
-            nodes=self._nodes
+            nodes=self._nodes,
+            skip_execution=self._skip_execution,
+            return_upstream_result=self._return_upstream_result
         )
 
 
@@ -115,7 +127,8 @@ class FlowTask(BaseTask):
         retry: int = 2,
         retry_interval: float = 1,
         nodes: List[Union[FlowNode, List[FlowNode]]] = [],
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        return_upstream_result: bool = False
     ):
         final_upstreams: List[AnyTask] = upstreams
         for node in nodes:
@@ -146,8 +159,12 @@ class FlowTask(BaseTask):
             retry=retry,
             retry_interval=retry_interval,
             skip_execution=skip_execution,
+            return_upstream_result=return_upstream_result,
             run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
         )
+
+    def copy(self) -> TFlowTask:
+        return super().copy()
 
     def _get_flow_nodes(
         self, node: Union[FlowNode, List[FlowNode]]

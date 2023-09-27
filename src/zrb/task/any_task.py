@@ -19,6 +19,10 @@ class AnyTask(ABC):
     multiple interfaces since AnyTask is considered atomic.
     '''
     @abstractmethod
+    def copy(self) -> TAnyTask:
+        pass
+
+    @abstractmethod
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
@@ -34,6 +38,52 @@ class AnyTask(ABC):
 
     @abstractmethod
     def add_upstreams(self, *upstreams: TAnyTask):
+        pass
+
+    @abstractmethod
+    def add_inputs(self, *inputs: AnyInput):
+        pass
+
+    @abstractmethod
+    def add_envs(self, *envs: Env):
+        pass
+
+    @abstractmethod
+    def add_env_files(self, *env_files: EnvFile):
+        pass
+
+    @abstractmethod
+    def set_name(self, new_name: str):
+        pass
+
+    @abstractmethod
+    def set_description(self, new_description: str):
+        pass
+
+    @abstractmethod
+    def set_icon(self, new_icon: str):
+        pass
+
+    @abstractmethod
+    def set_color(self, new_color: str):
+        pass
+
+    @abstractmethod
+    def set_skip_execution(
+        self, skip_execution: Union[bool, str, Callable[..., bool]]
+    ):
+        pass
+
+    @abstractmethod
+    def set_retry(self, new_retry: int):
+        pass
+
+    @abstractmethod
+    def set_retry_interval(self, new_retry_interval: Union[float, int]):
+        pass
+
+    @abstractmethod
+    def set_checking_interval(self, new_checking_interval: Union[float, int]):
         pass
 
     @abstractmethod
@@ -58,6 +108,10 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_envs(self) -> List[Env]:
+        pass
+
+    @abstractmethod
+    def get_inputs(self) -> List[AnyInput]:
         pass
 
     @abstractmethod
@@ -152,4 +206,24 @@ class AnyTask(ABC):
     def render_file(
         self, location: str, data: Optional[Mapping[str, Any]] = None
     ) -> str:
+        pass
+
+    @abstractmethod
+    def _run_all(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+    @abstractmethod
+    def _loop_check(self, show_info: bool) -> bool:
+        pass
+
+    @abstractmethod
+    def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+        pass
+
+    @abstractmethod
+    def _print_result(self, result: Any):
+        pass
+
+    @abstractmethod
+    def print_result(self, result: Any):
         pass

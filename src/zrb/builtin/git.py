@@ -3,20 +3,11 @@ from zrb.builtin.group import git_group
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
 from zrb.task_input.str_input import StrInput
+from zrb.task_input.bool_input import BoolInput
 from zrb.runner import runner
-from zrb.helper.git.detect_changes import get_modified_files
+from zrb.helper.git.detect_changes import get_modified_file_states
 from zrb.helper.accessories.color import colored
-
-
-###############################################################################
-# Input Definitions
-###############################################################################
-commit_input = StrInput(
-    name='commit',
-    shortcut='c',
-    description='commit hash/tag',
-    default='HEAD'
-)
+from zrb.helper.python_task import show_lines
 
 ###############################################################################
 # Task Definitions
@@ -24,26 +15,60 @@ commit_input = StrInput(
 
 
 @python_task(
-    name='get-changes',
+    name='get-file-changes',
     group=git_group,
     description='Get modified files',
-    inputs=[commit_input],
+    inputs=[
+        StrInput(
+            name='commit',
+            shortcut='c',
+            description='commit hash/tag',
+            prompt='Commit hash/Tag',
+            default='HEAD'
+        ),
+       BoolInput(
+            name='include-new',
+            description='include new files',
+            prompt='Include new files',
+            default=True
+        ),
+        BoolInput(
+            name='include-removed',
+            description='include removed file',
+            prompt='Include removed file',
+            default=True
+        ), 
+        BoolInput(
+            name='include-updated',
+            description='include updated file',
+            prompt='Include removed file',
+            default=True
+        ),
+    ],
     runner=runner
 )
-async def show(*args: Any, **kwargs: Any):
+async def get_file_changes(*args: Any, **kwargs: Any):
     commit = kwargs.get('commit', 'HEAD')
+    include_new = kwargs.get('include_new', True)
+    include_removed = kwargs.get('include_removed', True)
+    include_updated = kwargs.get('include_updated', True)
     task: Task = kwargs['_task']
-    modified_files = get_modified_files(commit)
-    modified_file_keys = list(modified_files.keys())
+    modified_file_states = get_modified_file_states(commit)
+    modified_file_keys = []
+    output = []
+    for modified_file, state in modified_file_states.items():
+        if include_updated and state.minus and state.plus:
+            output.append(colored(f'+- {modified_file}', color='yellow'))
+            modified_file_keys.append(modified_file)
+            continue
+        if include_removed and state.minus and not state.plus:
+            output.append(colored(f'-- {modified_file}', color='red'))
+            modified_file_keys.append(modified_file)
+            continue
+        if include_new and state.plus and not state.minus:
+            output.append(colored(f'++ {modified_file}', color='green'))
+            modified_file_keys.append(modified_file)
+            continue
+    show_lines(kwargs['_task'], *output)
     modified_file_keys.sort()
-    for modified_file, state in modified_files.items():
-        if state.minus and state.plus:
-            task.print_out(colored(f'+- {modified_file}', color='yellow'))
-            continue
-        if state.minus:
-            task.print_out(colored(f'-- {modified_file}', color='red'))
-            continue
-        if state.plus:
-            task.print_out(colored(f'++ {modified_file}', color='green'))
-            continue
     return '\n'.join(modified_file_keys)

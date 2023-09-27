@@ -1,12 +1,13 @@
 set -e
-echo '🤖 Remove my-project'
-rm -Rf my-project
+echo '🤖 Remove playground'
+sudo rm -Rf playground
 export ZRB_SHOW_PROMPT=0
+export ZRB_SHOW_TIME=0
 
 
-echo '🤖 Create my-project'
-zrb project create --project-dir my-project --project-name "My Project"
-cd my-project
+echo '🤖 Create playground'
+zrb project create --project-dir playground --project-name "Playground"
+cd playground
 
 
 echo '🤖 Add cmd-task'
@@ -62,9 +63,6 @@ zrb project add fastapp-field \
     --column-name "title" \
     --column-type "str"
 
-echo '🧪🤖 Test fastapp'
-zrb project test-fastapp
-
 echo '🤖 Add python package'
 zrb project add pip-package \
     --project-dir . \
@@ -75,20 +73,9 @@ zrb project add pip-package \
     --package-author-name "Go Frendi" \
     --package-author-email "gofrendiasgard@gmail.com" \
 
-echo '🧪🤖 Test Install pip package symlink'
-zrb project install-zrb-pkg-symlink
-
 echo '🤖 Add generator'
 zrb project add app-generator \
     --template-name "app"
-
-echo '🧪🤖 Test run generator'
-zrb project add app \
-    --project-dir . \
-    --app-name "app" \
-    --app-image-name "docker.io/gofrendi/coba" \
-    --app-port "8080" \
-    --env-prefix "APP"
 
 echo '🤖 Add generator (maximum feature)'
 zrb project add app-generator \
@@ -98,7 +85,21 @@ zrb project add app-generator \
     --is-http-port true \
     --use-helm true \
 
-echo '🧪🤖 Test run generator (maximum feature)'
+echo '🤖 Add generator (No custom image)'
+zrb project add app-generator \
+    --template-name "app-no-custom-image" \
+    --build-custom-image false \
+    --is-container-only true
+
+echo '🤖 Run generator'
+zrb project add app \
+    --project-dir . \
+    --app-name "app" \
+    --app-image-name "docker.io/gofrendi/coba" \
+    --app-port "8080" \
+    --env-prefix "APP"
+
+echo '🤖 Run generator (maximum feature)'
 zrb project add app-max \
     --project-dir . \
     --app-name "app-max" \
@@ -106,13 +107,7 @@ zrb project add app-max \
     --app-port "8081" \
     --env-prefix "APP"
 
-echo '🤖 Add generator (No custom image)'
-zrb project add app-generator \
-    --template-name "app-no-custom-image" \
-    --build-custom-image false \
-    --is-container-only true
-
-echo '🧪🤖 Test run generator (no custom image)'
+echo '🤖 Run generator (no custom image)'
 zrb project add app-no-custom-image \
     --project-dir . \
     --app-name "app-no-custom-image" \
