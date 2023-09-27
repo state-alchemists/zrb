@@ -207,3 +207,23 @@ class AnyTask(ABC):
         self, location: str, data: Optional[Mapping[str, Any]] = None
     ) -> str:
         pass
+
+    @abstractmethod
+    def _run_all(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+    @abstractmethod
+    def _loop_check(self, show_info: bool) -> bool:
+        pass
+
+    @abstractmethod
+    def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+        pass
+
+    @abstractmethod
+    def _print_result(self, result: Any):
+        pass
+
+    @abstractmethod
+    def print_result(self, result: Any):
+        pass

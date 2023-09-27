@@ -366,6 +366,14 @@ If `skip_execution` is evaluated to `True`, then the task will be considered as 
 - __Default value:__ `False`
 
 
+## `return_upstream_result`
+
+Boolean, whether return upstreams result instead of current task result or not.
+
+- __Required:__ False
+- __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
+- __Default value:__ `False`
+
 # Common task methods
 
 Every task share some common methods like `run`, `check`, and `to_function`.

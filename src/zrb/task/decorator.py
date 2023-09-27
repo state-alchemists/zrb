@@ -27,6 +27,7 @@ def python_task(
     retry: int = 2,
     retry_interval: float = 1,
     skip_execution: Union[bool, str, Callable[..., bool]] = False,
+    return_upstream_result: bool = False,
     runner: Optional[Runner] = None
 ) -> Callable[[Callable[..., Any]], Task]:
     def _create_task(fn: Callable[..., Any]) -> Task:
@@ -45,7 +46,8 @@ def python_task(
             retry=retry,
             retry_interval=retry_interval,
             run=fn,
-            skip_execution=skip_execution
+            skip_execution=skip_execution,
+            return_upstream_result=return_upstream_result
         )
         if runner is not None:
             runner.register(task)

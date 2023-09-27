@@ -51,7 +51,8 @@ class BaseTask(
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        return_upstream_result: bool = False
     ):
         # init properties
         retry_interval = retry_interval if retry_interval >= 0 else 0
@@ -79,6 +80,7 @@ class BaseTask(
             run=run,
             skip_execution=skip_execution,
         )
+        self._return_upstream_result = return_upstream_result
         # init private properties
         self._is_keyval_set = False  # Flag
         self._all_inputs: Optional[List[AnyInput]] = None
@@ -169,7 +171,7 @@ class BaseTask(
             if inspect.iscoroutinefunction(self._run_function):
                 return await self._run_function(*args, **kwargs)
             return self._run_function(*args, **kwargs)
-        return True
+        return None
 
     async def check(self) -> bool:
         '''
@@ -280,6 +282,17 @@ class BaseTask(
             self._play_bell()
 
     def _print_result(self, result: Any):
+        if result is None:
+            return
+        if self._return_upstream_result:
+            # if _return_upstream_result, result is list (see: self._run_all)
+            upstream_results = list(result)
+            for upstream_index, upstream_result in enumerate(upstream_results):
+                self._upstreams[upstream_index]._print_result(upstream_result)
+            return
+        self.print_result(result)
+
+    def print_result(self, result: Any):
         '''
         Print result to stdout so that it can be processed further.
         e.g.: echo $(zrb explain solid) > solid-principle.txt
@@ -287,8 +300,6 @@ class BaseTask(
         You need to override this method
         if you want to show the result differently.
         '''
-        if result is None:
-            return
         print(result)
 
     async def _loop_check(self, show_info: bool = False) -> bool:
@@ -369,6 +380,8 @@ class BaseTask(
         coroutines.append(self._cached_run(*args, **kwargs))
         # Wait everything to complete
         results = await asyncio.gather(*coroutines)
+        if self._return_upstream_result:
+            return results[0:-1]
         return results[-1]
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
