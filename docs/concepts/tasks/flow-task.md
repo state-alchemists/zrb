@@ -34,7 +34,7 @@ start_app = CmdTask(
 
 prepare_and_start_app = FlowTask(
     name='prepare-and-start-app',
-    nodes=[
+    steps=[
         # Prepare backend and frontend concurrently
         [
             prepare_backend,
