@@ -1,24 +1,26 @@
 from typing import List
-from zrb.task.flow_task import FlowNode, FlowTask
+from zrb.task.cmd_task import CmdTask
+from zrb.task.task import Task
+from zrb.task.flow_task import FlowTask
 from zrb.task.decorator import python_task
 
 
 def test_flow_task():
     flow_task = FlowTask(
         name='flow_task',
-        nodes=[
+        steps=[
             [
-                FlowNode(name='create-sodium', cmd='echo "Na"'),
-                FlowNode(name='create-chlorine', cmd='echo "Cl"'),
+                CmdTask(name='create-sodium', cmd='echo "Na"'),
+                CmdTask(name='create-chlorine', cmd='echo "Cl"'),
             ],
-            FlowNode(
+            Task(
                 name='create-salt',
                 run=lambda *args, **kwargs: "NaCl"
             ),
-            FlowNode(
+            FlowTask(
                 name='create-saline-water',
-                nodes=[
-                    FlowNode(
+                steps=[
+                    Task(
                         name='create-water',
                         run=lambda *args, **kwargs: "H2O + NaCl"
                     )
@@ -65,12 +67,12 @@ def test_flow_task_with_existing_tasks():
     flow_task = FlowTask(
         name='flow_task',
         upstreams=[prepare_lab],
-        nodes=[
+        steps=[
             [
-                FlowNode(task=create_sodium),
-                FlowNode(task=create_chlorine)
+                create_sodium,
+                create_chlorine
             ],
-            FlowNode(task=create_salt)
+            create_salt
         ]
     )
     function = flow_task.to_function()

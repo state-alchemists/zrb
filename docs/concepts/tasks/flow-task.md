@@ -6,7 +6,7 @@
 FlowTask allows you to compose several unrelated tasks/actions into a single tasks.
 
 ```python
-from zrb import FlowTask, FlowNode, CmdTask, HttpChecker, runner
+from zrb import FlowTask, CmdTask, HttpChecker, runner
 import os
 
 CURRENT_DIR = os.dirname(__file__)
@@ -37,13 +37,13 @@ prepare_and_start_app = FlowTask(
     nodes=[
         # Prepare backend and frontend concurrently
         [
-            FlowNode(task=prepare_backend),
-            FlowNode(task=prepare_frontend)
+            prepare_backend,
+            prepare_frontend
         ],
         # Then start app
-        FlowNode(task=start_app),
+        start_app,
         # And finally show instruction
-        FlowNode(
+        CmdTask(
             name='show-instruction',
             cmd='echo "App is ready, Check your browser"'
         )

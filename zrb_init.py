@@ -1,5 +1,5 @@
 from zrb import (
-    runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask, FlowNode,
+    runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask,
     Env, BoolInput, StrInput, HTTPChecker, Group
 )
 import os
@@ -222,9 +222,9 @@ runner.register(push_latest_image)
 publish = FlowTask(
     name='publish',
     description='Publish new version',
-    nodes=[
-        FlowNode(task=publish_pip),
-        FlowNode(task=push_latest_image),
+    steps=[
+        publish_pip,
+        push_latest_image,
     ]
 )
 runner.register(publish)

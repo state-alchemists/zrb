@@ -1,3 +1,4 @@
+set -e
 if command_exists ssh
 then
     echo "SSH is already installed."

@@ -12,7 +12,7 @@ def test_task_with_no_runner():
     )
     function = task.to_function()
     result = function()
-    assert result
+    assert result is None
 
 
 def test_task_with_predefined_runner():

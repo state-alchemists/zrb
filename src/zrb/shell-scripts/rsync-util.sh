@@ -1,3 +1,4 @@
+set -e
 auth_rsync(){
     if [ "$_CONFIG_SSH_KEY" != "" ]
     then

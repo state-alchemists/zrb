@@ -1,3 +1,4 @@
+set -e
 auth_ssh(){
     if [ "$_CONFIG_SSH_KEY" != "" ]
     then
