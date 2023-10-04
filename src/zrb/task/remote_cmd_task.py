@@ -56,9 +56,13 @@ class RemoteCmdTask(BaseRemoteCmdTask):
     ):
         pre_cmd = '\n'.join([
             SSH_UTIL_SCRIPT,
-            'auth_ssh 2>&2 <<\'ENDSSH\''
+            '_SCRIPT="$(cat <<\'ENDSCRIPT\'',
         ])
-        post_cmd = 'ENDSSH'
+        post_cmd = '\n'.join([
+            'ENDSCRIPT',
+            ')"',
+            'auth_ssh "$_SCRIPT"'
+        ])
         BaseRemoteCmdTask.__init__(
             self,
             name=name,
