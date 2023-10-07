@@ -49,3 +49,6 @@ class PasswordInput(BaseInput):
             show_envvar=show_envvar,
             nargs=nargs,
         )
+
+    def is_hidden(self) -> bool:
+        return True

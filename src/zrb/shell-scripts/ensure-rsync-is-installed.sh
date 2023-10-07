@@ -1,3 +1,4 @@
+set -e
 if command_exists rsync
 then
     echo "Rsync is already installed."

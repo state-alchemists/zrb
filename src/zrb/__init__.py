@@ -13,7 +13,7 @@ from zrb.task.path_checker import PathChecker
 from zrb.task.resource_maker import (
     ResourceMaker, Replacement, ReplacementMutator
 )
-from zrb.task.flow_task import FlowTask, FlowNode
+from zrb.task.flow_task import FlowTask
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.task_input import Input
 from zrb.task_input.bool_input import BoolInput
@@ -43,7 +43,6 @@ assert PortChecker
 assert PathChecker
 assert ResourceMaker
 assert FlowTask
-assert FlowNode
 assert Replacement
 assert ReplacementMutator
 assert AnyInput

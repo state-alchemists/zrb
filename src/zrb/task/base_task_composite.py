@@ -418,11 +418,13 @@ class TaskModelWithPrinterAndTracker(
         prefix = self._get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
         print(f'🤖 ○ {prefix} • {message_str}', file=sys.stderr)
+        sys.stderr.flush()
 
     def print_err(self, message: Any, trim_message: bool = True):
         prefix = self._get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
         print(f'🤖 △ {prefix} • {message_str}', file=sys.stderr)
+        sys.stderr.flush()
 
     def print_out_dark(self, message: Any, trim_message: bool = True):
         message_str = f'{message}'

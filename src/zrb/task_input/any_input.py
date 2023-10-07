@@ -21,3 +21,7 @@ class AnyInput(ABC):
     @abstractmethod
     def get_options(self) -> Mapping[str, Any]:
         pass
+
+    @abstractmethod
+    def is_hidden(self) -> bool:
+        pass

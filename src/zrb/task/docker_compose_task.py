@@ -10,7 +10,7 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.string.conversion import to_cmd_name
-from zrb.helper.string.double_quote import double_quote
+from zrb.helper.string.modification import double_quote
 from zrb.helper.docker_compose.file import (
     read_compose_file, write_compose_file
 )

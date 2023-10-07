@@ -1,3 +1,4 @@
+set -e
 if command_exists docker
 then
     echo "Docker is already installed."

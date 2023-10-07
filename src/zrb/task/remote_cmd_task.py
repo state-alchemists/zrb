@@ -15,7 +15,7 @@ import pathlib
 CURRENT_DIR = os.path.dirname(__file__)
 SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, '..', 'shell-scripts')
 with open(os.path.join(SHELL_SCRIPT_DIR, 'ssh-util.sh')) as file:
-    AUTH_SSH_SCRIPT = file.read()
+    SSH_UTIL_SCRIPT = file.read()
 
 ensure_ssh_is_installed = CmdTask(
     name='ensure-ssh-is-installed',
@@ -55,10 +55,14 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         skip_execution: Union[bool, str, Callable[..., bool]] = False
     ):
         pre_cmd = '\n'.join([
-            AUTH_SSH_SCRIPT,
-            'auth_ssh 2>&2 <<\'ENDSSH\''
+            SSH_UTIL_SCRIPT,
+            '_SCRIPT="$(cat <<\'ENDSCRIPT\'',
         ])
-        post_cmd = 'ENDSSH'
+        post_cmd = '\n'.join([
+            'ENDSCRIPT',
+            ')"',
+            'auth_ssh "$_SCRIPT"'
+        ])
         BaseRemoteCmdTask.__init__(
             self,
             name=name,
@@ -86,3 +90,6 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             preexec_fn=preexec_fn,
             skip_execution=skip_execution
         )
+
+    def __repr__(self) -> str:
+        return f'<RemoteCmdTask name={self._name}>'

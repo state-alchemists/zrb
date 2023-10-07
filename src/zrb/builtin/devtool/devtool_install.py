@@ -2,7 +2,8 @@ from zrb.helper.typing import Any, Callable
 from zrb.helper.typecheck import typechecked
 from zrb.config.config import get_current_shell
 from zrb.task.task import Task
-from zrb.task.flow_task import FlowTask, FlowNode
+from zrb.task.cmd_task import CmdTask
+from zrb.task.flow_task import FlowTask
 from zrb.task_input.str_input import StrInput
 from zrb.task_input.bool_input import BoolInput
 from zrb.runner import runner
@@ -72,23 +73,22 @@ install_gvm = FlowTask(
         ),
         terminal_config_file_input,
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='download-gvm',
             cmd_path=os.path.join(dir_path, 'gvm', 'download.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-gvm',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'gvm', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
-        FlowNode(
+        CmdTask(
             name='finalize-gvm-installation',
             cmd_path=os.path.join(dir_path, 'gvm', 'finalize.sh'),
             preexec_fn=None
@@ -110,23 +110,22 @@ install_pyenv = FlowTask(
         ),
         terminal_config_file_input,
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='download-pyenv',
             cmd_path=os.path.join(dir_path, 'pyenv', 'download.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-pyenv',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'pyenv', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
-        FlowNode(
+        CmdTask(
             name='finalize-pyenv-installation',
             cmd_path=os.path.join(dir_path, 'pyenv', 'finalize.sh'),
             preexec_fn=None
@@ -148,23 +147,22 @@ install_nvm = FlowTask(
         ),
         terminal_config_file_input,
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='download-nvm',
             cmd_path=os.path.join(dir_path, 'nvm', 'download.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-nvm',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'nvm', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
-        FlowNode(
+        CmdTask(
             name='finalize-nvm-installation',
             cmd_path=os.path.join(dir_path, 'nvm', 'finalize.sh'),
             preexec_fn=None
@@ -193,23 +191,22 @@ install_sdkman = FlowTask(
         ),
         terminal_config_file_input,
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='download-sdkman',
             cmd_path=os.path.join(dir_path, 'sdkman', 'download.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-sdkman',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'sdkman', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
-        FlowNode(
+        CmdTask(
             name='finalize-sdkman-installation',
             cmd_path=os.path.join(dir_path, 'sdkman', 'finalize.sh'),
             preexec_fn=None
@@ -224,21 +221,20 @@ install_pulumi = FlowTask(
     group=dev_tool_install_group,
     description='Universal infrastructure as code',
     inputs=[terminal_config_file_input],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-pulumi',
             cmd_path=os.path.join(dir_path, 'pulumi', 'install.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-pulumi',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'pulumi', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
     ],
     retry=0
@@ -249,8 +245,8 @@ install_aws = FlowTask(
     name='aws',
     group=dev_tool_install_group,
     description='AWS CLI',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-aws',
             cmd_path=os.path.join(dir_path, 'aws', 'install.sh'),
             preexec_fn=None
@@ -264,8 +260,8 @@ install_gcloud = FlowTask(
     name='gcloud',
     group=dev_tool_install_group,
     description='Gcloud CLI',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-gcloud',
             cmd_path=os.path.join(dir_path, 'gcloud', 'install.sh'),
             preexec_fn=None
@@ -287,21 +283,20 @@ install_tmux = FlowTask(
             default='~/.tmux.conf'
         )
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-tmux',
             cmd_path=os.path.join(dir_path, 'tmux', 'install.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-tmux',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'tmux', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
     ],
     retry=0
@@ -320,21 +315,20 @@ install_zsh = FlowTask(
             default='~/.zshrc'
         )
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-zsh',
             cmd_path=os.path.join(dir_path, 'zsh', 'install.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-zsh',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'zsh', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
     ],
     retry=0
@@ -345,8 +339,8 @@ install_kubectl = FlowTask(
     name='kubectl',
     group=dev_tool_install_group,
     description='Kubernetes CLI tool',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-kubectl',
             cmd_path=os.path.join(dir_path, 'kubectl', 'install.sh'),
             preexec_fn=None
@@ -360,8 +354,8 @@ install_helm = FlowTask(
     name='helm',
     group=dev_tool_install_group,
     description='Package manager for kubernetes',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-helm',
             cmd_path=os.path.join(dir_path, 'helm', 'install.sh'),
             preexec_fn=None
@@ -375,8 +369,8 @@ install_docker = FlowTask(
     name='docker',
     group=dev_tool_install_group,
     description='Most popular containerization platform',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-docker',
             cmd_path=os.path.join(dir_path, 'docker', 'install.sh'),
             preexec_fn=None
@@ -393,21 +387,20 @@ install_terraform = FlowTask(
     inputs=[
         terminal_config_file_input
     ],
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-terraform',
             cmd_path=os.path.join(dir_path, 'terraform', 'install.sh'),
             preexec_fn=None
         ),
-        FlowNode(
+        Task(
             name='configure-terraform',
             run=write_config(
                 template_file=os.path.join(
                     dir_path, 'terraform', 'resource', 'config.sh'
                 ),
                 config_file='{{input.config_file}}'
-            ),
-            preexec_fn=None
+            )
         ),
     ],
     retry=0
@@ -418,14 +411,14 @@ install_helix = FlowTask(
     name='helix',
     group=dev_tool_install_group,
     description='Post modern text editor',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-helix',
             cmd_path=os.path.join(dir_path, 'helix', 'install.sh'),
             preexec_fn=None
         ),
         [
-            FlowNode(
+            Task(
                 name='create-helix-theme',
                 run=write_config(
                     template_file=os.path.join(
@@ -433,10 +426,9 @@ install_helix = FlowTask(
                     ),
                     config_file='~/.config/helix/themes/gruvbox_transparent.toml',  # noqa
                     remove_old_config=True
-                ),
-                preexec_fn=None
+                )
             ),
-            FlowNode(
+            Task(
                 name='configure-helix',
                 run=write_config(
                     template_file=os.path.join(
@@ -444,10 +436,9 @@ install_helix = FlowTask(
                     ),
                     config_file='~/.config/helix/config.toml',
                     remove_old_config=True
-                ),
-                preexec_fn=None
+                )
             ),
-            FlowNode(
+            CmdTask(
                 name='install-language-server',
                 cmd_path=os.path.join(
                     dir_path, 'helix', 'install-language-server.sh'
@@ -464,8 +455,8 @@ install_selenium = FlowTask(
     name='selenium',
     group=dev_tool_install_group,
     description='Selenium + Chrome web driver',
-    nodes=[
-        FlowNode(
+    steps=[
+        CmdTask(
             name='install-selenium',
             cmd_path=os.path.join(dir_path, 'selenium', 'install.sh'),
             preexec_fn=None

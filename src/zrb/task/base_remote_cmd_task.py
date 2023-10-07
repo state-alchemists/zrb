@@ -108,11 +108,17 @@ class SingleBaseRemoteCmdTask(CmdTask):
 
     def _get_shell_env_map(self) -> Mapping[str, Any]:
         env_map = super()._get_shell_env_map()
-        env_map['_CONFIG_HOST'] = self._remote_config.host
-        env_map['_CONFIG_PORT'] = str(self._remote_config.port)
-        env_map['_CONFIG_SSH_KEY'] = self._remote_config.ssh_key
-        env_map['_CONFIG_USER'] = self._remote_config.user
-        env_map['_CONFIG_PASSWORD'] = self._remote_config.password
+        env_map['_CONFIG_HOST'] = self.render_str(self._remote_config.host)
+        env_map['_CONFIG_PORT'] = str(self.render_int(
+            self._remote_config.port)
+        )
+        env_map['_CONFIG_SSH_KEY'] = self.render_str(
+            self._remote_config.ssh_key
+        )
+        env_map['_CONFIG_USER'] = self.render_str(self._remote_config.user)
+        env_map['_CONFIG_PASSWORD'] = self.render_str(
+            self._remote_config.password
+        )
         return env_map
 
     def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:

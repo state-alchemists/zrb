@@ -8,4 +8,3 @@ def show_lines(task: Task, *lines: str):
     task.print_out(
         '\n' + separator + separator.join(lines) + '\n', trim_message=False
     )
-
