@@ -14,7 +14,7 @@ from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
 from zrb.helper.accessories.color import colored
 from zrb.helper.advertisement import get_advertisement
-from zrb.helper.string.double_quote import double_quote
+from zrb.helper.string.modification import double_quote
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.map.conversion import to_str as map_to_str
 from zrb.config.config import show_advertisement
@@ -320,6 +320,8 @@ class BaseTask(
     def _show_run_command(self):
         params: List[str] = [double_quote(arg) for arg in self._args]
         for task_input in self.get_all_inputs():
+            if task_input.is_hidden():
+                continue
             key = task_input.get_name()
             kwarg_key = self._get_normalized_input_key(key)
             quoted_value = double_quote(str(self._kwargs[kwarg_key]))

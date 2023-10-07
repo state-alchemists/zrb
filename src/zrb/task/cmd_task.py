@@ -16,7 +16,20 @@ import os
 import pathlib
 import signal
 import sys
+import subprocess
 import time
+
+_has_stty = True
+try:
+    _original_stty = subprocess.getoutput('stty -g').rstrip()
+except Exception:
+    _has_stty = False
+
+
+def _reset_stty():
+    if _has_stty:
+        subprocess.run(['stty', _original_stty])
+
 
 CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
 TCmdTask = TypeVar('TCmdTask', bound='CmdTask')
@@ -327,9 +340,11 @@ class CmdTask(BaseTask):
             line = await queue.get()
             if not line:
                 break
-            line_str = line.decode().rstrip()
+            line_str = line.decode('utf-8').rstrip()
             self._add_to_buffer(buffer, max_size, line_str)
+            _reset_stty()
             print_log(line_str)
+            _reset_stty()
 
     def _add_to_buffer(
         self, buffer: Iterable[str], max_size: int, new_line: str
@@ -337,6 +352,6 @@ class CmdTask(BaseTask):
         if len(buffer) >= max_size:
             buffer.pop(0)
         buffer.append(new_line)
-
+    
     def __repr__(self) -> str:
         return f'<CmdTask name={self._name}>'

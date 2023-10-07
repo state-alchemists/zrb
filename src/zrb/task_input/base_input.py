@@ -86,3 +86,6 @@ class BaseInput(AnyInput):
         if show_prompt:
             options['prompt'] = self._prompt
         return options
+
+    def is_hidden(self) -> bool:
+        return False
