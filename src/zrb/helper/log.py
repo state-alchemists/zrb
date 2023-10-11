@@ -12,7 +12,7 @@ ch.setLevel(logging_level)
 
 # create formatter
 formatter = logging.Formatter(
-    colored('%(levelname)-8s %(asctime)s', attrs=['dark']) + ' %(message)s'
+    colored('%(levelname)-6s %(asctime)s', attrs=['dark']) + ' %(message)s'
 )
 
 # add formatter to ch

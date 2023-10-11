@@ -280,8 +280,8 @@ class BaseTask(
             self._print_result(result)
             return result
         except Exception as e:
+            self.log_error(f'{e}')
             self._show_run_command()
-            self.log_critical(f'{e}')
             if raise_error:
                 raise
         finally:
