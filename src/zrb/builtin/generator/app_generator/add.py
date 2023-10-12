@@ -50,32 +50,28 @@ default_app_port_input = IntInput(
 build_custom_image_input = BoolInput(
     name='build-custom-image',
     description='Whether build custom image or not',
-    prompt='Build custom image',
+    prompt='Does user need to create custom image?',
     default=True
 )
 
 is_container_only_input = BoolInput(
     name='is-container-only',
     description='Whether app only run as container or not',
-    prompt='Is container only',
+    prompt='Is this container only?',
     default=False
 )
 
 is_http_port_input = BoolInput(
     name='is-http-port',
-    description='Whether app run on top of HTTP protocol or not',
-    prompt='Is app a web appp (run on top of HTTP protocol)',
+    description='Whether app run on top of HTTP(s) protocol or not',
+    prompt='Is this a web appp (run on top of HTTP(s))?',
     default=False
 )
 
 use_helm_input = BoolInput(
     name='use-helm',
     description='Whether using helm for deployment or not',
-    prompt=' '.join([
-        'Use helm for deployment',
-        '(Note: If you choose "No" or "False", you can ignore other',
-        'helm related questions)',
-    ]),
+    prompt='Do you want to use helm for deployment?',
     default=False
 )
 
