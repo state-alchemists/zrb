@@ -78,6 +78,8 @@ Once defined, your command will be instantly available from the CLI:
 
 ```bash
 zrb hello
+# or provide the parameter directly:
+# zrb hello --name "Go Frendi"
 ```
 
 ```
