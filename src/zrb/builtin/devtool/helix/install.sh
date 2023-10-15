@@ -40,7 +40,7 @@ else
             sudo dnf install -y helix
         elif command_exists pacman
         then
-            sudo pacman -Syu helix
+            sudo pacman -Syu --noconfirm helix
         elif command_exists snap
         then
             sudo snap install helix

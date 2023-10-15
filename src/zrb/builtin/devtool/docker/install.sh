@@ -48,7 +48,7 @@ else
             sudo systemctl enable docker
         elif command_exists pacman
         then
-            sudo pacman -Syu docker
+            sudo pacman -Syu --noconfirm docker
             sudo systemctl start docker
             sudo systemctl enable docker
         else

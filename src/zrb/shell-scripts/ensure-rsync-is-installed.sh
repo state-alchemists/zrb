@@ -27,7 +27,7 @@ else
             sudo dnf install -y rsync
         elif command_exists pacman
         then
-            sudo pacman -Syu rsync
+            sudo pacman -Syu --noconfirm rsync
         else
             echo "No known package manager found. Please install Rsync manually."
             exit 1
