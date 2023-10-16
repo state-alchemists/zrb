@@ -30,7 +30,7 @@ def _reset_stty():
     global _has_stty
     if _has_stty:
         try:
-            subprocess.run(['stty', _original_stty])
+            subprocess.run(['stty', _original_stty], check=True)
         except Exception:
             _has_stty = False
 
