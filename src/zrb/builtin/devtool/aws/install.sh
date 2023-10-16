@@ -47,7 +47,7 @@ else
             sudo dnf install -y unzip
         elif command_exists pacman
         then
-            sudo pacman -Syu unzip
+            sudo pacman -Syu --noconfirm unzip
         elif command_exists snap
         then
             sudo snap install unzip

@@ -37,7 +37,7 @@ else
             sudo dnf install -y tmux
         elif command_exists pacman
         then
-            sudo pacman -Syu tmux
+            sudo pacman -Syu --noconfirm tmux
         elif command_exists snap
         then
             sudo snap install tmux

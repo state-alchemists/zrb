@@ -27,7 +27,7 @@ else
             sudo dnf install -y openssh-clients
         elif command_exists pacman
         then
-            sudo pacman -Syu openssh
+            sudo pacman -Syu --noconfirm openssh
         else
             echo "No known package manager found. Please install SSH manually."
             exit 1
@@ -66,7 +66,7 @@ else
             sudo dnf install -y sshpass
         elif command_exists pacman
         then
-            sudo pacman -Syu sshpass
+            sudo pacman -Syu --noconfirm sshpass
         else
             echo "No known package manager found. Please install SSHPass manually."
             exit 1

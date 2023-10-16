@@ -37,7 +37,7 @@ else
             sudo dnf install -y zsh
         elif command_exists pacman
         then
-            sudo pacman -Syu zsh
+            sudo pacman -Syu --noconfirm zsh
         elif command_exists snap
         then
             sudo snap install zsh
