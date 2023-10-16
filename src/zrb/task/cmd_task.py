@@ -27,8 +27,12 @@ except Exception:
 
 
 def _reset_stty():
+    global _has_stty
     if _has_stty:
-        subprocess.run(['stty', _original_stty])
+        try:
+            subprocess.run(['stty', _original_stty])
+        except Exception:
+            _has_stty = False
 
 
 CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
