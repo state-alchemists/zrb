@@ -30,13 +30,11 @@ jobs:
           echo "🐧 OS: ${{ runner.os }}"
           echo "🔎 Branch: ${{ github.ref }}"
           echo "🔎 Repo: ${{ github.repository }}"
-      - name: Run zrb
+      - name: Run command
         run: |
           set -e
           export ZRB_ENV=${{ inputs.environment }}
           export ZRB_SHOW_PROMPT=false
-          echo "⚓ Load CI/CD environment"
-          source ./project.sh
           echo "🏁 Start running"
           ${{ inputs.command }}
       - run: echo "🍏 This job's status is ${{ job.status }}."
