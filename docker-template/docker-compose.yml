@@ -21,6 +21,7 @@ services:
     logging: *default-logging
     container_name: zrb
     hostname: zrb
+    command: sleep infinity
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock
     networks:
