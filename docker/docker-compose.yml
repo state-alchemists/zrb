@@ -17,6 +17,8 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
+      args:
+        ZRB_VERSION: ${ZRB_VERSION:-latest}
     image: ${ZRB_IMAGE:-docker.io/stalchmst/zrb}
     logging: *default-logging
     container_name: zrb

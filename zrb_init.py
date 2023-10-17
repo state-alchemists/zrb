@@ -1,6 +1,6 @@
 from zrb import (
-    runner, CmdTask, ResourceMaker, DockerComposeTask, FlowTask,
-    Env, BoolInput, StrInput, HTTPChecker, Group
+    runner, CmdTask, DockerComposeTask, FlowTask, HTTPChecker,
+    Env, Group, BoolInput, StrInput
 )
 import os
 import sys
@@ -33,6 +33,13 @@ playground_group = Group(
 # Input Definitions
 ###############################################################################
 
+zrb_version_input = StrInput(
+    name='zrb-version',
+    description='Zrb version',
+    prompt='Zrb version',
+    default=VERSION
+)
+
 zrb_image_name_input = StrInput(
     name='zrb-image-name',
     description='Zrb image name',
@@ -56,6 +63,12 @@ create_playground_input = BoolInput(
 ###############################################################################
 # Env Definitions
 ###############################################################################
+
+zrb_version_env = Env(
+    name='ZRB_VERSION',
+    os_name='',
+    default='{{input.zrb_version}}'
+)
 
 zrb_image_env = Env(
     name='ZRB_IMAGE',
@@ -116,35 +129,28 @@ publish_pip_test = CmdTask(
 )
 runner.register(publish_pip_test)
 
-prepare_docker = ResourceMaker(
-    name='prepare-docker',
-    description='Create docker directory',
-    template_path=f'{CURRENT_DIR}/docker-template',
-    destination_path=f'{CURRENT_DIR}/.docker-dir',
-    replacements={
-        'ZRB_VERSION': VERSION
-    }
-)
-runner.register(prepare_docker)
-
 check_pip = HTTPChecker(
     name='check-pip',
+    inputs=[zrb_version_input],
     is_https=True,
     host='pypi.org',
-    url=f'pypi/zrb/{VERSION}/json',
+    url='pypi/zrb/{{ input.zrb_version }}/json',
     port=443
 )
 
 build_image = DockerComposeTask(
     name='build-image',
     description='Build docker image',
-    upstreams=[
-        prepare_docker,
-        check_pip,
+    upstreams=[check_pip],
+    inputs=[
+        zrb_version_input,
+        zrb_image_name_input,
     ],
-    inputs=[zrb_image_name_input],
-    envs=[zrb_image_env],
-    cwd=f'{CURRENT_DIR}/.docker-dir',
+    envs=[
+        zrb_version_env,
+        zrb_image_env,
+    ],
+    cwd=f'{CURRENT_DIR}/docker',
     compose_cmd='build',
     compose_args=['zrb']
 )
@@ -154,13 +160,18 @@ build_latest_image = DockerComposeTask(
     name='build-latest-image',
     description='Build docker image',
     upstreams=[
-        prepare_docker,
         check_pip,
         build_image,
     ],
-    inputs=[zrb_latest_image_name_input],
-    envs=[zrb_latest_image_env],
-    cwd=f'{CURRENT_DIR}/.docker-dir',
+    inputs=[
+        zrb_version_input,
+        zrb_latest_image_name_input,
+    ],
+    envs=[
+        zrb_version_env,
+        zrb_latest_image_env,
+    ],
+    cwd=f'{CURRENT_DIR}/docker',
     compose_cmd='build',
     compose_args=['zrb']
 )
@@ -169,10 +180,13 @@ runner.register(build_latest_image)
 stop_container = DockerComposeTask(
     name='stop-container',
     description='remove docker container',
-    upstreams=[prepare_docker],
-    inputs=[zrb_image_name_input],
-    envs=[zrb_image_env],
-    cwd=f'{CURRENT_DIR}/.docker-dir',
+    inputs=[
+        zrb_image_name_input
+    ],
+    envs=[
+        zrb_image_env
+    ],
+    cwd=f'{CURRENT_DIR}/docker',
     compose_cmd='down'
 )
 runner.register(stop_container)
@@ -184,9 +198,15 @@ start_container = DockerComposeTask(
         build_image,
         stop_container
     ],
-    inputs=[zrb_image_name_input],
-    envs=[zrb_image_env],
-    cwd=f'{CURRENT_DIR}/.docker-dir',
+    inputs=[
+        zrb_version_input,
+        zrb_image_name_input,
+    ],
+    envs=[
+        zrb_version_env,
+        zrb_image_env,
+    ],
+    cwd=f'{CURRENT_DIR}/docker',
     compose_cmd='up',
     compose_flags=['-d']
 )
@@ -196,9 +216,15 @@ push_image = DockerComposeTask(
     name='push-image',
     description='Push docker image',
     upstreams=[build_image],
-    inputs=[zrb_image_name_input],
-    envs=[zrb_image_env],
-    cwd=f'{CURRENT_DIR}/.docker-dir',
+    inputs=[
+        zrb_version_input,
+        zrb_image_name_input,
+    ],
+    envs=[
+        zrb_version_env,
+        zrb_image_env,
+    ],
+    cwd=f'{CURRENT_DIR}/docker',
     compose_cmd='push',
     compose_args=['zrb']
 )
@@ -211,9 +237,15 @@ push_latest_image = DockerComposeTask(
         build_latest_image,
         push_image,
     ],
-    inputs=[zrb_latest_image_name_input],
-    envs=[zrb_latest_image_env],
-    cwd=f'{CURRENT_DIR}/.docker-dir',
+    inputs=[
+        zrb_version_input,
+        zrb_latest_image_name_input,
+    ],
+    envs=[
+        zrb_version_env,
+        zrb_latest_image_env,
+    ],
+    cwd=f'{CURRENT_DIR}/docker',
     compose_cmd='push',
     compose_args=['zrb']
 )
