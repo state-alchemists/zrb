@@ -26,6 +26,8 @@ RUN apt install -y git ncat curl wget inetutils-tools inetutils-ping \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
+# RUN pip install zrb==ZRB_VERSION
+
 # Install pyenv
 RUN curl https://pyenv.run | bash
 
