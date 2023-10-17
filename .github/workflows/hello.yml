@@ -1,5 +1,5 @@
-name: "🔍 Testing Prefect"
-run-name: "🔍 Testing Prefect for ${{ github.actor }}"
+name: "Hello"
+run-name: "Run hello for ${{ github.actor }}"
 on: [push]
 
 jobs:
