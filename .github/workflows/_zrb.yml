@@ -31,6 +31,7 @@ jobs:
           echo "🔎 Branch: ${{ github.ref }}"
           echo "🔎 Repo: ${{ github.repository }}"
       - name: Run command
+        shell: bash
         run: |
           set -e
           export ZRB_ENV=${{ inputs.environment }}
