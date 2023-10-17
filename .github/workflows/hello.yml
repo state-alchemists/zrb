@@ -1,0 +1,11 @@
+name: "🔍 Testing Prefect"
+run-name: "🔍 Testing Prefect for ${{ github.actor }}"
+on: [push]
+
+jobs:
+  run-command:
+    uses: ./.github/workflows/_zrb.yml
+    with:
+      environment: DEV
+      command: |
+        zrb explain solid
