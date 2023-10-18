@@ -1,0 +1,15 @@
+name: "Release new version"
+run-name: "Release Zrb new version for ${{ github.actor }}"
+on: 
+  push:
+    # See: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-including-branches-and-tags
+    tags:
+      - v-*
+
+jobs:
+  run-command:
+    uses: ./.github/workflows/_zrb.yml
+    with:
+      environment: DEV
+      command: |
+        zrb publish

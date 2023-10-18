@@ -223,7 +223,7 @@ class DockerComposeTask(CmdTask):
             os_name = key
             if self._compose_env_prefix != '':
                 os_name = f'{self._compose_env_prefix}_{os_name}'
-            self._envs.append(Env(name=key, os_name=os_name, default=value))
+            self.add_envs(Env(name=key, os_name=os_name, default=value))
 
     def _get_existing_env_map(self) -> Mapping[str, str]:
         env_map: Mapping[str, str] = {}
