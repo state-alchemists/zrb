@@ -230,6 +230,7 @@ class CmdTask(BaseTask):
         for pid in self._pids:
             self._kill_by_pid(pid)
         self.print_out_dark(f'Exiting with signal {signum}')
+        time.sleep(0.3)
         sys.exit(signum)
 
     def _on_exit(self):
@@ -246,11 +247,11 @@ class CmdTask(BaseTask):
                 process_ever_exists = True
                 self.print_out_dark(f'Send SIGTERM to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGTERM)
-                time.sleep(0.5)
+                time.sleep(0.3)
             if self._is_process_exist(pid):
                 self.print_out_dark(f'Send SIGINT to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGINT)
-                time.sleep(0.5)
+                time.sleep(0.3)
             if self._is_process_exist(pid):
                 self.print_out_dark(f'Send SIGKILL to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGKILL)

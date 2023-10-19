@@ -34,6 +34,15 @@ ensure_docker_is_installed = CmdTask(
     preexec_fn=None
 )
 
+ensure_zrb_network_exists = CmdTask(
+    name='ensure-zrb-network-exists',
+    cmd=[
+        'docker network inspect zrb >/dev/null 2>&1 || \\',
+        'docker network create -d bridge zrb'
+    ],
+    upstreams=[ensure_docker_is_installed],
+)
+
 
 @typechecked
 class ServiceConfig():
@@ -95,7 +104,7 @@ class DockerComposeTask(CmdTask):
             description=description,
             executable=executable,
             cwd=cwd,
-            upstreams=[ensure_docker_is_installed] + upstreams,
+            upstreams=[ensure_zrb_network_exists] + upstreams,
             checkers=checkers,
             checking_interval=checking_interval,
             retry=retry,

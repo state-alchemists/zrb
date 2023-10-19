@@ -267,24 +267,19 @@ class BaseTask(
             self._kwargs = new_kwargs
             # run the task
             coroutines = [
-                asyncio.create_task(self._loop_check()),
+                asyncio.create_task(self._loop_check(show_done=True)),
                 asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
             results = await asyncio.gather(*coroutines)
-            if show_advertisement:
-                selected_advertisement = get_advertisement(advertisements)
-                selected_advertisement.show()
-            self._show_done_info()
-            self._show_run_command()
             result = results[-1]
             self._print_result(result)
             return result
         except Exception as e:
             self.log_error(f'{e}')
-            self._show_run_command()
             if raise_error:
                 raise
         finally:
+            self._show_run_command()
             self._play_bell()
 
     def _print_result(self, result: Any):
@@ -308,12 +303,18 @@ class BaseTask(
         '''
         print(result)
 
-    async def _loop_check(self) -> bool:
+    async def _loop_check(self, show_done: bool = False) -> bool:
         self.log_info('Start readiness checking')
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self._checking_interval)
         self._end_timer()
+        if show_done:
+            if show_advertisement:
+                selected_advertisement = get_advertisement(advertisements)
+                selected_advertisement.show()
+            self._show_done_info()
+            self._play_bell()
         self.log_info('State: ready')
         return True
 
