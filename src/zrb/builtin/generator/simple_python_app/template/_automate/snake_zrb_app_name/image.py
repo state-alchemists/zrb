@@ -40,7 +40,7 @@ build_snake_zrb_app_name_image = DockerComposeTask(
         image_input,
     ],
     envs=[image_env],
-    skip_execution='{{not input.local_snake_zrb_app_name}}',
+    should_execute='{{ input.local_snake_zrb_app_name}}',
     cwd=RESOURCE_DIR,
     compose_cmd='build',
     compose_flags=[

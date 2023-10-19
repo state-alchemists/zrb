@@ -29,7 +29,7 @@ start_snake_zrb_app_name = CmdTask(
         host_input,
         https_input,
     ],
-    skip_execution='{{not input.local_snake_zrb_app_name}}',
+    should_execute='{{ input.local_snake_zrb_app_name}}',
     cwd=APP_DIR,
     env_files=[app_env_file],
     envs=[

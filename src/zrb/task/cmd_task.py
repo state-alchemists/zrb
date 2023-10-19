@@ -108,7 +108,7 @@ class CmdTask(BaseTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         BaseTask.__init__(
@@ -126,7 +126,7 @@ class CmdTask(BaseTask):
             checking_interval=checking_interval,
             retry=retry,
             retry_interval=retry_interval,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result
         )
         max_output_line = max_output_line if max_output_line > 0 else 1

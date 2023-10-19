@@ -79,7 +79,7 @@ class DockerComposeTask(CmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         combined_env_files = list(env_files)
@@ -103,7 +103,7 @@ class DockerComposeTask(CmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result
         )
         self._setup_cmd = setup_cmd
