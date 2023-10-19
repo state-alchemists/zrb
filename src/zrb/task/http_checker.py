@@ -35,7 +35,7 @@ class HTTPChecker(BaseTask):
         upstreams: Iterable[AnyTask] = [],
         checking_interval: float = 0.1,
         show_error_interval: float = 5,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
         BaseTask.__init__(
             self,
@@ -52,7 +52,7 @@ class HTTPChecker(BaseTask):
             checking_interval=checking_interval,
             retry=0,
             retry_interval=0,
-            skip_execution=skip_execution
+            should_execute=should_execute
         )
         self._host = host
         self._port = port

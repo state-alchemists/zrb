@@ -55,7 +55,7 @@ class RsyncTask(BaseRemoteCmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
         parsed_src = self._get_parsed_path(is_remote_src, src)
         parsed_dst = self._get_parsed_path(is_remote_dst, dst)
@@ -83,7 +83,7 @@ class RsyncTask(BaseRemoteCmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            skip_execution=skip_execution
+            should_execute=should_execute
         )
 
     def _get_parsed_path(self, is_remote: bool, path: str) -> str:

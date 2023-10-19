@@ -92,7 +92,7 @@ init_snake_zrb_app_name_container = DockerComposeTask(
         host_input,
         image_input,
     ],
-    skip_execution='{{not input.local_snake_zrb_app_name}}',
+    should_execute='{{ input.local_snake_zrb_app_name}}',
     upstreams=[
         build_snake_zrb_app_name_image,
         remove_snake_zrb_app_name_container
@@ -122,7 +122,7 @@ start_snake_zrb_app_name_container = DockerComposeTask(
         https_input,
         image_input,
     ],
-    skip_execution='{{not input.local_snake_zrb_app_name}}',
+    should_execute='{{ input.local_snake_zrb_app_name}}',
     upstreams=[init_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
     compose_cmd='logs',

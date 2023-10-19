@@ -30,11 +30,11 @@ MODULES = jsons.loads(MODULE_JSON_STR)
 ###############################################################################
 
 
-def skip_local_microservices_execution(*args: Any, **kwargs: Any) -> bool:
+def should_start_local_microservices(*args: Any, **kwargs: Any) -> bool:
     if not kwargs.get('local_snake_zrb_app_name', True):
-        return True
+        return False
     run_mode = kwargs.get('snake_zrb_app_name_run_mode', 'monolith')
-    return run_mode != 'microservices'
+    return run_mode == 'microservices'
 
 
 ###############################################################################
@@ -45,13 +45,13 @@ rabbitmq_management_checker = HTTPChecker(
     name='check-rabbitmq-management',
     port='{{env.get("RABBITMQ_MANAGEMENT_HOST_PORT", "15672")}}',
     is_https='{{input.snake_zrb_app_name_https}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "rabbitmq"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "rabbitmq"}}'
 )
 
 rabbitmq_checker = PortChecker(
     name='check-rabbitmq',
     port='{{env.get("RABBITMQ_HOST_PORT", "5672")}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "rabbitmq"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "rabbitmq"}}'
 )
 
 redpanda_console_checker = HTTPChecker(
@@ -59,31 +59,31 @@ redpanda_console_checker = HTTPChecker(
     method='GET',
     port='{{env.get("REDPANDA_CONSOLE_HOST_PORT", "9000")}}',
     is_https='{{input.snake_zrb_app_name_https}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "kafka"}}'
 )
 
 kafka_plaintext_checker = PortChecker(
     name='check-kafka-plaintext',
     port='{{env.get("KAFKA_INTERNAL_HOST_PORT", "29092")}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "kafka"}}'
 )
 
 kafka_outside_checker = PortChecker(
     name='check-kafka-outside',
     port='{{env.get("KAFKA_EXTERNAL_HOST_PORT", "9092")}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "kafka"}}'
 )
 
 pandaproxy_plaintext_checker = PortChecker(
     name='check-pandaproxy-plaintext',
     port='{{env.get("PANDAPROXY_INTERNAL_HOST_PORT", "29092")}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "kafka"}}'
 )
 
 pandaproxy_outside_checker = PortChecker(
     name='check-pandaproxy-outside',
     port='{{env.get("PANDAPROXY_EXTERNAL_HOST_PORT", "9092")}}',
-    skip_execution='{{env.get("APP_BROKER_TYPE", "rabbitmq") != "kafka"}}'
+    should_execute='{{env.get("APP_BROKER_TYPE", "rabbitmq") == "kafka"}}'
 )
 
 app_container_checker = HTTPChecker(
@@ -100,7 +100,7 @@ app_local_checker = HTTPChecker(
     url='/readiness',
     port='{{env.APP_PORT}}',
     is_https='{{input.snake_zrb_app_name_https}}',
-    skip_execution=skip_local_microservices_execution
+    should_execute=should_start_local_microservices
 )
 
 ###############################################################################

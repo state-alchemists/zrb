@@ -44,7 +44,7 @@ class CommonTaskModel():
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
         self._name = name
         self._group = group
@@ -62,7 +62,7 @@ class CommonTaskModel():
         self._checkers = checkers
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
-        self._skip_execution = skip_execution
+        self._should_execute = should_execute
         self._allow_add_envs = True
         self._allow_add_env_files = True
         self._allow_add_inputs = True
@@ -84,10 +84,10 @@ class CommonTaskModel():
     def set_retry(self, new_retry: int):
         self._retry = new_retry
 
-    def set_skip_execution(
-        self, skip_execution: Union[bool, str, Callable[..., bool]]
+    def set_should_execute(
+        self, should_execute: Union[bool, str, Callable[..., bool]]
     ):
-        self._skip_execution = skip_execution
+        self._should_execute = should_execute
 
     def set_retry_interval(self, new_retry_interval: Union[float, int]):
         self._retry_interval = new_retry_interval
@@ -352,8 +352,7 @@ class TaskModelWithPrinterAndTracker(
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[int, float] = 0,
         run: Optional[Callable[..., Any]] = None,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
-
+        should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
         self._filled_complete_name: Optional[str] = None
         self._has_cli_interface = False
@@ -374,7 +373,7 @@ class TaskModelWithPrinterAndTracker(
             checkers=checkers,
             checking_interval=checking_interval,
             run=run,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
         )
         PidModel.__init__(self)
         TimeTracker.__init__(self)

@@ -100,7 +100,7 @@ build = CmdTask(
 )
 skippable_build: CmdTask = build.copy()
 skippable_build.add_inputs(build_zrb_input)
-skippable_build.set_skip_execution('{{ not input.build_zrb}}')
+skippable_build.set_should_execute('{{ input.build_zrb}}')
 runner.register(build)
 
 publish_pip = CmdTask(
@@ -277,7 +277,7 @@ skippable_install_symlink.add_inputs(
     build_zrb_input,
     install_symlink_input
 )
-skippable_install_symlink.set_skip_execution('{{ not input.install_symlink}}')
+skippable_install_symlink.set_should_execute('{{ input.install_symlink}}')
 runner.register(install_symlink)
 
 test = CmdTask(
@@ -347,7 +347,7 @@ skippable_create_playground.add_inputs(
     install_symlink_input,
     create_playground_input
 )
-skippable_create_playground.set_skip_execution('{{ not input.create_playground}}') # noqa
+skippable_create_playground.set_should_execute('{{ input.create_playground}}')
 runner.register(create_playground)
 
 test_fastapp_playground = CmdTask(

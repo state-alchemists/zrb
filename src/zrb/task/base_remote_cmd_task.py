@@ -69,7 +69,7 @@ class SingleBaseRemoteCmdTask(CmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         CmdTask.__init__(
@@ -94,7 +94,7 @@ class SingleBaseRemoteCmdTask(CmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result
         )
         self._pre_cmd = pre_cmd
@@ -163,7 +163,7 @@ class BaseRemoteCmdTask(BaseTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         sub_tasks = [
@@ -190,7 +190,7 @@ class BaseRemoteCmdTask(BaseTask):
                 max_output_line=max_output_line,
                 max_error_line=max_error_line,
                 preexec_fn=preexec_fn,
-                skip_execution=skip_execution,
+                should_execute=should_execute,
                 return_upstream_result=return_upstream_result
             )
             for remote_config in list(remote_configs)

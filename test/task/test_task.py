@@ -28,14 +28,14 @@ def test_task_with_predefined_runner():
     assert result == 'hello'
 
 
-def test_task_with_skip_execution():
+def test_task_with_should_execute_equal_to_false():
     def _run(*args, **kwargs) -> str:
         return 'hello'
     task = Task(
         name='hello',
         run=_run,
         retry=0,
-        skip_execution=True
+        should_execute=False
     )
     function = task.to_function()
     result = function()

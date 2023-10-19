@@ -69,8 +69,8 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def set_skip_execution(
-        self, skip_execution: Union[bool, str, Callable[..., bool]]
+    def set_should_execute(
+        self, should_execute: Union[bool, str, Callable[..., bool]]
     ):
         pass
 

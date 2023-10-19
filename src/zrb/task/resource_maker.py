@@ -41,7 +41,7 @@ class ResourceMaker(BaseTask):
         color: Optional[str] = None,
         description: str = '',
         upstreams: Iterable[AnyTask] = [],
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         skip_parsing: Optional[Iterable[str]] = None
     ):
         BaseTask.__init__(
@@ -59,7 +59,7 @@ class ResourceMaker(BaseTask):
             checking_interval=0.1,
             retry=0,
             retry_interval=0,
-            skip_execution=skip_execution
+            should_execute=should_execute
         )
         self._template_path = template_path
         self._destination_path = destination_path

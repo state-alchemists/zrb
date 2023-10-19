@@ -108,7 +108,7 @@ class CmdTask(BaseTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         BaseTask.__init__(
@@ -126,7 +126,7 @@ class CmdTask(BaseTask):
             checking_interval=checking_interval,
             retry=retry,
             retry_interval=retry_interval,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result
         )
         max_output_line = max_output_line if max_output_line > 0 else 1
@@ -230,6 +230,7 @@ class CmdTask(BaseTask):
         for pid in self._pids:
             self._kill_by_pid(pid)
         self.print_out_dark(f'Exiting with signal {signum}')
+        time.sleep(0.3)
         sys.exit(signum)
 
     def _on_exit(self):
@@ -246,11 +247,11 @@ class CmdTask(BaseTask):
                 process_ever_exists = True
                 self.print_out_dark(f'Send SIGTERM to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGTERM)
-                time.sleep(0.5)
+                time.sleep(0.3)
             if self._is_process_exist(pid):
                 self.print_out_dark(f'Send SIGINT to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGINT)
-                time.sleep(0.5)
+                time.sleep(0.3)
             if self._is_process_exist(pid):
                 self.print_out_dark(f'Send SIGKILL to process {pid}')
                 os.killpg(os.getpgid(pid), signal.SIGKILL)

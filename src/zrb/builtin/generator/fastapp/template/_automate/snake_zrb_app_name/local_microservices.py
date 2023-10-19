@@ -2,7 +2,7 @@ from typing import List
 from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile
 from zrb.helper.util import to_snake_case, to_kebab_case
 from ._common import (
-    CURRENT_DIR, APP_DIR, skip_local_microservices_execution,
+    CURRENT_DIR, APP_DIR, should_start_local_microservices,
     APP_TEMPLATE_ENV_FILE_NAME, MODULES,
     local_input, run_mode_input, host_input, https_input,
     enable_monitoring_input, app_enable_otel_env
@@ -25,7 +25,7 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
                 https_input,
                 enable_monitoring_input,
             ],
-            skip_execution=skip_local_microservices_execution,
+            should_execute=should_start_local_microservices,
             upstreams=upstreams,
             cwd=APP_DIR,
             env_files=[_get_service_env_file(module_name)],
@@ -43,7 +43,7 @@ def get_start_microservices(upstreams: List[Task]) -> List[Task]:
                     url='/readiness',
                     port='{{env.APP_PORT}}',
                     is_https='{{input.snake_zrb_app_name_https}}',
-                    skip_execution=skip_local_microservices_execution
+                    should_execute=should_start_local_microservices
                 )
             ]
         )
