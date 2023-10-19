@@ -3,7 +3,7 @@ from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
 from zrb.builtin.group import project_group
 from ._common import (
     CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
-    skip_local_microservices_execution, rabbitmq_checker,
+    should_start_local_microservices, rabbitmq_checker,
     rabbitmq_management_checker, redpanda_console_checker,
     kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
     pandaproxy_plaintext_checker, app_local_checker, local_input, https_input,
@@ -33,14 +33,14 @@ def setup_support_compose_profile(*args: Any, **kwargs: Any) -> str:
     return f'export COMPOSE_PROFILES={compose_profile_str}'
 
 
-def skip_support_container_execution(*args: Any, **kwargs: Any) -> bool:
-    return not kwargs.get('local_snake_zrb_app_name', True)
+def should_start_support_container(*args: Any, **kwargs: Any) -> bool:
+    return kwargs.get('local_snake_zrb_app_name', True)
 
 
-def skip_local_monolith_execution(*args: Any, **kwargs: Any) -> bool:
+def should_start_local_monolith(*args: Any, **kwargs: Any) -> bool:
     if not kwargs.get('local_snake_zrb_app_name', True):
-        return True
-    return kwargs.get('snake_zrb_app_name_run_mode', 'monolith') != 'monolith'
+        return False
+    return kwargs.get('snake_zrb_app_name_run_mode', 'monolith') == 'monolith'
 
 
 ###############################################################################
@@ -63,7 +63,7 @@ init_snake_zrb_app_name_support_container = DockerComposeTask(
         host_input,
         image_input,
     ],
-    skip_execution=skip_support_container_execution,
+    should_execute=should_start_support_container,
     upstreams=[
         remove_snake_zrb_app_name_container
     ],
@@ -86,7 +86,7 @@ start_snake_zrb_app_name_support_container = DockerComposeTask(
         https_input,
         image_input,
     ],
-    skip_execution=skip_support_container_execution,
+    should_execute=should_start_support_container,
     upstreams=[init_snake_zrb_app_name_support_container],
     cwd=RESOURCE_DIR,
     setup_cmd=setup_support_compose_profile,
@@ -128,7 +128,7 @@ start_monolith_snake_zrb_app_name = CmdTask(
         host_input,
         https_input
     ],
-    skip_execution=skip_local_monolith_execution,
+    should_execute=should_start_local_monolith,
     upstreams=[
         start_snake_zrb_app_name_support_container,
         build_snake_zrb_app_name_frontend,
@@ -156,7 +156,7 @@ start_snake_zrb_app_name_gateway = CmdTask(
         host_input,
         https_input
     ],
-    skip_execution=skip_local_microservices_execution,
+    should_execute=should_start_local_microservices,
     upstreams=[
         start_snake_zrb_app_name_support_container,
         build_snake_zrb_app_name_frontend,

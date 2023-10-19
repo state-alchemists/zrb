@@ -34,6 +34,15 @@ ensure_docker_is_installed = CmdTask(
     preexec_fn=None
 )
 
+ensure_zrb_network_exists = CmdTask(
+    name='ensure-zrb-network-exists',
+    cmd=[
+        'docker network inspect zrb >/dev/null 2>&1 || \\',
+        'docker network create -d bridge zrb'
+    ],
+    upstreams=[ensure_docker_is_installed],
+)
+
 
 @typechecked
 class ServiceConfig():
@@ -79,7 +88,7 @@ class DockerComposeTask(CmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         combined_env_files = list(env_files)
@@ -95,7 +104,7 @@ class DockerComposeTask(CmdTask):
             description=description,
             executable=executable,
             cwd=cwd,
-            upstreams=[ensure_docker_is_installed] + upstreams,
+            upstreams=[ensure_zrb_network_exists] + upstreams,
             checkers=checkers,
             checking_interval=checking_interval,
             retry=retry,
@@ -103,7 +112,7 @@ class DockerComposeTask(CmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result
         )
         self._setup_cmd = setup_cmd

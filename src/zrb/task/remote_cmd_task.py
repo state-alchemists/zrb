@@ -52,7 +52,7 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False
+        should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
         pre_cmd = '\n'.join([
             SSH_UTIL_SCRIPT,
@@ -88,7 +88,7 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            skip_execution=skip_execution
+            should_execute=should_execute
         )
 
     def __repr__(self) -> str:

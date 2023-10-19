@@ -355,15 +355,15 @@ Just like in our previous example `start_jupyterlab` will not started before `sh
 - __Possible values:__ List of `Task` object
 - __Default value:__ `[]`
 
-## `skip_execution`
+## `should_execute`
 
 Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
 
-If `skip_execution` is evaluated to `True`, then the task will be considered as completed without being started.
+If `should_execute` is evaluated to `True`, then the task will be executed.
 
 - __Required:__ False
 - __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
-- __Default value:__ `False`
+- __Default value:__ `True`
 
 
 ## `return_upstream_result`
@@ -398,7 +398,7 @@ Deep copy current task
 
 ## `set_color`
 
-## `set_skip_execution`
+## `set_should_execute`
 
 ## `set_retry`
 

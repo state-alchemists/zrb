@@ -32,7 +32,7 @@ class FlowTask(BaseTask):
         retry: int = 2,
         retry_interval: float = 1,
         steps: List[Union[AnyTask, List[AnyTask]]] = [],
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         final_upstreams: List[AnyTask] = list(upstreams)
@@ -64,7 +64,7 @@ class FlowTask(BaseTask):
             checking_interval=checking_interval,
             retry=retry,
             retry_interval=retry_interval,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result,
             run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
         )

@@ -51,7 +51,7 @@ class BaseTask(
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
-        skip_execution: Union[bool, str, Callable[..., bool]] = False,
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         # init properties
@@ -78,7 +78,7 @@ class BaseTask(
             checkers=checkers,
             checking_interval=checking_interval,
             run=run,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
         )
         self._return_upstream_result = return_upstream_result
         # init private properties
@@ -267,24 +267,19 @@ class BaseTask(
             self._kwargs = new_kwargs
             # run the task
             coroutines = [
-                asyncio.create_task(self._loop_check()),
+                asyncio.create_task(self._loop_check(show_done=True)),
                 asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
             results = await asyncio.gather(*coroutines)
-            if show_advertisement:
-                selected_advertisement = get_advertisement(advertisements)
-                selected_advertisement.show()
-            self._show_done_info()
-            self._show_run_command()
             result = results[-1]
             self._print_result(result)
             return result
         except Exception as e:
             self.log_error(f'{e}')
-            self._show_run_command()
             if raise_error:
                 raise
         finally:
+            self._show_run_command()
             self._play_bell()
 
     def _print_result(self, result: Any):
@@ -308,12 +303,18 @@ class BaseTask(
         '''
         print(result)
 
-    async def _loop_check(self) -> bool:
+    async def _loop_check(self, show_done: bool = False) -> bool:
         self.log_info('Start readiness checking')
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self._checking_interval)
         self._end_timer()
+        if show_done:
+            if show_advertisement:
+                selected_advertisement = get_advertisement(advertisements)
+                selected_advertisement.show()
+            self._show_done_info()
+            self._play_bell()
         self.log_info('State: ready')
         return True
 
@@ -406,10 +407,8 @@ class BaseTask(
         self._is_execution_started = True
         local_kwargs = dict(kwargs)
         local_kwargs['_task'] = self
-        if await self._check_skip_execution(*args, **local_kwargs):
-            self.log_info(
-                f'Skip execution because config: {self._skip_execution}'
-            )
+        if not await self._check_should_execute(*args, **local_kwargs):
+            self.log_info('Skip execution')
             self.log_info('State: stopped')
             await self._mark_done()
             return None
@@ -436,12 +435,12 @@ class BaseTask(
         self.log_info('State: stopped')
         return result
 
-    async def _check_skip_execution(self, *args: Any, **kwargs: Any) -> bool:
-        if callable(self._skip_execution):
-            if inspect.iscoroutinefunction(self._skip_execution):
-                return await self._skip_execution(*args, **kwargs)
-            return self._skip_execution(*args, **kwargs)
-        return self.render_bool(self._skip_execution)
+    async def _check_should_execute(self, *args: Any, **kwargs: Any) -> bool:
+        if callable(self._should_execute):
+            if inspect.iscoroutinefunction(self._should_execute):
+                return await self._should_execute(*args, **kwargs)
+            return self._should_execute(*args, **kwargs)
+        return self.render_bool(self._should_execute)
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values

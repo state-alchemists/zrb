@@ -26,7 +26,7 @@ def python_task(
     checking_interval: float = 0.1,
     retry: int = 2,
     retry_interval: float = 1,
-    skip_execution: Union[bool, str, Callable[..., bool]] = False,
+    should_execute: Union[bool, str, Callable[..., bool]] = True,
     return_upstream_result: bool = False,
     runner: Optional[Runner] = None
 ) -> Callable[[Callable[..., Any]], Task]:
@@ -46,7 +46,7 @@ def python_task(
             retry=retry,
             retry_interval=retry_interval,
             run=fn,
-            skip_execution=skip_execution,
+            should_execute=should_execute,
             return_upstream_result=return_upstream_result
         )
         if runner is not None:

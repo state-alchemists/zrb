@@ -48,8 +48,8 @@ def setup_all_compose_profile(*args: Any, **kwargs: Any) -> str:
     return f'export COMPOSE_PROFILES={compose_profile_str}'
 
 
-def skip_execution(*args: Any, **kwargs: Any) -> bool:
-    return not kwargs.get('local_snake_zrb_app_name', True)
+def should_execute(*args: Any, **kwargs: Any) -> bool:
+    return kwargs.get('local_snake_zrb_app_name', True)
 
 
 ###############################################################################
@@ -120,7 +120,7 @@ init_snake_zrb_app_name_container = DockerComposeTask(
         host_input,
         image_input,
     ],
-    skip_execution=skip_execution,
+    should_execute=should_execute,
     upstreams=[
         build_snake_zrb_app_name_image,
         remove_snake_zrb_app_name_container
@@ -150,7 +150,7 @@ start_snake_zrb_app_name_container = DockerComposeTask(
         https_input,
         image_input,
     ],
-    skip_execution=skip_execution,
+    should_execute=should_execute,
     upstreams=[init_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
     setup_cmd=setup_runtime_compose_profile,
