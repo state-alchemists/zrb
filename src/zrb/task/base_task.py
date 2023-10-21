@@ -1,8 +1,12 @@
 from zrb.helper.typing import (
     Any, Callable, Iterable, List, Mapping, Optional, Union
 )
+from zrb.helper.callable import run_async
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
+from zrb.task.any_task_event_handler import (
+    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+)
 from zrb.task.base_task_composite import (
     AttemptTracker, FinishTracker, Renderer, TaskModelWithPrinterAndTracker
 )
@@ -21,7 +25,6 @@ from zrb.config.config import show_advertisement
 
 import asyncio
 import copy
-import inspect
 import os
 import sys
 
@@ -51,6 +54,13 @@ class BaseTask(
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
+        on_triggered: Optional[OnTriggered] = None,
+        on_waiting: Optional[OnWaiting] = None,
+        on_skipped: Optional[OnSkipped] = None,
+        on_started: Optional[OnStarted] = None,
+        on_ready: Optional[OnReady] = None,
+        on_retry: Optional[OnRetry] = None,
+        on_failed: Optional[OnFailed] = None,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
@@ -81,6 +91,14 @@ class BaseTask(
             should_execute=should_execute,
         )
         self._return_upstream_result = return_upstream_result
+        # Event Handler
+        self._on_triggered = on_triggered
+        self._on_waiting = on_waiting
+        self._on_skipped = on_skipped
+        self._on_started = on_started
+        self._on_ready = on_ready
+        self._on_retry = on_retry
+        self._on_failed = on_failed
         # init private properties
         self._is_keyval_set = False  # Flag
         self._all_inputs: Optional[List[AnyInput]] = None
@@ -168,10 +186,46 @@ class BaseTask(
         Please override this method.
         '''
         if self._run_function is not None:
-            if inspect.iscoroutinefunction(self._run_function):
-                return await self._run_function(*args, **kwargs)
-            return self._run_function(*args, **kwargs)
+            return await run_async(self._run_function, *args, **kwargs)
         return None
+
+    async def on_triggered(self):
+        self.log_info('State: triggered')
+        if self._on_triggered is not None:
+            await run_async(self._on_triggered, self)
+
+    async def on_waiting(self):
+        self.log_info('State: waiting')
+        if self._on_waiting is not None:
+            await run_async(self._on_waiting, self)
+
+    async def on_skipped(self):
+        self.log_info('State: skipped')
+        if self._on_skipped is not None:
+            await run_async(self._on_skipped, self)
+
+    async def on_started(self):
+        self.log_info('State: started')
+        if self._on_started is not None:
+            await run_async(self._on_started, self)
+
+    async def on_ready(self):
+        self.log_info('State: ready')
+        if self._on_ready is not None:
+            await run_async(self._on_ready, self)
+
+    async def on_failed(self, is_last_attempt: bool, exception: Exception):
+        failed_state_message = 'State failed'
+        if is_last_attempt:
+            failed_state_message = 'State failed (last attempt)'
+        self.log_info(failed_state_message)
+        if self._on_failed is not None:
+            await run_async(self._on_failed, self, is_last_attempt, exception)
+
+    async def on_retry(self):
+        self.log_info('State: retry')
+        if self._on_retry is not None:
+            await run_async(self._on_retry, self)
 
     async def check(self) -> bool:
         '''
@@ -315,7 +369,7 @@ class BaseTask(
                 selected_advertisement.show()
             self._show_done_info()
             self._play_bell()
-        self.log_info('State: ready')
+        await self.on_ready()
         return True
 
     def _show_run_command(self):
@@ -391,9 +445,9 @@ class BaseTask(
         if self._is_execution_triggered:
             self.log_debug('Task has been triggered')
             return
-        self.log_info('State: triggered')
+        await self.on_triggered()
         self._is_execution_triggered = True
-        self.log_info('State: waiting')
+        await self.on_waiting()
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
         self._allow_add_upstreams = False
@@ -408,8 +462,7 @@ class BaseTask(
         local_kwargs = dict(kwargs)
         local_kwargs['_task'] = self
         if not await self._check_should_execute(*args, **local_kwargs):
-            self.log_info('Skip execution')
-            self.log_info('State: stopped')
+            await self.on_skipped()
             await self._mark_done()
             return None
         # start running task
@@ -419,27 +472,25 @@ class BaseTask(
                 self.log_debug(
                     f'Started with args: {args} and kwargs: {local_kwargs}'
                 )
-                self.log_info('State: started')
+                await self.on_started()
                 result = await self.run(*args, **local_kwargs)
                 break
-            except Exception:
-                self.log_info('State: failed')
-                if self._is_last_attempt():
-                    raise
+            except Exception as e:
+                is_last_attempt = self._is_last_attempt()
+                await self.on_failed(is_last_attempt, e)
+                if is_last_attempt:
+                    raise e
                 attempt = self._get_attempt()
                 self.log_error(f'Encounter error on attempt {attempt}')
                 self._increase_attempt()
                 await asyncio.sleep(self._retry_interval)
-                self.log_info('State: retry')
+                await self.on_retry()
         await self._mark_done()
-        self.log_info('State: stopped')
         return result
 
     async def _check_should_execute(self, *args: Any, **kwargs: Any) -> bool:
         if callable(self._should_execute):
-            if inspect.iscoroutinefunction(self._should_execute):
-                return await self._should_execute(*args, **kwargs)
-            return self._should_execute(*args, **kwargs)
+            return await run_async(self._should_execute, *args, **kwargs)
         return self.render_bool(self._should_execute)
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):

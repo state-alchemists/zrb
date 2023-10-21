@@ -3,6 +3,9 @@ from zrb.helper.typecheck import typechecked
 from http.client import HTTPConnection, HTTPSConnection
 from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
+from zrb.task.any_task_event_handler import (
+    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+)
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -33,6 +36,13 @@ class HTTPChecker(BaseTask):
         url: str = '/',
         is_https: Union[bool, str] = False,
         upstreams: Iterable[AnyTask] = [],
+        on_triggered: Optional[OnTriggered] = None,
+        on_waiting: Optional[OnWaiting] = None,
+        on_skipped: Optional[OnSkipped] = None,
+        on_started: Optional[OnStarted] = None,
+        on_ready: Optional[OnReady] = None,
+        on_retry: Optional[OnRetry] = None,
+        on_failed: Optional[OnFailed] = None,
         checking_interval: float = 0.1,
         show_error_interval: float = 5,
         should_execute: Union[bool, str, Callable[..., bool]] = True
@@ -48,6 +58,13 @@ class HTTPChecker(BaseTask):
             color=color,
             description=description,
             upstreams=upstreams,
+            on_triggered=on_triggered,
+            on_waiting=on_waiting,
+            on_skipped=on_skipped,
+            on_started=on_started,
+            on_ready=on_ready,
+            on_retry=on_retry,
+            on_failed=on_failed,
             checkers=[],
             checking_interval=checking_interval,
             retry=0,

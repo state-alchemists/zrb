@@ -17,18 +17,21 @@ As every task are extended from `BaseTask`, you will see that most of them share
 
 
 ```
-                              BaseTask
-                                 │
-                                 │
-  ┌──────┬───────────┬───────────┼───────────┬───────────┬──────────┐
-  │      │           │           │           │           │          │
-  │      │           │           │           │           │          │
-  ▼      ▼           ▼           ▼           ▼           ▼          ▼
-Task  CmdTask  ResourceMaker  FlowTask  HttpChecker PortChecker PathChecker
-         │
-         │
-         ▼
-   DockerComposeTask
+                                            BaseTask
+                                               │
+                                               │
+  ┌──────┬───────────┬───────────┬─────────────┼────────────────┬───────────┬──────────┐
+  │      │           │           │             │                │           │          │
+  │      │           │           │             │                │           │          │
+  ▼      ▼           ▼           ▼             ▼                ▼           ▼          ▼
+Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  HttpChecker PortChecker PathChecker
+         │                                     │
+         │                                     │
+         ▼                               ┌─────┴──────┐
+   DockerComposeTask                     │            │
+                                         ▼            ▼
+                                   RemoteCmdTask   RsyncTask
+
 ```
 
 Aside from the documentation, you can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation.
@@ -118,29 +121,27 @@ A task might also have multiple upstreams. In that case, the upstreams will be e
 Every task has it's own lifecycle.
 
 ```
-                   ┌────────────────────────────┐
-                   │                            │
-                   │                            ▼
-                   │                     ┌──► Ready ────► Stopped
-                   │                     │                   ▲
-Triggered ────► Waiting ────► Started ───┤                   │
-                                 ▲       │                   │
-                                 │       └──► Failed ────────┘
-                                 │              │
-                                 │              │
-                                 │              ▼
-                                 └─────────── Retry
+Triggered         ┌─────────► Ready ◄──┐
+    │             │                    │
+    │             │                    │
+    ▼             │                    │
+ Waiting ────► Started ─────► Failed   │
+    │             ▲             │      │
+    │             │             │      │
+    ▼             │             ▼      │
+ Skipped          └────────── Retry    │
+    │                                  │
+    │                                  │
+    └──────────────────────────────────┘
 ```
 
-> __Note:__ `Ready` and `Stopped` is interchangable. If your task is not a long running process, it most likely `stopped` first before `ready`.
-
-- `Triggered`: Task is triggered and will be executed.
-- `Waiting`: Task won't be started until all it's upstreams are ready.
-- `Started`: Zrb has start the task.
-- `Failed`: The task is failed, due to internal error or other causes. A failed task can be retried or stopped, depends on `retries` setting.
-- `Retry`: The task has been failed and now rescheduled to be started.
-- `Ready`: The task is ready. Some tasks are automatically stopped after ready, but some others keep running in the background (e.g., web server, scheduler, etc)
-- `Stopped`: The task is no longer running.
+- `Triggered`: Task is triggered.
+- `Waiting`: Task is waiting all upstreams to be ready.
+- `Skipped`: Task is not executed and will enter ready state soon.
+- `Started`: Task has been started.
+- `Failed`: Task is failed, will enter `Retry` state if retries is less than max attempt.
+- `Retry`: The task has been failed and will be re-started.
+- `Ready`: The task is ready.
 
 # Common task parameters
 
@@ -374,6 +375,21 @@ Boolean, whether return upstreams result instead of current task result or not.
 - __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
 - __Default value:__ `False`
 
+## `on_triggered`
+
+## `on_waiting`
+
+## `on_skipped`
+
+## `on_started`
+
+## `on_ready`
+
+## `on_retry`
+
+## `on_failed`
+
+
 # Common task methods
 
 Every task share some common methods like `run`, `check`, and `to_function`.
@@ -489,6 +505,20 @@ class MyTask(BaseTask):
         # TODO: Add your custom checking here
         return super().check()
 ```
+
+## `on_triggered`
+
+## `on_waiting`
+
+## `on_skipped`
+
+## `on_started`
+
+## `on_ready`
+
+## `on_retry`
+
+## `on_failed`
 
 ## `to_function`
 
