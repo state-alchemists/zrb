@@ -186,7 +186,7 @@ class BaseTask(
     async def on_ready(self):
         self.log_info('State: ready')
 
-    async def on_failed(self, is_last_attempt: bool):
+    async def on_failed(self, is_last_attempt: bool, exception: Exception):
         failed_state_message = 'State failed'
         if is_last_attempt:
             failed_state_message = 'State failed (last attempt)'
@@ -443,11 +443,11 @@ class BaseTask(
                 await self.on_started()
                 result = await self.run(*args, **local_kwargs)
                 break
-            except Exception:
+            except Exception as e:
                 is_last_attempt = self._is_last_attempt()
-                await self.on_failed(is_last_attempt)
+                await self.on_failed(is_last_attempt, e)
                 if is_last_attempt:
-                    raise
+                    raise e
                 attempt = self._get_attempt()
                 self.log_error(f'Encounter error on attempt {attempt}')
                 self._increase_attempt()
