@@ -1,6 +1,7 @@
 from zrb.helper.typing import (
     Any, Callable, Iterable, List, Mapping, Optional, Union
 )
+from zrb.helper.callable import run_async
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task_composite import (
@@ -21,7 +22,6 @@ from zrb.config.config import show_advertisement
 
 import asyncio
 import copy
-import inspect
 import os
 import sys
 
@@ -168,10 +168,32 @@ class BaseTask(
         Please override this method.
         '''
         if self._run_function is not None:
-            if inspect.iscoroutinefunction(self._run_function):
-                return await self._run_function(*args, **kwargs)
-            return self._run_function(*args, **kwargs)
+            return await run_async(self._run_function, *args, **kwargs)
         return None
+
+    async def on_triggered(self):
+        self.log_info('State: triggered')
+
+    async def on_waiting(self):
+        self.log_info('State: waiting')
+
+    async def on_skipped(self):
+        self.log_info('State: skipped')
+
+    async def on_started(self):
+        self.log_info('State: started')
+
+    async def on_ready(self):
+        self.log_info('State: ready')
+
+    async def on_failed(self, is_last_attempt: bool):
+        failed_state_message = 'State failed'
+        if is_last_attempt:
+            failed_state_message = 'State failed (last attempt)'
+        self.log_info(failed_state_message)
+
+    async def on_retry(self):
+        self.log_info('State: retry')
 
     async def check(self) -> bool:
         '''
@@ -315,7 +337,7 @@ class BaseTask(
                 selected_advertisement.show()
             self._show_done_info()
             self._play_bell()
-        self.log_info('State: ready')
+        await self.on_ready()
         return True
 
     def _show_run_command(self):
@@ -391,9 +413,9 @@ class BaseTask(
         if self._is_execution_triggered:
             self.log_debug('Task has been triggered')
             return
-        self.log_info('State: triggered')
+        await self.on_triggered()
         self._is_execution_triggered = True
-        self.log_info('State: waiting')
+        await self.on_waiting()
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
         self._allow_add_upstreams = False
@@ -408,8 +430,7 @@ class BaseTask(
         local_kwargs = dict(kwargs)
         local_kwargs['_task'] = self
         if not await self._check_should_execute(*args, **local_kwargs):
-            self.log_info('Skip execution')
-            self.log_info('State: stopped')
+            await self.on_skipped()
             await self._mark_done()
             return None
         # start running task
@@ -419,27 +440,25 @@ class BaseTask(
                 self.log_debug(
                     f'Started with args: {args} and kwargs: {local_kwargs}'
                 )
-                self.log_info('State: started')
+                await self.on_started()
                 result = await self.run(*args, **local_kwargs)
                 break
             except Exception:
-                self.log_info('State: failed')
-                if self._is_last_attempt():
+                is_last_attempt = self._is_last_attempt()
+                await self.on_failed(is_last_attempt)
+                if is_last_attempt:
                     raise
                 attempt = self._get_attempt()
                 self.log_error(f'Encounter error on attempt {attempt}')
                 self._increase_attempt()
                 await asyncio.sleep(self._retry_interval)
-                self.log_info('State: retry')
+                await self.on_retry()
         await self._mark_done()
-        self.log_info('State: stopped')
         return result
 
     async def _check_should_execute(self, *args: Any, **kwargs: Any) -> bool:
         if callable(self._should_execute):
-            if inspect.iscoroutinefunction(self._should_execute):
-                return await self._should_execute(*args, **kwargs)
-            return self._should_execute(*args, **kwargs)
+            return await run_async(self._should_execute, *args, **kwargs)
         return self.render_bool(self._should_execute)
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):

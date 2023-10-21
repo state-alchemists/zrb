@@ -31,6 +31,34 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    async def on_triggered(self):
+        pass
+
+    @abstractmethod
+    async def on_waiting(self):
+        pass
+
+    @abstractmethod
+    async def on_skipped(self):
+        pass
+
+    @abstractmethod
+    async def on_started(self):
+        pass
+
+    @abstractmethod
+    async def on_ready(self):
+        pass
+
+    @abstractmethod
+    async def on_failed(self, is_last_attempt: bool):
+        pass
+
+    @abstractmethod
+    async def on_retry(self):
+        pass
+
+    @abstractmethod
     def to_function(
         self, env_prefix: str = '', raise_error: bool = True
     ) -> Callable[..., Any]:

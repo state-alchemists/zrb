@@ -17,18 +17,21 @@ As every task are extended from `BaseTask`, you will see that most of them share
 
 
 ```
-                              BaseTask
-                                 │
-                                 │
-  ┌──────┬───────────┬───────────┼───────────┬───────────┬──────────┐
-  │      │           │           │           │           │          │
-  │      │           │           │           │           │          │
-  ▼      ▼           ▼           ▼           ▼           ▼          ▼
-Task  CmdTask  ResourceMaker  FlowTask  HttpChecker PortChecker PathChecker
-         │
-         │
-         ▼
-   DockerComposeTask
+                                            BaseTask
+                                               │
+                                               │
+  ┌──────┬───────────┬───────────┬─────────────┼────────────────┬───────────┬──────────┐
+  │      │           │           │             │                │           │          │
+  │      │           │           │             │                │           │          │
+  ▼      ▼           ▼           ▼             ▼                ▼           ▼          ▼
+Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  HttpChecker PortChecker PathChecker
+         │                                     │
+         │                                     │
+         ▼                               ┌─────┴──────┐
+   DockerComposeTask                     │            │
+                                         ▼            ▼
+                                   RemoteCmdTask   RsyncTask
+
 ```
 
 Aside from the documentation, you can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation.
@@ -118,21 +121,16 @@ A task might also have multiple upstreams. In that case, the upstreams will be e
 Every task has it's own lifecycle.
 
 ```
-                   ┌────────────────────────────┐
-                   │                            │
-                   │                            ▼
-                   │                     ┌──► Ready ────► Stopped
-                   │                     │                   ▲
-Triggered ────► Waiting ────► Started ───┤                   │
-                                 ▲       │                   │
-                                 │       └──► Failed ────────┘
-                                 │              │
-                                 │              │
-                                 │              ▼
-                                 └─────────── Retry
+Triggered         ┌─────────► Ready
+    │             │
+    │             │
+    ▼             │
+ Waiting ────► Started ─────► Failed
+    │             ▲             │
+    │             │             │
+    ▼             │             ▼
+ Skipped          └────────── Retry
 ```
-
-> __Note:__ `Ready` and `Stopped` is interchangable. If your task is not a long running process, it most likely `stopped` first before `ready`.
 
 - `Triggered`: Task is triggered and will be executed.
 - `Waiting`: Task won't be started until all it's upstreams are ready.
@@ -140,7 +138,6 @@ Triggered ────► Waiting ────► Started ───┤          
 - `Failed`: The task is failed, due to internal error or other causes. A failed task can be retried or stopped, depends on `retries` setting.
 - `Retry`: The task has been failed and now rescheduled to be started.
 - `Ready`: The task is ready. Some tasks are automatically stopped after ready, but some others keep running in the background (e.g., web server, scheduler, etc)
-- `Stopped`: The task is no longer running.
 
 # Common task parameters
 
