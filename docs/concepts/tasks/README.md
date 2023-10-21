@@ -375,6 +375,21 @@ Boolean, whether return upstreams result instead of current task result or not.
 - __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
 - __Default value:__ `False`
 
+## `on_triggered`
+
+## `on_waiting`
+
+## `on_skipped`
+
+## `on_started`
+
+## `on_ready`
+
+## `on_retry`
+
+## `on_failed`
+
+
 # Common task methods
 
 Every task share some common methods like `run`, `check`, and `to_function`.
@@ -490,6 +505,20 @@ class MyTask(BaseTask):
         # TODO: Add your custom checking here
         return super().check()
 ```
+
+## `on_triggered`
+
+## `on_waiting`
+
+## `on_skipped`
+
+## `on_started`
+
+## `on_ready`
+
+## `on_retry`
+
+## `on_failed`
 
 ## `to_function`
 
