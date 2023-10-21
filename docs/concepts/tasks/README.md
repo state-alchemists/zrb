@@ -121,23 +121,27 @@ A task might also have multiple upstreams. In that case, the upstreams will be e
 Every task has it's own lifecycle.
 
 ```
-Triggered         ┌─────────► Ready
-    │             │
-    │             │
-    ▼             │
- Waiting ────► Started ─────► Failed
-    │             ▲             │
-    │             │             │
-    ▼             │             ▼
- Skipped          └────────── Retry
+Triggered         ┌─────────► Ready ◄──┐
+    │             │                    │
+    │             │                    │
+    ▼             │                    │
+ Waiting ────► Started ─────► Failed   │
+    │             ▲             │      │
+    │             │             │      │
+    ▼             │             ▼      │
+ Skipped          └────────── Retry    │
+    │                                  │
+    │                                  │
+    └──────────────────────────────────┘
 ```
 
-- `Triggered`: Task is triggered and will be executed.
-- `Waiting`: Task won't be started until all it's upstreams are ready.
-- `Started`: Zrb has start the task.
-- `Failed`: The task is failed, due to internal error or other causes. A failed task can be retried or stopped, depends on `retries` setting.
-- `Retry`: The task has been failed and now rescheduled to be started.
-- `Ready`: The task is ready. Some tasks are automatically stopped after ready, but some others keep running in the background (e.g., web server, scheduler, etc)
+- `Triggered`: Task is triggered.
+- `Waiting`: Task is waiting all upstreams to be ready.
+- `Skipped`: Task is not executed and will enter ready state soon.
+- `Started`: Task has been started.
+- `Failed`: Task is failed, will enter `Retry` state if retries is less than max attempt.
+- `Retry`: The task has been failed and will be re-started.
+- `Ready`: The task is ready.
 
 # Common task parameters
 

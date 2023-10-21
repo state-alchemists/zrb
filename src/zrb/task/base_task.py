@@ -192,27 +192,27 @@ class BaseTask(
     async def on_triggered(self):
         self.log_info('State: triggered')
         if self._on_triggered is not None:
-            await run_async(self._on_triggered)
+            await run_async(self._on_triggered, self)
 
     async def on_waiting(self):
         self.log_info('State: waiting')
         if self._on_waiting is not None:
-            await run_async(self._on_waiting)
+            await run_async(self._on_waiting, self)
 
     async def on_skipped(self):
         self.log_info('State: skipped')
         if self._on_skipped is not None:
-            await run_async(self._on_skipped)
+            await run_async(self._on_skipped, self)
 
     async def on_started(self):
         self.log_info('State: started')
         if self._on_started is not None:
-            await run_async(self._on_started)
+            await run_async(self._on_started, self)
 
     async def on_ready(self):
         self.log_info('State: ready')
         if self._on_ready is not None:
-            await run_async(self._on_ready)
+            await run_async(self._on_ready, self)
 
     async def on_failed(self, is_last_attempt: bool, exception: Exception):
         failed_state_message = 'State failed'
@@ -220,12 +220,12 @@ class BaseTask(
             failed_state_message = 'State failed (last attempt)'
         self.log_info(failed_state_message)
         if self._on_failed is not None:
-            await run_async(self._on_failed, is_last_attempt, exception)
+            await run_async(self._on_failed, self, is_last_attempt, exception)
 
     async def on_retry(self):
         self.log_info('State: retry')
         if self._on_retry is not None:
-            await run_async(self._on_retry)
+            await run_async(self._on_retry, self)
 
     async def check(self) -> bool:
         '''

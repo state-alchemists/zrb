@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from zrb.helper.typing import Any, Callable
 from zrb.task.any_task import AnyTask
 
 _TaskEventHandler = Callable[[AnyTask], Any]
