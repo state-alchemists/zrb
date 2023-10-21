@@ -51,7 +51,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_failed(self, is_last_attempt: bool):
+    async def on_failed(self, is_last_attempt: bool, exception: Exception):
         pass
 
     @abstractmethod
