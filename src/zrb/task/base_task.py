@@ -4,6 +4,9 @@ from zrb.helper.typing import (
 from zrb.helper.callable import run_async
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
+from zrb.task.any_task_event_handler import (
+    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+)
 from zrb.task.base_task_composite import (
     AttemptTracker, FinishTracker, Renderer, TaskModelWithPrinterAndTracker
 )
@@ -51,6 +54,13 @@ class BaseTask(
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
+        on_triggered: Optional[OnTriggered] = None,
+        on_waiting: Optional[OnWaiting] = None,
+        on_skipped: Optional[OnSkipped] = None,
+        on_started: Optional[OnStarted] = None,
+        on_ready: Optional[OnReady] = None,
+        on_retry: Optional[OnRetry] = None,
+        on_failed: Optional[OnFailed] = None,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
@@ -81,6 +91,14 @@ class BaseTask(
             should_execute=should_execute,
         )
         self._return_upstream_result = return_upstream_result
+        # Event Handler
+        self._on_triggered = on_triggered
+        self._on_waiting = on_waiting
+        self._on_skipped = on_skipped
+        self._on_started = on_started
+        self._on_ready = on_ready
+        self._on_retry = on_retry
+        self._on_failed = on_failed
         # init private properties
         self._is_keyval_set = False  # Flag
         self._all_inputs: Optional[List[AnyInput]] = None
@@ -173,27 +191,41 @@ class BaseTask(
 
     async def on_triggered(self):
         self.log_info('State: triggered')
+        if self._on_triggered is not None:
+            await run_async(self._on_triggered)
 
     async def on_waiting(self):
         self.log_info('State: waiting')
+        if self._on_waiting is not None:
+            await run_async(self._on_waiting)
 
     async def on_skipped(self):
         self.log_info('State: skipped')
+        if self._on_skipped is not None:
+            await run_async(self._on_skipped)
 
     async def on_started(self):
         self.log_info('State: started')
+        if self._on_started is not None:
+            await run_async(self._on_started)
 
     async def on_ready(self):
         self.log_info('State: ready')
+        if self._on_ready is not None:
+            await run_async(self._on_ready)
 
     async def on_failed(self, is_last_attempt: bool, exception: Exception):
         failed_state_message = 'State failed'
         if is_last_attempt:
             failed_state_message = 'State failed (last attempt)'
         self.log_info(failed_state_message)
+        if self._on_failed is not None:
+            await run_async(self._on_failed, is_last_attempt, exception)
 
     async def on_retry(self):
         self.log_info('State: retry')
+        if self._on_retry is not None:
+            await run_async(self._on_retry)
 
     async def check(self) -> bool:
         '''
