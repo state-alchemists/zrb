@@ -288,14 +288,14 @@ class DockerComposeTask(CmdTask):
                 'compose.yml', 'compose.yaml',
                 'docker-compose.yml', 'docker-compose.yaml'
             ]:
-                if os.path.exists(os.path.join(self.cwd, _compose_file)):
-                    return os.path.join(self.cwd, _compose_file)
+                if os.path.exists(os.path.join(self._cwd, _compose_file)):
+                    return os.path.join(self._cwd, _compose_file)
                     return
-            raise Exception(f'Cannot find compose file on {self.cwd}')
+            raise Exception(f'Cannot find compose file on {self._cwd}')
         if os.path.isabs(compose_file) and os.path.exists(compose_file):
             return compose_file
-        if os.path.exists(os.path.join(self.cwd, compose_file)):
-            return os.path.join(self.cwd, compose_file)
+        if os.path.exists(os.path.join(self._cwd, compose_file)):
+            return os.path.join(self._cwd, compose_file)
         raise Exception(f'Invalid compose file: {compose_file}')
 
     def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
