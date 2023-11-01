@@ -88,5 +88,11 @@ install_curl = RemoteCmdTask(
 runner.register(install_curl)
 ```
 
+Then you can run the the task by invoking:
+
+```bash
+zrb install-curl
+```
+
 
 🔖 [Table of Contents](../README.md) / [FAQ](README.md)
