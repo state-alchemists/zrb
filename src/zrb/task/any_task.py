@@ -131,6 +131,10 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def get_complete_cmd_name(self) -> str:
+        pass
+
+    @abstractmethod
     def get_env_files(self) -> List[EnvFile]:
         pass
 

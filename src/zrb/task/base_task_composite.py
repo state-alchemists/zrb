@@ -462,11 +462,11 @@ class TaskModelWithPrinterAndTracker(
     def _get_filled_complete_name(self) -> str:
         if self._filled_complete_name is not None:
             return self._filled_complete_name
-        complete_name = self._get_complete_name()
+        complete_name = self.get_complete_cmd_name()
         self._filled_complete_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
         return self._filled_complete_name
 
-    def _get_complete_name(self) -> str:
+    def get_complete_cmd_name(self) -> str:
         if self._complete_name is not None:
             return self._complete_name
         executable_prefix = ''
