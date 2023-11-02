@@ -4,9 +4,11 @@
 
 [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md)
 
-Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, you can automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
+Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, Zrb will help you automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
 
 To use Zrb, you need to be familiar with CLI.
+
+Zrb task definitions are written in [Python](https://www.python.org/), and we have a [very good reason](https://github.com/state-alchemists/zrb/blob/main/docs/faq/why-python.md) behind the decision.
 
 ## Zrb as a low-code framework
 

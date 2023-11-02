@@ -6,11 +6,15 @@ Zrb is an automation tool. With Zrb you can run tasks using command-line-interfa
 
 There are project tasks and common tasks. Project tasks are usually bind to a project, while common tasks can be executed from anywhere.
 
-# Running a common task
+# Running a task
 
-To run a common task, you can type `zrb [task-groups] <task-name> [task-parameters]`.
+You can run any Zrb task by invoking the following pattern:
 
-For example, you want to run `encode` task under `base64` group, you can do so by execute the following:
+```bash
+zrb [task-groups] <task-name> [task-parameters]
+```
+
+For example, you want to run `encode` that is located under `base64` group, you can do so by execute the following command:
 
 ```bash
 zrb base64 encode --text "non-credential-string"
@@ -32,7 +36,9 @@ Related tasks are usually located under the same group. For example, you have `d
 zrb base64 decode --text "bm9uLWNyZWRlbnRpYWwtc3RyaW5n"
 ```
 
-Don't worry if you can't remember all available `task-group`, `task-name`, or `task-parameters`. Just press enter at any time, and Zrb will show you the way.
+# Getting available tasks/task groups
+
+To see all available task/task groups, you can type `zrb` and press enter.
 
 ```bash
 zrb
@@ -52,21 +58,36 @@ Commands:
   devtool           Developer tools management
   env               Environment variable management
   eval              Evaluate Python expression
-  fibo              fibo
-  hello             hello
-  make              Make things
   md5               MD5 operations
   explain           Explain things 
   project           Project management
-  register-trainer  register-trainer
-  start-server      start-server
-  test-error        test-error
   ubuntu            Ubuntu related commands
   update            Update zrb
   version           Get Zrb version
 ```
 
-Once you find your task, you can just type the task without bothering about the parameters. Zrb will prompt you to fill the parameter interactively.
+You can keep doing this until you find the task you want to execute
+
+```bash
+zrb base64
+```
+
+```
+Usage: zrb base64 [OPTIONS] COMMAND [ARGS]...
+
+  Base64 operations
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  decode  Decode base64 task
+  encode  Encode base64 task
+```
+
+# Using prompt
+
+Once you find your task, you can just type the task without bothering about the parameters. Zrb will automatically prompt you to fill the parameter interactively.
 
 ```bash
 zrb base64 encode
@@ -83,11 +104,13 @@ To run again: zrb base64 encode --text "non-credential-string"
 bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 ```
 
+> __NOTE:__ To disable prompt, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
+
 # Creating a project
 
 To make things more manageable, you can put related task definitions and resources under the same project.
 
-You can create a project by invoking `zrb project create` as follow:
+You can create a project under `my-project` directory by invoking the following command:
 
 ```bash
 zrb project create --project-dir my-project
@@ -115,9 +138,11 @@ drwxr-xr-x 2 gofrendi gofrendi 4096 Jun 11 05:29 src
 -rw-r--r-- 1 gofrendi gofrendi   54 Jun 11 05:29 zrb_init.py
 ```
 
-A project is a directory containing `zrb_init.py`. All task definitions should be declared/imported to this file.
+Every Zrb project contains a file named `zrb_init.py`. This file is your entry point to define all tasks/configurations.
 
-When you create a project by using `zrb project create`, you will also see some other files/directory:
+It is recommended that you define your tasks under `_automate` directory and import them into your `zrb_init.py`. This will help you manage the [separation of concerns](https://en.wikipedia.org/wiki/Separation_of_concerns).
+
+Aside from `zrb_init.py`, you will also find some other files/directory:
 
 - `.git` and `.gitignore`, indicating that your project is also a git repository.
 - `README.md`, your README file.
@@ -127,7 +152,7 @@ When you create a project by using `zrb project create`, you will also see some 
 - `_automate`, a directory contains task definitions that should be imported in `zrb_init.py`.
 - `src`, your project resources (e.g., source code, docker compose file, helm charts, etc)
 
-By default, Zrb will create several tasks under your project. Try to type:
+By default, Zrb will create a default `task-group` named `project`. Try to type:
 
 ```bash
 zrb project
@@ -155,9 +180,9 @@ Commands:
   stop-containers    Stop project containers
 ```
 
-# Adding a Cmd task
+# Creating a simple task
 
-Once your project has been created, it's time to add some tasks to your project.
+Once your project has been created, you can add some new tasks to your project.
 
 Let's say you work for a company named `Arasaka`, and you want to show a cool CLI banner for your company.
 
@@ -217,7 +242,7 @@ runner.register(show_banner)
 
 Cool. You make it. [Saburo Arasaka](https://cyberpunk.fandom.com/wiki/Saburo_Arasaka) will be proud of you 😉.
 
-# Adding another Cmd Task: Run Jupyterlab
+# Creating a long-running task
 
 Arasaka is a data-driven (and family-driven) company. They need their data scientists to experiment a lot to present the most valuable information/knowledge.
 
@@ -369,15 +394,9 @@ Open up your browser on `http://localhost:8080` and start working.
 
 We have cover the minimum basics to work ~~for Arasaka~~ with Zrb.
 
-No matter how complex your task will be, the flow will be similar:
+To learn more about tasks and other concepts, you can visit [Zrb concept section](concepts/README.md).
 
-- You generate the task
-- You modify the task
-- You run the task
-
-To learn more about tasks and other concepts, you can visit [the concept section](concepts/README.md).
-
-BTW, do you know that you can make and deploy a CRUD application without even touching your IDE/text editor? Check out [our tutorials](tutorials/README.md) for more cool tricks.
+Also, do you know that you can make and deploy a CRUD application without even touching your IDE/text editor? Check out [our tutorials](tutorials/README.md) for more cool tricks.
 
 
 🔖 [Table of Contents](README.md)

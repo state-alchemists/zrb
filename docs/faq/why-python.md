@@ -31,6 +31,7 @@ Let's see how Ansible playbook and Zrb config might like similar to each other:
 First of all, you need to define your virtual machines
 
 ```ini
+# file: vm_inventory.ini
 [my_vms]
 192.168.1.100 ansible_ssh_user=ubuntu
 192.168.1.101 ansible_ssh_user=ubuntu
@@ -40,6 +41,7 @@ First of all, you need to define your virtual machines
 Then you create a playbook to define what you want to do with the virtual machines
 
 ```yaml
+# file: install_curl.yml
 ---
 - name: Install curl on VMs
   hosts: my_vms
@@ -61,11 +63,12 @@ Finally, you run the playbook agains the virtual machines:
 ansible-playbook -i vm_inventory.ini install_curl.yml
 ```
 
-## Zrb configs
+## Zrb Task Definition
 
 You can define something similar with Zrb:
 
 ```python
+# file: zrb_init.py
 from zrb import (
     runner, CmdTask, RemoteCmdTask, RemoteConfig, PasswordInput
 )
@@ -77,13 +80,17 @@ remote_configs = [
     ) for sub_ip in range(100, 103)
 ]
 
+update_package_cache = RemoteCmdTask(
+    name='update-package-cache',
+    remote_configs=remote_configs,
+    cmd='sudo apt update'
+)
+
 install_curl = RemoteCmdTask(
     name='install-curl',
-    remote_configs= remote_configs,
-    cmd=[
-        'sudo apt update',
-        'sudo apt install curl --y'
-    ]
+    remote_configs=remote_configs,
+    upstreams=[update_package_cache],
+    cmd='sudo apt install curl --y'
 )
 runner.register(install_curl)
 ```
@@ -93,6 +100,16 @@ Then you can run the the task by invoking:
 ```bash
 zrb install-curl
 ```
+
+## Comparing Ansible Playbook and Zrb Task Definition
+
+If you are not familiar with Python, Ansible Playbook will makes more sense for you. Ansible task definition is carefully crafted to cover most use cases.
+
+The trickiest part when you work with Ansible or any YAML based configuration is you need to understand the specification. Docker compose for example, has a very different configuration from ansible eventough both of them are using YAML.
+
+On the other hand, Python is just Python. You can use list comprehension, loop, branch, or anything you already know. The syntax highlighting, hint, and auto completion are commonly provided in your favorite tools.
+
+Even if you are new to Python, Zrb Task Definition is not very difficult to grasp. You can follow the [getting started guide](../getting-started.md) and tag along.
 
 
 🔖 [Table of Contents](../README.md) / [FAQ](README.md)
