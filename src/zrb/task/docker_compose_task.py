@@ -150,11 +150,7 @@ class DockerComposeTask(CmdTask):
         self._compose_runtime_file = self._get_compose_runtime_file(
             self._compose_template_file
         )
-        # append services env and env_files to current task
-        for _, service_config in self._compose_service_configs.items():
-            self._env_files += service_config.get_env_files()
-            self._envs += service_config.get_envs()
-        self._add_compose_envs()
+        self._is_additional_env_added = False
 
     def copy(self) -> TDockerComposeTask:
         return super().copy()
@@ -167,6 +163,39 @@ class DockerComposeTask(CmdTask):
             os.remove(self._compose_runtime_file)
         return result
 
+    def _get_all_envs(self) -> Mapping[str, Env]:
+        if self._is_additional_env_added:
+            return super()._get_all_envs()
+        self._is_additional_env_added = True
+        # define additional envs and additonal env_files
+        additional_envs: List[Env] = []
+        additional_env_files: List[EnvFile] = []
+        # populate additional envs and additional env_files
+        # with service configs
+        for _, service_config in self._compose_service_configs.items():
+            additional_env_files += service_config.get_env_files()
+            additional_envs += service_config.get_envs()
+        # populate additional envs and additional env_files with
+        # compose envs
+        data = read_compose_file(self._compose_template_file)
+        env_map = fetch_compose_file_env_map(data)
+        for key, value in env_map.items():
+            # Need to get this everytime because we only want
+            # the first compose file env value for a certain key
+            existing_env_map = self._get_existing_env_map()
+            if key in existing_env_map:
+                continue
+            os_name = key
+            if self._compose_env_prefix != '':
+                os_name = f'{self._compose_env_prefix}_{os_name}'
+            compose_env = Env(name=key, os_name=os_name, default=value)
+            additional_envs.append(compose_env)
+        # Add additional envs and addition env files to this task
+        self._envs = additional_envs + list(self._envs)
+        self._env_files = additional_env_files + list(self._env_files)
+        # get all envs
+        return super()._get_all_envs()
+
     def _generate_compose_runtime_file(self):
         compose_data = read_compose_file(self._compose_template_file)
         for service, service_config in self._compose_service_configs.items():
@@ -175,10 +204,10 @@ class DockerComposeTask(CmdTask):
             for env_file in env_files:
                 envs += env_file.get_envs()
             envs += service_config.get_envs()
-            compose_data = self._add_service_env(compose_data, service, envs)
+            compose_data = self._apply_service_env(compose_data, service, envs)
         write_compose_file(self._compose_runtime_file, compose_data)
 
-    def _add_service_env(
+    def _apply_service_env(
         self, compose_data: Any, service: str, envs: List[Env]
     ) -> Any:
         # service not found
@@ -236,20 +265,6 @@ class DockerComposeTask(CmdTask):
 
     def _get_env_compose_value(self, env: Env) -> str:
         return '${' + env.name + ':-' + env.default + '}'
-
-    def _add_compose_envs(self):
-        data = read_compose_file(self._compose_template_file)
-        env_map = fetch_compose_file_env_map(data)
-        for key, value in env_map.items():
-            # Need to get this everytime because we only want
-            # the first compose file env value for a certain key
-            existing_env_map = self._get_existing_env_map()
-            if key in existing_env_map:
-                continue
-            os_name = key
-            if self._compose_env_prefix != '':
-                os_name = f'{self._compose_env_prefix}_{os_name}'
-            self.add_envs(Env(name=key, os_name=os_name, default=value))
 
     def _get_existing_env_map(self) -> Mapping[str, str]:
         env_map: Mapping[str, str] = {}
