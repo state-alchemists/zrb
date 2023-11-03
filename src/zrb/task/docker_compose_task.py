@@ -179,17 +179,18 @@ class DockerComposeTask(CmdTask):
         # compose envs
         data = read_compose_file(self._compose_template_file)
         env_map = fetch_compose_file_env_map(data)
+        registered_env_map: Mapping[str, bool] = {}
         for key, value in env_map.items():
             # Need to get this everytime because we only want
             # the first compose file env value for a certain key
-            existing_env_map = self._get_existing_env_map()
-            if key in existing_env_map:
+            if key in registered_env_map:
                 continue
             os_name = key
             if self._compose_env_prefix != '':
                 os_name = f'{self._compose_env_prefix}_{os_name}'
             compose_env = Env(name=key, os_name=os_name, default=value)
             additional_envs.append(compose_env)
+            registered_env_map[key] = True
         # Add additional envs and addition env files to this task
         self._envs = additional_envs + list(self._envs)
         self._env_files = additional_env_files + list(self._env_files)
@@ -265,18 +266,6 @@ class DockerComposeTask(CmdTask):
 
     def _get_env_compose_value(self, env: Env) -> str:
         return '${' + env.name + ':-' + env.default + '}'
-
-    def _get_existing_env_map(self) -> Mapping[str, str]:
-        env_map: Mapping[str, str] = {}
-        for env_file in self._env_files:
-            envs = env_file.get_envs()
-            env_map.update({
-                env.name: env.default for env in envs
-            })
-        env_map.update({
-            env.name: env.default for env in self._envs
-        })
-        return env_map
 
     def _get_compose_runtime_file(self, compose_file_name: str) -> str:
         directory, file = os.path.split(compose_file_name)
