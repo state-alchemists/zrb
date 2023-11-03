@@ -1,4 +1,6 @@
-from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig, Env, EnvFile
+from zrb.task.docker_compose_task import (
+    DockerComposeTask, ServiceConfig, Env, EnvFile
+)
 
 import pathlib
 import os
