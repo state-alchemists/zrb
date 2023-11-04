@@ -168,9 +168,9 @@ class CmdTask(BaseTask):
         self, cwd: Optional[Union[str, pathlib.Path]]
     ):
         if cwd is None:
-            self.cwd: Union[str, pathlib.Path] = os.getcwd()
+            self._cwd: Union[str, pathlib.Path] = os.getcwd()
             return
-        self.cwd: Union[str, pathlib.Path] = cwd
+        self._cwd: Union[str, pathlib.Path] = os.path.abspath(cwd)
 
     def to_function(
         self, env_prefix: str = '', raise_error: bool = True
@@ -195,12 +195,12 @@ class CmdTask(BaseTask):
         cmd = self._get_cmd_str(*args, **kwargs)
         env_map = self._get_shell_env_map()
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
-        self.print_out_dark('Working directory: ' + self.cwd)
+        self.print_out_dark('Working directory: ' + self._cwd)
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(
             cmd,
-            cwd=self.cwd,
+            cwd=self._cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env_map,

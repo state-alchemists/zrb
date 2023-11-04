@@ -21,7 +21,7 @@ from zrb.helper.advertisement import get_advertisement
 from zrb.helper.string.modification import double_quote
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.map.conversion import to_str as map_to_str
-from zrb.config.config import show_advertisement
+from zrb.config.config import show_advertisement, env_prefix
 
 import asyncio
 import copy
@@ -333,6 +333,7 @@ class BaseTask(
             if raise_error:
                 raise
         finally:
+            self._show_env_prefix()
             self._show_run_command()
             self._play_bell()
 
@@ -372,6 +373,13 @@ class BaseTask(
         await self.on_ready()
         return True
 
+    def _show_env_prefix(self):
+        if env_prefix == '':
+            return
+        colored_env_prefix = colored(env_prefix, color='yellow')
+        colored_label = colored('Your current environment: ', attrs=['dark'])
+        print(colored(f'{colored_label}{colored_env_prefix}'), file=sys.stderr)
+
     def _show_run_command(self):
         params: List[str] = [double_quote(arg) for arg in self._args]
         for task_input in self.get_all_inputs():
@@ -381,14 +389,14 @@ class BaseTask(
             kwarg_key = self._get_normalized_input_key(key)
             quoted_value = double_quote(str(self._kwargs[kwarg_key]))
             params.append(f'--{key} {quoted_value}')
-        run_cmd = self._get_complete_name()
+        run_cmd = self.get_complete_cmd_name()
         run_cmd_with_param = run_cmd
         if len(params) > 0:
             param_str = ' '.join(params)
             run_cmd_with_param += ' ' + param_str
-        colored_run_cmd = colored(f'{run_cmd_with_param}', color='yellow')
+        colored_command = colored(run_cmd_with_param, color='yellow')
         colored_label = colored('To run again: ', attrs=['dark'])
-        print(colored(f'{colored_label}{colored_run_cmd}'), file=sys.stderr)
+        print(colored(f'{colored_label}{colored_command}'), file=sys.stderr)
 
     async def _cached_check(self) -> bool:
         if self._is_check_triggered:
