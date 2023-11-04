@@ -7,5 +7,6 @@
 - [Run task programmatically](run-task-programmatically.md)
 - [Define task dynamically](define-task-dynamically.md)
 - [Copy task](copy-task.md)
+- [Extending CmdTask: Sending Message to Slack](extending-cmd-task.md)
 
 🔖 [Table of Contents](../README.md)

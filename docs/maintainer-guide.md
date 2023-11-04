@@ -1,6 +1,6 @@
 🔖 [Table of Contents](README.md)
 
-# For maintainers
+# Maintainer Guide
 
 
 To publish Zrb, you need a `Pypi` account:
