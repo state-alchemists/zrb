@@ -150,6 +150,8 @@ class DockerComposeTask(CmdTask):
         self._compose_runtime_file = self._get_compose_runtime_file(
             self._compose_template_file
         )
+        # Flag to make mark whether service config and compose environments
+        # has been added to this task's envs and env_files
         self._is_additional_env_added = False
 
     def copy(self) -> TDockerComposeTask:
@@ -164,6 +166,12 @@ class DockerComposeTask(CmdTask):
         return result
 
     def _get_all_envs(self) -> Mapping[str, Env]:
+        '''
+        This method override BaseTask's _get_all_envs.
+        Whenever _get_all_envs is called, we want to make sure that:
+        - Service config's envs and env_files are included
+        - Any environment defined in docker compose file is also included
+        '''
         if self._is_additional_env_added:
             return super()._get_all_envs()
         self._is_additional_env_added = True

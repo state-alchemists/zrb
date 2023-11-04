@@ -1,6 +1,6 @@
 🔖 [Table of Contents](README.md)
 
-# For contributors
+# Contributor Guide
 
 
 As contributors, there are some things you can do:
