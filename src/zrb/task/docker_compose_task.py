@@ -7,6 +7,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
+from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -187,18 +188,18 @@ class DockerComposeTask(CmdTask):
         # compose envs
         data = read_compose_file(self._compose_template_file)
         env_map = fetch_compose_file_env_map(data)
-        registered_env_map: Mapping[str, bool] = {}
+        added_env_map: Mapping[str, bool] = {}
         for key, value in env_map.items():
             # Need to get this everytime because we only want
             # the first compose file env value for a certain key
-            if key in registered_env_map:
+            if key in RESERVED_ENV_NAMES or key in added_env_map:
                 continue
             os_name = key
             if self._compose_env_prefix != '':
                 os_name = f'{self._compose_env_prefix}_{os_name}'
             compose_env = Env(name=key, os_name=os_name, default=value)
             additional_envs.append(compose_env)
-            registered_env_map[key] = True
+            added_env_map[key] = True
         # Add additional envs and addition env files to this task
         self._envs = additional_envs + list(self._envs)
         self._env_files = additional_env_files + list(self._env_files)

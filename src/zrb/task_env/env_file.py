@@ -1,6 +1,7 @@
 from zrb.helper.typing import List, Optional
 from zrb.helper.typecheck import typechecked
 from dotenv import dotenv_values
+from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 
 
@@ -25,6 +26,8 @@ class EnvFile():
         env_list: List[Env] = []
         env_map = dotenv_values(self.env_file)
         for key, value in env_map.items():
+            if key in RESERVED_ENV_NAMES:
+                continue
             os_name: Optional[str] = None
             if self.prefix is not None and self.prefix != '':
                 os_name = f'{self.prefix}_{key}'

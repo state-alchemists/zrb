@@ -12,6 +12,7 @@ from zrb.task.base_task_composite import (
 )
 from zrb.advertisement import advertisements
 from zrb.task_group.group import Group
+from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput
@@ -282,6 +283,8 @@ class BaseTask(
         self._allow_add_env_files = False
         all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
+            if env_name in RESERVED_ENV_NAMES:
+                continue
             all_envs[env_name] = Env(
                 name=env_name, os_name=env_name, renderable=False
             )
