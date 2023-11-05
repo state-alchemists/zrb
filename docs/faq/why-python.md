@@ -4,9 +4,11 @@
 
 Python is a general multi-purpose language. It support a lot of pogramming paradigms like OOP/FP, or procedural. Writing a configuration in Python let you do a lot of things like control structure, etc.
 
-Python has been around since the 90's, and you won't have to worry about the language. Many people already familiar with the language. Even if you are new to the language, learning Python will be highly rewarding.
+Python has been around since the 90's, and it was battle tested everywhere. Many people already familiar with the language. Even if you are new to the language, learning Python will be highly rewarding.
 
-However, there are a lot of tools out there that don't use Python. So, why Python? Why not YAML/HCL/anything else?
+Nevertheless, there are a lot of tools out there that don't use Python.
+
+So, we can extend the question: Why Python? Why not YAML/HCL/anything else?
 
 # Why not YAML?
 
@@ -105,11 +107,30 @@ zrb install-curl
 
 If you are not familiar with Python, Ansible Playbook will makes more sense for you. Ansible task definition is carefully crafted to cover most use cases.
 
-The trickiest part when you work with Ansible or any YAML based configuration is you need to understand the specification. Docker compose for example, has a very different configuration from ansible eventough both of them are using YAML.
+The trickiest part when you work with Ansible or any YAML based configuration is you need to understand the tool specification. Docker compose for example, has a very different configuration from ansible eventough both of them are using YAML.
 
 On the other hand, Python is just Python. You can use list comprehension, loop, branch, or anything you already know. The syntax highlighting, hint, and auto completion are commonly provided in your favorite tools.
 
 Even if you are new to Python, Zrb Task Definition is not very difficult to grasp. You can follow the [getting started guide](../getting-started.md) and tag along.
+
+
+# Why not Anything Else?
+
+There are a few of considerations.
+
+- Python is interpreted.
+
+  Other language like go or rust might give you a better performance, but the iteration is generally slower. You need to compile them into machine code in order to make it works.
+
+  Zrb is an automation tool. It helps developers doing their job. It doesn't serve any service to the end user. Thus, we can sacrifice the execution speed a little bit. No one will complain if your deployment is late for 0.5 seconds.
+
+- Python is popular.
+
+  If you are using macOS, there is a high chance you already have Python installed in your computer. Even if you are using Linux/Windows, installing Python is usually quite easy.
+
+- We want to focus on the features.
+
+  Building our own parser can be fun and challenging, but it doesn't bring any value to the user. We want to build Zrb on top of something battle proven, something you are already familiar with, something you can hack on without learning the whole new concept and specs.
 
 
 🔖 [Table of Contents](../README.md) / [FAQ](README.md)

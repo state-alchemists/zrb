@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Preparing your machine
+# Preparing Your Machine
 
 > This guide has been tested under `debian 12` and `ubuntu 22.0.4`
 
@@ -14,7 +14,7 @@ Zrb is a Python package. So, in order to get started, you will need to have:
 sudo apt install python-is-python3 python3-dev python3-distutils python3-openssl python3-pip python3-venv
 ```
 
-# Creating venv for setup
+# Creating Venv for Setup
 
 Once you have install Python, pip, and venv, you can make a directory named `zrb-setup` and create a virtual environment.
 
@@ -30,7 +30,7 @@ Please note that whenever you want to work with the virtual environment, you wil
 Creating different virtual environment for each of your projects make your pip packages more manageable.
 For example, you will be able to have two different version of the same python package in the different project.
 
-# Install zrb on venv
+# Install Zrb on Venv
 
 After having your virtual environment set up, you can install `zrb` on your virtual environment:
 
@@ -38,7 +38,7 @@ After having your virtual environment set up, you can install `zrb` on your virt
 pip install zrb
 ```
 
-# Install essential packages for ubuntu/debian
+# Install Essential Packages for Ubuntu/Debian
 
 Next you can install essential packages for development.
 
@@ -46,7 +46,7 @@ Next you can install essential packages for development.
 zrb ubuntu install packages
 ```
 
-# Setup zsh
+# Setup Zsh
 
 Zsh and oh-my-zsh is highly compatible, yet provide the same experience as `bash`.
 Installing zsh is not mandatory, but highly recommended.
@@ -79,7 +79,7 @@ To install tmux, you need to invoke the following command:
 zrb devtool install tmux
 ```
 
-# Setup pyenv
+# Setup Pyenv
 
 With pyenv, you can manage multiple python environments.
 Installing pyenv is highly recommended.
@@ -90,7 +90,7 @@ You can install pyenv by invoking the following command:
 zrb devtool install pyenv
 ```
 
-# Setup nvm
+# Setup Nvm
 
 Nvm allows you to manage multiple node.js environments. Node.js is mandatory if you want to run `fastapp` application.
 
@@ -100,11 +100,11 @@ You can install nvm by invoking the following command:
 zrb devtool install nvm
 ```
 
-# Setup docker and kubectl
+# Setup Docker and Kubectl
 
 If you are using WSL, the most recommended way is by installing docker desktop and enable wsl-integration
 
-![Enable WSL integration](./images/enable-wsl-integration.png)
+![Enable WSL integration](_images/enable-wsl-integration.png)
 
 Otherwise, you can invoke the following command:
 
@@ -113,7 +113,7 @@ zrb devtool install docker
 zrb devtool install kubectl
 ```
 
-# Setup pulumi
+# Setup Pulumi
 
 To setup pulumi, you can invoke the following command:
 
@@ -123,7 +123,7 @@ zrb devtool install pulumi
 
 You need pulumi for app deployment.
 
-# Setup other tools
+# Setup Other Tools
 
 There are some other tools you might need to install depending on your needs. For example:
 

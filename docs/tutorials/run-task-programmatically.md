@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Running task programmatically
+# Running Task Programmatically
 
 Aside from running tasks from the terminal, you can also run tasks programmatically. For example:
 

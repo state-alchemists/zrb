@@ -59,7 +59,7 @@ runner.register(add_mit_license)
 Note that your template folder might contains a very complex structure. For example, you can make your application boiler plate into a template.
 
 
-# ResourceMaker parameters
+# ResourceMaker Parameters
 
 Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `ResourceMaker` has it's own specific parameters.
 

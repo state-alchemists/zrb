@@ -66,6 +66,10 @@ class CommonTaskModel():
         self._allow_add_envs = True
         self._allow_add_env_files = True
         self._allow_add_inputs = True
+        self._execution_id = ''
+
+    def set_execution_id(self, execution_id: str):
+        self._execution_id = execution_id
 
     def set_name(self, new_name: str):
         if self._description == self._name:
@@ -109,6 +113,9 @@ class CommonTaskModel():
         if not self._allow_add_env_files:
             raise Exception(f'Cannot add env_files on `{self._name}`')
         self._env_files += env_files
+
+    def get_execution_id(self) -> str:
+        return self._execution_id
 
     def get_icon(self) -> str:
         return self._icon

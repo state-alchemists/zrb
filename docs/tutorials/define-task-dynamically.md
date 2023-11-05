@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Define task dynamically
+# Define Task Dynamically
 
 Every task definition in Zrb are written in Python.
 
@@ -39,6 +39,11 @@ You can try to run the tasks:
 
 ```bash
 zrb show-fruits
+
+# or run the generated task individually:
+zrb show-apple
+zrb show-orange
+zrb show-grapes
 ```
 
 It should run all previous tasks as well.

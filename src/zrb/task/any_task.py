@@ -81,6 +81,10 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def set_execution_id(self, execution_id: str):
+        pass
+
+    @abstractmethod
     def set_name(self, new_name: str):
         pass
 
@@ -112,6 +116,10 @@ class AnyTask(ABC):
 
     @abstractmethod
     def set_checking_interval(self, new_checking_interval: Union[float, int]):
+        pass
+
+    @abstractmethod
+    def get_execution_id(self) -> str:
         pass
 
     @abstractmethod

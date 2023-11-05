@@ -75,7 +75,7 @@ zrb say-hello --name=John
 
 You can also use `async` function if you think you need to.
 
-# Task parameters
+# Task Parameters
 
 Every [common task parameters](./README.md#common-task-parameters) are applicable here. Additionally, a `Task` has some specific parameters.
 
@@ -155,7 +155,7 @@ Runner this task registered to.
 - __Possible values:__ `runner` or `None`
 - __Default value:__ `runner`
 
-# Task methods
+# Task Methods
 
 Please refer to [common task methods](./README.md#common-task-methods).
 

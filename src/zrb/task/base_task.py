@@ -12,11 +12,13 @@ from zrb.task.base_task_composite import (
 )
 from zrb.advertisement import advertisements
 from zrb.task_group.group import Group
+from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
 from zrb.helper.accessories.color import colored
+from zrb.helper.accessories.name import get_random_name
 from zrb.helper.advertisement import get_advertisement
 from zrb.helper.string.modification import double_quote
 from zrb.helper.string.conversion import to_variable_name
@@ -281,6 +283,8 @@ class BaseTask(
         self._allow_add_env_files = False
         all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
+            if env_name in RESERVED_ENV_NAMES:
+                continue
             all_envs[env_name] = Env(
                 name=env_name, os_name=env_name, renderable=False
             )
@@ -305,6 +309,8 @@ class BaseTask(
     ):
         try:
             self._start_timer()
+            if self.get_execution_id() == '':
+                self.set_execution_id(get_random_name())
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
@@ -357,6 +363,11 @@ class BaseTask(
         if you want to show the result differently.
         '''
         print(result)
+    
+    def set_execution_id(self, execution_id: str):
+        super().set_execution_id(execution_id)
+        self._set_env_map('_ZRB_EXECUTION_ID', execution_id)
+        self._set_input_map('_execution_id', execution_id)
 
     async def _loop_check(self, show_done: bool = False) -> bool:
         self.log_info('Start readiness checking')
@@ -426,6 +437,7 @@ class BaseTask(
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self._checkers:
+            checker_task.set_execution_id(self.get_execution_id())
             check_coroutines.append(
                 asyncio.create_task(checker_task._run_all())
             )
@@ -438,6 +450,7 @@ class BaseTask(
         # Add upstream tasks to processes
         self._allow_add_upstreams = False
         for upstream_task in self._upstreams:
+            upstream_task.set_execution_id(self.get_execution_id())
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
