@@ -10,7 +10,7 @@ To use Zrb, you need to be familiar with CLI.
 
 Zrb task definitions are written in [Python](https://www.python.org/), and we have a [very good reason](https://github.com/state-alchemists/zrb/blob/main/docs/faq/why-python.md) behind the decision.
 
-## Zrb as a low-code framework
+## Zrb is A Low-Code Framework
 
 Let's see how you can build and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
 
@@ -60,7 +60,7 @@ zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
 
 
-## Zrb as a task-automation framework
+## Zrb is A Task-Automation Tool
 
 Aside from the built-in capabilities, Zrb also allows you to define your automation commands in Python. To do so, you must create/modify a file named `zrb_init.py`.
 
@@ -103,7 +103,7 @@ To learn more about this, you can visit [our getting started guide](https://gith
 
 # 🫰 Installation
 
-## ⚙️ In local machine
+## ⚙️ In Local Machine
 
 Installing Zrb in your system is as easy as typing the following command in your terminal:
 
@@ -115,7 +115,7 @@ Like any other Python package, you can install Zrb in your [virtual environment]
 
 > ⚠️ If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` subsection to install them.
 
-## 🐋 With docker
+## 🐋 With Docker
 
 If you prefer to work with Docker, you can create a file named `docker-compose.yml`
 
@@ -154,7 +154,7 @@ You will be able to access Zrb by using docker exec:
 docker exec -it zrb zsh
 ```
 
-# ✅ Main prerequisites
+# ✅ Main Prerequisites
 
 Since Zrb is written in Python, you need to install a few things before installing Zrb:
 
@@ -179,7 +179,7 @@ ln -s venv/bin/python3 /usr/local/bin/python
 
 If you prefer Python distribution like [conda](https://docs.conda.io/en/latest/), that might work as well.
 
-# ✔️ Other prerequisites
+# ✔️ Other Prerequisites
 
 If you want to generate applications using Zrb and run them on your computer, you will also need:
 
@@ -198,7 +198,7 @@ If you want to generate applications using Zrb and run them on your computer, yo
 - 🦆 `Pulumi`
     - You need Pulumi to deploy your applications
 
-# 🏁 Getting started
+# 🏁 Getting Started
 
 We have an excellent [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
 
@@ -212,7 +212,7 @@ Help Red Skull to click the donation button:
 
 [![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com/donation)
 
-# 🎉 Fun fact
+# 🎉 Fun Fact
 
 > Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
 
