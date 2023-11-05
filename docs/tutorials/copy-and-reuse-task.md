@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Copy task
+# Copy and Re-use Task
 
 Rather than define similar task twice, you can copy existing task into a new one and applying necessary changes.
 

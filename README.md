@@ -1,8 +1,8 @@
 # 🤖 Zrb (Read: Zaruba) : A Super Framework for Your Super App
 
-![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/zrb/android-chrome-192x192.png)
+![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-[📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md)| [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+[📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
 Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, Zrb will help you automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
 
@@ -39,9 +39,9 @@ zrb project start-fastapp --fastapp-run-mode "monolith"
 
 You will be able to access the application by pointing your browser to [http://localhost:3000](http://localhost:3000)
 
-![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/fastapp.png)
+![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/fastapp.png)
 
-Furthermore, you can also run the same application as `microservices`, run the application as `docker containers`, and even doing some deployments into your `kubernetes cluster`.
+Furthermore, you can run the same application as `microservices`, run the application as `docker containers`, and even do some deployments into your `kubernetes cluster`.
 
 
 ```bash
@@ -62,7 +62,7 @@ You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/
 
 ## Zrb as a task-automation framework
 
-Aside from the builtin capabilities, Zrb also allows you to define your automation commands in Python. To do so, you need to create/modify a file named `zrb_init.py`.
+Aside from the built-in capabilities, Zrb also allows you to define your automation commands in Python. To do so, you must create/modify a file named `zrb_init.py`.
 
 ```python
 # filename: zrb_init.py
@@ -111,7 +111,7 @@ Installing Zrb in your system is as easy as typing the following command in your
 pip install zrb
 ```
 
-Just like any other Python package, you can also install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). This will allow you to have many versions of Zrb on the same computer.
+Like any other Python package, you can install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). This will allow you to have many versions of Zrb on the same computer.
 
 > ⚠️ If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` subsection to install them.
 
@@ -183,7 +183,7 @@ If you prefer Python distribution like [conda](https://docs.conda.io/en/latest/)
 
 If you want to generate applications using Zrb and run them on your computer, you will also need:
 
-- 🐸 `Node.Js` and `Npm`. 
+- 🐸 `Node.Js` and `Npm`.
     - You need Node.Js to modify/transpile frontend code into static files.
     - You can visit the [Node.Js website](https://nodejs.org/en) for installation instructions.
 - 🐋 `Docker` and `Docker-compose` plugin.
@@ -200,7 +200,7 @@ If you want to generate applications using Zrb and run them on your computer, yo
 
 # 🏁 Getting started
 
-We have a nice [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
+We have an excellent [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
 
 # 📖 Documentation
 
@@ -210,10 +210,10 @@ You can visit [Zrb documentation](https://github.com/state-alchemists/zrb/blob/m
 
 Help Red Skull to click the donation button:
 
-[![](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/donator.png)](https://stalchmst.com/donation)
+[![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com/donation)
 
 # 🎉 Fun fact
 
 > Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
 
-![Madou Ring Zaruba on Kouga's Hand](https://raw.githubusercontent.com/state-alchemists/zrb/main/images/madou-ring-zaruba.jpg)
+![Madou Ring Zaruba on Kouga's Hand](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/madou-ring-zaruba.jpg)

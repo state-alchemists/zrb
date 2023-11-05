@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Define task dynamically
+# Define Task Dynamically
 
 Every task definition in Zrb are written in Python.
 

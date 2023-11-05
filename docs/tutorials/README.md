@@ -2,11 +2,12 @@
 
 # Tutorials
 
-- [Preparing your machine for development](preparing-your-machine-for-development.md)
-- [Development to deployment: Low code](development-to-deployment-low-code.md)
-- [Run task programmatically](run-task-programmatically.md)
-- [Define task dynamically](define-task-dynamically.md)
-- [Copy task](copy-task.md)
+- [Preparing Your Machine for Development](preparing-your-machine-for-development.md)
+- [Development to Deployment: Low Code](development-to-deployment-low-code.md)
+- [Run Task programmatically](run-task-programmatically.md)
+- [Run Task by Schedule](run-task-by-schedule.md)
+- [Define Task Dynamically](define-task-dynamically.md)
+- [Copy and Re-use task](copy-and-reuse-task.md)
 - [Extending CmdTask: Sending Message to Slack](extending-cmd-task.md)
 
 🔖 [Table of Contents](../README.md)

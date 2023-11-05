@@ -72,7 +72,7 @@ The default username and password will be `root` and `toor`.
 
 Try to add some books.
 
-![](images/my-app-list-of-book.png)
+![](_images/my-app-list-of-book.png)
 
 # Override default username and password
 
@@ -187,7 +187,7 @@ Make sure to also run `zrb project stop-myapp-container` to prevent your contain
 
 For this demo, we are using docker desktop with kubernetes enabled.
 
-![](images/enable-kubernetes-on-docker-desktop.png)
+![](_images/enable-kubernetes-on-docker-desktop.png)
 
 Once your kubernetes cluster is running, you can invoke the following command:
 
