@@ -1,6 +1,5 @@
 from zrb.helper.typing import Optional
 from zrb.helper.typecheck import typechecked
-from zrb.task_env.constant import RESERVED_ENV_NAMES
 import os
 
 
@@ -17,8 +16,6 @@ class Env():
         default: str = '',
         renderable: bool = True,
     ):
-        if name in RESERVED_ENV_NAMES:
-            raise ValueError(f'Forbidden env name: {name}')
         self.name: str = name
         self.os_name: str = os_name if os_name is not None else name
         self.default: str = default
