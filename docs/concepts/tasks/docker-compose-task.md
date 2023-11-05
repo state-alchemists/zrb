@@ -49,7 +49,7 @@ zrb run-container
 
 Under the hood, Zrb will read your `compose_file` populate it with some additional configuration, and create a runtime compose file `._<compose-file>-<task-name>.runtime.yml`. Zrb will use the run the runtime compose file to run your `compose_cmd` (i.e., `docker compose -f <compose-file>-<task-name>.runtime.yml <compose-cmd>`)
 
-# DockerComposeTask parameters
+# DockerComposeTask Parameters
 
 Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `DockerComposeTask` has it's own specific parameters.
 
@@ -159,7 +159,7 @@ runner.register(start_container)
 ## `preexec_fn`
 
 
-# DockerComposeTask methods
+# DockerComposeTask Methods
 
 Please refer to [common task methods](./README.md#common-task-methods).
 

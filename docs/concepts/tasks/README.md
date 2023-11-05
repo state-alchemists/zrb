@@ -3,14 +3,16 @@
 
 # Type of Tasks
 
-There are many task types in Zrb. Every task has their own specific use-cases:
+There are many task types in Zrb. Every task has its own specific use cases:
 
 
 - [CmdTask](cmd-task.md): Run a CLI command
 - [Task (python task)](python-task.md): Run a Python function
 - [DockerComposeTask](docker-compose-task.md): Run a Docker compose Command
-- [Resource Maker](resource-maker.md): Generate artifacts/resources based on templates
+- [ResourceMaker](resource-maker.md): Generate artifacts/resources based on templates
 - [FlowTask](flow-task.md): Put `CmdTask` and `python task` into single flow.
+- [RemoteCmdTask](remote-cmd-task.md)
+- [RsyncTask](remote-cmd-task.md)
 - [Checkers (HttpChecker, PortChecker, and PathChecker)](checkers.md): Check parent task's readiness.
 
 As every task are extended from `BaseTask`, you will see that most of them share some common parameters.
@@ -38,7 +40,7 @@ Aside from the documentation, you can always dive down into [the source code](ht
 
 > __Note:__ Never initiate `BaseTask` directly, use `Task` instead.
 
-# Task overview
+# Task Overview
 
 Tasks are building blocks of your automation.
 
@@ -143,11 +145,11 @@ Triggered         ┌─────────► Ready ◄──┐
 - `Retry`: The task has been failed and will be re-started.
 - `Ready`: The task is ready.
 
-# Common task parameters
+# Common Task Parameters
 
 Zrb tasks share some common parameters like `name`, `icon`, `color`, `description`, etc.
 
-Some parameters are required, while some others are optionals. Please refer to [each specific task documentation](#type-of-tasks) for more complete list of parameters.
+Some parameters are required, while some others are optional. Please refer to [each specific task documentation](#type-of-tasks) for a more complete list of parameters.
 
 ## `name`
 
@@ -390,7 +392,7 @@ Boolean, whether return upstreams result instead of current task result or not.
 ## `on_failed`
 
 
-# Common task methods
+# Common Task Methods
 
 Every task share some common methods like `run`, `check`, and `to_function`.
 
