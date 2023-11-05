@@ -4,7 +4,9 @@
 
 Zrb is an automation tool. With Zrb you can run tasks using command-line-interface.
 
-There are project tasks and common tasks. Project tasks are usually bind to a project, while common tasks can be executed from anywhere.
+You can also define Zrb tasks using Python.
+
+This getting-started guide covers all the basic you need to know before working with Zrb.
 
 # Running a task
 

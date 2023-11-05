@@ -69,7 +69,7 @@ You can then run the task by invoking:
 zrb say-hello --name=John
 ```
 
-# CmdTask parameters
+# CmdTask Parameters
 
 Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `CmdTask` has it's own specific parameters.
 
