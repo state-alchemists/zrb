@@ -9,12 +9,12 @@ Collection of the most common mistakes when working with Zrb
 - [Defining Different Tasks With The Same Name Under The Same Group](defining-different-tasks-with-the-same-name-under-the-same-group.md)
 - [Using The Same Variable to Define Different Task](using-the-same-variable-to-define-different-task.md)
 
-<center>
+<div style="text-align: center;">
 
-[![title here](https://img.youtube.com/vi/CduA0TULnow/0.jpg)](https://www.youtube.com/watch?v=CduA0TULnow)
+[![Oops I Did It Again](https://img.youtube.com/vi/CduA0TULnow/0.jpg)](https://www.youtube.com/watch?v=CduA0TULnow)
 
 💃 I'm not that innocent
 
-</center>
+</div>
 
 🔖 [Table of Contents](../README.md) / [Oops, I Did It Again](README.md)
