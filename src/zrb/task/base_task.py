@@ -310,7 +310,9 @@ class BaseTask(
         try:
             self._start_timer()
             if self.get_execution_id() == '':
-                self.set_execution_id(get_random_name())
+                self.set_execution_id(
+                    get_random_name(add_random_digit=True, digit_count=5)
+                )
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
