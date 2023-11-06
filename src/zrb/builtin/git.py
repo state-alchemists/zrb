@@ -1,7 +1,6 @@
 from zrb.helper.typing import Any
 from zrb.builtin.group import git_group
 from zrb.task.decorator import python_task
-from zrb.task.task import Task
 from zrb.task_input.str_input import StrInput
 from zrb.task_input.bool_input import BoolInput
 from zrb.runner import runner
@@ -26,7 +25,7 @@ from zrb.helper.python_task import show_lines
             prompt='Commit hash/Tag',
             default='HEAD'
         ),
-       BoolInput(
+        BoolInput(
             name='include-new',
             description='include new files',
             prompt='Include new files',
@@ -52,7 +51,6 @@ async def get_file_changes(*args: Any, **kwargs: Any):
     include_new = kwargs.get('include_new', True)
     include_removed = kwargs.get('include_removed', True)
     include_updated = kwargs.get('include_updated', True)
-    task: Task = kwargs['_task']
     modified_file_states = get_modified_file_states(commit)
     modified_file_keys = []
     output = []

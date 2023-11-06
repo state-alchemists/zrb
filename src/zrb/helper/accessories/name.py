@@ -10,23 +10,29 @@ def get_random_name(
     digit_count: int = 4
 ) -> str:
     prefixes = [
-        'aurum', 'argentum', 'platinum', 'mercurius', 'sulfur', 'sal',
-        'luna', 'sol', 'ferrum', 'cuprum', 'argent', 'aurora', 'citrin',
-        'coral', 'diamond', 'dragon', 'emerald', 'garnet', 'jade', 'onyx',
-        'opal', 'pearl', 'ruby', 'sapphire', 'topaz', 'turquoise', 'verde',
-        'zircon', 'venerable', 'serene', 'temptuous', 'inferna', 'celestial',
-        'ancient', 'ethereal', 'occult', 'primal', 'arcane', 'mystic', 'dark',
-        'divine'
+        'albedo', 'argent', 'argentum', 'aurora', 'aurum', 'azure',
+        'basilisk', 'cerulean', 'chimeric', 'citrin', 'coral', 'crimson',
+        'diamond', 'draco', 'dragon', 'emerald', 'ethereal', 'ferrum',
+        'flammeus', 'garnet', 'glacial', 'glimmering', 'glistening', 'golden',
+        'helios', 'igneous', 'imperial', 'jade', 'luminous', 'luna', 'lunar',
+        'mystic', 'nephrite', 'nocturnal', 'obsidian', 'opal', 'pearl',
+        'platinum', 'prismatic', 'ruby', 'sapphire', 'serpentine', 'silver',
+        'sol', 'solar', 'spiritual', 'stellar',  'tempest', 'topaz',
+        'turquoise', 'verde', 'vermillion', 'vitreous', 'zephyr', 'zircon'
     ]
     suffixes = [
-        'philosophorum', 'spiritus', 'tinctura', 'essentia', 'elixir',
-        'praeparatum', 'aether', 'vitae', 'lapis', 'metallum', 'aureum',
-        'caelestis', 'chrysopoeia', 'cosmicum', 'deum', 'draconis',
-        'elementorum', 'hermetica', 'illuminationis', 'magnum', 'mysticum',
-        'occultum', 'omnipotentis', 'philosophia', 'praestantissimum',
-        'quintessentia', 'regeneratio', 'universalis', 'alchemia',
-        'transmutatio', 'spiritualis', 'potentia', 'siderium', 'philogia',
-        'occulta', 'perpetua', 'infinitum', 'animus'
+        'aether', 'albedo', 'alchemy', 'arcana', 'aureum', 'aetheris',
+        'anima', 'astralis', 'caelestis', 'chrysopoeia', 'cosmicum',
+        'crystallum', 'deum', 'divinitas', 'draconis', 'elementorum', 'elixir',
+        'essentia', 'eternis', 'ethereus', 'fatum', 'flamma', 'fulgur',
+        'hermetica', 'ignis', 'illuminationis', 'imperium', 'incantatum',
+        'infinitum', 'lapis', 'lux', 'magicae', 'magnum', 'materia',
+        'metallum', 'mysticum', 'natura', 'occultum', 'omnipotentis',
+        'opulentia', 'philosophia', 'philosophorum', 'praeparatum',
+        'praestantissimum', 'prima', 'primordium', 'quintessentia',
+        'regeneratio', 'ritualis', 'sanctum', 'spiritus', 'tenebris',
+        'terra', 'tinctura', 'transmutationis', 'universalis', 'vapores',
+        'venenum', 'veritas', 'vitae', 'volatus'
     ]
     prefix = random.choice(prefixes)
     suffix = random.choice(suffixes)
