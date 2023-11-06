@@ -34,13 +34,15 @@ class RemoteConfig:
         user: str = '',
         password: str = '',
         ssh_key: str = '',
-        port: int = 22
+        port: int = 22,
+        config_map: Optional[Mapping[str, str]] = None
     ):
         self.host = host
         self.user = user
         self.password = password
         self.ssh_key = ssh_key
         self.port = port
+        self.config_map = {} if config_map is None else config_map
 
 
 @typechecked
