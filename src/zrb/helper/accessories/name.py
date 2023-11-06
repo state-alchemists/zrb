@@ -10,19 +10,23 @@ def get_random_name(
     digit_count: int = 4
 ) -> str:
     prefixes = [
-        "aurum", "argentum", "platinum", "mercurius", "sulfur", "sal",
-        "luna", "sol", "ferrum", "cuprum", "argent", "aurora", "citrin",
-        "coral", "diamond", "dragon", "emerald", "garnet", "jade", "onyx",
-        "opal", "pearl", "ruby", "sapphire", "topaz", "turquoise", "verde",
-        "zircon"
+        'aurum', 'argentum', 'platinum', 'mercurius', 'sulfur', 'sal',
+        'luna', 'sol', 'ferrum', 'cuprum', 'argent', 'aurora', 'citrin',
+        'coral', 'diamond', 'dragon', 'emerald', 'garnet', 'jade', 'onyx',
+        'opal', 'pearl', 'ruby', 'sapphire', 'topaz', 'turquoise', 'verde',
+        'zircon', 'venerable', 'serene', 'temptuous', 'inferna', 'celestial',
+        'ancient', 'ethereal', 'occult', 'primal', 'arcane', 'mystic', 'dark',
+        'divine'
     ]
     suffixes = [
-        "philosophorum", "spiritus", "tinctura", "essentia", "elixir",
-        "praeparatum", "aether", "vitae", "lapis", "metallum", "aureum",
-        "caelestis", "chrysopoeia", "cosmicum", "deum", "draconis",
-        "elementorum", "hermetica", "illuminationis", "magnum", "mysticum",
-        "occultum", "omnipotentis", "philosophia", "praestantissimum",
-        "quintessentia", "regeneratio", "universalis"
+        'philosophorum', 'spiritus', 'tinctura', 'essentia', 'elixir',
+        'praeparatum', 'aether', 'vitae', 'lapis', 'metallum', 'aureum',
+        'caelestis', 'chrysopoeia', 'cosmicum', 'deum', 'draconis',
+        'elementorum', 'hermetica', 'illuminationis', 'magnum', 'mysticum',
+        'occultum', 'omnipotentis', 'philosophia', 'praestantissimum',
+        'quintessentia', 'regeneratio', 'universalis', 'alchemia',
+        'transmutatio', 'spiritualis', 'potentia', 'siderium', 'philogia',
+        'occulta', 'perpetua', 'infinitum', 'animus'
     ]
     prefix = random.choice(prefixes)
     suffix = random.choice(suffixes)
