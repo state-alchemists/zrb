@@ -2,6 +2,7 @@ from zrb.helper.typing import (
     Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
+from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
@@ -138,6 +139,10 @@ class SingleBaseRemoteCmdTask(CmdTask):
         env_map['_CONFIG_PASSWORD'] = self.render_str(
             self._remote_config.password
         )
+        for key, val in self._remote_config.config_map.items():
+            upper_snake_key = to_snake_case(key).upper()
+            rendered_val = self.render_str(val)
+            env_map['_CONFIG_MAP_' + upper_snake_key] = rendered_val
         return env_map
 
     def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
