@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.util import to_snake_case
@@ -122,28 +122,54 @@ class SingleBaseRemoteCmdTask(CmdTask):
         self._post_cmd = post_cmd
         self._post_cmd_path = post_cmd_path
         self._remote_config = remote_config
+        self._is_additional_env_added = False
 
     def copy(self) -> TSingleBaseRemoteCmdTask:
         return copy.deepcopy(self)
 
-    def _get_shell_env_map(self) -> Mapping[str, Any]:
-        env_map = super()._get_shell_env_map()
-        env_map['_CONFIG_HOST'] = self.render_str(self._remote_config.host)
-        env_map['_CONFIG_PORT'] = str(self.render_int(
-            self._remote_config.port)
-        )
-        env_map['_CONFIG_SSH_KEY'] = self.render_str(
-            self._remote_config.ssh_key
-        )
-        env_map['_CONFIG_USER'] = self.render_str(self._remote_config.user)
-        env_map['_CONFIG_PASSWORD'] = self.render_str(
-            self._remote_config.password
-        )
+    def _get_all_envs(self) -> Mapping[str, Env]:
+        '''
+        This method override CmdTask's _get_all_envs.
+        Whenever _get_all_envs is called, we want to make sure that
+        we also include generated environment based on remote_config
+        '''
+        if self._is_additional_env_added:
+            return super()._get_all_envs()
+        self._is_additional_env_added = True
+        additional_envs: List[Env] = [
+            Env(
+                name='_CONFIG_HOST', os_name='',
+                default=self.render_str(self._remote_config.host)
+            ),
+            Env(
+                name='_CONFIG_PORT', os_name='',
+                default=str(self.render_int(self._remote_config.port))
+            ),
+            Env(
+                name='_CONFIG_SSH_KEY', os_name='',
+                default=self.render_str(self._remote_config.ssh_key)
+            ),
+            Env(
+                name='_CONFIG_USER', os_name='',
+                default=self.render_str(self._remote_config.user)
+            ),
+            Env(
+                name='_CONFIG_PASSWORD', os_name='',
+                default=self.render_str(self._remote_config.password)
+            ),
+        ]
         for key, val in self._remote_config.config_map.items():
             upper_snake_key = to_snake_case(key).upper()
             rendered_val = self.render_str(val)
-            env_map['_CONFIG_MAP_' + upper_snake_key] = rendered_val
-        return env_map
+            additional_envs.append(
+                Env(
+                    name='_CONFIG_MAP_' + upper_snake_key,
+                    os_name='',
+                    default=rendered_val
+                )
+            )
+        self._envs = list(self._envs) + additional_envs
+        return super()._get_all_envs()
 
     def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
         cmd_str = '\n'.join([
