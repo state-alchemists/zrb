@@ -12,7 +12,7 @@ There are many task types in Zrb. Every task has its own specific use cases:
 - [ResourceMaker](resource-maker.md): Generate artifacts/resources based on templates
 - [FlowTask](flow-task.md): Put `CmdTask` and `python task` into single flow.
 - [RemoteCmdTask](remote-cmd-task.md)
-- [RsyncTask](remote-cmd-task.md)
+- [RsyncTask](rsync-task.md)
 - [Checkers (HttpChecker, PortChecker, and PathChecker)](checkers.md): Check parent task's readiness.
 
 As every task are extended from `BaseTask`, you will see that most of them share some common parameters.
