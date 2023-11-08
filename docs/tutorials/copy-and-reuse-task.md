@@ -20,10 +20,10 @@ local_hello = hello.copy()
 
 # Update name, input, and env
 local_hello.set_name('hello-local')
-local_hello.add_inputs(
+local_hello.add_input(
     StrInput(name='name', description='Name', default='dunia')
 )
-local_hello.add_envs(
+local_hello.add_env(
     Env(name='GREETINGS', os_name='', default='Halo')
 )
 

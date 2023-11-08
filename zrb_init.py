@@ -99,7 +99,7 @@ build = CmdTask(
     ],
 )
 skippable_build: CmdTask = build.copy()
-skippable_build.add_inputs(build_zrb_input)
+skippable_build.add_input(build_zrb_input)
 skippable_build.set_should_execute('{{ input.build_zrb}}')
 runner.register(build)
 
@@ -273,7 +273,7 @@ install_symlink = CmdTask(
     ]
 )
 skippable_install_symlink: CmdTask = install_symlink.copy()
-skippable_install_symlink.add_inputs(
+skippable_install_symlink.add_input(
     build_zrb_input,
     install_symlink_input
 )
@@ -342,7 +342,7 @@ create_playground = CmdTask(
     preexec_fn=None
 )
 skippable_create_playground: CmdTask = create_playground.copy()
-skippable_create_playground.add_inputs(
+skippable_create_playground.add_input(
     build_zrb_input,
     install_symlink_input,
     create_playground_input

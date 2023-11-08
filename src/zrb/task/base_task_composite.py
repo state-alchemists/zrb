@@ -99,17 +99,17 @@ class CommonTaskModel():
     def set_checking_interval(self, new_checking_interval: Union[float, int]):
         self._checking_interval = new_checking_interval
 
-    def add_inputs(self, *inputs: AnyInput):
+    def add_input(self, *inputs: AnyInput):
         if not self._allow_add_inputs:
             raise Exception(f'Cannot add inputs on `{self._name}`')
         self._inputs += inputs
 
-    def add_envs(self, *envs: Env):
+    def add_env(self, *envs: Env):
         if not self._allow_add_envs:
             raise Exception(f'Cannot add envs on `{self._name}`')
         self._envs += envs
 
-    def add_env_files(self, *env_files: EnvFile):
+    def add_env_file(self, *env_files: EnvFile):
         if not self._allow_add_env_files:
             raise Exception(f'Cannot add env_files on `{self._name}`')
         self._env_files += env_files
@@ -127,16 +127,16 @@ class CommonTaskModel():
         return self._env_files
 
     def get_envs(self) -> List[Env]:
-        return self._envs
+        return list(self._envs)
 
     def get_inputs(self) -> List[AnyInput]:
-        return self._inputs
+        return list(self._inputs)
 
-    def get_checkers(self) -> Iterable[AnyTask]:
-        return self._checkers
+    def get_checkers(self) -> List[AnyTask]:
+        return list(self._checkers)
 
-    def get_upstreams(self) -> Iterable[AnyTask]:
-        return self._upstreams
+    def get_upstreams(self) -> List[AnyTask]:
+        return list(self._upstreams)
 
     def get_description(self) -> str:
         return self._description

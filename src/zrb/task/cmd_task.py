@@ -160,6 +160,7 @@ class CmdTask(BaseTask):
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
+        self._is_cmd_aditional_env_added = False
 
     def copy(self) -> TCmdTask:
         return super().copy()
@@ -182,18 +183,21 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    def _get_shell_env_map(self) -> Mapping[str, Any]:
-        env_map = self.get_env_map()
+    def _get_all_envs(self) -> Mapping[str, Env]:
+        if self._is_cmd_aditional_env_added:
+            return super()._get_all_envs()
         input_map = self.get_input_map()
+        additional_envs: List[Env] = []
         for input_name, input_value in input_map.items():
-            upper_input_name = '_INPUT_' + input_name.upper()
-            if upper_input_name not in env_map:
-                env_map[upper_input_name] = f'{input_value}'
-        return env_map
+            env_name = '_INPUT_' + input_name.upper()
+            additional_envs.append(
+                Env(name=env_name, os_name='', default=str(input_value))
+            )
+        self._envs += additional_envs
+        return super()._get_all_envs()
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self._get_cmd_str(*args, **kwargs)
-        env_map = self._get_shell_env_map()
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
         self.print_out_dark('Working directory: ' + self._cwd)
         self._output_buffer = []
@@ -203,7 +207,7 @@ class CmdTask(BaseTask):
             cwd=self._cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=env_map,
+            env=self.get_env_map(),
             shell=True,
             executable=self._executable,
             close_fds=True,

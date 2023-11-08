@@ -65,19 +65,19 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def add_upstreams(self, *upstreams: TAnyTask):
+    def add_upstream(self, *upstreams: TAnyTask):
         pass
 
     @abstractmethod
-    def add_inputs(self, *inputs: AnyInput):
+    def add_input(self, *inputs: AnyInput):
         pass
 
     @abstractmethod
-    def add_envs(self, *envs: Env):
+    def add_env(self, *envs: Env):
         pass
 
     @abstractmethod
-    def add_env_files(self, *env_files: EnvFile):
+    def add_env_file(self, *env_files: EnvFile):
         pass
 
     @abstractmethod

@@ -153,7 +153,7 @@ class DockerComposeTask(CmdTask):
         )
         # Flag to make mark whether service config and compose environments
         # has been added to this task's envs and env_files
-        self._is_additional_env_added = False
+        self._is_compose_additional_env_added = False
 
     def copy(self) -> TDockerComposeTask:
         return super().copy()
@@ -173,9 +173,9 @@ class DockerComposeTask(CmdTask):
         - Service config's envs and env_files are included
         - Any environment defined in docker compose file is also included
         '''
-        if self._is_additional_env_added:
+        if self._is_compose_additional_env_added:
             return super()._get_all_envs()
-        self._is_additional_env_added = True
+        self._is_compose_additional_env_added = True
         # define additional envs and additonal env_files
         additional_envs: List[Env] = []
         additional_env_files: List[EnvFile] = []

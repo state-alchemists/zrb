@@ -126,14 +126,15 @@ class BaseTask(
         self._all_inputs: List[AnyInput] = []
         existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
-        for input_index, first_occurence_task_input in enumerate(self._inputs):
+        inputs = self.get_inputs()
+        for input_index, first_occurence_task_input in enumerate(inputs):
             input_name = first_occurence_task_input.get_name()
             if input_name in existing_input_names:
                 continue
             # Look for all input with the same name in the current task
             task_inputs = [
                 candidate
-                for candidate in self._inputs[input_index:]
+                for candidate in inputs[input_index:]
                 if candidate.get_name() == input_name
             ]
             # Get the last input, and add it to _all_inputs
@@ -167,7 +168,7 @@ class BaseTask(
             ))
         return function
 
-    def add_upstreams(self, *upstreams: AnyTask):
+    def add_upstream(self, *upstreams: AnyTask):
         if not self._allow_add_upstreams:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
         self._upstreams += upstreams
@@ -288,10 +289,10 @@ class BaseTask(
             all_envs[env_name] = Env(
                 name=env_name, os_name=env_name, renderable=False
             )
-        for env_file in self._env_files:
+        for env_file in self.get_env_files():
             for env in env_file.get_envs():
                 all_envs[env.name] = env
-        for env in self._envs:
+        for env in self.get_envs():
             all_envs[env.name] = env
         return all_envs
 
