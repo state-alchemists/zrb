@@ -168,6 +168,11 @@ class BaseTask(
             ))
         return function
 
+    def insert_upstream(self, *upstreams: AnyTask):
+        if not self._allow_add_upstreams:
+            raise Exception(f'Cannot add upstreams on `{self._name}`')
+        self._upstreams = upstreams + self._upstreams
+
     def add_upstream(self, *upstreams: AnyTask):
         if not self._allow_add_upstreams:
             raise Exception(f'Cannot add upstreams on `{self._name}`')
@@ -540,11 +545,12 @@ class BaseTask(
                 )
             ))
         # set checker keyval
-        local_env_map = self.get_env_map()
+        # local_env_map = self.get_env_map()
         checker_coroutines = []
         for checker_task in self._checkers:
             checker_task.add_input(*self.get_inputs())
-            checker_task.inject_env_map(local_env_map, override=True)
+            checker_task.add_env(*self.get_envs())
+            # checker_task.inject_env_map(local_env_map, override=True)
             checker_coroutines.append(asyncio.create_task(
                 checker_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix

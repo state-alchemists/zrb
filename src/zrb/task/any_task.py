@@ -69,11 +69,23 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def insert_input(self, *inputs: AnyInput):
+        pass
+
+    @abstractmethod
     def add_input(self, *inputs: AnyInput):
         pass
 
     @abstractmethod
+    def insert_env(self, *envs: Env):
+        pass
+
+    @abstractmethod
     def add_env(self, *envs: Env):
+        pass
+
+    @abstractmethod
+    def insert_env_file(self, *env_files: EnvFile):
         pass
 
     @abstractmethod

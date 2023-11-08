@@ -99,15 +99,30 @@ class CommonTaskModel():
     def set_checking_interval(self, new_checking_interval: Union[float, int]):
         self._checking_interval = new_checking_interval
 
+    def insert_input(self, *inputs: AnyInput):
+        if not self._allow_add_inputs:
+            raise Exception(f'Cannot add inputs on `{self._name}`')
+        self._inputs = inputs + self._inputs
+
     def add_input(self, *inputs: AnyInput):
         if not self._allow_add_inputs:
             raise Exception(f'Cannot add inputs on `{self._name}`')
         self._inputs += inputs
 
+    def insert_env(self, *envs: Env):
+        if not self._allow_add_envs:
+            raise Exception(f'Cannot add envs on `{self._name}`')
+        self._envs = envs + self._envs
+
     def add_env(self, *envs: Env):
         if not self._allow_add_envs:
             raise Exception(f'Cannot add envs on `{self._name}`')
         self._envs += envs
+
+    def insert_env_file(self, *env_files: EnvFile):
+        if not self._allow_add_env_files:
+            raise Exception(f'Cannot add env_files on `{self._name}`')
+        self._env_files = env_files + self._env_files
 
     def add_env_file(self, *env_files: EnvFile):
         if not self._allow_add_env_files:
