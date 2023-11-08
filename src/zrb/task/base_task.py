@@ -142,7 +142,7 @@ class BaseTask(
             self._all_inputs.append(task_input)
             existing_input_names[input_name] = True
         # Add upstream inputs
-        for upstream in self._upstreams:
+        for upstream in self.get_upstreams():
             upstream_inputs = upstream.get_all_inputs()
             for upstream_input in upstream_inputs:
                 if upstream_input.get_name() in existing_input_names:
@@ -351,9 +351,10 @@ class BaseTask(
             return
         if self._return_upstream_result:
             # if _return_upstream_result, result is list (see: self._run_all)
+            upstreams = self.get_upstreams()
             upstream_results = list(result)
             for upstream_index, upstream_result in enumerate(upstream_results):
-                self._upstreams[upstream_index]._print_result(upstream_result)
+                upstreams[upstream_index]._print_result(upstream_result)
             return
         self.print_result(result)
 
@@ -452,7 +453,7 @@ class BaseTask(
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
         self._allow_add_upstreams = False
-        for upstream_task in self._upstreams:
+        for upstream_task in self.get_upstreams():
             upstream_task.set_execution_id(self.get_execution_id())
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
@@ -475,7 +476,7 @@ class BaseTask(
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
         self._allow_add_upstreams = False
-        for upstream_task in self._upstreams:
+        for upstream_task in self.get_upstreams():
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
             ))
@@ -530,9 +531,9 @@ class BaseTask(
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
-        # set uplstreams keyval
+        # set upstreams keyval
         self._allow_add_upstreams = False
-        for upstream_task in self._upstreams:
+        for upstream_task in self.get_upstreams():
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix
@@ -542,7 +543,7 @@ class BaseTask(
         local_env_map = self.get_env_map()
         checker_coroutines = []
         for checker_task in self._checkers:
-            checker_task._inputs += self._inputs
+            checker_task.add_input(*self.get_inputs())
             checker_task.inject_env_map(local_env_map, override=True)
             checker_coroutines.append(asyncio.create_task(
                 checker_task._set_keyval(
