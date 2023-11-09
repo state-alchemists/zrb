@@ -65,23 +65,35 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def add_upstreams(self, *upstreams: TAnyTask):
+    def add_upstream(self, *upstreams: TAnyTask):
         pass
 
     @abstractmethod
-    def add_inputs(self, *inputs: AnyInput):
+    def insert_input(self, *inputs: AnyInput):
         pass
 
     @abstractmethod
-    def add_envs(self, *envs: Env):
+    def add_input(self, *inputs: AnyInput):
         pass
 
     @abstractmethod
-    def add_env_files(self, *env_files: EnvFile):
+    def insert_env(self, *envs: Env):
         pass
 
     @abstractmethod
-    def set_execution_id(self, execution_id: str):
+    def add_env(self, *envs: Env):
+        pass
+
+    @abstractmethod
+    def insert_env_file(self, *env_files: EnvFile):
+        pass
+
+    @abstractmethod
+    def add_env_file(self, *env_files: EnvFile):
+        pass
+
+    @abstractmethod
+    def _set_execution_id(self, execution_id: str):
         pass
 
     @abstractmethod
@@ -139,31 +151,51 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_complete_cmd_name(self) -> str:
+    def get_full_cmd_name(self) -> str:
         pass
 
     @abstractmethod
-    def get_env_files(self) -> List[EnvFile]:
+    def inject_env_files(self):
         pass
 
     @abstractmethod
-    def get_envs(self) -> List[Env]:
+    def _get_env_files(self) -> List[EnvFile]:
         pass
 
     @abstractmethod
-    def get_inputs(self) -> List[AnyInput]:
+    def inject_envs(self):
         pass
 
     @abstractmethod
-    def get_checkers(self) -> Iterable[TAnyTask]:
+    def _get_envs(self) -> List[Env]:
         pass
 
     @abstractmethod
-    def get_upstreams(self) -> Iterable[TAnyTask]:
+    def inject_inputs(self):
         pass
 
     @abstractmethod
-    def get_all_inputs(self) -> Iterable[AnyInput]:
+    def _get_inputs(self) -> List[AnyInput]:
+        pass
+
+    @abstractmethod
+    def inject_checkers(self):
+        pass
+
+    @abstractmethod
+    def _get_checkers(self) -> Iterable[TAnyTask]:
+        pass
+
+    @abstractmethod
+    def inject_upstreams(self):
+        pass
+
+    @abstractmethod
+    def _get_upstreams(self) -> Iterable[TAnyTask]:
+        pass
+
+    @abstractmethod
+    def _get_combined_inputs(self) -> Iterable[AnyInput]:
         pass
 
     @abstractmethod
@@ -204,12 +236,6 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_env_map(self) -> Mapping[str, Any]:
-        pass
-
-    @abstractmethod
-    def inject_env_map(
-        self, env_map: Mapping[str, str], override: bool = False
-    ):
         pass
 
     @abstractmethod

@@ -12,7 +12,7 @@ There are many task types in Zrb. Every task has its own specific use cases:
 - [ResourceMaker](resource-maker.md): Generate artifacts/resources based on templates
 - [FlowTask](flow-task.md): Put `CmdTask` and `python task` into single flow.
 - [RemoteCmdTask](remote-cmd-task.md)
-- [RsyncTask](remote-cmd-task.md)
+- [RsyncTask](rsync-task.md)
 - [Checkers (HttpChecker, PortChecker, and PathChecker)](checkers.md): Check parent task's readiness.
 
 As every task are extended from `BaseTask`, you will see that most of them share some common parameters.
@@ -400,13 +400,45 @@ Every task share some common methods like `run`, `check`, and `to_function`.
 
 Deep copy current task
 
-## `add_envs`
+## `inject_env`
 
-## `add_env_files`
+To be overridden
 
-## `add_inputs`
+## `insert_env`
 
-## `add_upstreams`
+## `add_env`
+
+## `inject_env_file`
+
+To be overridden
+
+## `insert_env_file`
+
+## `add_env_file`
+
+## `inject_input`
+
+To be overridden
+
+## `insert_input`
+
+## `add_input`
+
+## `inject_upstream`
+
+To be overridden
+
+## `insert_upstream`
+
+## `add_upstream`
+
+## `inject_checker`
+
+To be overridden
+
+## `insert_checker`
+
+## `add_checker`
 
 ## `set_name`
 

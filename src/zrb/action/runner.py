@@ -28,7 +28,7 @@ class Runner():
 
     def register(self, task: AnyTask):
         task.set_has_cli_interface()
-        cmd_name = task.get_complete_cmd_name()
+        cmd_name = task.get_full_cmd_name()
         logger.debug(colored(f'Register task: {cmd_name}', attrs=['dark']))
         self._tasks.append(task)
         logger.debug(colored(f'Task registered: {cmd_name}', attrs=['dark']))
@@ -77,7 +77,7 @@ class Runner():
         return group
 
     def _create_cli_command(self, task: AnyTask) -> click.Command:
-        task_inputs = task.get_all_inputs()
+        task_inputs = task._get_combined_inputs()
         task_cmd_name = task.get_cmd_name()
         task_description = task.get_description()
         task_function = task.to_function(

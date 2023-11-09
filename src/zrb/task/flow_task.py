@@ -107,10 +107,10 @@ class FlowTask(BaseTask):
         embeded_tasks: List[AnyTask] = []
         for task in tasks:
             embeded_task = task.copy()
-            embeded_task.add_upstreams(*upstreams)
-            embeded_task.add_envs(*envs)
-            embeded_task.add_env_files(*env_files)
-            embeded_task.add_inputs(*inputs)
+            embeded_task.add_upstream(*upstreams)
+            embeded_task.add_env(*envs)
+            embeded_task.add_env_file(*env_files)
+            embeded_task.add_input(*inputs)
             embeded_tasks.append(embeded_task)
         return embeded_tasks
 

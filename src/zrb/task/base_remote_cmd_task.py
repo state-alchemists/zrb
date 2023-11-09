@@ -2,6 +2,7 @@ from zrb.helper.typing import (
     Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
+from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
@@ -34,13 +35,15 @@ class RemoteConfig:
         user: str = '',
         password: str = '',
         ssh_key: str = '',
-        port: int = 22
+        port: int = 22,
+        config_map: Optional[Mapping[str, str]] = None
     ):
         self.host = host
         self.user = user
         self.password = password
         self.ssh_key = ssh_key
         self.port = port
+        self.config_map = {} if config_map is None else config_map
 
 
 @typechecked
@@ -123,28 +126,50 @@ class SingleBaseRemoteCmdTask(CmdTask):
     def copy(self) -> TSingleBaseRemoteCmdTask:
         return copy.deepcopy(self)
 
-    def _get_shell_env_map(self) -> Mapping[str, Any]:
-        env_map = super()._get_shell_env_map()
-        env_map['_CONFIG_HOST'] = self.render_str(self._remote_config.host)
-        env_map['_CONFIG_PORT'] = str(self.render_int(
-            self._remote_config.port)
+    def inject_envs(self):
+        super().inject_envs()
+        # add remote config properties as env
+        self.add_env(
+            Env(
+                name='_CONFIG_HOST', os_name='',
+                default=self.render_str(self._remote_config.host)
+            ),
+            Env(
+                name='_CONFIG_PORT', os_name='',
+                default=str(self.render_int(self._remote_config.port))
+            ),
+            Env(
+                name='_CONFIG_SSH_KEY', os_name='',
+                default=self.render_str(self._remote_config.ssh_key)
+            ),
+            Env(
+                name='_CONFIG_USER', os_name='',
+                default=self.render_str(self._remote_config.user)
+            ),
+            Env(
+                name='_CONFIG_PASSWORD', os_name='',
+                default=self.render_str(self._remote_config.password)
+            ),
         )
-        env_map['_CONFIG_SSH_KEY'] = self.render_str(
-            self._remote_config.ssh_key
-        )
-        env_map['_CONFIG_USER'] = self.render_str(self._remote_config.user)
-        env_map['_CONFIG_PASSWORD'] = self.render_str(
-            self._remote_config.password
-        )
-        return env_map
+        for key, val in self._remote_config.config_map.items():
+            upper_snake_key = to_snake_case(key).upper()
+            rendered_val = self.render_str(val)
+            # add remote config map as env
+            self.add_env(
+                Env(
+                    name='_CONFIG_MAP_' + upper_snake_key,
+                    os_name='',
+                    default=rendered_val
+                )
+            )
 
-    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_str = '\n'.join([
-            self._create_cmd_str(
+            self._create_cmd_script(
                 self._pre_cmd_path, self._pre_cmd, *args, **kwargs
             ),
-            super()._get_cmd_str(*args, **kwargs),
-            self._create_cmd_str(
+            super().get_cmd_script(*args, **kwargs),
+            self._create_cmd_script(
                 self._post_cmd_path, self._post_cmd, *args, **kwargs
             ),
         ])

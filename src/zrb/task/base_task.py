@@ -110,30 +110,28 @@ class BaseTask(
         self._is_execution_started: bool = False
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
-        self._allow_add_upstreams: bool = True
 
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
 
-    def get_all_inputs(self) -> Iterable[AnyInput]:
+    def _get_combined_inputs(self) -> Iterable[AnyInput]:
         ''''
         Getting all inputs of this task and all its upstream, non-duplicated.
         '''
         if self._all_inputs is not None:
             return self._all_inputs
-        self._allow_add_upstreams = False
-        self._allow_add_inputs = False
         self._all_inputs: List[AnyInput] = []
         existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
-        for input_index, first_occurence_task_input in enumerate(self._inputs):
+        inputs = self._get_inputs()
+        for input_index, first_occurence_task_input in enumerate(inputs):
             input_name = first_occurence_task_input.get_name()
             if input_name in existing_input_names:
                 continue
             # Look for all input with the same name in the current task
             task_inputs = [
                 candidate
-                for candidate in self._inputs[input_index:]
+                for candidate in inputs[input_index:]
                 if candidate.get_name() == input_name
             ]
             # Get the last input, and add it to _all_inputs
@@ -141,13 +139,15 @@ class BaseTask(
             self._all_inputs.append(task_input)
             existing_input_names[input_name] = True
         # Add upstream inputs
-        for upstream in self._upstreams:
-            upstream_inputs = upstream.get_all_inputs()
+        for upstream in self._get_upstreams():
+            upstream_inputs = upstream._get_combined_inputs()
             for upstream_input in upstream_inputs:
                 if upstream_input.get_name() in existing_input_names:
                     continue
                 self._all_inputs.append(upstream_input)
                 existing_input_names[upstream_input.get_name()] = True
+        self._allow_add_upstreams = False
+        self._allow_add_inputs = False
         return self._all_inputs
 
     def to_function(
@@ -166,21 +166,6 @@ class BaseTask(
                 kwargs=kwargs
             ))
         return function
-
-    def add_upstreams(self, *upstreams: AnyTask):
-        if not self._allow_add_upstreams:
-            raise Exception(f'Cannot add upstreams on `{self._name}`')
-        self._upstreams += upstreams
-
-    def inject_env_map(
-        self, env_map: Mapping[str, str], override: bool = False
-    ):
-        '''
-        Set new values for current task's env map
-        '''
-        for key, val in env_map.items():
-            if override or key not in self.get_env_map():
-                self._set_env_map(key, val)
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -259,28 +244,28 @@ class BaseTask(
             return True
         self._is_keyval_set = True
         self.log_info('Set input map')
-        for task_input in self.get_all_inputs():
+        for task_input in self._get_combined_inputs():
             input_name = self._get_normalized_input_key(task_input.get_name())
             input_value = self.render_any(
                 kwargs.get(input_name, task_input.get_default())
             )
             self._set_input_map(input_name, input_value)
+        self._set_input_map('_execution_id', self._execution_id)
         self.log_debug(
             'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
         )
         self.log_info('Merging task envs, task env files, and native envs')
-        for env_name, env in self._get_all_envs().items():
+        for env_name, env in self._get_combined_env().items():
             env_value = env.get(env_prefix)
             if env.renderable:
                 env_value = self.render_any(env_value)
             self._set_env_map(env_name, env_value)
+        self._set_env_map('_ZRB_EXECUTION_ID', self._execution_id)
         self.log_debug(
             'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
         )
 
-    def _get_all_envs(self) -> Mapping[str, Env]:
-        self._allow_add_envs = False
-        self._allow_add_env_files = False
+    def _get_combined_env(self) -> Mapping[str, Env]:
         all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
             if env_name in RESERVED_ENV_NAMES:
@@ -288,11 +273,13 @@ class BaseTask(
             all_envs[env_name] = Env(
                 name=env_name, os_name=env_name, renderable=False
             )
-        for env_file in self._env_files:
+        for env_file in self._get_env_files():
             for env in env_file.get_envs():
                 all_envs[env.name] = env
-        for env in self._envs:
+        for env in self._get_envs():
             all_envs[env.name] = env
+        self._allow_add_envs = False
+        self._allow_add_env_files = False
         return all_envs
 
     def _get_normalized_input_key(self, key: str) -> str:
@@ -310,7 +297,9 @@ class BaseTask(
         try:
             self._start_timer()
             if self.get_execution_id() == '':
-                self.set_execution_id(get_random_name())
+                self._set_execution_id(
+                    get_random_name(add_random_digit=True, digit_count=5)
+                )
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
@@ -348,9 +337,10 @@ class BaseTask(
             return
         if self._return_upstream_result:
             # if _return_upstream_result, result is list (see: self._run_all)
+            upstreams = self._get_upstreams()
             upstream_results = list(result)
             for upstream_index, upstream_result in enumerate(upstream_results):
-                self._upstreams[upstream_index]._print_result(upstream_result)
+                upstreams[upstream_index]._print_result(upstream_result)
             return
         self.print_result(result)
 
@@ -363,11 +353,6 @@ class BaseTask(
         if you want to show the result differently.
         '''
         print(result)
-    
-    def set_execution_id(self, execution_id: str):
-        super().set_execution_id(execution_id)
-        self._set_env_map('_ZRB_EXECUTION_ID', execution_id)
-        self._set_input_map('_execution_id', execution_id)
 
     async def _loop_check(self, show_done: bool = False) -> bool:
         self.log_info('Start readiness checking')
@@ -393,14 +378,14 @@ class BaseTask(
 
     def _show_run_command(self):
         params: List[str] = [double_quote(arg) for arg in self._args]
-        for task_input in self.get_all_inputs():
+        for task_input in self._get_combined_inputs():
             if task_input.is_hidden():
                 continue
             key = task_input.get_name()
             kwarg_key = self._get_normalized_input_key(key)
             quoted_value = double_quote(str(self._kwargs[kwarg_key]))
             params.append(f'--{key} {quoted_value}')
-        run_cmd = self.get_complete_cmd_name()
+        run_cmd = self.get_full_cmd_name()
         run_cmd_with_param = run_cmd
         if len(params) > 0:
             param_str = ' '.join(params)
@@ -437,7 +422,7 @@ class BaseTask(
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self._checkers:
-            checker_task.set_execution_id(self.get_execution_id())
+            checker_task._set_execution_id(self.get_execution_id())
             check_coroutines.append(
                 asyncio.create_task(checker_task._run_all())
             )
@@ -449,8 +434,8 @@ class BaseTask(
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
         self._allow_add_upstreams = False
-        for upstream_task in self._upstreams:
-            upstream_task.set_execution_id(self.get_execution_id())
+        for upstream_task in self._get_upstreams():
+            upstream_task._set_execution_id(self.get_execution_id())
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
@@ -472,7 +457,7 @@ class BaseTask(
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
         self._allow_add_upstreams = False
-        for upstream_task in self._upstreams:
+        for upstream_task in self._get_upstreams():
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
             ))
@@ -516,7 +501,7 @@ class BaseTask(
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
-        for task_input in self.get_all_inputs():
+        for task_input in self._get_combined_inputs():
             key = self._get_normalized_input_key(task_input.get_name())
             if key in kwargs:
                 continue
@@ -527,20 +512,20 @@ class BaseTask(
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
-        # set uplstreams keyval
+        # set upstreams keyval
         self._allow_add_upstreams = False
-        for upstream_task in self._upstreams:
+        for upstream_task in self._get_upstreams():
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix
                 )
             ))
         # set checker keyval
-        local_env_map = self.get_env_map()
+        # local_env_map = self.get_env_map()
         checker_coroutines = []
         for checker_task in self._checkers:
-            checker_task._inputs += self._inputs
-            checker_task.inject_env_map(local_env_map, override=True)
+            checker_task.add_input(*self._get_inputs())
+            checker_task.add_env(*self._get_envs())
             checker_coroutines.append(asyncio.create_task(
                 checker_task._set_keyval(
                     kwargs=new_kwargs, env_prefix=env_prefix

@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
@@ -182,18 +182,17 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    def _get_shell_env_map(self) -> Mapping[str, Any]:
-        env_map = self.get_env_map()
+    def inject_envs(self):
+        super().inject_envs()
         input_map = self.get_input_map()
         for input_name, input_value in input_map.items():
-            upper_input_name = '_INPUT_' + input_name.upper()
-            if upper_input_name not in env_map:
-                env_map[upper_input_name] = f'{input_value}'
-        return env_map
+            env_name = '_INPUT_' + input_name.upper()
+            self.add_env(
+                Env(name=env_name, os_name='', default=str(input_value))
+            )
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
-        cmd = self._get_cmd_str(*args, **kwargs)
-        env_map = self._get_shell_env_map()
+        cmd = self.get_cmd_script(*args, **kwargs)
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
         self.print_out_dark('Working directory: ' + self._cwd)
         self._output_buffer = []
@@ -203,7 +202,7 @@ class CmdTask(BaseTask):
             cwd=self._cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=env_map,
+            env=self.get_env_map(),
             shell=True,
             executable=self._executable,
             close_fds=True,
@@ -314,21 +313,25 @@ class CmdTask(BaseTask):
         await stdout_log_process
         await stderr_log_process
 
-    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
-        return self._create_cmd_str(self._cmd_path, self._cmd, *args, **kwargs)
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        return self._create_cmd_script(
+            self._cmd_path, self._cmd, *args, **kwargs
+        )
 
-    def _create_cmd_str(
+    def _create_cmd_script(
         self, cmd_path: CmdVal, cmd: CmdVal, *args: Any, **kwargs: Any
     ) -> str:
         if not isinstance(cmd_path, str) or cmd_path != '':
             if callable(cmd_path):
-                return self._render_cmd_path_str(cmd_path(*args, **kwargs))
-            return self._render_cmd_path_str(cmd_path)
+                return self._get_rendered_cmd_path(cmd_path(*args, **kwargs))
+            return self._get_rendered_cmd_path(cmd_path)
         if callable(cmd):
-            return self._render_cmd_str(cmd(*args, **kwargs))
-        return self._render_cmd_str(cmd)
+            return self._get_rendered_cmd(cmd(*args, **kwargs))
+        return self._get_rendered_cmd(cmd)
 
-    def _render_cmd_path_str(self, cmd_path: Union[str, Iterable[str]]) -> str:
+    def _get_rendered_cmd_path(
+        self, cmd_path: Union[str, Iterable[str]]
+    ) -> str:
         if isinstance(cmd_path, str):
             return self.render_file(cmd_path)
         return '\n'.join([
@@ -336,7 +339,7 @@ class CmdTask(BaseTask):
             for cmd_path_str in cmd_path
         ])
 
-    def _render_cmd_str(self, cmd: Union[str, Iterable[str]]) -> str:
+    def _get_rendered_cmd(self, cmd: Union[str, Iterable[str]]) -> str:
         if isinstance(cmd, str):
             return self.render_str(cmd)
         return self.render_str('\n'.join(list(cmd)))
