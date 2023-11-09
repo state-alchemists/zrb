@@ -155,7 +155,15 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def inject_env_files(self):
+        pass
+
+    @abstractmethod
     def _get_env_files(self) -> List[EnvFile]:
+        pass
+
+    @abstractmethod
+    def inject_envs(self):
         pass
 
     @abstractmethod
@@ -163,11 +171,23 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def inject_inputs(self):
+        pass
+
+    @abstractmethod
     def _get_inputs(self) -> List[AnyInput]:
         pass
 
     @abstractmethod
+    def inject_checkers(self):
+        pass
+
+    @abstractmethod
     def _get_checkers(self) -> Iterable[TAnyTask]:
+        pass
+
+    @abstractmethod
+    def inject_upstreams(self):
         pass
 
     @abstractmethod

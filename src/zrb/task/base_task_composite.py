@@ -67,6 +67,11 @@ class CommonTaskModel():
         self._allow_add_env_files = True
         self._allow_add_inputs = True
         self._allow_add_upstreams: bool = True
+        self._has_already_inject_env_files: bool = False
+        self._has_already_inject_envs: bool = False
+        self._has_already_inject_inputs: bool = False
+        self._has_already_inject_checkers: bool = False
+        self._has_already_inject_upstreams: bool = False
         self._execution_id = ''
 
     def _set_execution_id(self, execution_id: str):
@@ -150,19 +155,49 @@ class CommonTaskModel():
     def get_color(self) -> str:
         return self._color
 
+    def inject_env_files(self):
+        pass
+
     def _get_env_files(self) -> List[EnvFile]:
+        if not self._has_already_inject_env_files:
+            self.inject_env_files()
+            self._has_already_inject_env_files = True
         return self._env_files
 
+    def inject_envs(self):
+        pass
+
     def _get_envs(self) -> List[Env]:
+        if not self._has_already_inject_envs:
+            self.inject_envs()
+            self._has_already_inject_envs = True
         return list(self._envs)
 
+    def inject_inputs(self):
+        pass
+
     def _get_inputs(self) -> List[AnyInput]:
+        if not self._has_already_inject_inputs:
+            self.inject_inputs()
+            self._has_already_inject_inputs = True
         return list(self._inputs)
 
+    def inject_checkers(self):
+        pass
+
     def _get_checkers(self) -> List[AnyTask]:
+        if not self._has_already_inject_checkers:
+            self.inject_checkers()
+            self._has_already_inject_checkers = True
         return list(self._checkers)
 
+    def inject_upstreams(self):
+        pass
+
     def _get_upstreams(self) -> List[AnyTask]:
+        if not self._has_already_inject_upstreams:
+            self.inject_upstreams()
+            self._has_already_inject_upstreams = True
         return list(self._upstreams)
 
     def get_description(self) -> str:

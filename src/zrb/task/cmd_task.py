@@ -160,7 +160,6 @@ class CmdTask(BaseTask):
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
-        self._is_cmd_aditional_env_added = False
 
     def copy(self) -> TCmdTask:
         return super().copy()
@@ -183,17 +182,14 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    def _get_envs(self) -> List[Env]:
-        if self._is_cmd_aditional_env_added:
-            return super()._get_envs()
-        self._is_cmd_aditional_env_added = True
+    def inject_envs(self):
+        super().inject_envs()
         input_map = self.get_input_map()
         for input_name, input_value in input_map.items():
             env_name = '_INPUT_' + input_name.upper()
             self.add_env(
                 Env(name=env_name, os_name='', default=str(input_value))
             )
-        return super()._get_envs()
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self.get_cmd_script(*args, **kwargs)

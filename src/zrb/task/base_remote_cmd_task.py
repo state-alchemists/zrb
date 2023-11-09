@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.util import to_snake_case
@@ -122,15 +122,12 @@ class SingleBaseRemoteCmdTask(CmdTask):
         self._post_cmd = post_cmd
         self._post_cmd_path = post_cmd_path
         self._remote_config = remote_config
-        self._is_additional_env_added = False
 
     def copy(self) -> TSingleBaseRemoteCmdTask:
         return copy.deepcopy(self)
 
-    def _get_envs(self) -> List[Env]:
-        if self._is_additional_env_added:
-            return super()._get_envs()
-        self._is_additional_env_added = True
+    def inject_envs(self):
+        super().inject_envs()
         # add remote config properties as env
         self.add_env(
             Env(
@@ -165,7 +162,6 @@ class SingleBaseRemoteCmdTask(CmdTask):
                     default=rendered_val
                 )
             )
-        return super()._get_envs()
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_str = '\n'.join([
