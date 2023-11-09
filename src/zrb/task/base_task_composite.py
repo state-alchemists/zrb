@@ -69,8 +69,9 @@ class CommonTaskModel():
         self._allow_add_upstreams: bool = True
         self._execution_id = ''
 
-    def set_execution_id(self, execution_id: str):
-        self._execution_id = execution_id
+    def _set_execution_id(self, execution_id: str):
+        if self._execution_id != '':
+            self._execution_id = execution_id
 
     def set_name(self, new_name: str):
         if self._description == self._name:
@@ -149,19 +150,19 @@ class CommonTaskModel():
     def get_color(self) -> str:
         return self._color
 
-    def get_env_files(self) -> List[EnvFile]:
+    def _get_env_files(self) -> List[EnvFile]:
         return self._env_files
 
-    def get_envs(self) -> List[Env]:
+    def _get_envs(self) -> List[Env]:
         return list(self._envs)
 
-    def get_inputs(self) -> List[AnyInput]:
+    def _get_inputs(self) -> List[AnyInput]:
         return list(self._inputs)
 
-    def get_checkers(self) -> List[AnyTask]:
+    def _get_checkers(self) -> List[AnyTask]:
         return list(self._checkers)
 
-    def get_upstreams(self) -> List[AnyTask]:
+    def _get_upstreams(self) -> List[AnyTask]:
         return list(self._upstreams)
 
     def get_description(self) -> str:
@@ -387,7 +388,7 @@ class TaskModelWithPrinterAndTracker(
         run: Optional[Callable[..., Any]] = None,
         should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
-        self._filled_complete_name: Optional[str] = None
+        self._rjust_full_cmd_name: Optional[str] = None
         self._has_cli_interface = False
         self._complete_name: Optional[str] = None
         CommonTaskModel.__init__(
@@ -474,13 +475,13 @@ class TaskModelWithPrinterAndTracker(
     def _get_print_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=show_time)
         icon = self.get_icon()
-        truncated_name = self._get_filled_complete_name()
+        truncated_name = self._get_rjust_full_cmd_name()
         return f'{common_prefix} {icon} {truncated_name}'
 
     def _get_log_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=False)
         icon = self.get_icon()
-        filled_name = self._get_filled_complete_name()
+        filled_name = self._get_rjust_full_cmd_name()
         return f'{common_prefix} {icon} {filled_name}'
 
     def _get_common_prefix(self, show_time: bool) -> str:
@@ -492,14 +493,14 @@ class TaskModelWithPrinterAndTracker(
             return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
         return f'❁ {pid} → {attempt}/{max_attempt}'
 
-    def _get_filled_complete_name(self) -> str:
-        if self._filled_complete_name is not None:
-            return self._filled_complete_name
-        complete_name = self.get_complete_cmd_name()
-        self._filled_complete_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
-        return self._filled_complete_name
+    def _get_rjust_full_cmd_name(self) -> str:
+        if self._rjust_full_cmd_name is not None:
+            return self._rjust_full_cmd_name
+        complete_name = self.get_full_cmd_name()
+        self._rjust_full_cmd_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
+        return self._rjust_full_cmd_name
 
-    def get_complete_cmd_name(self) -> str:
+    def get_full_cmd_name(self) -> str:
         if self._complete_name is not None:
             return self._complete_name
         executable_prefix = ''

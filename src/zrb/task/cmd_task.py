@@ -183,9 +183,9 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    def get_envs(self) -> List[Env]:
+    def _get_envs(self) -> List[Env]:
         if self._is_cmd_aditional_env_added:
-            return super().get_envs()
+            return super()._get_envs()
         self._is_cmd_aditional_env_added = True
         input_map = self.get_input_map()
         for input_name, input_value in input_map.items():
@@ -193,7 +193,7 @@ class CmdTask(BaseTask):
             self.add_env(
                 Env(name=env_name, os_name='', default=str(input_value))
             )
-        return super().get_envs()
+        return super()._get_envs()
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self.get_cmd_script(*args, **kwargs)

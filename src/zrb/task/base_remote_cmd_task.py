@@ -127,9 +127,9 @@ class SingleBaseRemoteCmdTask(CmdTask):
     def copy(self) -> TSingleBaseRemoteCmdTask:
         return copy.deepcopy(self)
 
-    def get_envs(self) -> List[Env]:
+    def _get_envs(self) -> List[Env]:
         if self._is_additional_env_added:
-            return super().get_envs()
+            return super()._get_envs()
         self._is_additional_env_added = True
         # add remote config properties as env
         self.add_env(
@@ -165,7 +165,7 @@ class SingleBaseRemoteCmdTask(CmdTask):
                     default=rendered_val
                 )
             )
-        return super().get_envs()
+        return super()._get_envs()
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_str = '\n'.join([

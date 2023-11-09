@@ -93,7 +93,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def set_execution_id(self, execution_id: str):
+    def _set_execution_id(self, execution_id: str):
         pass
 
     @abstractmethod
@@ -151,27 +151,27 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_complete_cmd_name(self) -> str:
+    def get_full_cmd_name(self) -> str:
         pass
 
     @abstractmethod
-    def get_env_files(self) -> List[EnvFile]:
+    def _get_env_files(self) -> List[EnvFile]:
         pass
 
     @abstractmethod
-    def get_envs(self) -> List[Env]:
+    def _get_envs(self) -> List[Env]:
         pass
 
     @abstractmethod
-    def get_inputs(self) -> List[AnyInput]:
+    def _get_inputs(self) -> List[AnyInput]:
         pass
 
     @abstractmethod
-    def get_checkers(self) -> Iterable[TAnyTask]:
+    def _get_checkers(self) -> Iterable[TAnyTask]:
         pass
 
     @abstractmethod
-    def get_upstreams(self) -> Iterable[TAnyTask]:
+    def _get_upstreams(self) -> Iterable[TAnyTask]:
         pass
 
     @abstractmethod
@@ -216,12 +216,6 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_env_map(self) -> Mapping[str, Any]:
-        pass
-
-    @abstractmethod
-    def _inject_env_map(
-        self, env_map: Mapping[str, str], override: bool = False
-    ):
         pass
 
     @abstractmethod

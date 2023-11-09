@@ -28,7 +28,7 @@ class Runner():
 
     def register(self, task: AnyTask):
         task.set_has_cli_interface()
-        cmd_name = task.get_complete_cmd_name()
+        cmd_name = task.get_full_cmd_name()
         logger.debug(colored(f'Register task: {cmd_name}', attrs=['dark']))
         self._tasks.append(task)
         logger.debug(colored(f'Task registered: {cmd_name}', attrs=['dark']))

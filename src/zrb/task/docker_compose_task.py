@@ -167,9 +167,9 @@ class DockerComposeTask(CmdTask):
             os.remove(self._compose_runtime_file)
         return result
 
-    def get_envs(self) -> List[Env]:
+    def _get_envs(self) -> List[Env]:
         if self._is_compose_additional_env_added:
-            return super().get_envs()
+            return super()._get_envs()
         self._is_compose_additional_env_added = True
         # inject envs from service_configs
         for _, service_config in self._compose_service_configs.items():
@@ -188,16 +188,16 @@ class DockerComposeTask(CmdTask):
             if self._compose_env_prefix != '':
                 os_name = f'{self._compose_env_prefix}_{os_name}'
             self.insert_env(Env(name=key, os_name=os_name, default=value))
-        return super().get_envs()
+        return super()._get_envs()
 
-    def get_env_files(self) -> List[EnvFile]:
+    def _get_env_files(self) -> List[EnvFile]:
         if self._is_compose_additional_env_file_added:
             return super().get_env_file()
         self._is_compose_additional_env_file_added = True
         # inject env_files from service_configs
         for _, service_config in self._compose_service_configs.items():
             self.insert_env_file(*service_config.get_env_files())
-        return super().get_env_files()
+        return super()._get_env_files()
 
     def _generate_compose_runtime_file(self):
         compose_data = read_compose_file(self._compose_template_file)
