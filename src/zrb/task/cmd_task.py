@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
@@ -183,21 +183,20 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    def _get_all_envs(self) -> Mapping[str, Env]:
+    def get_envs(self) -> List[Env]:
         if self._is_cmd_aditional_env_added:
-            return super()._get_all_envs()
+            return super().get_envs()
+        self._is_cmd_aditional_env_added = True
         input_map = self.get_input_map()
-        additional_envs: List[Env] = []
         for input_name, input_value in input_map.items():
             env_name = '_INPUT_' + input_name.upper()
-            additional_envs.append(
+            self.add_env(
                 Env(name=env_name, os_name='', default=str(input_value))
             )
-        self._envs += additional_envs
-        return super()._get_all_envs()
+        return super().get_envs()
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
-        cmd = self._get_cmd_str(*args, **kwargs)
+        cmd = self.get_cmd_script(*args, **kwargs)
         self.print_out_dark('Run script: ' + self._get_multiline_repr(cmd))
         self.print_out_dark('Working directory: ' + self._cwd)
         self._output_buffer = []
@@ -318,21 +317,25 @@ class CmdTask(BaseTask):
         await stdout_log_process
         await stderr_log_process
 
-    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
-        return self._create_cmd_str(self._cmd_path, self._cmd, *args, **kwargs)
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        return self._create_cmd_script(
+            self._cmd_path, self._cmd, *args, **kwargs
+        )
 
-    def _create_cmd_str(
+    def _create_cmd_script(
         self, cmd_path: CmdVal, cmd: CmdVal, *args: Any, **kwargs: Any
     ) -> str:
         if not isinstance(cmd_path, str) or cmd_path != '':
             if callable(cmd_path):
-                return self._render_cmd_path_str(cmd_path(*args, **kwargs))
-            return self._render_cmd_path_str(cmd_path)
+                return self._get_rendered_cmd_path(cmd_path(*args, **kwargs))
+            return self._get_rendered_cmd_path(cmd_path)
         if callable(cmd):
-            return self._render_cmd_str(cmd(*args, **kwargs))
-        return self._render_cmd_str(cmd)
+            return self._get_rendered_cmd(cmd(*args, **kwargs))
+        return self._get_rendered_cmd(cmd)
 
-    def _render_cmd_path_str(self, cmd_path: Union[str, Iterable[str]]) -> str:
+    def _get_rendered_cmd_path(
+        self, cmd_path: Union[str, Iterable[str]]
+    ) -> str:
         if isinstance(cmd_path, str):
             return self.render_file(cmd_path)
         return '\n'.join([
@@ -340,7 +343,7 @@ class CmdTask(BaseTask):
             for cmd_path_str in cmd_path
         ])
 
-    def _render_cmd_str(self, cmd: Union[str, Iterable[str]]) -> str:
+    def _get_rendered_cmd(self, cmd: Union[str, Iterable[str]]) -> str:
         if isinstance(cmd, str):
             return self.render_str(cmd)
         return self.render_str('\n'.join(list(cmd)))

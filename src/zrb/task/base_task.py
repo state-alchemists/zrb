@@ -110,19 +110,16 @@ class BaseTask(
         self._is_execution_started: bool = False
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
-        self._allow_add_upstreams: bool = True
 
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
 
-    def get_all_inputs(self) -> Iterable[AnyInput]:
+    def _get_combined_inputs(self) -> Iterable[AnyInput]:
         ''''
         Getting all inputs of this task and all its upstream, non-duplicated.
         '''
         if self._all_inputs is not None:
             return self._all_inputs
-        self._allow_add_upstreams = False
-        self._allow_add_inputs = False
         self._all_inputs: List[AnyInput] = []
         existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
@@ -143,12 +140,14 @@ class BaseTask(
             existing_input_names[input_name] = True
         # Add upstream inputs
         for upstream in self.get_upstreams():
-            upstream_inputs = upstream.get_all_inputs()
+            upstream_inputs = upstream._get_combined_inputs()
             for upstream_input in upstream_inputs:
                 if upstream_input.get_name() in existing_input_names:
                     continue
                 self._all_inputs.append(upstream_input)
                 existing_input_names[upstream_input.get_name()] = True
+        self._allow_add_upstreams = False
+        self._allow_add_inputs = False
         return self._all_inputs
 
     def to_function(
@@ -168,17 +167,7 @@ class BaseTask(
             ))
         return function
 
-    def insert_upstream(self, *upstreams: AnyTask):
-        if not self._allow_add_upstreams:
-            raise Exception(f'Cannot add upstreams on `{self._name}`')
-        self._upstreams = upstreams + self._upstreams
-
-    def add_upstream(self, *upstreams: AnyTask):
-        if not self._allow_add_upstreams:
-            raise Exception(f'Cannot add upstreams on `{self._name}`')
-        self._upstreams += upstreams
-
-    def inject_env_map(
+    def _inject_env_map(
         self, env_map: Mapping[str, str], override: bool = False
     ):
         '''
@@ -265,7 +254,7 @@ class BaseTask(
             return True
         self._is_keyval_set = True
         self.log_info('Set input map')
-        for task_input in self.get_all_inputs():
+        for task_input in self._get_combined_inputs():
             input_name = self._get_normalized_input_key(task_input.get_name())
             input_value = self.render_any(
                 kwargs.get(input_name, task_input.get_default())
@@ -275,7 +264,7 @@ class BaseTask(
             'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
         )
         self.log_info('Merging task envs, task env files, and native envs')
-        for env_name, env in self._get_all_envs().items():
+        for env_name, env in self._get_combined_env().items():
             env_value = env.get(env_prefix)
             if env.renderable:
                 env_value = self.render_any(env_value)
@@ -284,9 +273,7 @@ class BaseTask(
             'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
         )
 
-    def _get_all_envs(self) -> Mapping[str, Env]:
-        self._allow_add_envs = False
-        self._allow_add_env_files = False
+    def _get_combined_env(self) -> Mapping[str, Env]:
         all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
             if env_name in RESERVED_ENV_NAMES:
@@ -299,6 +286,8 @@ class BaseTask(
                 all_envs[env.name] = env
         for env in self.get_envs():
             all_envs[env.name] = env
+        self._allow_add_envs = False
+        self._allow_add_env_files = False
         return all_envs
 
     def _get_normalized_input_key(self, key: str) -> str:
@@ -402,7 +391,7 @@ class BaseTask(
 
     def _show_run_command(self):
         params: List[str] = [double_quote(arg) for arg in self._args]
-        for task_input in self.get_all_inputs():
+        for task_input in self._get_combined_inputs():
             if task_input.is_hidden():
                 continue
             key = task_input.get_name()
@@ -525,7 +514,7 @@ class BaseTask(
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
-        for task_input in self.get_all_inputs():
+        for task_input in self._get_combined_inputs():
             key = self._get_normalized_input_key(task_input.get_name())
             if key in kwargs:
                 continue

@@ -400,11 +400,19 @@ Every task share some common methods like `run`, `check`, and `to_function`.
 
 Deep copy current task
 
+## `insert_env`
+
 ## `add_env`
+
+## `insert_env_file`
 
 ## `add_env_file`
 
+## `insert_input`
+
 ## `add_input`
+
+## `insert_upstream`
 
 ## `add_upstream`
 

@@ -154,6 +154,7 @@ class DockerComposeTask(CmdTask):
         # Flag to make mark whether service config and compose environments
         # has been added to this task's envs and env_files
         self._is_compose_additional_env_added = False
+        self._is_compose_additional_env_file_added = False
 
     def copy(self) -> TDockerComposeTask:
         return super().copy()
@@ -166,45 +167,37 @@ class DockerComposeTask(CmdTask):
             os.remove(self._compose_runtime_file)
         return result
 
-    def _get_all_envs(self) -> Mapping[str, Env]:
-        '''
-        This method override BaseTask's _get_all_envs.
-        Whenever _get_all_envs is called, we want to make sure that:
-        - Service config's envs and env_files are included
-        - Any environment defined in docker compose file is also included
-        '''
+    def get_envs(self) -> List[Env]:
         if self._is_compose_additional_env_added:
-            return super()._get_all_envs()
+            return super().get_envs()
         self._is_compose_additional_env_added = True
-        # define additional envs and additonal env_files
-        additional_envs: List[Env] = []
-        additional_env_files: List[EnvFile] = []
-        # populate additional envs and additional env_files
-        # with service configs
+        # inject envs from service_configs
         for _, service_config in self._compose_service_configs.items():
-            additional_env_files += service_config.get_env_files()
-            additional_envs += service_config.get_envs()
-        # populate additional envs and additional env_files with
-        # compose envs
-        data = read_compose_file(self._compose_template_file)
-        env_map = fetch_compose_file_env_map(data)
+            self.insert_env(*service_config.get_envs())
+        # inject envs from docker compose file
+        compose_data = read_compose_file(self._compose_template_file)
+        env_map = fetch_compose_file_env_map(compose_data)
         added_env_map: Mapping[str, bool] = {}
         for key, value in env_map.items():
             # Need to get this everytime because we only want
             # the first compose file env value for a certain key
             if key in RESERVED_ENV_NAMES or key in added_env_map:
                 continue
+            added_env_map[key] = True
             os_name = key
             if self._compose_env_prefix != '':
                 os_name = f'{self._compose_env_prefix}_{os_name}'
-            compose_env = Env(name=key, os_name=os_name, default=value)
-            additional_envs.append(compose_env)
-            added_env_map[key] = True
-        # Add additional envs and addition env files to this task
-        self._envs = additional_envs + list(self._envs)
-        self._env_files = additional_env_files + list(self._env_files)
-        # get all envs
-        return super()._get_all_envs()
+            self.insert_env(Env(name=key, os_name=os_name, default=value))
+        return super().get_envs()
+
+    def get_env_files(self) -> List[EnvFile]:
+        if self._is_compose_additional_env_file_added:
+            return super().get_env_file()
+        self._is_compose_additional_env_file_added = True
+        # inject env_files from service_configs
+        for _, service_config in self._compose_service_configs.items():
+            self.insert_env_file(*service_config.get_env_files())
+        return super().get_env_files()
 
     def _generate_compose_runtime_file(self):
         compose_data = read_compose_file(self._compose_template_file)
@@ -311,8 +304,8 @@ class DockerComposeTask(CmdTask):
             return os.path.join(self._cwd, compose_file)
         raise Exception(f'Invalid compose file: {compose_file}')
 
-    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
-        setup_cmd_str = self._create_cmd_str(
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        setup_cmd_str = self._create_cmd_script(
             self._setup_cmd_path, self._setup_cmd, *args, **kwargs
         )
         command_options = dict(self._compose_options)

@@ -66,6 +66,7 @@ class CommonTaskModel():
         self._allow_add_envs = True
         self._allow_add_env_files = True
         self._allow_add_inputs = True
+        self._allow_add_upstreams: bool = True
         self._execution_id = ''
 
     def set_execution_id(self, execution_id: str):
@@ -101,33 +102,43 @@ class CommonTaskModel():
 
     def insert_input(self, *inputs: AnyInput):
         if not self._allow_add_inputs:
-            raise Exception(f'Cannot add inputs on `{self._name}`')
-        self._inputs = inputs + self._inputs
+            raise Exception(f'Cannot insert inputs for `{self._name}`')
+        self._inputs = list(inputs) + list(self._inputs)
 
     def add_input(self, *inputs: AnyInput):
         if not self._allow_add_inputs:
-            raise Exception(f'Cannot add inputs on `{self._name}`')
-        self._inputs += inputs
+            raise Exception(f'Cannot add inputs for `{self._name}`')
+        self._inputs = list(self._inputs) + list(inputs)
 
     def insert_env(self, *envs: Env):
         if not self._allow_add_envs:
-            raise Exception(f'Cannot add envs on `{self._name}`')
-        self._envs = envs + self._envs
+            raise Exception(f'Cannot insert envs to `{self._name}`')
+        self._envs = list(envs) + list(self._envs)
 
     def add_env(self, *envs: Env):
         if not self._allow_add_envs:
-            raise Exception(f'Cannot add envs on `{self._name}`')
-        self._envs += envs
+            raise Exception(f'Cannot add envs to `{self._name}`')
+        self._envs = list(self._envs) + list(envs)
 
     def insert_env_file(self, *env_files: EnvFile):
         if not self._allow_add_env_files:
-            raise Exception(f'Cannot add env_files on `{self._name}`')
-        self._env_files = env_files + self._env_files
+            raise Exception(f'Cannot insert env_files to `{self._name}`')
+        self._env_files = list(env_files) + list(self._env_files)
 
     def add_env_file(self, *env_files: EnvFile):
         if not self._allow_add_env_files:
-            raise Exception(f'Cannot add env_files on `{self._name}`')
-        self._env_files += env_files
+            raise Exception(f'Cannot add env_files to `{self._name}`')
+        self._env_files = list(self._env_files) + list(env_files)
+
+    def insert_upstream(self, *upstreams: AnyTask):
+        if not self._allow_add_upstreams:
+            raise Exception(f'Cannot insert upstreams to `{self._name}`')
+        self._upstreams = list(upstreams) + list(self._upstreams)
+
+    def add_upstream(self, *upstreams: AnyTask):
+        if not self._allow_add_upstreams:
+            raise Exception(f'Cannot add upstreams to `{self._name}`')
+        self._upstreams = list(self._upstreams) + list(upstreams)
 
     def get_execution_id(self) -> str:
         return self._execution_id

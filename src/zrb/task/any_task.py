@@ -175,7 +175,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_all_inputs(self) -> Iterable[AnyInput]:
+    def _get_combined_inputs(self) -> Iterable[AnyInput]:
         pass
 
     @abstractmethod
@@ -219,7 +219,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def inject_env_map(
+    def _inject_env_map(
         self, env_map: Mapping[str, str], override: bool = False
     ):
         pass

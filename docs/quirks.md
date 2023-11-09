@@ -18,6 +18,5 @@
     - `env` will override each other, the last one takes greater priority
     - If you define a `DockerComposeTask`, it will automatically fill your environment with the ones you use in your docker-compose file. The environment defined that way will have a very low priority. They will be overridden by both `env_files` and `env`.
 - You cannot have an input named: `_task`, `_args` or `_execution_id`
-- You cannot have an environment named `_execution_id`
 
 🔖 [Table of Contents](README.md)

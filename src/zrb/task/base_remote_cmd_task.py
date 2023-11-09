@@ -127,16 +127,12 @@ class SingleBaseRemoteCmdTask(CmdTask):
     def copy(self) -> TSingleBaseRemoteCmdTask:
         return copy.deepcopy(self)
 
-    def _get_all_envs(self) -> Mapping[str, Env]:
-        '''
-        This method override CmdTask's _get_all_envs.
-        Whenever _get_all_envs is called, we want to make sure that
-        we also include generated environment based on remote_config
-        '''
+    def get_envs(self) -> List[Env]:
         if self._is_additional_env_added:
-            return super()._get_all_envs()
+            return super().get_envs()
         self._is_additional_env_added = True
-        additional_envs: List[Env] = [
+        # add remote config properties as env
+        self.add_env(
             Env(
                 name='_CONFIG_HOST', os_name='',
                 default=self.render_str(self._remote_config.host)
@@ -157,27 +153,27 @@ class SingleBaseRemoteCmdTask(CmdTask):
                 name='_CONFIG_PASSWORD', os_name='',
                 default=self.render_str(self._remote_config.password)
             ),
-        ]
+        )
         for key, val in self._remote_config.config_map.items():
             upper_snake_key = to_snake_case(key).upper()
             rendered_val = self.render_str(val)
-            additional_envs.append(
+            # add remote config map as env
+            self.add_env(
                 Env(
                     name='_CONFIG_MAP_' + upper_snake_key,
                     os_name='',
                     default=rendered_val
                 )
             )
-        self._envs = list(self._envs) + additional_envs
-        return super()._get_all_envs()
+        return super().get_envs()
 
-    def _get_cmd_str(self, *args: Any, **kwargs: Any) -> str:
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_str = '\n'.join([
-            self._create_cmd_str(
+            self._create_cmd_script(
                 self._pre_cmd_path, self._pre_cmd, *args, **kwargs
             ),
-            super()._get_cmd_str(*args, **kwargs),
-            self._create_cmd_str(
+            super().get_cmd_script(*args, **kwargs),
+            self._create_cmd_script(
                 self._post_cmd_path, self._post_cmd, *args, **kwargs
             ),
         ])
