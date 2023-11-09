@@ -400,21 +400,45 @@ Every task share some common methods like `run`, `check`, and `to_function`.
 
 Deep copy current task
 
+## `inject_env`
+
+To be overridden
+
 ## `insert_env`
 
 ## `add_env`
+
+## `inject_env_file`
+
+To be overridden
 
 ## `insert_env_file`
 
 ## `add_env_file`
 
+## `inject_input`
+
+To be overridden
+
 ## `insert_input`
 
 ## `add_input`
 
+## `inject_upstream`
+
+To be overridden
+
 ## `insert_upstream`
 
 ## `add_upstream`
+
+## `inject_checker`
+
+To be overridden
+
+## `insert_checker`
+
+## `add_checker`
 
 ## `set_name`
 
