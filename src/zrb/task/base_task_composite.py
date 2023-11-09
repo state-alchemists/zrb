@@ -66,10 +66,17 @@ class CommonTaskModel():
         self._allow_add_envs = True
         self._allow_add_env_files = True
         self._allow_add_inputs = True
+        self._allow_add_upstreams: bool = True
+        self._has_already_inject_env_files: bool = False
+        self._has_already_inject_envs: bool = False
+        self._has_already_inject_inputs: bool = False
+        self._has_already_inject_checkers: bool = False
+        self._has_already_inject_upstreams: bool = False
         self._execution_id = ''
 
-    def set_execution_id(self, execution_id: str):
-        self._execution_id = execution_id
+    def _set_execution_id(self, execution_id: str):
+        if self._execution_id != '':
+            self._execution_id = execution_id
 
     def set_name(self, new_name: str):
         if self._description == self._name:
@@ -99,20 +106,45 @@ class CommonTaskModel():
     def set_checking_interval(self, new_checking_interval: Union[float, int]):
         self._checking_interval = new_checking_interval
 
-    def add_inputs(self, *inputs: AnyInput):
+    def insert_input(self, *inputs: AnyInput):
         if not self._allow_add_inputs:
-            raise Exception(f'Cannot add inputs on `{self._name}`')
-        self._inputs += inputs
+            raise Exception(f'Cannot insert inputs for `{self._name}`')
+        self._inputs = list(inputs) + list(self._inputs)
 
-    def add_envs(self, *envs: Env):
+    def add_input(self, *inputs: AnyInput):
+        if not self._allow_add_inputs:
+            raise Exception(f'Cannot add inputs for `{self._name}`')
+        self._inputs = list(self._inputs) + list(inputs)
+
+    def insert_env(self, *envs: Env):
         if not self._allow_add_envs:
-            raise Exception(f'Cannot add envs on `{self._name}`')
-        self._envs += envs
+            raise Exception(f'Cannot insert envs to `{self._name}`')
+        self._envs = list(envs) + list(self._envs)
 
-    def add_env_files(self, *env_files: EnvFile):
+    def add_env(self, *envs: Env):
+        if not self._allow_add_envs:
+            raise Exception(f'Cannot add envs to `{self._name}`')
+        self._envs = list(self._envs) + list(envs)
+
+    def insert_env_file(self, *env_files: EnvFile):
         if not self._allow_add_env_files:
-            raise Exception(f'Cannot add env_files on `{self._name}`')
-        self._env_files += env_files
+            raise Exception(f'Cannot insert env_files to `{self._name}`')
+        self._env_files = list(env_files) + list(self._env_files)
+
+    def add_env_file(self, *env_files: EnvFile):
+        if not self._allow_add_env_files:
+            raise Exception(f'Cannot add env_files to `{self._name}`')
+        self._env_files = list(self._env_files) + list(env_files)
+
+    def insert_upstream(self, *upstreams: AnyTask):
+        if not self._allow_add_upstreams:
+            raise Exception(f'Cannot insert upstreams to `{self._name}`')
+        self._upstreams = list(upstreams) + list(self._upstreams)
+
+    def add_upstream(self, *upstreams: AnyTask):
+        if not self._allow_add_upstreams:
+            raise Exception(f'Cannot add upstreams to `{self._name}`')
+        self._upstreams = list(self._upstreams) + list(upstreams)
 
     def get_execution_id(self) -> str:
         return self._execution_id
@@ -123,20 +155,50 @@ class CommonTaskModel():
     def get_color(self) -> str:
         return self._color
 
-    def get_env_files(self) -> List[EnvFile]:
+    def inject_env_files(self):
+        pass
+
+    def _get_env_files(self) -> List[EnvFile]:
+        if not self._has_already_inject_env_files:
+            self.inject_env_files()
+            self._has_already_inject_env_files = True
         return self._env_files
 
-    def get_envs(self) -> List[Env]:
-        return self._envs
+    def inject_envs(self):
+        pass
 
-    def get_inputs(self) -> List[AnyInput]:
-        return self._inputs
+    def _get_envs(self) -> List[Env]:
+        if not self._has_already_inject_envs:
+            self.inject_envs()
+            self._has_already_inject_envs = True
+        return list(self._envs)
 
-    def get_checkers(self) -> Iterable[AnyTask]:
-        return self._checkers
+    def inject_inputs(self):
+        pass
 
-    def get_upstreams(self) -> Iterable[AnyTask]:
-        return self._upstreams
+    def _get_inputs(self) -> List[AnyInput]:
+        if not self._has_already_inject_inputs:
+            self.inject_inputs()
+            self._has_already_inject_inputs = True
+        return list(self._inputs)
+
+    def inject_checkers(self):
+        pass
+
+    def _get_checkers(self) -> List[AnyTask]:
+        if not self._has_already_inject_checkers:
+            self.inject_checkers()
+            self._has_already_inject_checkers = True
+        return list(self._checkers)
+
+    def inject_upstreams(self):
+        pass
+
+    def _get_upstreams(self) -> List[AnyTask]:
+        if not self._has_already_inject_upstreams:
+            self.inject_upstreams()
+            self._has_already_inject_upstreams = True
+        return list(self._upstreams)
 
     def get_description(self) -> str:
         return self._description
@@ -361,7 +423,7 @@ class TaskModelWithPrinterAndTracker(
         run: Optional[Callable[..., Any]] = None,
         should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
-        self._filled_complete_name: Optional[str] = None
+        self._rjust_full_cmd_name: Optional[str] = None
         self._has_cli_interface = False
         self._complete_name: Optional[str] = None
         CommonTaskModel.__init__(
@@ -448,13 +510,13 @@ class TaskModelWithPrinterAndTracker(
     def _get_print_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=show_time)
         icon = self.get_icon()
-        truncated_name = self._get_filled_complete_name()
+        truncated_name = self._get_rjust_full_cmd_name()
         return f'{common_prefix} {icon} {truncated_name}'
 
     def _get_log_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=False)
         icon = self.get_icon()
-        filled_name = self._get_filled_complete_name()
+        filled_name = self._get_rjust_full_cmd_name()
         return f'{common_prefix} {icon} {filled_name}'
 
     def _get_common_prefix(self, show_time: bool) -> str:
@@ -466,14 +528,14 @@ class TaskModelWithPrinterAndTracker(
             return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
         return f'❁ {pid} → {attempt}/{max_attempt}'
 
-    def _get_filled_complete_name(self) -> str:
-        if self._filled_complete_name is not None:
-            return self._filled_complete_name
-        complete_name = self.get_complete_cmd_name()
-        self._filled_complete_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
-        return self._filled_complete_name
+    def _get_rjust_full_cmd_name(self) -> str:
+        if self._rjust_full_cmd_name is not None:
+            return self._rjust_full_cmd_name
+        complete_name = self.get_full_cmd_name()
+        self._rjust_full_cmd_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
+        return self._rjust_full_cmd_name
 
-    def get_complete_cmd_name(self) -> str:
+    def get_full_cmd_name(self) -> str:
         if self._complete_name is not None:
             return self._complete_name
         executable_prefix = ''

@@ -56,18 +56,23 @@ class SlackPrintTask(CmdTask):
         self._slack_app_token = slack_app_token
         self._message = message
 
-    def run(self, *args: Any, **kwargs: Any):
-        # Inject environment variables
-        self.inject_env_map(
-            env_map={
-                'CHANNEL_ID': self.render_str(self._slack_channel_id),
-                'TOKEN': self.render_str(self._slack_app_token),
-                'MESSAGE': self.render_str(self._message)
-            }
+    def inject_envs(self):
+        self.add_envs(
+            Env(
+                name='CHANNEL_ID', os_name='',
+                default=self.render_str(self._slack_channel_id)
+            ),
+            Env(
+                name='TOKEN', os_name='',
+                default=self.render_str(self._slack_app_token)
+            ),
+            Env(
+                name='MESSAGE', os_name='',
+                default=self.render_str(self._message)
+            )
         )
-        return super().run(*args, **kwargs)
 
-    def _get_cmd_str(self, *args: Any, **kwargs: Any):
+    def get_cmd_script(self, *args: Any, **kwargs: Any):
         # contruct json payload and replace all `"` with `\\"`
         json_payload = jsons.dumps({
             'channel': '$CHANNEL_ID',
