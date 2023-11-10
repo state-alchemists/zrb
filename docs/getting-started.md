@@ -2,18 +2,24 @@
 
 # Getting started
 
-Zrb is an automation tool. With Zrb you can run tasks using command-line-interface.
+Welcome to Zrb's getting started guide.
 
-You can also define Zrb tasks using Python.
+We will cover all the basic you need to know before working with Zrb. You will learn about:
 
-This getting-started guide covers all the basic you need to know before working with Zrb.
+- How to run a task
+- How to create a Zrb project
+- How to create a simple task
+- How to define upstreams
+- How to create a long running task
+
+This guide assume you have some familiarity with CLI and Python.
 
 # Running a task
 
-You can run any Zrb task by invoking the following pattern:
+Once you installed Zrb, you can run some built-in tasks immediately. To run any Zrb task, you need to follow the following pattern:
 
 ```bash
-zrb [task-groups] <task-name> [task-parameters]
+zrb [task-groups...] <task-name> [task-parameters...]
 ```
 
 For example, you want to run `encode` that is located under `base64` group, you can do so by execute the following command:
@@ -25,22 +31,32 @@ zrb base64 encode --text "non-credential-string"
 ```
 Support zrb growth and development!
 ☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ➜  2023-06-11T05:09:06.283002 ⚙ 3549 ➤ 1 of 1 • 🍋    zrb base64 encode • zrb base64 encode completed in 0.11719107627868652 seconds
-To run again: zrb base64 encode --text "non-credential-string"
+🤖 ○ ◷ 2023-11-10 09:08:33.183 ❁ 35276 → 1/1 🍎    zrb base64 encode • Completed in 0.051436424255371094 seconds
 bm9uLWNyZWRlbnRpYWwtc3RyaW5n
+To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-Related tasks are usually located under the same group. For example, you have `decode` task under `base64` group as well.
+> __WARNING:__ Anyone can easily decode a base64-encoded string. Don't use it to encrypt your password or any important credentials.
+
+Related tasks are usually located under the same `task-group`.
+
+For example, you have all base64 related tasks (e.g., `decode` and `encode`) under `base64` task-group.
+
+Let's try to decode our base64-encoded text:
 
 ```bash
 zrb base64 decode --text "bm9uLWNyZWRlbnRpYWwtc3RyaW5n"
 ```
 
-# Getting available tasks/task groups
+You should get your original text back.
 
-To see all available task/task groups, you can type `zrb` and press enter.
+> __NOTE:__ You don't have to memorize any `task-group` or `task` name. The next two subsections will show you how to locate and execute any `task`.
+
+## Getting available tasks/task groups
+
+To find out what tasks/task-groups are available, you can type `zrb` and press enter.
 
 ```bash
 zrb
@@ -49,26 +65,52 @@ zrb
 ```
 Usage: zrb [OPTIONS] COMMAND [ARGS]...
 
-  Super framework for your super app.
+                bb
+   zzzzz rr rr  bb
+     zz  rrr  r bbbbbb
+    zz   rr     bb   bb
+   zzzzz rr     bbbbbb   0.0.109
+   _ _ . .  . _ .  _ . . .
+
+Super framework for your super app.
+
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
 
 Options:
   --help  Show this message and exit.
 
 Commands:
-  base64            Base64 operations
-  concat            concat
-  devtool           Developer tools management
-  env               Environment variable management
-  eval              Evaluate Python expression
-  md5               MD5 operations
-  explain           Explain things 
-  project           Project management
-  ubuntu            Ubuntu related commands
-  update            Update zrb
-  version           Get Zrb version
+  base64              Base64 operations
+  build               Build Zrb
+  build-image         Build docker image
+  build-latest-image  Build docker image
+  devtool             Developer tools management
+  env                 Environment variable management
+  eval                Evaluate Python expression
+  explain             Explain things
+  git                 Git related commands
+  install-symlink     Install Zrb as symlink
+  md5                 MD5 operations
+  playground          Playground related tasks
+  process             Process related commands
+  project             Project management
+  publish             Publish new version
+  publish-pip         Publish zrb to pypi
+  publish-pip-test    Publish zrb to testpypi
+  push-image          Push docker image
+  push-latest-image   Push docker image
+  serve-test          Serve zrb test result
+  start-container     Run docker container
+  stop-container      remove docker container
+  test                Run zrb test
+  ubuntu              Ubuntu related commands
+  update              Update zrb
+  version             Get Zrb version
 ```
 
-You can keep doing this until you find the task you want to execute
+You can then type `zrb [task-group...]` until you find the task you want to execute. For example, you can invoke the following command to see what tasks are available under `base64` group:
 
 ```bash
 zrb base64
@@ -87,9 +129,13 @@ Commands:
   encode  Encode base64 task
 ```
 
-# Using prompt
+> __NOTE:__ A `task-group` might contains some `tasks` or other `task-groups`
 
-Once you find your task, you can just type the task without bothering about the parameters. Zrb will automatically prompt you to fill the parameter interactively.
+## Using input prompt
+
+Once you find the task you want to execute, you can just type `zrb [task-groups...] <task-name>` without bothering about `task-parameters`.
+
+Zrb will automatically prompt you to provide the parameter interactively.
 
 ```bash
 zrb base64 encode
@@ -99,20 +145,20 @@ zrb base64 encode
 Text []: non-credential-string
 Support zrb growth and development!
 ☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ➜  2023-06-11T05:27:07.824839 ⚙ 3740 ➤ 1 of 1 • 🍌    zrb base64 encode • zrb base64 encode completed in 0.11709976196289062 seconds
-To run again: zrb base64 encode --text "non-credential-string"
+🤖 ○ ◷ 2023-11-10 09:10:58.805 ❁ 35867 → 1/1 🍈    zrb base64 encode • Completed in 0.053427934646606445 seconds
 bm9uLWNyZWRlbnRpYWwtc3RyaW5n
+To run again: zrb base64 encode --text "non-credential-string"
 ```
 
 > __NOTE:__ To disable prompt, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
 
 # Creating a project
 
-To make things more manageable, you can put related task definitions and resources under the same project.
+To make things more manageable, you can create a project to contain all your resources and task definitions.
 
-You can create a project under `my-project` directory by invoking the following command:
+Suppose you want to create a project under `my-project`, then you can invoke the following command:
 
 ```bash
 zrb project create --project-dir my-project
@@ -140,7 +186,7 @@ drwxr-xr-x 2 gofrendi gofrendi 4096 Jun 11 05:29 src
 -rw-r--r-- 1 gofrendi gofrendi   54 Jun 11 05:29 zrb_init.py
 ```
 
-Every Zrb project contains a file named `zrb_init.py`. This file is your entry point to define all tasks/configurations.
+Every Zrb project has a file named `zrb_init.py` on it's top level directory. This file is your entry point to define your task definitions.
 
 It is recommended that you define your tasks under `_automate` directory and import them into your `zrb_init.py`. This will help you manage the [separation of concerns](https://en.wikipedia.org/wiki/Separation_of_concerns).
 
