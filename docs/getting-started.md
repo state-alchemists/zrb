@@ -6,8 +6,8 @@ Welcome to Zrb's getting started guide.
 
 We will cover all the basic you need to know before working with Zrb. You will learn about:
 
-- How to run a task
-- How to create a Zrb project
+- [How to run a task](#running-a-task)
+- [How to create a project](#creating-a-project)
 - How to create a simple task
 - How to define upstreams
 - How to create a long running task
@@ -38,7 +38,7 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-> __WARNING:__ Anyone can easily decode a base64-encoded string. Don't use it to encrypt your password or any important credentials.
+> __⚠️ WARNING:__ Anyone can easily decode a base64-encoded string. Don't use it to encrypt your password or any important credentials.
 
 Related tasks are usually located under the same `task-group`.
 
@@ -52,7 +52,7 @@ zrb base64 decode --text "bm9uLWNyZWRlbnRpYWwtc3RyaW5n"
 
 You should get your original text back.
 
-> __NOTE:__ You don't have to memorize any `task-group` or `task` name. The next two subsections will show you how to locate and execute any `task`.
+> __💡 HINT:__ You don't have to memorize any `task-group` or `task` name. The next two subsections will show you how to locate and execute any `task` without memorize anything.
 
 ## Getting available tasks/task groups
 
@@ -129,7 +129,7 @@ Commands:
   encode  Encode base64 task
 ```
 
-> __NOTE:__ A `task-group` might contains some `tasks` or other `task-groups`
+> __📝 NOTE:__ A `task-group` might contains some `tasks` or other `task-groups`
 
 ## Using input prompt
 
@@ -152,11 +152,11 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-> __NOTE:__ To disable prompt, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
+> __📝 NOTE:__ To disable prompt, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. When prompts are disabled, Zrb will automatically use default values. Please refer to [configuration section](./configurations.md) for more information.
 
 # Creating a project
 
-To make things more manageable, you can create a project to contain all your resources and task definitions.
+To make things more manageable, you need to put all your resources and task definitions in a `project`.
 
 Suppose you want to create a project under `my-project`, then you can invoke the following command:
 

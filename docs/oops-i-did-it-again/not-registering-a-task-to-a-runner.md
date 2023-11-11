@@ -18,7 +18,7 @@ zrb hello
 
 If you want your task to be available through the CLI, you need to register it to Zrb's runner.
 
-> __NOTE:__ A task that is not registered to Zrb's runner will not be available through the CLI, but can still be used as upstreams/checkers.
+> __📝 NOTE:__ A task that is not registered to Zrb's runner will not be available through the CLI, but can still be used as upstreams/checkers.
 
 # Avoiding the Problem
 
