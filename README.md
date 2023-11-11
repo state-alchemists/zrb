@@ -8,7 +8,126 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 To use Zrb, you need to be familiar with CLI.
 
-Zrb task definitions are written in [Python](https://www.python.org/), and we have a [very good reason](https://github.com/state-alchemists/zrb/blob/main/docs/faq/why-python.md) behind the decision.
+Zrb task definitions are written in [Python](https://www.python.org/), and we have a [good reason](https://github.com/state-alchemists/zrb/blob/main/docs/faq/why-python.md) behind the decision.
+
+## Zrb is A Task-Automation Tool
+
+At the very core, Zrb is a task automation tool. It helps you to automate some tedious jobs so that you can focus on what matters.
+
+Let's say you want to describe the statistics property of any public CSV. To do this, you need to perform three tasks like the following:
+
+- Install pandas.
+- Download the CSV dataset (at the same time).
+- Show statistics properties of the CSV dataset using pandas (right after the two first tasks are completed).
+
+```
+ ┌──────────────────┐
+ │                  │
+ │  Install Pandas  ├─┐
+ │                  │ │  ┌─────────────────┐
+ └──────────────────┘ └─►│                 │
+                         │ Show Statistics │
+ ┌──────────────────┐ ┌─►│                 │
+ │                  │ │  └─────────────────┘
+ │ Download Dataset ├─┘
+ │                  │
+ └──────────────────┘
+```
+
+To do this, you can create a file named `zrb_init.py` and define the tasks as follows:
+
+```python
+# File name: zrb_init.py
+from zrb import runner, CmdTask, python_task, StrInput
+
+# Define a task to install pandas
+install_pandas = CmdTask(
+    name='install-pandas',
+    cmd='pip install pandas'
+)
+
+# Define a task to download dataset
+download_dataset = CmdTask(
+    name='download-dataset',
+    inputs=[
+        # Allow user to put the CSV dataset URL.
+        StrInput(
+            name='url',
+            default='https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
+        )
+    ],
+    cmd='wget -O dataset.csv {{input.url}}'
+)
+
+# Define a task to show the statistics properties of the dataset
+show_stat = CmdTask(
+    name='show-stat',
+    upstreams=[
+        # Let the following tasks to be show_stat's upstream
+        download_dataset,
+        install_pandas
+    ],
+    cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"'  # noqa
+)
+
+# Register show_stat, so that the task is accessible from the CLI (i.e., zrb show-stat)
+runner.register(show_stat)
+```
+
+Once you do so, you can invoke the task and get the output.
+
+```bash
+zrb show-stat
+```
+
+```
+Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
+🤖 ○ ❁ 27694 → 1/3 🍉 download-dataset • Run script: wget -O dataset.csv https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+🤖 ○ ❁ 27694 → 1/3 🍉 download-dataset • Working directory: /home/gofrendi/playground/myproject
+🤖 ○ ❁ 27694 → 1/3 🦊   install-pandas • Run script: pip install pandas
+🤖 ○ ❁ 27694 → 1/3 🦊   install-pandas • Working directory: /home/gofrendi/playground/myproject
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • --2023-11-11 15:29:01--  https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.108.133, 185.199.111.133, 185.199.109.133, ...
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.108.133|:443... connected.
+🤖 ○ ❁ 27702 → 1/3 🦊   install-pandas • Requirement already satisfied: pandas in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (2.1.3)
+🤖 ○ ❁ 27702 → 1/3 🦊   install-pandas • Requirement already satisfied: numpy<2,>=1.22.4 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (1.26.1)
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • HTTP request sent, awaiting response... 200 OK
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • Length: 4606 (4.5K) [text/plain]
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • Saving to: ‘dataset.csv’
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset •      0K ....                                                  100% 4.19M=0.001s
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset • 2023-11-11 15:29:01 (4.19 MB/s) - ‘dataset.csv’ saved [4606/4606]
+🤖 △ ❁ 27700 → 1/3 🍉 download-dataset •
+🤖 ○ ❁ 27694 → 1/3 🐯    zrb show-stat • Run script: python -c "import pandas as pd; df=pd.read_csv('dataset.csv'); print(df.describe())"
+🤖 ○ ❁ 27694 → 1/3 🐯    zrb show-stat • Working directory: /home/gofrendi/playground/myproject
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat •        sepal_length  sepal_width  petal_length  petal_width
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • count    150.000000   150.000000    150.000000   150.000000
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • mean       5.843333     3.054000      3.758667     1.198667
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • std        0.828066     0.433594      1.764420     0.763161
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • min        4.300000     2.000000      1.000000     0.100000
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • 25%        5.100000     2.800000      1.600000     0.300000
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • 50%        5.800000     3.000000      4.350000     1.300000
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • 75%        6.400000     3.300000      5.100000     1.800000
+🤖 ○ ❁ 27746 → 1/3 🐯    zrb show-stat • max        7.900000     4.400000      6.900000     2.500000
+Support zrb growth and development!
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+🤖 ○ ❁ 27746 → 1/3 🐯        zrb show-stat • Completed in 1.3806817531585693 seconds
+       sepal_length  sepal_width  petal_length  petal_width
+count    150.000000   150.000000    150.000000   150.000000
+mean       5.843333     3.054000      3.758667     1.198667
+std        0.828066     0.433594      1.764420     0.763161
+min        4.300000     2.000000      1.000000     0.100000
+25%        5.100000     2.800000      1.600000     0.300000
+50%        5.800000     3.000000      4.350000     1.300000
+75%        6.400000     3.300000      5.100000     1.800000
+max        7.900000     4.400000      6.900000     2.500000
+To run again: zrb show-stat --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
+```
+
+
+To learn more about this, you can visit [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md).
+
 
 ## Zrb is A Low-Code Framework
 
@@ -58,47 +177,6 @@ zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 ```
 
 You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
-
-
-## Zrb is A Task-Automation Tool
-
-Aside from the built-in capabilities, Zrb also allows you to define your automation commands in Python. To do so, you must create/modify a file named `zrb_init.py`.
-
-```python
-# filename: zrb_init.py
-from zrb import runner, CmdTask, StrInput
-
-hello = CmdTask(
-    name='hello',
-    inputs=[StrInput(name='name', description='Name', default='world')],
-    cmd='echo Hello {{input.name}}'
-)
-runner.register(hello)
-```
-
-Once defined, your command will be instantly available from the CLI:
-
-```bash
-zrb hello
-# You can also provide the parameter directly:
-#     zrb hello --name "Go Frendi"
-```
-
-```
-Name [world]: Go Frendi
-🤖 ○ ◷ 2023-09-18 07:37:40.849 ❁ 47932 → 1/3 🍌            zrb hello • Run script: echo Hello Go Frendi
-🤖 ○ ◷ 2023-09-18 07:37:40.849 ❁ 47932 → 1/3 🍌            zrb hello • Working directory: /home/gofrendi/zrb/playground
-🤖 ○ ◷ 2023-09-18 07:37:40.854 ❁ 47933 → 1/3 🍌            zrb hello • Hello Go Frendi
-Support zrb growth and development!
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ○ ◷ 2023-09-18 07:37:40.899 ❁ 47933 → 1/3 🍌            zrb hello • Completed in 0.052213191986083984 seconds
-To run again: zrb hello --name "Go Frendi"
-Hello Go Frendi
-```
-
-To learn more about this, you can visit [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md).
 
 
 # 🫰 Installation
