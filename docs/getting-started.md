@@ -4,25 +4,32 @@
 
 Welcome to Zrb's getting started guide.
 
-We will cover all the basic you need to know before working with Zrb. You will learn about:
+We will cover everything you need to know before working with Zrb. You will learn about:
 
 - [How to run a task](#running-a-task)
 - [How to create a project](#creating-a-project)
-- How to create a simple task
+- How to define a simple task
 - How to define upstreams
-- How to create a long running task
+- How to define a long-running task
 
-This guide assume you have some familiarity with CLI and Python.
+This guide assumes you have some familiarity with CLI and Python.
 
 # Running a task
 
-Once you installed Zrb, you can run some built-in tasks immediately. To run any Zrb task, you need to follow the following pattern:
+Once you have installed Zrb, you can run some built-in tasks immediately. To run any Zrb task, you need to follow the following pattern:
 
 ```bash
 zrb [task-groups...] <task-name> [task-parameters...]
 ```
 
-For example, you want to run `encode` that is located under `base64` group, you can do so by execute the following command:
+For example, you want to run the `base64 encode` task with the following information:
+
+- __Task group:__ base64
+- __Task name:__ encode
+- __Task parameters:__
+  - `text` = `non-credential-string`
+
+Based on the pattern, you will need to invoke the following command:
 
 ```bash
 zrb base64 encode --text "non-credential-string"
@@ -38,13 +45,46 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-> __⚠️ WARNING:__ Anyone can easily decode a base64-encoded string. Don't use it to encrypt your password or any important credentials.
+You can see that Zrb encoded `non-credential-string` into `bm9uLWNyZWRlbnRpYWwtc3RyaW5n`.
 
-Related tasks are usually located under the same `task-group`.
+> __⚠️ WARNING:__ Base64 is a encoding algorithm that allows you to transform any characters into an alphabet which consists of Latin letters, digits, plus, and slash.
+>
+> Anyone can easily decode a base64-encoded string. __Never use it to encrypt your password or any important credentials!__
 
-For example, you have all base64 related tasks (e.g., `decode` and `encode`) under `base64` task-group.
+## Redirect Task's Output
 
-Let's try to decode our base64-encoded text:
+You can use any task's output for further processing. For example, redirect a task's output and error into files.
+
+```bash
+zrb base64 encode --text "non-credential-string" > output.txt 2> stderr.txt
+cat output.txt
+cat stderr.txt
+```
+
+You can also use a task's output as other CLI command's parameter
+
+```bash
+echo $(zrb base64 encode --text "non-credential-string"  2> error.txt)
+```
+
+Finally, you can also use the pipe operator to redirect a task's output as other CLI command's input
+
+```bash
+zrb base64 encode --text "non-credential-string"  2> error.txt | lolcat
+```
+
+> __📝 NOTE:__ You can install lolcat by following [it's documentation](https://github.com/busyloop/lolcat). If you are using Linux, and you don't like `snap`, you can try to use your OS's package manager (e.g., `sudo apt install lolcat`)
+
+## How Task Groups Organize Tasks
+
+We usually put related `tasks` under the same `task-group`.
+
+For example, we have two tasks under `base64` group:
+
+- encode
+- decode
+
+Let's decode our base64-encoded text:
 
 ```bash
 zrb base64 decode --text "bm9uLWNyZWRlbnRpYWwtc3RyaW5n"

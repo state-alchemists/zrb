@@ -2,7 +2,7 @@
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-[📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+[🫰 Installation](#🫰-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
 Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, Zrb will help you automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
 
@@ -10,7 +10,7 @@ To use Zrb, you need to be familiar with CLI.
 
 Zrb task definitions are written in [Python](https://www.python.org/), and we have a [good reason](https://github.com/state-alchemists/zrb/blob/main/docs/faq/why-python.md) behind the decision.
 
-## Zrb is A Task-Automation Tool
+## Zrb as A Task-Automation Tool
 
 At the very core, Zrb is a task automation tool. It helps you to automate some tedious jobs so that you can focus on what matters.
 
@@ -77,17 +77,31 @@ show_stat = CmdTask(
 runner.register(show_stat)
 ```
 
+> __📝 NOTE:__ In this example, we exclusively use `CmdTask` to execute CLI scripts. However, Zrb has many other task types, like `python_task`. You can rewrite `show_stat` task using `@python_task` decorator as follow:
+>
+> ```python
+> # 📊 Define a task to show the statistics properties of the dataset
+> @python_task(
+>     name='show-stat',
+>     upstreams=[
+>         # Let the following tasks to be show_stat's upstream:
+>         download_dataset,
+>         install_pandas
+>     ]
+> )
+> def show_stat(*args, **kwargs):
+>     import pandas as pd
+>     df = pd.read_csv('dataset.csv')
+>     return df.describe()
+> ```
+>
+> This will make more sense since `show_stat` is better written in Python.
+
 Once you do so, you can invoke the task and get the output.
 
 ```bash
 zrb show-stat
 ```
-
-> __📝 NOTE:__  When executing a Zrb task, you can also provide the parameter directly, for example:
->
-> ```bash
-> zrb show-stat --url https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
-> ```
 
 ```
 Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
@@ -139,36 +153,24 @@ min        4.300000     2.000000      1.000000     0.100000
 max        7.900000     4.400000      6.900000     2.500000
 To run again: zrb show-stat --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
 ```
-
 Now, you can get the statistics properties of any public CSV dataset.
 
-In this example, we purposely only use `CmdTask` to execute CLI scripts. However, Zrb has many other task types. For example, you can rewrite `show_stat` task using `@python_task` decorator.
+> __📝 NOTE:__  When executing a task, you can also provide the parameter directly, for example you want to provide the `url`
+>
+> ```bash
+> zrb show-stat --url https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+> ```
+>
+> When you provide the parameter directly, Zrb will not prompt you to supply the URL.
+> Another way to disable the prompt is by set `ZRB_SHOW_PROMPT` to `0` or `false`.
 
-```python
-# 📊 Define a task to show the statistics properties of the dataset
-@python_task(
-    name='show-stat',
-    upstreams=[
-        # Let the following tasks to be show_stat's upstream:
-        download_dataset,
-        install_pandas
-    ]
-)
-def show_stat(*args, **kwargs):
-    import pandas as pd
-    df = pd.read_csv('dataset.csv')
-    return df.describe()
-```
+You can also run a Docker compose file, start a Web server, generate a CRUD application, or set up multiple servers simultaneously.
 
-This will make more sense since `show_stat` is better written in Python.
+See [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to learn more about the details.
 
-You can also run a Docker compose file, start a Web server, generate a CRUD application, or even set up multiple servers at once.
+## Zrb as A Low-Code Framework
 
-See [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to learn more about the detail.
-
-## Zrb is A Low-Code Framework
-
-Aside from defining your own tasks, Zrb also comes with some builtin tasks. Those builtin tasks allows you to build and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
+Aside from defining your own tasks, Zrb also has some built-in tasks. Those built-in tasks allow you to build and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
 
 Let's see the following example.
 
@@ -221,7 +223,7 @@ You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/
 
 ## 🚀 Using Installation Script
 
-We provide an installation script to help you install `pyenv` and `Zrb`. You can run the installation script as follow:
+We provide an [installation script](https://github.com/state-alchemists/zrb/blob/main/install.sh) to help you install `pyenv` and `Zrb`. You can run the installation script as follows:
 
 ```bash
 curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
@@ -235,47 +237,60 @@ Installing Zrb in your system is as easy as typing the following command in your
 pip install zrb
 ```
 
-Like any other Python package, you can install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). This will allow you to have many versions of Zrb on the same computer.
+Like any Python package, you can install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). Installing Zrb in a virtual environment allows you to have many versions of Zrb on the same computer.
 
 > ⚠️ If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` subsection to install them.
 
 ## 🐋 As Docker Container
 
-If you prefer to work with Docker, you can create a file named `docker-compose.yml`
+If you prefer to work with Docker, you can create a `docker-compose.yml` file as follows:
 
 ```yaml
 version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
 networks:
   zrb:
     name: zrb
+    external: true
+
 services:
 
   zrb:
     build:
       dockerfile: Dockerfile
       context: .
-    image: docker.io/stalchmst/zrb:latest
+      args:
+        ZRB_VERSION: ${ZRB_VERSION:-latest}
+    image: ${ZRB_IMAGE:-docker.io/stalchmst/zrb}
+    logging: *default-logging
     container_name: zrb
     hostname: zrb
+    command: sleep infinity
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./project:/project
-    networks:
-      - zrb
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./project:/project
     ports:
-      - 3001:3001 # or/and any other ports you want to expose.
+    - 3001:3001 # or/and any other ports you want to expose.
+    networks:
+    - zrb
 ```
 
-Once your docker-compose file is created, you can invoke the following command:
+Once you create a docker-compose file, you can invoke the following command to start the container:
 
 ```bash
 docker compose up -d
 ```
 
-You will be able to access Zrb by using docker exec:
+You will be able to run any Zrb tasks by accessing the container's bash:
 
 ```bash
-docker exec -it zrb zsh
+docker exec -it zrb bash
 ```
 
 # ✅ Main Prerequisites
