@@ -26,7 +26,7 @@ text_input = StrInput(
     name='encode',
     group=base64_group,
     inputs=[text_input],
-    description='Encode base64 task',
+    description='Encode a text using base64 algorithm',
     retry=0,
     runner=runner
 )
@@ -40,7 +40,7 @@ async def encode(*args: str, **kwargs: Any):
     name='decode',
     group=base64_group,
     inputs=[text_input],
-    description='Decode base64 task',
+    description='Decode a base64 encoded text',
     retry=0,
     runner=runner
 )
