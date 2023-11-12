@@ -26,7 +26,7 @@ Before starting the demo, you need to make sure you have the following software 
 - Zrb
 - Access to a Kubernetes cluster
 
-> __Note:__ Installing docker desktop will give you docker + docker compose extension, as well as local kubernetes cluster (if enabled).
+> __📝 NOTE:__ Installing docker desktop will give you docker + docker compose extension, as well as local kubernetes cluster (if enabled).
 
 Once everything is set, you can run the following commands on your terminal:
 
@@ -158,7 +158,7 @@ To run `myapp` as containers you can invoke:
 zrb project start-myapp-container --myapp-run-mode microservices
 ```
 
-> __Note:__ You can also run the container as a monolith if you want to. Just invoke `zrb project start-myapp-container --myapp-run-mode monolith`
+> __📝 NOTE:__ You can also run the container as a monolith if you want to. Just invoke `zrb project start-myapp-container --myapp-run-mode monolith`
 
 Now let's see how things look like by invoking:
 

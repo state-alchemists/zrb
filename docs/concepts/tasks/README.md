@@ -38,7 +38,7 @@ Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  HttpChecker PortCheck
 
 Aside from the documentation, you can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation.
 
-> __Note:__ Never initiate `BaseTask` directly, use `Task` instead.
+> __📝 NOTE:__ Never initiate `BaseTask` directly, use `Task` instead.
 
 # Task Overview
 
@@ -116,7 +116,7 @@ As `start_jupyterlab` has `show_banner` as it's upstream, you can expect the `sh
 
 A task might also have multiple upstreams. In that case, the upstreams will be executed concurrently.
 
-> __Note:__ Only tasks registered to `runner` are directly accessible from the CLI.
+> __📝 NOTE:__ Only tasks registered to `runner` are directly accessible from the CLI.
 
 # Task Lifecycle
 
