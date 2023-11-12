@@ -1,20 +1,27 @@
 🔖 [Table of Contents](README.md)
 
-# Getting started
+# Getting Started
 
-Welcome to Zrb's getting started guide.
-
-We will cover everything you need to know before working with Zrb. You will learn about:
+Welcome to Zrb's getting started guide. We will cover everything you need to know to work with Zrb. In this article, you will learn about:
 
 - [How to run a task](#running-a-task)
+  - [Redirect task's output](#redirect-tasks-output)
+  - [How tasks are organized](#how-tasks-are-organized)
+  - [Getting available tasks/task groups](#getting-available-taskstask-groups)
+  - [Using input prompts](#using-input-prompt)
 - [How to create a project](#creating-a-project)
-- How to define a simple task
-- How to define upstreams
-- How to define a long-running task
+  - [Using/creating virtual environment](#activating-virtual-environment)
+- [How to define a task](#creating-a-task)
+  - [Scaffolding a task](#scaffolding-a-task)
+  - [Updating task definition](#updating-task-definition)
+    - [Common task parameters](#common-task-parameters)
+    - [Cmd task parameters](#cmdtask-parameters)
+    - [Python task parameters](#python_task-parameters)
+- [How to define a long-running task]()
 
 This guide assumes you have some familiarity with CLI and Python.
 
-# Running a task
+# Running a Task
 
 Once you have installed Zrb, you can run some built-in tasks immediately. To run any Zrb task, you need to follow the following pattern:
 
@@ -75,7 +82,7 @@ zrb base64 encode --text "non-credential-string"  2> error.txt | lolcat
 
 > __📝 NOTE:__ You can install lolcat by following [it's documentation](https://github.com/busyloop/lolcat). If you are using Linux, and you don't like `snap`, you can try to use your OS's package manager (e.g., `sudo apt install lolcat`)
 
-## How Task Groups Organize Tasks
+## How Tasks are Organized
 
 We usually put related `tasks` under the same `task-group`.
 
@@ -94,9 +101,9 @@ You should get your original text back.
 
 > __💡 HINT:__ You don't have to memorize any `task-group` or `task` name. The next two subsections will show you how to locate and execute any `task` without memorize anything.
 
-## Getting available tasks/task groups
+## Getting Available Tasks/Task Groups
 
-To find out what tasks/task-groups are available, you can type `zrb` and press enter.
+To see what `tasks`/`task-groups` are available, type `zrb` and press enter.
 
 ```bash
 zrb
@@ -165,15 +172,15 @@ Options:
   --help  Show this message and exit.
 
 Commands:
-  decode  Decode base64 task
-  encode  Encode base64 task
+  decode  Decode a base64 encoded text
+  encode  Encode a text using base64 algorithm
 ```
 
-> __📝 NOTE:__ A `task-group` might contains some `tasks` or other `task-groups`
+> __📝 NOTE:__ A `task-group` might contains other `task-groups`
 
 ## Using input prompt
 
-Once you find the task you want to execute, you can just type `zrb [task-groups...] <task-name>` without bothering about `task-parameters`.
+Once you find the task you want to execute, you can type `zrb [task-groups...] <task-name>` without bothering about `task-parameters`.
 
 Zrb will automatically prompt you to provide the parameter interactively.
 
@@ -192,19 +199,21 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-> __📝 NOTE:__ To disable prompt, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. When prompts are disabled, Zrb will automatically use default values. Please refer to [configuration section](./configurations.md) for more information.
+> __📝 NOTE:__ If you need to disable prompt entirely, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
+>
+> When prompts are disabled, Zrb will automatically use default values.
 
 # Creating a project
 
-To make things more manageable, you need to put all your resources and task definitions in a `project`.
+To make things more manageable, you must put all related resources and task definitions under a `project`. A project is a directory containing `zrb_init.py`.
 
-Suppose you want to create a project under `my-project`, then you can invoke the following command:
+You can create a project manually or use Zrb's built-in task to generate the project. Suppose you want to create a project named `my-project`.
 
 ```bash
-zrb project create --project-dir my-project
+zrb project create --project-dir my-project --project-name my-project
 ```
 
-Once invoked, you will have a directory named `my-project`. You can move to the directory and start to see how a project looks like:
+Once invoked, you will have a directory named `my-project`. Let's see how the project looks like:
 
 ```bash
 cd my-project
@@ -212,35 +221,30 @@ ls -al
 ```
 
 ```
-total 44
-drwxr-xr-x 5 gofrendi gofrendi 4096 Jun 11 05:29 .
-drwxr-xr-x 4 gofrendi gofrendi 4096 Jun 11 05:29 ..
-drwxr-xr-x 7 gofrendi gofrendi 4096 Jun 11 05:29 .git
--rw-r--r-- 1 gofrendi gofrendi   21 Jun 11 05:29 .gitignore
--rw-r--r-- 1 gofrendi gofrendi 1776 Jun 11 05:29 README.md
-drwxr-xr-x 3 gofrendi gofrendi 4096 Jun 11 05:29 _automate
--rwxr-xr-x 1 gofrendi gofrendi 1517 Jun 11 05:29 project.sh
--rw-r--r-- 1 gofrendi gofrendi   12 Jun 11 05:29 requirements.txt
-drwxr-xr-x 2 gofrendi gofrendi 4096 Jun 11 05:29 src
--rw-r--r-- 1 gofrendi gofrendi   34 Jun 11 05:29 template.env
--rw-r--r-- 1 gofrendi gofrendi   54 Jun 11 05:29 zrb_init.py
+total 52
+drwxr-xr-x  6 gofrendi gofrendi 4096 Nov 12 07:52 .
+drwxr-xr-x 14 gofrendi gofrendi 4096 Nov 12 07:52 ..
+drwxr-xr-x  7 gofrendi gofrendi 4096 Nov 12 07:52 .git
+drwxr-xr-x  3 gofrendi gofrendi 4096 Nov 12 07:52 .github
+-rw-r--r--  1 gofrendi gofrendi   27 Nov 12 07:52 .gitignore
+-rw-r--r--  1 gofrendi gofrendi    7 Nov 12 07:52 .python-version
+-rw-r--r--  1 gofrendi gofrendi 1937 Nov 12 07:52 README.md
+drwxr-xr-x  3 gofrendi gofrendi 4096 Nov 12 07:52 _automate
+-rwxr-xr-x  1 gofrendi gofrendi 1507 Nov 12 07:52 project.sh
+-rw-r--r--  1 gofrendi gofrendi   13 Nov 12 07:52 requirements.txt
+drwxr-xr-x  2 gofrendi gofrendi 4096 Nov 12 07:52 src
+-rw-r--r--  1 gofrendi gofrendi  118 Nov 12 07:52 template.env
+-rw-r--r--  1 gofrendi gofrendi   54 Nov 12 07:52 zrb_init.py
 ```
 
-Every Zrb project has a file named `zrb_init.py` on it's top level directory. This file is your entry point to define your task definitions.
+Every Zrb project has a file named `zrb_init.py` under the top-level directory. This file is your entry point to define your task definitions.
 
-It is recommended that you define your tasks under `_automate` directory and import them into your `zrb_init.py`. This will help you manage the [separation of concerns](https://en.wikipedia.org/wiki/Separation_of_concerns).
+By convention, a project usually contains two sub-directories:
 
-Aside from `zrb_init.py`, you will also find some other files/directory:
+- `_automate`: This folder contains all your automation scripts and task definitions
+- `src`: This folder contains all your resources like Docker compose file, helm charts, and source code.
 
-- `.git` and `.gitignore`, indicating that your project is also a git repository.
-- `README.md`, your README file.
-- `project.sh`, a shell script to initiate your project.
-- `requirements.txt`, list of necessary python packages to run start a project. Make sure to update this if you declare a task that depends on other Python library.
-- `template.env`, your default environment variables.
-- `_automate`, a directory contains task definitions that should be imported in `zrb_init.py`.
-- `src`, your project resources (e.g., source code, docker compose file, helm charts, etc)
-
-By default, Zrb will create a default `task-group` named `project`. Try to type:
+When you make a project using `zrb project create` command, Zrb will generate a default `task-group` named `project`. This `task-group` contains some tasks to run/deploy everything. Try to type `zrb project` to see what tasks are available by default:
 
 ```bash
 zrb project
@@ -268,69 +272,253 @@ Commands:
   stop-containers    Stop project containers
 ```
 
-# Creating a simple task
+## Activating Virtual Environment
 
-Once your project has been created, you can add some new tasks to your project.
-
-Let's say you work for a company named `Arasaka`, and you want to show a cool CLI banner for your company.
+If you generate the project by invoking `zrb project create`, then you have to run the following command now:
 
 ```bash
-zrb project add cmd-task --project-dir . --task-name show-banner
+source project.sh
 ```
 
-Zrb will automatically do a few things for you:
+The command will ensure that you work under the project's virtual environment.
 
-- Create `_automate/show_banner.py`
-- Import `_automate.show_banner` into `zrb_init.py`.
-
-Now you can try to run the task:
+If you create the project manually, you need to make a virtual environment for your project:
 
 ```bash
-zrb project show-banner
+python -m venv .venv
+source .venv/bin/activate
 ```
 
+> __⚠️ WARNING:__ You have to make sure you are working under virtual environment everytime you work with Zrb project, either by invoking `source project.sh` or `source .venv/bin/activate`.
+
+
+# Creating a Task
+
+Zrb has a powerful command to create tasks under a project. Let's re-create the tasks we make in our [README.md](../README.md).
+
+The goal of the tasks is to download any public CSV dataset and provide the statistical properties of the dataset. To do that, you need to:
+- Ensure that you have Pandas installed on your machine
+- Ensure that you have downloaded the dataset
+- Run the Python script to get the statistical properties of the dataset
+
 ```
-🤖 ➜  2023-06-11T05:52:27.267892 ⚙ 4388 ➤ 1 of 3 • 🍓 zrb project show-banner • Run script: echo show banner
-🤖 ➜  2023-06-11T05:52:27.268193 ⚙ 4388 ➤ 1 of 3 • 🍓 zrb project show-banner • Current working directory: /home/gofrendi/zrb/playground/my-project
-🤖 ➜  2023-06-11T05:52:27.272726 ⚙ 4389 ➤ 1 of 3 • 🍓 zrb project show-banner • show banner
-Support zrb growth and development!
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ➜  2023-06-11T05:52:27.318296 ⚙ 4389 ➤ 1 of 3 • 🍓 zrb project show-banner • zrb project show-banner completed in 0.11460638046264648 seconds
-To run again: zrb project show-banner
-show banner
+          🐼
+ ┌──────────────────┐
+ │                  │
+ │  Install Pandas  ├─┐          📊
+ │                  │ │  ┌─────────────────┐
+ └──────────────────┘ └─►│                 │
+                         │ Show Statistics │
+ ┌──────────────────┐ ┌─►│                 │
+ │                  │ │  └─────────────────┘
+ │ Download Dataset ├─┘
+ │                  │
+ └──────────────────┘
+          ⬇️
 ```
 
-Now let's make the banner cooler with `figlet`. You can do so by editing `_automate/show_banner.py`. If you are using VSCode, you can type `code .` in your terminal.
+## Scaffolding a Task
 
-> ⚠️ We will use `figlet`. Try to type `figlet hello` and see whether things work or not. If you are using Ubuntu, you might need to install figlet by invoking `sudo apt install figlet`.
+Zrb has a powerful command to scaffold your project. To do so, you need to invoke the following command:
 
-Make sure to modify the `cmd` property of your `show_banner` task, so that it looks like the following:
+> __⚠️ WARNING:__ Make sure you have activate your virtual environment, either by invoking `source project.sh` or `source .venv/bin/activate`.
+
+```bash
+zrb project add python-task --project-dir "." --task-name "show-stats"
+```
+
+Once you invoke the command, Zrb will make a file named `_automate/show_stats.py`
 
 ```python
-from zrb import CmdTask, runner
-from zrb.builtin._group import project_group
+from typing import Any, Mapping
+from zrb import Task, python_task, runner
+from zrb.builtin.group import project_group
 
 ###############################################################################
 # Task Definitions
 ###############################################################################
 
-show_banner = CmdTask(
-    name='show-banner',
-    description='show banner',
-    group=project_group,
-    cmd=[
-        'figlet Arasaka'
-    ]
-)
-runner.register(show_banner)
 
+@python_task(
+    name='show-stats',
+    description='show stats',
+    group=project_group,
+    runner=runner
+)
+async def show_stats(*args: Any, **kwargs: Any) -> Any:
+    task: Task = kwargs.get('_task')
+    env_map: Mapping[str, str] = task.get_env_map()
+    input_map: Mapping[str, str] = task.get_input_map()
+    task.print_out(f'Env map: {env_map}')
+    task.print_out(f'Input map: {input_map}')
+    return 'ok'
 ```
 
-Cool. You make it. [Saburo Arasaka](https://cyberpunk.fandom.com/wiki/Saburo_Arasaka) will be proud of you 😉.
+We will modify the task later to match our use case.
+
+You will also notice that Zrb automatically imports `_automate/show_stats.py` into `zrb_init.py`.
+
+```python
+import _automate._project as _project
+import _automate.show_stats as show_stats
+assert _project
+assert show_stats
+```
+
+This modification allows you to invoke `show-stats` from the CLI
+
+```
+zrb project show-stats
+```
+
+## Updating Task Definition
+
+To serve our use case, you need to add two more tasks:
+
+- install-pandas
+- download-dataset
+
+You also need to ensure both of them are registered as `show-stats` upstreams. You also need to modify `show-stats` a little bit.
+
+```python
+from typing import Any
+from zrb import CmdTask, python_task, StrInput, runner
+from zrb.builtin.group import project_group
+
+# 🐼 Define a task to install pandas
+install_pandas = CmdTask(
+    name='install-pandas',
+    group=project_group,
+    cmd='pip install pandas'
+)
+
+# Make install_pandas accessible from the CLI (i.e., zrb project install-pandas)
+runner.register(install_pandas)
+
+# ⬇️ Define a task to download dataset
+download_dataset = CmdTask(
+    name='download-dataset',
+    group=project_group,
+    inputs=[
+        # Allow user to put the CSV dataset URL.
+        StrInput(
+            name='url',
+            default='https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
+        )
+    ],
+    cmd='wget -O dataset.csv {{input.url}}'
+)
+
+# Make download_dataset accessible from the CLI (i.e., zrb project download-dataset)
+runner.register(download_dataset)
+
+
+# 📊 Define a task to show the statistics properties of the dataset
+@python_task(
+    name='show-stats',
+    description='show stats',
+    group=project_group,
+    upstreams=[
+      # Make sure install_pandas and download_dataset are successfully executed before running show_stats
+      install_pandas,
+      download_dataset
+    ],
+    runner=runner # Make show_stats accessible from the CLI (i.e., zrb project show-stats)
+)
+async def show_stats(*args: Any, **kwargs: Any) -> Any:
+    import pandas as pd
+    df = pd.read_csv('dataset.csv')
+    return df.describe()
+```
+
+We define `install_pandas` and `download_dataset` using `CmdTask` since writing them using shell script is easier. We also make `show_stats` depend on `install_pandas` and `download_dataset` by defining `show_stats`'s upstream.
+
+### Common Task Parameters
+
+`CmdTask` and `@python_task` decorator has some parameters in common:
+
+- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name.
+- __description__: The description of the task.
+- __group__: The task group where the task belongs to
+- __inputs__: The inputs and their default values.
+  - If you are using a `CmdTask`, you can access the input using a Jinja Template (e.g., `{{input.input_name}}`)
+  - If you are using a `@python_task` decorator, you can access the input by using `kwargs` argument (e.g., `kwargs.get('input_name')`)
+- __upstreams__: Upstreams of the task. You can provide `AnyTask` as upstream.
+
+### CmdTask Parameters
+
+Aside from common task properties, `CmdTask` has other properties:
+
+- __cmd__: String, or List of String, containing the shell script
+- __cmd_path__: String, or List of String, containing the path to any shell scripts you want to use
+
+### PythonTask Parameters
+
+Aside from common task properties, `@python_task` has a runner parameter. This parameter is unique to `@python_task`. Any task created with `@python_task` with `runner` on it will be accessible from the CLI.
+
+## Running show-stats
+
+Finally, you can show the statistics property of any public CSV dataset quickly.
+
+```
+zrb project show-stats
+```
+
+```
+Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
+🤖 ○ ◷ 2023-11-12 09:45:12.132 ❁ 43598 → 1/3 🐮 zrb project install-pandas • Run script: pip install pandas
+🤖 ○ ◷ 2023-11-12 09:45:12.132 ❁ 43598 → 1/3 🐮 zrb project install-pandas • Working directory: /home/gofrendi/playground/my-project
+🤖 ○ ◷ 2023-11-12 09:45:12.139 ❁ 43598 → 1/3 🍓 zrb project download-dataset • Run script: wget -O dataset.csv https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+🤖 ○ ◷ 2023-11-12 09:45:12.139 ❁ 43598 → 1/3 🍓 zrb project download-dataset • Working directory: /home/gofrendi/playground/my-project
+🤖 △ ◷ 2023-11-12 09:45:12.151 ❁ 43603 → 1/3 🍓 zrb project download-dataset • --2023-11-12 09:45:12--  https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+🤖 △ ◷ 2023-11-12 09:45:12.218 ❁ 43603 → 1/3 🍓 zrb project download-dataset • Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.111.133, 185.199.109.133, 185.199.110.133, ...
+🤖 △ ◷ 2023-11-12 09:45:12.246 ❁ 43603 → 1/3 🍓 zrb project download-dataset • Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.111.133|:443... connected.
+🤖 △ ◷ 2023-11-12 09:45:12.803 ❁ 43603 → 1/3 🍓 zrb project download-dataset • HTTP request sent, awaiting response... 200 OK
+🤖 △ ◷ 2023-11-12 09:45:12.806 ❁ 43603 → 1/3 🍓 zrb project download-dataset • Length: 4606 (4.5K) [text/plain]
+🤖 △ ◷ 2023-11-12 09:45:12.808 ❁ 43603 → 1/3 🍓 zrb project download-dataset • Saving to: ‘dataset.csv’
+🤖 △ ◷ 2023-11-12 09:45:12.810 ❁ 43603 → 1/3 🍓 zrb project download-dataset •
+🤖 △ ◷ 2023-11-12 09:45:12.812 ❁ 43603 → 1/3 🍓 zrb project download-dataset •      0K ....                                                  100% 1.39M=0.003s
+🤖 △ ◷ 2023-11-12 09:45:12.814 ❁ 43603 → 1/3 🍓 zrb project download-dataset •
+🤖 △ ◷ 2023-11-12 09:45:12.816 ❁ 43603 → 1/3 🍓 zrb project download-dataset • 2023-11-12 09:45:12 (1.39 MB/s) - ‘dataset.csv’ saved [4606/4606]
+🤖 △ ◷ 2023-11-12 09:45:12.817 ❁ 43603 → 1/3 🍓 zrb project download-dataset •
+🤖 ○ ◷ 2023-11-12 09:45:12.978 ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: pandas in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (2.1.3)
+🤖 ○ ◷ 2023-11-12 09:45:13.042 ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: numpy<2,>=1.22.4 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (1.26.1)
+🤖 ○ ◷ 2023-11-12 09:45:13.044 ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: python-dateutil>=2.8.2 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2.8.2)
+🤖 ○ ◷ 2023-11-12 09:45:13.045 ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: pytz>=2020.1 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2023.3.post1)
+🤖 ○ ◷ 2023-11-12 09:45:13.047 ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: tzdata>=2022.1 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2023.3)
+🤖 ○ ◷ 2023-11-12 09:45:13.049 ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: six>=1.5 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from python-dateutil>=2.8.2->pandas) (1.16.0)
+Support zrb growth and development!
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+🤖 ○ ◷ 2023-11-12 09:45:14.366 ❁ 43598 → 1/3 🍎 zrb project show-stats • Completed in 2.2365798950195312 seconds
+       sepal_length  sepal_width  petal_length  petal_width
+count    150.000000   150.000000    150.000000   150.000000
+mean       5.843333     3.054000      3.758667     1.198667
+std        0.828066     0.433594      1.764420     0.763161
+min        4.300000     2.000000      1.000000     0.100000
+25%        5.100000     2.800000      1.600000     0.300000
+50%        5.800000     3.000000      4.350000     1.300000
+75%        6.400000     3.300000      5.100000     1.800000
+max        7.900000     4.400000      6.900000     2.500000
+To run again: zrb project show-stats --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
+```
 
 # Creating a long-running task
+
+Commonly, you can determine whether a task is successful/failed after it is completed. However, some tasks might run forever, and you can only see whether the task is completed or failed by checking other behaviors. For example, a web server is successfully running if you can get the expected HTTP response from the server.
+
+Zrb has some checking mechanisms to handle this use case.
+
+Let's start by scaffolding a CmdTask named `run-jupyterlab`.
+
+```bash
+zrb project add cmd-task --project-dir "." --task-name "run-jupyterlab"
+```
+
+Once you do so, you can start modifying `_automate/`
+
+In some cases, your task has to run forever (i.e., web server).
 
 Arasaka is a data-driven (and family-driven) company. They need their data scientists to experiment a lot to present the most valuable information/knowledge.
 
@@ -380,107 +568,87 @@ zrb project add cmd-task --project-dir . --task-name start-jupyterlab
 Now, let's modify `_automate/start_jupyterlab.py` into the following:
 
 ```python
-from zrb import CmdTask, runner, IntInput, PortChecker
-from zrb.builtin._group import project_group
-from _automate.show_banner import show_banner
+from zrb import CmdTask, PortChecker, IntInput, runner
+from zrb.builtin.group import project_group
 import os
 
-###############################################################################
-# Task Definitions
-###############################################################################
+
+install_jupyterlab = CmdTask(
+    name='install-jupyterlab',
+    group=project_group,
+    cmd='pip install jupyterlab'
+)
+runner.register(install_jupyterlab)
+
 
 notebook_path = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), 'src', 'notebooks'
+    os.path.dirname(os.path.dirname(__file__)), 'src'
 )
-
-start_jupyterlab = CmdTask(
-    name='start-jupyterlab',
-    description='start jupyterlab',
+run_jupyterlab = CmdTask(
+    name='run-jupyterlab',
+    description='run jupyterlab',
     group=project_group,
+    upstreams=[install_jupyterlab],
     inputs=[
-        IntInput(name='jupyterlab-port', default=8080)
+        IntInput(name='jupyterlab-port', default=8080),
     ],
-    upstreams=[show_banner],
-    cmd='jupyter lab --no-browser --port={{input.jupyterlab_port}} ' +
-        f'--notebook-dir="{notebook_path}"',
+    cmd=[
+        'jupyter lab \\',
+        '  --port {{input.jupyterlab_port}}',
+        f'  --notebook-dir "{notebook_path}"'
+    ],
     checkers=[
-        PortChecker(port='{{input.jupyterlab_port}}')
+        PortChecker(name='check-jupyterlab', port='{{input.jupyterlab_port}}')
     ]
 )
-runner.register(start_jupyterlab)
-
+runner.register(run_jupyterlab)
 ```
 
-First of all, we import `IntInput` and `PortChecker`, so that we can ask the user to choose the port number and check whether jupyterlab has been started on that port.
+You may notice that `run_jupyterlab` has a `PortChecker` on it. If the `PortChecker` can get TCP response, then `run_jupyterlab` is considered successful.
+Let's run the task:
 
-We also need to import `os`, so that we can determine the location of your `notebook_path`.
-
-Finally we add some properties to `start_jupyterlab`:
-
-- `inputs`: List of user inputs. We add a new input named `jupyterlab-port`. By default, the value will be `8080`.
-- `upstreams`: List of tasks that should be completed before the current task is started. We want `show_banner` to be executed here.
-- `cmd`: Command to be executed. You can use Jinja templating here. `{{input.jupyterlab_port}}` refers to the value `jupyterlab-port` input.
-- `checkers`: List of task to determine whether current task has been completed or not. In this case we want to make sure that the port has already available for requests.
-
-## Starting the jupyterlab
-
-Finally, let's see and make sure things are working:
+```bash
+zrb project run-jupyterlab
+```
 
 ```
-Jupyterlab port [8080]:
-🤖 ➜  2023-06-11T06:45:42.731189 ⚙ 6237 ➤ 1 of 3 • 🐨 zrb project show-banner • Run script: figlet Arasaka
-🤖 ➜  2023-06-11T06:45:42.731499 ⚙ 6237 ➤ 1 of 3 • 🐨 zrb project show-banner • Current working directory: /home/gofrendi/zrb/playground/my-project
-🤖 ➜  2023-06-11T06:45:42.736205 ⚙ 6238 ➤ 1 of 3 • 🐨 zrb project show-banner •     _                        _
-🤖 ➜  2023-06-11T06:45:42.736518 ⚙ 6238 ➤ 1 of 3 • 🐨 zrb project show-banner •    / \   _ __ __ _ ___  __ _| | ____ _
-🤖 ➜  2023-06-11T06:45:42.736782 ⚙ 6238 ➤ 1 of 3 • 🐨 zrb project show-banner •   / _ \ | '__/ _` / __|/ _` | |/ / _` |
-🤖 ➜  2023-06-11T06:45:42.737349 ⚙ 6238 ➤ 1 of 3 • 🐨 zrb project show-banner •  / ___ \| | | (_| \__ \ (_| |   < (_| |
-🤖 ➜  2023-06-11T06:45:42.737637 ⚙ 6238 ➤ 1 of 3 • 🐨 zrb project show-banner • /_/   \_\_|  \__,_|___/\__,_|_|\_\__,_|
-🤖 ➜  2023-06-11T06:45:42.737940 ⚙ 6238 ➤ 1 of 3 • 🐨 zrb project show-banner •
-🤖 ➜  2023-06-11T06:45:42.741398 ⚙ 6237 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • Run script: jupyter lab --no-browser --port=8080 --notebook-dir="/home/gofrendi/zrb/playground/my-project/src/notebooks"
-🤖 ➜  2023-06-11T06:45:42.741681 ⚙ 6237 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • Current working directory: /home/gofrendi/zrb/playground/my-project
-🤖 ⚠  2023-06-11T06:45:43.347664 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.347 ServerApp] Package jupyterlab took 0.0000s to import
-🤖 ⚠  2023-06-11T06:45:43.354037 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.353 ServerApp] Package jupyter_lsp took 0.0061s to import
-🤖 ⚠  2023-06-11T06:45:43.354341 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [W 2023-06-11 06:45:43.353 ServerApp] A `_jupyter_server_extension_points` function was not found in jupyter_lsp. Instead, a `_jupyter_server_extension_paths` function was found and will be used for now. This function name will be deprecated in future releases of Jupyter Server.
-🤖 ⚠  2023-06-11T06:45:43.357141 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.356 ServerApp] Package jupyter_server_terminals took 0.0029s to import
-🤖 ⚠  2023-06-11T06:45:43.357496 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.357 ServerApp] Package notebook_shim took 0.0000s to import
-🤖 ⚠  2023-06-11T06:45:43.357800 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [W 2023-06-11 06:45:43.357 ServerApp] A `_jupyter_server_extension_points` function was not found in notebook_shim. Instead, a `_jupyter_server_extension_paths` function was found and will be used for now. This function name will be deprecated in future releases of Jupyter Server.
-🤖 ⚠  2023-06-11T06:45:43.358139 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.357 ServerApp] jupyter_lsp | extension was successfully linked.
-🤖 ⚠  2023-06-11T06:45:43.360703 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.360 ServerApp] jupyter_server_terminals | extension was successfully linked.
-🤖 ⚠  2023-06-11T06:45:43.364479 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.364 ServerApp] jupyterlab | extension was successfully linked.
-🤖 ⚠  2023-06-11T06:45:43.489074 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.488 ServerApp] notebook_shim | extension was successfully linked.
-🤖 ⚠  2023-06-11T06:45:43.538464 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.537 ServerApp] notebook_shim | extension was successfully loaded.
-🤖 ⚠  2023-06-11T06:45:43.539844 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.539 ServerApp] jupyter_lsp | extension was successfully loaded.
-🤖 ⚠  2023-06-11T06:45:43.540686 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.540 ServerApp] jupyter_server_terminals | extension was successfully loaded.
-🤖 ⚠  2023-06-11T06:45:43.541056 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.540 LabApp] JupyterLab extension loaded from /home/gofrendi/zrb/venv/lib/python3.9/site-packages/jupyterlab
-🤖 ⚠  2023-06-11T06:45:43.541399 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.540 LabApp] JupyterLab application directory is /home/gofrendi/zrb/venv/share/jupyter/lab
-🤖 ⚠  2023-06-11T06:45:43.541722 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.541 LabApp] Extension Manager is 'pypi'.
-🤖 ⚠  2023-06-11T06:45:43.543932 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.543 ServerApp] jupyterlab | extension was successfully loaded.
-🤖 ⚠  2023-06-11T06:45:43.544397 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.543 ServerApp] Serving notebooks from local directory: /home/gofrendi/zrb/playground/my-project/src/notebooks
-🤖 ⚠  2023-06-11T06:45:43.544742 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.544 ServerApp] Jupyter Server 2.6.0 is running at:
-🤖 ⚠  2023-06-11T06:45:43.545059 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.544 ServerApp] http://localhost:8080/lab?token=74085eb7b8304271e028c5e0e01237ebaadbb13a54a64921
-🤖 ⚠  2023-06-11T06:45:43.545395 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.544 ServerApp]     http://127.0.0.1:8080/lab?token=74085eb7b8304271e028c5e0e01237ebaadbb13a54a64921
-🤖 ⚠  2023-06-11T06:45:43.545720 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [I 2023-06-11 06:45:43.544 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
-🤖 ⚠  2023-06-11T06:45:43.547067 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • [C 2023-06-11 06:45:43.546 ServerApp]
-🤖 ⚠  2023-06-11T06:45:43.547407 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab •
-🤖 ⚠  2023-06-11T06:45:43.547855 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab •     To access the server, open this file in a browser:
-🤖 ⚠  2023-06-11T06:45:43.548628 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab •         file:///home/gofrendi/.local/share/jupyter/runtime/jpserver-6240-open.html
-🤖 ⚠  2023-06-11T06:45:43.549002 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab •     Or copy and paste one of these URLs:
-🤖 ⚠  2023-06-11T06:45:43.549389 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab •         http://localhost:8080/lab?token=74085eb7b8304271e028c5e0e01237ebaadbb13a54a64921
-🤖 ⚠  2023-06-11T06:45:43.549734 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab •         http://127.0.0.1:8080/lab?token=74085eb7b8304271e028c5e0e01237ebaadbb13a54a64921
-🤖 ➜  2023-06-11T06:45:43.641677 ⚙ 6237 ➤ 1 of 1 • 🍐           port-check • Checking localhost:8080 (OK)
+Jupyterlab port [8080]: 
+🤖 ○ ◷ 2023-11-12 10:26:32.759 ❁ 58728 → 1/3 🐨 zrb project install-jupyterlab • Run script: pip install jupyterlab
+🤖 ○ ◷ 2023-11-12 10:26:32.759 ❁ 58728 → 1/3 🐨 zrb project install-jupyterlab • Working directory: /home/gofrendi/playground/my-project
+🤖 ○ ◷ 2023-11-12 10:26:33.109 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: jupyterlab in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (4.0.8)
+🤖 ○ ◷ 2023-11-12 10:26:33.149 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: async-lru>=1.0.0 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from jupyterlab) (2.0.4)
+🤖 ○ ◷ 2023-11-12 10:26:33.151 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: ipykernel in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from jupyterlab) (6.26.0)
+🤖 ○ ◷ 2023-11-12 10:26:33.153 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: jinja2>=3.0.3 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from jupyterlab) (3.1.2)
+🤖 ○ ◷ 2023-11-12 10:26:33.156 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: jupyter-core in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from jupyterlab) (5.5.0)
+🤖 ○ ◷ 2023-11-12 10:26:33.968 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: pycparser in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from cffi>=1.0.1->argon2-cffi-bindings->argon2-cffi->jupyter-server<3,>=2.4.0->jupyterlab) (2.21)
+🤖 ○ ◷ 2023-11-12 10:26:34.041 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: arrow>=0.15.0 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from isoduration->jsonschema[format-nongpl]>=4.18.0->jupyter-events>=0.6.0->jupyter-server<3,>=2.4.0->jupyterlab) (1.3.0)
+🤖 ○ ◷ 2023-11-12 10:26:34.093 ❁ 58731 → 1/3 🐨 zrb project install-jupyterlab • Requirement already satisfied: types-python-dateutil>=2.8.10 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from arrow>=0.15.0->isoduration->jsonschema[format-nongpl]>=4.18.0->jupyter-events>=0.6.0->jupyter-server<3,>=2.4.0->jupyterlab) (2.8.19.14)
+🤖 ○ ◷ 2023-11-12 10:26:34.717 ❁ 58728 → 1/3 🐹 zrb project run-jupyterlab • Run script:
+        0001 | jupyter lab \
+        0002 |   --port 8080
+        0003 |   --notebook-dir "/home/gofrendi/playground/my-project/src"
+🤖 ○ ◷ 2023-11-12 10:26:34.717 ❁ 58728 → 1/3 🐹 zrb project run-jupyterlab • Working directory: /home/gofrendi/playground/my-project
+🤖 △ ◷ 2023-11-12 10:26:35.693 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab • [I 2023-11-12 10:26:35.675 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+🤖 △ ◷ 2023-11-12 10:26:36.789 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab • [C 2023-11-12 10:26:36.788 ServerApp]
+🤖 △ ◷ 2023-11-12 10:26:36.791 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab •
+🤖 △ ◷ 2023-11-12 10:26:36.793 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab •     To access the server, open this file in a browser:
+🤖 △ ◷ 2023-11-12 10:26:36.795 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab •         file:///home/gofrendi/.local/share/jupyter/runtime/jpserver-58922-open.html
+🤖 △ ◷ 2023-11-12 10:26:36.798 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab •     Or copy and paste one of these URLs:
+🤖 △ ◷ 2023-11-12 10:26:36.799 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab •         http://localhost:8080/lab?token=58eecd6aa4a56445ecf8b8d8c2f2148d47a7ce8456ecd680
+🤖 △ ◷ 2023-11-12 10:26:36.801 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab •         http://127.0.0.1:8080/lab?token=58eecd6aa4a56445ecf8b8d8c2f2148d47a7ce8456ecd680
+🤖 ○ ◷ 2023-11-12 10:26:36.807 ❁ 58728 → 1/1 🐹     check-jupyterlab • Checking localhost:8080 (OK)
 Support zrb growth and development!
 ☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/pull requests at: https://github.com/state-alchemists/zrb
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ➜  2023-06-11T06:45:43.643523 ⚙ 6240 ➤ 1 of 3 • 🐶 zrb project start-jupyterlab • zrb project start-jupyterlab completed in 1.103727102279663 seconds
-To run again: zrb project start-jupyterlab --jupyterlab-port "8080"
+🤖 ○ ◷ 2023-11-12 10:26:36.807 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab • Completed in 4.050489664077759 seconds
 ```
 
-Open up your browser on `http://localhost:8080` and start working.
+Open up your browser on [http://localhost:8080](http://localhost:8080) to start working with the notebook.
 
 # Now you are ready
 
-We have cover the minimum basics to work ~~for Arasaka~~ with Zrb.
+We have covered everything you need to know to work with Zrb.
 
 To learn more about tasks and other concepts, you can visit [Zrb concept section](concepts/README.md).
 
