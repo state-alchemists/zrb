@@ -1,7 +1,0 @@
-Support zrb growth and development!
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ○ ◷ 2023-11-12 07:25:41.345 ❁ 17023 → 1/1 🐻    zrb base64 encode • Completed in 0.051529645919799805 seconds
-To run again: zrb base64 encode --text "non-credential-string"
-
