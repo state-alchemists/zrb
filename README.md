@@ -2,7 +2,7 @@
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-[🫰 Installation](#-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/README.md#-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
 Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, Zrb will help you automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
 
@@ -21,19 +21,11 @@ Let's say you want to describe the statistics property of any public CSV. To do 
 - Show statistics properties of the CSV dataset using pandas (right after the two first tasks are completed).
 
 ```
-          🐼
- ┌──────────────────┐
- │                  │
- │  Install Pandas  ├─┐          📊
- │                  │ │  ┌─────────────────┐
- └──────────────────┘ └─►│                 │
-                         │ Show Statistics │
- ┌──────────────────┐ ┌─►│                 │
- │                  │ │  └─────────────────┘
- │ Download Dataset ├─┘
- │                  │
- └──────────────────┘
-          ⬇️
+       🐼
+Install Pandas ─────┐           📊
+                    ├──► Show Statistics
+Download Datasets ──┘
+       ⬇️
 ```
 
 To do this, you can create a file named `zrb_init.py` and define the tasks as follows:
@@ -42,17 +34,18 @@ To do this, you can create a file named `zrb_init.py` and define the tasks as fo
 # File name: zrb_init.py
 from zrb import runner, CmdTask, python_task, StrInput
 
-# 🐼 Define a task to install pandas
+# 🐼 Define a task named `install-pandas` to install pandas
 install_pandas = CmdTask(
     name='install-pandas',
     cmd='pip install pandas'
 )
 
-# ⬇️ Define a task to download dataset
+# ⬇️ Define a task named `download-dataset` to download dataset
 download_dataset = CmdTask(
     name='download-dataset',
     inputs=[
-        # Allow user to put the CSV dataset URL.
+        # Define an input named `url` and set it's default value.
+        # You can access url's input value by using Jinja template: `{{ input.url }}`
         StrInput(
             name='url',
             default='https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
@@ -61,41 +54,42 @@ download_dataset = CmdTask(
     cmd='wget -O dataset.csv {{input.url}}'
 )
 
-# 📊 Define a task to show the statistics properties of the dataset
-show_stat = CmdTask(
+# 📊 Define a task named `show-stat` to show the statistics properties of the dataset
+# We use `@python_task` decorator because this task is better written in Python
+@python_task(
     name='show-stat',
     upstreams=[
-        # Let the following tasks to be show_stat's upstream:
+        # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
         download_dataset,
         install_pandas
-    ],
-    cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"'  # noqa
+    ]
 )
+def show_stat(*args, **kwargs):
+    import pandas as pd
+    df = pd.read_csv('dataset.csv')
+    return df.describe()
 
 # Register show_stat, so that the task is accessible from the CLI (i.e., zrb show-stat)
 # WARNING: You should register the variable, not the name of the task
 runner.register(show_stat)
 ```
 
-> __📝 NOTE:__ In this example, we exclusively use `CmdTask` to execute CLI scripts. However, Zrb has many other task types, like `python_task`. You can rewrite `show_stat` task using `@python_task` decorator as follow:
+> __📝 NOTE:__ It is possible to define `show_stat` as `CmdTask`:
 >
 > ```python
-> # 📊 Define a task to show the statistics properties of the dataset
-> @python_task(
+> # 📊 Define a task named `show-stat` to show the statistics properties of the dataset
+> show_stat = CmdTask(
 >     name='show-stat',
 >     upstreams=[
->         # Let the following tasks to be show_stat's upstream:
+>         # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
 >         download_dataset,
 >         install_pandas
->     ]
+>     ],
+>     cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"'
 > )
-> def show_stat(*args, **kwargs):
->     import pandas as pd
->     df = pd.read_csv('dataset.csv')
->     return df.describe()
 > ```
 >
-> This will make more sense since `show_stat` is better written in Python.
+> However, using `@python_task` is more make sense, since it makes your Python code more readable.
 
 Once you do so, you can invoke the task and get the output.
 
@@ -105,43 +99,32 @@ zrb show-stat
 
 ```
 Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
-🤖 ○ ❁ 36725 → 1/3 🐨 download-dataset • Run script: wget -O dataset.csv https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
-🤖 ○ ❁ 36725 → 1/3 🐨 download-dataset • Working directory: /home/gofrendi/playground/myproject
-🤖 ○ ❁ 36725 → 1/3 🐻   install-pandas • Run script: pip install pandas
-🤖 ○ ❁ 36725 → 1/3 🐻   install-pandas • Working directory: /home/gofrendi/playground/myproject
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • --2023-11-11 16:15:54--  https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.111.133, 185.199.109.133, 185.199.108.133, ...
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.111.133|:443... connected.
-🤖 ○ ❁ 36748 → 1/3 🐻   install-pandas • Requirement already satisfied: pandas in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (2.1.3)
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • HTTP request sent, awaiting response... 200 OK
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • Length: 4606 (4.5K) [text/plain]
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • Saving to: ‘dataset.csv’
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset •
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset •      0K ....                                                  100% 1.40M=0.003s
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset •
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset • 2023-11-11 16:15:54 (1.40 MB/s) - ‘dataset.csv’ saved [4606/4606]
-🤖 △ ❁ 36746 → 1/3 🐨 download-dataset •
-🤖 ○ ❁ 36748 → 1/3 🐻   install-pandas • Requirement already satisfied: numpy<2,>=1.22.4 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (1.26.1)
-🤖 ○ ❁ 36748 → 1/3 🐻   install-pandas • Requirement already satisfied: python-dateutil>=2.8.2 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2.8.2)
-🤖 ○ ❁ 36748 → 1/3 🐻   install-pandas • Requirement already satisfied: pytz>=2020.1 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2023.3.post1)
-🤖 ○ ❁ 36748 → 1/3 🐻   install-pandas • Requirement already satisfied: tzdata>=2022.1 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2023.3)
-🤖 ○ ❁ 36748 → 1/3 🐻   install-pandas • Requirement already satisfied: six>=1.5 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from python-dateutil>=2.8.2->pandas) (1.16.0)
-🤖 ○ ❁ 36725 → 1/3 🍓    zrb show-stat • Run script: python -c "import pandas as pd; df=pd.read_csv('dataset.csv'); print(df.describe())"
-🤖 ○ ❁ 36725 → 1/3 🍓    zrb show-stat • Working directory: /home/gofrendi/playground/myproject
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat •        sepal_length  sepal_width  petal_length  petal_width
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • count    150.000000   150.000000    150.000000   150.000000
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • mean       5.843333     3.054000      3.758667     1.198667
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • std        0.828066     0.433594      1.764420     0.763161
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • min        4.300000     2.000000      1.000000     0.100000
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • 25%        5.100000     2.800000      1.600000     0.300000
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • 50%        5.800000     3.000000      4.350000     1.300000
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • 75%        6.400000     3.300000      5.100000     1.800000
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • max        7.900000     4.400000      6.900000     2.500000
+🤖 ○ ◷ ❁ 43598 → 1/3 🐮 zrb project install-pandas • Run script: pip install pandas
+🤖 ○ ◷ ❁ 43598 → 1/3 🐮 zrb project install-pandas • Working directory: /home/gofrendi/playground/my-project
+🤖 ○ ◷ ❁ 43598 → 1/3 🍓 zrb project download-dataset • Run script: wget -O dataset.csv https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+🤖 ○ ◷ ❁ 43598 → 1/3 🍓 zrb project download-dataset • Working directory: /home/gofrendi/playground/my-project
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • --2023-11-12 09:45:12--  https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.111.133, 185.199.109.133, 185.199.110.133, ...
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.111.133|:443... connected.
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • HTTP request sent, awaiting response... 200 OK
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • Length: 4606 (4.5K) [text/plain]
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • Saving to: ‘dataset.csv’
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset •
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset •      0K ....                                                  100% 1.39M=0.003s
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset •
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset • 2023-11-12 09:45:12 (1.39 MB/s) - ‘dataset.csv’ saved [4606/4606]
+🤖 △ ◷ ❁ 43603 → 1/3 🍓 zrb project download-dataset •
+🤖 ○ ◷ ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: pandas in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (2.1.3)
+🤖 ○ ◷ ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: numpy<2,>=1.22.4 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (1.26.1)
+🤖 ○ ◷ ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: python-dateutil>=2.8.2 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2.8.2)
+🤖 ○ ◷ ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: pytz>=2020.1 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2023.3.post1)
+🤖 ○ ◷ ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: tzdata>=2022.1 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from pandas) (2023.3)
+🤖 ○ ◷ ❁ 43601 → 1/3 🐮 zrb project install-pandas • Requirement already satisfied: six>=1.5 in /home/gofrendi/zrb/.venv/lib/python3.10/site-packages (from python-dateutil>=2.8.2->pandas) (1.16.0)
 Support zrb growth and development!
 ☕ Donate at: https://stalchmst.com/donation
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ○ ❁ 36795 → 1/3 🍓    zrb show-stat • Completed in 2.24128794670105 seconds
+🤖 ○ ◷ 2023-11-12 09:45:14.366 ❁ 43598 → 1/3 🍎 zrb project show-stats • Completed in 2.2365798950195312 seconds
        sepal_length  sepal_width  petal_length  petal_width
 count    150.000000   150.000000    150.000000   150.000000
 mean       5.843333     3.054000      3.758667     1.198667
@@ -151,9 +134,8 @@ min        4.300000     2.000000      1.000000     0.100000
 50%        5.800000     3.000000      4.350000     1.300000
 75%        6.400000     3.300000      5.100000     1.800000
 max        7.900000     4.400000      6.900000     2.500000
-To run again: zrb show-stat --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
+To run again: zrb project show-stats --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
 ```
-Now, you can get the statistics properties of any public CSV dataset.
 
 > __📝 NOTE:__  When executing a task, you can also provide the parameter directly, for example you want to provide the `url`
 >
