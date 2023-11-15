@@ -1,6 +1,10 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Accessing Task Using Web Interface
+# Generating PDF Form
+
+```bash
+sudo apt-get install pdflatex
+```
 
 ```tex
 \documentclass{article}
@@ -73,5 +77,37 @@ create_form = CmdTask(
 )
 runner.register(create_form)
 ```
+
+# Accessing Task Using Web Interface
+
+```
+uvicorn==0.24.0.post1
+fastapi==0.104.1
+```
+
+```python
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from _automate.create_form import create_form
+
+import os
+
+CURRENT_DIR = os.path.dirname(__file__)
+RESULT_DIR = os.path.join(CURRENT_DIR, 'src/result')
+
+create_form_fn = create_form.to_function(is_async=True)
+
+app = FastAPI()
+
+
+# Endpoint to send a file as a response
+@app.get("/get-file/")
+async def get_file(name: str, premi: str):
+    await create_form_fn(applicant_name=name, applicant_premi=premi)
+    return FileResponse(f'{RESULT_DIR}/{premi}-{name}.pdf')
+
+```
+
+![](_images/pdf-form.png)
 
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
