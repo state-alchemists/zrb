@@ -302,19 +302,11 @@ The goal of the tasks is to download any public CSV dataset and provide the stat
 - Run the Python script to get the statistical properties of the dataset
 
 ```
-          🐼
- ┌──────────────────┐
- │                  │
- │  Install Pandas  ├─┐          📊
- │                  │ │  ┌─────────────────┐
- └──────────────────┘ └─►│                 │
-                         │ Show Statistics │
- ┌──────────────────┐ ┌─►│                 │
- │                  │ │  └─────────────────┘
- │ Download Dataset ├─┘
- │                  │
- └──────────────────┘
-          ⬇️
+       🐼
+Install Pandas ─────┐           📊
+                    ├──► Show Statistics
+Download Datasets ──┘
+       ⬇️
 ```
 
 ## Scaffolding a Task
@@ -385,7 +377,7 @@ from typing import Any
 from zrb import CmdTask, python_task, StrInput, runner
 from zrb.builtin.group import project_group
 
-# 🐼 Define a task to install pandas
+# 🐼 Define a task named `install-pandas` to install pandas
 install_pandas = CmdTask(
     name='install-pandas',
     group=project_group,
@@ -395,12 +387,13 @@ install_pandas = CmdTask(
 # Make install_pandas accessible from the CLI (i.e., zrb project install-pandas)
 runner.register(install_pandas)
 
-# ⬇️ Define a task to download dataset
+# ⬇️ Define a task named `download-dataset` to download dataset
 download_dataset = CmdTask(
     name='download-dataset',
     group=project_group,
     inputs=[
-        # Allow user to put the CSV dataset URL.
+        # Define an input named `url` and set it's default value.
+        # You can access url's input value by using Jinja template: `{{ input.url }}`
         StrInput(
             name='url',
             default='https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
@@ -419,9 +412,9 @@ runner.register(download_dataset)
     description='show stats',
     group=project_group,
     upstreams=[
-      # Make sure install_pandas and download_dataset are successfully executed before running show_stats
-      install_pandas,
-      download_dataset
+        # Make sure install_pandas and download_dataset are successfully executed before running show_stats
+        install_pandas,
+        download_dataset
     ],
     runner=runner # Make show_stats accessible from the CLI (i.e., zrb project show-stats)
 )

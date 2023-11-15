@@ -1,13 +1,19 @@
 from zrb.builtin.group import ubuntu_group, ubuntu_install_group
 from zrb.task.cmd_task import CmdTask
+from zrb.task.flow_task import FlowTask
 from zrb.runner import runner
+from zrb.builtin.devtool.devtool_install import (
+    install_tmux, install_zsh, install_gvm, install_nvm, install_pyenv,
+    install_sdkman, install_aws, install_gcloud, install_docker,
+    install_kubectl, install_helm, install_helix
+)
 
 ###############################################################################
 # Task Definitions
 ###############################################################################
 
 
-update_task = CmdTask(
+update = CmdTask(
     name='update',
     group=ubuntu_group,
     description='Update ubuntu',
@@ -15,10 +21,10 @@ update_task = CmdTask(
         'sudo apt update',
         'sudo apt upgrade -y',
     ],
-    checking_interval=3,
+    retry_interval=3,
     preexec_fn=None
 )
-runner.register(update_task)
+runner.register(update)
 
 install_toys = CmdTask(
     name='toys',
@@ -27,16 +33,17 @@ install_toys = CmdTask(
     cmd=[
         'sudo apt install -y lolcat cowsay figlet neofetch',
     ],
-    upstreams=[update_task],
-    checking_interval=3,
+    retry_interval=3,
     preexec_fn=None
 )
-runner.register(install_toys)
+update_and_install_toys: CmdTask = install_toys.copy()
+update_and_install_toys.add_upstream(update)
+runner.register(update_and_install_toys)
 
-install_packages = CmdTask(
-    name='packages',
+install_essentials = CmdTask(
+    name='essentials',
     group=ubuntu_install_group,
-    description='Install essential ubuntu packages',
+    description='Install ubuntu essential packages',
     cmd=[
         'sudo apt install -y \\',
         'build-essential python3-distutils libssl-dev zlib1g-dev \\'
@@ -46,8 +53,50 @@ install_packages = CmdTask(
         'golang gfortran fd-find ripgrep wget curl git ncat zip unzip \\',
         'cmake make tree tmux zsh neovim xdotool xsel'
     ],
-    upstreams=[update_task],
-    checking_interval=3,
+    retry_interval=3,
     preexec_fn=None
 )
-runner.register(install_packages)
+update_and_install_essentials: CmdTask = install_essentials.copy()
+update_and_install_essentials.add_upstream(update)
+runner.register(update_and_install_essentials)
+
+install_tex = CmdTask(
+    name='tex',
+    group=ubuntu_install_group,
+    description='Install ubuntu tex packages',
+    cmd=[
+        'sudo apt install -y \\',
+        'texlive-full texlive-latex-base texlive-fonts-recommended \\',
+        'texlive-fonts-extra texlive-latex-extra'
+    ],
+    retry_interval=3,
+    preexec_fn=None
+)
+update_and_install_tex: CmdTask = install_tex.copy()
+update_and_install_tex.add_upstream(update)
+runner.register(update_and_install_tex)
+
+install_all = FlowTask(
+    name='all',
+    group=ubuntu_install_group,
+    description='Install all ubuntu packages',
+    steps=[
+        update,
+        install_essentials,
+        install_toys,
+        install_tex,
+        install_zsh,
+        install_tmux,
+        install_gvm,
+        install_nvm,
+        install_pyenv,
+        install_sdkman,
+        install_aws,
+        install_gcloud,
+        install_docker,
+        install_kubectl,
+        install_helm,
+        install_helix
+    ]
+)
+runner.register(install_all)

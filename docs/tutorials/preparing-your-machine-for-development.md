@@ -43,7 +43,7 @@ pip install zrb
 Next you can install essential packages for development.
 
 ```bash
-zrb ubuntu install packages
+zrb ubuntu install essentials
 ```
 
 # Setup Zsh

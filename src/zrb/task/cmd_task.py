@@ -173,9 +173,12 @@ class CmdTask(BaseTask):
         self._cwd: Union[str, pathlib.Path] = os.path.abspath(cwd)
 
     def to_function(
-        self, env_prefix: str = '', raise_error: bool = True
+        self,
+        env_prefix: str = '',
+        raise_error: bool = True,
+        is_async: bool = False
     ) -> Callable[..., CmdResult]:
-        return super().to_function(env_prefix, raise_error)
+        return super().to_function(env_prefix, raise_error, is_async)
 
     def print_result(self, result: CmdResult):
         if result.output == '':
@@ -212,8 +215,11 @@ class CmdTask(BaseTask):
         self._set_task_pid(process.pid)
         self._pids.append(process.pid)
         self._process = process
-        signal.signal(signal.SIGINT, self._on_kill)
-        signal.signal(signal.SIGTERM, self._on_kill)
+        try:
+            signal.signal(signal.SIGINT, self._on_kill)
+            signal.signal(signal.SIGTERM, self._on_kill)
+        except Exception as e:
+            self.print_err(e)
         atexit.register(self._on_exit)
         await self._wait_process(process)
         self.log_info('Process completed')
