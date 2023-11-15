@@ -1,10 +1,20 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
+# The Requirement
+
+Can Zrb help me generate a PDF form? It would be nice if it comes with a web interface.
+
 # Generating PDF Form
+
+To generate a PDF file, you can use a utility named `pdflatex`. If you are using ubuntu/debian, you can install the software by invoking the following command.
 
 ```bash
 sudo apt-get install pdflatex
 ```
+
+## Preparing LaTeX File
+
+Next, you need to create a LaTeX file as follows.
 
 ```tex
 \documentclass{article}
@@ -31,13 +41,37 @@ sudo apt-get install pdflatex
 \end{document}
 ```
 
+Save the LaTeX file as `_automate/form-template/applicant-premi-applicant-name.tex`.
+
+The LaTeX file contains some information:
+
+- It has `Iron Bank, Esos` as page header. The position of the header is `centered`
+- It has `Confidential` as page footer. The position of the header is on the `right`
+- It has a table containing two rows, each with two columns:
+    - The first row contains `Name` and `application-name`
+    - The first row contains `Premi` and `application-premi`
+    - The first row contains `Address` and a text input.
+
+We will override `application-name` and `application-premi` programmatically later.
+
+## Creating the Task
+
+Once the LaTeX template has been prepared, you can proceed to make the task to generate the PDF file.
+
+```bash
+zrb project add cmd-task --project-dir . --task-name create-form
+```
+
+Modify `_automate/create_form.py` into this:
+
+
 ```python
 from zrb import CmdTask, ResourceMaker, runner, StrInput
 from zrb.builtin.group import project_group
 import os
 
 CURRENT_DIR = os.path.dirname(__file__)
-TEMPLATE_DIR = os.path.join(CURRENT_DIR, 'template')
+TEMPLATE_DIR = os.path.join(CURRENT_DIR, 'form-template')
 RESULT_DIR = os.path.join(CURRENT_DIR, '../src/result')
 
 
@@ -78,12 +112,31 @@ create_form = CmdTask(
 runner.register(create_form)
 ```
 
+We define two tasks:
+
+- __create_tex:__ Creating a LaTeX file under `src/result`.
+- __create_form:__ Turn the created LaTex file into a pdf file.
+
+Finally, you can try this out by invoking:
+
+```bash
+zrb project create-form --applicant-name Smith --applicant-premi 12345
+```
+
+Once you run the command, you will find `12345-Smith.pdf` under `src/result`.
+
 # Accessing Task Using Web Interface
 
+Now, let's wrap the task into a web interface.
+
+First of all, make sure you have Uvicorn and Fastapi installed
+
+```bash
+pip install uvicorn==0.24.0.post1
+pip install fastapi==0.104.1
 ```
-uvicorn==0.24.0.post1
-fastapi==0.104.1
-```
+
+Next, you make a file named `web.py`
 
 ```python
 from fastapi import FastAPI
@@ -108,6 +161,16 @@ async def get_file(name: str, premi: str):
 
 ```
 
+Finally, you start the web app by invoking the following command:
+
+```bash
+uvicorn web:app --host 0.0.0.0 --port 8080
+```
+
+To test the application, you can point your browser to `http://localhost:8080/get-file?name=tono&premi=123`
+
 ![](_images/pdf-form.png)
+
+That's it.
 
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
