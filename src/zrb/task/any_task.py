@@ -60,7 +60,10 @@ class AnyTask(ABC):
 
     @abstractmethod
     def to_function(
-        self, env_prefix: str = '', raise_error: bool = True
+        self,
+        env_prefix: str = '',
+        raise_error: bool = True,
+        is_async: bool = False
     ) -> Callable[..., Any]:
         pass
 
@@ -151,7 +154,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_full_cmd_name(self) -> str:
+    def _get_full_cmd_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def _set_has_cli_interface(self):
         pass
 
     @abstractmethod

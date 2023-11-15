@@ -151,21 +151,26 @@ class BaseTask(
         return self._all_inputs
 
     def to_function(
-        self, env_prefix: str = '', raise_error: bool = True
+        self,
+        env_prefix: str = '',
+        raise_error: bool = True,
+        is_async: bool = False
     ) -> Callable[..., Any]:
         '''
         Return a function representing the current task.
         '''
-        def function(*args: Any, **kwargs: Any) -> Any:
+        async def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info('Copy task')
             self_cp = self.copy()
-            return asyncio.run(self_cp._run_and_check_all(
+            return await self_cp._run_and_check_all(
                 env_prefix=env_prefix,
                 raise_error=raise_error,
                 args=args,
                 kwargs=kwargs
-            ))
-        return function
+            )
+        if is_async:
+            return function
+        return lambda *args, **kwargs: asyncio.run(function(*args, **kwargs))
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
@@ -385,7 +390,7 @@ class BaseTask(
             kwarg_key = self._get_normalized_input_key(key)
             quoted_value = double_quote(str(self._kwargs[kwarg_key]))
             params.append(f'--{key} {quoted_value}')
-        run_cmd = self.get_full_cmd_name()
+        run_cmd = self._get_full_cmd_name()
         run_cmd_with_param = run_cmd
         if len(params) > 0:
             param_str = ' '.join(params)

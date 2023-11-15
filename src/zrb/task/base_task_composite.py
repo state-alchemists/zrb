@@ -531,11 +531,11 @@ class TaskModelWithPrinterAndTracker(
     def _get_rjust_full_cmd_name(self) -> str:
         if self._rjust_full_cmd_name is not None:
             return self._rjust_full_cmd_name
-        complete_name = self.get_full_cmd_name()
+        complete_name = self._get_full_cmd_name()
         self._rjust_full_cmd_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
         return self._rjust_full_cmd_name
 
-    def get_full_cmd_name(self) -> str:
+    def _get_full_cmd_name(self) -> str:
         if self._complete_name is not None:
             return self._complete_name
         executable_prefix = ''
@@ -554,5 +554,5 @@ class TaskModelWithPrinterAndTracker(
             return os.path.basename(sys.argv[0])
         return 'zrb'
 
-    def set_has_cli_interface(self):
+    def _set_has_cli_interface(self):
         self._has_cli_interface = True
