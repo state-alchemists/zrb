@@ -4,9 +4,7 @@
 
 [🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/README.md#-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
-Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform.
-
-Zrb helps you to:
+Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Zrb can help you to:
 
 - __Automate__ day-to-day tasks.
     - __Prepare__ and __run__ your applications with a single command.
@@ -15,9 +13,7 @@ Zrb helps you to:
     - Etc.
 - __Generate__ projects or applications.
 
-You can also write custom task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities.
-
-Defining your tasks in Zrb gives you several advantages because:
+You can also write custom task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities. Defining your tasks in Zrb gives you several advantages because:
 
 - Every task has a __retry mechanism__.
 - Zrb handles your __task dependencies__ automatically.
