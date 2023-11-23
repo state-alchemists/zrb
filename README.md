@@ -49,32 +49,34 @@ from zrb import runner, CmdTask, python_task, StrInput
 
 DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
 
-# 🐼 Define a task named `install-pandas` to install pandas
+# 🐼 Define a task named `install-pandas` to install pandas.
+# If this task failed, we want Zrb to retry it again 4 times at most.
 install_pandas = CmdTask(
     name='install-pandas',
     cmd='pip install pandas',
-    # If this task failed, we want to retry this again 4 times at most
     retry=4
 )
 
-# ⬇️ Define a task named `download-dataset` to download dataset
+# ⬇️ Define a task named `download-dataset` to download dataset.
+# This task has an input named `url`.
+# The input will be accessible by using Jinja template: `{{input.url}}`
+# If this task failed, we want Zrb to retry it again 4 times at most
 download_dataset = CmdTask(
     name='download-dataset',
-    # Define an input named `url` and set it's default value.
-    inputs=[StrInput(name='url', default=DEFAULT_URL)],
-    # You can access url input value by using Jinja template: `{{ input.url }}`
+    inputs=[
+        StrInput(name='url', default=DEFAULT_URL)
+    ],
     cmd='wget -O dataset.csv {{input.url}}',
-    # If this task failed, we want to retry this again 4 times at most
     retry=4
 )
 
-# 📊 Define a task named `show-stat` to show the statistics properties of the dataset
-# We use `@python_task` decorator because this task is better written in Python
+# 📊 Define a task named `show-stat` to show the statistics properties of the dataset.
+# We use `@python_task` decorator since this task is better written in Python.
+# This tasks depends on our previous tasks, `download_dataset` and `install_pandas`
+# If this task failed, then it is failed. No need to retry
 @python_task(
     name='show-stat',
-    # Let `download-dataset` and `install-pandas` become this task's upstream:
     upstreams=[download_dataset, install_pandas],
-    # If this task failed, then it is failed. No need to retry
     retry=0
 )
 def show_stat(*args, **kwargs):
