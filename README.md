@@ -59,7 +59,7 @@ download_dataset = CmdTask(
         StrInput(name='url', default=DEFAULT_URL)
     ],
     cmd='wget -O dataset.csv {{input.url}}',
-    retry=5
+    retry=5 # by default it is 3
 )
 
 # 📊 Define a task named `show-stat` to show the statistics properties of the dataset
