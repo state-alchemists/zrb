@@ -84,34 +84,33 @@ def show_stat(*args, **kwargs):
     df = pd.read_csv('dataset.csv')
     return df.describe()
 
-# Register show_stat, so that the task is accessible from the CLI (i.e., zrb show-stat)
-# WARNING: You should register the task itself (i.e., show_stat), not it's name (i.e, 'show-stat')
+# Register `show_stat`, so that the task is accessible from the CLI (i.e., zrb show-stat)
 runner.register(show_stat)
 ```
 
-> __📝 NOTE:__ It is possible to define `show_stat` as `CmdTask`:
+> __📝 NOTE:__ It is possible (although less readable) to define `show_stat` as `CmdTask`:
+> <details>
+> <summary>Show code</summary>
 >
 > ```python
-> # 📊 Define a task named `show-stat` to show the statistics properties of the dataset
 > show_stat = CmdTask(
 >     name='show-stat',
->     # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
->     upstreams=[
->         download_dataset,
->         install_pandas
->     ],
+>     upstreams=[download_dataset, install_pandas],
 >     cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"',
 >     retry=0
 > )
 > ```
->
-> However, it is more recommended to use `@python_task` since it makes your Python code more readable.
+> </details>
+
 
 Once you write the definitions, Zrb will automatically load your `zrb_init.py` so that you can invoke your registered task:
 
 ```bash
 zrb show-stat
 ```
+
+<details>
+<summary>Show output</summary>
 
 ```
 Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
@@ -152,6 +151,7 @@ min        4.300000     2.000000      1.000000     0.100000
 max        7.900000     4.400000      6.900000     2.500000
 To run again: zrb project show-stats --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
 ```
+</details>
 
 > __📝 NOTE:__  When executing a task, you can also provide the parameter directly, for example you want to provide the `url`
 >
