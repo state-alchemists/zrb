@@ -8,22 +8,30 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 Zrb helps you to:
 
-- __automate__ day-to-day tasks
-- __generate__ projects or applications
-- __deploy__ your applications into Kubernetes.
+- __Automate__ day-to-day tasks.
+    - __Prepare__ and __run__ your applications with a single command.
+    -  __Deploy__ your applications with a single command.
+    - Perform data transformation.
+    - Etc.
+- __Generate__ projects or applications.
 
-You can also write your custom Zrb task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities.
+You can also write custom task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities.
 
+Defining your tasks in Zrb gives you several advantages because:
+
+- Every task has a __retry mechanism__.
+- Zrb handles your __task dependencies__ automatically.
+- Zrb runs your task dependencies __concurrently__.
 
 ## Zrb as A Task-Automation Tool
 
 At the very core, Zrb is a task automation tool. It helps you to automate some tedious jobs so that you can focus on what matters.
 
-Let's say you want to describe the statistics property of any public CSV. To do this, you need to perform three tasks like the following:
+Let's say you want to be able to describe the statistics property of any public CSV dataset. To do this, you need to perform three tasks like the following:
 
 - Install pandas.
 - Download the CSV dataset (at the same time).
-- Show statistics properties of the CSV dataset you have downloaded previously.
+- Show statistics properties of the CSV dataset.
 
 ```
        🐼
@@ -33,9 +41,7 @@ Download Datasets ──┘
        ⬇️
 ```
 
-To do this, you can create a file named `zrb_init.py` and define the tasks as follows:
-
-> __💡 NOTE:__ Every Zrb tasks has auto-retry mechanism. So you don't have to worry if you run on bad internet connection.
+You can create a file named `zrb_init.py` and define the tasks as follows:
 
 ```python
 # File name: zrb_init.py
@@ -47,30 +53,35 @@ DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/
 install_pandas = CmdTask(
     name='install-pandas',
     cmd='pip install pandas',
-    retry=5 # by default it is 3
+    # If this task failed (probably because of connection problem),
+    # we want to retry this again 4 times at most
+    retry=4
 )
 
 # ⬇️ Define a task named `download-dataset` to download dataset
 download_dataset = CmdTask(
     name='download-dataset',
+    # Define an input named `url` and set it's default value.
     inputs=[
-        # Define an input named `url` and set it's default value.
-        # You can access url's input value by using Jinja template: `{{ input.url }}`
         StrInput(name='url', default=DEFAULT_URL)
     ],
+    # You can access url input value by using Jinja template: `{{ input.url }}`
     cmd='wget -O dataset.csv {{input.url}}',
-    retry=5 # by default it is 3
+    # If this task failed (probably because of connection problem),
+    # we want to retry this again 4 times at most
+    retry=4
 )
 
 # 📊 Define a task named `show-stat` to show the statistics properties of the dataset
 # We use `@python_task` decorator because this task is better written in Python
 @python_task(
     name='show-stat',
+    # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
     upstreams=[
-        # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
         download_dataset,
         install_pandas
     ],
+    # If this task failed, then it is failed. No need to retry
     retry=0
 )
 def show_stat(*args, **kwargs):
@@ -79,7 +90,7 @@ def show_stat(*args, **kwargs):
     return df.describe()
 
 # Register show_stat, so that the task is accessible from the CLI (i.e., zrb show-stat)
-# WARNING: You should register the variable, not the name of the task
+# WARNING: You should register the task itself (i.e., show_stat), not it's name (i.e, 'show-stat')
 runner.register(show_stat)
 ```
 
@@ -89,18 +100,19 @@ runner.register(show_stat)
 > # 📊 Define a task named `show-stat` to show the statistics properties of the dataset
 > show_stat = CmdTask(
 >     name='show-stat',
+>     # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
 >     upstreams=[
->         # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
 >         download_dataset,
 >         install_pandas
 >     ],
->     cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"'
+>     cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"',
+>     retry=0
 > )
 > ```
 >
-> However, using `@python_task` is more make sense, since it makes your Python code more readable.
+> However, it is more recommended to use `@python_task` since it makes your Python code more readable.
 
-Once you do so, you can invoke the task and get the output.
+Once you write the definitions, Zrb will automatically load your `zrb_init.py` so that you can invoke your registered task:
 
 ```bash
 zrb show-stat
@@ -157,11 +169,11 @@ To run again: zrb project show-stats --url "https://raw.githubusercontent.com/st
 
 You can also run a Docker compose file, start a Web server, generate a CRUD application, or set up multiple servers simultaneously.
 
-See [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to learn more about the details.
+See [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) and [tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to learn more about the details.
 
 ## Zrb as A Low-Code Framework
 
-Aside from defining your own tasks, Zrb also has some built-in tasks. Those built-in tasks allow you to build and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
+Zrb has some built-in tasks that allow you to create and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
 
 Let's see the following example.
 
@@ -192,7 +204,7 @@ Once you invoke the commands, you will be able to access the CRUD application by
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/fastapp.png)
 
-Furthermore, you also split your application into `microservices`, run them as `docker containers`, and even deploy them to your `kubernetes cluster`.
+Furthermore, you can also split your application into `microservices`, run them as `docker containers`, and even deploy them to your `kubernetes cluster`.
 
 ```bash
 # Run Fastapp as microservices
@@ -207,7 +219,7 @@ docker login
 zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 ```
 
-You can visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
+Visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
 
 
 # 🫰 Installation
@@ -286,7 +298,7 @@ docker exec -it zrb bash
 
 # ✅ Main Prerequisites
 
-Since Zrb is written in Python, you need to install a few things before installing Zrb:
+To run Zrb properly, you need to install a few things on your computer:
 
 - 🐍 `Python`
 - 📦 `Pip`
@@ -311,17 +323,13 @@ If you prefer Python distribution like [conda](https://docs.conda.io/en/latest/)
 
 # ✔️ Other Prerequisites
 
-If you want to generate applications using Zrb and run them on your computer, you will also need:
+Some Zrb tasks might depend on other third-party tools like:
 
 - 🐸 `Node.Js` and `Npm`.
-    - You need Node.Js to modify/transpile frontend code into static files.
     - You can visit the [Node.Js website](https://nodejs.org/en) for installation instructions.
 - 🐋 `Docker` and `Docker-compose` plugin.
-    - You need `Docker` and `Docker-compose` plugin to
-        - Run docker-compose-based tasks
-        - Run some application prerequisites like RabbitMQ, Postgre, or Redpanda. 
     - The easiest way to install `Docker`, `Docker-compose` plugin, and local `Kubernetes` is by using [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-    - You can also install `Docker` and `Docker-compose` plugin by following the [Docker installation guide](https://docs.docker.com/engine/install/).
+    - You can also install the `Docker` and `Docker-compose` plugin by following the [Docker installation guide](https://docs.docker.com/engine/install/).
 -  ☸️ `Kubernetes` cluster.
     - Zrb allows you to deploy your applications into `Kubernetes`.
     - To test it locally, you will need a [Minikube](https://minikube.sigs.k8s.io/docs/) or other alternatives. However, the easiest way is by enabling `Kubernetes` on your `Docker Desktop`.
@@ -330,7 +338,7 @@ If you want to generate applications using Zrb and run them on your computer, yo
 
 # 🏁 Getting Started
 
-We have an excellent [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
+We have an excellent [getting-started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
 
 # 📖 Documentation
 
