@@ -1,14 +1,19 @@
-# 🤖 Zrb (Read: Zaruba) : A Super Framework for Your Super App
+# 🤖 Zrb: A Framework to Enhance Your Workflow
 
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/README.md#-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Oops, I did it Again](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/README.md#-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
-Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Once installed, Zrb will help you automate day-to-day tasks, generate projects and applications, and even deploy your applications to Kubernetes with a few commands.
+Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform.
 
-To use Zrb, you need to be familiar with CLI.
+Zrb helps you to:
 
-Zrb task definitions are written in [Python](https://www.python.org/), and we have a [good reason](https://github.com/state-alchemists/zrb/blob/main/docs/faq/why-python.md) behind the decision.
+- automate day-to-day tasks
+- generate projects or applications
+- deploy your applications into Kubernetes.
+
+You can write Zrb task definitions in [Python](https://www.python.org/).
+
 
 ## Zrb as A Task-Automation Tool
 
