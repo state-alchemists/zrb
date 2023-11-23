@@ -53,8 +53,7 @@ DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/
 install_pandas = CmdTask(
     name='install-pandas',
     cmd='pip install pandas',
-    # If this task failed (probably because of connection problem),
-    # we want to retry this again 4 times at most
+    # If this task failed, we want to retry this again 4 times at most
     retry=4
 )
 
@@ -67,8 +66,7 @@ download_dataset = CmdTask(
     ],
     # You can access url input value by using Jinja template: `{{ input.url }}`
     cmd='wget -O dataset.csv {{input.url}}',
-    # If this task failed (probably because of connection problem),
-    # we want to retry this again 4 times at most
+    # If this task failed, we want to retry this again 4 times at most
     retry=4
 )
 
