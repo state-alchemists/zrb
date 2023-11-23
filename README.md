@@ -8,11 +8,11 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 Zrb helps you to:
 
-- automate day-to-day tasks
-- generate projects or applications
-- deploy your applications into Kubernetes.
+- __automate__ day-to-day tasks
+- __generate__ projects or applications
+- __deploy__ your applications into Kubernetes.
 
-You can write Zrb task definitions in [Python](https://www.python.org/).
+You can also write your custom Zrb task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities.
 
 
 ## Zrb as A Task-Automation Tool
@@ -23,7 +23,7 @@ Let's say you want to describe the statistics property of any public CSV. To do 
 
 - Install pandas.
 - Download the CSV dataset (at the same time).
-- Show statistics properties of the CSV dataset using pandas (right after the two first tasks are completed).
+- Show statistics properties of the CSV dataset you have downloaded previously.
 
 ```
        🐼
@@ -35,14 +35,19 @@ Download Datasets ──┘
 
 To do this, you can create a file named `zrb_init.py` and define the tasks as follows:
 
+> __💡 NOTE:__ Every Zrb tasks has auto-retry mechanism. So you don't have to worry if you run on bad internet connection.
+
 ```python
 # File name: zrb_init.py
 from zrb import runner, CmdTask, python_task, StrInput
 
+DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
+
 # 🐼 Define a task named `install-pandas` to install pandas
 install_pandas = CmdTask(
     name='install-pandas',
-    cmd='pip install pandas'
+    cmd='pip install pandas',
+    retry=5 # by default it is 3
 )
 
 # ⬇️ Define a task named `download-dataset` to download dataset
@@ -51,12 +56,10 @@ download_dataset = CmdTask(
     inputs=[
         # Define an input named `url` and set it's default value.
         # You can access url's input value by using Jinja template: `{{ input.url }}`
-        StrInput(
-            name='url',
-            default='https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
-        )
+        StrInput(name='url', default=DEFAULT_URL)
     ],
-    cmd='wget -O dataset.csv {{input.url}}'
+    cmd='wget -O dataset.csv {{input.url}}',
+    retry=5
 )
 
 # 📊 Define a task named `show-stat` to show the statistics properties of the dataset
@@ -67,7 +70,8 @@ download_dataset = CmdTask(
         # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
         download_dataset,
         install_pandas
-    ]
+    ],
+    retry=0
 )
 def show_stat(*args, **kwargs):
     import pandas as pd
