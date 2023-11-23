@@ -61,9 +61,7 @@ install_pandas = CmdTask(
 download_dataset = CmdTask(
     name='download-dataset',
     # Define an input named `url` and set it's default value.
-    inputs=[
-        StrInput(name='url', default=DEFAULT_URL)
-    ],
+    inputs=[StrInput(name='url', default=DEFAULT_URL)],
     # You can access url input value by using Jinja template: `{{ input.url }}`
     cmd='wget -O dataset.csv {{input.url}}',
     # If this task failed, we want to retry this again 4 times at most
@@ -74,11 +72,8 @@ download_dataset = CmdTask(
 # We use `@python_task` decorator because this task is better written in Python
 @python_task(
     name='show-stat',
-    # Let `download-dataset` and `install-pandas` become `show-stat` upstream:
-    upstreams=[
-        download_dataset,
-        install_pandas
-    ],
+    # Let `download-dataset` and `install-pandas` become this task's upstream:
+    upstreams=[download_dataset, install_pandas],
     # If this task failed, then it is failed. No need to retry
     retry=0
 )
