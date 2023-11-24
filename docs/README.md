@@ -1,5 +1,6 @@
 # Table of Content
 
+- [Installation](installation.md)
 - [Getting Started](getting-started.md)
 - [Concepts](concepts/README.md)
 - [Configurations](configurations.md)
