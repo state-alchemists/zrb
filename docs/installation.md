@@ -8,7 +8,8 @@
         - [Checking for Prerequisites](#checking-for-prerequisites)
         - [Installing The Pip Package](#installing-the-pip-package)
     - [As Docker Container](#as-docker-container)
-- [Post Installation]
+        - [Extending Zrb Docker Image](#extending-zrb-docker-image)
+- [Post Installation](#post-installation)
 
 
 # Installation Methods
@@ -64,6 +65,7 @@ Like any Python package, you can install Zrb in your [virtual environment](https
 If you prefer to work with Docker, you can create a `docker-compose.yml` file as follows:
 
 ```yaml
+# Filename: docker-compose.yml
 version: '3'
 
 x-logging: &default-logging
@@ -72,19 +74,9 @@ x-logging: &default-logging
     max-file: "5"
   driver: json-file
 
-networks:
-  zrb:
-    name: zrb
-    external: true
-
 services:
 
   zrb:
-    build:
-      dockerfile: Dockerfile
-      context: .
-      args:
-        ZRB_VERSION: ${ZRB_VERSION:-latest}
     image: ${ZRB_IMAGE:-docker.io/stalchmst/zrb}
     logging: *default-logging
     container_name: zrb
@@ -95,8 +87,6 @@ services:
     - ./project:/project
     ports:
     - 3001:3001 # or/and any other ports you want to expose.
-    networks:
-    - zrb
 ```
 
 Once you create a docker-compose file, you can invoke the following command to start the container:
@@ -110,6 +100,59 @@ You will be able to run any Zrb tasks by accessing the container's bash:
 ```bash
 docker exec -it zrb bash
 ```
+
+### Extending Zrb Docker Image
+
+It is also possible to extend Zrb docker image to better match your need.
+
+To do this, you need to create a `Dockerfile` as follow:
+
+```Dockerfile
+# Filename: Dockerfile
+FROM docker.io/stalchmst/zrb:latest
+
+# We want to install AWS CLI and numpy in our image
+RUN zrb devtool install aws
+RUN pip install numpy
+```
+
+Then you need to update your `docker-compose.yml`.
+
+```yaml
+# Filename: docker-compose.yml
+version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
+services:
+
+  zrb:
+    # We want to use the new extended image instead of the original one.
+    build:
+      dockerfile: Dockerfile
+      context: .
+    logging: *default-logging
+    container_name: zrb
+    hostname: zrb
+    command: sleep infinity
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./project:/project
+    ports:
+    - 3001:3001 # or/and any other ports you want to expose.
+```
+
+Finally, you can recreate and run the container:
+
+```bash
+docker compose down
+docker compose up -d
+```
+
 
 # Post Installation
 
@@ -146,6 +189,10 @@ Commands:
   tmux       Terminal multiplexer
   zsh        Zsh terminal + oh-my-zsh + zdharma
 ```
+
+# Next
+
+Now, you have Zrb installed in your computer. Next, you can continue with our [getting-started guide](./getting-started.md).
 
 
 🔖 [Table of Contents](README.md)
