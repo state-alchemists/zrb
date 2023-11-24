@@ -4,6 +4,7 @@
 
 Welcome to Zrb's getting started guide. We will cover everything you need to know to work with Zrb. In this article, you will learn about:
 
+- [Installing Zrb](#installing-zrb)
 - [How to run a task](#running-a-task)
   - [Redirect task's output](#redirect-tasks-output)
   - [How tasks are organized](#how-tasks-are-organized)
@@ -20,6 +21,25 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 - [How to define a long-running task]()
 
 This guide assumes you have some familiarity with CLI and Python.
+
+# Installing Zrb
+
+First of all, you need to make sure that you have Zrb installed in your computer.
+
+You can install Zrb as a pip package by invoking the following command:
+
+```bash
+pip install zrb
+```
+
+Alternatively, you can also use our installation script to install Zrb along with `pyenv`:
+
+```bash
+curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
+```
+
+Check our [installation guide](./installation.md) for more information about the installation methods, including installation as a docker container.
+
 
 # Running a Task
 
@@ -457,6 +477,9 @@ Finally, you can show the statistics property of any public CSV dataset quickly.
 zrb project show-stats
 ```
 
+<details>
+<summary>Show output</summary>
+
 ```
 Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
 🤖 ○ ◷ 2023-11-12 09:45:12.132 ❁ 43598 → 1/3 🐮 zrb project install-pandas • Run script: pip install pandas
@@ -496,6 +519,7 @@ min        4.300000     2.000000      1.000000     0.100000
 max        7.900000     4.400000      6.900000     2.500000
 To run again: zrb project show-stats --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
 ```
+</details>
 
 # Creating a long-running task
 
