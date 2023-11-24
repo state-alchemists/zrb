@@ -1,17 +1,17 @@
-# 🤖 Zrb: A Framework to Enhance Your Workflow
-
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/README.md#-installation) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+
+[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+
+
+# 🤖 Zrb: A Framework to Enhance Your Workflow
 
 Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Zrb can help you to:
 
 - __Automate__ day-to-day tasks.
-    - __Prepare__ and __run__ your applications with a single command.
-    -  __Deploy__ your applications with a single command.
-    - Perform data transformation.
-    - Etc.
 - __Generate__ projects or applications.
+- __Prepare__, __run__, and __deploy__ your applications with a single command.
+- Etc.
 
 You can also write custom task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities. Defining your tasks in Zrb gives you several advantages because:
 
@@ -19,7 +19,23 @@ You can also write custom task definitions in [Python](https://www.python.org/),
 - Zrb handles your __task dependencies__ automatically.
 - Zrb runs your task dependencies __concurrently__.
 
-## Zrb as A Task-Automation Tool
+# 🫰 Installing Zrb
+
+You can install Zrb as a pip package by invoking the following command:
+
+```bash
+pip install zrb
+```
+
+Alternatively, you can also use our installation script to install Zrb along with `pyenv`:
+
+```bash
+curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
+```
+
+Check our [installation guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md) for more information about the installation methods, including installation as a docker container.
+
+# ⚙️ Zrb as A Task-Automation Tool
 
 At the very core, Zrb is a task automation tool. It helps you to automate some tedious jobs so that you can focus on what matters.
 
@@ -162,7 +178,7 @@ You can also run a Docker compose file, start a Web server, generate a CRUD appl
 
 See [our getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) and [tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to learn more about the details.
 
-## Zrb as A Low-Code Framework
+# ✂️ Zrb as A Low-Code Framework
 
 Zrb has some built-in tasks that allow you to create and run a [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) application.
 
@@ -212,128 +228,25 @@ zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
 
 Visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
 
-
-# 🫰 Installation
-
-## 🚀 Using Installation Script
-
-We provide an [installation script](https://github.com/state-alchemists/zrb/blob/main/install.sh) to help you install `pyenv` and `Zrb`. You can run the installation script as follows:
-
-```bash
-curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
-```
-
-## ⚙️ As Python Package
-
-Installing Zrb in your system is as easy as typing the following command in your terminal:
-
-```bash
-pip install zrb
-```
-
-Like any Python package, you can install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). Installing Zrb in a virtual environment allows you to have many versions of Zrb on the same computer.
-
-> ⚠️ If the command doesn't work, you probably don't have Pip/Python on your computer. See `Main prerequisites` subsection to install them.
-
-## 🐋 As Docker Container
-
-If you prefer to work with Docker, you can create a `docker-compose.yml` file as follows:
-
-```yaml
-version: '3'
-
-x-logging: &default-logging
-  options:
-    max-size: "100m"
-    max-file: "5"
-  driver: json-file
-
-networks:
-  zrb:
-    name: zrb
-    external: true
-
-services:
-
-  zrb:
-    build:
-      dockerfile: Dockerfile
-      context: .
-      args:
-        ZRB_VERSION: ${ZRB_VERSION:-latest}
-    image: ${ZRB_IMAGE:-docker.io/stalchmst/zrb}
-    logging: *default-logging
-    container_name: zrb
-    hostname: zrb
-    command: sleep infinity
-    volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
-    - ./project:/project
-    ports:
-    - 3001:3001 # or/and any other ports you want to expose.
-    networks:
-    - zrb
-```
-
-Once you create a docker-compose file, you can invoke the following command to start the container:
-
-```bash
-docker compose up -d
-```
-
-You will be able to run any Zrb tasks by accessing the container's bash:
-
-```bash
-docker exec -it zrb bash
-```
-
-# ✅ Main Prerequisites
-
-To run Zrb properly, you need to install a few things on your computer:
-
-- 🐍 `Python`
-- 📦 `Pip`
-- 🏝️ `Venv`
-
-If you are using 🐧 Ubuntu, the following command should work:
-
-```bash
-sudo apt install python3 python3-pip python3-venv python-is-python3
-```
-
-If you are using 🍎 Mac, the following command will work:
-
-```bash
-# Make sure you have homebrew installed, see: https://brew.sh/
-brew install python3
-ln -s venv/bin/pip3 /usr/local/bin/pip
-ln -s venv/bin/python3 /usr/local/bin/python
-```
-
-If you prefer Python distribution like [conda](https://docs.conda.io/en/latest/), that might work as well.
-
-# ✔️ Other Prerequisites
-
-Some Zrb tasks might depend on other third-party tools like:
-
-- 🐸 `Node.Js` and `Npm`.
-    - You can visit the [Node.Js website](https://nodejs.org/en) for installation instructions.
-- 🐋 `Docker` and `Docker-compose` plugin.
-    - The easiest way to install `Docker`, `Docker-compose` plugin, and local `Kubernetes` is by using [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-    - You can also install the `Docker` and `Docker-compose` plugin by following the [Docker installation guide](https://docs.docker.com/engine/install/).
--  ☸️ `Kubernetes` cluster.
-    - Zrb allows you to deploy your applications into `Kubernetes`.
-    - To test it locally, you will need a [Minikube](https://minikube.sigs.k8s.io/docs/) or other alternatives. However, the easiest way is by enabling `Kubernetes` on your `Docker Desktop`.
-- 🦆 `Pulumi`
-    - You need Pulumi to deploy your applications
-
-# 🏁 Getting Started
-
-We have an excellent [getting-started guide](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) to help you cover the basics. Make sure to check it out😉.
-
 # 📖 Documentation
 
-You can visit [Zrb documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) for more detailed information.
+- [🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md)
+- [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md)
+- [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
+- [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md)
+- [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+
+# 🐞 Bug Report + Feature Request
+
+You can submit bug report and feature request by creating a new [issue](https://github.com/state-alchemists/zrb/issues) on Zrb Github Repositories. When reporting a bug or requesting a feature, please be sure to:
+
+- Include the version of Zrb you are using (i.e., `zrb version`)
+- Tell us what you have try
+- Tell us what you expect
+- Tell us what you get
+
+We will also welcome your [pull requests and contributions](https://github.com/state-alchemists/zrb/pulls).
+
 
 # ☕ Donation
 
