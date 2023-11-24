@@ -5,12 +5,12 @@
 Welcome to Zrb's getting started guide. We will cover everything you need to know to work with Zrb. In this article, you will learn about:
 
 - [Installing Zrb](#installing-zrb)
-- [How to run a task](#running-a-task)
+- [Running a Task](#running-a-task)
   - [Redirect task's output](#redirect-tasks-output)
   - [How tasks are organized](#how-tasks-are-organized)
   - [Getting available tasks/task groups](#getting-available-taskstask-groups)
   - [Using input prompts](#using-input-prompt)
-- [How to create a project](#creating-a-project)
+- [Creating a Project](#creating-a-project)
   - [Using/creating virtual environment](#activating-virtual-environment)
 - [How to define a task](#creating-a-task)
   - [Scaffolding a task](#scaffolding-a-task)
