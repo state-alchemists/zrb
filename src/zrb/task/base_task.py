@@ -154,7 +154,8 @@ class BaseTask(
         self,
         env_prefix: str = '',
         raise_error: bool = True,
-        is_async: bool = False
+        is_async: bool = False,
+        show_done_info: bool = True
     ) -> Callable[..., Any]:
         '''
         Return a function representing the current task.
@@ -166,7 +167,8 @@ class BaseTask(
                 env_prefix=env_prefix,
                 raise_error=raise_error,
                 args=args,
-                kwargs=kwargs
+                kwargs=kwargs,
+                show_done_info=show_done_info
             )
         if is_async:
             return function
@@ -297,7 +299,8 @@ class BaseTask(
         env_prefix: str,
         raise_error: bool,
         args: Iterable[Any],
-        kwargs: Mapping[str, Any]
+        kwargs: Mapping[str, Any],
+        show_done_info: bool = True
     ):
         try:
             self._start_timer()
@@ -321,7 +324,9 @@ class BaseTask(
             self._kwargs = new_kwargs
             # run the task
             coroutines = [
-                asyncio.create_task(self._loop_check(show_done=True)),
+                asyncio.create_task(
+                    self._loop_check(show_done_info=show_done_info)
+                ),
                 asyncio.create_task(self._run_all(*new_args, **new_kwargs))
             ]
             results = await asyncio.gather(*coroutines)
@@ -333,9 +338,10 @@ class BaseTask(
             if raise_error:
                 raise
         finally:
-            self._show_env_prefix()
-            self._show_run_command()
-            self._play_bell()
+            if show_done_info:
+                self._show_env_prefix()
+                self._show_run_command()
+                self._play_bell()
 
     def _print_result(self, result: Any):
         if result is None:
@@ -359,13 +365,13 @@ class BaseTask(
         '''
         print(result)
 
-    async def _loop_check(self, show_done: bool = False) -> bool:
+    async def _loop_check(self, show_done_info: bool = False) -> bool:
         self.log_info('Start readiness checking')
         while not await self._cached_check():
             self.log_debug('Task is not ready')
             await asyncio.sleep(self._checking_interval)
         self._end_timer()
-        if show_done:
+        if show_done_info:
             if show_advertisement:
                 selected_advertisement = get_advertisement(advertisements)
                 selected_advertisement.show()

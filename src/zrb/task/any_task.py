@@ -63,7 +63,8 @@ class AnyTask(ABC):
         self,
         env_prefix: str = '',
         raise_error: bool = True,
-        is_async: bool = False
+        is_async: bool = False,
+        show_done_info: bool = True
     ) -> Callable[..., Any]:
         pass
 
