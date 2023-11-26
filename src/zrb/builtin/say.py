@@ -86,6 +86,7 @@ _MOTIVATIONAL_QUOTES = [
         StrInput(name='text', default=''),
         IntInput(name='width', default=80)
     ],
+    description='Say anything, https://www.youtube.com/watch?v=MbPr1oHO4Hw',
     runner=runner
 )
 def say(*args: Any, **kwargs: Any):

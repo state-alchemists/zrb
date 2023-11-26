@@ -13,7 +13,7 @@ from zrb.builtin import generator
 from zrb.builtin import process
 from zrb.builtin import say
 from zrb.builtin import watch
-from zrb.builtin import remind
+from zrb.builtin import schedule
 
 assert base64
 assert env
@@ -30,4 +30,4 @@ assert generator
 assert process
 assert say
 assert watch
-assert remind
+assert schedule
