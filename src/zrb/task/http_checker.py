@@ -86,9 +86,12 @@ class HTTPChecker(BaseTask):
         self,
         env_prefix: str = '',
         raise_error: bool = True,
-        is_async: bool = False
+        is_async: bool = False,
+        show_done_info: bool = True
     ) -> Callable[..., bool]:
-        return super().to_function(env_prefix, raise_error, is_async)
+        return super().to_function(
+            env_prefix, raise_error, is_async, show_done_info
+        )
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         is_https = self.render_bool(self._is_https)

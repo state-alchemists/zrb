@@ -176,9 +176,12 @@ class CmdTask(BaseTask):
         self,
         env_prefix: str = '',
         raise_error: bool = True,
-        is_async: bool = False
+        is_async: bool = False,
+        show_done_info: bool = True
     ) -> Callable[..., CmdResult]:
-        return super().to_function(env_prefix, raise_error, is_async)
+        return super().to_function(
+            env_prefix, raise_error, is_async, show_done_info
+        )
 
     def print_result(self, result: CmdResult):
         if result.output == '':

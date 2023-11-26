@@ -510,8 +510,8 @@ class TaskModelWithPrinterAndTracker(
     def _get_print_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=show_time)
         icon = self.get_icon()
-        truncated_name = self._get_rjust_full_cmd_name()
-        return f'{common_prefix} {icon} {truncated_name}'
+        rjust_cmd_name = self._get_rjust_full_cmd_name()
+        return f'{common_prefix} {icon} {rjust_cmd_name}'
 
     def _get_log_prefix(self) -> str:
         common_prefix = self._get_common_prefix(show_time=False)
@@ -522,7 +522,7 @@ class TaskModelWithPrinterAndTracker(
     def _get_common_prefix(self, show_time: bool) -> str:
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
-        pid = self._get_task_pid()
+        pid = str(self._get_task_pid()).rjust(6)
         if show_time:
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
             return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'

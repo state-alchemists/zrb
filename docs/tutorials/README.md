@@ -4,6 +4,7 @@
 
 - [Preparing Your Machine for Development](preparing-your-machine-for-development.md)
 - [Development to Deployment: Low Code](development-to-deployment-low-code.md)
+- [Integration With Other Tools](integration-with-other-tools.md)
 - [Running Task programmatically](running-task-programmatically.md)
 - [Running Task by Schedule](running-task-by-schedule.md)
 - [Getting Data from Other Tasks](getting-data-from-other-tasks.md)

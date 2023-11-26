@@ -5,26 +5,30 @@
 Welcome to Zrb's getting started guide. We will cover everything you need to know to work with Zrb. In this article, you will learn about:
 
 - [Installing Zrb](#installing-zrb)
-- [How to run a task](#running-a-task)
-  - [Redirect task's output](#redirect-tasks-output)
-  - [How tasks are organized](#how-tasks-are-organized)
-  - [Getting available tasks/task groups](#getting-available-taskstask-groups)
-  - [Using input prompts](#using-input-prompt)
-- [How to create a project](#creating-a-project)
-  - [Using/creating virtual environment](#activating-virtual-environment)
-- [How to define a task](#creating-a-task)
-  - [Scaffolding a task](#scaffolding-a-task)
-  - [Updating task definition](#updating-task-definition)
-    - [Common task parameters](#common-task-parameters)
-    - [Cmd task parameters](#cmdtask-parameters)
-    - [Python task parameters](#python_task-parameters)
-- [How to define a long-running task]()
+- [Running a Task](#running-a-task)
+  - [Understanding How Tasks are Organized](#understanding-how-tasks-are-organized)
+  - [Getting Available Tasks/Task Groups](#getting-available-taskstask-groups)
+  - [Using Input Prompts](#using-input-prompt)
+- [Creating a Project](#creating-a-project)
+  - [Activating Virtual Environment](#activating-virtual-environment)
+- [Creating a Task](#creating-a-task)
+  - [Scaffolding a Task](#scaffolding-a-task)
+  - [Updating Task definition](#updating-task-definition)
+- [Understanding The Code](#understanding-the-code)
+    - [Task Definition](#task-definition)
+      - [Creating a Task Using Task Classes](#creating-a-task-using-task-classes)
+      - [Creating a Task Using Python Decorator](#creating-a-task-using-python-decorator)
+    - [Task Parameters](#task-parameters)
+    - [Task Inputs](#task-inputs)
+    - [Task Environments](#task-environments)
+    - [Switching Environment](#switching-environment)
+- [Creating a Long-Running Task](#creating-a-long-running-task)
 
 This guide assumes you have some familiarity with CLI and Python.
 
 # Installing Zrb
 
-First of all, you need to make sure that you have Zrb installed in your computer.
+First of all, you need to make sure you have Zrb installed on your computer.
 
 You can install Zrb as a pip package by invoking the following command:
 
@@ -38,7 +42,7 @@ Alternatively, you can also use our installation script to install Zrb along wit
 curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
 ```
 
-Check our [installation guide](./installation.md) for more information about the installation methods, including installation as a docker container.
+Check our [installation guide](./installation.md) for more information about the installation methods, including installing Zrb as a docker container.
 
 
 # Running a Task
@@ -49,14 +53,14 @@ Once you have installed Zrb, you can run some built-in tasks immediately. To run
 zrb [task-groups...] <task-name> [task-parameters...]
 ```
 
-For example, you want to run the `base64 encode` task with the following information:
+For example, you want to run the `base64 encode` task with the following properties:
 
 - __Task group:__ base64
 - __Task name:__ encode
 - __Task parameters:__
-  - `text` = `non-credential-string`
+  - __`text`__ = `non-credential-string`
 
-Based on the pattern, you will need to invoke the following command:
+In that case, you need to invoke the following command:
 
 ```bash
 zrb base64 encode --text "non-credential-string"
@@ -72,46 +76,24 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-You can see that Zrb encoded `non-credential-string` into `bm9uLWNyZWRlbnRpYWwtc3RyaW5n`.
+You can see how Zrb encoded `non-credential-string` into `bm9uLWNyZWRlbnRpYWwtc3RyaW5n`.
 
 > __⚠️ WARNING:__ Base64 is a encoding algorithm that allows you to transform any characters into an alphabet which consists of Latin letters, digits, plus, and slash.
 >
 > Anyone can easily decode a base64-encoded string. __Never use it to encrypt your password or any important credentials!__
 
-## Redirect Task's Output
+See our [tutorial](tutorials/integration-with-other-tools.md) to see how you can integrate Zrb with other CLI tools.
 
-You can use any task's output for further processing. For example, redirect a task's output and error into files.
+## Understanding How Tasks are Organized
 
-```bash
-zrb base64 encode --text "non-credential-string" > output.txt 2> stderr.txt
-cat output.txt
-cat stderr.txt
-```
+By convention, we usually put related `tasks` under the same `task-group`.
 
-You can also use a task's output as other CLI command's parameter
+For example, we have the following two tasks under `base64` group:
 
-```bash
-echo $(zrb base64 encode --text "non-credential-string"  2> error.txt)
-```
+- `encode`
+- `decode`
 
-Finally, you can also use the pipe operator to redirect a task's output as other CLI command's input
-
-```bash
-zrb base64 encode --text "non-credential-string"  2> error.txt | lolcat
-```
-
-> __📝 NOTE:__ You can install lolcat by following [it's documentation](https://github.com/busyloop/lolcat). If you are using Linux, and you don't like `snap`, you can try to use your OS's package manager (e.g., `sudo apt install lolcat`)
-
-## How Tasks are Organized
-
-We usually put related `tasks` under the same `task-group`.
-
-For example, we have two tasks under `base64` group:
-
-- encode
-- decode
-
-Let's decode our base64-encoded text:
+Now, let's try to decode our base64-encoded text:
 
 ```bash
 zrb base64 decode --text "bm9uLWNyZWRlbnRpYWwtc3RyaW5n"
@@ -123,7 +105,7 @@ You should get your original text back.
 
 ## Getting Available Tasks/Task Groups
 
-To see what `tasks`/`task-groups` are available, type `zrb` and press enter.
+To see what `tasks`/`task-groups` are available under `zrb` command, you can type `zrb` and press enter.
 
 ```bash
 zrb
@@ -149,32 +131,21 @@ Options:
   --help  Show this message and exit.
 
 Commands:
-  base64              Base64 operations
-  build               Build Zrb
-  build-image         Build docker image
-  build-latest-image  Build docker image
-  devtool             Developer tools management
-  env                 Environment variable management
-  eval                Evaluate Python expression
-  explain             Explain things
-  git                 Git related commands
-  install-symlink     Install Zrb as symlink
-  md5                 MD5 operations
-  playground          Playground related tasks
-  process             Process related commands
-  project             Project management
-  publish             Publish new version
-  publish-pip         Publish zrb to pypi
-  publish-pip-test    Publish zrb to testpypi
-  push-image          Push docker image
-  push-latest-image   Push docker image
-  serve-test          Serve zrb test result
-  start-container     Run docker container
-  stop-container      remove docker container
-  test                Run zrb test
-  ubuntu              Ubuntu related commands
-  update              Update zrb
-  version             Get Zrb version
+  base64    Base64 operations
+  devtool   Developer tools management
+  env       Environment variable management
+  eval      Evaluate Python expression
+  explain   Explain things
+  git       Git related commands
+  md5       MD5 operations
+  process   Process related commands
+  project   Project management
+  say       Say anything, https://www.youtube.com/watch?v=MbPr1oHO4Hw
+  schedule  Show message/run command periodically
+  ubuntu    Ubuntu related commands
+  update    Update zrb
+  version   Get Zrb version
+  watch     Watch changes and show message/run command
 ```
 
 You can then type `zrb [task-group...]` until you find the task you want to execute. For example, you can invoke the following command to see what tasks are available under `base64` group:
@@ -221,7 +192,7 @@ To run again: zrb base64 encode --text "non-credential-string"
 
 > __📝 NOTE:__ If you need to disable prompt entirely, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
 >
-> When prompts are disabled, Zrb will automatically use default values.
+> When prompts are disabled, Zrb will automatically use task-input's default values.
 
 # Creating a project
 
@@ -294,7 +265,7 @@ Commands:
 
 ## Activating Virtual Environment
 
-If you generate the project by invoking `zrb project create`, then you have to run the following command now:
+If you generate the project by invoking `zrb project create`, then you need to run the following command everytime you start working with the project:
 
 ```bash
 source project.sh
@@ -314,9 +285,12 @@ source .venv/bin/activate
 
 # Creating a Task
 
+A task is the smallest unit of job definition. You can link your tasks together to form a more complex workflow.
+
 Zrb has a powerful command to create tasks under a project. Let's re-create the tasks we make in our [README.md](../README.md).
 
 The goal of the tasks is to download any public CSV dataset and provide the statistical properties of the dataset. To do that, you need to:
+
 - Ensure that you have Pandas installed on your machine
 - Ensure that you have downloaded the dataset
 - Run the Python script to get the statistical properties of the dataset
@@ -366,9 +340,7 @@ async def show_stats(*args: Any, **kwargs: Any) -> Any:
     return 'ok'
 ```
 
-We will modify the task later to match our use case.
-
-You will also notice that Zrb automatically imports `_automate/show_stats.py` into `zrb_init.py`.
+We will modify the task later to match our use case, but first let's check on `zrb_init.py`. You will notice how Zrb automatically imports `_automate/show_stats.py` into `zrb_init.py`.
 
 ```python
 import _automate._project as _project
@@ -377,7 +349,7 @@ assert _project
 assert show_stats
 ```
 
-This modification allows you to invoke `show-stats` from the CLI
+This modification allows Zrb to load `show-stats` so that you can access it from the CLI
 
 ```
 zrb project show-stats
@@ -396,28 +368,29 @@ You also need to ensure both of them are registered as `show-stats` upstreams. Y
 from typing import Any
 from zrb import CmdTask, python_task, StrInput, runner
 from zrb.builtin.group import project_group
+DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
 
 # 🐼 Define a task named `install-pandas` to install pandas
+# If this task failed, we want Zrb to retry it again 4 times at most.
 install_pandas = CmdTask(
     name='install-pandas',
     group=project_group,
-    cmd='pip install pandas'
+    cmd='pip install pandas',
+    retry=4
 )
 
 # Make install_pandas accessible from the CLI (i.e., zrb project install-pandas)
 runner.register(install_pandas)
 
 # ⬇️ Define a task named `download-dataset` to download dataset
+# This task has an input named `url`.
+# The input will be accessible by using Jinja template: `{{input.url}}`
+# If this task failed, we want Zrb to retry it again 4 times at most
 download_dataset = CmdTask(
     name='download-dataset',
     group=project_group,
     inputs=[
-        # Define an input named `url` and set it's default value.
-        # You can access url's input value by using Jinja template: `{{ input.url }}`
-        StrInput(
-            name='url',
-            default='https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
-        )
+        StrInput(name='url', default=DEFAULT_URL)
     ],
     cmd='wget -O dataset.csv {{input.url}}'
 )
@@ -427,15 +400,15 @@ runner.register(download_dataset)
 
 
 # 📊 Define a task to show the statistics properties of the dataset
+# We use `@python_task` decorator since this task is better written in Python.
+# This tasks depends on our previous tasks, `download_dataset` and `install_pandas`
+# If this task failed, then it is failed. No need to retry
 @python_task(
     name='show-stats',
     description='show stats',
     group=project_group,
-    upstreams=[
-        # Make sure install_pandas and download_dataset are successfully executed before running show_stats
-        install_pandas,
-        download_dataset
-    ],
+    upstreams=[download_dataset, install_pandas],
+    retry=0,
     runner=runner # Make show_stats accessible from the CLI (i.e., zrb project show-stats)
 )
 async def show_stats(*args: Any, **kwargs: Any) -> Any:
@@ -444,30 +417,11 @@ async def show_stats(*args: Any, **kwargs: Any) -> Any:
     return df.describe()
 ```
 
-We define `install_pandas` and `download_dataset` using `CmdTask` since writing them using shell script is easier. We also make `show_stats` depend on `install_pandas` and `download_dataset` by defining `show_stats`'s upstream.
+We define `install_pandas` and `download_dataset` using `CmdTask`. On the other hand, we use `@python_task` decorator to turn `show_stats` into a task.
 
-### Common Task Parameters
+Finally, we also set `install_pandas` and `download_dataset` as `show_stats`'s upstreams. This let Zrb gurantee that whenever you run `show_stats`, Zrb will always run `install_pandas` and `download_dataset` first.
 
-`CmdTask` and `@python_task` decorator has some parameters in common:
-
-- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name.
-- __description__: The description of the task.
-- __group__: The task group where the task belongs to
-- __inputs__: The inputs and their default values.
-  - If you are using a `CmdTask`, you can access the input using a Jinja Template (e.g., `{{input.input_name}}`)
-  - If you are using a `@python_task` decorator, you can access the input by using `kwargs` argument (e.g., `kwargs.get('input_name')`)
-- __upstreams__: Upstreams of the task. You can provide `AnyTask` as upstream.
-
-### CmdTask Parameters
-
-Aside from common task properties, `CmdTask` has other properties:
-
-- __cmd__: String, or List of String, containing the shell script
-- __cmd_path__: String, or List of String, containing the path to any shell scripts you want to use
-
-### PythonTask Parameters
-
-Aside from common task properties, `@python_task` has a runner parameter. This parameter is unique to `@python_task`. Any task created with `@python_task` with `runner` on it will be accessible from the CLI.
+To understand the code more, please visit [understanding the code section](#understanding-the-code).
 
 ## Running show-stats
 
@@ -520,6 +474,306 @@ max        7.900000     4.400000      6.900000     2.500000
 To run again: zrb project show-stats --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
 ```
 </details>
+
+# Understanding The Code
+
+## Task Definition
+
+In general, there are two ways to define a task in Zrb.
+
+- Using Task Classes (`CmdTask`, `DockerComposeTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, `FlowTask`, or `TriggeredTask`)
+- Using Python Decorator (`@python_task`).
+
+You can see that both `install_pandas` and `download_dataset` are instances of `CmdTask`, while `show_stats` is a decorated function.
+
+### Creating a Task Using Task Classes
+
+To define a task by using task classes, you need to follow this pattern:
+
+```python
+# importing zrb runner and the TaskClass
+from zrb import runner, TaskClass
+
+# Define a task, along with it's parameters
+task_name = TaskClass(
+    name='task-name',
+    parameter=value,
+    other_parameter=other_value
+)
+
+# regiter the task to zrb runner
+runner.register(task_name)
+```
+
+There are several built-in task classes. Each with its specific use case:
+
+- __CmdTask__: Run a CLI command/shell script.
+- __DockerComposeTask__: Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
+- __RemoteCmdTask__: Run a CLI command/shell script on remote computers using SSH.
+- __RSyncTask__: Copy file from/to remote computers using `rsync` command.
+- __ResourceMaker__: Create resources (source code/documents) based on provided templates.
+- __FlowTask__: Combine unrelated tasks into a single Workflow.
+- __TriggeredTask__: Create a long-running scheduled task or file watcher based on another task.
+
+You can also create a custom task class as long as it fits `AnyTask` interface. The easiest way to ensure compatibility is by extending `BaseTask`. See our [tutorial](tutorials/extending-cmd-task.md) to see how we can create a new Task Class based on `CmdTask`.
+
+### Creating a Task Using Python Decorator
+
+To define a task by using Python decorator, you need to follow this pattern:
+
+```python
+# importing zrb runner and @python_task
+from zrb import runner, python_task
+
+
+# Decorate a function named `task_name`
+@python_task(
+    name='task-name',
+    parameter=value,
+    other_parameter=other_value,
+    runner=runner # register the task to zrb runner
+)
+def task_name(*args, **kwargs):
+    pass
+
+# Note that python_task decorator turn your function into a task. So `task_name` is now a task, not a function.
+```
+
+Using `@python_task` decorator is your best choice if you need to write complex logic in Python.
+
+
+## Task Parameters
+
+Each task has its specific parameter. However, the following tasks are typically available:
+
+- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`)
+- __description__: The description of the task.
+- __group__: The task group where the task belongs to
+- __inputs__: Task inputs and their default values.
+- __envs__: Task's environment variables.
+- __env_files__: Task's environment files.
+- __upstreams__: Upstreams of the task. You can provide `AnyTask` as upstream.
+- __checkers__: List of checker tasks. You usually need this for long-running tasks.
+- __runner__: Only available in `@python_task`, the valid value is `zrb.runner`.
+
+You can apply task parameters to both Task classes and `@python_task` decorator.
+
+## Task Inputs
+
+You can define task inputs using `StrInput`, `BoolInput`, `ChoiceInput`, `FloatInput`, `IntInput`, or `PasswordInput`.
+To create an input, you need to provide two parameters at least:
+
+- __name__: The name of the input. By convention, this should be kebab-cased.
+- __default__: The default value of the input.
+
+For example, here you have an input named `message` with `Hello World` as the default value:
+
+```python
+from zrb import StrInput
+
+message = StrInput(name='message', default='Hello World')
+```
+
+When you run a task with task inputs, Zrb will prompt you to override the input values. You can press `enter` if you want to use the default values.
+
+To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ input.input_name }}`. Notice that you should use `snake_case` instead of `kebab-case` in your Jinja template.
+
+As for `@python_task`, you can use `kwargs` dictionary to get the input. Let's see the following example:
+
+```python
+from zrb import runner, CmdTask, python_task, StrInput
+
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    inputs=[
+        StrInput(name='name', default='World')
+    ],
+    cmd='echo Hello {{input.name}}'
+)
+runner.register(hello_cmd)
+
+
+@python_task(
+    name='hello-py',
+    inputs=[
+        StrInput(name='name', default='World')
+    ],
+    runner=runner
+)
+def hello_py(*args, **kwargs):
+    name = kwargs.get('name')
+    return f'Hello {name}'
+
+```
+
+You can run the tasks by invoking:
+
+``` bash
+zrb hello-cmd
+zrb hello-py
+```
+
+our you can provide the input values:
+
+```bash
+zrb hello-cmd --name "Go Frendi"
+zrb hello-py --name "Go Frendi"
+```
+
+## Task Environments
+
+Aside from input, you can also use environment variables by using `Env` and `EnvFile`
+
+```python
+from zrb import Env, EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
+env_file = EnvFile(env_file=PROJECT_ENV)
+
+env = Env(name='MESSAGE')
+```
+
+You can use `Env` and `EnvFile`, in your tasks. Let's first create an environment file named `project.env`:
+
+```bash
+# file-name: project.env
+SERVER_HOST=localhost
+```
+
+To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ env.ENV_NAME }}`.
+
+As for `@python_task`, you cannot use `os.getenv` to access task's environment. Instead, you should get the `task` instance and invoke `task.get_env_map()`.
+
+```python
+from zrb import runner, CmdTask, AnyTask, python_task, Env, EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
+
+print(PROJECT_ENV)
+
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    envs=[
+        Env(name='MESSAGE', default='Hello world'),
+    ],
+    env_files=[
+        EnvFile(env_file=PROJECT_ENV)
+    ],
+    cmd=[
+        'echo Message: {{env.MESSAGE}}',
+        'echo Host: {{env.SERVER_HOST}}',
+    ]
+)
+runner.register(hello_cmd)
+
+
+@python_task(
+    name='hello-py',
+    envs=[
+        Env(name='MESSAGE', default='Hello world'),
+    ],
+    env_files=[
+        EnvFile(env_file=PROJECT_ENV)
+    ],
+    runner=runner
+)
+def hello_py(*args, **kwargs):
+    task: AnyTask = kwargs.get('_task')
+    env_map = task.get_env_map()
+    message = env_map.get('MESSAGE')
+    server_host = env_map.get('SERVER_HOST')
+    return '\n'.join([
+        f'Message: {message}',
+        f'Host: {server_host}'
+    ])
+```
+
+Now, you can invoke the tasks as follows:
+
+```bash
+zrb hello-cmd
+zrb hello-py
+```
+
+Both tasks will show you similar outputs:
+
+```
+Message: Hello world
+Host: localhost
+```
+
+## Switching Environment
+
+Zrb has a feature named environment cascading. This feature automatically helps you switch between multiple environments (e.g., dev, staging, production).
+
+To switch between environments, you can use `ZRB_ENV`
+
+Let's see the following example:
+
+
+```bash
+export DEV_MESSAGE="Test Hello World"
+export PROD_MESSAGE="Hello, Client"
+export PROD_SERVER_HOST=stalchmst.com
+
+zrb hello-cmd
+zrb-hello-py
+```
+
+Without `ZRB_ENV`, when you run the following commands, you will get the same outputs:
+
+```
+Message: Hello world
+Host: localhost
+```
+
+### Dev Environment
+
+Now let's try this again with `DEV` environment:
+
+```bash
+export DEV_MESSAGE="Test Hello World"
+export PROD_MESSAGE="Hello, Client"
+export PROD_SERVER_HOST=stalchmst.com
+export ZRB_ENV=DEV
+
+zrb hello-cmd
+zrb-hello-py
+```
+
+Now, it will get the the following outputs:
+
+```
+Message: Test Hello World
+Host: localhost
+```
+
+You see that now Zrb loads use `DEV_MESSAGE` value instead of the default `Hello World`.
+
+However, since Zrb cannot find `DEV_SERVER_HOST`, it use the default value `localhost`.
+
+### Prod Environment
+
+Now let's try again with `PROD` environment:
+
+```bash
+export DEV_MESSAGE="Test Hello World"
+export PROD_MESSAGE="Hello, Client"
+export PROD_SERVER_HOST=stalchmst.com
+export ZRB_ENV=PROD
+
+zrb hello-cmd
+zrb-hello-py
+```
+
+Now, since Zrb can find both `PROD_MESSAGE` and `PROD_SERVER_HOST`, Zrb will show the following output:
+
+```
+Message: Hello, Client
+Host: stalchmst.com
+```
 
 # Creating a long-running task
 
