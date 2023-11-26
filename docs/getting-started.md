@@ -6,25 +6,24 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 
 - [Installing Zrb](#installing-zrb)
 - [Running a Task](#running-a-task)
-  - [Redirect task's output](#redirect-tasks-output)
-  - [How tasks are organized](#how-tasks-are-organized)
+  - [Understanding how tasks are organized](#understanding-how-tasks-are-organized)
   - [Getting available tasks/task groups](#getting-available-taskstask-groups)
   - [Using input prompts](#using-input-prompt)
 - [Creating a Project](#creating-a-project)
-  - [Using/creating virtual environment](#activating-virtual-environment)
-- [How to define a task](#creating-a-task)
+  - [Activating virtual environment](#activating-virtual-environment)
+- [Creating a Task](#creating-a-task)
   - [Scaffolding a task](#scaffolding-a-task)
   - [Updating task definition](#updating-task-definition)
     - [Common task parameters](#common-task-parameters)
-    - [Cmd task parameters](#cmdtask-parameters)
-    - [Python task parameters](#python_task-parameters)
-- [How to define a long-running task]()
+    - [CmdTask parameters](#cmdtask-parameters)
+    - [@python_task parameters](#python_task-parameters)
+- [Creating a Long-Running Task](#creating-a-long-running-task)
 
 This guide assumes you have some familiarity with CLI and Python.
 
 # Installing Zrb
 
-First of all, you need to make sure that you have Zrb installed in your computer.
+First of all, you need to make sure you have Zrb installed on your computer.
 
 You can install Zrb as a pip package by invoking the following command:
 
@@ -38,7 +37,7 @@ Alternatively, you can also use our installation script to install Zrb along wit
 curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
 ```
 
-Check our [installation guide](./installation.md) for more information about the installation methods, including installation as a docker container.
+Check our [installation guide](./installation.md) for more information about the installation methods, including installing Zrb as a docker container.
 
 
 # Running a Task
@@ -49,14 +48,14 @@ Once you have installed Zrb, you can run some built-in tasks immediately. To run
 zrb [task-groups...] <task-name> [task-parameters...]
 ```
 
-For example, you want to run the `base64 encode` task with the following information:
+For example, you want to run the `base64 encode` task with the following properties:
 
 - __Task group:__ base64
 - __Task name:__ encode
 - __Task parameters:__
-  - `text` = `non-credential-string`
+  - __`text`__ = `non-credential-string`
 
-Based on the pattern, you will need to invoke the following command:
+In that case, you need to invoke the following command:
 
 ```bash
 zrb base64 encode --text "non-credential-string"
@@ -72,39 +71,17 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-You can see that Zrb encoded `non-credential-string` into `bm9uLWNyZWRlbnRpYWwtc3RyaW5n`.
+You can see how Zrb encoded `non-credential-string` into `bm9uLWNyZWRlbnRpYWwtc3RyaW5n`.
 
 > __⚠️ WARNING:__ Base64 is a encoding algorithm that allows you to transform any characters into an alphabet which consists of Latin letters, digits, plus, and slash.
 >
 > Anyone can easily decode a base64-encoded string. __Never use it to encrypt your password or any important credentials!__
 
-## Redirect Task's Output
+See our [tutorial](tutorials/integration-with-other-tools.md) to see how you can integrate Zrb with other CLI tools.
 
-You can use any task's output for further processing. For example, redirect a task's output and error into files.
+## Understanding How Tasks are Organized
 
-```bash
-zrb base64 encode --text "non-credential-string" > output.txt 2> stderr.txt
-cat output.txt
-cat stderr.txt
-```
-
-You can also use a task's output as other CLI command's parameter
-
-```bash
-echo $(zrb base64 encode --text "non-credential-string"  2> error.txt)
-```
-
-Finally, you can also use the pipe operator to redirect a task's output as other CLI command's input
-
-```bash
-zrb base64 encode --text "non-credential-string"  2> error.txt | lolcat
-```
-
-> __📝 NOTE:__ You can install lolcat by following [it's documentation](https://github.com/busyloop/lolcat). If you are using Linux, and you don't like `snap`, you can try to use your OS's package manager (e.g., `sudo apt install lolcat`)
-
-## How Tasks are Organized
-
-We usually put related `tasks` under the same `task-group`.
+By convention, we usually put related `tasks` under the same `task-group`.
 
 For example, we have two tasks under `base64` group:
 

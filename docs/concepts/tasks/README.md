@@ -19,21 +19,20 @@ As every task are extended from `BaseTask`, you will see that most of them share
 
 
 ```
-                                            BaseTask
+                                           BaseTask
                                                │
                                                │
-  ┌──────┬───────────┬───────────┬─────────────┼────────────────┬───────────┬──────────┐
-  │      │           │           │             │                │           │          │
-  │      │           │           │             │                │           │          │
-  ▼      ▼           ▼           ▼             ▼                ▼           ▼          ▼
-Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  HttpChecker PortChecker PathChecker
+  ┌──────┬───────────┬───────────┬─────────────┼─────────────────┬─────────────┬───────────┬──────────┐
+  │      │           │           │             │                 │             │           │          │
+  │      │           │           │             │                 │             │           │          │
+  ▼      ▼           ▼           ▼             ▼                 ▼             ▼           ▼          ▼
+Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  TriggeredTask  HttpChecker PortChecker PathChecker
          │                                     │
          │                                     │
          ▼                               ┌─────┴──────┐
    DockerComposeTask                     │            │
                                          ▼            ▼
                                    RemoteCmdTask   RsyncTask
-
 ```
 
 Aside from the documentation, you can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation.
