@@ -75,7 +75,7 @@ class CommonTaskModel():
         self._execution_id = ''
 
     def _set_execution_id(self, execution_id: str):
-        if self._execution_id != '':
+        if self._execution_id == '':
             self._execution_id = execution_id
 
     def set_name(self, new_name: str):
