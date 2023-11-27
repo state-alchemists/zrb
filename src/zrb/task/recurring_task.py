@@ -20,7 +20,7 @@ import croniter
 
 
 @typechecked
-class TriggeredTask(BaseTask):
+class RecurringTask(BaseTask):
 
     def __init__(
         self,

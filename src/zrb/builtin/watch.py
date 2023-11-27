@@ -1,10 +1,10 @@
-from zrb.task.triggered_task import TriggeredTask
+from zrb.task.recurring_task import RecurringTask
 from zrb.task.cmd_task import CmdTask
 from zrb.task_input.str_input import StrInput
 from zrb.runner import runner
 
 
-watch = TriggeredTask(
+watch = RecurringTask(
     name='watch',
     description='Watch changes and show message/run command',
     inputs=[

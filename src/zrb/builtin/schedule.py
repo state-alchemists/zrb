@@ -1,10 +1,10 @@
-from zrb.task.triggered_task import TriggeredTask
+from zrb.task.recurring_task import RecurringTask
 from zrb.task.cmd_task import CmdTask
 from zrb.task_input.str_input import StrInput
 from zrb.runner import runner
 
 
-schedule = TriggeredTask(
+schedule = RecurringTask(
     name='schedule',
     description='Show message/run command periodically',
     inputs=[

@@ -12,11 +12,11 @@ class EnvFile():
         self,
         env_file: str,
         prefix: Optional[str] = None,
-        renderable: bool = False
+        should_render: bool = False
     ):
         self.env_file = env_file
         self.prefix = prefix.upper() if prefix is not None else None
-        self.renderable = renderable
+        self.should_render = should_render
         self._env_list: List[Env] = []
         self._env_list_fetched: bool = False
 
@@ -35,7 +35,7 @@ class EnvFile():
                 name=key,
                 os_name=os_name,
                 default=value,
-                renderable=self.renderable
+                should_render=self.should_render
             ))
         self._env_list = env_list
         self._env_list_fetched = True

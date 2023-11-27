@@ -15,14 +15,14 @@ class Env():
         name: str,
         os_name: Optional[str] = None,
         default: str = '',
-        renderable: bool = True,
+        should_render: bool = True,
     ):
         if name in RESERVED_ENV_NAMES:
             raise ValueError(f'Forbidden input name: {name}')
         self.name: str = name
         self.os_name: str = os_name if os_name is not None else name
         self.default: str = default
-        self.renderable: bool = renderable
+        self.should_render: bool = should_render
 
     def get(self, prefix: str = '') -> str:
         '''
