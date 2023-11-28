@@ -191,11 +191,17 @@ class CmdTask(BaseTask):
     def inject_envs(self):
         super().inject_envs()
         input_map = self.get_input_map()
-        for input_name, input_value in input_map.items():
-            env_name = '_INPUT_' + input_name.upper()
-            self.add_env(
-                Env(name=env_name, os_name='', default=str(input_value))
-            )
+        for task_input in self._get_combined_inputs():
+            input_key = self._get_normalized_input_key(task_input.get_name())
+            input_value = input_map.get(input_key)
+            env_name = '_INPUT_' + input_key.upper()
+            should_render = task_input.should_render()
+            self.add_env(Env(
+                name=env_name,
+                os_name='',
+                default=str(input_value),
+                should_render=should_render
+            ))
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self.get_cmd_script(*args, **kwargs)
