@@ -293,6 +293,15 @@ class BaseTask(
             return key
         return to_variable_name(key)
 
+    def _propagate_execution_id(self):
+        execution_id = self.get_execution_id()
+        for upstream_task in self._get_upstreams():
+            upstream_task._set_execution_id(execution_id)
+            upstream_task._propagate_execution_id()
+        for checker_task in self._get_checkers():
+            checker_task._set_execution_id(execution_id)
+            checker_task._propagate_execution_id()
+
     async def _run_and_check_all(
         self,
         env_prefix: str,
@@ -307,6 +316,7 @@ class BaseTask(
                 self._set_execution_id(
                     get_random_name(add_random_digit=True, digit_count=5)
                 )
+                self._propagate_execution_id()
             self.log_info('Set input and env map')
             await self._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
             self.log_info('Set run kwargs')
@@ -533,7 +543,7 @@ class BaseTask(
         # set checker keyval
         # local_env_map = self.get_env_map()
         checker_coroutines = []
-        for checker_task in self._checkers:
+        for checker_task in self._get_checkers():
             checker_task.add_input(*self._get_inputs())
             checker_task.add_env(*self._get_envs())
             checker_coroutines.append(asyncio.create_task(
