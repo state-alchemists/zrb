@@ -1,8 +1,10 @@
 from zrb.task.task import Task
+from zrb.task.cmd_task import CmdTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.str_input import StrInput
 import os
+import asyncio
 
 
 def test_task_with_no_runner():
@@ -292,3 +294,124 @@ def test_task_redeclared_env():
     function = task.to_function()
     result = function()
     assert result == 'yellow'
+
+
+def test_task_returning_upstream_result():
+    task_upstream_1 = Task(
+        name='task-upstream-1',
+        run=lambda *args, **kwargs: 'articuno'
+    )
+    task_upstream_2 = Task(
+        name='task-upstream-2',
+        run=lambda *args, **kwargs: 'zapdos'
+    )
+    task_upstream_3 = Task(
+        name='task-upstream-3',
+        run=lambda *args, **kwargs: 'moltres'
+    )
+    task = Task(
+        name='task',
+        upstreams=[
+            task_upstream_1, task_upstream_2, task_upstream_3
+        ],
+        return_upstream_result=True
+    )
+    function = task.to_function()
+    result = function()
+    assert len(result) == 3
+    assert 'articuno' in result
+    assert 'zapdos' in result
+    assert 'moltres' in result
+
+
+def test_task_with_duplicated_input_name():
+    task = Task(
+        name='task',
+        inputs=[
+            StrInput(name='name', default='articuno'),
+            StrInput(name='name', default='zapdos'),
+            StrInput(name='name', default='moltres'),
+        ],
+        run=lambda *args, **kwargs: kwargs.get('name')
+    )
+    function = task.to_function()
+    result = function()
+    assert result == 'moltres'
+
+
+def test_upstream_task_with_the_same_input_name():
+    task_upstream = Task(
+        name='task-upstream',
+        inputs=[
+            StrInput(name='name', default='articuno')
+        ],
+        run=lambda *args, **kwargs: kwargs.get('name')
+    )
+    task = Task(
+        name='task',
+        inputs=[
+            StrInput(name='name', default='zapdos')
+        ],
+        upstreams=[task_upstream],
+        run=lambda *args, **kwargs: kwargs.get('name')
+    )
+    function = task.to_function()
+    result = function()
+    assert result == 'zapdos'
+
+
+def test_task_to_async_function():
+    task = Task(
+        name='task',
+        inputs=[
+            StrInput(name='name', default='zapdos')
+        ],
+        run=lambda *args, **kwargs: kwargs.get('name')
+    )
+    function = task.to_function(is_async=True)
+    result = asyncio.run(function())
+    assert result == 'zapdos'
+
+
+def test_task_function_should_accept_kwargs_args():
+    task = Task(
+        name='task',
+        run=lambda *args, **kwargs: args[0]
+    )
+    function = task.to_function()
+    # _args keyword argument should be treated as *args
+    result = function(_args=['moltres'])
+    assert result == 'moltres'
+
+
+def test_callable_as_task_should_execute():
+    # should execute should accept executable
+    task = Task(
+        name='task',
+        should_execute=lambda *args, **kwargs: True,
+        run=lambda *args, **kwargs: 'articuno'
+    )
+    function = task.to_function()
+    result = function()
+    assert result == 'articuno'
+
+
+def test_consistent_execution_id():
+    task_upstream_1 = Task(
+        name='task-upstream-1',
+        run=lambda *args, **kwargs: kwargs.get('_task').get_execution_id()
+    )
+    task_upstream_2 = CmdTask(
+        name='task-upstream-2',
+        cmd='echo $_ZRB_EXECUTION_ID'
+    )
+    task = Task(
+        name='task',
+        upstreams=[
+            task_upstream_1, task_upstream_2
+        ],
+        return_upstream_result=True
+    )
+    function = task.to_function()
+    result = function()
+    assert result[0] == result[1].output

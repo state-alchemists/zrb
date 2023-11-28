@@ -16,7 +16,6 @@ from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput
-from zrb.task_input.constant import RESERVED_INPUT_NAMES
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.advertisement import get_advertisement
@@ -289,8 +288,6 @@ class BaseTask(
         return all_envs
 
     def _get_normalized_input_key(self, key: str) -> str:
-        if key in RESERVED_INPUT_NAMES:
-            return key
         return to_variable_name(key)
 
     def _propagate_execution_id(self):
