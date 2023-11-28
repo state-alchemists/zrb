@@ -26,7 +26,8 @@ class BoolInput(BaseInput):
         hidden: bool = False,
         show_choices: bool = True,
         show_envvar: bool = False,
-        nargs: int = 1
+        nargs: int = 1,
+        should_render: bool = True
     ):
         BaseInput.__init__(
             self,
@@ -49,4 +50,5 @@ class BoolInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
+            should_render=should_render
         )

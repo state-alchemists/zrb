@@ -253,9 +253,9 @@ class BaseTask(
         self.log_info('Set input map')
         for task_input in self._get_combined_inputs():
             input_name = self._get_normalized_input_key(task_input.get_name())
-            input_value = self.render_any(
-                kwargs.get(input_name, task_input.get_default())
-            )
+            input_value = kwargs.get(input_name, task_input.get_default())
+            if task_input.should_render():
+                input_value = self.render_any(input_value)
             self._set_input_map(input_name, input_value)
         self.log_debug(
             'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')

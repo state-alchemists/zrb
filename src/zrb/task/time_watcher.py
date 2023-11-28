@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Optional, Union, TypeVar
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.checker import Checker
 from zrb.task.any_task import AnyTask
@@ -10,17 +12,18 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-import glob
+import croniter
+import datetime
 
-TPathChecker = TypeVar('TPathChecker', bound='PathChecker')
+TTimeWatcher = TypeVar('TTimeWatcher', bound='TimeWatcher')
 
 
 @typechecked
-class PathChecker(Checker):
+class TimeWatcher(Checker):
 
     def __init__(
         self,
-        name: str = 'check-path',
+        name: str = 'watch-path',
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -36,10 +39,9 @@ class PathChecker(Checker):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        path: str = '',
+        schedule: str = '',
         checking_interval: Union[int, float] = 0.1,
-        progress_interval: Union[int, float] = 5,
-        expected_result: bool = True,
+        progress_interval: Union[int, float] = 30,
         should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
         Checker.__init__(
@@ -62,13 +64,13 @@ class PathChecker(Checker):
             on_failed=on_failed,
             checking_interval=checking_interval,
             progress_interval=progress_interval,
-            expected_result=expected_result,
             should_execute=should_execute,
         )
-        self._path = path
-        self._rendered_path: str = ''
+        self._schedule = schedule
+        self._scheduled_time: Optional[datetime.datetime] = None
+        self._rendered_schedule: str = ''
 
-    def copy(self) -> TPathChecker:
+    def copy(self) -> TTimeWatcher:
         return super().copy()
 
     def to_function(
@@ -83,19 +85,27 @@ class PathChecker(Checker):
         )
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        self._rendered_path = self.render_str(self._path)
+        self._rendered_schedule = self.render_str(self._schedule)
+        margin = datetime.timedelta(seconds=0.001)
+        slightly_before_check_time = datetime.datetime.now() - margin
+        cron = croniter.croniter(
+            self._rendered_schedule, slightly_before_check_time
+        )
+        self._scheduled_time = cron.get_next(datetime.datetime)
         return await super().run(*args, **kwargs)
 
     async def inspect(self, *args: Any, **kwargs: Any) -> bool:
-        label = f'Checking {self._rendered_path}'
-        try:
-            if len(glob.glob(self._rendered_path)) > 0:
-                self.print_out(f'{label} (Exist)')
-                return True
-            self.show_progress(f'{label} (Not Exist)')
-        except Exception:
-            self.show_progress(f'{label} Cannot inspect')
+        label = f'Watching {self._rendered_schedule}'
+        now = datetime.datetime.now()
+        if now > self._scheduled_time:
+            self.print_out_dark(
+                f'{label} (Meet {self._scheduled_time})'
+            )
+            return True
+        self.show_progress(
+            f'{label} (Waiting for {self._scheduled_time})'
+        )
         return False
 
     def __repr__(self) -> str:
-        return f'<PathChecker name={self._name}>'
+        return f'<PathWatcher name={self._name}>'

@@ -23,5 +23,9 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
+    def should_render(self) -> bool:
+        pass
+
+    @abstractmethod
     def is_hidden(self) -> bool:
         pass

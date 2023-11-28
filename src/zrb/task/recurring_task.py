@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union
+    Any, Callable, Iterable, Mapping, Optional, Union
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task import BaseTask
@@ -13,10 +13,7 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
 import asyncio
-import datetime
-import glob
-import os
-import croniter
+import copy
 
 
 @typechecked
@@ -26,6 +23,7 @@ class RecurringTask(BaseTask):
         self,
         name: str,
         task: AnyTask,
+        triggers: Iterable[AnyTask] = [],
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -42,16 +40,15 @@ class RecurringTask(BaseTask):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         checkers: Iterable[AnyTask] = [],
-        interval: float = 1,
-        schedule: Union[str, Iterable[str]] = [],
-        watched_path: Union[str, Iterable[str]] = [],
         checking_interval: float = 0,
-        retry: int = 2,
+        retry: int = 0,
         retry_interval: float = 1,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         inputs = list(inputs) + task._get_inputs()
+        envs = list(envs) + task._get_envs()
+        env_files = list(env_files) + task._get_env_files()
         BaseTask.__init__(
             self,
             name=name,
@@ -78,89 +75,53 @@ class RecurringTask(BaseTask):
             return_upstream_result=return_upstream_result,
         )
         self._task = task
-        self._interval = interval
-        self._set_schedule(schedule)
-        self._set_watch_path(watched_path)
+        self._triggers = triggers
 
-    def _set_watch_path(self, watched_path: Union[str, Iterable[str]]):
-        if isinstance(watched_path, str) and watched_path != '':
-            self._watched_paths: List[str] = [watched_path]
-            return
-        self._watched_paths: List[str] = watched_path
-
-    def _set_schedule(self, schedule: Union[str, Iterable[str]]):
-        if isinstance(schedule, str) and schedule != '':
-            self._schedules: List[str] = [schedule]
-            return
-        self._schedules: List[str] = schedule
+    async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+        await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
+        new_kwargs = copy.deepcopy(kwargs)
+        new_kwargs.update(self.get_input_map())
+        trigger_coroutines = []
+        for trigger in self._triggers:
+            trigger.add_input(*self._get_inputs())
+            trigger.add_env(*self._get_envs())
+            trigger_coroutines.append(asyncio.create_task(
+                trigger._set_keyval(
+                    kwargs=new_kwargs, env_prefix=env_prefix
+                )
+            ))
+        await asyncio.gather(*trigger_coroutines)
 
     async def run(self, *args: Any, **kwargs: Any):
-        schedules = [self.render_str(schedule) for schedule in self._schedules]
-        watched_path = [
-            self.render_str(watched_path)
-            for watched_path in self._watched_paths
-        ]
-        mod_times = self._get_mode_times(watched_path)
-        scheduled_times: List[datetime.datetime] = []
+        task_kwargs = {
+            key: kwargs[key]
+            for key in kwargs if key not in ['_task']
+        }
         while True:
-            should_run = False
-            # check time
-            start_time = datetime.datetime.now()
-            for schedule in schedules:
-                next_run = self._get_next_run(schedule, start_time)
-                if next_run not in scheduled_times:
-                    scheduled_times.append(next_run)
-            for scheduled_time in list(scheduled_times):
-                if scheduled_time not in scheduled_times:
-                    continue
-                if start_time > scheduled_time:
-                    self.print_out_dark(f'Scheduled time: {scheduled_time}')
-                    scheduled_times.remove(scheduled_time)
-                    should_run = True
-            # detect file changes
-            current_mod_times = self._get_mode_times(watched_path)
-            if not should_run:
-                new_files = current_mod_times.keys() - mod_times.keys()
-                for file in new_files:
-                    self.print_out_dark(f'[+] New file detected: {file}')
-                    should_run = True
-                deleted_files = mod_times.keys() - current_mod_times.keys()
-                for file in deleted_files:
-                    self.print_out_dark(f'[-] File deleted: {file}')
-                    should_run = True
-                modified_files = {
-                    file for file, mod_time in current_mod_times.items()
-                    if file in mod_times and mod_times[file] != mod_time
-                }
-                for file in modified_files:
-                    self.print_out_dark(f'[/] File modified: {file}')
-                    should_run = True
-                mod_times = current_mod_times
-            # skip run
-            if should_run:
-                # Run
-                fn = self._task.to_function(
+            # Create trigger functions
+            trigger_functions = []
+            for trigger in self._triggers:
+                trigger_function = trigger.copy().to_function(
                     is_async=True, raise_error=False, show_done_info=False
                 )
-                child_kwargs = {
-                    key: kwargs[key]
-                    for key in kwargs if key not in ['_task']
-                }
-                asyncio.create_task(fn(*args, **child_kwargs))
-                self._play_bell()
-            await asyncio.sleep(self._interval)
-
-    def _get_mode_times(self, watched_path: List[str]) -> Mapping[str, float]:
-        files_mod_times: Mapping[str, float] = {}
-        for watch_path in watched_path:
-            for file_name in glob.glob(watch_path):
-                files_mod_times[file_name] = os.stat(file_name).st_mtime
-        return files_mod_times
-
-    def _get_next_run(
-        self, cron_pattern: str, check_time: datetime.datetime
-    ) -> datetime.datetime:
-        margin = datetime.timedelta(seconds=self._interval/2.0)
-        slightly_before_check_time = check_time - margin
-        cron = croniter.croniter(cron_pattern, slightly_before_check_time)
-        return cron.get_next(datetime.datetime)
+                trigger_functions.append(asyncio.create_task(
+                    trigger_function(*args, **task_kwargs)
+                ))
+            # Wait for the first task to complete
+            self.print_out_dark('Waiting for trigger')
+            _, pending = await asyncio.wait(
+                trigger_functions, return_when=asyncio.FIRST_COMPLETED
+            )
+            # Cancel the remaining tasks
+            for task in pending:
+                try:
+                    task.cancel()
+                except Exception as e:
+                    self.print_err(e)
+            # Run the task
+            fn = self._task.copy().to_function(
+                is_async=True, raise_error=False, show_done_info=False
+            )
+            self.print_out_dark('Executing the task')
+            asyncio.create_task(fn(*args, **task_kwargs))
+            self._play_bell()
