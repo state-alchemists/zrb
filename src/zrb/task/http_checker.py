@@ -1,7 +1,7 @@
 from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
 from zrb.helper.typecheck import typechecked
+from zrb.task.checker import Checker
 from http.client import HTTPConnection, HTTPSConnection
-from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
@@ -11,17 +11,46 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-import asyncio
-
 THTTPChecker = TypeVar('THTTPChecker', bound='HTTPChecker')
 
 
 @typechecked
-class HTTPChecker(BaseTask):
+class HttpConnectionConfig():
+    def __init__(
+        self,
+        is_https: bool,
+        method: str,
+        host: str,
+        port: int,
+        url: str,
+        timeout: int,
+    ):
+        self.is_https = is_https
+        self.method = method
+        self.host = host
+        self.port = port
+        self.url = '/' + url if not url.startswith('/') else url
+        self.timeout = timeout
+        self.protocol = 'https' if self.is_https else 'http'
+        full_url = f'{self.protocol}://{self.host}:{self.port}{self.url}'
+        self.label = f'{self.method} {full_url}'
+
+    def get_connection(self) -> Union[HTTPConnection, HTTPSConnection]:
+        if self.is_https:
+            return HTTPSConnection(
+                host=self.host, port=self.port, timeout=self.timeout
+            )
+        return HTTPConnection(
+            host=self.host, port=self.port, timeout=self.timeout
+        )
+
+
+@typechecked
+class HTTPChecker(Checker):
 
     def __init__(
         self,
-        name: str = 'http-check',
+        name: str = 'check-http',
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -43,11 +72,12 @@ class HTTPChecker(BaseTask):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        checking_interval: float = 0.1,
-        show_error_interval: float = 5,
+        checking_interval: Union[int, float] = 0.1,
+        progress_interval: Union[int, float] = 5,
+        expected_result: bool = True,
         should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
-        BaseTask.__init__(
+        Checker.__init__(
             self,
             name=name,
             group=group,
@@ -65,11 +95,10 @@ class HTTPChecker(BaseTask):
             on_ready=on_ready,
             on_retry=on_retry,
             on_failed=on_failed,
-            checkers=[],
             checking_interval=checking_interval,
-            retry=0,
-            retry_interval=0,
-            should_execute=should_execute
+            progress_interval=progress_interval,
+            expected_result=expected_result,
+            should_execute=should_execute,
         )
         self._host = host
         self._port = port
@@ -77,7 +106,7 @@ class HTTPChecker(BaseTask):
         self._method = method
         self._url = url
         self._is_https = is_https
-        self._show_error_interval = show_error_interval
+        self._config: Optional[HttpConnectionConfig] = None
 
     def copy(self) -> THTTPChecker:
         return super().copy()
@@ -94,77 +123,33 @@ class HTTPChecker(BaseTask):
         )
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        is_https = self.render_bool(self._is_https)
-        method = self.render_str(self._method)
-        host = self.render_str(self._host)
-        port = self.render_int(self._port)
-        url = self.render_str(self._url)
-        if not url.startswith('/'):
-            url = '/' + url
-        timeout = self.render_int(self._timeout)
-        wait_time = 0
-        while not self._check_connection(
-            method=method,
-            host=host,
-            port=port,
-            url=url,
-            is_https=is_https,
-            timeout=timeout,
-            should_print_error=wait_time >= self._show_error_interval
-        ):
-            if wait_time >= self._show_error_interval:
-                wait_time = 0
-            await asyncio.sleep(self._checking_interval)
-            wait_time += self._checking_interval
-        return True
+        self._config = HttpConnectionConfig(
+            is_https=self.render_bool(self._is_https),
+            method=self.render_str(self._method),
+            host=self.render_str(self._host),
+            port=self.render_int(self._port),
+            url=self.render_str(self._url),
+            timeout=self.render_int(self._timeout)
+        )
+        return await super().run(*args, **kwargs)
 
-    def _check_connection(
-        self,
-        method: str,
-        host: str,
-        port: int,
-        url: str,
-        is_https: bool,
-        timeout: int,
-        should_print_error: bool
-    ) -> bool:
-        label = self._get_label(method, host, port, is_https, url)
-        conn = self._get_connection(host, port, is_https, timeout)
+    async def inspect(self, *args: Any, **kwargs: Any) -> bool:
+        conn = self._config.get_connection()
         try:
-            conn.request(method, url)
+            conn.request(self._config.method, self._config.url)
             res = conn.getresponse()
             if res.status < 300:
                 self.log_info('Connection success')
-                self.print_out(f'{label} {res.status} (OK)')
+                self.print_out(f'{self._config.label} {res.status} (OK)')
                 return True
-            self._debug_and_print_error(
-                f'{label} {res.status} (Not OK)', should_print_error
+            self.show_progress(
+                f'{self._config.label} {res.status} (Not OK)'
             )
         except Exception:
-            self._debug_and_print_error(
-                f'{label} Connection error', should_print_error
-            )
+            self.show_progress(f'{self._config.label} Connection error')
         finally:
             conn.close()
         return False
-
-    def _debug_and_print_error(self, message: str, should_print_error: bool):
-        if should_print_error:
-            self.print_err(message)
-        self.log_debug(message)
-
-    def _get_label(
-        self, method: str, host: str, port: int, is_https: bool, url: str
-    ) -> str:
-        protocol = 'https' if is_https else 'http'
-        return f'{method} {protocol}://{host}:{port}{url}'
-
-    def _get_connection(
-        self, host: str, port: int, is_https: bool, timeout: int
-    ) -> Union[HTTPConnection, HTTPSConnection]:
-        if is_https:
-            return HTTPSConnection(host, port, timeout=timeout)
-        return HTTPConnection(host, port, timeout=timeout)
 
     def __repr__(self) -> str:
         return f'<HttpChecker name={self._name}>'

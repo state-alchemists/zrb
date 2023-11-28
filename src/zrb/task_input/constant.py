@@ -1,1 +1,1 @@
-RESERVED_INPUT_NAMES = ('_task', '_args', '_execution_id')
+RESERVED_INPUT_NAMES = ('_task', '_args')

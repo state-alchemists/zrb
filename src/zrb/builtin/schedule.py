@@ -1,10 +1,11 @@
-from zrb.task.triggered_task import TriggeredTask
+from zrb.task.recurring_task import RecurringTask
 from zrb.task.cmd_task import CmdTask
+from zrb.task.time_watcher import TimeWatcher
 from zrb.task_input.str_input import StrInput
 from zrb.runner import runner
 
 
-schedule = TriggeredTask(
+schedule = RecurringTask(
     name='schedule',
     description='Show message/run command periodically',
     inputs=[
@@ -15,7 +16,9 @@ schedule = TriggeredTask(
             description='Schedule cron pattern to show the message'
         ),
     ],
-    schedule='{{input.schedule}}',
+    triggers=[
+        TimeWatcher(name='watch-schedule', schedule='{{input.schedule}}')
+    ],
     task=CmdTask(
         name='run-task',
         inputs=[

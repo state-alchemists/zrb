@@ -1,6 +1,6 @@
 from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
+from zrb.task.checker import Checker
 from zrb.helper.typecheck import typechecked
-from zrb.task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
@@ -11,17 +11,25 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
 import socket
-import asyncio
 
 TPortChecker = TypeVar('TPortChecker', bound='PortChecker')
 
 
 @typechecked
-class PortChecker(BaseTask):
+class PortConfig():
+    def __init__(self, host: str, port: int, timeout: int):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.label = f'Checking {host}:{port}'
+
+
+@typechecked
+class PortChecker(Checker):
 
     def __init__(
         self,
-        name: str = 'port-check',
+        name: str = 'check-port',
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -40,11 +48,12 @@ class PortChecker(BaseTask):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        checking_interval: float = 0.1,
-        show_error_interval: float = 5,
+        checking_interval: Union[int, float] = 0.1,
+        progress_interval: Union[int, float] = 5,
+        expected_result: bool = True,
         should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
-        BaseTask.__init__(
+        Checker.__init__(
             self,
             name=name,
             group=group,
@@ -62,16 +71,15 @@ class PortChecker(BaseTask):
             on_ready=on_ready,
             on_retry=on_retry,
             on_failed=on_failed,
-            checkers=[],
             checking_interval=checking_interval,
-            retry=0,
-            retry_interval=0,
+            progress_interval=progress_interval,
+            expected_result=expected_result,
             should_execute=should_execute,
         )
         self._host = host
         self._port = port
         self._timeout = timeout
-        self._show_error_interval = show_error_interval
+        self._config: Optional[PortChecker] = None
 
     def copy(self) -> TPortChecker:
         return super().copy()
@@ -88,49 +96,27 @@ class PortChecker(BaseTask):
         )
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        host = self.render_str(self._host)
-        port = self.render_int(self._port)
-        timeout = self.render_int(self._timeout)
-        wait_time = 0
-        while not self._check_port(
-            host=host,
-            port=port,
-            timeout=timeout,
-            should_print_error=wait_time >= self._show_error_interval
-        ):
-            if wait_time >= self._show_error_interval:
-                wait_time = 0
-            await asyncio.sleep(self._checking_interval)
-            wait_time += self._checking_interval
-        return True
+        self._config = PortConfig(
+            host=self.render_str(self._host),
+            port=self.render_int(self._port),
+            timeout=self.render_int(self._timeout)
+        )
+        return await super().run(*args, **kwargs)
 
-    def _check_port(
-        self, host: str, port: int, timeout: int, should_print_error: bool
-    ) -> bool:
-        label = self._get_label(host, port)
+    async def inspect(self, *args: Any, **kwargs: Any) -> bool:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(timeout)
-                result = sock.connect_ex((host, port))
-                if result == 0:
-                    self.print_out(f'{label} (OK)')
-                    return True
-                self._debug_and_print_error(
-                    f'{label} (Not OK)', should_print_error
+                sock.settimeout(self._config.timeout)
+                result = sock.connect_ex(
+                    (self._config.host, self._config.port)
                 )
+                if result == 0:
+                    self.print_out(f'{self._config.label} (OK)')
+                    return True
+                self.show_progress(f'{self._config.label} (Not OK)')
         except Exception:
-            self._debug_and_print_error(
-                f'{label} Socket error', should_print_error
-            )
+            self.show_progress(f'{self._config.label} (Socker error)')
         return False
-
-    def _debug_and_print_error(self, message: str, should_print_error: bool):
-        if should_print_error:
-            self.print_err(message)
-        self.log_debug(message)
-
-    def _get_label(self, host: str, port: int) -> str:
-        return f'Checking {host}:{port}'
 
     def __repr__(self) -> str:
         return f'<PortChecker name={self._name}>'

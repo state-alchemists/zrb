@@ -7,14 +7,17 @@ from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
 from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.remote_cmd_task import RemoteCmdTask
 from zrb.task.rsync_task import RsyncTask
+from zrb.task.checker import Checker
 from zrb.task.http_checker import HTTPChecker
 from zrb.task.port_checker import PortChecker
 from zrb.task.path_checker import PathChecker
+from zrb.task.path_watcher import PathWatcher
+from zrb.task.time_watcher import TimeWatcher
 from zrb.task.resource_maker import (
     ResourceMaker, Replacement, ReplacementMutator
 )
 from zrb.task.flow_task import FlowTask
-from zrb.task.triggered_task import TriggeredTask
+from zrb.task.recurring_task import RecurringTask
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.task_input import Input
 from zrb.task_input.bool_input import BoolInput
@@ -39,11 +42,15 @@ assert BaseRemoteCmdTask
 assert RemoteConfig
 assert RemoteCmdTask
 assert RsyncTask
+assert Checker
 assert HTTPChecker
 assert PortChecker
 assert PathChecker
+assert PathWatcher
+assert TimeWatcher
 assert ResourceMaker
 assert FlowTask
+assert RecurringTask
 assert Replacement
 assert ReplacementMutator
 assert AnyInput

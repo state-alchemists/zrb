@@ -1,10 +1,11 @@
-from zrb.task.triggered_task import TriggeredTask
+from zrb.task.recurring_task import RecurringTask
 from zrb.task.cmd_task import CmdTask
+from zrb.task.path_watcher import PathWatcher
 from zrb.task_input.str_input import StrInput
 from zrb.runner import runner
 
 
-watch = TriggeredTask(
+watch = RecurringTask(
     name='watch',
     description='Watch changes and show message/run command',
     inputs=[
@@ -15,7 +16,9 @@ watch = TriggeredTask(
             description='File pattern to be watched'
         ),
     ],
-    watched_path='{{input.pattern}}',
+    triggers=[
+        PathWatcher(name='watch-path', path='{{input.pattern}}')
+    ],
     task=CmdTask(
         name='run-task',
         inputs=[

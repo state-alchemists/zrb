@@ -29,6 +29,7 @@ class BaseInput(AnyInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
+        should_render: bool = True
     ):
         if name in RESERVED_INPUT_NAMES:
             raise ValueError(f'Forbidden input name: {name}')
@@ -51,6 +52,7 @@ class BaseInput(AnyInput):
         self._show_choices = show_choices
         self._show_envvar = show_envvar
         self._nargs = nargs
+        self._should_render = should_render
 
     def get_name(self) -> str:
         return self._name
@@ -86,6 +88,9 @@ class BaseInput(AnyInput):
         if show_prompt:
             options['prompt'] = self._prompt
         return options
+
+    def should_render(self) -> bool:
+        return self._should_render
 
     def is_hidden(self) -> bool:
         return False

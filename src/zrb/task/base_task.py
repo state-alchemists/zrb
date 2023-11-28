@@ -253,18 +253,17 @@ class BaseTask(
         self.log_info('Set input map')
         for task_input in self._get_combined_inputs():
             input_name = self._get_normalized_input_key(task_input.get_name())
-            input_value = self.render_any(
-                kwargs.get(input_name, task_input.get_default())
-            )
+            input_value = kwargs.get(input_name, task_input.get_default())
+            if task_input.should_render():
+                input_value = self.render_any(input_value)
             self._set_input_map(input_name, input_value)
-        self._set_input_map('_execution_id', self._execution_id)
         self.log_debug(
             'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
         )
         self.log_info('Merging task envs, task env files, and native envs')
         for env_name, env in self._get_combined_env().items():
             env_value = env.get(env_prefix)
-            if env.renderable:
+            if env.should_render:
                 env_value = self.render_any(env_value)
             self._set_env_map(env_name, env_value)
         self._set_env_map('_ZRB_EXECUTION_ID', self._execution_id)
@@ -278,7 +277,7 @@ class BaseTask(
             if env_name in RESERVED_ENV_NAMES:
                 continue
             all_envs[env_name] = Env(
-                name=env_name, os_name=env_name, renderable=False
+                name=env_name, os_name=env_name, should_render=False
             )
         for env_file in self._get_env_files():
             for env in env_file.get_envs():
