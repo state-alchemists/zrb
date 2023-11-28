@@ -260,8 +260,14 @@ class CmdTask(BaseTask):
         self.print_out_dark(f'Getting signal {signum}')
         for pid in self._pids:
             self._kill_by_pid(pid)
-        self.print_out_dark(f'Exiting with signal {signum}')
+        tasks = asyncio.all_tasks()
+        for task in tasks:
+            try:
+                task.cancel()
+            except Exception as e:
+                self.print_err(e)
         time.sleep(0.3)
+        self.print_out_dark(f'Exiting with signal {signum}')
         sys.exit(signum)
 
     def _on_exit(self):

@@ -271,7 +271,7 @@ def test_task_env_with_empty_string_as_os_name():
     del os.environ['COLOR']
 
 
-def test_task_redeclared_env():
+def test_task_duplicate_env():
     '''
     When env exist, it should override env_file,
     If two env has the same name, the later should override the first one
