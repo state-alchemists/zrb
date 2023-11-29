@@ -78,7 +78,7 @@ class Renderer():
         if not is_probably_jinja(val):
             return val
         template = jinja2.Template(val)
-        render_data = self._get_render_data(additional_data=data)
+        render_data = self.__get_render_data(additional_data=data)
         try:
             rendered_text = template.render(render_data)
         except Exception:
@@ -94,20 +94,20 @@ class Renderer():
             loader=AnyExtensionFileSystemLoader([location_dir])
         )
         template = env.get_template(location)
-        render_data = self._get_render_data(additional_data=data)
+        render_data = self.__get_render_data(additional_data=data)
         render_data['TEMPLATE_DIR'] = location_dir
         rendered_text = template.render(render_data)
         return rendered_text
 
-    def _get_render_data(
+    def __get_render_data(
         self, additional_data: Optional[Mapping[str, Any]] = None
     ) -> Mapping[str, Any]:
-        self._ensure_cached_render_data()
+        self.__ensure_cached_render_data()
         if additional_data is None:
             return self.__render_data
         return {**self.__render_data, **additional_data}
 
-    def _ensure_cached_render_data(self):
+    def __ensure_cached_render_data(self):
         if self.__render_data is not None:
             return self.__render_data
         render_data = dict(DEFAULT_RENDER_DATA)

@@ -96,48 +96,48 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.__kwargs = kwargs
 
     def log_debug(self, message: Any):
-        prefix = self._get_log_prefix()
+        prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
         )
         logger.debug(colored_message)
 
     def log_warn(self, message: Any):
-        prefix = self._get_log_prefix()
+        prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
         )
         logger.warning(colored_message)
 
     def log_info(self, message: Any):
-        prefix = self._get_log_prefix()
+        prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
         )
         logger.info(colored_message)
 
     def log_error(self, message: Any):
-        prefix = self._get_log_prefix()
+        prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', color='red', attrs=['bold']
         )
         logger.error(colored_message, exc_info=True)
 
     def log_critical(self, message: Any):
-        prefix = self._get_log_prefix()
+        prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', color='red', attrs=['bold']
         )
         logger.critical(colored_message, exc_info=True)
 
     def print_out(self, message: Any, trim_message: bool = True):
-        prefix = self._get_colored_print_prefix()
+        prefix = self.__get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
         print(f'🤖 ○ {prefix} • {message_str}', file=sys.stderr)
         sys.stderr.flush()
 
     def print_err(self, message: Any, trim_message: bool = True):
-        prefix = self._get_colored_print_prefix()
+        prefix = self.__get_colored_print_prefix()
         message_str = f'{message}'.rstrip() if trim_message else f'{message}'
         print(f'🤖 △ {prefix} • {message_str}', file=sys.stderr)
         sys.stderr.flush()
@@ -201,25 +201,25 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         colored_label = colored('To run again: ', attrs=['dark'])
         print(colored(f'{colored_label}{colored_command}'), file=sys.stderr)
 
-    def _get_colored_print_prefix(self) -> str:
-        return self._get_colored(self._get_print_prefix())
+    def __get_colored_print_prefix(self) -> str:
+        return self.__get_colored(self.__get_print_prefix())
 
-    def _get_colored(self, text: str) -> str:
+    def __get_colored(self, text: str) -> str:
         return colored(text, color=self.get_color())
 
-    def _get_print_prefix(self) -> str:
-        common_prefix = self._get_common_prefix(show_time=show_time)
+    def __get_print_prefix(self) -> str:
+        common_prefix = self.__get_common_prefix(show_time=show_time)
         icon = self.get_icon()
-        rjust_cmd_name = self._get_rjust_full_cmd_name()
+        rjust_cmd_name = self.__get_rjust_full_cmd_name()
         return f'{common_prefix} {icon} {rjust_cmd_name}'
 
-    def _get_log_prefix(self) -> str:
-        common_prefix = self._get_common_prefix(show_time=False)
+    def __get_log_prefix(self) -> str:
+        common_prefix = self.__get_common_prefix(show_time=False)
         icon = self.get_icon()
-        filled_name = self._get_rjust_full_cmd_name()
+        filled_name = self.__get_rjust_full_cmd_name()
         return f'{common_prefix} {icon} {filled_name}'
 
-    def _get_common_prefix(self, show_time: bool) -> str:
+    def __get_common_prefix(self, show_time: bool) -> str:
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
         pid = str(self._get_task_pid()).rjust(6)
@@ -228,19 +228,24 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
             return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
         return f'❁ {pid} → {attempt}/{max_attempt}'
 
-    def _get_rjust_full_cmd_name(self) -> str:
+    def __get_rjust_full_cmd_name(self) -> str:
         if self.__rjust_full_cmd_name is not None:
             return self.__rjust_full_cmd_name
         complete_name = self._get_full_cmd_name()
         self.__rjust_full_cmd_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
         return self.__rjust_full_cmd_name
 
+    def __get_executable_name(self) -> str:
+        if len(sys.argv) > 0 and sys.argv[0] != '':
+            return os.path.basename(sys.argv[0])
+        return 'zrb'
+
     def _get_full_cmd_name(self) -> str:
         if self.__complete_name is not None:
             return self.__complete_name
         executable_prefix = ''
         if self.__has_cli_interface:
-            executable_prefix += self._get_executable_name() + ' '
+            executable_prefix += self.__get_executable_name() + ' '
         cmd_name = self.get_cmd_name()
         if self._group is None:
             self.__complete_name = f'{executable_prefix}{cmd_name}'
@@ -248,11 +253,6 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         group_cmd_name = self._group.get_complete_name()
         self.__complete_name = f'{executable_prefix}{group_cmd_name} {cmd_name}'  # noqa
         return self.__complete_name
-
-    def _get_executable_name(self) -> str:
-        if len(sys.argv) > 0 and sys.argv[0] != '':
-            return os.path.basename(sys.argv[0])
-        return 'zrb'
 
     def _set_has_cli_interface(self):
         self.__has_cli_interface = True
