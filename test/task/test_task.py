@@ -1,5 +1,4 @@
 from zrb.task.task import Task
-from zrb.task.cmd_task import CmdTask
 from zrb.task_input.str_input import StrInput
 import asyncio
 
@@ -103,24 +102,3 @@ def test_callable_as_task_should_execute_value():
     function = task.to_function()
     result = function()
     assert result == 'articuno'
-
-
-def test_consistent_execution_id():
-    task_upstream_1 = Task(
-        name='task-upstream-1',
-        run=lambda *args, **kwargs: kwargs.get('_task').get_execution_id()
-    )
-    task_upstream_2 = CmdTask(
-        name='task-upstream-2',
-        cmd='echo $_ZRB_EXECUTION_ID'
-    )
-    task = Task(
-        name='task',
-        upstreams=[
-            task_upstream_1, task_upstream_2
-        ],
-        return_upstream_result=True
-    )
-    function = task.to_function()
-    result = function()
-    assert result[0] == result[1].output

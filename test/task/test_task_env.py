@@ -30,6 +30,33 @@ def test_task_env_with_jinja_value():
     assert result == 'Elixir of immortality'
 
 
+def test_task_env_with_should_not_be_rendered_jinja_value():
+    def _run(*args, **kwargs) -> str:
+        task: Task = kwargs.get('_task')
+        env_map = task.get_env_map()
+        return env_map.get('ZRB_TEST_TASK_ENV_2')
+    task = Task(
+        name='templated-env',
+        envs=[
+            Env(name='ZRB_TEST_TASK_ENV_1', default='Elixir'),
+            Env(
+                name='ZRB_TEST_TASK_ENV_2',
+                default='{{env.ZRB_TEST_TASK_ENV_1}} of immortality',
+                should_render=False
+            )
+        ],
+        run=_run,
+        retry=0
+    )
+    function = task.to_function()
+    if 'ZRB_TEST_TASK_ENV_1' in os.environ:
+        del os.environ['ZRB_TEST_TASK_ENV_1']
+    if 'ZRB_TEST_TASK_ENV_2' in os.environ:
+        del os.environ['ZRB_TEST_TASK_ENV_2']
+    result = function()
+    assert result == '{{env.ZRB_TEST_TASK_ENV_1}} of immortality'
+
+
 def test_task_env_with_none_as_os_name():
     '''
     When env exist, it should override env_file
