@@ -2,11 +2,12 @@ from zrb.helper.typing import (
     Any, Callable, Iterable, List, Optional, Union, TypeVar
 )
 from zrb.helper.typecheck import typechecked
+from zrb.helper.string.conversion import to_variable_name
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
-from zrb.task.base_task import BaseTask
+from zrb.task.base_task.base_task import BaseTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -192,7 +193,7 @@ class CmdTask(BaseTask):
         super().inject_envs()
         input_map = self.get_input_map()
         for task_input in self._get_combined_inputs():
-            input_key = self._get_normalized_input_key(task_input.get_name())
+            input_key = to_variable_name(task_input.get_name())
             input_value = input_map.get(input_key)
             env_name = '_INPUT_' + input_key.upper()
             should_render = task_input.should_render()
@@ -243,6 +244,16 @@ class CmdTask(BaseTask):
                 f'Process {self._name} exited ({return_code}): {error}'
             )
         return CmdResult(output, error)
+    
+    def _get_multiline_repr(self, text: str) -> str:
+        lines_repr: Iterable[str] = []
+        lines = text.split('\n')
+        if len(lines) == 1:
+            return lines[0]
+        for index, line in enumerate(lines):
+            line_number_repr = str(index + 1).rjust(4, '0')
+            lines_repr.append(f'        {line_number_repr} | {line}')
+        return '\n' + '\n'.join(lines_repr)
 
     def _should_attempt(self) -> bool:
         if self._global_state.no_more_attempt:

@@ -7,33 +7,29 @@ from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
-from zrb.task.base_task_composite import (
-    AttemptTracker, FinishTracker, Renderer, TaskModelWithPrinterAndTracker
+from zrb.task.base_task.component.trackers import (
+    AttemptTracker, FinishTracker
 )
+from zrb.task.base_task.component.renderer import Renderer
+from zrb.task.base_task.component.base_task_model import BaseTaskModel
 from zrb.advertisement import advertisements
 from zrb.task_group.group import Group
-from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput
-from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.advertisement import get_advertisement
-from zrb.helper.string.modification import double_quote
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.map.conversion import to_str as map_to_str
-from zrb.config.config import show_advertisement, env_prefix
+from zrb.config.config import show_advertisement
 
 import asyncio
 import copy
-import os
-import sys
 
 
 @typechecked
 class BaseTask(
-    FinishTracker, AttemptTracker, Renderer, TaskModelWithPrinterAndTracker,
-    AnyTask
+    FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask
 ):
     '''
     Base class for all tasks.
@@ -73,7 +69,7 @@ class BaseTask(
         FinishTracker.__init__(self)
         Renderer.__init__(self)
         AttemptTracker.__init__(self, retry=retry)
-        TaskModelWithPrinterAndTracker.__init__(
+        BaseTaskModel.__init__(
             self,
             name=name,
             group=group,
@@ -89,65 +85,25 @@ class BaseTask(
             checkers=checkers,
             checking_interval=checking_interval,
             run=run,
+            on_triggered=on_triggered,
+            on_waiting=on_waiting,
+            on_skipped=on_skipped,
+            on_started=on_started,
+            on_ready=on_ready,
+            on_retry=on_retry,
+            on_failed=on_failed,
             should_execute=should_execute,
+            return_upstream_result=return_upstream_result
         )
-        self._return_upstream_result = return_upstream_result
-        # Event Handler
-        self._on_triggered = on_triggered
-        self._on_waiting = on_waiting
-        self._on_skipped = on_skipped
-        self._on_started = on_started
-        self._on_ready = on_ready
-        self._on_retry = on_retry
-        self._on_failed = on_failed
-        # init private properties
-        self._is_keyval_set = False  # Flag
-        self._all_inputs: Optional[List[AnyInput]] = None
-        self._is_check_triggered: bool = False
-        self._is_ready: bool = False
-        self._is_execution_triggered: bool = False
-        self._is_execution_started: bool = False
-        self._args: List[Any] = []
-        self._kwargs: Mapping[str, Any] = {}
+        # init private flags
+        self.__is_keyval_set = False
+        self.__is_check_triggered: bool = False
+        self.__is_ready: bool = False
+        self.__is_execution_triggered: bool = False
+        self.__is_execution_started: bool = False
 
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
-
-    def _get_combined_inputs(self) -> Iterable[AnyInput]:
-        ''''
-        Getting all inputs of this task and all its upstream, non-duplicated.
-        '''
-        if self._all_inputs is not None:
-            return self._all_inputs
-        self._all_inputs: List[AnyInput] = []
-        existing_input_names: Mapping[str, bool] = {}
-        # Add task inputs
-        inputs = self._get_inputs()
-        for input_index, first_occurence_task_input in enumerate(inputs):
-            input_name = first_occurence_task_input.get_name()
-            if input_name in existing_input_names:
-                continue
-            # Look for all input with the same name in the current task
-            task_inputs = [
-                candidate
-                for candidate in inputs[input_index:]
-                if candidate.get_name() == input_name
-            ]
-            # Get the last input, and add it to _all_inputs
-            task_input = task_inputs[-1]
-            self._all_inputs.append(task_input)
-            existing_input_names[input_name] = True
-        # Add upstream inputs
-        for upstream in self._get_upstreams():
-            upstream_inputs = upstream._get_combined_inputs()
-            for upstream_input in upstream_inputs:
-                if upstream_input.get_name() in existing_input_names:
-                    continue
-                self._all_inputs.append(upstream_input)
-                existing_input_names[upstream_input.get_name()] = True
-        self._allow_add_upstreams = False
-        self._allow_add_inputs = False
-        return self._all_inputs
 
     def to_function(
         self,
@@ -228,77 +184,6 @@ class BaseTask(
         '''
         return await self._is_done()
 
-    def _show_done_info(self):
-        elapsed_time = self._get_elapsed_time()
-        self.print_out_dark(f'Completed in {elapsed_time} seconds')
-        self._play_bell()
-
-    def _get_multiline_repr(self, text: str) -> str:
-        lines_repr: Iterable[str] = []
-        lines = text.split('\n')
-        if len(lines) == 1:
-            return lines[0]
-        for index, line in enumerate(lines):
-            line_number_repr = str(index + 1).rjust(4, '0')
-            lines_repr.append(f'        {line_number_repr} | {line}')
-        return '\n' + '\n'.join(lines_repr)
-
-    async def _set_local_keyval(
-        self, kwargs: Mapping[str, Any], env_prefix: str = ''
-    ):
-        if self._is_keyval_set:
-            return True
-        self._is_keyval_set = True
-        self.log_info('Set input map')
-        for task_input in self._get_combined_inputs():
-            input_name = self._get_normalized_input_key(task_input.get_name())
-            input_value = kwargs.get(input_name, task_input.get_default())
-            if task_input.should_render():
-                input_value = self.render_any(input_value)
-            self._set_input_map(input_name, input_value)
-        self.log_debug(
-            'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
-        )
-        self.log_info('Merging task envs, task env files, and native envs')
-        for env_name, env in self._get_combined_env().items():
-            env_value = env.get(env_prefix)
-            if env.should_render:
-                env_value = self.render_any(env_value)
-            self._set_env_map(env_name, env_value)
-        self._set_env_map('_ZRB_EXECUTION_ID', self._execution_id)
-        self.log_debug(
-            'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
-        )
-
-    def _get_combined_env(self) -> Mapping[str, Env]:
-        all_envs: Mapping[str, Env] = {}
-        for env_name in os.environ:
-            if env_name in RESERVED_ENV_NAMES:
-                continue
-            all_envs[env_name] = Env(
-                name=env_name, os_name=env_name, should_render=False
-            )
-        for env_file in self._get_env_files():
-            for env in env_file.get_envs():
-                all_envs[env.name] = env
-        for env in self._get_envs():
-            all_envs[env.name] = env
-        self._allow_add_envs = False
-        self._allow_add_env_files = False
-        return all_envs
-
-    def _get_normalized_input_key(self, key: str) -> str:
-        return to_variable_name(key)
-
-    def _propagate_execution_id(self):
-        execution_id = self.get_execution_id()
-        for upstream_task in self._get_upstreams():
-            upstream_task._set_execution_id(execution_id)
-            upstream_task._propagate_execution_id()
-        for checker_task in self._get_checkers():
-            checker_task._set_execution_id(execution_id)
-            checker_task._propagate_execution_id()
-
     async def _run_and_check_all(
         self,
         env_prefix: str,
@@ -326,8 +211,8 @@ class BaseTask(
             new_kwargs['_args'] = new_args
             # inject self as input_map['_task']
             new_kwargs['_task'] = self
-            self._args = new_args
-            self._kwargs = new_kwargs
+            self._set_args(new_args)
+            self._set_kwargs(new_kwargs)
             # run the task
             coroutines = [
                 asyncio.create_task(
@@ -349,28 +234,6 @@ class BaseTask(
                 self._show_run_command()
                 self._play_bell()
 
-    def _print_result(self, result: Any):
-        if result is None:
-            return
-        if self._return_upstream_result:
-            # if _return_upstream_result, result is list (see: self._run_all)
-            upstreams = self._get_upstreams()
-            upstream_results = list(result)
-            for upstream_index, upstream_result in enumerate(upstream_results):
-                upstreams[upstream_index]._print_result(upstream_result)
-            return
-        self.print_result(result)
-
-    def print_result(self, result: Any):
-        '''
-        Print result to stdout so that it can be processed further.
-        e.g.: echo $(zrb explain solid) > solid-principle.txt
-
-        You need to override this method
-        if you want to show the result differently.
-        '''
-        print(result)
-
     async def _loop_check(self, show_done_info: bool = False) -> bool:
         self.log_info('Start readiness checking')
         while not await self._cached_check():
@@ -386,41 +249,16 @@ class BaseTask(
         await self.on_ready()
         return True
 
-    def _show_env_prefix(self):
-        if env_prefix == '':
-            return
-        colored_env_prefix = colored(env_prefix, color='yellow')
-        colored_label = colored('Your current environment: ', attrs=['dark'])
-        print(colored(f'{colored_label}{colored_env_prefix}'), file=sys.stderr)
-
-    def _show_run_command(self):
-        params: List[str] = [double_quote(arg) for arg in self._args]
-        for task_input in self._get_combined_inputs():
-            if task_input.is_hidden():
-                continue
-            key = task_input.get_name()
-            kwarg_key = self._get_normalized_input_key(key)
-            quoted_value = double_quote(str(self._kwargs[kwarg_key]))
-            params.append(f'--{key} {quoted_value}')
-        run_cmd = self._get_full_cmd_name()
-        run_cmd_with_param = run_cmd
-        if len(params) > 0:
-            param_str = ' '.join(params)
-            run_cmd_with_param += ' ' + param_str
-        colored_command = colored(run_cmd_with_param, color='yellow')
-        colored_label = colored('To run again: ', attrs=['dark'])
-        print(colored(f'{colored_label}{colored_command}'), file=sys.stderr)
-
     async def _cached_check(self) -> bool:
-        if self._is_check_triggered:
+        if self.__is_check_triggered:
             self.log_debug('Waiting readiness flag to be set')
-            while not self._is_ready:
+            while not self.__is_ready:
                 await asyncio.sleep(0.1)
             return True
-        self._is_check_triggered = True
+        self.__is_check_triggered = True
         check_result = await self._check()
         if check_result:
-            self._is_ready = True
+            self.__is_ready = True
             self.log_debug('Set readiness flag to True')
         return check_result
 
@@ -434,7 +272,7 @@ class BaseTask(
         if len(self._checkers) == 0:
             return await self.check()
         self.log_debug('Waiting execution to be started')
-        while not self._is_execution_started:
+        while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
@@ -450,7 +288,7 @@ class BaseTask(
         await self._mark_awaited()
         coroutines: Iterable[asyncio.Task] = []
         # Add upstream tasks to processes
-        self._allow_add_upstreams = False
+        self._lock_upstreams()
         for upstream_task in self._get_upstreams():
             upstream_task._set_execution_id(self.get_execution_id())
             coroutines.append(asyncio.create_task(
@@ -465,15 +303,15 @@ class BaseTask(
         return results[-1]
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
-        if self._is_execution_triggered:
+        if self.__is_execution_triggered:
             self.log_debug('Task has been triggered')
             return
         await self.on_triggered()
-        self._is_execution_triggered = True
+        self.__is_execution_triggered = True
         await self.on_waiting()
         # get upstream checker
         upstream_check_processes: Iterable[asyncio.Task] = []
-        self._allow_add_upstreams = False
+        self._lock_upstreams()
         for upstream_task in self._get_upstreams():
             upstream_check_processes.append(asyncio.create_task(
                 upstream_task._loop_check()
@@ -481,7 +319,7 @@ class BaseTask(
         # wait all upstream checkers to complete
         await asyncio.gather(*upstream_check_processes)
         # mark execution as started, so that checkers can start checking
-        self._is_execution_started = True
+        self.__is_execution_started = True
         local_kwargs = dict(kwargs)
         local_kwargs['_task'] = self
         if not await self._check_should_execute(*args, **local_kwargs):
@@ -519,7 +357,7 @@ class BaseTask(
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
         for task_input in self._get_combined_inputs():
-            key = self._get_normalized_input_key(task_input.get_name())
+            key = to_variable_name(task_input.get_name())
             if key in kwargs:
                 continue
             kwargs[key] = task_input.get_default()
@@ -530,7 +368,7 @@ class BaseTask(
         new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
         # set upstreams keyval
-        self._allow_add_upstreams = False
+        self._lock_upstreams()
         for upstream_task in self._get_upstreams():
             upstream_coroutines.append(asyncio.create_task(
                 upstream_task._set_keyval(
@@ -551,6 +389,33 @@ class BaseTask(
         # wait for checker and upstreams
         coroutines = checker_coroutines + upstream_coroutines
         await asyncio.gather(*coroutines)
+
+    async def _set_local_keyval(
+        self, kwargs: Mapping[str, Any], env_prefix: str = ''
+    ):
+        if self.__is_keyval_set:
+            return True
+        self.__is_keyval_set = True
+        self.log_info('Set input map')
+        for task_input in self._get_combined_inputs():
+            input_name = to_variable_name(task_input.get_name())
+            input_value = kwargs.get(input_name, task_input.get_default())
+            if task_input.should_render():
+                input_value = self.render_any(input_value)
+            self._set_input_map(input_name, input_value)
+        self.log_debug(
+            'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
+        )
+        self.log_info('Merging task envs, task env files, and native envs')
+        for env_name, env in self._get_combined_env().items():
+            env_value = env.get(env_prefix)
+            if env.should_render:
+                env_value = self.render_any(env_value)
+            self._set_env_map(env_name, env_value)
+        self._set_env_map('_ZRB_EXECUTION_ID', self.get_execution_id())
+        self.log_debug(
+            'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
+        )
 
     def __repr__(self) -> str:
         return f'<BaseTask name={self._name}>'

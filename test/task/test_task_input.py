@@ -68,7 +68,7 @@ def test_cmd_task_input_with_default_value():
     )
     function = task.to_function()
     result = function()
-    assert result.output == 'hello Nicholas Flamel, your favorite drink is Elixir'
+    assert result.output == 'hello Nicholas Flamel, your favorite drink is Elixir'  # noqa
 
 
 def test_task_input_with_jinja_value():
