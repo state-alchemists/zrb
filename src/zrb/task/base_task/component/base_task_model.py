@@ -89,8 +89,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.__args: List[Any] = []
         self.__kwargs: Mapping[str, Any] = {}
 
-    def _set_args(self, args: List[Any]):
-        self.__args = args
+    def _set_args(self, args: Iterable[Any]):
+        self.__args = list(args)
 
     def _set_kwargs(self, kwargs: Mapping[str, Any]):
         self.__kwargs = kwargs
