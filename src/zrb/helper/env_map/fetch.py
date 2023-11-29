@@ -42,7 +42,7 @@ def _add_envs_to_env_map(
     env_map: Mapping[str, str], envs: List[Env]
 ) -> Mapping[str, str]:
     for env in envs:
-        if env.os_name == '':
+        if env.get_os_name() == '':
             continue
         env_name = _get_env_name(env)
         env_default = _get_env_default(env)
@@ -64,13 +64,13 @@ def _cascade_env_map(
 
 @typechecked
 def _get_env_name(env: Env) -> str:
-    if env.os_name is None:
-        return env.name
-    return env.os_name
+    if env.get_os_name() is None:
+        return env.get_name()
+    return env.get_os_name()
 
 
 @typechecked
 def _get_env_default(env: Env) -> str:
-    if is_probably_jinja(env.default):
+    if is_probably_jinja(env.get_default()):
         return ''
-    return env.default
+    return env.get_default()

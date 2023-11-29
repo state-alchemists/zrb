@@ -19,10 +19,19 @@ class Env():
     ):
         if name in RESERVED_ENV_NAMES:
             raise ValueError(f'Forbidden input name: {name}')
-        self.name: str = name
-        self.os_name: str = os_name if os_name is not None else name
-        self.default: str = default
+        self._name: str = name
+        self._os_name: str = os_name if os_name is not None else name
+        self._default: str = default
         self.should_render: bool = should_render
+
+    def get_name(self) -> str:
+        return self._name
+
+    def get_os_name(self) -> str:
+        return self._os_name
+
+    def get_default(self) -> str:
+        return self._default
 
     def get(self, prefix: str = '') -> str:
         '''
@@ -41,22 +50,22 @@ class Env():
         print(env.get('STAG'))  # will show '0.0.0.0'
         ```
         '''
-        if self.os_name == '':
-            return self.default
-        prefixed_name = self._get_prefixed_name(self.os_name, prefix)
+        if self._os_name == '':
+            return self._default
+        prefixed_name = self.__get_prefixed_name(self._os_name, prefix)
         if prefixed_name in os.environ and os.environ[prefixed_name] != '':
             return os.environ[prefixed_name]
-        if self.os_name in os.environ and os.environ[self.os_name] != '':
-            return os.environ[self.os_name]
-        return self.default
+        if self._os_name in os.environ and os.environ[self._os_name] != '':
+            return os.environ[self._os_name]
+        return self._default
 
-    def _get_prefixed_name(self, name: str, prefix: str):
+    def __get_prefixed_name(self, name: str, prefix: str):
         if prefix is None or prefix == '':
             return name
         return prefix + '_' + name
 
     def __repr__(self) -> str:
-        name = self.name
-        os_name = self.os_name
-        default = self.default
+        name = self._name
+        os_name = self._os_name
+        default = self._default
         return f'<Env name={name} os_name={os_name} default={default}>'

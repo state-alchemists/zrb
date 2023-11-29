@@ -221,9 +221,9 @@ class CommonTaskModel():
             )
         for env_file in self._get_env_files():
             for env in env_file.get_envs():
-                all_envs[env.name] = env
+                all_envs[env.get_name()] = env
         for env in self._get_envs():
-            all_envs[env.name] = env
+            all_envs[env.get_name()] = env
         self.__allow_add_envs = False
         self.__allow_add_env_files = False
         return all_envs
