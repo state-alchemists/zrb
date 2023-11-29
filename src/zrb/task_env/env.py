@@ -19,19 +19,22 @@ class Env():
     ):
         if name in RESERVED_ENV_NAMES:
             raise ValueError(f'Forbidden input name: {name}')
-        self._name: str = name
-        self._os_name: str = os_name if os_name is not None else name
-        self._default: str = default
-        self.should_render: bool = should_render
+        self.__name: str = name
+        self.__os_name: str = os_name if os_name is not None else name
+        self.__default: str = default
+        self.__should_render: bool = should_render
 
     def get_name(self) -> str:
-        return self._name
+        return self.__name
 
     def get_os_name(self) -> str:
-        return self._os_name
+        return self.__os_name
 
     def get_default(self) -> str:
-        return self._default
+        return self.__default
+
+    def should_render(self) -> bool:
+        return self.__should_render
 
     def get(self, prefix: str = '') -> str:
         '''
@@ -50,14 +53,14 @@ class Env():
         print(env.get('STAG'))  # will show '0.0.0.0'
         ```
         '''
-        if self._os_name == '':
-            return self._default
-        prefixed_name = self.__get_prefixed_name(self._os_name, prefix)
+        if self.__os_name == '':
+            return self.__default
+        prefixed_name = self.__get_prefixed_name(self.__os_name, prefix)
         if prefixed_name in os.environ and os.environ[prefixed_name] != '':
             return os.environ[prefixed_name]
-        if self._os_name in os.environ and os.environ[self._os_name] != '':
-            return os.environ[self._os_name]
-        return self._default
+        if self.__os_name in os.environ and os.environ[self.__os_name] != '':
+            return os.environ[self.__os_name]
+        return self.__default
 
     def __get_prefixed_name(self, name: str, prefix: str):
         if prefix is None or prefix == '':
@@ -65,7 +68,7 @@ class Env():
         return prefix + '_' + name
 
     def __repr__(self) -> str:
-        name = self._name
-        os_name = self._os_name
-        default = self._default
+        name = self.__name
+        os_name = self.__os_name
+        default = self.__default
         return f'<Env name={name} os_name={os_name} default={default}>'

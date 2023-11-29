@@ -52,7 +52,7 @@ class BaseInput(AnyInput):
         self._show_choices = show_choices
         self._show_envvar = show_envvar
         self._nargs = nargs
-        self._should_render = should_render
+        self.__should_render = should_render
 
     def get_name(self) -> str:
         return self._name
@@ -90,7 +90,7 @@ class BaseInput(AnyInput):
         return options
 
     def should_render(self) -> bool:
-        return self._should_render
+        return self.__should_render
 
     def is_hidden(self) -> bool:
         return False

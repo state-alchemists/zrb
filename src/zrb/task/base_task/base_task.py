@@ -409,7 +409,7 @@ class BaseTask(
         self.log_info('Merging task envs, task env files, and native envs')
         for env_name, env in self._get_combined_env().items():
             env_value = env.get(env_prefix)
-            if env.should_render:
+            if env.should_render():
                 env_value = self.render_any(env_value)
             self._set_env_map(env_name, env_value)
         self._set_env_map('_ZRB_EXECUTION_ID', self.get_execution_id())
