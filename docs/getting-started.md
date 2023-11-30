@@ -18,7 +18,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
     - [Task Definition](#task-definition)
       - [Creating a Task Using Task Classes](#creating-a-task-using-task-classes)
       - [Creating a Task Using Python Decorator](#creating-a-task-using-python-decorator)
-    - [Task Parameters](#task-parameters)
+      - [Task Parameters](#task-parameters)
     - [Task Inputs](#task-inputs)
     - [Task Environments](#task-environments)
     - [Switching Environment](#switching-environment)
@@ -282,17 +282,22 @@ Commands:
 
 ## Activating Virtual Environment
 
-Although not required, working in a virtual environment is often recommended. This encapsulates your project pip packages, ensuring better independence and reproducibility.
+Although not required, working in a virtual environment is often recommended.
+
+A virtual environment encapsulates your project pip packages from other projects, ensuring better independence and reproducibility.
 
 ### Activating Virtual Environment On A Generated Project
 
-If you generate the project by invoking `zrb project create`, then you need to run the following command every time you start working on the project:
+> __📝 NOTE:__ Using virtual environment is not required, but highly recommended.
+
+
+If you generate the project by invoking `zrb project create`, you can create/activate the virtual environment by running the following command:
 
 ```bash
 source project.sh
 ```
 
-The command will activate the project's virtual environment and install necessary pip packages.
+The command will activate the project's virtual environment and install the necessary pip packages.
 
 ### Activating Virtual Environment On A Manually Created Project
 
@@ -530,13 +535,15 @@ from zrb import runner, TaskClass
 # Define a task, along with it's parameters
 task_name = TaskClass(
     name='task-name',
-    parameter=value,
-    other_parameter=other_value
+    description='the description'
+    # ... other task parameters
 )
 
 # regiter the task to zrb runner
 runner.register(task_name)
 ```
+
+> __💡 HINT:__ Check out [task-parameter section](#task-parameters) to see the commonly used parameters
 
 There are several built-in task classes. Each with its specific use case:
 
@@ -562,8 +569,8 @@ from zrb import runner, python_task
 # Decorate a function named `task_name`
 @python_task(
     name='task-name',
-    parameter=value,
-    other_parameter=other_value,
+    description='the description'
+    # ... other task parameters
     runner=runner # register the task to zrb runner
 )
 def task_name(*args, **kwargs):
@@ -572,12 +579,14 @@ def task_name(*args, **kwargs):
 # Note that python_task decorator turn your function into a task. So `task_name` is now a task, not a function.
 ```
 
+> __💡 HINT:__ Check out [task-parameter section](#task-parameters) to see the commonly used parameters
+
 Using `@python_task` decorator is your best choice if you need to write complex logic in Python.
 
 
-## Task Parameters
+### Task Parameters
 
-Each task has its specific parameter. However, the following tasks are typically available:
+Each task has its specific parameter. However, the following parameters are typically available:
 
 - __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`)
 - __description__: The description of the task.
