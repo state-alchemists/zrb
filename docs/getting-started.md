@@ -282,7 +282,7 @@ Commands:
 
 ## Activating Virtual Environment
 
-Working in a virtual environment is recommended in most cases. This encapsulates your project pip packages, ensuring better independence and reproducibility.
+Although not required, working in a virtual environment is often recommended. This encapsulates your project pip packages, ensuring better independence and reproducibility.
 
 ### Activating Virtual Environment On A Generated Project
 
