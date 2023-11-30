@@ -88,18 +88,32 @@ See our [tutorial](tutorials/integration-with-other-tools.md) to see how you can
 
 By convention, we usually put related `tasks` under the same `task-group`.
 
-For example, we have the following two tasks under `base64` group:
+For example, there two tasks under `base64` group. Both are dealing with base64 encoding/decoding algorithm:
 
-- `encode`
-- `decode`
+```bash
+zrb base64
+```
 
-Now, let's try to decode our base64-encoded text:
+```
+Usage: zrb base64 [OPTIONS] COMMAND [ARGS]...
+
+  Base64 operations
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  decode  Decode a base64 encoded text
+  encode  Encode a text using base64 algorithm
+```
+
+Now, let's try to decode our previously base64-encoded text:
 
 ```bash
 zrb base64 decode --text "bm9uLWNyZWRlbnRpYWwtc3RyaW5n"
 ```
 
-You should get your original text back.
+The command will return the original text (i.e., `non-credential-string`).
 
 > __💡 HINT:__ You don't have to memorize any `task-group` or `task` name. The next two subsections will show you how to locate and execute any `task` without memorize anything.
 
@@ -173,7 +187,7 @@ Commands:
 
 Once you find the task you want to execute, you can type `zrb [task-groups...] <task-name>` without bothering about `task-parameters`.
 
-Zrb will automatically prompt you to provide the parameter interactively.
+Zrb will ask you to provide the parameter interactively.
 
 ```bash
 zrb base64 encode
@@ -198,13 +212,13 @@ To run again: zrb base64 encode --text "non-credential-string"
 
 To make things more manageable, you must put all related resources and task definitions under a `project`. A project is a directory containing `zrb_init.py`.
 
-You can create a project manually or use Zrb's built-in task to generate the project. Suppose you want to create a project named `my-project`.
+You can create a project manually or use Zrb's built-in task to generate the project. Suppose you want to create a project named `my-project`. You can do so by invoking the following command:
 
 ```bash
 zrb project create --project-dir my-project --project-name my-project
 ```
 
-Once invoked, you will have a directory named `my-project`. Let's see how the project looks like:
+Once invoked, you will see a directory named `my-project`. Let's see what the project looks like:
 
 ```bash
 cd my-project
@@ -232,10 +246,10 @@ Every Zrb project has a file named `zrb_init.py` under the top-level directory. 
 
 By convention, a project usually contains two sub-directories:
 
-- `_automate`: This folder contains all your automation scripts and task definitions
-- `src`: This folder contains all your resources like Docker compose file, helm charts, and source code.
+- ___automate__: This folder contains all your automation scripts and task definitions
+- __src__: This folder contains all your resources like Docker compose file, helm charts, and source code.
 
-When you make a project using `zrb project create` command, Zrb will generate a default `task-group` named `project`. This `task-group` contains some tasks to run/deploy everything. Try to type `zrb project` to see what tasks are available by default:
+When you make a project using `zrb project create` command, Zrb will generate a default `task-group` named `project`. This `task-group` contains some tasks to run/deploy your applications. Try to type `zrb project` to see what tasks are available by default:
 
 ```bash
 zrb project
@@ -263,24 +277,43 @@ Commands:
   stop-containers    Stop project containers
 ```
 
+
+> __💡 HINT:__ To start working with Zrb, it is better to create a project. You can create a project by using `zrb project create` command, or by creating a file named `zrb_init.py`
+
 ## Activating Virtual Environment
 
-If you generate the project by invoking `zrb project create`, then you need to run the following command everytime you start working with the project:
+Working in a virtual environment is recommended in most cases. This encapsulates your project pip packages, ensuring better independence and reproducibility.
+
+### Activating Virtual Environment On A Generated Project
+
+If you generate the project by invoking `zrb project create`, then you need to run the following command every time you start working on the project:
 
 ```bash
 source project.sh
 ```
 
-The command will ensure that you work under the project's virtual environment.
+The command will activate the project's virtual environment and install necessary pip packages.
 
-If you create the project manually, you need to make a virtual environment for your project:
+### Activating Virtual Environment On A Manually Created Project
+
+If you create the project manually (i.e., by creating `zrb_init.py`),  you also need to make a virtual environment for your project. Creating a virtual environment is necessary if you work with non-standard Python libraries.
+
+To create a virtual environment, you can invoke the following command:
 
 ```bash
 python -m venv .venv
+```
+
+Once you make the virtual environment, you can activate it by invoking the following command:
+
+```bash
 source .venv/bin/activate
 ```
 
-> __⚠️ WARNING:__ You have to make sure you are working under virtual environment everytime you work with Zrb project, either by invoking `source project.sh` or `source .venv/bin/activate`.
+You need to run the command every time you start working on the project.
+
+
+> __💡 HINT:__ Working with virtual environment is recommended whenever you work with any Python project, including Zrb project.
 
 
 # Creating a Task
@@ -513,7 +546,7 @@ There are several built-in task classes. Each with its specific use case:
 - __RSyncTask__: Copy file from/to remote computers using `rsync` command.
 - __ResourceMaker__: Create resources (source code/documents) based on provided templates.
 - __FlowTask__: Combine unrelated tasks into a single Workflow.
-- __TriggeredTask__: Create a long-running scheduled task or file watcher based on another task.
+- __RecurringTask__: Create a long-running recurring task.
 
 You can also create a custom task class as long as it fits `AnyTask` interface. The easiest way to ensure compatibility is by extending `BaseTask`. See our [tutorial](tutorials/extending-cmd-task.md) to see how we can create a new Task Class based on `CmdTask`.
 
@@ -561,10 +594,11 @@ You can apply task parameters to both Task classes and `@python_task` decorator.
 ## Task Inputs
 
 You can define task inputs using `StrInput`, `BoolInput`, `ChoiceInput`, `FloatInput`, `IntInput`, or `PasswordInput`.
-To create an input, you need to provide two parameters at least:
+To create an input, you need to provide some parameters:
 
-- __name__: The name of the input. By convention, this should be kebab-cased.
-- __default__: The default value of the input.
+- __name__: The name of the input. By convention, this should be kebab-cased (required).
+- __default__: The default value of the input (optional, default: `None`).
+- __should_render__: Whether the input should be rendered as Jinja template or not (optional, default: `True`).
 
 For example, here you have an input named `message` with `Hello World` as the default value:
 
@@ -576,82 +610,122 @@ message = StrInput(name='message', default='Hello World')
 
 When you run a task with task inputs, Zrb will prompt you to override the input values. You can press `enter` if you want to use the default values.
 
-To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ input.input_name }}`. Notice that you should use `snake_case` instead of `kebab-case` in your Jinja template.
+### Using Task Inputs on CmdTask
 
-As for `@python_task`, you can use `kwargs` dictionary to get the input. Let's see the following example:
+To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ input.input_name }}`. Notice that you should use `snake_case` instead of `kebab-case` to refer to the input. Let's see the following example:
 
 ```python
-from zrb import runner, CmdTask, python_task, StrInput
+from zrb import runner, CmdTask, StrInput
 
 hello_cmd = CmdTask(
     name='hello-cmd',
     inputs=[
-        StrInput(name='name', default='World')
+        StrInput(name='your-name', default='World')
     ],
-    cmd='echo Hello {{input.name}}'
+    # Notice, we use {{input.your_name}} not {{input.your-name}} !!!
+    cmd='echo Hello {{input.your_name}}'
 )
 runner.register(hello_cmd)
+```
 
+You can then run the task by invoking:
+
+```bash
+zrb hello-cmd
+# or
+zrb hello-cmd --your-name "John Wick"
+```
+
+### Using Task Inputs on @python_task Decorator
+
+As for `@python_task`, you can use `kwargs` dictionary to get the input.
+
+```python
+from zrb import runner, python_task, StrInput
 
 @python_task(
     name='hello-py',
     inputs=[
-        StrInput(name='name', default='World')
+        StrInput(name='your-name', default='World')
     ],
     runner=runner
 )
 def hello_py(*args, **kwargs):
-    name = kwargs.get('name')
+    # Notice, we use `your_name` instead of `your-name` !!!
+    name = kwargs.get('your_name')
     return f'Hello {name}'
-
 ```
 
-You can run the tasks by invoking:
 
-``` bash
-zrb hello-cmd
-zrb hello-py
-```
-
-our you can provide the input values:
+You can then run the task by invoking:
 
 ```bash
-zrb hello-cmd --name "Go Frendi"
-zrb hello-py --name "Go Frendi"
+zrb hello-py
+# or
+zrb hello-py --your-name "John Wick"
 ```
 
 ## Task Environments
 
-Aside from input, you can also use environment variables by using `Env` and `EnvFile`
+Aside from input, you can also define the `Task`'s environment variables using `Env` and `EnvFile`.
+
+### Env
+
+You can use `Env` to define a single environment variable for your Tasks. Typically, a Task could take multiple `Env`.
+
+To create an `Env`, you need to provide some parameters:
+
+- __name__: Name of the environment variable (required).
+- __os_name__: Name of OS environment (optional, default=`None`)
+    - if set to `None`, Zrb will link the environment variable to the OS environment.
+    - if set to an empty string (i.e., `''`), Zrb will not link the environment variable to the OS's environment.
+    - if set to a non-empty string, Zrb will link the environment variable to the OS's environment corresponding to this value.
+- __default__: Default value of the environment variable (optional, default: `None`).
+- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
+
 
 ```python
-from zrb import Env, EnvFile
-import os
-
-PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
-env_file = EnvFile(env_file=PROJECT_ENV)
+from zrb import Env
 
 env = Env(name='MESSAGE')
 ```
 
-You can use `Env` and `EnvFile`, in your tasks. Let's first create an environment file named `project.env`:
+### EnvFile
+
+`EnvFile` loads an environment file and uses its values as Task's environment variables. Typically a Task could take multiple `EnvFile`.
+
+To create an `EnvFile`, you need to provide some parameters:
+
+- __env_file__: Name of the environment file (required).
+- __prefix__: Custom prefix for environment's os_name (optional, default=`None`)
+- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
+
+```python
+from zrb import EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
+env_file = EnvFile(env_file=PROJECT_ENV)
+```
+
+### Using Env and EnvFile
+
+To use `EnvFile` in your tasks. Let's first create an environment file named `project.env`:
 
 ```bash
 # file-name: project.env
 SERVER_HOST=localhost
 ```
 
+### Using Env and EnvFile on CmdTask
+
 To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ env.ENV_NAME }}`.
 
-As for `@python_task`, you cannot use `os.getenv` to access task's environment. Instead, you should get the `task` instance and invoke `task.get_env_map()`.
-
 ```python
-from zrb import runner, CmdTask, AnyTask, python_task, Env, EnvFile
+from zrb import runner, CmdTask, Env, EnvFile
 import os
 
 PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
-
-print(PROJECT_ENV)
 
 hello_cmd = CmdTask(
     name='hello-cmd',
@@ -667,6 +741,30 @@ hello_cmd = CmdTask(
     ]
 )
 runner.register(hello_cmd)
+```
+
+You can then run the task by invoking:
+
+```bash
+zrb hello-cmd
+```
+
+It will give you the following results:
+
+```
+Message: Hello world
+Host: localhost
+```
+
+### Using Env and EnvFile on @python_task Decorator
+
+As for `@python_task`, you cannot use `os.getenv` to access task's environment. Instead, you should get the `task` instance from `kwargs`` and invoke `task.get_env_map()`.
+
+```python
+from zrb import runner, AnyTask, python_task, Env, EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
 
 
 @python_task(
@@ -690,14 +788,13 @@ def hello_py(*args, **kwargs):
     ])
 ```
 
-Now, you can invoke the tasks as follows:
+You can then run the task by invoking:
 
 ```bash
 zrb hello-cmd
-zrb hello-py
 ```
 
-Both tasks will show you similar outputs:
+It will give you the following results:
 
 ```
 Message: Hello world
@@ -706,11 +803,11 @@ Host: localhost
 
 ## Switching Environment
 
-Zrb has a feature named environment cascading. This feature automatically helps you switch between multiple environments (e.g., dev, staging, production).
+Zrb has a feature named environment cascading. This feature helps you switch between multiple environments (e.g., dev, staging, production).
 
 To switch between environments, you can use `ZRB_ENV`
 
-Let's see the following example:
+Let's go back to our previous example and set some environment variables:
 
 
 ```bash
@@ -719,7 +816,6 @@ export PROD_MESSAGE="Hello, Client"
 export PROD_SERVER_HOST=stalchmst.com
 
 zrb hello-cmd
-zrb-hello-py
 ```
 
 Without `ZRB_ENV`, when you run the following commands, you will get the same outputs:
@@ -729,9 +825,11 @@ Message: Hello world
 Host: localhost
 ```
 
+Since we don't have `MESSAGE` and `HOST` on OS's environment variable, Zrb will use the default values.
+
 ### Dev Environment
 
-Now let's try this again with `DEV` environment:
+Now, let's try this again with `DEV` environment:
 
 ```bash
 export DEV_MESSAGE="Test Hello World"
@@ -740,7 +838,6 @@ export PROD_SERVER_HOST=stalchmst.com
 export ZRB_ENV=DEV
 
 zrb hello-cmd
-zrb-hello-py
 ```
 
 Now, it will get the the following outputs:
@@ -765,7 +862,6 @@ export PROD_SERVER_HOST=stalchmst.com
 export ZRB_ENV=PROD
 
 zrb hello-cmd
-zrb-hello-py
 ```
 
 Now, since Zrb can find both `PROD_MESSAGE` and `PROD_SERVER_HOST`, Zrb will show the following output:
