@@ -282,14 +282,11 @@ Commands:
 
 ## Activating Virtual Environment
 
-Although not required, working in a virtual environment is often recommended.
+> __📝 NOTE:__ Using virtual environment is not required, but highly recommended.
 
 A virtual environment encapsulates your project pip packages from other projects, ensuring better independence and reproducibility.
 
 ### Activating Virtual Environment On A Generated Project
-
-> __📝 NOTE:__ Using virtual environment is not required, but highly recommended.
-
 
 If you generate the project by invoking `zrb project create`, you can create/activate the virtual environment by running the following command:
 
@@ -298,6 +295,8 @@ source project.sh
 ```
 
 The command will activate the project's virtual environment and install the necessary pip packages.
+
+You should run the command every time you start working on the project.
 
 ### Activating Virtual Environment On A Manually Created Project
 
@@ -315,10 +314,7 @@ Once you make the virtual environment, you can activate it by invoking the follo
 source .venv/bin/activate
 ```
 
-You need to run the command every time you start working on the project.
-
-
-> __💡 HINT:__ Working with virtual environment is recommended whenever you work with any Python project, including Zrb project.
+You should activate the virtual environment whenever you start working on the project.
 
 
 # Creating a Task
@@ -882,7 +878,7 @@ Host: stalchmst.com
 
 # Creating a long-running task
 
-Commonly, you can determine whether a task is successful/failed after it is completed. However, some tasks might run forever, and you can only see whether the task is completed or failed by checking other behaviors. For example, a web server is successfully running if you can get the expected HTTP response from the server.
+Commonly, you can determine whether a task is successful/failed after the task is finished. However, some tasks might run forever, and you can only see whether the task is completed or failed by checking other behaviors. For example, a web server is successfully running if you can get the expected HTTP response from the server.
 
 Zrb has some checking mechanisms to handle this use case.
 
@@ -892,54 +888,18 @@ Let's start by scaffolding a CmdTask named `run-jupyterlab`.
 zrb project add cmd-task --project-dir "." --task-name "run-jupyterlab"
 ```
 
-Once you do so, you can start modifying `_automate/`
+You will notice that Zrb automatically creates a file named `_automate/run_jupyterlab.py`
 
-In some cases, your task has to run forever (i.e., web server).
+We will need to modify the file.
 
-Arasaka is a data-driven (and family-driven) company. They need their data scientists to experiment a lot to present the most valuable information/knowledge.
-
-For this, they need to be able to create a lot of notebooks for experimentation.
-
-To make sure things work, you need to:
-- Install jupyterlab.
-- Add Jupyterlab to your `requirements.txt`.
-- Create a `notebooks` directory under `src`.
-- Create a `start-jupyter` task.
-
-Let's start by installing jupyterlab
-
-```bash
-pip install jupyterlab
-```
-
-Once jupyterlab has been installed, you need to add it into requirements.txt. You can do so by typing `pip freeze | grep jupyterlab` and add the output to your `requirements.txt`. Or you can do it with a single command:
-
-```bash
-pip freeze | grep jupyterlab >> requirements.txt
-```
-
-Now let's make a `notebooks` directory under `src`.
-
-```bash
-mkdir -p src/notebooks
-touch src/notebooks/.gitkeep
-```
-
-You need an empty `.gitkeep` file, to tell git to not ignore the directory.
 
 ## Adding start-jupyterlab
 
 We have a few requirements for `start-jupyterlab` task
 
-- You should show Arasaka banner before starting jupyterlab.
-- `start-jupyterlab` is considered completed only if the port is accessible.
-- Arasaka employee can choose the port to serve jupyterlab in their computer.
-
-Let's start by adding the task to your project.
-
-```bash
-zrb project add cmd-task --project-dir . --task-name start-jupyterlab
-```
+- Before starting Jupyterlab, you need to make sure that Jupyterlab is already installed.
+- Jupyterlab is considered completed once the port is accessible.
+- Jupyterlab HTTP port should be `8080` by default, but users should be able to override the Jupyterlab HTTP port.
 
 Now, let's modify `_automate/start_jupyterlab.py` into the following:
 
