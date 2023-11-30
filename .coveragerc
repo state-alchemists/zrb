@@ -1,0 +1,5 @@
+[run]
+omit =
+    src/zrb/task/any_task.py
+    src/zrb/task_input/any_input.py
+    src/zrb/**/__init__.py

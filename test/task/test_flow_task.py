@@ -81,4 +81,3 @@ def test_flow_task_with_existing_tasks():
     assert 'Na' in outputs
     assert 'Cl' in outputs
     assert outputs[3] == 'NaCl'
-

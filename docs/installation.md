@@ -22,11 +22,15 @@ We provide an [installation script](https://github.com/state-alchemists/zrb/blob
 curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
 ```
 
+We recommend this installation method if you work on a new computer/VM.
+
 ## As Python Package
+
+You can also install Zrb as a Python package using pip.
 
 ### Checking for Prerequisites
 
-Before installing Zrb as Python packages, make sure you have the following prerequisites:
+Before installing Zrb as a Python package, make sure you have the following prerequisites:
 
 - 🐍 `Python`
 - 📦 `Pip`

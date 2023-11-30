@@ -26,7 +26,7 @@ As every task are extended from `BaseTask`, you will see that most of them share
   │      │           │           │             │                 │             │           │          │
   │      │           │           │             │                 │             │           │          │
   ▼      ▼           ▼           ▼             ▼                 ▼             ▼           ▼          ▼
-Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  TriggeredTask  HttpChecker PortChecker PathChecker
+Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  ReccuringTask  HttpChecker PortChecker PathChecker
          │                                     │
          │                                     │
          ▼                               ┌─────┴──────┐
