@@ -297,7 +297,7 @@ test = CmdTask(
         'set -e',
         f'cd {CURRENT_DIR}',
         'echo "🤖 Perform test"',
-        'pytest --ignore-glob="**/template/**/test" --ignore=playground --cov=zrb --cov-config=".coveragerc" --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
+        'pytest --ignore-glob="**/template/**/test" --ignore-glob="**/generator/**/app" --ignore=playground --cov=zrb --cov-config=".coveragerc" --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
     ],
     retry=0,
     checking_interval=1

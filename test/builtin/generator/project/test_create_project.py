@@ -14,8 +14,8 @@ def test_create_project():
         shutil.rmtree(destination_path)
 
     # first attempt should success
-    first_attempt_loop = create_project.to_function()
-    result = first_attempt_loop(project_dir=destination_path)
+    first_attempt_fn = create_project.to_function()
+    result = first_attempt_fn(project_dir=destination_path)
     assert result
 
     # .git directory should exists
@@ -38,8 +38,8 @@ def test_create_project():
     # second attempt should failed
     is_error = False
     try:
-        second_attempt_loop = create_project.to_function()
-        result = second_attempt_loop(project_dir=destination_path)
+        second_attempt_fn = create_project.to_function()
+        result = second_attempt_fn(project_dir=destination_path)
     except Exception:
         is_error = True
     assert is_error

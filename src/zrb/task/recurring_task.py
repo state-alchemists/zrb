@@ -97,6 +97,7 @@ class RecurringTask(BaseTask):
             key: kwargs[key]
             for key in kwargs if key not in ['_task']
         }
+        is_first_time = True
         while True:
             # Create trigger functions
             trigger_functions = []
@@ -107,8 +108,12 @@ class RecurringTask(BaseTask):
                 trigger_functions.append(asyncio.create_task(
                     trigger_function(*args, **task_kwargs)
                 ))
+            self.print_out_dark('Waiting for next trigger')
+            # Mark task as done since trigger has been defined.
+            if is_first_time:
+                await self._mark_done()
+                is_first_time = False
             # Wait for the first task to complete
-            self.print_out_dark('Waiting for trigger')
             _, pending = await asyncio.wait(
                 trigger_functions, return_when=asyncio.FIRST_COMPLETED
             )
@@ -123,5 +128,12 @@ class RecurringTask(BaseTask):
                 is_async=True, raise_error=False, show_done_info=False
             )
             self.print_out_dark('Executing the task')
-            asyncio.create_task(fn(*args, **task_kwargs))
-            self._play_bell()
+            asyncio.create_task(
+                self.__run_and_play_bell(fn, *args, **task_kwargs)
+            )
+
+    async def __run_and_play_bell(
+        self, fn: Callable[[Any], Any], *args: Any, **kwargs: Any
+    ):
+        await fn(*args, **kwargs)
+        self._play_bell()
