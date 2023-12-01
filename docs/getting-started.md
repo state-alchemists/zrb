@@ -947,6 +947,9 @@ Let's run the task:
 zrb project run-jupyterlab
 ```
 
+<details>
+<summary>Show output</summary>
+
 ```
 Jupyterlab port [8080]: 
 🤖 ○ ◷ 2023-11-12 10:26:32.759 ❁ 58728 → 1/3 🐨 zrb project install-jupyterlab • Run script: pip install jupyterlab
@@ -979,6 +982,8 @@ Support zrb growth and development!
 🐤 Follow us at: https://twitter.com/zarubastalchmst
 🤖 ○ ◷ 2023-11-12 10:26:36.807 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab • Completed in 4.050489664077759 seconds
 ```
+
+</details>
 
 Open up your browser on [http://localhost:8080](http://localhost:8080) to start working with the notebook.
 
