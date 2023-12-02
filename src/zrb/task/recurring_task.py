@@ -46,7 +46,7 @@ class RecurringTask(BaseTask):
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
-        inputs = list(inputs) + task._get_inputs()
+        inputs = list(inputs) + task._get_combined_inputs()
         envs = list(envs) + task._get_envs()
         env_files = list(env_files) + task._get_env_files()
         BaseTask.__init__(
@@ -137,3 +137,6 @@ class RecurringTask(BaseTask):
     ):
         await fn(*args, **kwargs)
         self._play_bell()
+
+    def __repr__(self) -> str:
+        return f'<RecurringTask name={self._name}>'

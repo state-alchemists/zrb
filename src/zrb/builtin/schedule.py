@@ -1,8 +1,8 @@
 from zrb.task.recurring_task import RecurringTask
-from zrb.task.cmd_task import CmdTask
 from zrb.task.time_watcher import TimeWatcher
 from zrb.task_input.str_input import StrInput
 from zrb.runner import runner
+from zrb.builtin.helper.reccuring_action import create_recurring_action
 
 
 schedule = RecurringTask(
@@ -19,26 +19,6 @@ schedule = RecurringTask(
     triggers=[
         TimeWatcher(name='watch-schedule', schedule='{{input.schedule}}')
     ],
-    task=CmdTask(
-        name='run-task',
-        inputs=[
-            StrInput(
-                name='message',
-                default='👋',
-                prompt='Message to be shown',
-                description='Message to be shown on schedule'
-            ),
-            StrInput(
-                name='command',
-                default='',
-                prompt='Command to be executed',
-                description='Command to be executed on schedule'
-            ),
-        ],
-        cmd=[
-            '{% if input.message != "" %}echo {{ input.message }}{% endif %}',
-            '{% if input.command != "" %}{{ input.command }}{% endif %}',
-        ]
-    )
+    task=create_recurring_action(title='schedule')
 )
 runner.register(schedule)

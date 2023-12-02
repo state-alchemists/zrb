@@ -108,4 +108,4 @@ class TimeWatcher(Checker):
         return False
 
     def __repr__(self) -> str:
-        return f'<PathWatcher name={self._name}>'
+        return f'<TimeWatcher name={self._name}>'
