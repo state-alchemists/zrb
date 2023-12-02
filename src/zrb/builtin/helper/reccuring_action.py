@@ -4,11 +4,14 @@ from zrb.task.notifier import Notifier
 from zrb.task_input.str_input import StrInput
 
 
-def create_recurring_action(title: str) -> Task:
+def create_recurring_action(
+    title: str,
+    default_message: str = '👋'
+) -> Task:
     # define inputs
     message_input = StrInput(
         name='message',
-        default='👋',
+        default=default_message,
         prompt='Message to be shown',
     )
     command_input = StrInput(
@@ -19,11 +22,16 @@ def create_recurring_action(title: str) -> Task:
     # define tasks
     run_command = CmdTask(
         name='run-command',
+        icon='⚙️',
+        color='blue',
         inputs=[command_input],
-        should_execute='{{ input.command != "" }}'
+        should_execute='{{ input.command != "" }}',
+        cmd='{{ input.command }}'
     )
     notify = Notifier(
         name='notify',
+        icon='📢',
+        color='green',
         inputs=[message_input],
         title=title,
         message='{{ input.message }}',

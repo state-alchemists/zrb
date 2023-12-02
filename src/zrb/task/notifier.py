@@ -35,6 +35,8 @@ class Notifier(BaseTask):
         description: str = '',
         title: str = '',
         message: str = '',
+        show_toast: bool = True,
+        show_stdout: bool = True,
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,
@@ -74,23 +76,22 @@ class Notifier(BaseTask):
         )
         self._title = title if title != '' else name
         self._message = message if message != '' else get_random_icon()
+        self._show_toast = show_toast
+        self._show_stdout = show_stdout
 
     async def run(self, *args: Any, **kwargs: Any) -> str:
         title = self.render_str(self._title)
         message = self.render_str(self._message)
         notify_kwargs = {
-            **kwargs,
-            'title': title,
-            'message': message,
+            key: value
+            for key, value in kwargs.items() if key not in ('title', 'message')
         }
-        await self.notify(*args, **notify_kwargs)
+        await self.notify(title, message, **notify_kwargs)
         return message
 
-    async def notify(self, *args: Any, **kwargs: Any) -> None:
-        title = kwargs.get('title')
-        message = kwargs.get('message')
+    async def notify(self, title: str, message: str, **kwargs: Any) -> None:
         task: BaseTask = kwargs.get('_task')
-        if _is_powershell_available():
+        if self._show_toast and _is_powershell_available():
             cmd = [
                 'powershell.exe',
                 '-ExecutionPolicy', 'Bypass',
@@ -99,7 +100,7 @@ class Notifier(BaseTask):
                 '-Message', message
             ]
             subprocess.run(cmd, stdout=subprocess.DEVNULL)
-        if _is_osascript_available():
+        if self._show_toast and _is_osascript_available():
             q_message = double_quote(message)
             q_title = double_quote(title)
             cmd = [
@@ -107,11 +108,12 @@ class Notifier(BaseTask):
                 '-e',
                 f'display notification "{q_message}" with title "{q_title}"'
             ]
-        if _is_notify_send_available():
+        if self._show_toast and _is_notify_send_available():
             cmd = ['notify-send', title, message]
             subprocess.run(cmd, stdout=subprocess.DEVNULL)
-        task.print_out(message)
-        task._play_bell()
+        if self._show_stdout:
+            task.print_out(message)
+            task._play_bell()
 
     def __repr__(self) -> str:
         return f'<Notifier name={self._name}>'

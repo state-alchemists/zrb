@@ -7,6 +7,8 @@ from zrb.builtin.helper.reccuring_action import create_recurring_action
 
 schedule = RecurringTask(
     name='schedule',
+    icon='📅',
+    color='yellow',
     description='Show message/run command periodically',
     inputs=[
         StrInput(
@@ -17,8 +19,16 @@ schedule = RecurringTask(
         ),
     ],
     triggers=[
-        TimeWatcher(name='watch-schedule', schedule='{{input.schedule}}')
+        TimeWatcher(
+            name='watch-schedule',
+            color='cyan',
+            icon='⏰',
+            schedule='{{input.schedule}}'
+        )
     ],
-    task=create_recurring_action(title='schedule')
+    task=create_recurring_action(
+        title='Schedule',
+        default_message='{{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}',  # noqa
+    )
 )
 runner.register(schedule)

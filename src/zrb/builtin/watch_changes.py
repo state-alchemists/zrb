@@ -5,8 +5,10 @@ from zrb.runner import runner
 from zrb.builtin.helper.reccuring_action import create_recurring_action
 
 
-watch = RecurringTask(
-    name='watch',
+watch_changes = RecurringTask(
+    name='watch-changes',
+    icon='🕵️',
+    color='yellow',
     description='Watch changes and show message/run command',
     inputs=[
         StrInput(
@@ -17,8 +19,13 @@ watch = RecurringTask(
         ),
     ],
     triggers=[
-        PathWatcher(name='watch-path', path='{{input.pattern}}')
+        PathWatcher(
+            name='watch-path',
+            color='cyan',
+            icon='👀',
+            path='{{input.pattern}}'
+        )
     ],
-    task=create_recurring_action(title='schedule')
+    task=create_recurring_action(title='Watch')
 )
-runner.register(watch)
+runner.register(watch_changes)
