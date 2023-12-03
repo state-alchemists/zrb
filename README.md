@@ -83,12 +83,11 @@ download_dataset = CmdTask(
 )
 
 # 📊 Define a task named `show-stat` to show the statistics properties of the dataset.
-# We use `@python_task` decorator since this task is better written in Python.
-# This tasks depends on our previous tasks, `download_dataset` and `install_pandas`
-# If this task failed, then it is failed. No need to retry
+# @python_task` decorator turns a function into a Zrb Task (i.e., `show_stat` is now a Zrb Task).
+# If this task failed, we don't want to retry
+# We also want to register the task so that it is accessible from the CLI
 @python_task(
     name='show-stat',
-    upstreams=[download_dataset, install_pandas],
     retry=0
 )
 def show_stat(*args, **kwargs):
@@ -96,8 +95,12 @@ def show_stat(*args, **kwargs):
     df = pd.read_csv('dataset.csv')
     return df.describe()
 
-# Register `show_stat`, so that the task is accessible from the CLI (i.e., zrb show-stat)
-runner.register(show_stat)
+# Define dependencies: `show_stat` depends on both, `download_dataset` and `install_pandas`
+download_dataset >> show_stat
+install_pandas >> show_stat
+
+# Register the tasks so that they are accessbie from the CLI
+runner.register(install_pandas, download_dataset, show_stat)
 ```
 
 > __📝 NOTE:__ It is possible (although less readable) to define `show_stat` as `CmdTask`:
@@ -107,7 +110,6 @@ runner.register(show_stat)
 > ```python
 > show_stat = CmdTask(
 >     name='show-stat',
->     upstreams=[download_dataset, install_pandas],
 >     cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"',
 >     retry=0
 > )
@@ -121,8 +123,23 @@ Once you write the definitions, Zrb will automatically load your `zrb_init.py` s
 zrb show-stat
 ```
 
+The command will give you the statistics property of the dataset:
+
+```
+       sepal_length  sepal_width  petal_length  petal_width
+count    150.000000   150.000000    150.000000   150.000000
+mean       5.843333     3.054000      3.758667     1.198667
+std        0.828066     0.433594      1.764420     0.763161
+min        4.300000     2.000000      1.000000     0.100000
+25%        5.100000     2.800000      1.600000     0.300000
+50%        5.800000     3.000000      4.350000     1.300000
+75%        6.400000     3.300000      5.100000     1.800000
+max        7.900000     4.400000      6.900000     2.500000
+
+```
+
 <details>
-<summary>Show output</summary>
+<summary>See the full output</summary>
 
 ```
 Url [https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv]:
@@ -164,6 +181,13 @@ max        7.900000     4.400000      6.900000     2.500000
 To run again: zrb project show-stats --url "https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv"
 ```
 </details>
+
+Since you have registered `install_pandas` and `download_dataset` (i.e., `runner.register(install_pandas, download_dataset)`), then you can also execute those tasks as well:
+
+```bash
+zrb install-pandas
+zrb download-dataset
+```
 
 > __📝 NOTE:__  When executing a task, you can also provide the parameter directly, for example you want to provide the `url`
 >

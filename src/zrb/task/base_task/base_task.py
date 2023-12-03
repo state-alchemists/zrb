@@ -102,6 +102,10 @@ class BaseTask(
         self.__is_execution_triggered: bool = False
         self.__is_execution_started: bool = False
 
+    def __rshift__(self, other_task: AnyTask):
+        other_task.add_upstream(self)
+        return other_task
+
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
 

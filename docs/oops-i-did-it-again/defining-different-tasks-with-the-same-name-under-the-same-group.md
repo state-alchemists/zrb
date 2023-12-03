@@ -7,30 +7,39 @@ from zrb import CmdTask, runner
 
 hello1 = CmdTask(
     name='hello',
+    group=None,
     cmd='echo "hello mars"'
 )
 runner.register(hello1)
 
 hello2 = CmdTask(
     name='hello',
+    group=None,
     cmd='echo "hello world"'
 )
 runner.register(hello2)
 ```
 
-You can see that `hello1` and `hello2` share the same name. Both of them also has the same `group` (i.e., not defined).
+You can see that `hello1` and `hello2` share the same name and group.
 
-In this case, `hello2` will override `hello1`.
-
-This leads to tricky situation. For example, you believe that `zrb hello` should yield `hello mars`, yet it keep showing `hello world`.
+The condition leads to a tricky situation since `hello2` overrides `hello1`. To avoid this situation, Zrb will throw a `ValueError` whenever it detects two tasks registered under the same name and group.
 
 # Detecting the Problem
 
-First of all, detecting the problem will be easier if you use the same convention to define task property:
-- Use single quote instead of double quote for string value whenever possible
-- Not using space between property name and property value (i.e., `name='hello'`)
+You can detect the problem by reading the error message (i.e., `Task "..." has already been registered`):
 
-Once you do so, you can use `search` feature in your IDE/text editor (e.g., `name='hello'`). Make sure every task name is unique so that they don't accidentally overwrite each other.
+```
+  ...
+  File "/home/gofrendi/playground/getting-started/zrb_init.py", line 14, in <module>
+    runner.register(hello2)
+  File "<@beartype(zrb.action.runner.Runner.register) at 0x7f780fda8dc0>", line 22, in register
+  File "/home/gofrendi/zrb/.venv/lib/python3.10/site-packages/zrb/action/runner.py", line 35, in register
+    raise RuntimeError(f'Task "{cmd_name}" has already been registered')
+RuntimeError: Task "zrb hello" has already been registered
+```
+
+The traceback also shows you that the cause of the error is at line `14` of `zrb_init.py` (i.e., `runner.register(hello2)`).
+
 
 # Avoiding the Problem
 
