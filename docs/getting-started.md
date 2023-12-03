@@ -18,7 +18,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
     - [Task Definition](#task-definition)
       - [Creating a Task Using Task Classes](#creating-a-task-using-task-classes)
       - [Creating a Task Using Python Decorator](#creating-a-task-using-python-decorator)
-    - [Task Parameters](#task-parameters)
+      - [Task Parameters](#task-parameters)
     - [Task Inputs](#task-inputs)
     - [Task Environments](#task-environments)
     - [Switching Environment](#switching-environment)
@@ -282,17 +282,21 @@ Commands:
 
 ## Activating Virtual Environment
 
-Working in a virtual environment is recommended in most cases. This encapsulates your project pip packages, ensuring better independence and reproducibility.
+> __📝 NOTE:__ Using virtual environment is not required, but highly recommended.
+
+A virtual environment encapsulates your project pip packages from other projects, ensuring better independence and reproducibility.
 
 ### Activating Virtual Environment On A Generated Project
 
-If you generate the project by invoking `zrb project create`, then you need to run the following command every time you start working on the project:
+If you generate the project by invoking `zrb project create`, you can create/activate the virtual environment by running the following command:
 
 ```bash
 source project.sh
 ```
 
-The command will activate the project's virtual environment and install necessary pip packages.
+The command will activate the project's virtual environment and install the necessary pip packages.
+
+You should run the command every time you start working on the project.
 
 ### Activating Virtual Environment On A Manually Created Project
 
@@ -310,10 +314,7 @@ Once you make the virtual environment, you can activate it by invoking the follo
 source .venv/bin/activate
 ```
 
-You need to run the command every time you start working on the project.
-
-
-> __💡 HINT:__ Working with virtual environment is recommended whenever you work with any Python project, including Zrb project.
+You should activate the virtual environment whenever you start working on the project.
 
 
 # Creating a Task
@@ -530,13 +531,15 @@ from zrb import runner, TaskClass
 # Define a task, along with it's parameters
 task_name = TaskClass(
     name='task-name',
-    parameter=value,
-    other_parameter=other_value
+    description='the description'
+    # ... other task parameters
 )
 
 # regiter the task to zrb runner
 runner.register(task_name)
 ```
+
+> __💡 HINT:__ Check out [task-parameter section](#task-parameters) to see the commonly used parameters
 
 There are several built-in task classes. Each with its specific use case:
 
@@ -562,8 +565,8 @@ from zrb import runner, python_task
 # Decorate a function named `task_name`
 @python_task(
     name='task-name',
-    parameter=value,
-    other_parameter=other_value,
+    description='the description'
+    # ... other task parameters
     runner=runner # register the task to zrb runner
 )
 def task_name(*args, **kwargs):
@@ -572,12 +575,14 @@ def task_name(*args, **kwargs):
 # Note that python_task decorator turn your function into a task. So `task_name` is now a task, not a function.
 ```
 
+> __💡 HINT:__ Check out [task-parameter section](#task-parameters) to see the commonly used parameters
+
 Using `@python_task` decorator is your best choice if you need to write complex logic in Python.
 
 
-## Task Parameters
+### Task Parameters
 
-Each task has its specific parameter. However, the following tasks are typically available:
+Each task has its specific parameter. However, the following parameters are typically available:
 
 - __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`)
 - __description__: The description of the task.
@@ -873,7 +878,7 @@ Host: stalchmst.com
 
 # Creating a long-running task
 
-Commonly, you can determine whether a task is successful/failed after it is completed. However, some tasks might run forever, and you can only see whether the task is completed or failed by checking other behaviors. For example, a web server is successfully running if you can get the expected HTTP response from the server.
+Commonly, you can determine whether a task is successful/failed after the task is finished. However, some tasks might run forever, and you can only see whether the task is completed or failed by checking other behaviors. For example, a web server is successfully running if you can get the expected HTTP response from the server.
 
 Zrb has some checking mechanisms to handle this use case.
 
@@ -883,54 +888,18 @@ Let's start by scaffolding a CmdTask named `run-jupyterlab`.
 zrb project add cmd-task --project-dir "." --task-name "run-jupyterlab"
 ```
 
-Once you do so, you can start modifying `_automate/`
+You will notice that Zrb automatically creates a file named `_automate/run_jupyterlab.py`
 
-In some cases, your task has to run forever (i.e., web server).
+We will need to modify the file.
 
-Arasaka is a data-driven (and family-driven) company. They need their data scientists to experiment a lot to present the most valuable information/knowledge.
-
-For this, they need to be able to create a lot of notebooks for experimentation.
-
-To make sure things work, you need to:
-- Install jupyterlab.
-- Add Jupyterlab to your `requirements.txt`.
-- Create a `notebooks` directory under `src`.
-- Create a `start-jupyter` task.
-
-Let's start by installing jupyterlab
-
-```bash
-pip install jupyterlab
-```
-
-Once jupyterlab has been installed, you need to add it into requirements.txt. You can do so by typing `pip freeze | grep jupyterlab` and add the output to your `requirements.txt`. Or you can do it with a single command:
-
-```bash
-pip freeze | grep jupyterlab >> requirements.txt
-```
-
-Now let's make a `notebooks` directory under `src`.
-
-```bash
-mkdir -p src/notebooks
-touch src/notebooks/.gitkeep
-```
-
-You need an empty `.gitkeep` file, to tell git to not ignore the directory.
 
 ## Adding start-jupyterlab
 
 We have a few requirements for `start-jupyterlab` task
 
-- You should show Arasaka banner before starting jupyterlab.
-- `start-jupyterlab` is considered completed only if the port is accessible.
-- Arasaka employee can choose the port to serve jupyterlab in their computer.
-
-Let's start by adding the task to your project.
-
-```bash
-zrb project add cmd-task --project-dir . --task-name start-jupyterlab
-```
+- Before starting Jupyterlab, you need to make sure that Jupyterlab is already installed.
+- Jupyterlab is considered completed once the port is accessible.
+- Jupyterlab HTTP port should be `8080` by default, but users should be able to override the Jupyterlab HTTP port.
 
 Now, let's modify `_automate/start_jupyterlab.py` into the following:
 
@@ -978,6 +947,9 @@ Let's run the task:
 zrb project run-jupyterlab
 ```
 
+<details>
+<summary>Show output</summary>
+
 ```
 Jupyterlab port [8080]: 
 🤖 ○ ◷ 2023-11-12 10:26:32.759 ❁ 58728 → 1/3 🐨 zrb project install-jupyterlab • Run script: pip install jupyterlab
@@ -1010,6 +982,8 @@ Support zrb growth and development!
 🐤 Follow us at: https://twitter.com/zarubastalchmst
 🤖 ○ ◷ 2023-11-12 10:26:36.807 ❁ 58920 → 1/3 🐹 zrb project run-jupyterlab • Completed in 4.050489664077759 seconds
 ```
+
+</details>
 
 Open up your browser on [http://localhost:8080](http://localhost:8080) to start working with the notebook.
 

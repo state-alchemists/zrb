@@ -40,7 +40,7 @@ class TimeWatcher(Checker):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         schedule: str = '',
-        checking_interval: Union[int, float] = 0.1,
+        checking_interval: Union[int, float] = 1,
         progress_interval: Union[int, float] = 30,
         should_execute: Union[bool, str, Callable[..., bool]] = True
     ):
@@ -108,4 +108,4 @@ class TimeWatcher(Checker):
         return False
 
     def __repr__(self) -> str:
-        return f'<PathWatcher name={self._name}>'
+        return f'<TimeWatcher name={self._name}>'

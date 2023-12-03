@@ -4,11 +4,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "zrb"
-version = "0.0.118"
+version = "0.0.119"
 authors = [
   { name="Go Frendi Gunawan", email="gofrendiasgard@gmail.com" },
 ]
-description = "Super framework for your super app"
+description = "A Framework to Enhance Your Workflow"
 readme = "README.md"
 requires-python = ">=3.10.0"
 classifiers = [

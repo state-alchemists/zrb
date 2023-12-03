@@ -169,7 +169,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         print(result)
 
     def _play_bell(self):
-        print('\a', end='', file=sys.stderr)
+        print('\a', end='', file=sys.stderr, flush=True)
 
     def _show_done_info(self):
         elapsed_time = self._get_elapsed_time()

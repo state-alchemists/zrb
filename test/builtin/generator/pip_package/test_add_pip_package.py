@@ -15,15 +15,15 @@ def test_add_pip_package():
     if os.path.exists(project_path):
         shutil.rmtree(project_path)
 
-    create_project_loop = create_project.to_function()
-    create_project_loop(project_dir=project_path)
+    create_project_fn = create_project.to_function()
+    create_project_fn(project_dir=project_path)
 
     automate_path = os.path.join(project_path, '_automate')
     src_path = os.path.join(project_path, 'src')
 
     # first attempt should success
-    first_attempt_loop = add_pip_package.to_function()
-    first_attempt_loop(
+    first_attempt_fn = add_pip_package.to_function()
+    first_attempt_fn(
         project_dir=project_path, package_name='pip_package'
     )
 
@@ -44,8 +44,8 @@ def test_add_pip_package():
     # second attempt should fail
     is_error = False
     try:
-        second_attempt_loop = add_pip_package.to_function()
-        second_attempt_loop(
+        second_attempt_fn = add_pip_package.to_function()
+        second_attempt_fn(
             project_dir=project_path, package_name='pip_package'
         )
     except Exception:

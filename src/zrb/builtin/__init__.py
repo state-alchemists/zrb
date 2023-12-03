@@ -12,7 +12,7 @@ from zrb.builtin import devtool
 from zrb.builtin import generator
 from zrb.builtin import process
 from zrb.builtin import say
-from zrb.builtin import watch
+from zrb.builtin import watch_changes
 from zrb.builtin import schedule
 
 assert base64
@@ -29,5 +29,5 @@ assert devtool
 assert generator
 assert process
 assert say
-assert watch
+assert watch_changes
 assert schedule

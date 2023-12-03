@@ -245,7 +245,6 @@ class BaseTask(
                 selected_advertisement = get_advertisement(advertisements)
                 selected_advertisement.show()
             self._show_done_info()
-            self._play_bell()
         await self.on_ready()
         return True
 
