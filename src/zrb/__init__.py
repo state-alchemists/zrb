@@ -1,6 +1,7 @@
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
+from zrb.task.parallel import AnyParallel, Parallel
 from zrb.task.task import Task
 from zrb.task.cmd_task import CmdTask
 from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
@@ -33,6 +34,8 @@ from zrb.helper.default_env import inject_default_env
 
 assert runner
 assert AnyTask
+assert AnyParallel
+assert Parallel
 assert python_task
 assert Task
 assert CmdTask
