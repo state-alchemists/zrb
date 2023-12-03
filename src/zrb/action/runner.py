@@ -1,4 +1,4 @@
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Union
+from zrb.helper.typing import Any, Callable, List, Mapping, Union
 from zrb.helper.typecheck import typechecked
 from zrb.helper.log import logger
 from zrb.helper.accessories.color import colored
@@ -19,71 +19,82 @@ class Runner():
 
     def __init__(self, env_prefix: str = ''):
         logger.info(colored('Create runner', attrs=['dark']))
-        self._env_prefix = env_prefix
-        self._tasks: Iterable[AnyTask] = []
-        self._registered_groups: Mapping[str, click.Group] = {}
-        self._top_levels: List[CliSubcommand] = []
-        self._subcommands: Mapping[str, List[click.Group]] = {}
+        self.__env_prefix = env_prefix
+        self.__tasks: List[AnyTask] = []
+        self.__registered_groups: Mapping[str, click.Group] = {}
+        self.__top_levels: List[CliSubcommand] = []
+        self.__subcommands: Mapping[str, List[click.Group]] = {}
+        self.__registered_task_cmd_name: List[str] = []
         logger.info(colored('Runner created', attrs=['dark']))
 
-    def register(self, task: AnyTask):
-        task._set_has_cli_interface()
-        cmd_name = task._get_full_cmd_name()
-        logger.debug(colored(f'Register task: {cmd_name}', attrs=['dark']))
-        self._tasks.append(task)
-        logger.debug(colored(f'Task registered: {cmd_name}', attrs=['dark']))
+    def register(self, *tasks: AnyTask):
+        for task in tasks:
+            task._set_has_cli_interface()
+            cmd_name = task._get_full_cmd_name()
+            if cmd_name in self.__registered_task_cmd_name:
+                raise RuntimeError(
+                    f'Task "{cmd_name}" has already been registered'
+                )
+            logger.debug(
+                colored(f'Register task: "{cmd_name}"', attrs=['dark'])
+            )
+            self.__tasks.append(task)
+            self.__registered_task_cmd_name.append(cmd_name)
+            logger.debug(
+                colored(f'Task registered: "{cmd_name}"', attrs=['dark'])
+            )
 
     def serve(self, cli: click.Group) -> click.Group:
-        for task in self._tasks:
-            subcommand = self._create_cli_subcommand(task)
-            if subcommand not in self._top_levels:
-                self._top_levels.append(subcommand)
+        for task in self.__tasks:
+            subcommand = self.__create_cli_subcommand(task)
+            if subcommand not in self.__top_levels:
+                self.__top_levels.append(subcommand)
                 cli.add_command(subcommand)
         return cli
 
-    def _create_cli_subcommand(
+    def __create_cli_subcommand(
         self, task: AnyTask
     ) -> Union[click.Group, click.Command]:
-        subcommand: CliSubcommand = self._create_cli_command(task)
+        subcommand: CliSubcommand = self.__create_cli_command(task)
         task_group = task._group
         while task_group is not None:
-            group = self._register_sub_command(task_group, subcommand)
+            group = self.__register_sub_command(task_group, subcommand)
             if task_group._parent is None:
                 return group
             subcommand = group
             task_group = task_group._parent
         return subcommand
 
-    def _register_sub_command(
+    def __register_sub_command(
         self, task_group: TaskGroup, subcommand: CliSubcommand
     ) -> click.Group:
         task_group_id = task_group.get_id()
-        group = self._get_cli_group(task_group)
-        if task_group_id not in self._subcommands:
-            self._subcommands[task_group_id] = []
-        if subcommand not in self._subcommands[task_group_id]:
+        group = self.__get_cli_group(task_group)
+        if task_group_id not in self.__subcommands:
+            self.__subcommands[task_group_id] = []
+        if subcommand not in self.__subcommands[task_group_id]:
             group.add_command(subcommand)
-            self._subcommands[task_group_id].append(subcommand)
+            self.__subcommands[task_group_id].append(subcommand)
         return group
 
-    def _get_cli_group(self, task_group: TaskGroup) -> click.Group:
+    def __get_cli_group(self, task_group: TaskGroup) -> click.Group:
         task_group_id = task_group.get_id()
-        if task_group_id in self._registered_groups:
-            return self._registered_groups[task_group_id]
+        if task_group_id in self.__registered_groups:
+            return self.__registered_groups[task_group_id]
         group_cmd_name = task_group.get_cmd_name()
         group_description = task_group._description
         group = click.Group(name=group_cmd_name, help=group_description)
-        self._registered_groups[task_group_id] = group
+        self.__registered_groups[task_group_id] = group
         return group
 
-    def _create_cli_command(self, task: AnyTask) -> click.Command:
+    def __create_cli_command(self, task: AnyTask) -> click.Command:
         task_inputs = task._get_combined_inputs()
         task_cmd_name = task.get_cmd_name()
         task_description = task.get_description()
         task_function = task.to_function(
-            env_prefix=self._env_prefix, raise_error=True
+            env_prefix=self.__env_prefix, raise_error=True
         )
-        callback = self._wrap_task_function(task_function)
+        callback = self.__wrap_task_function(task_function)
         command = click.Command(
             callback=callback, name=task_cmd_name, help=task_description
         )
@@ -101,7 +112,7 @@ class Runner():
             command.params.append(click.Option(param_decl, **options))
         return command
 
-    def _wrap_task_function(
+    def __wrap_task_function(
         self, function: Callable[..., Any]
     ) -> Callable[..., Any]:
         def wrapped_function(*args: Any, **kwargs: Any) -> Any:
