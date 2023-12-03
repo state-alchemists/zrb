@@ -12,6 +12,7 @@ from zrb.task.base_task.component.trackers import (
 )
 from zrb.task.base_task.component.renderer import Renderer
 from zrb.task.base_task.component.base_task_model import BaseTaskModel
+from zrb.task.parallel import AnyParallel
 from zrb.advertisement import advertisements
 from zrb.task_group.group import Group
 from zrb.task_env.env import Env
@@ -102,9 +103,15 @@ class BaseTask(
         self.__is_execution_triggered: bool = False
         self.__is_execution_started: bool = False
 
-    def __rshift__(self, other_task: AnyTask):
-        other_task.add_upstream(self)
-        return other_task
+    def __rshift__(self, operand: Union[AnyParallel, AnyTask]):
+        if isinstance(operand, AnyTask):
+            operand.add_upstream(self)
+            return operand
+        if isinstance(operand, AnyParallel):
+            other_tasks: List[AnyTask] = operand.get_tasks()
+            for other_task in other_tasks:
+                other_task.add_upstream(self)
+            return operand
 
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
