@@ -3,7 +3,7 @@
 # FAQ
 
 - [Why Python](why-python.md)
-- [Does Zrb has A Scheduler](does-zrb-has-a-scheduler.md)
+- [Does Zrb have a scheduler](does-zrb-have-a-scheduler.md)
 - [How to get data from other tasks](how-to-get-data-from-other-tasks.md)
 
 🔖 [Table of Contents](../README.md)

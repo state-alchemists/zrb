@@ -1,16 +1,57 @@
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
 
-# Run Task by Schedule
+# Running Task by Schedule
 
 Zrb doesn't have any built-in scheduler. However, there are some workarounds you can use:
 
+- Using RecurringTask
 - Creating an infinite loop
 - Using Cronjob
 - Using Airflow or other orchestrator
 
+# Using RecurringTask
+
+The best approach is by turning your task into a recurring task.
+
+```python
+from zrb import CmdTask, TimeWatcher, RecurringTask, runner
+
+# Your original task
+hello = CmdTask(
+    name='hello',
+    cmd='echo "hello world"'
+)
+runner.register(hello)
+
+
+# Your recurring task
+scheduled_hello = RecurringTask(
+    name='scheduled-hello',
+    inputs=[
+        StrInput(name='schedule', default='* * * * *')
+    ],
+    triggers=[
+        TimeWatcher(schedule='{{input.schedule}}')
+    ],
+    task=hello
+)
+runner.register(scheduled_hello)
+```
+
+Notice that `TimeWatcher`'s `schedule` is a [cron schedule expression](https://crontab.guru/).
+
+The expression `* * * * *` means that the task will be executed every minute.
+
+To execute `scheduled-hello`, you can invoke:
+
+```bash
+zrb scheduled-hello
+```
+
+
 # Creating an Infinite Loop
 
-The simplest approach is by turning your task into a function, and call your function after some interval.
+Another simple approach is by turning your task into a function, and call your function after some interval.
 
 For example, you want to run `hello` task every 5 seconds. Then you can create the following Python script and run it. 
 
@@ -37,6 +78,7 @@ while True:
 ```bash
 python scheduled_hello.py
 ```
+
 
 # Using CronJob
 
