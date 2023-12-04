@@ -19,6 +19,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
       - [Creating a Task Using Task Classes](#creating-a-task-using-task-classes)
       - [Creating a Task Using Python Decorator](#creating-a-task-using-python-decorator)
       - [Task Parameters](#task-parameters)
+    - [Task Dependencies](#task-dependencies)
     - [Task Inputs](#task-inputs)
     - [Task Environments](#task-environments)
     - [Switching Environment](#switching-environment)
@@ -391,20 +392,24 @@ zrb project show-stats
 
 ## Updating Task Definition
 
-To serve our use case, you need to add two more tasks:
-
-- install-pandas
-- download-dataset
-
-You also need to ensure both of them are registered as `show-stats` upstreams. You also need to modify `show-stats` a little bit.
+To make sure things work flawlessly, you will need to import some things:
 
 ```python
-from typing import Any
-from zrb import CmdTask, python_task, StrInput, runner
-from zrb.builtin.group import project_group
-DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
+from zrb import runner, Parallel, CmdTask, python_task, StrInput
+```
 
-# 🐼 Define a task named `install-pandas` to install pandas
+First of all, you need a `runner` so you can make your tasks available from the CLI. You also need `Parallel` to define task dependency. Next, you also need `CmdTask` and `python_task` decorator to define your tasks. Finally, you need `StrInput` to define task input.
+
+Now, let's start with task definitions. We will need three task definitions:
+
+- download-dataset
+- install-pandas
+- show-stats
+
+First, we define `install-pandas`.
+
+```python
+# 🐼 Define a task named `install-pandas` to install pandas.
 # If this task failed, we want Zrb to retry it again 4 times at most.
 install_pandas = CmdTask(
     name='install-pandas',
@@ -412,11 +417,16 @@ install_pandas = CmdTask(
     cmd='pip install pandas',
     retry=4
 )
+```
 
-# Make install_pandas accessible from the CLI (i.e., zrb project install-pandas)
-runner.register(install_pandas)
+We use `CmdTask` to define `install-pandas`. We want it to be grouped under `project_group`, so that we can access the task using `zrb project install-pandas`. We also define `retry=4` so that when the task fails, Zrb will retry it again four times at most.
 
-# ⬇️ Define a task named `download-dataset` to download dataset
+Once `install-pandas` has been defined, you can continue with `download-dataset` definition.
+
+```python
+DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
+
+# ⬇️ Define a task named `download-dataset` to download dataset.
 # This task has an input named `url`.
 # The input will be accessible by using Jinja template: `{{input.url}}`
 # If this task failed, we want Zrb to retry it again 4 times at most
@@ -426,34 +436,110 @@ download_dataset = CmdTask(
     inputs=[
         StrInput(name='url', default=DEFAULT_URL)
     ],
-    cmd='wget -O dataset.csv {{input.url}}'
+    cmd='wget -O dataset.csv {{input.url}}',
+    retry=4
 )
+```
 
-# Make download_dataset accessible from the CLI (i.e., zrb project download-dataset)
-runner.register(download_dataset)
+Our `download-dataset` definition is pretty much similar to `install-pandas` definition. However, since we want our user to be able to define the `url` of the dataset, we add an input named `url`. To access the value of the input, we can use Jinja template `{{input.url}}`.
 
+> __⚠️ WARNING:__ By convention, task and input name should be written in __kebab-case__ (i.e, separated with `-`), while everything else (e.g., variable name, jinja template for input value, etc) should be written in __snake_case__ (i.e, separated with `_`).
 
-# 📊 Define a task to show the statistics properties of the dataset
-# We use `@python_task` decorator since this task is better written in Python.
-# This tasks depends on our previous tasks, `download_dataset` and `install_pandas`
-# If this task failed, then it is failed. No need to retry
+We also need to modify our `show-stats` definition. Unlike `install-pandas` and `download-dataset`, `show-stats` is better written in Python. Thus, we use a `python_task` decorator instead. The decorator will transform `show_stats` function into a Zrb task. That means you cannot run `show_stats` as a regular Python function.
+
+```python
+# 📊 Define a task named `show-stat` to show the statistics properties of the dataset.
+# @python_task` decorator turns a function into a Zrb Task (i.e., `show_stat` is now a Zrb Task).
+# If this task failed, we don't want to retry
 @python_task(
     name='show-stats',
-    description='show stats',
     group=project_group,
-    upstreams=[download_dataset, install_pandas],
-    retry=0,
-    runner=runner # Make show_stats accessible from the CLI (i.e., zrb project show-stats)
+    retry=0
 )
-async def show_stats(*args: Any, **kwargs: Any) -> Any:
+def show_stats(*args, **kwargs):
     import pandas as pd
     df = pd.read_csv('dataset.csv')
     return df.describe()
 ```
 
-We define `install_pandas` and `download_dataset` using `CmdTask`. On the other hand, we use `@python_task` decorator to turn `show_stats` into a task.
+Since `show_stats` depends on `download_dataset` and `install_pandas`, we can define the task dependencies as follows:
 
-Finally, we also set `install_pandas` and `download_dataset` as `show_stats`'s upstreams. This let Zrb gurantee that whenever you run `show_stats`, Zrb will always run `install_pandas` and `download_dataset` first.
+```python
+# Define dependencies: `show_stat` depends on both, `download_dataset` and `install_pandas`
+Parallel(download_dataset, install_pandas) >> show_stats
+```
+
+> __📝 NOTE:__ You can define the dependencies without using `Parallel`:
+>
+> ```python
+> download_dataset >> show_stats
+> install_pandas >> show_stats
+> ```
+>
+> Or you can also use `upstreams` task definition.
+
+Finally, we want `install_pandas`, `download_dataset`, and `show_stats` to be accessible from the CLI. Thus, we register the tasks as follows:
+
+```python
+# Register the tasks so that they are accessbie from the CLI
+runner.register(install_pandas, download_dataset, show_stats)
+```
+
+
+<details>
+<summary>Putting the code together</summary>
+
+```python
+from typing import Any
+from zrb import runner, Parallel, CmdTask, python_task, StrInput
+from zrb.builtin.group import project_group
+
+DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
+
+# 🐼 Define a task named `install-pandas` to install pandas.
+# If this task failed, we want Zrb to retry it again 4 times at most.
+install_pandas = CmdTask(
+    name='install-pandas',
+    group=project_group,
+    cmd='pip install pandas',
+    retry=4
+)
+
+# ⬇️ Define a task named `download-dataset` to download dataset.
+# This task has an input named `url`.
+# The input will be accessible by using Jinja template: `{{input.url}}`
+# If this task failed, we want Zrb to retry it again 4 times at most
+download_dataset = CmdTask(
+    name='download-dataset',
+    group=project_group,
+    inputs=[
+        StrInput(name='url', default=DEFAULT_URL)
+    ],
+    cmd='wget -O dataset.csv {{input.url}}',
+    retry=4
+)
+
+# 📊 Define a task named `show-stat` to show the statistics properties of the dataset.
+# @python_task` decorator turns a function into a Zrb Task (i.e., `show_stat` is now a Zrb Task).
+# If this task failed, we don't want to retry
+# We also want to register the task so that it is accessible from the CLI
+@python_task(
+    name='show-stats',
+    group=project_group,
+    retry=0
+)
+def show_stats(*args, **kwargs):
+    import pandas as pd
+    df = pd.read_csv('dataset.csv')
+    return df.describe()
+
+# Define dependencies: `show_stat` depends on both, `download_dataset` and `install_pandas`
+Parallel(download_dataset, install_pandas) >> show_stats
+
+# Register the tasks so that they are accessbie from the CLI
+runner.register(install_pandas, download_dataset, show_stats)
+```
+</details>
 
 To understand the code more, please visit [understanding the code section](#understanding-the-code).
 
@@ -595,6 +681,38 @@ Each task has its specific parameter. However, the following parameters are typi
 - __runner__: Only available in `@python_task`, the valid value is `zrb.runner`.
 
 You can apply task parameters to both Task classes and `@python_task` decorator.
+
+
+# Task Dependencies
+
+There are two ways to define task dependencies in Zrb.
+
+- Using `>>` operator.
+- Using `upstreams` parameter.
+
+You can use `>>` operator as follows:
+
+```python
+task_1 = CmdTask(name='task-1')
+task_2 = CmdTask(name='task-2')
+task_3 = CmdTask(name='task-3')
+task_4 = CmdTask(name='task-4')
+task_5 = CmdTask(name='task-5')
+task_6 = CmdTask(name='task-6')
+
+task_1 >> Parallel(task_2, task_3) >> Parallel(task_4, task_5) >> task_6
+```
+
+Or you can use `upstreams` parameter as follows:
+
+```python
+task_1 = CmdTask(name='task-1')
+task_2 = CmdTask(name='task-2', upstreams=[task_1])
+task_3 = CmdTask(name='task-3', upstreams=[task_1])
+task_4 = CmdTask(name='task-4', upstreams=[task_2, task_3])
+task_5 = CmdTask(name='task-5', upstreams=[task_2, task_3])
+task_6 = CmdTask(name='task-6', upstreams=[task_4, task_5])
+```
 
 ## Task Inputs
 
