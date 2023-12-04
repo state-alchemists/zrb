@@ -57,7 +57,7 @@ You can create a file named `zrb_init.py` and define the tasks as follows:
 
 ```python
 # File name: zrb_init.py
-from zrb import runner, CmdTask, python_task, StrInput
+from zrb import runner, Parallel, CmdTask, python_task, StrInput
 
 DEFAULT_URL = 'https://raw.githubusercontent.com/state-alchemists/datasets/main/iris.csv'
 
@@ -85,22 +85,20 @@ download_dataset = CmdTask(
 # 📊 Define a task named `show-stat` to show the statistics properties of the dataset.
 # @python_task` decorator turns a function into a Zrb Task (i.e., `show_stat` is now a Zrb Task).
 # If this task failed, we don't want to retry
-# We also want to register the task so that it is accessible from the CLI
 @python_task(
-    name='show-stat',
+    name='show-stats',
     retry=0
 )
-def show_stat(*args, **kwargs):
+def show_stats(*args, **kwargs):
     import pandas as pd
     df = pd.read_csv('dataset.csv')
     return df.describe()
 
 # Define dependencies: `show_stat` depends on both, `download_dataset` and `install_pandas`
-download_dataset >> show_stat
-install_pandas >> show_stat
+Parallel(download_dataset, install_pandas) >> show_stats
 
 # Register the tasks so that they are accessbie from the CLI
-runner.register(install_pandas, download_dataset, show_stat)
+runner.register(install_pandas, download_dataset, show_stats)
 ```
 
 > __📝 NOTE:__ It is possible (although less readable) to define `show_stat` as `CmdTask`:
@@ -108,8 +106,8 @@ runner.register(install_pandas, download_dataset, show_stat)
 > <summary>Show code</summary>
 >
 > ```python
-> show_stat = CmdTask(
->     name='show-stat',
+> show_stats = CmdTask(
+>     name='show-stats',
 >     cmd='python -c "import pandas as pd; df=pd.read_csv(\'dataset.csv\'); print(df.describe())"',
 >     retry=0
 > )
@@ -135,7 +133,6 @@ min        4.300000     2.000000      1.000000     0.100000
 50%        5.800000     3.000000      4.350000     1.300000
 75%        6.400000     3.300000      5.100000     1.800000
 max        7.900000     4.400000      6.900000     2.500000
-
 ```
 
 <details>
