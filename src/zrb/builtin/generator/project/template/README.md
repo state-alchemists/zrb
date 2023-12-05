@@ -13,7 +13,7 @@ To learn more about the project, you can visit [Zrb getting started page](https:
 
 To start working with PascalZrbProjectName, you need to have:
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Pip
 - Venv
 

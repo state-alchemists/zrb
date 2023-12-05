@@ -1,6 +1,9 @@
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
+from zrb.task.any_task_event_handler import (
+    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+)
 from zrb.task.parallel import AnyParallel, Parallel
 from zrb.task.task import Task
 from zrb.task.cmd_task import CmdTask
@@ -34,6 +37,13 @@ from zrb.helper.default_env import inject_default_env
 
 assert runner
 assert AnyTask
+assert OnTriggered
+assert OnWaiting
+assert OnSkipped
+assert OnStarted
+assert OnReady
+assert OnRetry
+assert OnFailed
 assert AnyParallel
 assert Parallel
 assert python_task

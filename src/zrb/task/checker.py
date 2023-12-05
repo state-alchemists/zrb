@@ -18,7 +18,7 @@ class Checker(BaseTask):
 
     def __init__(
         self,
-        name: str = 'port-check',
+        name: str = 'check',
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
