@@ -7,6 +7,9 @@ from zrb.task_env.env import Env
 
 @typechecked
 class EnvFile():
+    '''
+    Task Environment File
+    '''
 
     def __init__(
         self,
@@ -21,6 +24,9 @@ class EnvFile():
         self.__env_list_fetched: bool = False
 
     def get_envs(self) -> List[Env]:
+        '''
+        Return list of Env based on the environment file.
+        '''
         if self.__env_list_fetched:
             return self.__env_list
         env_list: List[Env] = []

@@ -159,13 +159,6 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.print_result(result)
 
     def print_result(self, result: Any):
-        '''
-        Print result to stdout so that it can be processed further.
-        e.g.: echo $(zrb explain solid) > solid-principle.txt
-
-        You need to override this method
-        if you want to show the result differently.
-        '''
         print(result)
 
     def _play_bell(self):
@@ -250,7 +243,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         if self._group is None:
             self.__complete_name = f'{executable_prefix}{cmd_name}'
             return self.__complete_name
-        group_cmd_name = self._group.get_complete_name()
+        group_cmd_name = self._group._get_full_cmd_name()
         self.__complete_name = f'{executable_prefix}{group_cmd_name} {cmd_name}'  # noqa
         return self.__complete_name
 

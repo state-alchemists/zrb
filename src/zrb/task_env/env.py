@@ -1,4 +1,4 @@
-from zrb.helper.typing import Optional
+from zrb.helper.typing import Optional, JinjaTemplate
 from zrb.helper.typecheck import typechecked
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 import os
@@ -7,14 +7,14 @@ import os
 @typechecked
 class Env():
     '''
-    Task Environment definition
+    Task Environment
     '''
 
     def __init__(
         self,
         name: str,
         os_name: Optional[str] = None,
-        default: str = '',
+        default: JinjaTemplate = '',
         should_render: bool = True,
     ):
         if name in RESERVED_ENV_NAMES:
@@ -25,15 +25,27 @@ class Env():
         self.__should_render: bool = should_render
 
     def get_name(self) -> str:
+        '''
+        Return environment's name.
+        '''
         return self.__name
 
-    def get_os_name(self) -> str:
+    def get_os_name(self) -> Optional[str]:
+        '''
+        Return environment's os name.
+        '''
         return self.__os_name
 
     def get_default(self) -> str:
+        '''
+        Return environment's default value.
+        '''
         return self.__default
 
     def should_render(self) -> bool:
+        '''
+        Return boolean value, whether the value should be rendered or not.
+        '''
         return self.__should_render
 
     def get(self, prefix: str = '') -> str:

@@ -8,6 +8,9 @@ TGroup = TypeVar('TGroup', bound='Group')
 
 @typechecked
 class Group():
+    '''
+    Task Group
+    '''
     def __init__(
         self,
         name: str,
@@ -25,11 +28,11 @@ class Group():
     def get_cmd_name(self) -> str:
         return to_cmd_name(self._name)
 
-    def get_complete_name(self) -> str:
+    def _get_full_cmd_name(self) -> str:
         cmd_name = self.get_cmd_name()
         if self._parent is None:
             return cmd_name
-        parent_cmd_name = self._parent.get_complete_name()
+        parent_cmd_name = self._parent._get_full_cmd_name()
         return f'{parent_cmd_name} {cmd_name}'
 
     def get_id(self) -> str:

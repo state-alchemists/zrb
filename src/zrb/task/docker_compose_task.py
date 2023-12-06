@@ -271,7 +271,7 @@ class DockerComposeTask(CmdTask):
         prefix = '_' if file.startswith('.') else '._'
         runtime_prefix = self.get_cmd_name()
         if self._group is not None:
-            group_prefix = to_cmd_name(self._group.get_complete_name())
+            group_prefix = to_cmd_name(self._group._get_full_cmd_name())
             runtime_prefix = f'{group_prefix}-{runtime_prefix}'
         runtime_prefix += '-' + get_random_name(
             separator='-', add_random_digit=True, digit_count=3

@@ -3,6 +3,8 @@ from beartype.typing import (
     Union
 )
 
+JinjaTemplate = str
+
 assert Any
 assert Iterable
 assert Callable
