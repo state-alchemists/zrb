@@ -24,7 +24,7 @@ class AnyTask(ABC):
     @abstractmethod
     def copy(self) -> TAnyTask:
         '''
-        # Description
+        ## Description
         Return copy of the current task.
 
         You can change properties of the copied task using any of these methods:
@@ -42,7 +42,7 @@ class AnyTask(ABC):
         - `insert_env_file`
         - or any other methods depending on the TaskClass you use.
 
-        # Example
+        ## Example
 
         ```python
         task = Task(name='my-task', cmd='echo hello')
@@ -56,13 +56,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
-        # Description
+        ## Description
 
         Define what to do when current task is started.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -76,13 +76,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def check(self) -> bool:
         '''
-        # Description
+        ## Description
         
         Define how Zrb consider current task to be ready.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -101,13 +101,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_triggered(self):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `triggered`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -120,13 +120,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_waiting(self):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `waiting`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -139,13 +139,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_skipped(self):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `skipped`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -158,13 +158,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_started(self):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `started`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -177,13 +177,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_ready(self):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `ready`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -196,13 +196,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_failed(self, is_last_attempt: bool, exception: Exception):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `failed`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):
@@ -218,13 +218,13 @@ class AnyTask(ABC):
     @abstractmethod
     async def on_retry(self):
         '''
-        # Description
+        ## Description
 
         Define what to do when the current task status is `retry`.
 
         You can override this method.
 
-        # Example
+        ## Example
 
         ```python
         class MyTask(Task):

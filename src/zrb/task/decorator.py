@@ -40,6 +40,13 @@ def python_task(
     return_upstream_result: bool = False,
     runner: Optional[Runner] = None
 ) -> Callable[[Callable[..., Any]], Task]:
+    '''
+    ## Description
+    Change any function into a `Task`.
+
+    ## Example
+
+    '''
     def _create_task(fn: Callable[..., Any]) -> Task:
         task = Task(
             name=name,
