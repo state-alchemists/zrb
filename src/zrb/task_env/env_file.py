@@ -25,7 +25,16 @@ class EnvFile():
 
     def get_envs(self) -> List[Env]:
         '''
+        # Description
+
         Return list of Env based on the environment file.
+
+        # Example
+
+        ```python
+        env_file = EnvFile(env_file='some_file.env')
+        envs: List[Env] = env_file.get_envs()
+        ```
         '''
         if self.__env_list_fetched:
             return self.__env_list

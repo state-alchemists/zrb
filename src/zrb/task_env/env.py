@@ -26,34 +26,43 @@ class Env():
 
     def get_name(self) -> str:
         '''
+        # Description
         Return environment's name.
         '''
         return self.__name
 
     def get_os_name(self) -> Optional[str]:
         '''
+        # Description
         Return environment's os name.
         '''
         return self.__os_name
 
     def get_default(self) -> str:
         '''
+        # Description
         Return environment's default value.
         '''
         return self.__default
 
     def should_render(self) -> bool:
         '''
+        # Description
         Return boolean value, whether the value should be rendered or not.
         '''
         return self.__should_render
 
     def get(self, prefix: str = '') -> str:
         '''
-        Return environment value.
-        You can use prefix to distinguish 'DEV', 'PROD'
+        # Description
 
-        Example:
+        Return environment value.
+
+        You can use prefix to distinguish development environment
+        (e.g., 'DEV', 'PROD')
+
+        # Example
+
         ```python
         os.environ['DEV_SERVER'] = 'localhost'
         os.environ['PROD_SERVER'] = 'example.com'
