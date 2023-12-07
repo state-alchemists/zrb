@@ -4,9 +4,32 @@ from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
 from zrb.config.config import show_prompt
 
+# flake8: noqa E501
+
 
 @typechecked
 class BaseInput(AnyInput):
+    '''
+    Task Input.
+
+    You can use Input to make your Task more interactive.
+
+    Attributes:
+        name (str): Group name.
+        shortcut (Optional[str]): Input shortcut, single character
+        default (Optional[Any]): Input default value
+        description (Optional[str]): Description of the group.
+        show_default Union[bool, JinjaTemplate, None]: Whether show default or not.
+
+    Examples:
+        >>> from zrb import Input, Task
+        >>> task = Task(
+        >>>     name='task',
+        >>>     inputs=[
+        >>>         Input(name='delay', default=10, description='Delay')
+        >>>     ]
+        >>> )
+    '''
 
     def __init__(
         self,

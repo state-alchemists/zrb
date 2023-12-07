@@ -117,6 +117,3 @@ class PortChecker(Checker):
         except Exception:
             self.show_progress(f'{self._config.label} (Socker error)')
         return False
-
-    def __repr__(self) -> str:
-        return f'<PortChecker name={self._name}>'

@@ -412,6 +412,3 @@ class CmdTask(BaseTask):
             line_number_repr = str(index + 1).rjust(4, '0')
             lines_repr.append(f'        {line_number_repr} | {line}')
         return '\n' + '\n'.join(lines_repr)
-
-    def __repr__(self) -> str:
-        return f'<CmdTask name={self._name}>'

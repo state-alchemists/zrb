@@ -87,6 +87,3 @@ class Checker(BaseTask):
             self.print_out_dark(message)
             return
         self.log_debug(message)
-
-    def __repr__(self) -> str:
-        return f'<Checker name={self._name}>'

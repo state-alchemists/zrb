@@ -59,4 +59,5 @@ class EnvFile():
     def __repr__(self) -> str:
         env_file = self.__env_file
         prefix = self.__prefix
-        return f'<EnvFile file={env_file} prefix={prefix}>'
+        cls_name = self.__class__.__name__
+        return f'<{cls_name} file={env_file} prefix={prefix}>'

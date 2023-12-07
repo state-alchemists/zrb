@@ -107,6 +107,3 @@ class RsyncTask(BaseRemoteCmdTask):
         if not is_remote:
             return path
         return '${_CONFIG_USER}@${_CONFIG_HOST}:' + path
-
-    def __repr__(self) -> str:
-        return f'<RsyncTask name={self._name}>'

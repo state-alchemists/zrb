@@ -1,8 +1,8 @@
 from typing import Any, Mapping
 from zrb import (
     runner, python_task, AnyTask, Task, CmdTask, DockerComposeTask, FlowTask,
-    Checker, ResourceMaker, RsyncTask, RemoteCmdTask,
-    HTTPChecker, Env, EnvFile, Group, AnyInput, BoolInput, StrInput
+    Checker, ResourceMaker, RsyncTask, RemoteCmdTask, PathWatcher,
+    RecurringTask, HTTPChecker, Env, EnvFile, Group, Input, BoolInput, StrInput
 )
 from helper.doc import inject_doc
 import os
@@ -104,7 +104,7 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(doc_concept_dir, 'task-group.md'): Group,
         os.path.join(doc_concept_dir, 'task-env.md'): Env,
         os.path.join(doc_concept_dir, 'task-env-file.md'): EnvFile,
-        os.path.join(doc_concept_dir, 'task-input.md'): AnyInput,
+        os.path.join(doc_concept_dir, 'task-input.md'): Input,
         os.path.join(doc_concept_task_dir, 'README.md'): AnyTask,
         os.path.join(doc_concept_task_dir, 'checkers.md'): Checker,
         os.path.join(doc_concept_task_dir, 'cmd-task.md'): CmdTask,
@@ -118,6 +118,17 @@ def make_docs(*args: Any, **kwargs: Any):
     for file_name, cls in configs.items():
         task.print_out(f'Injecting doc for `{cls.__name__}` on {file_name}')
         inject_doc(file_name, cls)
+
+
+auto_make_docs = RecurringTask(
+    name='auto-make-docs',
+    description='Make documentation whenever there is any changes in the code',
+    triggers=[
+        PathWatcher(path=os.path.join(CURRENT_DIR, '**', '*.py'))
+    ],
+    task=make_docs
+)
+runner.register(auto_make_docs)
 
 
 build = CmdTask(

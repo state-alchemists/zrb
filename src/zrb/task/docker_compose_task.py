@@ -326,6 +326,3 @@ class DockerComposeTask(CmdTask):
         ])
         self.log_info(f'Command: {cmd_str}')
         return cmd_str
-
-    def __repr__(self) -> str:
-        return f'<DockerComposeTask name={self._name}>'

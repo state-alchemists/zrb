@@ -89,13 +89,10 @@ class PathChecker(Checker):
     async def inspect(self, *args: Any, **kwargs: Any) -> bool:
         label = f'Checking {self._rendered_path}'
         try:
-            if len(glob.glob(self._rendered_path)) > 0:
+            if len(glob.glob(self._rendered_path, recursive=True)) > 0:
                 self.print_out(f'{label} (Exist)')
                 return True
             self.show_progress(f'{label} (Not Exist)')
         except Exception:
             self.show_progress(f'{label} Cannot inspect')
         return False
-
-    def __repr__(self) -> str:
-        return f'<PathChecker name={self._name}>'

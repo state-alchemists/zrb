@@ -80,6 +80,7 @@ You can also use `async` function if you think you need to.
 
 <!--start-doc-->
 ## `python_task`
+
 python_task decorator helps you turn any Python function into a task
 
 __Returns:__

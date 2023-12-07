@@ -29,15 +29,38 @@ def docstring_to_markdown(cls) -> str:
     Returns:
         str: The converted Markdown text.
     """
-    markdown = f"## `{cls.__name__}`\n"
-    markdown += parse_docstring(cls.__doc__) + '\n'
-    for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        if name.startswith('__'):
-            # Don't parse private function
+    markdown = f"## `{cls.__name__}`\n\n"
+    cls_doc = get_doc(cls)
+    markdown += parse_docstring(cls_doc) + '\n'
+    for method_name, _ in inspect.getmembers(cls, predicate=inspect.isfunction):  # noqa
+        if method_name.startswith('__'):
+            # Don't parse private or protected function
             continue
-        markdown += f"\n### `{cls.__name__}.{name}`\n"
-        markdown += parse_docstring(method.__doc__)
+        markdown += f"\n### `{cls.__name__}.{method_name}`\n\n"
+        method_doc = get_method_doc(cls, method_name)
+        markdown += parse_docstring(method_doc) + '\n'
     return markdown
+
+
+def get_method_doc(cls, method_name: str) -> str:
+    if not hasattr(cls, method_name):
+        return None
+    method = getattr(cls, method_name)
+    if not method.__doc__ and hasattr(cls, '__bases__'):
+        for parent in cls.__bases__:
+            parent_method_doc = get_method_doc(parent, method_name)
+            if parent_method_doc:
+                return parent_method_doc
+    return method.__doc__
+
+
+def get_doc(cls) -> str:
+    if not cls.__doc__ and hasattr(cls, '__bases__'):
+        for parent in cls.__bases__:
+            parent_doc = get_doc(parent)
+            if parent_doc:
+                return parent_doc
+    return cls.__doc__
 
 
 def parse_docstring(docstring: str) -> str:

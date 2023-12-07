@@ -13,7 +13,7 @@ from zrb.task_group.group import Group
 from zrb.action.runner import Runner
 from zrb.task.task import Task
 
-# flake8: noqa
+# flake8: noqa E501
 
 
 @typechecked

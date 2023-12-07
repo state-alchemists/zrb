@@ -137,6 +137,3 @@ class RecurringTask(BaseTask):
     ):
         await fn(*args, **kwargs)
         self._play_bell()
-
-    def __repr__(self) -> str:
-        return f'<RecurringTask name={self._name}>'

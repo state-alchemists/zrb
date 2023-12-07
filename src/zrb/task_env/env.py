@@ -98,4 +98,5 @@ class Env():
         name = self.__name
         os_name = self.__os_name
         default = self.__default
-        return f'<Env name={name} os_name={os_name} default={default}>'
+        cls_name = self.__class__.__name__
+        return f'<{cls_name} name={name} os_name={os_name} default={default}>'

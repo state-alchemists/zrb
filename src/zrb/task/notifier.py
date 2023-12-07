@@ -115,9 +115,6 @@ class Notifier(BaseTask):
             task.print_out(message)
             task._play_bell()
 
-    def __repr__(self) -> str:
-        return f'<Notifier name={self._name}>'
-
 
 def _is_powershell_available():
     try:
