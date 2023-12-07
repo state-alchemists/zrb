@@ -34,13 +34,13 @@ def test_task_copy():
     )
     new_task: Task = task.copy()
     new_task.set_name('new-task')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new-task'
     new_task.set_description('new description')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new description'
     new_task.set_icon('🔥')
@@ -77,13 +77,13 @@ def test_cmd_task_copy():
     )
     new_task: CmdTask = task.copy()
     new_task.set_name('new-task')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new-task'
     new_task.set_description('new description')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new description'
     new_task.set_icon('🔥')

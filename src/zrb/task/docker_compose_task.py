@@ -13,7 +13,7 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 from zrb.helper.accessories.name import get_random_name
-from zrb.helper.string.conversion import to_cmd_name
+from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.docker_compose.file import (
     read_compose_file, write_compose_file
@@ -269,9 +269,9 @@ class DockerComposeTask(CmdTask):
     def __get_compose_runtime_file(self, compose_file_name: str) -> str:
         directory, file = os.path.split(compose_file_name)
         prefix = '_' if file.startswith('.') else '._'
-        runtime_prefix = self.get_cmd_name()
+        runtime_prefix = self.get_cli_name()
         if self._group is not None:
-            group_prefix = to_cmd_name(self._group._get_full_cmd_name())
+            group_prefix = to_cli_name(self._group._get_full_cli_name())
             runtime_prefix = f'{group_prefix}-{runtime_prefix}'
         runtime_prefix += '-' + get_random_name(
             separator='-', add_random_digit=True, digit_count=3

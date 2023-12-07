@@ -1,7 +1,7 @@
 from zrb.helper.typing import List, Optional, TypeVar
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
-from zrb.helper.string.conversion import to_cmd_name
+from zrb.helper.string.conversion import to_cli_name
 
 TGroup = TypeVar('TGroup', bound='Group')
 
@@ -9,7 +9,11 @@ TGroup = TypeVar('TGroup', bound='Group')
 @typechecked
 class Group():
     '''
-    Task Group.
+    Task Group to help you organize your Tasks.
+
+    A Task Group might contains:
+    - Tasks.
+    - Other Task Groups.
 
     Attributes:
         name (str): Group name.
@@ -30,50 +34,29 @@ class Group():
         self._children: List[TGroup] = []
         self._tasks: List[AnyTask] = []
 
-    def get_cmd_name(self) -> str:
-        return to_cmd_name(self._name)
-
-    def _get_full_cmd_name(self) -> str:
-        cmd_name = self.get_cmd_name()
-        if self._parent is None:
-            return cmd_name
-        parent_cmd_name = self._parent._get_full_cmd_name()
-        return f'{parent_cmd_name} {cmd_name}'
-
-    def get_id(self) -> str:
+    def get_cli_name(self) -> str:
         '''
-        Get this group id.
+        Get group CLI name (i.e., in kebab case).
 
         Returns:
-            str: Group id
+            str: Group CLI name.
 
         Examples:
-            >>> parent_group = Group(name='parent-group')
-            >>> group = Group(name='group', parent=parent_group)
-            >>> group.get_id()
-            'parent-group group'
+            >>> from zrb import Group
+            >>> system_group = Group(name='my system')
+            >>> print(system_group.get_cli_name())
+            my-system
         '''
-        group_id = self.get_cmd_name()
+        return to_cli_name(self._name)
+
+    def _get_full_cli_name(self) -> str:
+        cli_name = self.get_cli_name()
         if self._parent is None:
-            return group_id
-        parent_group_id = self._parent.get_id()
-        return f'{parent_group_id} {group_id}'
+            return cli_name
+        parent_cli_name = self._parent._get_full_cli_name()
+        return f'{parent_cli_name} {cli_name}'
 
-    def add_task(self, task: AnyTask):
-        '''
-        Add task to this group.
-
-        Args:
-            task (AnyTask): Task to be added.
-
-        Returns:
-            None
-
-        Examples:
-            >>> group = Group(name='group')
-            >>> task = Task(name='task')
-            >>> group.add_task(task)
-        '''
+    def _add_task(self, task: AnyTask):
         self._tasks.append(task)
 
     def get_tasks(self) -> List[AnyTask]:
@@ -81,13 +64,14 @@ class Group():
         Get tasks under this group.
 
         Returns:
-            List[AnyTask]: List of tasks under this group
+            List[AnyTask]: List of tasks under this group.
 
         Examples:
+            >>> from zrb import Group, Task
             >>> group = Group(name='group')
             >>> first_task = Task(name='first-task', group=group)
-            >>> second_task = Task(name='second-task')
-            >>> group.get_tasks()
+            >>> second_task = Task(name='second-task', group=group)
+            >>> print(group.get_tasks())
             [<Task name=first-task>, <Task name=second-task>]
         '''
         return self._tasks
@@ -97,9 +81,10 @@ class Group():
         Get groups under this group.
 
         Returns:
-            List[Group]: List of groups under this group
+            List[Group]: List of groups under this group.
 
         Examples:
+            >>> from zrb import Group, Task
             >>> group = Group(name='group')
             >>> sub_group_1 = TaskGroup(name='sub-group-1', parent=group)
             >>> sub_group_2 = TaskGroup(name='sub-group-2', parent=group)

@@ -1,7 +1,9 @@
+from typing import Any, Mapping
 from zrb import (
-    runner, CmdTask, DockerComposeTask, FlowTask, HTTPChecker,
-    Env, Group, BoolInput, StrInput
+    runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask,
+    HTTPChecker, Env, Group, BoolInput, StrInput
 )
+from helper.doc import inject_doc
 import os
 import sys
 import tomli
@@ -86,9 +88,27 @@ zrb_latest_image_env = Env(
 # Task Definitions
 ###############################################################################
 
+
+@python_task(
+    name='make-docs',
+    description='Make documentation',
+    runner=runner
+)
+def make_docs(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    doc_dir = os.path.join(CURRENT_DIR, 'docs')
+    configs: Mapping[str, Any] = {
+        os.path.join(doc_dir, 'concepts', 'task-group.md'): Group
+    }
+    for file_name, cls in configs.items():
+        task.print_out(f'Injecting doc for `{cls.__name__}` on {file_name}')
+        inject_doc(file_name, cls)
+
+
 build = CmdTask(
     name='build',
     description='Build Zrb',
+    upstreams=[make_docs],
     cwd=CURRENT_DIR,
     cmd=[
         'set -e',

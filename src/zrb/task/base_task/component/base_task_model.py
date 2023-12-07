@@ -55,7 +55,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
-        self.__rjust_full_cmd_name: Optional[str] = None
+        self.__rjust_full_cli_name: Optional[str] = None
         self.__has_cli_interface = False
         self.__complete_name: Optional[str] = None
         CommonTaskModel.__init__(
@@ -185,7 +185,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
             kwarg_key = to_variable_name(key)
             quoted_value = double_quote(str(self.__kwargs[kwarg_key]))
             params.append(f'--{key} {quoted_value}')
-        run_cmd = self._get_full_cmd_name()
+        run_cmd = self._get_full_cli_name()
         run_cmd_with_param = run_cmd
         if len(params) > 0:
             param_str = ' '.join(params)
@@ -203,13 +203,13 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
     def __get_print_prefix(self) -> str:
         common_prefix = self.__get_common_prefix(show_time=show_time)
         icon = self.get_icon()
-        rjust_cmd_name = self.__get_rjust_full_cmd_name()
-        return f'{common_prefix} {icon} {rjust_cmd_name}'
+        rjust_cli_name = self.__get_rjust_full_cli_name()
+        return f'{common_prefix} {icon} {rjust_cli_name}'
 
     def __get_log_prefix(self) -> str:
         common_prefix = self.__get_common_prefix(show_time=False)
         icon = self.get_icon()
-        filled_name = self.__get_rjust_full_cmd_name()
+        filled_name = self.__get_rjust_full_cli_name()
         return f'{common_prefix} {icon} {filled_name}'
 
     def __get_common_prefix(self, show_time: bool) -> str:
@@ -221,30 +221,30 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
             return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
         return f'❁ {pid} → {attempt}/{max_attempt}'
 
-    def __get_rjust_full_cmd_name(self) -> str:
-        if self.__rjust_full_cmd_name is not None:
-            return self.__rjust_full_cmd_name
-        complete_name = self._get_full_cmd_name()
-        self.__rjust_full_cmd_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
-        return self.__rjust_full_cmd_name
+    def __get_rjust_full_cli_name(self) -> str:
+        if self.__rjust_full_cli_name is not None:
+            return self.__rjust_full_cli_name
+        complete_name = self._get_full_cli_name()
+        self.__rjust_full_cli_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
+        return self.__rjust_full_cli_name
 
     def __get_executable_name(self) -> str:
         if len(sys.argv) > 0 and sys.argv[0] != '':
             return os.path.basename(sys.argv[0])
         return 'zrb'
 
-    def _get_full_cmd_name(self) -> str:
+    def _get_full_cli_name(self) -> str:
         if self.__complete_name is not None:
             return self.__complete_name
         executable_prefix = ''
         if self.__has_cli_interface:
             executable_prefix += self.__get_executable_name() + ' '
-        cmd_name = self.get_cmd_name()
+        cli_name = self.get_cli_name()
         if self._group is None:
-            self.__complete_name = f'{executable_prefix}{cmd_name}'
+            self.__complete_name = f'{executable_prefix}{cli_name}'
             return self.__complete_name
-        group_cmd_name = self._group._get_full_cmd_name()
-        self.__complete_name = f'{executable_prefix}{group_cmd_name} {cmd_name}'  # noqa
+        group_cli_name = self._group._get_full_cli_name()
+        self.__complete_name = f'{executable_prefix}{group_cli_name} {cli_name}'  # noqa
         return self.__complete_name
 
     def _set_has_cli_interface(self):

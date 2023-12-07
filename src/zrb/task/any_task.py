@@ -381,11 +381,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_cmd_name(self) -> str:
+    def get_cli_name(self) -> str:
         pass
 
     @abstractmethod
-    def _get_full_cmd_name(self) -> str:
+    def _get_full_cli_name(self) -> str:
         pass
 
     @abstractmethod

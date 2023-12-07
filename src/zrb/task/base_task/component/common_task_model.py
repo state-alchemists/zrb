@@ -6,7 +6,7 @@ from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
 from zrb.task.any_task import AnyTask
-from zrb.helper.string.conversion import to_cmd_name
+from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.accessories.color import get_random_color
 from zrb.helper.accessories.icon import get_random_icon
 from zrb.helper.util import coalesce_str
@@ -50,7 +50,7 @@ class CommonTaskModel():
         self._name = name
         self._group = group
         if group is not None:
-            group.add_task(self)
+            group._add_task(self)
         self._description = coalesce_str(description, name)
         self._inputs = inputs
         self._envs = envs
@@ -108,8 +108,8 @@ class CommonTaskModel():
             self._description = new_name
         self._name = new_name
 
-    def get_cmd_name(self) -> str:
-        return to_cmd_name(self._name)
+    def get_cli_name(self) -> str:
+        return to_cli_name(self._name)
 
     def set_description(self, new_description: str):
         self._description = new_description
