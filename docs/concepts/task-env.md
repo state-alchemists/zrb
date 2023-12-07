@@ -6,6 +6,13 @@
 ## `Env`
 Task Environment
 
+__Attributes:__
+
+- `name` (`str`): environment name as recognized by Task.
+- `os_name` (`Optional[str]`): OS's environment name. Empty string for no os_name.
+- `default` (`JinjaTemplate`): Default value of the environment
+- `should_render` (`bool`): Whether the environment value should be rendered or not.
+
 ### `Env._Env__get_prefixed_name`
 No documentation available.
 

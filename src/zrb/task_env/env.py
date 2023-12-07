@@ -8,6 +8,12 @@ import os
 class Env():
     '''
     Task Environment
+
+    Attributes:
+        name (str): environment name as recognized by Task.
+        os_name (Optional[str]): OS's environment name. Empty string for no os_name.
+        default (JinjaTemplate): Default value of the environment
+        should_render (bool): Whether the environment value should be rendered or not.
     '''
 
     def __init__(
