@@ -32,6 +32,9 @@ def docstring_to_markdown(cls) -> str:
     markdown = f"## `{cls.__name__}`\n"
     markdown += parse_docstring(cls.__doc__) + '\n'
     for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+        if name.startswith('__'):
+            # Don't parse private function
+            continue
         markdown += f"\n### `{cls.__name__}.{name}`\n"
         markdown += parse_docstring(method.__doc__)
     return markdown

@@ -16,12 +16,6 @@ __Attributes:__
 - `description` (`Optional[str]`): Description of the group.
 - `parent` (`Optional[Group]`): Parent of current group
 
-### `Group.__init__`
-No documentation available.
-
-### `Group.__repr__`
-No documentation available.
-
 ### `Group._add_task`
 No documentation available.
 

@@ -49,119 +49,399 @@ zrb run-container
 
 Under the hood, Zrb will read your `compose_file` populate it with some additional configuration, and create a runtime compose file `._<compose-file>-<task-name>.runtime.yml`. Zrb will use the run the runtime compose file to run your `compose_cmd` (i.e., `docker compose -f <compose-file>-<task-name>.runtime.yml <compose-cmd>`)
 
-# DockerComposeTask Parameters
 
-Every [task parameters](./task.md#common-task-parameters) are applicable here. Additionally, a `DockerComposeTask` has it's own specific parameters.
+# Technical Documentation
 
-## `executable`
-
-Executable to run `compose_cmd` and `setup_cmd` command.
-
-- __Required:__ False
-- __Possible values:__ String representing the terminal, for example `bash` or `zsh`.
-- __Default value:__ Equals to `ZRB_SHELL` If set. Otherwise it will be `bash`.
-
-## `compose_service_configs`
-
-Env and EnFile configuration for each services in your `compose_file`.
-
-For example, you want to set postgre's servie `POSTGRES_USER` into `root`. In that case, you can do:
-
-```python
-from zrb import runner, DockerComposeTask, ServiceConfig, Env
-start_container = DockerComposeTask(
-    name='start-container',
-    compose_cmd='up',
-    compose_file='docker-compose.yml',
-    compose_service_configs={
-      'postgres': ServiceConfig(
-        envs=[
-          Env(name='POSTGRES_USER', default='root')
-        ]
-      )
-    }
-)
-runner.register(start_container)
-```
-
-- __Required:__ False
-- __Possible values:__ Map of `ServiceConfig`.
-- __Default value:__ Empty map.
-
-## `compose_file`
-
-Your docker-compose file path.
-
-If not set, Zrb will try to find the following files in your `cwd`:
-
-- `compose.yml`
-- `compose.yaml`
-- `docker-compose.yml`
-- `docker-compose.yaml`
-
-Zrb will throws error if no `compose_file` found.
-
-- __Required:__ False
-- __Possible values:__ String representing the docker compose file or `None`.
-- __Default value:__ `None`
+<!--start-doc-->
+## `DockerComposeTask`
+No documentation available.
 
 
-## `compose_cmd`
+### `DockerComposeTask._BaseTaskModel__get_colored`
+No documentation available.
 
-Docker compose command (i.e: `docker compose <compose-cmd>`)
+### `DockerComposeTask._BaseTaskModel__get_colored_print_prefix`
+No documentation available.
 
-- __Required:__ False
-- __Possible values:__ String representing the docker compose command.
-- __Default value:__ `up`
+### `DockerComposeTask._BaseTaskModel__get_common_prefix`
+No documentation available.
 
-## `compose_options`
+### `DockerComposeTask._BaseTaskModel__get_executable_name`
+No documentation available.
 
-Docker compose options. Type `docker compose --help` to see possible options.
+### `DockerComposeTask._BaseTaskModel__get_log_prefix`
+No documentation available.
 
-Example:
+### `DockerComposeTask._BaseTaskModel__get_print_prefix`
+No documentation available.
 
+### `DockerComposeTask._BaseTaskModel__get_rjust_full_cli_name`
+No documentation available.
 
-```python
-from zrb import runner, DockerComposeTask, ServiceConfig, Env
-start_container = DockerComposeTask(
-    name='start-container',
-    compose_cmd='up',
-    compose_file='docker-compose.yml',
-    compose_options={
-      '--project-name': 'my-project',
-      '--parallel': 5
-    }
-)
-runner.register(start_container)
-```
+### `DockerComposeTask._CmdTask__add_to_buffer`
+No documentation available.
 
-- __Required:__ False
-- __Possible values:__ Map of compose option.
-- __Default value:__ Empty map.
+### `DockerComposeTask._CmdTask__get_multiline_repr`
+No documentation available.
 
+### `DockerComposeTask._CmdTask__get_rendered_cmd`
+No documentation available.
 
-## `compose_flags`
+### `DockerComposeTask._CmdTask__get_rendered_cmd_path`
+No documentation available.
 
-## `compose_args`
+### `DockerComposeTask._CmdTask__is_process_exist`
+No documentation available.
 
-## `compose_env_prefix`
+### `DockerComposeTask._CmdTask__kill_by_pid`
+Kill a pid, gracefully
+### `DockerComposeTask._CmdTask__log_from_queue`
+No documentation available.
 
-## `setup_cmd`
+### `DockerComposeTask._CmdTask__on_exit`
+No documentation available.
 
-## `setup_cmd_path`
+### `DockerComposeTask._CmdTask__on_kill`
+No documentation available.
 
-## `cwd`
+### `DockerComposeTask._CmdTask__queue_stream`
+No documentation available.
 
-## `max_output_line`
+### `DockerComposeTask._CmdTask__set_cwd`
+No documentation available.
 
-## `max_error_line`
+### `DockerComposeTask._CmdTask__wait_process`
+No documentation available.
 
-## `preexec_fn`
+### `DockerComposeTask._DockerComposeTask__apply_service_env`
+No documentation available.
 
+### `DockerComposeTask._DockerComposeTask__generate_compose_runtime_file`
+No documentation available.
 
-# DockerComposeTask Methods
+### `DockerComposeTask._DockerComposeTask__get_compose_runtime_file`
+No documentation available.
 
-Please refer to [common task methods](./README.md#common-task-methods).
+### `DockerComposeTask._DockerComposeTask__get_compose_template_file`
+No documentation available.
 
+### `DockerComposeTask._DockerComposeTask__get_env_compose_value`
+No documentation available.
+
+### `DockerComposeTask._DockerComposeTask__get_service_new_env_list`
+No documentation available.
+
+### `DockerComposeTask._DockerComposeTask__get_service_new_env_map`
+No documentation available.
+
+### `DockerComposeTask._Renderer__ensure_cached_render_data`
+No documentation available.
+
+### `DockerComposeTask._Renderer__get_render_data`
+No documentation available.
+
+### `DockerComposeTask._cached_check`
+No documentation available.
+
+### `DockerComposeTask._cached_run`
+No documentation available.
+
+### `DockerComposeTask._check`
+Check current task readiness.
+- If self.checkers is defined,
+this will return True once every self.checkers is completed
+- Otherwise, this will return check method's return value.
+### `DockerComposeTask._check_should_execute`
+No documentation available.
+
+### `DockerComposeTask._create_cmd_script`
+No documentation available.
+
+### `DockerComposeTask._end_timer`
+No documentation available.
+
+### `DockerComposeTask._get_attempt`
+No documentation available.
+
+### `DockerComposeTask._get_checkers`
+No documentation available.
+
+### `DockerComposeTask._get_combined_env`
+No documentation available.
+
+### `DockerComposeTask._get_combined_inputs`
+'
+Getting all inputs of this task and all its upstream, non-duplicated.
+### `DockerComposeTask._get_elapsed_time`
+No documentation available.
+
+### `DockerComposeTask._get_env_files`
+No documentation available.
+
+### `DockerComposeTask._get_envs`
+No documentation available.
+
+### `DockerComposeTask._get_full_cli_name`
+No documentation available.
+
+### `DockerComposeTask._get_inputs`
+No documentation available.
+
+### `DockerComposeTask._get_max_attempt`
+No documentation available.
+
+### `DockerComposeTask._get_task_pid`
+No documentation available.
+
+### `DockerComposeTask._get_upstreams`
+No documentation available.
+
+### `DockerComposeTask._increase_attempt`
+No documentation available.
+
+### `DockerComposeTask._is_done`
+No documentation available.
+
+### `DockerComposeTask._is_last_attempt`
+No documentation available.
+
+### `DockerComposeTask._lock_upstreams`
+No documentation available.
+
+### `DockerComposeTask._loop_check`
+No documentation available.
+
+### `DockerComposeTask._mark_awaited`
+No documentation available.
+
+### `DockerComposeTask._mark_done`
+No documentation available.
+
+### `DockerComposeTask._play_bell`
+No documentation available.
+
+### `DockerComposeTask._print_result`
+No documentation available.
+
+### `DockerComposeTask._propagate_execution_id`
+No documentation available.
+
+### `DockerComposeTask._run_all`
+No documentation available.
+
+### `DockerComposeTask._run_and_check_all`
+No documentation available.
+
+### `DockerComposeTask._set_args`
+No documentation available.
+
+### `DockerComposeTask._set_env_map`
+No documentation available.
+
+### `DockerComposeTask._set_execution_id`
+No documentation available.
+
+### `DockerComposeTask._set_has_cli_interface`
+No documentation available.
+
+### `DockerComposeTask._set_input_map`
+No documentation available.
+
+### `DockerComposeTask._set_keyval`
+No documentation available.
+
+### `DockerComposeTask._set_kwargs`
+No documentation available.
+
+### `DockerComposeTask._set_local_keyval`
+No documentation available.
+
+### `DockerComposeTask._set_task_pid`
+No documentation available.
+
+### `DockerComposeTask._should_attempt`
+No documentation available.
+
+### `DockerComposeTask._show_done_info`
+No documentation available.
+
+### `DockerComposeTask._show_env_prefix`
+No documentation available.
+
+### `DockerComposeTask._show_run_command`
+No documentation available.
+
+### `DockerComposeTask._start_timer`
+No documentation available.
+
+### `DockerComposeTask.add_env`
+No documentation available.
+
+### `DockerComposeTask.add_env_file`
+No documentation available.
+
+### `DockerComposeTask.add_input`
+No documentation available.
+
+### `DockerComposeTask.add_upstream`
+No documentation available.
+
+### `DockerComposeTask.check`
+No documentation available.
+
+### `DockerComposeTask.copy`
+No documentation available.
+
+### `DockerComposeTask.get_cli_name`
+No documentation available.
+
+### `DockerComposeTask.get_cmd_script`
+No documentation available.
+
+### `DockerComposeTask.get_color`
+No documentation available.
+
+### `DockerComposeTask.get_description`
+No documentation available.
+
+### `DockerComposeTask.get_env_map`
+No documentation available.
+
+### `DockerComposeTask.get_execution_id`
+No documentation available.
+
+### `DockerComposeTask.get_icon`
+No documentation available.
+
+### `DockerComposeTask.get_input_map`
+No documentation available.
+
+### `DockerComposeTask.inject_checkers`
+No documentation available.
+
+### `DockerComposeTask.inject_env_files`
+No documentation available.
+
+### `DockerComposeTask.inject_envs`
+No documentation available.
+
+### `DockerComposeTask.inject_inputs`
+No documentation available.
+
+### `DockerComposeTask.inject_upstreams`
+No documentation available.
+
+### `DockerComposeTask.insert_env`
+No documentation available.
+
+### `DockerComposeTask.insert_env_file`
+No documentation available.
+
+### `DockerComposeTask.insert_input`
+No documentation available.
+
+### `DockerComposeTask.insert_upstream`
+No documentation available.
+
+### `DockerComposeTask.log_critical`
+No documentation available.
+
+### `DockerComposeTask.log_debug`
+No documentation available.
+
+### `DockerComposeTask.log_error`
+No documentation available.
+
+### `DockerComposeTask.log_info`
+No documentation available.
+
+### `DockerComposeTask.log_warn`
+No documentation available.
+
+### `DockerComposeTask.on_failed`
+No documentation available.
+
+### `DockerComposeTask.on_ready`
+No documentation available.
+
+### `DockerComposeTask.on_retry`
+No documentation available.
+
+### `DockerComposeTask.on_skipped`
+No documentation available.
+
+### `DockerComposeTask.on_started`
+No documentation available.
+
+### `DockerComposeTask.on_triggered`
+No documentation available.
+
+### `DockerComposeTask.on_waiting`
+No documentation available.
+
+### `DockerComposeTask.print_err`
+No documentation available.
+
+### `DockerComposeTask.print_out`
+No documentation available.
+
+### `DockerComposeTask.print_out_dark`
+No documentation available.
+
+### `DockerComposeTask.print_result`
+No documentation available.
+
+### `DockerComposeTask.render_any`
+No documentation available.
+
+### `DockerComposeTask.render_bool`
+No documentation available.
+
+### `DockerComposeTask.render_file`
+No documentation available.
+
+### `DockerComposeTask.render_float`
+No documentation available.
+
+### `DockerComposeTask.render_int`
+No documentation available.
+
+### `DockerComposeTask.render_str`
+No documentation available.
+
+### `DockerComposeTask.run`
+No documentation available.
+
+### `DockerComposeTask.set_checking_interval`
+No documentation available.
+
+### `DockerComposeTask.set_color`
+No documentation available.
+
+### `DockerComposeTask.set_cwd`
+No documentation available.
+
+### `DockerComposeTask.set_description`
+No documentation available.
+
+### `DockerComposeTask.set_icon`
+No documentation available.
+
+### `DockerComposeTask.set_name`
+No documentation available.
+
+### `DockerComposeTask.set_retry`
+No documentation available.
+
+### `DockerComposeTask.set_retry_interval`
+No documentation available.
+
+### `DockerComposeTask.set_should_execute`
+No documentation available.
+
+### `DockerComposeTask.to_function`
+No documentation available.
+
+<!--end-doc-->
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)

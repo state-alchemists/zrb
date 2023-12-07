@@ -144,438 +144,355 @@ Triggered         ┌─────────► Ready ◄──┐
 - `Retry`: The task has been failed and will be re-started.
 - `Ready`: The task is ready.
 
-# Common Task Parameters
 
-Zrb tasks share some common parameters like `name`, `icon`, `color`, `description`, etc.
+# Technical Documentation
 
-Some parameters are required, while some others are optional. Please refer to [each specific task documentation](#type-of-tasks) for a more complete list of parameters.
+<!--start-doc-->
+## `AnyTask`
+Task class specification.
 
-## `name`
+In order to create a new Task class, you have to implements all methods.
+You can do this by extending BaseTask.
 
-Task name
+Currently we don't see any advantage to break this interface into
+multiple interfaces since AnyTask is considered atomic.
 
-- __Required:__ True
-- __Possible values:__ Any string
+### `AnyTask._get_checkers`
+No documentation available.
 
-## `color`
+### `AnyTask._get_combined_inputs`
+No documentation available.
 
-Color representing the task. If not set, Zrb will choose a random color for your task.
+### `AnyTask._get_env_files`
+No documentation available.
 
-- __Required:__ False
-- __Possible values:__ 
-    - `green`
-    - `yellow`
-    - `blue`
-    - `magenta`
-    - `cyan`
-    - `light_green`
-    - `light_yellow`
-    - `light_blue`
-    - `light_magenta`
-    - `light_cyan`
-- __Default value:__ One of the possible values, set randomly during runtime.
-    
-## `icon`
+### `AnyTask._get_envs`
+No documentation available.
 
-Icon representing the task. If not set, Zrb will choose a random icon for your task.
+### `AnyTask._get_full_cli_name`
+No documentation available.
 
-- __Required:__ False
-- __Possible values:__ Any emoji
-- __Default value:__ Set randomly during runtime
+### `AnyTask._get_inputs`
+No documentation available.
 
-## `description`
+### `AnyTask._get_upstreams`
+No documentation available.
 
-Description of the task.
+### `AnyTask._loop_check`
+No documentation available.
 
-- __Required:__ False
-- __Possible values:__ Any string
-- __Default value:__ Empty string
+### `AnyTask._print_result`
+No documentation available.
 
-## `group`
+### `AnyTask._run_all`
+No documentation available.
 
-Task group where the current task is located.
+### `AnyTask._set_execution_id`
+Set current task execution id.
 
-You can create a group like this:
+This method is meant for internal use.
+### `AnyTask._set_has_cli_interface`
+No documentation available.
 
-```python
-arasaka = Group(name='arasaka', description='Arasaka automation')
-```
+### `AnyTask._set_keyval`
+No documentation available.
 
-You can also put a group under another group:
+### `AnyTask.add_env`
+Add Env to the end of the current task's env list.
+If there are two Env with the same name, the later will override the first ones.
+### `AnyTask.add_env_file`
+Add EnvFile to the end of current task's env_file list.
+If there are two EnvFile with the same name, the later will override the first ones.
+### `AnyTask.add_input`
+Add AnyInput to the end of the current task's input list.
+If there are two input with the same name, the later will override the first ones.
+### `AnyTask.add_upstream`
+Add AnyTask to the end of the current task's upstream list.
+### `AnyTask.check`
+## Description
 
-```python
-jupyterlab = Group(name='jupyterlab', parent=arasaka, description='Jupyterlab related tasks')
-```
+Define how Zrb consider current task to be ready.
 
-- __Required:__ False
-- __Possible values:__ `Group` or `None`
-- __Default value:__ `None`
+You can override this method.
 
-## `inputs`
-
-List of task inputs. There are multiple type of task inputs you can choose:
-
-- `BoolInput`
-- `ChoiceInput`
-- `FloatInput`
-- `IntInput`
-- `PasswordInput`
-- `StrInput`
-
-See the following example:
+## Example
 
 ```python
-from zrb import (
-    runner, CmdTask,
-    StrInput, ChoiceInput, IntInput, BoolInput, FloatInput, PasswordInput
-)
+class MyTask(Task):
+async def run(self, *args: Any, **kwargs: Any) -> int:
+self.print_out('Doing some calculation')
+self._done = True
+return 42
 
-register_trainer = CmdTask(
-    name='register-trainer',
-    inputs=[
-        StrInput(name='name', default=''),
-        PasswordInput(name='password', default=''),
-        IntInput(name='age', default=0),
-        BoolInput(name='employed', default=False),
-        FloatInput(name='salary', default=0.0),
-        ChoiceInput(
-            name='starter-pokemon',
-            choices=['bulbasaur', 'charmender', 'squirtle']
-        )
-    ],
-    cmd=[
-        'echo "Name: {{input.name}}"',
-        'echo "Password (sorry, we should not show this): {{input.password}}"',
-        'echo "Age: {{input.age}}"',
-        'echo "Employed: {{input.employed}}"',
-        'echo "Salary: {{input.salary}}"',
-        'echo "Starter Pokemon: {{input.starter_pokemon}}"',
-    ]
-)
-runner.register(register_trainer)
+async def check(self) -> bool:
+# When self._done is True, consider the task to be "ready"
+return self._done is not None and self._done
 ```
+### `AnyTask.copy`
+## Description
+Return copy of the current task.
 
-> Note: When you access inputs using Jinja (i.e., `{{input.snake_input_name}}`) syntax, input name is automatically snake-cased.
+You can change properties of the copied task using any of these methods:
+- `set_name`
+- `set_description`
+- `set_icon`
+- `set_color`
+- `add_upstream`
+- `insert_upstream`
+- `add_input`
+- `insert_input`
+- `add_env`
+- `insert_env`
+- `add_env_file`
+- `insert_env_file`
+- or any other methods depending on the TaskClass you use.
 
-
-- __Required:__ False
-- __Possible values:__ List of `Input` object
-- __Default value:__ `[]`
-
-
-## `envs`
-
-List of task envs. Task envs allow you to map task environment into os environment.
-
-In the following example, we map OS `$EMPLOYEE` into task `$USER`, as well as set default value `employee` to the task env variable:
+## Example
 
 ```python
-from zrb import CmdTask, Env, runner
+task = Task(name='my-task', cmd='echo hello')
 
-show_banner = CmdTask(
-    name='show-banner',
-    envs=[
-        Env(name='USER', os_name='EMPLOYEE', default='employee')
-    ],
-    cmd=[
-        'figlet Arasaka',
-        'echo "Welcome $USER"'
-        'echo "こんにちは {{env.USER}}"'
-    ]
-)
-runner.register(show_banner)
+copied_task = task.copy()
+copied_task.set_name('new_name')
 ```
+### `AnyTask.get_cli_name`
+No documentation available.
 
-Just like `input`, you can also use Jinja syntax (i.e., `{{env.USER}}`)
+### `AnyTask.get_color`
+No documentation available.
 
-- __Required:__ False
-- __Possible values:__ List of `Env` object
-- __Default value:__ `[]`
+### `AnyTask.get_description`
+No documentation available.
 
-## `env_files`
+### `AnyTask.get_env_map`
+No documentation available.
 
-List of task environment files.
+### `AnyTask.get_execution_id`
+No documentation available.
 
-Defining environment can be a challenging task, especially if you have a lot of it. Zrb allows you load environment from `*.env` file.
+### `AnyTask.get_icon`
+No documentation available.
 
-For example, you have the following environment file:
+### `AnyTask.get_input_map`
+No documentation available.
 
-```bash
-# File location: template.env
-PORT=8080
-INSTALL_REQUIREMENTS=1
-```
+### `AnyTask.inject_checkers`
+No documentation available.
 
-You can load the environment file like the following:
+### `AnyTask.inject_env_files`
+No documentation available.
+
+### `AnyTask.inject_envs`
+No documentation available.
+
+### `AnyTask.inject_inputs`
+No documentation available.
+
+### `AnyTask.inject_upstreams`
+No documentation available.
+
+### `AnyTask.insert_env`
+Insert Env to the beginning of the current task's env list.
+If there are two Env with the same name, the later will override the first ones.
+### `AnyTask.insert_env_file`
+Insert EnvFile to the beginning of the current task's env_file list.
+If there are two EnvFile with the same name, the later will override the first ones.
+### `AnyTask.insert_input`
+Insert AnyInput to the beginning of the current task's input list.
+If there are two input with the same name, the later will override the first ones.
+### `AnyTask.insert_upstream`
+Insert AnyTask to the beginning of the current task's upstream list.
+### `AnyTask.log_critical`
+No documentation available.
+
+### `AnyTask.log_debug`
+No documentation available.
+
+### `AnyTask.log_error`
+No documentation available.
+
+### `AnyTask.log_info`
+No documentation available.
+
+### `AnyTask.log_warn`
+No documentation available.
+
+### `AnyTask.on_failed`
+## Description
+
+Define what to do when the current task status is `failed`.
+
+You can override this method.
+
+## Example
 
 ```python
-from zrb import CmdTask, EnvFile, runner
-
-# defining show banner under `arasaka jupyterlab` group
-start_jupyterlab = CmdTask(
-    name='start-jupyter',
-    env_files=[
-        EnvFile(env_file='/path/to/template.env', prefix='JUPYTER')
-    ],
-    cmd=[
-        'if [ "$INSTALL_REQUIREMENTS" = "1" ]',
-        'then',
-        '    pip install -r requirements.txt',
-        'fi',
-        'jupyter lab --no-browser --port={{env.PORT}}',
-    ],
-    checkers=[
-        PortChecker(port='{{env.PORT}}')
-    ]
-)
-
-# registering `show_banner` to zrb runner
-runner.register(start_jupyterlab)
+class MyTask(Task):
+async def on_failed(self, is_last_attempt: bool, exception: Exception):
+if is_last_attempt:
+self.print_out('The task is failed, and there will be no retry')
+raise exception
+self.print_out('The task is failed, going to retry')
 ```
+### `AnyTask.on_ready`
+## Description
 
-Finally, you can set `PORT` and `INSTALL_REQUIREMENTS` using your environment file prefix (`JUPYTER`):
+Define what to do when the current task status is `ready`.
 
-```bash
-export JUPYTER_PORT=3000
-export INSTALL_REQUIREMENTS=0
-zrb start-jupyter
-```
+You can override this method.
 
-This will let you avoid environment variable colisions.
-
-- __Required:__ False
-- __Possible values:__ List of `EnvFile` object
-- __Default value:__ `[]`
-
-## `upstreams`
-
-List of upstream tasks. Before running a task, Zrb will make sure that it's upstreams are ready.
-
-Just like in our previous example `start_jupyterlab` will not started before `show_banner` is ready.
-
-- __Required:__ False
-- __Possible values:__ List of `Task` object
-- __Default value:__ `[]`
-
-## `should_execute`
-
-Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
-
-If `should_execute` is evaluated to `True`, then the task will be executed.
-
-- __Required:__ False
-- __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
-- __Default value:__ `True`
-
-
-## `return_upstream_result`
-
-Boolean, whether return upstreams result instead of current task result or not.
-
-- __Required:__ False
-- __Possible values:__ Boolean, a function returning a boolean, or Jinja syntax that rendered to boolean.
-- __Default value:__ `False`
-
-## `on_triggered`
-
-## `on_waiting`
-
-## `on_skipped`
-
-## `on_started`
-
-## `on_ready`
-
-## `on_retry`
-
-## `on_failed`
-
-
-# Common Task Methods
-
-Every task share some common methods like `run`, `check`, and `to_function`.
-
-## `copy`
-
-Deep copy current task
-
-## `inject_env`
-
-To be overridden
-
-## `insert_env`
-
-## `add_env`
-
-## `inject_env_file`
-
-To be overridden
-
-## `insert_env_file`
-
-## `add_env_file`
-
-## `inject_input`
-
-To be overridden
-
-## `insert_input`
-
-## `add_input`
-
-## `inject_upstream`
-
-To be overridden
-
-## `insert_upstream`
-
-## `add_upstream`
-
-## `inject_checker`
-
-To be overridden
-
-## `insert_checker`
-
-## `add_checker`
-
-## `set_name`
-
-## `set_description`
-
-## `set_icon`
-
-## `set_color`
-
-## `set_should_execute`
-
-## `set_retry`
-
-## `set_retry_interval`
-
-## `set_checking_interval`
-
-## `get_env_map`
-
-Return task environments as dictionary.
-
-This is typically useful if you create a Python task. Zrb won't override `os.environ`, so you can't load task environment using `os.environ.get` or `os.getenv`. Instead, you have to use `task.get_env_map`.
-
-Example:
+## Example
 
 ```python
-from zrb import Task, Env, python_task, runner
-
-@python_task(
-    name='show-env',
-    envs=[
-        Env(name='POKEMON_NAME', default='charmender'),
-        Env(name='ELEMENT', default='fire'),
-    ],
-    runner=runner
-)
-def show_env(*args: Any, **kwargs: Any):
-    task: Task = kwargs.get('_task')
-    inputs = task.get_env_map()
-    return inputs # should return {'POKEMON_NAME': 'charmender', 'ELEMENT': 'fire'}
+class MyTask(Task):
+async def on_ready(self):
+self.print_out('The task is ready')
 ```
+### `AnyTask.on_retry`
+## Description
 
-## `get_input_map`
+Define what to do when the current task status is `retry`.
 
-Return task inputs as dictionary.
+You can override this method.
 
-This is typically useful if you create a Python task.
-
-Example:
+## Example
 
 ```python
-from zrb import Task, StrInput, python_task, runner
-
-@python_task(
-    name='show-env',
-    inputs=[
-        StrInput(name='pokemon-name', default='charmender'),
-        StrInput(name='element', default='fire'),
-    ],
-    runner=runner
-)
-def show_env(*args: Any, **kwargs: Any):
-    task: Task = kwargs.get('_task')
-    inputs = task.get_input_map()
-    return inputs # should return {'pokemon_name': 'charmender', 'element': 'fire'}
+class MyTask(Task):
+async def on_retry(self):
+self.print_out('The task is retrying')
 ```
+### `AnyTask.on_skipped`
+## Description
 
-## `run`
+Define what to do when the current task status is `skipped`.
 
-Method to be executed when a task is started. You can extend `BaseTask` and override this method if you think you need to.
+You can override this method.
 
-Example:
+## Example
 
 ```python
-from zrb import BaseTask, Task
-
-class MyTask(BaseTask):
-
-    def run(self, *args: Any, **kwargs: Any) -> Any:
-        task: Task = kwargs.get('_task') 
-        task.print_out(f'args: {args}, kwargs: {kwargs}')
-        # TODO: do anything here
-        return super().run(*args, **kwargs)
+class MyTask(Task):
+async def on_skipped(self):
+self.print_out('The task is not started')
 ```
+### `AnyTask.on_started`
+## Description
 
-## `check`
+Define what to do when the current task status is `started`.
 
-Method to check task readiness. You can extend `BaseTask` and override this method if you think you need to.
+You can override this method.
 
-Example:
+## Example
 
 ```python
-from zrb import BaseTask
-
-class MyTask(BaseTask):
-
-    def check(self) -> bool:
-        # TODO: Add your custom checking here
-        return super().check()
+class MyTask(Task):
+async def on_started(self):
+self.print_out('The task is started')
 ```
+### `AnyTask.on_triggered`
+## Description
 
-## `on_triggered`
+Define what to do when the current task status is `triggered`.
 
-## `on_waiting`
+You can override this method.
 
-## `on_skipped`
-
-## `on_started`
-
-## `on_ready`
-
-## `on_retry`
-
-## `on_failed`
-
-## `to_function`
-
-Method to create main-loop. Once a main-loop is created, you can perform a function call to it.
-
-Example:
+## Example
 
 ```python
-from zrb import CmdTask, Env, runner
-
-show_banner = CmdTask(
-    name='show-banner',
-    envs=[
-        Env(name='USER', os_name='EMPLOYEE', default='employee')
-    ],
-    cmd=[
-        'figlet Arasaka',
-        'echo "Welcome $USER"'
-        'echo "こんにちは {{env.USER}}"'
-    ]
-)
-
-show_banner_loop = show_banner.to_function()
-print(show_banner_loop()) # Now you can run your task as a normal python function
+class MyTask(Task):
+async def on_triggered(self):
+self.print_out('The task has been triggered')
 ```
+### `AnyTask.on_waiting`
+## Description
+
+Define what to do when the current task status is `waiting`.
+
+You can override this method.
+
+## Example
+
+```python
+class MyTask(Task):
+async def on_waiting(self):
+self.print_out('The task is waiting to be started')
+```
+### `AnyTask.print_err`
+No documentation available.
+
+### `AnyTask.print_out`
+No documentation available.
+
+### `AnyTask.print_out_dark`
+No documentation available.
+
+### `AnyTask.print_result`
+Print result to stdout so that it can be processed further.
+e.g.: echo $(zrb explain solid) > solid-principle.txt
+
+You need to override this method
+if you want to show the result differently.
+### `AnyTask.render_any`
+No documentation available.
+
+### `AnyTask.render_bool`
+No documentation available.
+
+### `AnyTask.render_file`
+No documentation available.
+
+### `AnyTask.render_float`
+No documentation available.
+
+### `AnyTask.render_int`
+No documentation available.
+
+### `AnyTask.render_str`
+No documentation available.
+
+### `AnyTask.run`
+## Description
+
+Define what to do when current task is started.
+
+You can override this method.
+
+## Example
+
+```python
+class MyTask(Task):
+async def run(self, *args: Any, **kwargs: Any) -> int:
+self.print_out('Doing some calculation')
+return 42
+```
+### `AnyTask.set_checking_interval`
+No documentation available.
+
+### `AnyTask.set_color`
+No documentation available.
+
+### `AnyTask.set_description`
+Set current task description.
+Usually used to overide copied task's description.
+### `AnyTask.set_icon`
+Set current task icon.
+Usually used to overide copied task's icon.
+### `AnyTask.set_name`
+Set current task name.
+Usually used to overide copied task's name.
+### `AnyTask.set_retry`
+No documentation available.
+
+### `AnyTask.set_retry_interval`
+No documentation available.
+
+### `AnyTask.set_should_execute`
+No documentation available.
+
+### `AnyTask.to_function`
+Turn current task into a callable.
+<!--end-doc-->
+
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)
