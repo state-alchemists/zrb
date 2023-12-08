@@ -493,8 +493,15 @@ No documentation available.
 
 ### `ResourceMaker.get_execution_id`
 
-No documentation available.
+Retrieves the execution ID of the task.
 
+This method returns the unique identifier associated with the task's execution.
+The execution ID is crucial for tracking, logging, and differentiating between
+multiple instances or runs of the same task.
+
+__Returns:__
+
+`str`: The unique execution ID of the task.
 
 ### `ResourceMaker.get_icon`
 
@@ -857,43 +864,92 @@ class MyTask(Task):
 
 ### `ResourceMaker.set_checking_interval`
 
-No documentation available.
+Sets the interval for checking the task's readiness or completion status.
 
+This method defines how frequently the system should check if the task is ready or completed.
+It's useful for tasks that have an indeterminate completion time.
+
+__Arguments:__
+
+- `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
 ### `ResourceMaker.set_color`
 
-No documentation available.
+Defines a new color for the current task.
 
+This method updates the color associated with the task. This can be useful for categorization,
+priority indication, or visual differentiation in a UI.
+
+__Arguments:__
+
+- `new_color` (`str`): A string representing the color to be assigned to the task.
 
 ### `ResourceMaker.set_description`
 
-Set current task description.
-Usually used to overide copied task's description.
+Sets a new description for the current task.
+
+This method allows updating the task's description to provide more context or details about its purpose and behavior.
+Useful for enhancing clarity and maintainability in the task management system.
+
+__Arguments:__
+
+- `new_description` (`str`): A string representing the new description of the task.
 
 ### `ResourceMaker.set_icon`
 
-Set current task icon.
-Usually used to overide copied task's icon.
+Assigns a new icon to the current task.
+
+This method is used for setting or updating the task's icon, which can be utilized for visual representation
+in a user interface. The icon should ideally be a string identifier that maps to an actual graphical resource.
+
+__Arguments:__
+
+- `new_icon` (`str`): A string representing the icon identifier for the task.
 
 ### `ResourceMaker.set_name`
 
-Set current task name.
-Usually used to overide copied task's name.
+Sets a new name for the current task.
+
+This method is used to update the task's name, typically after creating a copy of an existing task.
+The new name helps in differentiating the task in the task management system.
+
+__Arguments:__
+
+- `new_name` (`str`): A string representing the new name to be assigned to the task.
 
 ### `ResourceMaker.set_retry`
 
-No documentation available.
+Sets the number of retry attempts for the task.
 
+This method configures how many times the task should be retried in case of failure.
+It's essential for tasks that may fail transiently and need multiple attempts for successful execution.
+
+__Arguments:__
+
+- `new_retry` (`int`): An integer representing the number of retry attempts.
 
 ### `ResourceMaker.set_retry_interval`
 
-No documentation available.
+Specifies the interval between retry attempts for the task.
 
+This method sets the duration to wait before retrying the task after a failure.
+This can help in scenarios where immediate retry is not desirable or effective.
+
+__Arguments:__
+
+- `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
 ### `ResourceMaker.set_should_execute`
 
-No documentation available.
+Determines whether the task should execute.
 
+This method configures the execution criteria for the task. It can be set as a boolean value,
+a string representing a condition, or a callable that returns a boolean. This is useful for
+conditional task execution based on dynamic criteria.
+
+__Arguments:__
+
+- `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
 ### `ResourceMaker.to_function`
 
