@@ -5,17 +5,32 @@
 <!--start-doc-->
 ## `Input`
 
-Task Input.
-
-You can use Input to make your Task more interactive.
+A concrete implementation of the AnyInput abstract base class, representing a specific type of task input.
+This class allows for the creation of interactive and configurable inputs for tasks, with various attributes
+to customize its behavior and appearance.
 
 __Attributes:__
 
-- `name` (`str`): Group name.
-- `shortcut` (`Optional[str]`): Input shortcut, single character
-- `default` (`Optional[Any]`): Input default value
-- `description` (`Optional[str]`): Description of the group.
-show_default Union[bool, JinjaTemplate, None]: Whether show default or not.
+- `name` (`str`): The name of the input, used as a unique identifier.
+- `shortcut` (`Optional[str]`): An optional single-character shortcut for the input.
+- `default` (`Optional[Any]`): The default value of the input.
+- `description` (`Optional[str]`): A brief description of what the input is for.
+- `show_default` (`Union[bool, JinjaTemplate, None]`): Determines whether the default value should be displayed.
+- `prompt` (`Union[bool, str]`): The prompt text to be displayed when asking for the input.
+- `confirmation_prompt` (`Union[bool, str]`): A prompt for confirmation if required.
+- `prompt_required` (`bool`): Indicates whether a prompt is required.
+- `hide_input` (`bool`): If True, the input value will be hidden (e.g., for passwords).
+- `is_flag` (`Optional[bool]`): Specifies whether the input is a flag.
+- `flag_value` (`Optional[Any]`): The value to be used if the input is a flag.
+- `multiple` (`bool`): Allows multiple values for this input if True.
+- `count` (`bool`): If True, counts the occurrences of the input.
+- `allow_from_autoenv` (`bool`): If True, allows values to be automatically sourced from the environment.
+- `type` (`Optional[Any]`): The expected type of the input value.
+- `hidden` (`bool`): If True, the input is hidden and not rendered.
+- `show_choices` (`bool`): Indicates whether to show available choices for the input.
+- `show_envvar` (`bool`): If True, shows the corresponding environment variable.
+- `nargs` (`int`): Number of arguments expected for this input.
+- `should_render` (`bool`): Determines whether the input should be rendered.
 
 __Examples:__
 
@@ -32,30 +47,51 @@ task = Task(
 
 ### `Input.get_default`
 
-Getting input default value
+Obtains the default value of the input.
+
+__Returns:__
+
+`Any`: The default value of the input. The type can be any, depending on the input specification.
 
 ### `Input.get_name`
 
-Getting input name
+Retrieves the name of the input.
+
+__Returns:__
+
+`str`: The name of the input.
 
 ### `Input.get_options`
 
-No documentation available.
+Provides a mapping (dictionary) representing the input.
 
+__Returns:__
+
+`Mapping[str, Any]`: A dictionary where keys are option names and values are the corresponding details.
 
 ### `Input.get_param_decl`
 
-Getting param declaration
+Fetches a list of parameter option associated with the input (i.e., `-f` or `--file`).
+
+__Returns:__
+
+`List[str]`: A list containing strings of parameter options.
 
 ### `Input.is_hidden`
 
-No documentation available.
+Checks whether the input value is meant to be hidden from view or output.
 
+__Returns:__
+
+`bool`: True if the input is hidden, False otherwise.
 
 ### `Input.should_render`
 
-No documentation available.
+Determines whether or not the input should be rendered.
 
+__Returns:__
+
+`bool`: True if the input should be rendered, False otherwise.
 
 <!--end-doc-->
 

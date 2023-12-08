@@ -4,11 +4,29 @@ from dotenv import dotenv_values
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 
+# flake8: noqa E501
 
 @typechecked
 class EnvFile():
     '''
-    Task Environment File
+    Represents a handler for an environment file, facilitating the creation and management of environment variables 
+    (Env objects) based on the contents of the specified environment file.
+
+    Attributes:
+        env_file (str): The path to the environment file.
+        prefix (Optional[str]): An optional prefix to be applied to environment variables.
+        should_render (bool): Flag to determine if the environment values should be rendered.
+
+    Examples:
+        >>> from zrb import EnvFile, Task
+        >>> import os
+        >>> CURRENT_DIR = os.dirname(__file__)
+        >>> task = Task(
+        >>>     name='task',
+        >>>     env_files=[
+        >>>         EnvFile(env_file=os.path.join(CURRENT_DIR, '.env'), prefix='SYSTEM')
+        >>>     ]
+        >>> )
     '''
 
     def __init__(
@@ -25,16 +43,16 @@ class EnvFile():
 
     def get_envs(self) -> List[Env]:
         '''
-        ## Description
+        Retrieves a list of Env objects based on the environment file. If a prefix is provided, it is 
+        applied to the environment variable names.
 
-        Return list of Env based on the environment file.
+        Returns:
+            List[Env]: A list of Env objects representing the environment variables defined in the file.
 
-        ## Example
-
-        ```python
-        env_file = EnvFile(env_file='some_file.env')
-        envs: List[Env] = env_file.get_envs()
-        ```
+        Examples:
+            >>> from zrb import Env, EnvFile
+            >>> env_file = EnvFile(env_file='some_file.env')
+            >>> envs: List[Env] = env_file.get_envs()
         '''
         if self.__env_list_fetched:
             return self.__env_list

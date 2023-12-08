@@ -3,17 +3,28 @@ from zrb.helper.typecheck import typechecked
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 import os
 
+# flake8: noqa E501
 
 @typechecked
 class Env():
     '''
-    Task Environment
+    Env Represents an environment configuration for a task, encapsulating details such as environment name, OS-specific 
+    environment name, default values, and rendering behavior.
 
     Attributes:
-        name (str): environment name as recognized by Task.
-        os_name (Optional[str]): OS's environment name. Empty string for no os_name.
-        default (JinjaTemplate): Default value of the environment
-        should_render (bool): Whether the environment value should be rendered or not.
+        name (str): Environment name as recognized by the task.
+        os_name (Optional[str]): The corresponding name in the OS's environment, if different from 'name'. You can set os_name to empty string if you don't want the environment to be linked to OS environment name.
+        default (JinjaTemplate): Default value of the environment variable.
+        should_render (bool): Flag to determine if the environment value should be rendered.
+    
+    Examples:
+        >>> from zrb import Env, Task
+        >>> task = Task(
+        >>>     name='task',
+        >>>     envs=[
+        >>>         Env(name='DATABASE_URL', os_name='SYSTEM_DATABASE_URL', default='postgresql://...')
+        >>>     ]
+        >>> )
     '''
 
     def __init__(
@@ -32,53 +43,59 @@ class Env():
 
     def get_name(self) -> str:
         '''
-        ## Description
-        Return environment's name.
+        Retrieves the name of the environment variable.
+
+        Returns:
+            str: The name of the environment variable.
         '''
         return self.__name
 
     def get_os_name(self) -> Optional[str]:
         '''
-        ## Description
-        Return environment's os name.
+        Retrieves the OS-specific name of the environment variable.
+
+        Returns:
+            Optional[str]: The OS-specific name of the environment variable.
         '''
         return self.__os_name
 
     def get_default(self) -> str:
         '''
-        ## Description
-        Return environment's default value.
+        Retrieves the default value of the environment variable.
+
+        Returns:
+            str: The default value of the environment variable.
         '''
         return self.__default
 
     def should_render(self) -> bool:
         '''
-        ## Description
-        Return boolean value, whether the value should be rendered or not.
+        Determines whether the environment value should be rendered.
+
+        Returns:
+            bool: True if the environment value should be rendered, False otherwise.
         '''
         return self.__should_render
 
     def get(self, prefix: str = '') -> str:
         '''
-        ## Description
+        Retrieves the value of the environment variable, considering an optional prefix.
 
-        Return environment value.
+        Args:
+            prefix (str): An optional prefix to distinguish different environments (e.g., 'DEV', 'PROD').
 
-        You can use prefix to distinguish development environment
-        (e.g., 'DEV', 'PROD')
+        Returns:
+            str: The value of the environment variable, considering the prefix and default value.
 
-        ## Example
-
-        ```python
-        os.environ['DEV_SERVER'] = 'localhost'
-        os.environ['PROD_SERVER'] = 'example.com'
-
-        env = Env(name='HOST', os_name='SERVER', default='0.0.0.0')
-
-        print(env.get('DEV'))   # will show 'localhost'
-        print(env.get('PROD'))  # will show 'example.com'
-        print(env.get('STAG'))  # will show '0.0.0.0'
-        ```
+        Examples:
+            >>> from zrb import Env
+            >>> import os
+            >>> os.environ['DEV_SERVER'] = 'localhost'
+            >>> os.environ['PROD_SERVER'] = 'example.com'
+            >>> env = Env(name='HOST', os_name='SERVER', default='0.0.0.0')
+            >>> print(env.get('DEV'))   # will show 'localhost'
+            >>> print(env.get('PROD'))  # will show 'example.com'
+            >>> print(env.get('STAG'))  # will show '0.0.0.0'
         '''
         if self.__os_name == '':
             return self.__default
@@ -90,6 +107,18 @@ class Env():
         return self.__default
 
     def __get_prefixed_name(self, name: str, prefix: str):
+        '''
+        Constructs the prefixed name of the environment variable.
+
+        This method is intended for internal use only. 
+
+        Args:
+            name (str): The base name of the environment variable.
+            prefix (str): The prefix to be added to the name.
+
+        Returns:
+            str: The prefixed name of the environment variable.
+        '''
         if prefix is None or prefix == '':
             return name
         return prefix + '_' + name

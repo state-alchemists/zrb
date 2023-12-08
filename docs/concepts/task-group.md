@@ -5,17 +5,17 @@
 <!--start-doc-->
 ## `Group`
 
-Task Group that help you organize your Tasks.
+Represents a group of tasks and subgroups, facilitating organization and hierarchy.
 
-A Task Group might contains:
-- Tasks.
-- Other Task Groups.
+This class allows the creation of a hierarchical structure by grouping tasks and
+other task groups together. It provides methods to add tasks, retrieve tasks,
+and generate Command-Line Interface (CLI) names based on group names.
 
 __Attributes:__
 
-- `name` (`str`): Group name.
-- `description` (`Optional[str]`): Description of the group.
-- `parent` (`Optional[Group]`): Parent of current group
+- `name` (`str`): The name of the group.
+- `description` (`Optional[str]`): An optional description of the group.
+- `parent` (`Optional[TGroup]`): The parent group of the current group, if any.
 
 __Examples:__
 
@@ -28,13 +28,13 @@ log_group = Group(name='log', parent='system')
 
 ### `Group._add_task`
 
-Add Task to Task Group
+Adds a task to the group.
 
-This method is meant for internal use.
+This method is intended for internal use. It appends a given task to the  group's task list.
 
 __Arguments:__
 
-- `task` (`AnyTask`): Task to be added.
+- `task` (`AnyTask`): The task to be added.
 
 __Examples:__
 
@@ -55,13 +55,13 @@ print(group.get_tasks())
 
 ### `Group._get_full_cli_name`
 
-Get Task Group's full CLI name
+Retrieves the full CLI name of the group, including names of parent groups.
 
-This method is meant for internal use.
+This method is intended for internal use and constructs a full CLI name that reflects the group's hierarchy.
 
 __Returns:__
 
-`str`: Group full CLI name.
+`str`: The full CLI name of the group
 
 __Examples:__
 
@@ -79,11 +79,13 @@ my-system log
 
 ### `Group.get_children`
 
-Get direct Sub Task Groups under this Task Group.
+Retrieves the list of direct subgroups under this group.
+
+Returns a list of immediate subgroups nested within this group, helping to understand the group's hierarchical structure.
 
 __Returns:__
 
-`List[Group]`: List of direct Sub Task Groups under this Task Group.
+`List[Group]`: List of direct subgroups under this Task group.
 
 __Examples:__
 
@@ -102,11 +104,13 @@ print(group.get_children())
 
 ### `Group.get_cli_name`
 
-Get Task Group's CLI name (i.e., in kebab case).
+Retrieves the CLI name of the group, formatted in kebab case.
+
+The method converts the group name into a CLI-friendly format, suitable for command-line usage.
 
 __Returns:__
 
-`str`: Group CLI name.
+`str`: The CLI name of the group.
 
 __Examples:__
 

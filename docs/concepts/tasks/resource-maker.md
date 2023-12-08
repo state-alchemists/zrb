@@ -226,8 +226,7 @@ No documentation available.
 
 ### `ResourceMaker._loop_check`
 
-No documentation available.
-
+For internal use
 
 ### `ResourceMaker._mark_awaited`
 
@@ -246,8 +245,7 @@ No documentation available.
 
 ### `ResourceMaker._print_result`
 
-No documentation available.
-
+For internal use
 
 ### `ResourceMaker._propagate_execution_id`
 
@@ -256,8 +254,7 @@ No documentation available.
 
 ### `ResourceMaker._run_all`
 
-No documentation available.
-
+For internal use
 
 ### `ResourceMaker._run_and_check_all`
 
@@ -276,9 +273,16 @@ No documentation available.
 
 ### `ResourceMaker._set_execution_id`
 
-Set current task execution id.
+Sets the execution ID for the current task.
 
-This method is meant for internal use.
+This method is intended for internal use to assign a unique identifier to the task's execution.
+This ID can be used for tracking, logging, and inter-task communication.
+
+This method should not be used externally, as it is meant to be managed within the task system.
+
+__Arguments:__
+
+- `execution_id` (`str`): A string representing the unique execution ID.
 
 ### `ResourceMaker._set_has_cli_interface`
 
@@ -292,8 +296,7 @@ No documentation available.
 
 ### `ResourceMaker._set_keyval`
 
-No documentation available.
-
+For internal use
 
 ### `ResourceMaker._set_kwargs`
 
@@ -342,73 +345,131 @@ No documentation available.
 
 ### `ResourceMaker.add_env`
 
-Add Env to the end of the current task's env list.
-If there are two Env with the same name, the later will override the first ones.
+Adds one or more `Env` instances to the end of the current task's environment variable list.
+
+Use this method to append environment variables for the task, which will be used after
+any variables already set.
+
+__Arguments:__
+
+- `envs` (`Env`): One or more environment variable instances to be added.
+
+Example:
+```python
+from zrb import Task, Env
+task = Task(name='task')
+db_url_env = Env(name='DATABASE_URL', value='postgresql://...')
+task.add_env(env_var)
+```
+
 
 ### `ResourceMaker.add_env_file`
 
-Add EnvFile to the end of current task's env_file list.
-If there are two EnvFile with the same name, the later will override the first ones.
+Adds one or more `EnvFile` instances to the end of the current task's environment file list.
+
+Use this method to append environment file references, which will be processed after
+any files already specified. This allows for supplementing the existing environment
+configuration.
+
+__Arguments:__
+
+- `env_files` (`EnvFile`): One or more environment file instances to be added.
+
+Example:
+```python
+from zrb import Task, EnvFile
+task = Task()
+env_file = EnvFile(env_file='config.env')
+task.add_env_file(env_file)
+```
+
 
 ### `ResourceMaker.add_input`
 
-Add AnyInput to the end of the current task's input list.
-If there are two input with the same name, the later will override the first ones.
+Adds one or more `AnyInput` instances to the end of the current task's input list.
+
+This method is used to append inputs for the task to process, placing them after any inputs
+already specified.
+
+__Arguments:__
+
+- `inputs` (`AnyInput`): One or more input instances to be added to the input list.
+
+Example:
+```python
+from zrb import Task, Input
+task = Task(name='task')
+email_input = Input(name='email-address')
+task.add_input(email_input)
+```
+
 
 ### `ResourceMaker.add_upstream`
 
-Add AnyTask to the end of the current task's upstream list.
+Adds one or more `AnyTask` instances to the end of the current task's upstream list.
+
+This method appends tasks to the upstream list, indicating that these tasks should be executed
+before the current task, but after any tasks already in the upstream list.
+
+__Arguments:__
+
+- `upstreams` (`TAnyTask`): One or more task instances to be added to the upstream list.
+
+Example:
+```python
+from zrb import Task
+task = Task(name='task')
+upstream_task = Task(name='upstream-task')
+task.add_upstream(upstream_task)
+```
+
 
 ### `ResourceMaker.check`
 
-## Description
+Checks if the current task is `ready`.
 
-Define how Zrb consider current task to be ready.
+Any other tasks depends on the current task, will be `started` once the current task is `ready`.
 
-You can override this method.
+This method should be implemented to define the criteria for considering the task
+`ready`. The specifics of this completion depend on the task's
+nature and the subclass implementation.
 
-## Example
+__Returns:__
 
+`bool`: True if the task is completed, False otherwise.
+
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def run(self, *args: Any, **kwargs: Any) -> int:
-self.print_out('Doing some calculation')
-self._done = True
-return 42
-
-async def check(self) -> bool:
-# When self._done is True, consider the task to be "ready"
-return self._done is not None and self._done
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.print_out('Doing some calculation')
+        self._completed = True
+        return 42
+    async def check(self) -> bool:
+        return self._completed
 ```
+
 
 ### `ResourceMaker.copy`
 
-## Description
-Return copy of the current task.
+Creates and returns a copy of the current task.
 
-You can change properties of the copied task using any of these methods:
-- `set_name`
-- `set_description`
-- `set_icon`
-- `set_color`
-- `add_upstream`
-- `insert_upstream`
-- `add_input`
-- `insert_input`
-- `add_env`
-- `insert_env`
-- `add_env_file`
-- `insert_env_file`
-- or any other methods depending on the TaskClass you use.
+The copied task can be modified using various setter methods like `set_name`,
+`set_description`, and others, depending on the subclass implementation.
 
-## Example
+__Returns:__
 
+`TAnyTask`: A copy of the current task.
+
+Example:
 ```python
+from zrb import Task
 task = Task(name='my-task', cmd='echo hello')
-
 copied_task = task.copy()
 copied_task.set_name('new_name')
 ```
+
 
 ### `ResourceMaker.get_cli_name`
 
@@ -472,22 +533,85 @@ No documentation available.
 
 ### `ResourceMaker.insert_env`
 
-Insert Env to the beginning of the current task's env list.
-If there are two Env with the same name, the later will override the first ones.
+Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
+
+This method allows for setting or overriding environment variables for the task, with earlier entries
+having precedence over later ones.
+
+__Arguments:__
+
+- `envs` (`Env`): One or more environment variable instances to be added.
+
+Example:
+```python
+from zrb import Task, Env
+task = Task(name='task')
+db_url_env = Env(name='DATABASE_URL', value='postgresql://...')
+task.insert_env(env_var)
+```
+
 
 ### `ResourceMaker.insert_env_file`
 
-Insert EnvFile to the beginning of the current task's env_file list.
-If there are two EnvFile with the same name, the later will override the first ones.
+Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
+
+This method is used to specify environment variable files whose contents should be loaded
+before those of any files already in the list. This is useful for overriding or setting
+additional environment configurations.
+
+__Arguments:__
+
+- `env_files` (`EnvFile`): One or more environment file instances to be added.
+
+Example:
+```python
+from zrb import Task, EnvFile
+task = Task()
+env_file = EnvFile(env_file='config.env')
+task.insert_env_file(env_file)
+```
+
 
 ### `ResourceMaker.insert_input`
 
-Insert AnyInput to the beginning of the current task's input list.
-If there are two input with the same name, the later will override the first ones.
+Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
+
+This method is used to add inputs that the task will process. Inserting an input at the beginning
+of the list gives it precedence over those already present.
+
+__Arguments:__
+
+- `inputs` (`AnyInput`): One or more input instances to be added to the input list.
+
+Example:
+```python
+from zrb import Task, Input
+task = Task(name='task')
+email_input = Input(name='email-address')
+task.insert_input(email_input)
+```
+
 
 ### `ResourceMaker.insert_upstream`
 
-Insert AnyTask to the beginning of the current task's upstream list.
+Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
+
+This method is used to define dependencies for the current task. Tasks in the upstream list are
+executed before the current task. Adding a task to the beginning of the list means it will be
+executed earlier than those already in the list.
+
+__Arguments:__
+
+- `upstreams` (`TAnyTask`): One or more task instances to be added to the upstream list.
+
+Example:
+```python
+from zrb import Task
+task = Task(name='task')
+upstream_task = Task(name='upstream-task')
+task.insert_upstream(upstream_task)
+```
+
 
 ### `ResourceMaker.log_critical`
 
@@ -516,118 +640,128 @@ No documentation available.
 
 ### `ResourceMaker.on_failed`
 
-## Description
+Specifies the behavior when the task execution fails.
 
-Define what to do when the current task status is `failed`.
+This asynchronous method should be implemented in subclasses to handle task
+failure scenarios. It can include logging the error, performing retries, or
+any other failure handling mechanisms.
 
-You can override this method.
+__Arguments:__
 
-## Example
+- `is_last_attempt` (`bool`): Indicates if this is the final retry attempt.
+- `exception` (`Exception`): The exception that caused the task to fail.
 
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_failed(self, is_last_attempt: bool, exception: Exception):
-if is_last_attempt:
-self.print_out('The task is failed, and there will be no retry')
-raise exception
-self.print_out('The task is failed, going to retry')
+    async def on_failed(self, is_last_attempt: bool, exception: Exception):
+        if is_last_attempt:
+            self.print_out('The task has failed with no remaining retries')
+        else:
+            self.print_out('The task failed, retrying...')
 ```
+
 
 ### `ResourceMaker.on_ready`
 
-## Description
+Defines actions to be performed when the task status is `ready`.
 
-Define what to do when the current task status is `ready`.
+This asynchronous method should be implemented in subclasses to specify
+actions that occur when the task reaches the `ready` state. This can include
+any cleanup, notification, or follow-up actions specific to the task.
 
-You can override this method.
-
-## Example
-
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_ready(self):
-self.print_out('The task is ready')
+    async def on_ready(self):
+        self.print_out('The task is ready')
 ```
+
 
 ### `ResourceMaker.on_retry`
 
-## Description
+Defines actions to perform when the task is retried.
 
-Define what to do when the current task status is `retry`.
+Implement this method to specify behavior when the task is retried after a failure.
+This could include resetting states, logging the retry attempt, or other necessary
+steps before re-execution.
 
-You can override this method.
-
-## Example
-
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_retry(self):
-self.print_out('The task is retrying')
+    async def on_retry(self):
+        self.log_info('Retrying task')
 ```
+
 
 ### `ResourceMaker.on_skipped`
 
-## Description
+Defines actions to perform when the task status is set to `skipped`.
 
-Define what to do when the current task status is `skipped`.
+Implement this method to specify behavior when the task is skipped. This could
+include logging information, cleaning up resources, or any other necessary steps.
 
-You can override this method.
-
-## Example
-
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_skipped(self):
-self.print_out('The task is not started')
+    async def on_skipped(self):
+        self.log_info('Task was skipped')
 ```
+
 
 ### `ResourceMaker.on_started`
 
-## Description
+Defines actions to perform when the task status is set to 'started'.
 
-Define what to do when the current task status is `started`.
+Implement this method to specify behavior when the task starts its execution. This
+could involve initializing resources, logging, or other startup procedures.
 
-You can override this method.
-
-## Example
-
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_started(self):
-self.print_out('The task is started')
+    async def on_started(self):
+        self.log_info('Task has started')
 ```
+
 
 ### `ResourceMaker.on_triggered`
 
-## Description
+Defines actions to perform when the task status is set to `triggered`.
 
-Define what to do when the current task status is `triggered`.
+Implement this method to specify behavior when the task transitions to the
+`triggered` state. This could involve setting up prerequisites or sending
+notifications.
 
-You can override this method.
-
-## Example
-
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_triggered(self):
-self.print_out('The task has been triggered')
+    async def on_triggered(self):
+        self.log_info('Task has been triggered')
 ```
+
 
 ### `ResourceMaker.on_waiting`
 
-## Description
+Defines actions to perform when the task status is set to `waiting`.
 
-Define what to do when the current task status is `waiting`.
+Implement this method to specify behavior when the task transitions to the
+`waiting` state. This state usually indicates the task is waiting for some
+condition or prerequisite to be met.
 
-You can override this method.
-
-## Example
-
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def on_waiting(self):
-self.print_out('The task is waiting to be started')
+    async def on_waiting(self):
+        self.log_info('Task is waiting to be started')
 ```
+
 
 ### `ResourceMaker.print_err`
 
@@ -646,11 +780,22 @@ No documentation available.
 
 ### `ResourceMaker.print_result`
 
-Print result to stdout so that it can be processed further.
-e.g.: echo $(zrb explain solid) > solid-principle.txt
+Outputs the task result to stdout for further processing.
 
-You need to override this method
-if you want to show the result differently.
+Override this method in subclasses to customize how the task result is displayed
+or processed. Useful for integrating the task output with other systems or
+command-line tools.
+
+__Arguments:__
+
+- `result` (`Any`): The result of the task to be printed.
+
+Example:
+>> from zrb import Task
+>> # Example of overriding in a subclass
+>> class MyTask(Task):
+>>    def print_result(self, result: Any):
+>>        print(f'Result: {result}')
 
 ### `ResourceMaker.render_any`
 
@@ -684,20 +829,31 @@ No documentation available.
 
 ### `ResourceMaker.run`
 
-## Description
+Executes the main logic of the task.
 
-Define what to do when current task is started.
+This asynchronous method should be implemented in subclasses to define the
+task's primary functionality. The specific behavior and the return value
+depend on the task's nature and purpose.
 
-You can override this method.
+__Arguments:__
 
-## Example
+- `args` (`Any`): Variable length argument list.
+- `kwargs` (`Any`): Arbitrary keyword arguments.
 
+__Returns:__
+
+`Any`: The result of the task execution, the type of which is determined by
+the specific task implementation.
+
+Example:
 ```python
+from zrb import Task
 class MyTask(Task):
-async def run(self, *args: Any, **kwargs: Any) -> int:
-self.print_out('Doing some calculation')
-return 42
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.print_out('Doing some calculation')
+        return 42
 ```
+
 
 ### `ResourceMaker.set_checking_interval`
 
@@ -741,7 +897,39 @@ No documentation available.
 
 ### `ResourceMaker.to_function`
 
-Turn current task into a callable.
+Converts the current task into a callable function.
+
+This method should be implemented to allow the task to be executed as a function.
+Parameters can be used to modify the behavior of the generated function, such as
+raising errors, asynchronous execution, and logging.
+
+__Arguments:__
+
+- `env_prefix` (`str`): A prefix for environment variables.
+- `raise_error` (`bool`): Whether to raise an error if the task execution fails.
+- `is_async` (`bool`): Whether the resulting function should be asynchronous.
+- `show_done_info` (`bool`): Whether to show information upon task completion.
+
+__Returns:__
+
+`Callable[..., Any]`: A callable representation of the task.
+
+Example:
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.print_out('Doing some calculation')
+        return 42
+````
+
+>>>
+```python
+task = MyTask()
+fn = task.to_function()
+fn()
+```
+
 
 <!--end-doc-->
 

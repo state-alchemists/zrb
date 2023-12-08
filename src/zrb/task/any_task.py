@@ -13,225 +13,208 @@ TAnyTask = TypeVar('TAnyTask', bound='AnyTask')
 
 class AnyTask(ABC):
     '''
-    Task class specification.
+    Abstract base class for defining tasks in a task management system.
 
-    In order to create a new Task class, you have to implements all methods.
-    You can do this by extending BaseTask.
+    This class acts as a template for creating new task types. To define a new task, 
+    extend this class and implement all its abstract methods. The `AnyTask` class is 
+    considered atomic and is not broken into multiple interfaces.
 
-    Currently we don't see any advantage to break this interface into
-    multiple interfaces since AnyTask is considered atomic.
+    Subclasses should implement the abstract methods to define custom behavior for 
+    task execution, state transitions, and other functionalities.
     '''
 
     @abstractmethod
     def copy(self) -> TAnyTask:
         '''
-        ## Description
-        Return copy of the current task.
+        Creates and returns a copy of the current task.
 
-        You can change properties of the copied task using any of these methods:
-        - `set_name`
-        - `set_description`
-        - `set_icon`
-        - `set_color`
-        - `add_upstream`
-        - `insert_upstream`
-        - `add_input`
-        - `insert_input`
-        - `add_env`
-        - `insert_env`
-        - `add_env_file`
-        - `insert_env_file`
-        - or any other methods depending on the TaskClass you use.
+        The copied task can be modified using various setter methods like `set_name`, 
+        `set_description`, and others, depending on the subclass implementation.
 
-        ## Example
+        Returns:
+            TAnyTask: A copy of the current task.
 
-        ```python
-        task = Task(name='my-task', cmd='echo hello')
-
-        copied_task = task.copy()
-        copied_task.set_name('new_name')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> task = Task(name='my-task', cmd='echo hello')
+            >>> copied_task = task.copy()
+            >>> copied_task.set_name('new_name')
         '''
         pass
 
     @abstractmethod
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
-        ## Description
+        Executes the main logic of the task.
 
-        Define what to do when current task is started.
+        This asynchronous method should be implemented in subclasses to define the 
+        task's primary functionality. The specific behavior and the return value 
+        depend on the task's nature and purpose.
 
-        You can override this method.
+        Args:
+            args (Any): Variable length argument list.
+            kwargs (Any): Arbitrary keyword arguments.
 
-        ## Example
+        Returns:
+            Any: The result of the task execution, the type of which is determined by 
+            the specific task implementation.
 
-        ```python
-        class MyTask(Task):
-            async def run(self, *args: Any, **kwargs: Any) -> int:
-                self.print_out('Doing some calculation')
-                return 42
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
+            >>>         self.print_out('Doing some calculation')
+            >>>         return 42
         '''
         pass
 
     @abstractmethod
     async def check(self) -> bool:
         '''
-        ## Description
-        
-        Define how Zrb consider current task to be ready.
+        Checks if the current task is `ready`.
 
-        You can override this method.
+        Any other tasks depends on the current task, will be `started` once the current task is `ready`.
 
-        ## Example
+        This method should be implemented to define the criteria for considering the task 
+        `ready`. The specifics of this completion depend on the task's 
+        nature and the subclass implementation.
 
-        ```python
-        class MyTask(Task):
-            async def run(self, *args: Any, **kwargs: Any) -> int:
-                self.print_out('Doing some calculation')
-                self._done = True
-                return 42
-            
-            async def check(self) -> bool:
-                # When self._done is True, consider the task to be "ready"
-                return self._done is not None and self._done
-        ```
+        Returns:
+            bool: True if the task is completed, False otherwise.
+
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
+            >>>         self.print_out('Doing some calculation')
+            >>>         self._completed = True
+            >>>         return 42
+            >>>     async def check(self) -> bool:
+            >>>         return self._completed
         '''
         pass
 
     @abstractmethod
     async def on_triggered(self):
         '''
-        ## Description
+        Defines actions to perform when the task status is set to `triggered`.
 
-        Define what to do when the current task status is `triggered`.
+        Implement this method to specify behavior when the task transitions to the 
+        `triggered` state. This could involve setting up prerequisites or sending 
+        notifications.
 
-        You can override this method.
-
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_triggered(self):
-                self.print_out('The task has been triggered')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_triggered(self):
+            >>>         self.log_info('Task has been triggered')
         '''
         pass
 
     @abstractmethod
     async def on_waiting(self):
         '''
-        ## Description
+        Defines actions to perform when the task status is set to `waiting`.
 
-        Define what to do when the current task status is `waiting`.
+        Implement this method to specify behavior when the task transitions to the 
+        `waiting` state. This state usually indicates the task is waiting for some 
+        condition or prerequisite to be met.
 
-        You can override this method.
-
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_waiting(self):
-                self.print_out('The task is waiting to be started')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_waiting(self):
+            >>>         self.log_info('Task is waiting to be started')
         '''
         pass
 
     @abstractmethod
     async def on_skipped(self):
         '''
-        ## Description
+        Defines actions to perform when the task status is set to `skipped`.
 
-        Define what to do when the current task status is `skipped`.
+        Implement this method to specify behavior when the task is skipped. This could 
+        include logging information, cleaning up resources, or any other necessary steps.
 
-        You can override this method.
-
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_skipped(self):
-                self.print_out('The task is not started')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_skipped(self):
+            >>>         self.log_info('Task was skipped') 
         '''
         pass
 
     @abstractmethod
     async def on_started(self):
         '''
-        ## Description
+        Defines actions to perform when the task status is set to 'started'.
 
-        Define what to do when the current task status is `started`.
+        Implement this method to specify behavior when the task starts its execution. This 
+        could involve initializing resources, logging, or other startup procedures.
 
-        You can override this method.
-
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_started(self):
-                self.print_out('The task is started')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_started(self):
+            >>>         self.log_info('Task has started')
         '''
         pass
 
     @abstractmethod
     async def on_ready(self):
         '''
-        ## Description
+        Defines actions to be performed when the task status is `ready`.
 
-        Define what to do when the current task status is `ready`.
+        This asynchronous method should be implemented in subclasses to specify 
+        actions that occur when the task reaches the `ready` state. This can include 
+        any cleanup, notification, or follow-up actions specific to the task.
 
-        You can override this method.
-
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_ready(self):
-                self.print_out('The task is ready')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_ready(self):
+            >>>         self.print_out('The task is ready')
         '''
         pass
 
     @abstractmethod
     async def on_failed(self, is_last_attempt: bool, exception: Exception):
         '''
-        ## Description
+        Specifies the behavior when the task execution fails.
 
-        Define what to do when the current task status is `failed`.
+        This asynchronous method should be implemented in subclasses to handle task 
+        failure scenarios. It can include logging the error, performing retries, or 
+        any other failure handling mechanisms.
 
-        You can override this method.
+        Args:
+            is_last_attempt (bool): Indicates if this is the final retry attempt.
+            exception (Exception): The exception that caused the task to fail.
 
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_failed(self, is_last_attempt: bool, exception: Exception):
-                if is_last_attempt:
-                    self.print_out('The task is failed, and there will be no retry')
-                    raise exception
-                self.print_out('The task is failed, going to retry')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_failed(self, is_last_attempt: bool, exception: Exception):
+            >>>         if is_last_attempt:
+            >>>             self.print_out('The task has failed with no remaining retries')
+            >>>         else:
+            >>>             self.print_out('The task failed, retrying...')
         '''
         pass
 
     @abstractmethod
     async def on_retry(self):
         '''
-        ## Description
+        Defines actions to perform when the task is retried.
 
-        Define what to do when the current task status is `retry`.
+        Implement this method to specify behavior when the task is retried after a failure. 
+        This could include resetting states, logging the retry attempt, or other necessary 
+        steps before re-execution.
 
-        You can override this method.
-
-        ## Example
-
-        ```python
-        class MyTask(Task):
-            async def on_retry(self):
-                self.print_out('The task is retrying')
-        ```
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def on_retry(self):
+            >>>         self.log_info('Retrying task')
         '''
         pass
 
@@ -244,78 +227,201 @@ class AnyTask(ABC):
         show_done_info: bool = True
     ) -> Callable[..., Any]:
         '''
-        Turn current task into a callable.
+        Converts the current task into a callable function.
+
+        This method should be implemented to allow the task to be executed as a function. 
+        Parameters can be used to modify the behavior of the generated function, such as 
+        raising errors, asynchronous execution, and logging.
+
+        Args:
+            env_prefix (str): A prefix for environment variables.
+            raise_error (bool): Whether to raise an error if the task execution fails.
+            is_async (bool): Whether the resulting function should be asynchronous.
+            show_done_info (bool): Whether to show information upon task completion.
+
+        Returns:
+            Callable[..., Any]: A callable representation of the task.
+
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
+            >>>         self.print_out('Doing some calculation')
+            >>>         return 42
+            >>>
+            >>> task = MyTask()
+            >>> fn = task.to_function()
+            >>> fn()
         '''
         pass
 
     @abstractmethod
     def insert_upstream(self, *upstreams: TAnyTask):
         '''
-        Insert AnyTask to the beginning of the current task's upstream list.
+        Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
+
+        This method is used to define dependencies for the current task. Tasks in the upstream list are 
+        executed before the current task. Adding a task to the beginning of the list means it will be 
+        executed earlier than those already in the list.
+
+        Args:
+            upstreams (TAnyTask): One or more task instances to be added to the upstream list.
+
+        Example:
+            >>> from zrb import Task
+            >>> task = Task(name='task')
+            >>> upstream_task = Task(name='upstream-task')
+            >>> task.insert_upstream(upstream_task)
         '''
         pass
 
     @abstractmethod
     def add_upstream(self, *upstreams: TAnyTask):
         '''
-        Add AnyTask to the end of the current task's upstream list.
+        Adds one or more `AnyTask` instances to the end of the current task's upstream list.
+
+        This method appends tasks to the upstream list, indicating that these tasks should be executed 
+        before the current task, but after any tasks already in the upstream list.
+
+        Args:
+            upstreams (TAnyTask): One or more task instances to be added to the upstream list.
+
+        Example:
+            >>> from zrb import Task
+            >>> task = Task(name='task')
+            >>> upstream_task = Task(name='upstream-task')
+            >>> task.add_upstream(upstream_task)
         '''
         pass
 
     @abstractmethod
     def insert_input(self, *inputs: AnyInput):
         '''
-        Insert AnyInput to the beginning of the current task's input list.
-        If there are two input with the same name, the later will override the first ones.
+        Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
+
+        This method is used to add inputs that the task will process. Inserting an input at the beginning 
+        of the list gives it precedence over those already present.
+
+        Args:
+            inputs (AnyInput): One or more input instances to be added to the input list.
+
+        Example:
+            >>> from zrb import Task, Input
+            >>> task = Task(name='task')
+            >>> email_input = Input(name='email-address')
+            >>> task.insert_input(email_input)
         '''
         pass
 
     @abstractmethod
     def add_input(self, *inputs: AnyInput):
         '''
-        Add AnyInput to the end of the current task's input list.
-        If there are two input with the same name, the later will override the first ones.
+        Adds one or more `AnyInput` instances to the end of the current task's input list.
+
+        This method is used to append inputs for the task to process, placing them after any inputs 
+        already specified.
+
+        Args:
+            inputs (AnyInput): One or more input instances to be added to the input list.
+
+        Example:
+            >>> from zrb import Task, Input
+            >>> task = Task(name='task')
+            >>> email_input = Input(name='email-address')
+            >>> task.add_input(email_input)
         '''
         pass
 
     @abstractmethod
     def insert_env(self, *envs: Env):
         '''
-        Insert Env to the beginning of the current task's env list.
-        If there are two Env with the same name, the later will override the first ones.
+        Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
+
+        This method allows for setting or overriding environment variables for the task, with earlier entries 
+        having precedence over later ones.
+
+        Args:
+            envs (Env): One or more environment variable instances to be added.
+
+        Example:
+            >>> from zrb import Task, Env
+            >>> task = Task(name='task')
+            >>> db_url_env = Env(name='DATABASE_URL', value='postgresql://...')
+            >>> task.insert_env(env_var)
         '''
         pass
 
     @abstractmethod
     def add_env(self, *envs: Env):
         '''
-        Add Env to the end of the current task's env list.
-        If there are two Env with the same name, the later will override the first ones.
+        Adds one or more `Env` instances to the end of the current task's environment variable list.
+
+        Use this method to append environment variables for the task, which will be used after 
+        any variables already set.
+
+        Args:
+            envs (Env): One or more environment variable instances to be added.
+        
+        Example:
+            >>> from zrb import Task, Env
+            >>> task = Task(name='task')
+            >>> db_url_env = Env(name='DATABASE_URL', value='postgresql://...')
+            >>> task.add_env(env_var)
         '''
         pass
 
     @abstractmethod
     def insert_env_file(self, *env_files: EnvFile):
         '''
-        Insert EnvFile to the beginning of the current task's env_file list.
-        If there are two EnvFile with the same name, the later will override the first ones.
+        Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
+
+        This method is used to specify environment variable files whose contents should be loaded 
+        before those of any files already in the list. This is useful for overriding or setting 
+        additional environment configurations.
+
+        Args:
+            env_files (EnvFile): One or more environment file instances to be added.
+
+        Example:
+            >>> from zrb import Task, EnvFile
+            >>> task = Task()
+            >>> env_file = EnvFile(env_file='config.env')
+            >>> task.insert_env_file(env_file)
         '''
         pass
 
     @abstractmethod
     def add_env_file(self, *env_files: EnvFile):
         '''
-        Add EnvFile to the end of current task's env_file list.
-        If there are two EnvFile with the same name, the later will override the first ones.
+        Adds one or more `EnvFile` instances to the end of the current task's environment file list.
+
+        Use this method to append environment file references, which will be processed after 
+        any files already specified. This allows for supplementing the existing environment 
+        configuration.
+
+        Args:
+            env_files (EnvFile): One or more environment file instances to be added.
+
+        Example:
+            >>> from zrb import Task, EnvFile
+            >>> task = Task()
+            >>> env_file = EnvFile(env_file='config.env')
+            >>> task.add_env_file(env_file)
         '''
         pass
 
     @abstractmethod
     def _set_execution_id(self, execution_id: str):
         '''
-        Set current task execution id.
-        
-        This method is meant for internal use.
+        Sets the execution ID for the current task.
+
+        This method is intended for internal use to assign a unique identifier to the task's execution. 
+        This ID can be used for tracking, logging, and inter-task communication.
+
+        This method should not be used externally, as it is meant to be managed within the task system.
+
+        Args:
+            execution_id (str): A string representing the unique execution ID.
         '''
         pass
 
@@ -525,27 +631,49 @@ class AnyTask(ABC):
 
     @abstractmethod
     def _run_all(self, *args: Any, **kwargs: Any) -> Any:
+        '''
+        For internal use
+        '''
         pass
 
     @abstractmethod
     def _loop_check(self, show_info: bool) -> bool:
+        '''
+        For internal use
+        '''
         pass
 
     @abstractmethod
     def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+        '''
+        For internal use
+        '''
         pass
 
     @abstractmethod
     def _print_result(self, result: Any):
+        '''
+        For internal use
+        '''
         pass
 
     @abstractmethod
     def print_result(self, result: Any):
         '''
-        Print result to stdout so that it can be processed further.
-        e.g.: echo $(zrb explain solid) > solid-principle.txt
+        Outputs the task result to stdout for further processing.
 
-        You need to override this method
-        if you want to show the result differently.
+        Override this method in subclasses to customize how the task result is displayed 
+        or processed. Useful for integrating the task output with other systems or 
+        command-line tools.
+
+        Args:
+            result (Any): The result of the task to be printed.
+
+        Example:
+            >> from zrb import Task
+            >> # Example of overriding in a subclass
+            >> class MyTask(Task):
+            >>    def print_result(self, result: Any):
+            >>        print(f'Result: {result}')
         '''
         pass
