@@ -144,6 +144,8 @@ class BaseTask(
 
     async def on_triggered(self):
         self.log_info('State: triggered')
+        execution_id = self.get_execution_id()
+        self.log_info(f'Execution id: {execution_id}')
         if self._on_triggered is not None:
             await run_async(self._on_triggered, self)
 

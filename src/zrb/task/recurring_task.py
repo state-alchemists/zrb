@@ -2,6 +2,7 @@ from zrb.helper.typing import (
     Any, Callable, Iterable, Mapping, Optional, Union
 )
 from zrb.helper.typecheck import typechecked
+from zrb.helper.accessories.name import get_random_name
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -99,10 +100,15 @@ class RecurringTask(BaseTask):
         }
         is_first_time = True
         while True:
+            execution_id = get_random_name(
+                add_random_digit=True, digit_count=5
+            )
             # Create trigger functions
             trigger_functions = []
             for trigger in self._triggers:
-                trigger_function = trigger.copy().to_function(
+                trigger_copy = trigger.copy()
+                trigger_copy._set_execution_id(execution_id)
+                trigger_function = trigger_copy.to_function(
                     is_async=True, raise_error=False, show_done_info=False
                 )
                 trigger_functions.append(asyncio.create_task(
@@ -118,13 +124,15 @@ class RecurringTask(BaseTask):
                 trigger_functions, return_when=asyncio.FIRST_COMPLETED
             )
             # Cancel the remaining tasks
-            for task in pending:
+            for process in pending:
                 try:
-                    task.cancel()
+                    process.cancel()
                 except Exception as e:
                     self.print_err(e)
             # Run the task
-            fn = self._task.copy().to_function(
+            task_copy = self._task.copy()
+            task_copy._set_execution_id(execution_id)
+            fn = task_copy.to_function(
                 is_async=True, raise_error=False, show_done_info=False
             )
             self.print_out_dark('Executing the task')
