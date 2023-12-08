@@ -35,7 +35,7 @@ run_server = CmdTask(
         Env(name='PORT', os_name='WEB_PORT', default='3000')
     ],
     env_files=[
-        EnvFile(env_file='src/template.env', prefix='WEB')
+        EnvFile(path='src/template.env', prefix='WEB')
     ]
     cmd='python main.py',
     cwd='src',
