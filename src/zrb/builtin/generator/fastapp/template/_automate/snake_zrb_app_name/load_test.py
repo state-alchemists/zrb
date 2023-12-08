@@ -54,7 +54,7 @@ url_input = StrInput(
 ###############################################################################
 
 load_test_env_file = EnvFile(
-    env_file=LOAD_TEST_TEMPLATE_ENV_FILE_NAME,
+    path=LOAD_TEST_TEMPLATE_ENV_FILE_NAME,
     prefix='LOAD_TEST_ZRB_ENV_PREFIX'
 )
 

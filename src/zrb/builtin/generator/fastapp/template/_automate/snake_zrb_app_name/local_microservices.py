@@ -91,7 +91,7 @@ def _get_service_env_file(module_name: str) -> EnvFile:
     snake_module_name = to_snake_case(module_name)
     upper_snake_module_name = snake_module_name.upper()
     return EnvFile(
-        env_file=APP_TEMPLATE_ENV_FILE_NAME,
+        path=APP_TEMPLATE_ENV_FILE_NAME,
         prefix=f'ZRB_ENV_PREFIX_{upper_snake_module_name}'
     )
 

@@ -10,7 +10,7 @@ Represents a handler for an environment file, facilitating the creation and mana
 
 __Attributes:__
 
-- `env_file` (`str`): The path to the environment file.
+- `path` (`str`): The path to the environment file.
 - `prefix` (`Optional[str]`): An optional prefix to be applied to environment variables.
 - `should_render` (`bool`): Flag to determine if the environment values should be rendered.
 
@@ -23,7 +23,7 @@ CURRENT_DIR = os.dirname(__file__)
 task = Task(
     name='task',
     env_files=[
-        EnvFile(env_file=os.path.join(CURRENT_DIR, '.env'), prefix='SYSTEM')
+        EnvFile(path=os.path.join(CURRENT_DIR, '.env'), prefix='SYSTEM')
     ]
 )
 ```
@@ -42,7 +42,7 @@ __Examples:__
 
 ```python
 from zrb import Env, EnvFile
-env_file = EnvFile(env_file='some_file.env')
+env_file = EnvFile(path='some_file.env')
 envs: List[Env] = env_file.get_envs()
 ```
 

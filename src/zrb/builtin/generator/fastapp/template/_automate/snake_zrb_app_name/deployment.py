@@ -51,12 +51,12 @@ pulumi_config_passphrase_env = Env(
 ###############################################################################
 
 deployment_app_env_file = EnvFile(
-    env_file=APP_TEMPLATE_ENV_FILE_NAME,
+    path=APP_TEMPLATE_ENV_FILE_NAME,
     prefix='DEPLOYMENT_APP_ZRB_ENV_PREFIX'
 )
 
 deployment_config_env_file = EnvFile(
-    env_file=DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
+    path=DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
     prefix='DEPLOYMENT_CONFIG_ZRB_ENV_PREFIX'
 )
 

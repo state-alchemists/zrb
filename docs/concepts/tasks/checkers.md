@@ -365,7 +365,7 @@ Example:
 ```python
 from zrb import Task, EnvFile
 task = Task()
-env_file = EnvFile(env_file='config.env')
+env_file = EnvFile(path='config.env')
 task.add_env_file(env_file)
 ```
 
@@ -553,7 +553,7 @@ Example:
 ```python
 from zrb import Task, EnvFile
 task = Task()
-env_file = EnvFile(env_file='config.env')
+env_file = EnvFile(path='config.env')
 task.insert_env_file(env_file)
 ```
 

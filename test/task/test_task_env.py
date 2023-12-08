@@ -71,7 +71,7 @@ def test_task_env_with_none_as_os_name():
     task = Task(
         name='env-file-prefixed',
         env_files=[
-            EnvFile(env_file=env_file, prefix='ZRB_TEST_TASK_OS_NAME_NONE')
+            EnvFile(path=env_file, prefix='ZRB_TEST_TASK_OS_NAME_NONE')
         ],
         envs=[Env(name='COLOR', os_name=None, default='green')],
         run=_run,
@@ -105,7 +105,7 @@ def test_task_env_with_empty_string_as_os_name():
     task = Task(
         name='env-file-prefixed',
         env_files=[
-            EnvFile(env_file=env_file, prefix='ZRB_TEST_TASK_OS_NAME_EMPTY')
+            EnvFile(path=env_file, prefix='ZRB_TEST_TASK_OS_NAME_EMPTY')
         ],
         envs=[Env(name='COLOR', os_name='', default='green')],
         run=_run,
@@ -138,7 +138,7 @@ def test_task_duplicate_env():
     )
     task = Task(
         name='env-file-prefixed',
-        env_files=[EnvFile(env_file=env_file, prefix='ZRB_TEST_TASK')],
+        env_files=[EnvFile(path=env_file, prefix='ZRB_TEST_TASK')],
         envs=[
             Env(name='COLOR', os_name='', default='green'),
             Env(name='COLOR', os_name='', default='yellow')

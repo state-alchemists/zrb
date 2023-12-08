@@ -29,7 +29,7 @@ pulumi_stack_input = StrInput(
 ###############################################################################
 
 deployment_config_env_file = EnvFile(
-    env_file=DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
+    path=DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
     prefix='DEPLOYMENT_CONFIG_ZRB_ENV_PREFIX'
 )
 

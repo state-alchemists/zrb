@@ -13,7 +13,7 @@ import os
 ###############################################################################
 
 compose_env_file = EnvFile(
-    env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
+    path=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
     prefix='CONTAINER_ZRB_ENV_PREFIX'
 )
 
@@ -34,7 +34,7 @@ host_port_env = Env(
 snake_zrb_app_name_service_config = ServiceConfig(
     env_files=[
         EnvFile(
-            env_file=os.path.join(APP_DIR, 'template.env'),
+            path=os.path.join(APP_DIR, 'template.env'),
             prefix='CONTAINER_ZRB_ENV_PREFIX'
         )
     ]
