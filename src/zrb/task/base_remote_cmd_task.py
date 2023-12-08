@@ -262,6 +262,3 @@ class BaseRemoteCmdTask(BaseTask):
             retry=0,
             return_upstream_result=True
         )
-
-    def __repr__(self) -> str:
-        return f'<BaseRemoteCmdTask name={self._name}>'

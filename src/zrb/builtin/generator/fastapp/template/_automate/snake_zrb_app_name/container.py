@@ -57,7 +57,7 @@ def should_execute(*args: Any, **kwargs: Any) -> bool:
 ###############################################################################
 
 compose_env_file = EnvFile(
-    env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
+    path=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
     prefix='CONTAINER_ZRB_ENV_PREFIX'
 )
 
@@ -73,11 +73,11 @@ for suffix in ['', 'gateway'] + service_names:
     service_configs[service_name] = ServiceConfig(
         env_files=[
             EnvFile(
-                env_file=APP_TEMPLATE_ENV_FILE_NAME,
+                path=APP_TEMPLATE_ENV_FILE_NAME,
                 prefix='CONTAINER_ZRB_ENV_PREFIX'
             ),
             EnvFile(
-                env_file=DOCKER_COMPOSE_APP_ENV_FILE_NAME,
+                path=DOCKER_COMPOSE_APP_ENV_FILE_NAME,
                 prefix='CONTAINER_ZRB_ENV_PREFIX'
             )
         ],

@@ -113,6 +113,3 @@ class FlowTask(BaseTask):
             embeded_task.add_input(*inputs)
             embeded_tasks.append(embeded_task)
         return embeded_tasks
-
-    def __repr__(self) -> str:
-        return f'<FlowTask name={self._name}>'

@@ -123,9 +123,6 @@ class BaseTask(
         is_async: bool = False,
         show_done_info: bool = True
     ) -> Callable[..., Any]:
-        '''
-        Return a function representing the current task.
-        '''
         async def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info('Copy task')
             self_cp = self.copy()
@@ -141,10 +138,6 @@ class BaseTask(
         return lambda *args, **kwargs: asyncio.run(function(*args, **kwargs))
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
-        '''
-        Do task execution
-        Please override this method.
-        '''
         if self._run_function is not None:
             return await run_async(self._run_function, *args, **kwargs)
         return None
@@ -188,11 +181,6 @@ class BaseTask(
             await run_async(self._on_retry, self)
 
     async def check(self) -> bool:
-        '''
-        Return true when task is considered completed.
-        By default, this will wait the task execution to be completed.
-        You can override this method.
-        '''
         return await self._is_done()
 
     async def _run_and_check_all(
@@ -428,4 +416,5 @@ class BaseTask(
         )
 
     def __repr__(self) -> str:
-        return f'<BaseTask name={self._name}>'
+        cls_name = self.__class__.__name__
+        return f'<{cls_name} name={self._name}>'

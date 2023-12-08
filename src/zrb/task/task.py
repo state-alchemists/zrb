@@ -7,6 +7,4 @@ class Task(BaseTask):
     '''
     Alias for BaseTask
     '''
-
-    def __repr__(self) -> str:
-        return f'<Task name={self._name}>'
+    pass

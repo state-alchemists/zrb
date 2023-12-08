@@ -24,24 +24,24 @@ class Runner():
         self.__registered_groups: Mapping[str, click.Group] = {}
         self.__top_levels: List[CliSubcommand] = []
         self.__subcommands: Mapping[str, List[click.Group]] = {}
-        self.__registered_task_cmd_name: List[str] = []
+        self.__registered_task_cli_name: List[str] = []
         logger.info(colored('Runner created', attrs=['dark']))
 
     def register(self, *tasks: AnyTask):
         for task in tasks:
             task._set_has_cli_interface()
-            cmd_name = task._get_full_cmd_name()
-            if cmd_name in self.__registered_task_cmd_name:
+            cli_name = task._get_full_cli_name()
+            if cli_name in self.__registered_task_cli_name:
                 raise RuntimeError(
-                    f'Task "{cmd_name}" has already been registered'
+                    f'Task "{cli_name}" has already been registered'
                 )
             logger.debug(
-                colored(f'Register task: "{cmd_name}"', attrs=['dark'])
+                colored(f'Register task: "{cli_name}"', attrs=['dark'])
             )
             self.__tasks.append(task)
-            self.__registered_task_cmd_name.append(cmd_name)
+            self.__registered_task_cli_name.append(cli_name)
             logger.debug(
-                colored(f'Task registered: "{cmd_name}"', attrs=['dark'])
+                colored(f'Task registered: "{cli_name}"', attrs=['dark'])
             )
 
     def serve(self, cli: click.Group) -> click.Group:
@@ -68,7 +68,7 @@ class Runner():
     def __register_sub_command(
         self, task_group: TaskGroup, subcommand: CliSubcommand
     ) -> click.Group:
-        task_group_id = task_group.get_id()
+        task_group_id = task_group._get_full_cli_name()
         group = self.__get_cli_group(task_group)
         if task_group_id not in self.__subcommands:
             self.__subcommands[task_group_id] = []
@@ -78,25 +78,25 @@ class Runner():
         return group
 
     def __get_cli_group(self, task_group: TaskGroup) -> click.Group:
-        task_group_id = task_group.get_id()
+        task_group_id = task_group._get_full_cli_name()
         if task_group_id in self.__registered_groups:
             return self.__registered_groups[task_group_id]
-        group_cmd_name = task_group.get_cmd_name()
+        group_cli_name = task_group.get_cli_name()
         group_description = task_group._description
-        group = click.Group(name=group_cmd_name, help=group_description)
+        group = click.Group(name=group_cli_name, help=group_description)
         self.__registered_groups[task_group_id] = group
         return group
 
     def __create_cli_command(self, task: AnyTask) -> click.Command:
         task_inputs = task._get_combined_inputs()
-        task_cmd_name = task.get_cmd_name()
+        task_cli_name = task.get_cli_name()
         task_description = task.get_description()
         task_function = task.to_function(
             env_prefix=self.__env_prefix, raise_error=True
         )
         callback = self.__wrap_task_function(task_function)
         command = click.Command(
-            callback=callback, name=task_cmd_name, help=task_description
+            callback=callback, name=task_cli_name, help=task_description
         )
         # by default, add an argument named _args
         command.params.append(click.Argument(['_args'], nargs=-1))

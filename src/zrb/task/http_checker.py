@@ -150,6 +150,3 @@ class HTTPChecker(Checker):
         finally:
             conn.close()
         return False
-
-    def __repr__(self) -> str:
-        return f'<HttpChecker name={self._name}>'

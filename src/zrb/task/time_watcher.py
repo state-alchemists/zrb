@@ -106,6 +106,3 @@ class TimeWatcher(Checker):
             f'{label} (Waiting for {self._scheduled_time})'
         )
         return False
-
-    def __repr__(self) -> str:
-        return f'<TimeWatcher name={self._name}>'

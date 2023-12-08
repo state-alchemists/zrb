@@ -1,7 +1,10 @@
+from typing import Any, Mapping
 from zrb import (
-    runner, CmdTask, DockerComposeTask, FlowTask, HTTPChecker,
-    Env, Group, BoolInput, StrInput
+    runner, python_task, AnyTask, Task, CmdTask, DockerComposeTask, FlowTask,
+    Checker, ResourceMaker, RsyncTask, RemoteCmdTask, PathWatcher,
+    RecurringTask, HTTPChecker, Env, EnvFile, Group, Input, BoolInput, StrInput
 )
+from helper.doc import inject_doc
 import os
 import sys
 import tomli
@@ -86,9 +89,52 @@ zrb_latest_image_env = Env(
 # Task Definitions
 ###############################################################################
 
+
+@python_task(
+    name='make-docs',
+    description='Make documentation',
+    runner=runner
+)
+def make_docs(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    doc_dir = os.path.join(CURRENT_DIR, 'docs')
+    doc_concept_dir = os.path.join(doc_dir, 'concepts')
+    doc_concept_task_dir = os.path.join(doc_concept_dir, 'tasks')
+    configs: Mapping[str, Any] = {
+        os.path.join(doc_concept_dir, 'task-group.md'): Group,
+        os.path.join(doc_concept_dir, 'task-env.md'): Env,
+        os.path.join(doc_concept_dir, 'task-env-file.md'): EnvFile,
+        os.path.join(doc_concept_dir, 'task-input.md'): Input,
+        os.path.join(doc_concept_task_dir, 'README.md'): AnyTask,
+        os.path.join(doc_concept_task_dir, 'checkers.md'): Checker,
+        os.path.join(doc_concept_task_dir, 'cmd-task.md'): CmdTask,
+        os.path.join(doc_concept_task_dir, 'docker-compose-task.md'): DockerComposeTask,  # noqa
+        os.path.join(doc_concept_task_dir, 'flow-task.md'): FlowTask,
+        os.path.join(doc_concept_task_dir, 'python-task.md'): python_task,
+        os.path.join(doc_concept_task_dir, 'remote-cmd-task.md'): RemoteCmdTask,  # noqa
+        os.path.join(doc_concept_task_dir, 'resource-maker.md'): ResourceMaker,
+        os.path.join(doc_concept_task_dir, 'rsync-task.md'): RsyncTask,
+    }
+    for file_name, cls in configs.items():
+        task.print_out(f'Injecting doc for `{cls.__name__}` on {file_name}')
+        inject_doc(file_name, cls)
+
+
+auto_make_docs = RecurringTask(
+    name='auto-make-docs',
+    description='Make documentation whenever there is any changes in the code',
+    triggers=[
+        PathWatcher(path=os.path.join(CURRENT_DIR, '**', '*.py'))
+    ],
+    task=make_docs
+)
+runner.register(auto_make_docs)
+
+
 build = CmdTask(
     name='build',
     description='Build Zrb',
+    upstreams=[make_docs],
     cwd=CURRENT_DIR,
     cmd=[
         'set -e',

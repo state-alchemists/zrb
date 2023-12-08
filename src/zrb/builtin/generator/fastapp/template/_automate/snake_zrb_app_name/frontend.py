@@ -25,7 +25,7 @@ build_snake_zrb_app_name_frontend = CmdTask(
     ],
     env_files=[
         EnvFile(
-            env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
+            path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
         ),
     ],
     envs=[
@@ -48,7 +48,7 @@ build_snake_zrb_app_name_frontend_once = CmdTask(
     ],
     env_files=[
         EnvFile(
-            env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
+            path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
         ),
     ],
     envs=[

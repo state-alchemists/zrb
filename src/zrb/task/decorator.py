@@ -13,6 +13,8 @@ from zrb.task_group.group import Group
 from zrb.action.runner import Runner
 from zrb.task.task import Task
 
+# flake8: noqa E501
+
 
 @typechecked
 def python_task(
@@ -40,6 +42,22 @@ def python_task(
     return_upstream_result: bool = False,
     runner: Optional[Runner] = None
 ) -> Callable[[Callable[..., Any]], Task]:
+    '''
+    python_task decorator helps you turn any Python function into a task
+
+    Returns:
+        Callable[[Callable[..., Any]], Task]: A callable turning function into task.
+    
+    Examples:
+        >>> from zrb import python_task
+        >>> @python_task(
+        >>>    name='my-task'
+        >>> )
+        >>> def my_task(*args, **kwargs):
+        >>>    return 'hello world'
+        >>> print(my_task)
+        <Task name=my-task>
+    '''
     def _create_task(fn: Callable[..., Any]) -> Task:
         task = Task(
             name=name,

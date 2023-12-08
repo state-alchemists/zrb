@@ -13,7 +13,7 @@ def test_task_with_env_file():
     )
     task = Task(
         name='env-file',
-        env_files=[EnvFile(env_file=env_file)],
+        env_files=[EnvFile(path=env_file)],
         run=_run,
         retry=0
     )
@@ -34,7 +34,7 @@ def test_task_with_env_file_and_prefix():
         name='env-file-prefixed',
         env_files=[
             EnvFile(
-                env_file=env_file, prefix='ZRB_TEST_TASK_WITH_ENV_AND_PREFIX'
+                path=env_file, prefix='ZRB_TEST_TASK_WITH_ENV_AND_PREFIX'
             )
         ],
         run=_run,

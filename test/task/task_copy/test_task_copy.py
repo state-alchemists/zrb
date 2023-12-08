@@ -27,20 +27,20 @@ def test_task_copy():
             Env(name='ENVIRONMENT', default='dev')
         ],
         env_files=[
-            EnvFile(env_file=os.path.join(CURRENT_DIR, 'env_file.env'))
+            EnvFile(path=os.path.join(CURRENT_DIR, 'env_file.env'))
         ],
         run=_run,
         retry=0
     )
     new_task: Task = task.copy()
     new_task.set_name('new-task')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new-task'
     new_task.set_description('new description')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new description'
     new_task.set_icon('🔥')
@@ -52,7 +52,7 @@ def test_task_copy():
     new_task.add_input(StrInput(name='name', default='Dumbledore'))
     new_task.add_env(Env(name='ENVIRONMENT', default='prod'))
     new_task.add_env_file(
-        EnvFile(env_file=os.path.join(CURRENT_DIR, 'new_env_file.env'))
+        EnvFile(path=os.path.join(CURRENT_DIR, 'new_env_file.env'))
     )
     function = new_task.to_function()
     result = function()
@@ -69,7 +69,7 @@ def test_cmd_task_copy():
             Env(name='ENVIRONMENT', default='dev')
         ],
         env_files=[
-            EnvFile(env_file=os.path.join(CURRENT_DIR, 'env_file.env'))
+            EnvFile(path=os.path.join(CURRENT_DIR, 'env_file.env'))
         ],
         cwd=CURRENT_DIR,
         cmd='echo hello $_INPUT_NAME on $ENVIRONMENT, host: $HOST',
@@ -77,13 +77,13 @@ def test_cmd_task_copy():
     )
     new_task: CmdTask = task.copy()
     new_task.set_name('new-task')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new-task'
     new_task.set_description('new description')
-    assert task.get_cmd_name() == 'task'
-    assert new_task.get_cmd_name() == 'new-task'
+    assert task.get_cli_name() == 'task'
+    assert new_task.get_cli_name() == 'new-task'
     assert task.get_description() == 'task'
     assert new_task.get_description() == 'new description'
     new_task.set_icon('🔥')
@@ -98,7 +98,7 @@ def test_cmd_task_copy():
     new_task.add_input(StrInput(name='name', default='Dumbledore'))
     new_task.add_env(Env(name='ENVIRONMENT', default='prod'))
     new_task.add_env_file(
-        EnvFile(env_file=os.path.join(CURRENT_DIR, 'new_env_file.env'))
+        EnvFile(path=os.path.join(CURRENT_DIR, 'new_env_file.env'))
     )
     function = new_task.to_function()
     result = function()

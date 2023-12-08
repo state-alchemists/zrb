@@ -170,6 +170,3 @@ class ResourceMaker(BaseTask):
                 transformed_value = transform(value)
                 rendered_replacements[prefixed_key] = transformed_value
         return rendered_replacements
-
-    def __repr__(self) -> str:
-        return f'<ResourceMaker name={self._name}>'

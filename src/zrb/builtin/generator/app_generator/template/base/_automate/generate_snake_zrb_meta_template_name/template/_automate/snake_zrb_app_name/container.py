@@ -10,7 +10,7 @@ import os
 ###############################################################################
 
 compose_env_file = EnvFile(
-    env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
+    path=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
     prefix='CONTAINER_ZRB_ENV_PREFIX'
 )
 

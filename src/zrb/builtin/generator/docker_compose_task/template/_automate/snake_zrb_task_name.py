@@ -23,7 +23,7 @@ snake_zrb_task_name = DockerComposeTask(
     compose_env_prefix='ZRB_ENV_PREFIX',
     env_files=[
         EnvFile(
-            env_file=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
+            path=os.path.join(RESOURCE_DIR, 'docker-compose.env'),
             prefix='ZRB_ENV_PREFIX'
         )
     ],

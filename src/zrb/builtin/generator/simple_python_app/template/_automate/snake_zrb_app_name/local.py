@@ -10,7 +10,7 @@ import os
 # Env File Definitions
 ###############################################################################
 
-app_env_file = EnvFile(env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
+app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
 
 ###############################################################################
 # Task Definitions

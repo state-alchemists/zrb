@@ -107,6 +107,3 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             preexec_fn=preexec_fn,
             should_execute=should_execute
         )
-
-    def __repr__(self) -> str:
-        return f'<RemoteCmdTask name={self._name}>'

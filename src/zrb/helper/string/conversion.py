@@ -19,7 +19,7 @@ LOGGING_LEVEL_MAP = {
 
 
 @typechecked
-def to_cmd_name(name: str) -> str:
+def to_cli_name(name: str) -> str:
     return NON_WORD.sub('-', name).strip('-').lower()
 
 

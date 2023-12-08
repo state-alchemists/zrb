@@ -133,10 +133,7 @@ class RecurringTask(BaseTask):
             )
 
     async def __run_and_play_bell(
-        self, fn: Callable[[Any], Any], *args: Any, **kwargs: Any
+        self, fn: Callable[..., Any], *args: Any, **kwargs: Any
     ):
         await fn(*args, **kwargs)
         self._play_bell()
-
-    def __repr__(self) -> str:
-        return f'<RecurringTask name={self._name}>'

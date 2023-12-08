@@ -48,7 +48,7 @@ def should_start_local_monolith(*args: Any, **kwargs: Any) -> bool:
 ###############################################################################
 
 app_env_file = EnvFile(
-    env_file=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
+    path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
 )
 
 ###############################################################################

@@ -126,8 +126,5 @@ class PathWatcher(Checker):
     def _get_mod_times(self) -> Mapping[str, float]:
         return {
             file_name: os.stat(file_name).st_mtime
-            for file_name in glob.glob(self._rendered_path)
+            for file_name in glob.glob(self._rendered_path, recursive=True)
         }
-
-    def __repr__(self) -> str:
-        return f'<PathWatcher name={self._name}>'
