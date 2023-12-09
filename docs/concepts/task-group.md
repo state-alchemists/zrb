@@ -49,7 +49,7 @@ print(group.get_tasks())
 ```
 
 ```
-[<Task name=first-task>, <Task name=second-task>]
+[<Task "group first-task">, <Task "group second-task">]
 ```
 
 
@@ -98,7 +98,7 @@ print(group.get_children())
 ```
 
 ```
-[<Group name=sub-group-1>, <Group name=sub-group-2>]
+[<Group "group sub-group-1">, <Group "group sub-group-2">]
 ```
 
 
@@ -125,6 +125,51 @@ my-system
 ```
 
 
+### `Group.get_description`
+
+Retrieves group description.
+
+__Returns:__
+
+`str`: Description of the group.
+
+__Examples:__
+
+```python
+from zrb import Group
+group = Group(name='group', description='description of the group')
+print(group.get_description())
+```
+
+```
+description of the group
+```
+
+
+### `Group.get_parent`
+
+Retrieves parent of the Group.
+
+__Returns:__
+
+`Optional[Group]`: Parent of the group.
+
+__Examples:__
+
+```python
+from zrb import Group
+system_group = Group(name='my system')
+system_log_group = Group(name='log', parent=system_group)
+print(system_group.get_parent())
+print(system_log_group.get_parent())
+```
+
+```
+None
+<Group "my-system">
+```
+
+
 ### `Group.get_tasks`
 
 Get direct Tasks under this Task Group.
@@ -144,7 +189,7 @@ print(group.get_tasks())
 ```
 
 ```
-[<Task name=first-task>, <Task name=second-task>]
+[<Task "group first-task">, <Task "group second-task">]
 ```
 
 

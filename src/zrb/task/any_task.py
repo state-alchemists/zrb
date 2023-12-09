@@ -822,14 +822,14 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_any(
-        self, val: Any, data: Optional[Mapping[str, Any]] = None
+        self, value: Any, data: Optional[Mapping[str, Any]] = None
     ) -> Any:
         pass
 
     @abstractmethod
     def render_float(
         self,
-        val: Union[JinjaTemplate, float],
+        value: Union[JinjaTemplate, float],
         data: Optional[Mapping[str, Any]] = None
     ) -> float:
         pass
@@ -837,7 +837,7 @@ class AnyTask(ABC):
     @abstractmethod
     def render_int(
         self,
-        val: Union[JinjaTemplate, int],
+        value: Union[JinjaTemplate, int],
         data: Optional[Mapping[str, Any]] = None
     ) -> int:
         pass
@@ -845,7 +845,7 @@ class AnyTask(ABC):
     @abstractmethod
     def render_bool(
         self, 
-        val: Union[JinjaTemplate, bool],
+        value: Union[JinjaTemplate, bool],
         data: Optional[Mapping[str, Any]] = None
     ) -> bool:
         pass
@@ -853,7 +853,7 @@ class AnyTask(ABC):
     @abstractmethod
     def render_str(
         self,
-        val: JinjaTemplate,
+        value: JinjaTemplate,
         data: Optional[Mapping[str, Any]] = None
     ) -> str:
         pass
@@ -861,7 +861,7 @@ class AnyTask(ABC):
     @abstractmethod
     def render_file(
         self,
-        location: JinjaTemplate,
+        path: JinjaTemplate,
         data: Optional[Mapping[str, Any]] = None
     ) -> str:
         pass
