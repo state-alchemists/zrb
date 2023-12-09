@@ -675,30 +675,109 @@ class AnyTask(ABC):
 
     @abstractmethod
     def inject_inputs(self):
+        '''
+        Injects custom inputs into the task.
+
+        This method is used to programmatically add input parameters to the task, allowing 
+        dynamic customization of the task's input data. Subclasses should override this method 
+        to define specific inputs that the task should receive.
+
+        Example:
+            >>> from zrb import Task, Input
+            >>> class MyTask(Task):
+            >>>     def inject_inputs(self):
+            >>>         self.add_input(Input(name='user_email', type='email'))
+        '''
         pass
 
     @abstractmethod
     def _get_inputs(self) -> List[AnyInput]:
+        '''
+        Retrieves the list of inputs associated with the task.
+
+        This internal method is used to obtain all the inputs that have been set for the task, 
+        either through static definition or via the `inject_inputs` method. It's primarily used 
+        for introspection and debugging purposes.
+
+        Returns:
+            List[AnyInput]: A list of `AnyInput` instances representing the inputs for the task.
+        '''
         pass
 
     @abstractmethod
     def inject_checkers(self):
+        '''
+        Injects custom checkers into the task.
+
+        This method allows for the addition of custom validation or condition checkers. These 
+        checkers can be used to verify certain conditions before the task execution proceeds. 
+        Subclasses should implement this method to define task-specific checkers.
+
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     def inject_checkers(self):
+            >>>         self.add_checker(some_custom_condition_checker)
+        '''
         pass
 
     @abstractmethod
     def _get_checkers(self) -> Iterable[TAnyTask]:
+        '''
+        Retrieves the checkers set for the task.
+
+        This internal method returns an iterable of all the checkers that have been added to 
+        the task. It's mainly used for internal logic and debugging to understand the 
+        validations or conditions applied to the task.
+
+        Returns:
+            Iterable[TAnyTask]: An iterable of checkers associated with the task.
+        '''
         pass
 
     @abstractmethod
     def inject_upstreams(self):
+        '''
+        Injects upstream tasks into the current task.
+
+        This method is used for programmatically adding upstream dependencies to the task. 
+        Upstream tasks are those that must be completed before the current task starts. 
+        Override this method in subclasses to specify such dependencies.
+
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     def inject_upstreams(self):
+            >>>         self.add_upstream(another_task)
+        '''
         pass
 
     @abstractmethod
     def _get_upstreams(self) -> Iterable[TAnyTask]:
+        '''
+        Retrieves the upstream tasks of the current task.
+
+        An internal method to get the list of upstream tasks that have been set for the 
+        task, either statically or through `inject_upstreams`. This is essential for task 
+        scheduling and dependency management.
+
+        Returns:
+            Iterable[TAnyTask]: An iterable of upstream tasks.
+        '''
         pass
 
     @abstractmethod
     def _get_combined_inputs(self) -> Iterable[AnyInput]:
+        '''
+        Combines and retrieves all inputs for the task.
+
+        This internal method aggregates inputs from various sources (static definition, 
+        `inject_inputs`, etc.) and provides a unified view of all inputs that the task 
+        will process. This is crucial for preparing the task's runtime environment.
+
+        Returns:
+            Iterable[AnyInput]: An iterable of all combined inputs for the task.
+        '''
         pass
 
     @abstractmethod
