@@ -2,7 +2,8 @@ from typing import Any, Mapping
 from zrb import (
     runner, python_task, AnyTask, Task, CmdTask, DockerComposeTask, FlowTask,
     Checker, ResourceMaker, RsyncTask, RemoteCmdTask, PathWatcher,
-    RecurringTask, HTTPChecker, Env, EnvFile, Group, Input, BoolInput, StrInput
+    RecurringTask, HTTPChecker, Env, EnvFile, Group, AnyInput, Input,
+    BoolInput, ChoiceInput, FloatInput, IntInput, PasswordInput, StrInput
 )
 from helper.doc import inject_doc
 import os
@@ -99,12 +100,12 @@ def make_docs(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
     doc_dir = os.path.join(CURRENT_DIR, 'docs')
     doc_concept_dir = os.path.join(doc_dir, 'concepts')
-    doc_concept_task_dir = os.path.join(doc_concept_dir, 'tasks')
+    doc_concept_task_dir = os.path.join(doc_concept_dir, 'task')
+    doc_concept_task_input_dir = os.path.join(doc_concept_dir, 'task-input')
     configs: Mapping[str, Any] = {
         os.path.join(doc_concept_dir, 'task-group.md'): Group,
         os.path.join(doc_concept_dir, 'task-env.md'): Env,
         os.path.join(doc_concept_dir, 'task-env-file.md'): EnvFile,
-        os.path.join(doc_concept_dir, 'task-input.md'): Input,
         os.path.join(doc_concept_task_dir, 'README.md'): AnyTask,
         os.path.join(doc_concept_task_dir, 'checkers.md'): Checker,
         os.path.join(doc_concept_task_dir, 'cmd-task.md'): CmdTask,
@@ -114,6 +115,13 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(doc_concept_task_dir, 'remote-cmd-task.md'): RemoteCmdTask,  # noqa
         os.path.join(doc_concept_task_dir, 'resource-maker.md'): ResourceMaker,
         os.path.join(doc_concept_task_dir, 'rsync-task.md'): RsyncTask,
+        os.path.join(doc_concept_task_input_dir, 'README.md'): AnyInput,
+        os.path.join(doc_concept_task_input_dir, 'bool-input.md'): BoolInput,
+        os.path.join(doc_concept_task_input_dir, 'choice-input.md'): ChoiceInput,  # noqa
+        os.path.join(doc_concept_task_input_dir, 'float-input.md'): FloatInput,
+        os.path.join(doc_concept_task_input_dir, 'int-input.md'): IntInput,
+        os.path.join(doc_concept_task_input_dir, 'password-input.md'): PasswordInput,  # noqa
+        os.path.join(doc_concept_task_input_dir, 'str-input.md'): StrInput,
     }
     for file_name, cls in configs.items():
         task.print_out(f'Injecting doc for `{cls.__name__}` on {file_name}')
