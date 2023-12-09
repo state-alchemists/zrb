@@ -548,42 +548,129 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_icon(self) -> str:
+        '''
+        Retrieves the icon identifier of the current task.
+
+        This method is used to get the icon associated with the task, which can be utilized for 
+        visual representation in user interfaces or documentation.
+
+        Returns:
+            str: A string representing the icon identifier for the task
+        '''
         pass
 
     @abstractmethod
     def get_color(self) -> str:
+        '''
+        Retrieves the color associated with the current task.
+
+        This method returns the color of the task, useful for visual differentiation, priority indication, 
+        or categorization in user interfaces or documentation.
+
+        Returns:
+            str: A string representing the color assigned to the task.
+        '''
         pass
 
     @abstractmethod
     def get_description(self) -> str:
+        '''
+        Fetches the current description of the task.
+
+        This method is used to obtain the detailed description of the task, providing insights into its purpose, 
+        functionality, and usage within the task management system.
+
+        Returns:
+            str: The description of the task.
+        '''
         pass
 
     @abstractmethod
     def get_cli_name(self) -> str:
+        '''
+        Gets the command-line interface (CLI) name of the task.
+
+        This method returns the name used to invoke the task via a CLI, facilitating integration with command-line tools 
+        or scripts.
+
+        Returns:
+            str: The CLI name of the task.
+        '''
         pass
 
     @abstractmethod
     def _get_full_cli_name(self) -> str:
+        '''
+        Retrieves the full command-line interface (CLI) name of the task.
+
+        Intended for internal use, this method provides the complete CLI name, including any 
+        prefixes or namespaces, used primarily for logging or debugging purposes.
+
+        Returns:
+            str: The full CLI name of the task.
+        '''
         pass
 
     @abstractmethod
     def _set_has_cli_interface(self):
+        '''
+        Marks the task as having a CLI interface.
+
+        This internal method is used to indicate that the task is accessible and executable through a CLI, 
+        enabling the task system to appropriately handle its CLI interactions.
+        '''
         pass
 
     @abstractmethod
     def inject_env_files(self):
+        '''
+        Injects additional `EnvFile` into the task.
+
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     def inject_env_files(self):
+            >>>         self.add_env_files(EnvFile(path='config.env'))
+        '''
         pass
 
     @abstractmethod
     def _get_env_files(self) -> List[EnvFile]:
+        '''
+        Retrieves the list of environment variable files associated with the task.
+
+        Intended for internal use, this method returns a list of `EnvFile` instances that the task 
+        uses to load environment variables, primarily for setup and configuration purposes.
+
+        Returns:
+            List[EnvFile]: A list of `EnvFile` instances associated with the task.
+        '''
         pass
 
     @abstractmethod
     def inject_envs(self):
+        '''
+        Injects environment variables into the task.
+
+        Example:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     def inject_envs(self):
+            >>>         self.add_envs(Env(name='DATABASE_URL'))
+        '''
         pass
 
     @abstractmethod
     def _get_envs(self) -> List[Env]:
+        '''
+        Retrieves the list of environment variables set for the task.
+
+        For internal use, this method returns a list of `Env` instances representing the environment variables 
+        configured for the task, essential for understanding and debugging the task's environment setup.
+
+        Returns:
+            List[Env]: A list of `Env` instances representing the environment variables of the task.
+        '''
         pass
 
     @abstractmethod

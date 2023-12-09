@@ -162,18 +162,36 @@ No documentation available.
 
 ### `Checker._get_env_files`
 
-No documentation available.
+Retrieves the list of environment variable files associated with the task.
 
+Intended for internal use, this method returns a list of `EnvFile` instances that the task
+uses to load environment variables, primarily for setup and configuration purposes.
+
+__Returns:__
+
+`List[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
 ### `Checker._get_envs`
 
-No documentation available.
+Retrieves the list of environment variables set for the task.
 
+For internal use, this method returns a list of `Env` instances representing the environment variables
+configured for the task, essential for understanding and debugging the task's environment setup.
+
+__Returns:__
+
+`List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
 ### `Checker._get_full_cli_name`
 
-No documentation available.
+Retrieves the full command-line interface (CLI) name of the task.
 
+Intended for internal use, this method provides the complete CLI name, including any
+prefixes or namespaces, used primarily for logging or debugging purposes.
+
+__Returns:__
+
+`str`: The full CLI name of the task.
 
 ### `Checker._get_inputs`
 
@@ -277,8 +295,10 @@ __Arguments:__
 
 ### `Checker._set_has_cli_interface`
 
-No documentation available.
+Marks the task as having a CLI interface.
 
+This internal method is used to indicate that the task is accessible and executable through a CLI,
+enabling the task system to appropriately handle its CLI interactions.
 
 ### `Checker._set_input_map`
 
@@ -459,18 +479,36 @@ copied_task.set_name('new_name')
 
 ### `Checker.get_cli_name`
 
-No documentation available.
+Gets the command-line interface (CLI) name of the task.
 
+This method returns the name used to invoke the task via a CLI, facilitating integration with command-line tools
+or scripts.
+
+__Returns:__
+
+`str`: The CLI name of the task.
 
 ### `Checker.get_color`
 
-No documentation available.
+Retrieves the color associated with the current task.
 
+This method returns the color of the task, useful for visual differentiation, priority indication,
+or categorization in user interfaces or documentation.
+
+__Returns:__
+
+`str`: A string representing the color assigned to the task.
 
 ### `Checker.get_description`
 
-No documentation available.
+Fetches the current description of the task.
 
+This method is used to obtain the detailed description of the task, providing insights into its purpose,
+functionality, and usage within the task management system.
+
+__Returns:__
+
+`str`: The description of the task.
 
 ### `Checker.get_env_map`
 
@@ -491,8 +529,14 @@ __Returns:__
 
 ### `Checker.get_icon`
 
-No documentation available.
+Retrieves the icon identifier of the current task.
 
+This method is used to get the icon associated with the task, which can be utilized for
+visual representation in user interfaces or documentation.
+
+__Returns:__
+
+`str`: A string representing the icon identifier for the task
 
 ### `Checker.get_input_map`
 
@@ -506,12 +550,28 @@ No documentation available.
 
 ### `Checker.inject_env_files`
 
-No documentation available.
+Injects additional `EnvFile` into the task.
+
+Example:
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_env_files(self):
+        self.add_env_files(EnvFile(path='config.env'))
+```
 
 
 ### `Checker.inject_envs`
 
-No documentation available.
+Injects environment variables into the task.
+
+Example:
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_envs(self):
+        self.add_envs(Env(name='DATABASE_URL'))
+```
 
 
 ### `Checker.inject_inputs`
