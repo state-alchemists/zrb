@@ -248,7 +248,6 @@ class AnyTask(ABC):
             >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
             >>>         self.print_out('Doing some calculation')
             >>>         return 42
-            >>>
             >>> task = MyTask()
             >>> fn = task.to_function()
             >>> fn()

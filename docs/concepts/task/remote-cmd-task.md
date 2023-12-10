@@ -1086,11 +1086,6 @@ class MyTask(Task):
     async def run(self, *args: Any, **kwargs: Any) -> int:
         self.print_out('Doing some calculation')
         return 42
-```
-
-```
->>>
-```python
 task = MyTask()
 fn = task.to_function()
 fn()
