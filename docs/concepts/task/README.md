@@ -59,18 +59,17 @@ Aside from the documentation, you can always dive down into [the source code](ht
 Every task has its own lifecycle.
 
 ```
-Triggered         ┌─────────► Ready ◄──┐
-    │             │                    │
-    │             │                    │
-    ▼             │                    │
- Waiting ────► Started ─────► Failed   │
-    │             ▲             │      │
-    │             │             │      │
-    ▼             │             ▼      │
- Skipped          └────────── Retry    │
-    │                                  │
-    │                                  │
-    └──────────────────────────────────┘
+                                  ┌─────────────────────────────┐
+                                  │                             │
+                                  │                             ▼
+Triggered ─────► Waiting ────► Started ─────► Failed   ┌────► Ready
+                    │             ▲             │      │
+                    │             │             │      │
+                    ▼             │             ▼      │
+                 Skipped          └────────── Retry    │
+                    │                                  │
+                    │                                  │
+                    └──────────────────────────────────┘
 ```
 
 - `Triggered`: Task is triggered.
