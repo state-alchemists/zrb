@@ -9,7 +9,7 @@ from .image import image_input, image_env, build_snake_zrb_app_name_image
 import os
 
 ###############################################################################
-# Env File Definitions
+# 🌳 Env File Definitions
 ###############################################################################
 
 compose_env_file = EnvFile(
@@ -18,7 +18,7 @@ compose_env_file = EnvFile(
 )
 
 ###############################################################################
-# Env Definitions
+# 🌱 Env Definitions
 ###############################################################################
 
 host_port_env = Env(
@@ -41,7 +41,7 @@ snake_zrb_app_name_service_config = ServiceConfig(
 )
 
 ###############################################################################
-# Task Definitions
+# ⚙️ remove-zrb-task-name-container
 ###############################################################################
 
 remove_snake_zrb_app_name_container = DockerComposeTask(
@@ -63,6 +63,10 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
 )
 runner.register(remove_snake_zrb_app_name_container)
 
+###############################################################################
+# ⚙️ stop-zrb-task-name-container
+###############################################################################
+
 stop_snake_zrb_app_name_container = DockerComposeTask(
     icon='⛔',
     name='stop-kebab-zrb-app-name-container',
@@ -81,6 +85,10 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     ],
 )
 runner.register(stop_snake_zrb_app_name_container)
+
+###############################################################################
+# ⚙️ init-zrb-task-name-container
+###############################################################################
 
 init_snake_zrb_app_name_container = DockerComposeTask(
     icon='🔥',
@@ -108,6 +116,10 @@ init_snake_zrb_app_name_container = DockerComposeTask(
         host_port_env,
     ],
 )
+
+###############################################################################
+# ⚙️ start-zrb-task-name-container
+###############################################################################
 
 start_snake_zrb_app_name_container = DockerComposeTask(
     icon='🐳',

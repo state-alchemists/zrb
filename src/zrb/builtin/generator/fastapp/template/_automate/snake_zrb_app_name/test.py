@@ -1,20 +1,12 @@
 from zrb import CmdTask, StrInput, Env, EnvFile, runner, python_task
 from zrb.builtin.group import project_group
-from ._common import CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME
+from ._config import CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME
 from .frontend import build_snake_zrb_app_name_frontend_once
 from .local import prepare_snake_zrb_app_name_backend
 import os
 
 ###############################################################################
-# Env file Definitions
-###############################################################################
-
-app_env_file = EnvFile(
-    path=APP_TEMPLATE_ENV_FILE_NAME, prefix='TEST_ZRB_ENV_PREFIX'
-)
-
-###############################################################################
-# Task Definitions
+# ⚙️ remove-kebab-zrb-task-name-test-db
 ###############################################################################
 
 
@@ -29,6 +21,10 @@ def remove_snake_zrb_app_name_test_db(*args, **kwargs):
     if os.path.isfile(test_db_file_path):
         os.remove(test_db_file_path)
 
+
+###############################################################################
+# ⚙️ test-kebab-zrb-task-name
+###############################################################################
 
 test_snake_zrb_app_name = CmdTask(
     icon='🚤',
@@ -48,7 +44,11 @@ test_snake_zrb_app_name = CmdTask(
         remove_snake_zrb_app_name_test_db,
     ],
     cwd=RESOURCE_DIR,
-    env_files=[app_env_file],
+    env_files=[
+        EnvFile(
+            path=APP_TEMPLATE_ENV_FILE_NAME, prefix='TEST_ZRB_ENV_PREFIX'
+        )
+    ],
     envs=[
         Env(
             name='APP_BROKER_TYPE',

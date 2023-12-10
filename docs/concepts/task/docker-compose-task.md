@@ -500,7 +500,8 @@ __Arguments:__
 
 - `envs` (`Env`): One or more environment variable instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Env
 task = Task(name='task')
@@ -521,7 +522,8 @@ __Arguments:__
 
 - `env_files` (`EnvFile`): One or more environment file instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, EnvFile
 task = Task()
@@ -541,7 +543,8 @@ __Arguments:__
 
 - `inputs` (`AnyInput`): One or more input instances to be added to the input list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Input
 task = Task(name='task')
@@ -561,7 +564,8 @@ __Arguments:__
 
 - `upstreams` (`TAnyTask`): One or more task instances to be added to the upstream list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 task = Task(name='task')
@@ -584,7 +588,8 @@ __Returns:__
 
 `bool`: True if the task is completed, False otherwise.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -608,7 +613,8 @@ __Returns:__
 
 `TAnyTask`: A copy of the current task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 task = Task(name='my-task', cmd='echo hello')
@@ -696,7 +702,8 @@ This method allows for the addition of custom validation or condition checkers. 
 checkers can be used to verify certain conditions before the task execution proceeds.
 Subclasses should implement this method to define task-specific checkers.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -709,7 +716,8 @@ class MyTask(Task):
 
 Injects additional `EnvFile` into the task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -722,7 +730,8 @@ class MyTask(Task):
 
 Injects environment variables into the task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -739,7 +748,8 @@ This method is used to programmatically add input parameters to the task, allowi
 dynamic customization of the task's input data. Subclasses should override this method
 to define specific inputs that the task should receive.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Input
 class MyTask(Task):
@@ -756,7 +766,8 @@ This method is used for programmatically adding upstream dependencies to the tas
 Upstream tasks are those that must be completed before the current task starts.
 Override this method in subclasses to specify such dependencies.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -776,7 +787,8 @@ __Arguments:__
 
 - `envs` (`Env`): One or more environment variable instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Env
 task = Task(name='task')
@@ -797,7 +809,8 @@ __Arguments:__
 
 - `env_files` (`EnvFile`): One or more environment file instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, EnvFile
 task = Task()
@@ -817,7 +830,8 @@ __Arguments:__
 
 - `inputs` (`AnyInput`): One or more input instances to be added to the input list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Input
 task = Task(name='task')
@@ -838,7 +852,8 @@ __Arguments:__
 
 - `upstreams` (`TAnyTask`): One or more task instances to be added to the upstream list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 task = Task(name='task')
@@ -885,7 +900,8 @@ __Arguments:__
 - `is_last_attempt` (`bool`): Indicates if this is the final retry attempt.
 - `exception` (`Exception`): The exception that caused the task to fail.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -905,7 +921,8 @@ This asynchronous method should be implemented in subclasses to specify
 actions that occur when the task reaches the `ready` state. This can include
 any cleanup, notification, or follow-up actions specific to the task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -922,7 +939,8 @@ Implement this method to specify behavior when the task is retried after a failu
 This could include resetting states, logging the retry attempt, or other necessary
 steps before re-execution.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -938,7 +956,8 @@ Defines actions to perform when the task status is set to `skipped`.
 Implement this method to specify behavior when the task is skipped. This could
 include logging information, cleaning up resources, or any other necessary steps.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -954,7 +973,8 @@ Defines actions to perform when the task status is set to 'started'.
 Implement this method to specify behavior when the task starts its execution. This
 could involve initializing resources, logging, or other startup procedures.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -971,7 +991,8 @@ Implement this method to specify behavior when the task transitions to the
 `triggered` state. This could involve setting up prerequisites or sending
 notifications.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -988,7 +1009,8 @@ Implement this method to specify behavior when the task transitions to the
 `waiting` state. This state usually indicates the task is waiting for some
 condition or prerequisite to be met.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -1024,7 +1046,8 @@ __Arguments:__
 
 - `result` (`Any`): The result of the task to be printed.
 
-Example:
+__Examples:__
+
 >> from zrb import Task
 >> # Example of overriding in a subclass
 >> class MyTask(Task):
@@ -1079,7 +1102,8 @@ __Returns:__
 `Any`: The result of the task execution, the type of which is determined by
 the specific task implementation.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -1202,15 +1226,17 @@ __Returns:__
 
 `Callable[..., Any]`: A callable representation of the task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
     async def run(self, *args: Any, **kwargs: Any) -> int:
         self.print_out('Doing some calculation')
         return 42
-````
+```
 
+```
 >>>
 ```python
 task = MyTask()

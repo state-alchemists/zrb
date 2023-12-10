@@ -1,58 +1,29 @@
-from typing import Any, List
-from zrb import CmdTask, DockerComposeTask, Task, Env, EnvFile, runner
+from zrb import CmdTask, DockerComposeTask, Task, Env, runner
 from zrb.builtin.group import project_group
-from ._common import (
-    CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR,
-    should_start_local_microservices, rabbitmq_checker,
-    rabbitmq_management_checker, redpanda_console_checker,
-    kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
-    pandaproxy_plaintext_checker, app_local_checker, local_input, https_input,
-    run_mode_input, enable_monitoring_input, host_input, app_enable_otel_env
+from ._config import CURRENT_DIR, APP_DIR, RESOURCE_DIR
+from ._helper import (
+    activate_support_compose_profile, should_start_support_container,
+    should_start_local_microservices, should_start_local_monolith
 )
-from .image import image_input
+from ._checker import (
+    rabbitmq_checker, rabbitmq_management_checker, redpanda_console_checker,
+    kafka_outside_checker, kafka_plaintext_checker, pandaproxy_outside_checker,
+    pandaproxy_plaintext_checker, app_local_checker
+)
+from ._input import (
+    local_input, https_input, run_mode_input, enable_monitoring_input,
+    host_input, image_input
+)
+from ._env import app_enable_otel_env
+from ._env_file import app_env_file
+from ._get_start_microservices import get_start_microservices
 from .frontend import build_snake_zrb_app_name_frontend
 from .container import remove_snake_zrb_app_name_container, compose_env_file
-from .local_microservices import get_start_microservices
 import os
 
-###############################################################################
-# Functions
-###############################################################################
-
-
-def setup_support_compose_profile(*args: Any, **kwargs: Any) -> str:
-    task: Task = kwargs.get('_task')
-    env_map = task.get_env_map()
-    compose_profiles: List[str] = []
-    broker_type = env_map.get('APP_BROKER_TYPE', 'rabbitmq')
-    if broker_type in ['rabbitmq', 'kafka']:
-        compose_profiles.append(broker_type)
-    if kwargs.get('enable_snake_zrb_app_name_monitoring', False):
-        compose_profiles.append('monitoring')
-    compose_profile_str = ','.join(compose_profiles)
-    return f'export COMPOSE_PROFILES={compose_profile_str}'
-
-
-def should_start_support_container(*args: Any, **kwargs: Any) -> bool:
-    return kwargs.get('local_snake_zrb_app_name', True)
-
-
-def should_start_local_monolith(*args: Any, **kwargs: Any) -> bool:
-    if not kwargs.get('local_snake_zrb_app_name', True):
-        return False
-    return kwargs.get('snake_zrb_app_name_run_mode', 'monolith') == 'monolith'
-
 
 ###############################################################################
-# Env file Definitions
-###############################################################################
-
-app_env_file = EnvFile(
-    path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX'
-)
-
-###############################################################################
-# Task Definitions
+# ⚙️ init-kebab-zrb-task-name-support-container
 ###############################################################################
 
 init_snake_zrb_app_name_support_container = DockerComposeTask(
@@ -68,12 +39,16 @@ init_snake_zrb_app_name_support_container = DockerComposeTask(
         remove_snake_zrb_app_name_container
     ],
     cwd=RESOURCE_DIR,
-    setup_cmd=setup_support_compose_profile,
+    setup_cmd=activate_support_compose_profile,
     compose_cmd='up',
     compose_flags=['-d'],
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
     env_files=[compose_env_file]
 )
+
+###############################################################################
+# ⚙️ start-kebab-zrb-task-name-support-container
+###############################################################################
 
 start_snake_zrb_app_name_support_container = DockerComposeTask(
     icon='🐳',
@@ -89,7 +64,7 @@ start_snake_zrb_app_name_support_container = DockerComposeTask(
     should_execute=should_start_support_container,
     upstreams=[init_snake_zrb_app_name_support_container],
     cwd=RESOURCE_DIR,
-    setup_cmd=setup_support_compose_profile,
+    setup_cmd=activate_support_compose_profile,
     compose_cmd='logs',
     compose_flags=['-f'],
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
@@ -105,6 +80,10 @@ start_snake_zrb_app_name_support_container = DockerComposeTask(
     ]
 )
 
+###############################################################################
+# ⚙️ prepare-kebab-zrb-task-name-backend
+###############################################################################
+
 prepare_snake_zrb_app_name_backend = CmdTask(
     icon='🚤',
     name='prepare-kebab-zrb-app-name-backend',
@@ -117,6 +96,10 @@ prepare_snake_zrb_app_name_backend = CmdTask(
     ]
 )
 runner.register(prepare_snake_zrb_app_name_backend)
+
+###############################################################################
+# ⚙️ start-monolith-kebab-zrb-task-name
+###############################################################################
 
 start_monolith_snake_zrb_app_name = CmdTask(
     icon='🚤',
@@ -145,6 +128,10 @@ start_monolith_snake_zrb_app_name = CmdTask(
         app_local_checker,
     ]
 )
+
+###############################################################################
+# ⚙️ start-kebab-zrb-task-name-gateway
+###############################################################################
 
 start_snake_zrb_app_name_gateway = CmdTask(
     icon='🚪',
@@ -181,13 +168,9 @@ start_snake_zrb_app_name_gateway = CmdTask(
     ]
 )
 
-start_microservices = get_start_microservices(
-    upstreams=[
-        start_snake_zrb_app_name_support_container,
-        build_snake_zrb_app_name_frontend,
-        prepare_snake_zrb_app_name_backend,
-    ]
-)
+###############################################################################
+# ⚙️ start-kebab-zrb-task-name
+###############################################################################
 
 start_snake_zrb_app_name = Task(
     icon='🚤',
@@ -197,7 +180,14 @@ start_snake_zrb_app_name = Task(
     upstreams=[
         start_monolith_snake_zrb_app_name,
         start_snake_zrb_app_name_gateway,
-    ] + start_microservices,
+        *get_start_microservices(
+            upstreams=[
+                start_snake_zrb_app_name_support_container,
+                build_snake_zrb_app_name_frontend,
+                prepare_snake_zrb_app_name_backend,
+            ]
+        )
+    ],
     run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
 )
 runner.register(start_snake_zrb_app_name)

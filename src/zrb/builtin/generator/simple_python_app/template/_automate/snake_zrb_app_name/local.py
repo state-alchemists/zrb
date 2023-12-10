@@ -7,13 +7,7 @@ from ._common import (
 import os
 
 ###############################################################################
-# Env File Definitions
-###############################################################################
-
-app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
-
-###############################################################################
-# Task Definitions
+# ⚙️ kebab-zrb-task-name
 ###############################################################################
 
 start_snake_zrb_app_name = CmdTask(
@@ -28,7 +22,9 @@ start_snake_zrb_app_name = CmdTask(
     ],
     should_execute='{{ input.local_snake_zrb_app_name}}',
     cwd=APP_DIR,
-    env_files=[app_env_file],
+    env_files=[
+        EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix='ZRB_ENV_PREFIX')
+    ],
     envs=[
         Env(
             name='APP_PORT',

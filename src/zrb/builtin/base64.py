@@ -7,7 +7,7 @@ from zrb.runner import runner
 import base64
 
 ###############################################################################
-# Input Definitions
+# 🔤 Input Definitions
 ###############################################################################
 
 text_input = StrInput(

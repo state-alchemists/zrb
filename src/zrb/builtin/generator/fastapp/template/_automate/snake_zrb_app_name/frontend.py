@@ -1,13 +1,13 @@
 from zrb import CmdTask, Env, EnvFile, PathChecker, runner
 from zrb.builtin.group import project_group
-from ._common import (
+from ._config import (
     APP_FRONTEND_DIR, APP_FRONTEND_BUILD_DIR, CURRENT_DIR,
     APP_TEMPLATE_ENV_FILE_NAME
 )
 import os
 
 ###############################################################################
-# Task Definitions
+# ⚙️ build-kebab-zrb-task-name-frontend
 ###############################################################################
 
 build_snake_zrb_app_name_frontend = CmdTask(
@@ -33,6 +33,10 @@ build_snake_zrb_app_name_frontend = CmdTask(
     ]
 )
 runner.register(build_snake_zrb_app_name_frontend)
+
+###############################################################################
+# ⚙️ build-kebab-zrb-task-name-frontend-once
+###############################################################################
 
 build_snake_zrb_app_name_frontend_once = CmdTask(
     icon='🚤',

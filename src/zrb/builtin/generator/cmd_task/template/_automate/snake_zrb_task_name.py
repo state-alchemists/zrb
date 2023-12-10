@@ -2,7 +2,7 @@ from zrb import CmdTask, runner
 from zrb.builtin.group import project_group
 
 ###############################################################################
-# Task Definitions
+# ⚙️ kebab-zrb-task-name
 ###############################################################################
 
 snake_zrb_task_name = CmdTask(

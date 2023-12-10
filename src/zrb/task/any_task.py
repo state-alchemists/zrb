@@ -34,7 +34,7 @@ class AnyTask(ABC):
         Returns:
             TAnyTask: A copy of the current task.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> task = Task(name='my-task', cmd='echo hello')
             >>> copied_task = task.copy()
@@ -59,7 +59,7 @@ class AnyTask(ABC):
             Any: The result of the task execution, the type of which is determined by 
             the specific task implementation.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
@@ -82,7 +82,7 @@ class AnyTask(ABC):
         Returns:
             bool: True if the task is completed, False otherwise.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
@@ -103,7 +103,7 @@ class AnyTask(ABC):
         `triggered` state. This could involve setting up prerequisites or sending 
         notifications.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_triggered(self):
@@ -120,7 +120,7 @@ class AnyTask(ABC):
         `waiting` state. This state usually indicates the task is waiting for some 
         condition or prerequisite to be met.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_waiting(self):
@@ -136,7 +136,7 @@ class AnyTask(ABC):
         Implement this method to specify behavior when the task is skipped. This could 
         include logging information, cleaning up resources, or any other necessary steps.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_skipped(self):
@@ -152,7 +152,7 @@ class AnyTask(ABC):
         Implement this method to specify behavior when the task starts its execution. This 
         could involve initializing resources, logging, or other startup procedures.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_started(self):
@@ -169,7 +169,7 @@ class AnyTask(ABC):
         actions that occur when the task reaches the `ready` state. This can include 
         any cleanup, notification, or follow-up actions specific to the task.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_ready(self):
@@ -190,7 +190,7 @@ class AnyTask(ABC):
             is_last_attempt (bool): Indicates if this is the final retry attempt.
             exception (Exception): The exception that caused the task to fail.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_failed(self, is_last_attempt: bool, exception: Exception):
@@ -210,7 +210,7 @@ class AnyTask(ABC):
         This could include resetting states, logging the retry attempt, or other necessary 
         steps before re-execution.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def on_retry(self):
@@ -242,7 +242,7 @@ class AnyTask(ABC):
         Returns:
             Callable[..., Any]: A callable representation of the task.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
@@ -267,7 +267,7 @@ class AnyTask(ABC):
         Args:
             upstreams (TAnyTask): One or more task instances to be added to the upstream list.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> task = Task(name='task')
             >>> upstream_task = Task(name='upstream-task')
@@ -286,7 +286,7 @@ class AnyTask(ABC):
         Args:
             upstreams (TAnyTask): One or more task instances to be added to the upstream list.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> task = Task(name='task')
             >>> upstream_task = Task(name='upstream-task')
@@ -305,7 +305,7 @@ class AnyTask(ABC):
         Args:
             inputs (AnyInput): One or more input instances to be added to the input list.
 
-        Example:
+        Examples:
             >>> from zrb import Task, Input
             >>> task = Task(name='task')
             >>> email_input = Input(name='email-address')
@@ -324,7 +324,7 @@ class AnyTask(ABC):
         Args:
             inputs (AnyInput): One or more input instances to be added to the input list.
 
-        Example:
+        Examples:
             >>> from zrb import Task, Input
             >>> task = Task(name='task')
             >>> email_input = Input(name='email-address')
@@ -343,7 +343,7 @@ class AnyTask(ABC):
         Args:
             envs (Env): One or more environment variable instances to be added.
 
-        Example:
+        Examples:
             >>> from zrb import Task, Env
             >>> task = Task(name='task')
             >>> db_url_env = Env(name='DATABASE_URL', value='postgresql://...')
@@ -362,7 +362,7 @@ class AnyTask(ABC):
         Args:
             envs (Env): One or more environment variable instances to be added.
         
-        Example:
+        Examples:
             >>> from zrb import Task, Env
             >>> task = Task(name='task')
             >>> db_url_env = Env(name='DATABASE_URL', value='postgresql://...')
@@ -382,7 +382,7 @@ class AnyTask(ABC):
         Args:
             env_files (EnvFile): One or more environment file instances to be added.
 
-        Example:
+        Examples:
             >>> from zrb import Task, EnvFile
             >>> task = Task()
             >>> env_file = EnvFile(path='config.env')
@@ -402,7 +402,7 @@ class AnyTask(ABC):
         Args:
             env_files (EnvFile): One or more environment file instances to be added.
 
-        Example:
+        Examples:
             >>> from zrb import Task, EnvFile
             >>> task = Task()
             >>> env_file = EnvFile(path='config.env')
@@ -626,7 +626,7 @@ class AnyTask(ABC):
         '''
         Injects additional `EnvFile` into the task.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     def inject_env_files(self):
@@ -652,7 +652,7 @@ class AnyTask(ABC):
         '''
         Injects environment variables into the task.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     def inject_envs(self):
@@ -682,7 +682,7 @@ class AnyTask(ABC):
         dynamic customization of the task's input data. Subclasses should override this method 
         to define specific inputs that the task should receive.
 
-        Example:
+        Examples:
             >>> from zrb import Task, Input
             >>> class MyTask(Task):
             >>>     def inject_inputs(self):
@@ -713,7 +713,7 @@ class AnyTask(ABC):
         checkers can be used to verify certain conditions before the task execution proceeds. 
         Subclasses should implement this method to define task-specific checkers.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     def inject_checkers(self):
@@ -744,7 +744,7 @@ class AnyTask(ABC):
         Upstream tasks are those that must be completed before the current task starts. 
         Override this method in subclasses to specify such dependencies.
 
-        Example:
+        Examples:
             >>> from zrb import Task
             >>> class MyTask(Task):
             >>>     def inject_upstreams(self):
@@ -906,7 +906,7 @@ class AnyTask(ABC):
         Args:
             result (Any): The result of the task to be printed.
 
-        Example:
+        Examples:
             >> from zrb import Task
             >> # Example of overriding in a subclass
             >> class MyTask(Task):

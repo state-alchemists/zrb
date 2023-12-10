@@ -7,7 +7,7 @@ from ._common import (
 import os
 
 ###############################################################################
-# Input Definitions
+# 🔤 Input Definitions
 ###############################################################################
 
 replica_input = IntInput(
@@ -25,7 +25,7 @@ pulumi_stack_input = StrInput(
 )
 
 ###############################################################################
-# Env File Definitions
+# 🌳 Env File Definitions
 ###############################################################################
 
 deployment_config_env_file = EnvFile(
@@ -34,7 +34,7 @@ deployment_config_env_file = EnvFile(
 )
 
 ###############################################################################
-# Env Definitions
+# 🌱 Env Definitions
 ###############################################################################
 
 pulumi_backend_url_env = Env(
@@ -56,7 +56,7 @@ deployment_replica_env = Env(
 )
 
 ###############################################################################
-# Task Definitions
+# ⚙️ deploy-kebab-zrb-task-name
 ###############################################################################
 
 deploy_snake_zrb_app_name = CmdTask(
@@ -84,6 +84,10 @@ deploy_snake_zrb_app_name = CmdTask(
     ]
 )
 runner.register(deploy_snake_zrb_app_name)
+
+###############################################################################
+# ⚙️ destroy-kebab-zrb-task-name
+###############################################################################
 
 destroy_snake_zrb_app_name = CmdTask(
     icon='💨',

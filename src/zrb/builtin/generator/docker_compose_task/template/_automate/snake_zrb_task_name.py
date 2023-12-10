@@ -3,7 +3,7 @@ from zrb.builtin.group import project_group
 import os
 
 ###############################################################################
-# Constants
+# 🏔️ Constants
 ###############################################################################
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -11,7 +11,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-zrb-task-name')
 
 ###############################################################################
-# Task Definitions
+# ⚙️ kebab-zrb-task-name
 ###############################################################################
 
 snake_zrb_task_name = DockerComposeTask(
