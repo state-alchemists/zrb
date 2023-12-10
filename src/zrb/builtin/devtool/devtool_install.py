@@ -15,7 +15,7 @@ dir_path = os.path.dirname(__file__)
 current_shell = get_current_shell()
 
 ###############################################################################
-# Input Definitions
+# 🔤 Input Definitions
 ###############################################################################
 
 terminal_config_file_input = StrInput(

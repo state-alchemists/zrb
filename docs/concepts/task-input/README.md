@@ -1,13 +1,35 @@
-🔖 [Table of Contents](../README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)
 
 # Task Input
+
+Sometimes, you need some user inputs to run your Tasks.
+
+Zrb allows you to set `inputs` for your Task; either by:
+
+- Using `inputs` parameter.
+- Using `add_input` method.
+- Using `insert_input` method.
+
+All Task Input should comply with `AnyInput` interface.
+
+Currently, there are some built-in inputs you can use:
+
+- [Input](./input.md)
+- [BoolInput](./bool-input.md)
+- [ChoiceInput](./choice-input.md)
+- [FloatInput](./float-input.md)
+- [IntInput](./int-input.md)
+- [PasswordInput](./password-input.md)
+- [StrInput](./str-input.md)
+
+Here, you will see the technical specification of `AnyInput`
+
+# Technical Specification
 
 <!--start-doc-->
 ## `Input`
 
-A concrete implementation of the AnyInput abstract base class, representing a specific type of task input.
-This class allows for the creation of interactive and configurable inputs for tasks, with various attributes
-to customize its behavior and appearance.
+Alias for BaseInput
 
 __Attributes:__
 
@@ -95,4 +117,4 @@ __Returns:__
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)

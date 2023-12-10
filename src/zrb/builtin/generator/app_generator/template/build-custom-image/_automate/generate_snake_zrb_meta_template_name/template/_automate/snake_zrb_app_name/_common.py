@@ -2,7 +2,7 @@ from zrb import BoolInput, StrInput
 import os
 
 ###############################################################################
-# Constants
+# 🏔️ Constants
 ###############################################################################
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -16,7 +16,7 @@ APP_DIR = os.path.join(RESOURCE_DIR, 'src')
 APP_TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, 'template.env')
 
 ###############################################################################
-# Input Definitions
+# 🔤 Input Definitions
 ###############################################################################
 
 local_input = BoolInput(

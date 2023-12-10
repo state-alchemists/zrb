@@ -21,6 +21,7 @@ from zrb.task_input.any_input import AnyInput
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.advertisement import get_advertisement
 from zrb.helper.string.conversion import to_variable_name
+from zrb.helper.string.modification import double_quote
 from zrb.helper.map.conversion import to_str as map_to_str
 from zrb.config.config import show_advertisement
 
@@ -144,6 +145,8 @@ class BaseTask(
 
     async def on_triggered(self):
         self.log_info('State: triggered')
+        execution_id = self.get_execution_id()
+        self.log_info(f'Execution id: {execution_id}')
         if self._on_triggered is not None:
             await run_async(self._on_triggered, self)
 
@@ -417,4 +420,5 @@ class BaseTask(
 
     def __repr__(self) -> str:
         cls_name = self.__class__.__name__
-        return f'<{cls_name} name={self._name}>'
+        full_cli_name = double_quote(self._get_full_cli_name())
+        return f'<{cls_name} {full_cli_name}>'

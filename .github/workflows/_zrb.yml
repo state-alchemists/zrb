@@ -17,7 +17,7 @@ jobs:
   Run-command:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:0.0.122
+      image: stalchmst/zrb:0.1.0-alpha
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3

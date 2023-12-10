@@ -1,6 +1,7 @@
 from zrb.helper.typing import Optional, JinjaTemplate
 from zrb.helper.typecheck import typechecked
 from zrb.task_env.constant import RESERVED_ENV_NAMES
+from zrb.helper.string.modification import double_quote
 import os
 
 # flake8: noqa E501
@@ -124,8 +125,8 @@ class Env():
         return prefix + '_' + name
 
     def __repr__(self) -> str:
-        name = self.__name
-        os_name = self.__os_name
-        default = self.__default
         cls_name = self.__class__.__name__
-        return f'<{cls_name} name={name} os_name={os_name} default={default}>'
+        name = double_quote(self.__name)
+        os_name = 'None' if self.__os_name is None else double_quote(self.__os_name)
+        default = double_quote(self.__default)
+        return f'<{cls_name} {name} os_name={os_name} default={default}>'

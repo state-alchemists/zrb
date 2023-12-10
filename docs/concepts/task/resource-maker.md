@@ -1,65 +1,8 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
 # ResourceMaker
 
-ResourceMaker helps you create text resources, whether they are code or licenses.
-
-For example, let's say you have the following template under `mit-license-template/license`
-
-```
-Copyright (c) <zrb_year> <zrb_copyright_holders>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-You want your user to be able to add the license to any app and replacing `<year>` and `<copyright holders>` with user input.
-
-To accomplish this, you can make a resource maker:
-
-```python
-from zrb import ResourceMaker, StrInput, runner
-import os
-
-CURRENT_DIR = os.path.dirname(__file__)
-
-add_mit_license = ResourceMaker(
-    name='add-mit-license',
-    inputs=[
-        StrInput(name='destination'),
-        StrInput(name='year'),
-        StrInput(name='copyright-holder')
-    ],
-    destination_path='{{input.destination}}',
-    template_path=os.path.join(CURRENT_DIR, 'mit-license-template'),
-    replacements={
-        '<zrb_year>': '{{input.year}}',
-        '<zrb_copyright_holders>': '{{input.copyright_holder}}',
-    }
-)
-
-runner.register(add_mit_license)
-```
-
-Note that your template folder might contains a very complex structure. For example, you can make your application boiler plate into a template.
-
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `ResourceMaker`
@@ -151,8 +94,15 @@ No documentation available.
 
 ### `ResourceMaker._get_checkers`
 
-No documentation available.
+Retrieves the checkers set for the task.
 
+This internal method returns an iterable of all the checkers that have been added to
+the task. It's mainly used for internal logic and debugging to understand the
+validations or conditions applied to the task.
+
+__Returns:__
+
+`Iterable[TAnyTask]`: An iterable of checkers associated with the task.
 
 ### `ResourceMaker._get_combined_env`
 
@@ -171,23 +121,48 @@ No documentation available.
 
 ### `ResourceMaker._get_env_files`
 
-No documentation available.
+Retrieves the list of environment variable files associated with the task.
 
+Intended for internal use, this method returns a list of `EnvFile` instances that the task
+uses to load environment variables, primarily for setup and configuration purposes.
+
+__Returns:__
+
+`List[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
 ### `ResourceMaker._get_envs`
 
-No documentation available.
+Retrieves the list of environment variables set for the task.
 
+For internal use, this method returns a list of `Env` instances representing the environment variables
+configured for the task, essential for understanding and debugging the task's environment setup.
+
+__Returns:__
+
+`List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
 ### `ResourceMaker._get_full_cli_name`
 
-No documentation available.
+Retrieves the full command-line interface (CLI) name of the task.
 
+Intended for internal use, this method provides the complete CLI name, including any
+prefixes or namespaces, used primarily for logging or debugging purposes.
+
+__Returns:__
+
+`str`: The full CLI name of the task.
 
 ### `ResourceMaker._get_inputs`
 
-No documentation available.
+Retrieves the list of inputs associated with the task.
 
+This internal method is used to obtain all the inputs that have been set for the task,
+either through static definition or via the `inject_inputs` method. It's primarily used
+for introspection and debugging purposes.
+
+__Returns:__
+
+`List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
 ### `ResourceMaker._get_max_attempt`
 
@@ -201,8 +176,15 @@ No documentation available.
 
 ### `ResourceMaker._get_upstreams`
 
-No documentation available.
+Retrieves the upstream tasks of the current task.
 
+An internal method to get the list of upstream tasks that have been set for the
+task, either statically or through `inject_upstreams`. This is essential for task
+scheduling and dependency management.
+
+__Returns:__
+
+`Iterable[TAnyTask]`: An iterable of upstream tasks.
 
 ### `ResourceMaker._increase_attempt`
 
@@ -226,7 +208,9 @@ No documentation available.
 
 ### `ResourceMaker._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `ResourceMaker._mark_awaited`
 
@@ -245,7 +229,9 @@ No documentation available.
 
 ### `ResourceMaker._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `ResourceMaker._propagate_execution_id`
 
@@ -254,7 +240,9 @@ No documentation available.
 
 ### `ResourceMaker._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `ResourceMaker._run_and_check_all`
 
@@ -286,8 +274,10 @@ __Arguments:__
 
 ### `ResourceMaker._set_has_cli_interface`
 
-No documentation available.
+Marks the task as having a CLI interface.
 
+This internal method is used to indicate that the task is accessible and executable through a CLI,
+enabling the task system to appropriately handle its CLI interactions.
 
 ### `ResourceMaker._set_input_map`
 
@@ -296,7 +286,9 @@ No documentation available.
 
 ### `ResourceMaker._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `ResourceMaker._set_kwargs`
 
@@ -354,7 +346,8 @@ __Arguments:__
 
 - `envs` (`Env`): One or more environment variable instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Env
 task = Task(name='task')
@@ -375,7 +368,8 @@ __Arguments:__
 
 - `env_files` (`EnvFile`): One or more environment file instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, EnvFile
 task = Task()
@@ -395,7 +389,8 @@ __Arguments:__
 
 - `inputs` (`AnyInput`): One or more input instances to be added to the input list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Input
 task = Task(name='task')
@@ -415,7 +410,8 @@ __Arguments:__
 
 - `upstreams` (`TAnyTask`): One or more task instances to be added to the upstream list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 task = Task(name='task')
@@ -438,7 +434,8 @@ __Returns:__
 
 `bool`: True if the task is completed, False otherwise.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -462,7 +459,8 @@ __Returns:__
 
 `TAnyTask`: A copy of the current task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 task = Task(name='my-task', cmd='echo hello')
@@ -473,62 +471,176 @@ copied_task.set_name('new_name')
 
 ### `ResourceMaker.get_cli_name`
 
-No documentation available.
+Gets the command-line interface (CLI) name of the task.
 
+This method returns the name used to invoke the task via a CLI, facilitating integration with command-line tools
+or scripts.
+
+__Returns:__
+
+`str`: The CLI name of the task.
 
 ### `ResourceMaker.get_color`
 
-No documentation available.
+Retrieves the color associated with the current task.
 
+This method returns the color of the task, useful for visual differentiation, priority indication,
+or categorization in user interfaces or documentation.
+
+__Returns:__
+
+`str`: A string representing the color assigned to the task.
 
 ### `ResourceMaker.get_description`
 
-No documentation available.
+Fetches the current description of the task.
 
+This method is used to obtain the detailed description of the task, providing insights into its purpose,
+functionality, and usage within the task management system.
+
+__Returns:__
+
+`str`: The description of the task.
 
 ### `ResourceMaker.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `ResourceMaker.get_execution_id`
 
-No documentation available.
+Retrieves the execution ID of the task.
 
+This method returns the unique identifier associated with the task's execution.
+The execution ID is crucial for tracking, logging, and differentiating between
+multiple instances or runs of the same task.
+
+__Returns:__
+
+`str`: The unique execution ID of the task.
 
 ### `ResourceMaker.get_icon`
 
-No documentation available.
+Retrieves the icon identifier of the current task.
 
+This method is used to get the icon associated with the task, which can be utilized for
+visual representation in user interfaces or documentation.
+
+__Returns:__
+
+`str`: A string representing the icon identifier for the task
 
 ### `ResourceMaker.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `ResourceMaker.inject_checkers`
 
-No documentation available.
+Injects custom checkers into the task.
+
+This method allows for the addition of custom validation or condition checkers. These
+checkers can be used to verify certain conditions before the task execution proceeds.
+Subclasses should implement this method to define task-specific checkers.
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_checkers(self):
+        self.add_checker(some_custom_condition_checker)
+```
 
 
 ### `ResourceMaker.inject_env_files`
 
-No documentation available.
+Injects additional `EnvFile` into the task.
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_env_files(self):
+        self.add_env_files(EnvFile(path='config.env'))
+```
 
 
 ### `ResourceMaker.inject_envs`
 
-No documentation available.
+Injects environment variables into the task.
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_envs(self):
+        self.add_envs(Env(name='DATABASE_URL'))
+```
 
 
 ### `ResourceMaker.inject_inputs`
 
-No documentation available.
+Injects custom inputs into the task.
+
+This method is used to programmatically add input parameters to the task, allowing
+dynamic customization of the task's input data. Subclasses should override this method
+to define specific inputs that the task should receive.
+
+__Examples:__
+
+```python
+from zrb import Task, Input
+class MyTask(Task):
+    def inject_inputs(self):
+        self.add_input(Input(name='user_email', type='email'))
+```
 
 
 ### `ResourceMaker.inject_upstreams`
 
-No documentation available.
+Injects upstream tasks into the current task.
+
+This method is used for programmatically adding upstream dependencies to the task.
+Upstream tasks are those that must be completed before the current task starts.
+Override this method in subclasses to specify such dependencies.
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_upstreams(self):
+        self.add_upstream(another_task)
+```
 
 
 ### `ResourceMaker.insert_env`
@@ -542,7 +654,8 @@ __Arguments:__
 
 - `envs` (`Env`): One or more environment variable instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Env
 task = Task(name='task')
@@ -563,7 +676,8 @@ __Arguments:__
 
 - `env_files` (`EnvFile`): One or more environment file instances to be added.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, EnvFile
 task = Task()
@@ -583,7 +697,8 @@ __Arguments:__
 
 - `inputs` (`AnyInput`): One or more input instances to be added to the input list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task, Input
 task = Task(name='task')
@@ -604,7 +719,8 @@ __Arguments:__
 
 - `upstreams` (`TAnyTask`): One or more task instances to be added to the upstream list.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 task = Task(name='task')
@@ -615,28 +731,33 @@ task.insert_upstream(upstream_task)
 
 ### `ResourceMaker.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.on_failed`
 
@@ -651,7 +772,8 @@ __Arguments:__
 - `is_last_attempt` (`bool`): Indicates if this is the final retry attempt.
 - `exception` (`Exception`): The exception that caused the task to fail.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -671,7 +793,8 @@ This asynchronous method should be implemented in subclasses to specify
 actions that occur when the task reaches the `ready` state. This can include
 any cleanup, notification, or follow-up actions specific to the task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -688,7 +811,8 @@ Implement this method to specify behavior when the task is retried after a failu
 This could include resetting states, logging the retry attempt, or other necessary
 steps before re-execution.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -704,7 +828,8 @@ Defines actions to perform when the task status is set to `skipped`.
 Implement this method to specify behavior when the task is skipped. This could
 include logging information, cleaning up resources, or any other necessary steps.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -720,7 +845,8 @@ Defines actions to perform when the task status is set to 'started'.
 Implement this method to specify behavior when the task starts its execution. This
 could involve initializing resources, logging, or other startup procedures.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -737,7 +863,8 @@ Implement this method to specify behavior when the task transitions to the
 `triggered` state. This could involve setting up prerequisites or sending
 notifications.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -754,7 +881,8 @@ Implement this method to specify behavior when the task transitions to the
 `waiting` state. This state usually indicates the task is waiting for some
 condition or prerequisite to be met.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -765,18 +893,15 @@ class MyTask(Task):
 
 ### `ResourceMaker.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `ResourceMaker.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `ResourceMaker.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `ResourceMaker.print_result`
 
@@ -790,32 +915,32 @@ __Arguments:__
 
 - `result` (`Any`): The result of the task to be printed.
 
-Example:
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+__Examples:__
+
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `ResourceMaker.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `ResourceMaker.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `ResourceMaker.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `ResourceMaker.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `ResourceMaker.render_int`
 
@@ -824,8 +949,7 @@ No documentation available.
 
 ### `ResourceMaker.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `ResourceMaker.run`
 
@@ -845,7 +969,8 @@ __Returns:__
 `Any`: The result of the task execution, the type of which is determined by
 the specific task implementation.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
@@ -857,43 +982,92 @@ class MyTask(Task):
 
 ### `ResourceMaker.set_checking_interval`
 
-No documentation available.
+Sets the interval for checking the task's readiness or completion status.
 
+This method defines how frequently the system should check if the task is ready or completed.
+It's useful for tasks that have an indeterminate completion time.
+
+__Arguments:__
+
+- `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
 ### `ResourceMaker.set_color`
 
-No documentation available.
+Defines a new color for the current task.
 
+This method updates the color associated with the task. This can be useful for categorization,
+priority indication, or visual differentiation in a UI.
+
+__Arguments:__
+
+- `new_color` (`str`): A string representing the color to be assigned to the task.
 
 ### `ResourceMaker.set_description`
 
-Set current task description.
-Usually used to overide copied task's description.
+Sets a new description for the current task.
+
+This method allows updating the task's description to provide more context or details about its purpose and behavior.
+Useful for enhancing clarity and maintainability in the task management system.
+
+__Arguments:__
+
+- `new_description` (`str`): A string representing the new description of the task.
 
 ### `ResourceMaker.set_icon`
 
-Set current task icon.
-Usually used to overide copied task's icon.
+Assigns a new icon to the current task.
+
+This method is used for setting or updating the task's icon, which can be utilized for visual representation
+in a user interface. The icon should ideally be a string identifier that maps to an actual graphical resource.
+
+__Arguments:__
+
+- `new_icon` (`str`): A string representing the icon identifier for the task.
 
 ### `ResourceMaker.set_name`
 
-Set current task name.
-Usually used to overide copied task's name.
+Sets a new name for the current task.
+
+This method is used to update the task's name, typically after creating a copy of an existing task.
+The new name helps in differentiating the task in the task management system.
+
+__Arguments:__
+
+- `new_name` (`str`): A string representing the new name to be assigned to the task.
 
 ### `ResourceMaker.set_retry`
 
-No documentation available.
+Sets the number of retry attempts for the task.
 
+This method configures how many times the task should be retried in case of failure.
+It's essential for tasks that may fail transiently and need multiple attempts for successful execution.
+
+__Arguments:__
+
+- `new_retry` (`int`): An integer representing the number of retry attempts.
 
 ### `ResourceMaker.set_retry_interval`
 
-No documentation available.
+Specifies the interval between retry attempts for the task.
 
+This method sets the duration to wait before retrying the task after a failure.
+This can help in scenarios where immediate retry is not desirable or effective.
+
+__Arguments:__
+
+- `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
 ### `ResourceMaker.set_should_execute`
 
-No documentation available.
+Determines whether the task should execute.
 
+This method configures the execution criteria for the task. It can be set as a boolean value,
+a string representing a condition, or a callable that returns a boolean. This is useful for
+conditional task execution based on dynamic criteria.
+
+__Arguments:__
+
+- `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
 ### `ResourceMaker.to_function`
 
@@ -914,17 +1088,14 @@ __Returns:__
 
 `Callable[..., Any]`: A callable representation of the task.
 
-Example:
+__Examples:__
+
 ```python
 from zrb import Task
 class MyTask(Task):
     async def run(self, *args: Any, **kwargs: Any) -> int:
         self.print_out('Doing some calculation')
         return 42
-````
-
->>>
-```python
 task = MyTask()
 fn = task.to_function()
 fn()
@@ -933,4 +1104,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)

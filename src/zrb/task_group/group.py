@@ -2,6 +2,7 @@ from zrb.helper.typing import List, Optional, TypeVar
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.helper.string.conversion import to_cli_name
+from zrb.helper.string.modification import double_quote
 
 # flake8: noqa E501
 TGroup = TypeVar('TGroup', bound='Group')
@@ -33,13 +34,46 @@ class Group():
         description: Optional[str] = None,
         parent: Optional[TGroup] = None
     ):
-        self._name = name
-        self._description = description
+        self.__name = name
+        self.__description = description
         self._parent = parent
         if parent is not None:
-            parent._children.append(self)
-        self._children: List[TGroup] = []
-        self._tasks: List[AnyTask] = []
+            parent.__children.append(self)
+        self.__children: List[TGroup] = []
+        self.__tasks: List[AnyTask] = []
+    
+    def get_parent(self) -> Optional[TGroup]:
+        '''
+        Retrieves parent of the Group.
+
+        Returns:
+            Optional[Group]: Parent of the group.
+        
+        Examples:
+            >>> from zrb import Group 
+            >>> system_group = Group(name='my system')
+            >>> system_log_group = Group(name='log', parent=system_group)
+            >>> print(system_group.get_parent())
+            >>> print(system_log_group.get_parent())
+            None
+            <Group "my-system">
+        '''
+        return self._parent
+    
+    def get_description(self) -> str:
+        '''
+        Retrieves group description.
+
+        Returns:
+            str: Description of the group.
+
+        Examples:
+            >>> from zrb import Group
+            >>> group = Group(name='group', description='description of the group')
+            >>> print(group.get_description())
+            description of the group
+        '''
+        return self.__description
 
     def get_cli_name(self) -> str:
         '''
@@ -56,7 +90,7 @@ class Group():
             >>> print(system_group.get_cli_name())
             my-system
         '''
-        return to_cli_name(self._name)
+        return to_cli_name(self.__name)
 
     def _get_full_cli_name(self) -> str:
         '''
@@ -97,9 +131,9 @@ class Group():
             >>> group._add_task(first_task)
             >>> group._add_task(second_task)
             >>> print(group.get_tasks())
-            [<Task name=first-task>, <Task name=second-task>]
+            [<Task "group first-task">, <Task "group second-task">]
         '''
-        self._tasks.append(task)
+        self.__tasks.append(task)
 
     def get_tasks(self) -> List[AnyTask]:
         '''
@@ -114,9 +148,9 @@ class Group():
             >>> first_task = Task(name='first-task', group=group)
             >>> second_task = Task(name='second-task', group=group)
             >>> print(group.get_tasks())
-            [<Task name=first-task>, <Task name=second-task>]
+            [<Task "group first-task">, <Task "group second-task">]
         '''
-        return self._tasks
+        return self.__tasks
 
     def get_children(self) -> List[TGroup]:
         '''
@@ -133,10 +167,11 @@ class Group():
             >>> sub_group_1 = TaskGroup(name='sub-group-1', parent=group)
             >>> sub_group_2 = TaskGroup(name='sub-group-2', parent=group)
             >>> print(group.get_children())
-            [<Group name=sub-group-1>, <Group name=sub-group-2>]
+            [<Group "group sub-group-1">, <Group "group sub-group-2">]
         '''
-        return self._children
+        return self.__children
 
     def __repr__(self) -> str:
         cls_name = self.__class__.__name__
-        return f'<{cls_name} name={self._name}>'
+        full_cli_name = double_quote(self._get_full_cli_name())
+        return f'<{cls_name} {full_cli_name}>'

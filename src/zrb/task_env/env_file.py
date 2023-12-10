@@ -2,6 +2,7 @@ from zrb.helper.typing import List, Optional
 from zrb.helper.typecheck import typechecked
 from dotenv import dotenv_values
 from zrb.task_env.constant import RESERVED_ENV_NAMES
+from zrb.helper.string.modification import double_quote
 from zrb.task_env.env import Env
 
 # flake8: noqa E501
@@ -75,7 +76,7 @@ class EnvFile():
         return env_list
 
     def __repr__(self) -> str:
-        env_file = self.__path
-        prefix = self.__prefix
         cls_name = self.__class__.__name__
-        return f'<{cls_name} file={env_file} prefix={prefix}>'
+        path = double_quote(self.__path)
+        prefix = double_quote(self.__prefix)
+        return f'<{cls_name} path={path} prefix={prefix}>'

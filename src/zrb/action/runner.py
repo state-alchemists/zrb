@@ -59,10 +59,11 @@ class Runner():
         task_group = task._group
         while task_group is not None:
             group = self.__register_sub_command(task_group, subcommand)
-            if task_group._parent is None:
+            parent_group = task_group.get_parent()
+            if parent_group is None:
                 return group
             subcommand = group
-            task_group = task_group._parent
+            task_group = parent_group
         return subcommand
 
     def __register_sub_command(
@@ -82,7 +83,7 @@ class Runner():
         if task_group_id in self.__registered_groups:
             return self.__registered_groups[task_group_id]
         group_cli_name = task_group.get_cli_name()
-        group_description = task_group._description
+        group_description = task_group.get_description()
         group = click.Group(name=group_cli_name, help=group_description)
         self.__registered_groups[task_group_id] = group
         return group

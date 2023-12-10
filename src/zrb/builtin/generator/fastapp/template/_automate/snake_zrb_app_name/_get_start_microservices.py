@@ -1,12 +1,13 @@
 from typing import List
 from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile
 from zrb.helper.util import to_snake_case, to_kebab_case
-from ._common import (
-    CURRENT_DIR, APP_DIR, should_start_local_microservices,
-    APP_TEMPLATE_ENV_FILE_NAME, MODULES,
+from ._helper import should_start_local_microservices
+from ._input import (
     local_input, run_mode_input, host_input, https_input,
-    enable_monitoring_input, app_enable_otel_env
+    enable_monitoring_input
 )
+from ._env import app_enable_otel_env
+from ._config import CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, MODULES
 import os
 
 

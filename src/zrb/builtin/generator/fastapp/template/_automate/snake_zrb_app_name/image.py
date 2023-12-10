@@ -1,30 +1,11 @@
-from zrb import DockerComposeTask, Env, StrInput, runner
+from zrb import DockerComposeTask, runner
 from zrb.builtin.group import project_group
-from ._common import RESOURCE_DIR, local_input
+from ._config import RESOURCE_DIR
+from ._input import local_input, image_input
+from ._env import image_env
 
 ###############################################################################
-# Input Definitions
-###############################################################################
-
-image_input = StrInput(
-    name='kebab-zrb-app-name-image',
-    description='Image name of "kebab-zrb-app-name"',
-    prompt='Image name of "kebab-zrb-app-name"',
-    default='zrb-app-image-name:latest'
-)
-
-###############################################################################
-# Env fDefinitions
-###############################################################################
-
-image_env = Env(
-    name='IMAGE',
-    os_name='CONTAINER_ZRB_ENV_PREFIX_IMAGE',
-    default='{{input.snake_zrb_app_name_image}}'
-)
-
-###############################################################################
-# Task Definitions
+# ⚙️ build-kebab-zrb-task-name-image
 ###############################################################################
 
 build_snake_zrb_app_name_image = DockerComposeTask(
@@ -46,6 +27,10 @@ build_snake_zrb_app_name_image = DockerComposeTask(
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
 )
 runner.register(build_snake_zrb_app_name_image)
+
+###############################################################################
+# ⚙️ push-kebab-zrb-task-name-image
+###############################################################################
 
 push_snake_zrb_app_name_image = DockerComposeTask(
     icon='📰',

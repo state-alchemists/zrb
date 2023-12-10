@@ -1,4 +1,4 @@
-from zrb.helper.typing import Any, Mapping, Optional, Union
+from zrb.helper.typing import Any, JinjaTemplate, Mapping, Optional, Union
 from zrb.helper.typecheck import typechecked
 from zrb.helper.string.conversion import to_boolean
 from zrb.helper.string.jinja import is_probably_jinja
@@ -43,57 +43,69 @@ class Renderer():
         self.__env_map[key] = val
 
     def render_any(
-        self, val: Any, data: Optional[Mapping[str, Any]] = None
+        self, value: Any, data: Optional[Mapping[str, Any]] = None
     ) -> Any:
-        if isinstance(val, str):
-            return self.render_str(val, data)
-        return val
+        if isinstance(value, str):
+            return self.render_str(value, data)
+        return value
 
     def render_float(
-        self, val: Union[str, float], data: Optional[Mapping[str, Any]] = None
+        self,
+        value: Union[JinjaTemplate, float],
+        data: Optional[Mapping[str, Any]] = None
     ) -> float:
-        if isinstance(val, str):
-            return float(self.render_str(val, data))
-        return val
+        if isinstance(value, str):
+            return float(self.render_str(value, data))
+        return value
 
     def render_int(
-        self, val: Union[str, int], data: Optional[Mapping[str, Any]] = None
+        self,
+        value: Union[JinjaTemplate, int],
+        data: Optional[Mapping[str, Any]] = None
     ) -> int:
-        if isinstance(val, str):
-            return int(self.render_str(val, data))
-        return val
+        if isinstance(value, str):
+            return int(self.render_str(value, data))
+        return value
 
     def render_bool(
-        self, val: Union[str, bool], data: Optional[Mapping[str, Any]] = None
+        self,
+        value: Union[JinjaTemplate, bool],
+        data: Optional[Mapping[str, Any]] = None
     ) -> bool:
-        if isinstance(val, str):
-            return to_boolean(self.render_str(val, data))
-        return val
+        if isinstance(value, str):
+            return to_boolean(self.render_str(value, data))
+        return value
 
     def render_str(
-        self, val: str, data: Optional[Mapping[str, Any]] = None
+        self,
+        value: JinjaTemplate,
+        data: Optional[Mapping[str, Any]] = None
     ) -> str:
-        if val in self.__rendered_str:
-            return self.__rendered_str[val]
-        if not is_probably_jinja(val):
-            return val
-        template = jinja2.Template(val)
+        if value in self.__rendered_str:
+            return self.__rendered_str[value]
+        if not is_probably_jinja(value):
+            return value
+        template = jinja2.Template(value)
         render_data = self.__get_render_data(additional_data=data)
         try:
             rendered_text = template.render(render_data)
         except Exception:
-            raise Exception(f'Fail to render "{val}" with data: {render_data}')
-        self.__rendered_str[val] = rendered_text
+            raise Exception(
+                f'Fail to render "{value}" with data: {render_data}'
+            )
+        self.__rendered_str[value] = rendered_text
         return rendered_text
 
     def render_file(
-        self, location: str, data: Optional[Mapping[str, Any]] = None
+        self,
+        path: JinjaTemplate,
+        data: Optional[Mapping[str, Any]] = None
     ) -> str:
-        location_dir = os.path.dirname(location)
+        location_dir = os.path.dirname(path)
         env = jinja2.Environment(
             loader=AnyExtensionFileSystemLoader([location_dir])
         )
-        template = env.get_template(location)
+        template = env.get_template(path)
         render_data = self.__get_render_data(additional_data=data)
         render_data['TEMPLATE_DIR'] = location_dir
         rendered_text = template.render(render_data)

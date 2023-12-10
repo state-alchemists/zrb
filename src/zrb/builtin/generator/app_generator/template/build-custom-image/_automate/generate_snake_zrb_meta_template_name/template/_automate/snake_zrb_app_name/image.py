@@ -5,7 +5,7 @@ from ._common import (
 )
 
 ###############################################################################
-# Input Definitions
+# 🔤 Input Definitions
 ###############################################################################
 
 image_input = StrInput(
@@ -17,7 +17,7 @@ image_input = StrInput(
 
 
 ###############################################################################
-# Env Definitions
+# 🌱 Env Definitions
 ###############################################################################
 
 image_env = Env(
@@ -27,7 +27,7 @@ image_env = Env(
 )
 
 ###############################################################################
-# Task Definitions
+# ⚙️ build-zrb-task-name-image
 ###############################################################################
 
 build_snake_zrb_app_name_image = DockerComposeTask(
@@ -49,6 +49,10 @@ build_snake_zrb_app_name_image = DockerComposeTask(
     compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
 )
 runner.register(build_snake_zrb_app_name_image)
+
+###############################################################################
+# ⚙️ push-zrb-task-name-image
+###############################################################################
 
 push_snake_zrb_app_name_image = DockerComposeTask(
     icon='📰',

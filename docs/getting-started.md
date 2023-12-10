@@ -828,7 +828,7 @@ from zrb import EnvFile
 import os
 
 PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
-env_file = EnvFile(env_file=PROJECT_ENV)
+env_file = EnvFile(path=PROJECT_ENV)
 ```
 
 ### Using Env and EnvFile
@@ -856,7 +856,7 @@ hello_cmd = CmdTask(
         Env(name='MESSAGE', default='Hello world'),
     ],
     env_files=[
-        EnvFile(env_file=PROJECT_ENV)
+        EnvFile(path=PROJECT_ENV)
     ],
     cmd=[
         'echo Message: {{env.MESSAGE}}',
@@ -896,7 +896,7 @@ PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
         Env(name='MESSAGE', default='Hello world'),
     ],
     env_files=[
-        EnvFile(env_file=PROJECT_ENV)
+        EnvFile(path=PROJECT_ENV)
     ],
     runner=runner
 )
