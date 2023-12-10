@@ -782,48 +782,111 @@ class AnyTask(ABC):
 
     @abstractmethod
     def log_debug(self, message: Any):
+        '''
+        Log message with log level "DEBUG"
+
+        You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
+        '''
         pass
 
     @abstractmethod
     def log_warn(self, message: Any):
+        '''
+        Log message with log level "WARNING"
+
+        You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
+        '''
         pass
 
     @abstractmethod
     def log_info(self, message: Any):
+        '''
+        Log message with log level "INFO"
+
+        You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
+        '''
         pass
 
     @abstractmethod
     def log_error(self, message: Any):
+        '''
+        Log message with log level "ERROR"
+
+        You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
+        '''
         pass
 
     @abstractmethod
     def log_critical(self, message: Any):
+        '''
+        Log message with log level "CRITICAL"
+
+        You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
+        '''
         pass
 
     @abstractmethod
     def print_out(self, message: Any, trim_message: bool = True):
+        '''
+        Print message to stderr as normal text.
+        '''
         pass
 
     @abstractmethod
     def print_err(self, message: Any, trim_message: bool = True):
+        '''
+        Print message to stderr and style it as error.
+        '''
         pass
 
     @abstractmethod
     def print_out_dark(self, message: Any, trim_message: bool = True):
+        '''
+        Print message to stdout and style it as faint.
+        '''
         pass
 
     @abstractmethod
     def get_input_map(self) -> Mapping[str, Any]:
+        '''
+        Get a map representing task's Inputs.
+
+        Typically used inside `run`, `check`, or in `@python_task` decorator
+
+        Examples:
+            >>> from zrb import python_task, Task, Input
+            >>> @python_task(name='task', inputs=[Input(name='name')])
+            >>> def task(*args, **kwargs):
+            >>>     task: Task = kwargs.get('_task')
+            >>>     for key, value in task.get_input_map():
+            >>>         task.print_out(f'{key}: {value}')
+        '''
         pass
 
     @abstractmethod
     def get_env_map(self) -> Mapping[str, Any]:
+        '''
+        Get a map representing task's Envs and EnvFiles
+
+        Typically used inside `run`, `check`, or in `@python_task` decorator
+
+        Examples:
+            >>> from zrb import python_task, Task, Env
+            >>> @python_task(name='task', envs=[Env(name='DB_URL')])
+            >>> def task(*args, **kwargs):
+            >>>     task: Task = kwargs.get('_task')
+            >>>     for key, value in task.get_env_map():
+            >>>         task.print_out(f'{key}: {value}')
+        '''
         pass
 
     @abstractmethod
     def render_any(
         self, value: Any, data: Optional[Mapping[str, Any]] = None
     ) -> Any:
+        '''
+        Render any value.
+        '''
         pass
 
     @abstractmethod
@@ -832,6 +895,9 @@ class AnyTask(ABC):
         value: Union[JinjaTemplate, float],
         data: Optional[Mapping[str, Any]] = None
     ) -> float:
+        '''
+        Render float value.
+        '''
         pass
 
     @abstractmethod
@@ -848,6 +914,9 @@ class AnyTask(ABC):
         value: Union[JinjaTemplate, bool],
         data: Optional[Mapping[str, Any]] = None
     ) -> bool:
+        '''
+        Render int value.
+        '''
         pass
 
     @abstractmethod
@@ -856,6 +925,9 @@ class AnyTask(ABC):
         value: JinjaTemplate,
         data: Optional[Mapping[str, Any]] = None
     ) -> str:
+        '''
+        Render str value.
+        '''
         pass
 
     @abstractmethod
@@ -864,33 +936,44 @@ class AnyTask(ABC):
         path: JinjaTemplate,
         data: Optional[Mapping[str, Any]] = None
     ) -> str:
+        '''
+        Render file content.
+        '''
         pass
 
     @abstractmethod
     def _run_all(self, *args: Any, **kwargs: Any) -> Any:
         '''
-        For internal use
+        For internal use.
+
+        Run this task and all its upstreams.
         '''
         pass
 
     @abstractmethod
     def _loop_check(self, show_info: bool) -> bool:
         '''
-        For internal use
+        For internal use.
+        
+        Regularly check whether the task is ready or not.
         '''
         pass
 
     @abstractmethod
     def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         '''
-        For internal use
+        For internal use.
+
+        Set current task's key values.
         '''
         pass
 
     @abstractmethod
     def _print_result(self, result: Any):
         '''
-        For internal use
+        For internal use.
+
+        Directly call `print_result`
         '''
         pass
 
@@ -907,10 +990,10 @@ class AnyTask(ABC):
             result (Any): The result of the task to be printed.
 
         Examples:
-            >> from zrb import Task
-            >> # Example of overriding in a subclass
-            >> class MyTask(Task):
-            >>    def print_result(self, result: Any):
-            >>        print(f'Result: {result}')
+            >>> from zrb import Task
+            >>> # Example of overriding in a subclass
+            >>> class MyTask(Task):
+            >>>    def print_result(self, result: Any):
+            >>>        print(f'Result: {result}')
         '''
         pass

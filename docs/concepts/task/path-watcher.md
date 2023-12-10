@@ -1,182 +1,93 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
-# CmdTask
+# PathWatcher
 
 # Technical Specification
 
 <!--start-doc-->
-## `CmdTask`
+## `PathWatcher`
 
-Command Task.
-You can use this task to run shell command.
+Base class for all tasks.
+Every task definition should be extended from this class.
 
-For example:
-```python
-# run a simple task
-hello = CmdTask(
-name='hello',
-inputs=[StrInput(name='name', default='World')],
-envs=[Env(name='HOME_DIR', os_name='HOME')],
-cmd=[
-'echo Hello {{ input.name }}',
-'echo Home directory is: $HOME_DIR',
-]
-)
-runner.register(hello)
-
-# run a long running process
-run_server = CmdTask(
-name='run',
-inputs=[StrInput(name='dir', default='.')],
-envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
-cmd='python -m http.server $PORT --directory {{input.dir}}',
-checkers=[HTTPChecker(port='{{env.PORT}}')]
-)
-runner.register(run_server)
-```
-
-### `CmdTask._BaseTaskModel__get_colored`
+### `PathWatcher._BaseTaskModel__get_colored`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_colored_print_prefix`
+### `PathWatcher._BaseTaskModel__get_colored_print_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_common_prefix`
+### `PathWatcher._BaseTaskModel__get_common_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_executable_name`
+### `PathWatcher._BaseTaskModel__get_executable_name`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_log_prefix`
+### `PathWatcher._BaseTaskModel__get_log_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_print_prefix`
+### `PathWatcher._BaseTaskModel__get_print_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_rjust_full_cli_name`
+### `PathWatcher._BaseTaskModel__get_rjust_full_cli_name`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__add_to_buffer`
+### `PathWatcher._Renderer__ensure_cached_render_data`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__get_multiline_repr`
+### `PathWatcher._Renderer__get_render_data`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__get_rendered_cmd`
+### `PathWatcher._cached_check`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__get_rendered_cmd_path`
+### `PathWatcher._cached_run`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__is_process_exist`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__kill_by_pid`
-
-Kill a pid, gracefully
-
-### `CmdTask._CmdTask__log_from_queue`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__on_exit`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__on_kill`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__queue_stream`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__set_cwd`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__wait_process`
-
-No documentation available.
-
-
-### `CmdTask._Renderer__ensure_cached_render_data`
-
-No documentation available.
-
-
-### `CmdTask._Renderer__get_render_data`
-
-No documentation available.
-
-
-### `CmdTask._cached_check`
-
-No documentation available.
-
-
-### `CmdTask._cached_run`
-
-No documentation available.
-
-
-### `CmdTask._check`
+### `PathWatcher._check`
 
 Check current task readiness.
 - If self.checkers is defined,
 this will return True once every self.checkers is completed
 - Otherwise, this will return check method's return value.
 
-### `CmdTask._check_should_execute`
+### `PathWatcher._check_should_execute`
 
 No documentation available.
 
 
-### `CmdTask._create_cmd_script`
+### `PathWatcher._end_timer`
 
 No documentation available.
 
 
-### `CmdTask._end_timer`
+### `PathWatcher._get_attempt`
 
 No documentation available.
 
 
-### `CmdTask._get_attempt`
-
-No documentation available.
-
-
-### `CmdTask._get_checkers`
+### `PathWatcher._get_checkers`
 
 Retrieves the checkers set for the task.
 
@@ -188,22 +99,22 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of checkers associated with the task.
 
-### `CmdTask._get_combined_env`
+### `PathWatcher._get_combined_env`
 
 No documentation available.
 
 
-### `CmdTask._get_combined_inputs`
+### `PathWatcher._get_combined_inputs`
 
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
-### `CmdTask._get_elapsed_time`
+### `PathWatcher._get_elapsed_time`
 
 No documentation available.
 
 
-### `CmdTask._get_env_files`
+### `PathWatcher._get_env_files`
 
 Retrieves the list of environment variable files associated with the task.
 
@@ -214,7 +125,7 @@ __Returns:__
 
 `List[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
-### `CmdTask._get_envs`
+### `PathWatcher._get_envs`
 
 Retrieves the list of environment variables set for the task.
 
@@ -225,7 +136,7 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `CmdTask._get_full_cli_name`
+### `PathWatcher._get_full_cli_name`
 
 Retrieves the full command-line interface (CLI) name of the task.
 
@@ -236,7 +147,7 @@ __Returns:__
 
 `str`: The full CLI name of the task.
 
-### `CmdTask._get_inputs`
+### `PathWatcher._get_inputs`
 
 Retrieves the list of inputs associated with the task.
 
@@ -248,17 +159,22 @@ __Returns:__
 
 `List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
-### `CmdTask._get_max_attempt`
+### `PathWatcher._get_max_attempt`
 
 No documentation available.
 
 
-### `CmdTask._get_task_pid`
+### `PathWatcher._get_mod_times`
 
 No documentation available.
 
 
-### `CmdTask._get_upstreams`
+### `PathWatcher._get_task_pid`
+
+No documentation available.
+
+
+### `PathWatcher._get_upstreams`
 
 Retrieves the upstream tasks of the current task.
 
@@ -270,80 +186,80 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of upstream tasks.
 
-### `CmdTask._increase_attempt`
+### `PathWatcher._increase_attempt`
 
 No documentation available.
 
 
-### `CmdTask._is_done`
+### `PathWatcher._is_done`
 
 No documentation available.
 
 
-### `CmdTask._is_last_attempt`
+### `PathWatcher._is_last_attempt`
 
 No documentation available.
 
 
-### `CmdTask._lock_upstreams`
+### `PathWatcher._lock_upstreams`
 
 No documentation available.
 
 
-### `CmdTask._loop_check`
+### `PathWatcher._loop_check`
 
 For internal use.
 
 Regularly check whether the task is ready or not.
 
-### `CmdTask._mark_awaited`
+### `PathWatcher._mark_awaited`
 
 No documentation available.
 
 
-### `CmdTask._mark_done`
+### `PathWatcher._mark_done`
 
 No documentation available.
 
 
-### `CmdTask._play_bell`
+### `PathWatcher._play_bell`
 
 No documentation available.
 
 
-### `CmdTask._print_result`
+### `PathWatcher._print_result`
 
 For internal use.
 
 Directly call `print_result`
 
-### `CmdTask._propagate_execution_id`
+### `PathWatcher._propagate_execution_id`
 
 No documentation available.
 
 
-### `CmdTask._run_all`
+### `PathWatcher._run_all`
 
 For internal use.
 
 Run this task and all its upstreams.
 
-### `CmdTask._run_and_check_all`
+### `PathWatcher._run_and_check_all`
 
 No documentation available.
 
 
-### `CmdTask._set_args`
+### `PathWatcher._set_args`
 
 No documentation available.
 
 
-### `CmdTask._set_env_map`
+### `PathWatcher._set_env_map`
 
 No documentation available.
 
 
-### `CmdTask._set_execution_id`
+### `PathWatcher._set_execution_id`
 
 Sets the execution ID for the current task.
 
@@ -356,65 +272,65 @@ __Arguments:__
 
 - `execution_id` (`str`): A string representing the unique execution ID.
 
-### `CmdTask._set_has_cli_interface`
+### `PathWatcher._set_has_cli_interface`
 
 Marks the task as having a CLI interface.
 
 This internal method is used to indicate that the task is accessible and executable through a CLI,
 enabling the task system to appropriately handle its CLI interactions.
 
-### `CmdTask._set_input_map`
+### `PathWatcher._set_input_map`
 
 No documentation available.
 
 
-### `CmdTask._set_keyval`
+### `PathWatcher._set_keyval`
 
 For internal use.
 
 Set current task's key values.
 
-### `CmdTask._set_kwargs`
+### `PathWatcher._set_kwargs`
 
 No documentation available.
 
 
-### `CmdTask._set_local_keyval`
+### `PathWatcher._set_local_keyval`
 
 No documentation available.
 
 
-### `CmdTask._set_task_pid`
+### `PathWatcher._set_task_pid`
 
 No documentation available.
 
 
-### `CmdTask._should_attempt`
+### `PathWatcher._should_attempt`
 
 No documentation available.
 
 
-### `CmdTask._show_done_info`
+### `PathWatcher._show_done_info`
 
 No documentation available.
 
 
-### `CmdTask._show_env_prefix`
+### `PathWatcher._show_env_prefix`
 
 No documentation available.
 
 
-### `CmdTask._show_run_command`
+### `PathWatcher._show_run_command`
 
 No documentation available.
 
 
-### `CmdTask._start_timer`
+### `PathWatcher._start_timer`
 
 No documentation available.
 
 
-### `CmdTask.add_env`
+### `PathWatcher.add_env`
 
 Adds one or more `Env` instances to the end of the current task's environment variable list.
 
@@ -435,7 +351,7 @@ task.add_env(env_var)
 ```
 
 
-### `CmdTask.add_env_file`
+### `PathWatcher.add_env_file`
 
 Adds one or more `EnvFile` instances to the end of the current task's environment file list.
 
@@ -457,7 +373,7 @@ task.add_env_file(env_file)
 ```
 
 
-### `CmdTask.add_input`
+### `PathWatcher.add_input`
 
 Adds one or more `AnyInput` instances to the end of the current task's input list.
 
@@ -478,7 +394,7 @@ task.add_input(email_input)
 ```
 
 
-### `CmdTask.add_upstream`
+### `PathWatcher.add_upstream`
 
 Adds one or more `AnyTask` instances to the end of the current task's upstream list.
 
@@ -499,7 +415,7 @@ task.add_upstream(upstream_task)
 ```
 
 
-### `CmdTask.check`
+### `PathWatcher.check`
 
 Checks if the current task is `ready`.
 
@@ -527,7 +443,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.copy`
+### `PathWatcher.copy`
 
 Creates and returns a copy of the current task.
 
@@ -548,7 +464,7 @@ copied_task.set_name('new_name')
 ```
 
 
-### `CmdTask.get_cli_name`
+### `PathWatcher.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
 
@@ -559,12 +475,7 @@ __Returns:__
 
 `str`: The CLI name of the task.
 
-### `CmdTask.get_cmd_script`
-
-No documentation available.
-
-
-### `CmdTask.get_color`
+### `PathWatcher.get_color`
 
 Retrieves the color associated with the current task.
 
@@ -575,7 +486,7 @@ __Returns:__
 
 `str`: A string representing the color assigned to the task.
 
-### `CmdTask.get_description`
+### `PathWatcher.get_description`
 
 Fetches the current description of the task.
 
@@ -586,7 +497,7 @@ __Returns:__
 
 `str`: The description of the task.
 
-### `CmdTask.get_env_map`
+### `PathWatcher.get_env_map`
 
 Get a map representing task's Envs and EnvFiles
 
@@ -604,7 +515,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `CmdTask.get_execution_id`
+### `PathWatcher.get_execution_id`
 
 Retrieves the execution ID of the task.
 
@@ -616,7 +527,7 @@ __Returns:__
 
 `str`: The unique execution ID of the task.
 
-### `CmdTask.get_icon`
+### `PathWatcher.get_icon`
 
 Retrieves the icon identifier of the current task.
 
@@ -627,7 +538,7 @@ __Returns:__
 
 `str`: A string representing the icon identifier for the task
 
-### `CmdTask.get_input_map`
+### `PathWatcher.get_input_map`
 
 Get a map representing task's Inputs.
 
@@ -645,7 +556,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `CmdTask.inject_checkers`
+### `PathWatcher.inject_checkers`
 
 Injects custom checkers into the task.
 
@@ -663,7 +574,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_env_files`
+### `PathWatcher.inject_env_files`
 
 Injects additional `EnvFile` into the task.
 
@@ -677,7 +588,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_envs`
+### `PathWatcher.inject_envs`
 
 Injects environment variables into the task.
 
@@ -691,7 +602,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_inputs`
+### `PathWatcher.inject_inputs`
 
 Injects custom inputs into the task.
 
@@ -709,7 +620,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_upstreams`
+### `PathWatcher.inject_upstreams`
 
 Injects upstream tasks into the current task.
 
@@ -727,7 +638,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.insert_env`
+### `PathWatcher.insert_env`
 
 Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
 
@@ -748,7 +659,7 @@ task.insert_env(env_var)
 ```
 
 
-### `CmdTask.insert_env_file`
+### `PathWatcher.insert_env_file`
 
 Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
 
@@ -770,7 +681,7 @@ task.insert_env_file(env_file)
 ```
 
 
-### `CmdTask.insert_input`
+### `PathWatcher.insert_input`
 
 Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
 
@@ -791,7 +702,7 @@ task.insert_input(email_input)
 ```
 
 
-### `CmdTask.insert_upstream`
+### `PathWatcher.insert_upstream`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
 
@@ -813,37 +724,42 @@ task.insert_upstream(upstream_task)
 ```
 
 
-### `CmdTask.log_critical`
+### `PathWatcher.inspect`
+
+No documentation available.
+
+
+### `PathWatcher.log_critical`
 
 Log message with log level "CRITICAL"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_debug`
+### `PathWatcher.log_debug`
 
 Log message with log level "DEBUG"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_error`
+### `PathWatcher.log_error`
 
 Log message with log level "ERROR"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_info`
+### `PathWatcher.log_info`
 
 Log message with log level "INFO"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_warn`
+### `PathWatcher.log_warn`
 
 Log message with log level "WARNING"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.on_failed`
+### `PathWatcher.on_failed`
 
 Specifies the behavior when the task execution fails.
 
@@ -869,7 +785,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_ready`
+### `PathWatcher.on_ready`
 
 Defines actions to be performed when the task status is `ready`.
 
@@ -887,7 +803,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_retry`
+### `PathWatcher.on_retry`
 
 Defines actions to perform when the task is retried.
 
@@ -905,7 +821,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_skipped`
+### `PathWatcher.on_skipped`
 
 Defines actions to perform when the task status is set to `skipped`.
 
@@ -922,7 +838,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_started`
+### `PathWatcher.on_started`
 
 Defines actions to perform when the task status is set to 'started'.
 
@@ -939,7 +855,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_triggered`
+### `PathWatcher.on_triggered`
 
 Defines actions to perform when the task status is set to `triggered`.
 
@@ -957,7 +873,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_waiting`
+### `PathWatcher.on_waiting`
 
 Defines actions to perform when the task status is set to `waiting`.
 
@@ -975,19 +891,19 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.print_err`
+### `PathWatcher.print_err`
 
 Print message to stderr and style it as error.
 
-### `CmdTask.print_out`
+### `PathWatcher.print_out`
 
 Print message to stderr as normal text.
 
-### `CmdTask.print_out_dark`
+### `PathWatcher.print_out_dark`
 
 Print message to stdout and style it as faint.
 
-### `CmdTask.print_result`
+### `PathWatcher.print_result`
 
 Outputs the task result to stdout for further processing.
 
@@ -1010,32 +926,32 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.render_any`
+### `PathWatcher.render_any`
 
 Render any value.
 
-### `CmdTask.render_bool`
+### `PathWatcher.render_bool`
 
 Render int value.
 
-### `CmdTask.render_file`
+### `PathWatcher.render_file`
 
 Render file content.
 
-### `CmdTask.render_float`
+### `PathWatcher.render_float`
 
 Render float value.
 
-### `CmdTask.render_int`
+### `PathWatcher.render_int`
 
 No documentation available.
 
 
-### `CmdTask.render_str`
+### `PathWatcher.render_str`
 
 Render str value.
 
-### `CmdTask.run`
+### `PathWatcher.run`
 
 Executes the main logic of the task.
 
@@ -1064,7 +980,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.set_checking_interval`
+### `PathWatcher.set_checking_interval`
 
 Sets the interval for checking the task's readiness or completion status.
 
@@ -1075,7 +991,7 @@ __Arguments:__
 
 - `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
-### `CmdTask.set_color`
+### `PathWatcher.set_color`
 
 Defines a new color for the current task.
 
@@ -1086,12 +1002,7 @@ __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
 
-### `CmdTask.set_cwd`
-
-No documentation available.
-
-
-### `CmdTask.set_description`
+### `PathWatcher.set_description`
 
 Sets a new description for the current task.
 
@@ -1102,7 +1013,7 @@ __Arguments:__
 
 - `new_description` (`str`): A string representing the new description of the task.
 
-### `CmdTask.set_icon`
+### `PathWatcher.set_icon`
 
 Assigns a new icon to the current task.
 
@@ -1113,7 +1024,7 @@ __Arguments:__
 
 - `new_icon` (`str`): A string representing the icon identifier for the task.
 
-### `CmdTask.set_name`
+### `PathWatcher.set_name`
 
 Sets a new name for the current task.
 
@@ -1124,7 +1035,7 @@ __Arguments:__
 
 - `new_name` (`str`): A string representing the new name to be assigned to the task.
 
-### `CmdTask.set_retry`
+### `PathWatcher.set_retry`
 
 Sets the number of retry attempts for the task.
 
@@ -1135,7 +1046,7 @@ __Arguments:__
 
 - `new_retry` (`int`): An integer representing the number of retry attempts.
 
-### `CmdTask.set_retry_interval`
+### `PathWatcher.set_retry_interval`
 
 Specifies the interval between retry attempts for the task.
 
@@ -1146,7 +1057,7 @@ __Arguments:__
 
 - `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
-### `CmdTask.set_should_execute`
+### `PathWatcher.set_should_execute`
 
 Determines whether the task should execute.
 
@@ -1158,7 +1069,12 @@ __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
-### `CmdTask.to_function`
+### `PathWatcher.show_progress`
+
+No documentation available.
+
+
+### `PathWatcher.to_function`
 
 Converts the current task into a callable function.
 

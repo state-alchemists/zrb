@@ -6,116 +6,53 @@
 There are many task types in Zrb. Every task has its own specific use cases:
 
 
+- [python_task](python-task.md): Run a Python function
 - [CmdTask](cmd-task.md): Run a CLI command
-- [Task (python task)](python-task.md): Run a Python function
 - [DockerComposeTask](docker-compose-task.md): Run a Docker compose Command
 - [ResourceMaker](resource-maker.md): Generate artifacts/resources based on templates
-- [FlowTask](flow-task.md): Put `CmdTask` and `python task` into single flow.
+- [FlowTask](flow-task.md): Put multiple tasks into a single flow.
+- [BaseRemoteCmdTask](base-remote-cmd-task.md)
 - [RemoteCmdTask](remote-cmd-task.md)
-- [RsyncTask](rsync-task.md)
-- [Checkers (HttpChecker, PortChecker, and PathChecker)](checkers.md): Check parent task's readiness.
+- [RSyncTask](rsync-task.md)
+- [Checker](checker.md): Check readiness of other task.
+- [HTTPChecker](http-checker.md)
+- [PortChecker](port-checker.md)
+- [PathChecker](path-checker.md)
+- [PathWatcher](path-watcher.md)
+- [TimeWatcher](time-watcher.md)
+- [RecurringTask](recurring-task.md)
 
-As every task are extended from `BaseTask`, you will see that most of them share some common parameters.
 
 
 ```
+                                            AnyTask
+                                               │
+                                               │
+                                               ▼
                                            BaseTask
                                                │
                                                │
-  ┌──────┬───────────┬───────────┬─────────────┼─────────────────┬─────────────┬───────────┬──────────┐
-  │      │           │           │             │                 │             │           │          │
-  │      │           │           │             │                 │             │           │          │
-  ▼      ▼           ▼           ▼             ▼                 ▼             ▼           ▼          ▼
-Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask  ReccuringTask  HttpChecker PortChecker PathChecker
-         │                                     │
-         │                                     │
-         ▼                               ┌─────┴──────┐
-   DockerComposeTask                     │            │
-                                         ▼            ▼
-                                   RemoteCmdTask   RsyncTask
+  ┌──────┬───────────┬───────────┬─────────────┼─────────────────┬────────────┐
+  │      │           │           │             │                 │            │
+  │      │           │           │             │                 │            │
+  ▼      ▼           ▼           ▼             ▼                 ▼            ▼
+Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask     Checker   ReccuringTask
+         │                                     │                 │
+         │                                     │                 │
+         ▼                               ┌─────┴──────┐          │
+   DockerComposeTask                     │            │          │
+                                         ▼            ▼          │
+                                   RemoteCmdTask   RsyncTask     │
+                                                                 │
+                              ┌───────────┬───────────┬──────────┼─────────────┐
+                              │           │           │          │             │
+                              ▼           ▼           ▼          ▼             ▼
+                         HttpChecker PortChecker PathChecker PathWatcher TimeWatcher
 ```
 
 Aside from the documentation, you can always dive down into [the source code](https://github.com/state-alchemists/zrb/tree/main/src/zrb/task) to see the detail implementation.
 
 > __📝 NOTE:__ Never initiate `BaseTask` directly, use `Task` instead.
-
-# Task Overview
-
-Tasks are building blocks of your automation.
-
-Let's see how you can define tasks and connect them to each others:
-
-```python
-from zrb import CmdTask, IntInput, Env, Group, runner, PortChecker
-
-# defining two groups: arasaka, and jupyterlab
-# jupyterlab is located under arasaka
-arasaka = Group(name='arasaka', description='Arasaka automation')
-jupyterlab = Group(name='jupyterlab', parent=arasaka, description='Jupyterlab related tasks')
-
-# defining show banner under `arasaka` group
-show_banner = CmdTask(
-    name='show-banner',
-    icon='🎉',
-    color='yellow',
-    description='Show banner',
-    group=arasaka,
-    envs=[
-        # EMPLOYEE enviornment variable will be accessible from inside the task as USER.
-        # The default value this variable will be `employee`.
-        Env(name='USER', os_name='EMPLOYEE', default='employee')
-    ],
-    cmd=[
-        'figlet Arasaka',
-        'echo "Welcome $USER"'
-    ]
-)
-
-# registering `show_banner` to zrb runner
-runner.register(show_banner)
-
-# defining show banner under `arasaka jupyterlab` group
-start_jupyterlab = CmdTask(
-    name='start',
-    icon='🧪',
-    color='green',
-    description='Start Jupyterlab',
-    group=jupyterlab,
-    inputs=[
-        # Port where jupyterlab should be started
-        IntInput(name='jupyterlab-port', default=8080)
-    ],
-    # start_jupyterlab depends on show_banner
-    upstreams=[show_banner],
-    cmd='jupyter lab --no-browser --port={{input.jupyterlab_port}}',
-    checkers=[
-        PortChecker(port='{{input.jupyterlab_port}}')
-    ],
-    retry=2,
-    retry_interval=3
-)
-
-# registering `show_banner` to zrb runner
-runner.register(start_jupyterlab)
-```
-
-
-You can try to run `start_jupyterlab` task as follow:
-
-```bash
-export EMPLOYEE="Yorinobu Arasaka"
-
-# The following command will
-# - Show Arasaka Banner
-# - Start jupyterlab on the port you choose (by default it is 8080)
-zrb arasaka jupyterlab start 
-```
-
-As `start_jupyterlab` has `show_banner` as it's upstream, you can expect the `show_banner` to be executed prior to `start_jupyterlab`.
-
-A task might also have multiple upstreams. In that case, the upstreams will be executed concurrently.
-
-> __📝 NOTE:__ Only tasks registered to `runner` are directly accessible from the CLI.
 
 # Task Lifecycle
 
@@ -148,18 +85,88 @@ Triggered         ┌─────────► Ready ◄──┐
 # Technical Documentation
 
 <!--start-doc-->
-## `AnyTask`
+## `Task`
 
-Abstract base class for defining tasks in a task management system.
+Alias for BaseTask
 
-This class acts as a template for creating new task types. To define a new task,
-extend this class and implement all its abstract methods. The `AnyTask` class is
-considered atomic and is not broken into multiple interfaces.
+### `Task._BaseTaskModel__get_colored`
 
-Subclasses should implement the abstract methods to define custom behavior for
-task execution, state transitions, and other functionalities.
+No documentation available.
 
-### `AnyTask._get_checkers`
+
+### `Task._BaseTaskModel__get_colored_print_prefix`
+
+No documentation available.
+
+
+### `Task._BaseTaskModel__get_common_prefix`
+
+No documentation available.
+
+
+### `Task._BaseTaskModel__get_executable_name`
+
+No documentation available.
+
+
+### `Task._BaseTaskModel__get_log_prefix`
+
+No documentation available.
+
+
+### `Task._BaseTaskModel__get_print_prefix`
+
+No documentation available.
+
+
+### `Task._BaseTaskModel__get_rjust_full_cli_name`
+
+No documentation available.
+
+
+### `Task._Renderer__ensure_cached_render_data`
+
+No documentation available.
+
+
+### `Task._Renderer__get_render_data`
+
+No documentation available.
+
+
+### `Task._cached_check`
+
+No documentation available.
+
+
+### `Task._cached_run`
+
+No documentation available.
+
+
+### `Task._check`
+
+Check current task readiness.
+- If self.checkers is defined,
+this will return True once every self.checkers is completed
+- Otherwise, this will return check method's return value.
+
+### `Task._check_should_execute`
+
+No documentation available.
+
+
+### `Task._end_timer`
+
+No documentation available.
+
+
+### `Task._get_attempt`
+
+No documentation available.
+
+
+### `Task._get_checkers`
 
 Retrieves the checkers set for the task.
 
@@ -171,19 +178,22 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of checkers associated with the task.
 
-### `AnyTask._get_combined_inputs`
+### `Task._get_combined_env`
 
-Combines and retrieves all inputs for the task.
+No documentation available.
 
-This internal method aggregates inputs from various sources (static definition,
-`inject_inputs`, etc.) and provides a unified view of all inputs that the task
-will process. This is crucial for preparing the task's runtime environment.
 
-__Returns:__
+### `Task._get_combined_inputs`
 
-`Iterable[AnyInput]`: An iterable of all combined inputs for the task.
+'
+Getting all inputs of this task and all its upstream, non-duplicated.
 
-### `AnyTask._get_env_files`
+### `Task._get_elapsed_time`
+
+No documentation available.
+
+
+### `Task._get_env_files`
 
 Retrieves the list of environment variable files associated with the task.
 
@@ -194,7 +204,7 @@ __Returns:__
 
 `List[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
-### `AnyTask._get_envs`
+### `Task._get_envs`
 
 Retrieves the list of environment variables set for the task.
 
@@ -205,7 +215,7 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `AnyTask._get_full_cli_name`
+### `Task._get_full_cli_name`
 
 Retrieves the full command-line interface (CLI) name of the task.
 
@@ -216,7 +226,7 @@ __Returns:__
 
 `str`: The full CLI name of the task.
 
-### `AnyTask._get_inputs`
+### `Task._get_inputs`
 
 Retrieves the list of inputs associated with the task.
 
@@ -228,7 +238,17 @@ __Returns:__
 
 `List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
-### `AnyTask._get_upstreams`
+### `Task._get_max_attempt`
+
+No documentation available.
+
+
+### `Task._get_task_pid`
+
+No documentation available.
+
+
+### `Task._get_upstreams`
 
 Retrieves the upstream tasks of the current task.
 
@@ -240,19 +260,80 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of upstream tasks.
 
-### `AnyTask._loop_check`
+### `Task._increase_attempt`
 
-For internal use
+No documentation available.
 
-### `AnyTask._print_result`
 
-For internal use
+### `Task._is_done`
 
-### `AnyTask._run_all`
+No documentation available.
 
-For internal use
 
-### `AnyTask._set_execution_id`
+### `Task._is_last_attempt`
+
+No documentation available.
+
+
+### `Task._lock_upstreams`
+
+No documentation available.
+
+
+### `Task._loop_check`
+
+For internal use.
+
+Regularly check whether the task is ready or not.
+
+### `Task._mark_awaited`
+
+No documentation available.
+
+
+### `Task._mark_done`
+
+No documentation available.
+
+
+### `Task._play_bell`
+
+No documentation available.
+
+
+### `Task._print_result`
+
+For internal use.
+
+Directly call `print_result`
+
+### `Task._propagate_execution_id`
+
+No documentation available.
+
+
+### `Task._run_all`
+
+For internal use.
+
+Run this task and all its upstreams.
+
+### `Task._run_and_check_all`
+
+No documentation available.
+
+
+### `Task._set_args`
+
+No documentation available.
+
+
+### `Task._set_env_map`
+
+No documentation available.
+
+
+### `Task._set_execution_id`
 
 Sets the execution ID for the current task.
 
@@ -265,18 +346,65 @@ __Arguments:__
 
 - `execution_id` (`str`): A string representing the unique execution ID.
 
-### `AnyTask._set_has_cli_interface`
+### `Task._set_has_cli_interface`
 
 Marks the task as having a CLI interface.
 
 This internal method is used to indicate that the task is accessible and executable through a CLI,
 enabling the task system to appropriately handle its CLI interactions.
 
-### `AnyTask._set_keyval`
+### `Task._set_input_map`
 
-For internal use
+No documentation available.
 
-### `AnyTask.add_env`
+
+### `Task._set_keyval`
+
+For internal use.
+
+Set current task's key values.
+
+### `Task._set_kwargs`
+
+No documentation available.
+
+
+### `Task._set_local_keyval`
+
+No documentation available.
+
+
+### `Task._set_task_pid`
+
+No documentation available.
+
+
+### `Task._should_attempt`
+
+No documentation available.
+
+
+### `Task._show_done_info`
+
+No documentation available.
+
+
+### `Task._show_env_prefix`
+
+No documentation available.
+
+
+### `Task._show_run_command`
+
+No documentation available.
+
+
+### `Task._start_timer`
+
+No documentation available.
+
+
+### `Task.add_env`
 
 Adds one or more `Env` instances to the end of the current task's environment variable list.
 
@@ -297,7 +425,7 @@ task.add_env(env_var)
 ```
 
 
-### `AnyTask.add_env_file`
+### `Task.add_env_file`
 
 Adds one or more `EnvFile` instances to the end of the current task's environment file list.
 
@@ -319,7 +447,7 @@ task.add_env_file(env_file)
 ```
 
 
-### `AnyTask.add_input`
+### `Task.add_input`
 
 Adds one or more `AnyInput` instances to the end of the current task's input list.
 
@@ -340,7 +468,7 @@ task.add_input(email_input)
 ```
 
 
-### `AnyTask.add_upstream`
+### `Task.add_upstream`
 
 Adds one or more `AnyTask` instances to the end of the current task's upstream list.
 
@@ -361,7 +489,7 @@ task.add_upstream(upstream_task)
 ```
 
 
-### `AnyTask.check`
+### `Task.check`
 
 Checks if the current task is `ready`.
 
@@ -389,7 +517,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.copy`
+### `Task.copy`
 
 Creates and returns a copy of the current task.
 
@@ -410,7 +538,7 @@ copied_task.set_name('new_name')
 ```
 
 
-### `AnyTask.get_cli_name`
+### `Task.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
 
@@ -421,7 +549,7 @@ __Returns:__
 
 `str`: The CLI name of the task.
 
-### `AnyTask.get_color`
+### `Task.get_color`
 
 Retrieves the color associated with the current task.
 
@@ -432,7 +560,7 @@ __Returns:__
 
 `str`: A string representing the color assigned to the task.
 
-### `AnyTask.get_description`
+### `Task.get_description`
 
 Fetches the current description of the task.
 
@@ -443,12 +571,25 @@ __Returns:__
 
 `str`: The description of the task.
 
-### `AnyTask.get_env_map`
+### `Task.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
-### `AnyTask.get_execution_id`
+### `Task.get_execution_id`
 
 Retrieves the execution ID of the task.
 
@@ -460,7 +601,7 @@ __Returns:__
 
 `str`: The unique execution ID of the task.
 
-### `AnyTask.get_icon`
+### `Task.get_icon`
 
 Retrieves the icon identifier of the current task.
 
@@ -471,12 +612,25 @@ __Returns:__
 
 `str`: A string representing the icon identifier for the task
 
-### `AnyTask.get_input_map`
+### `Task.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
-### `AnyTask.inject_checkers`
+### `Task.inject_checkers`
 
 Injects custom checkers into the task.
 
@@ -494,7 +648,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.inject_env_files`
+### `Task.inject_env_files`
 
 Injects additional `EnvFile` into the task.
 
@@ -508,7 +662,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.inject_envs`
+### `Task.inject_envs`
 
 Injects environment variables into the task.
 
@@ -522,7 +676,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.inject_inputs`
+### `Task.inject_inputs`
 
 Injects custom inputs into the task.
 
@@ -540,7 +694,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.inject_upstreams`
+### `Task.inject_upstreams`
 
 Injects upstream tasks into the current task.
 
@@ -558,7 +712,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.insert_env`
+### `Task.insert_env`
 
 Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
 
@@ -579,7 +733,7 @@ task.insert_env(env_var)
 ```
 
 
-### `AnyTask.insert_env_file`
+### `Task.insert_env_file`
 
 Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
 
@@ -601,7 +755,7 @@ task.insert_env_file(env_file)
 ```
 
 
-### `AnyTask.insert_input`
+### `Task.insert_input`
 
 Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
 
@@ -622,7 +776,7 @@ task.insert_input(email_input)
 ```
 
 
-### `AnyTask.insert_upstream`
+### `Task.insert_upstream`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
 
@@ -644,32 +798,37 @@ task.insert_upstream(upstream_task)
 ```
 
 
-### `AnyTask.log_critical`
+### `Task.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `AnyTask.log_debug`
+### `Task.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `AnyTask.log_error`
+### `Task.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `AnyTask.log_info`
+### `Task.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `AnyTask.log_warn`
+### `Task.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `AnyTask.on_failed`
+### `Task.on_failed`
 
 Specifies the behavior when the task execution fails.
 
@@ -695,7 +854,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.on_ready`
+### `Task.on_ready`
 
 Defines actions to be performed when the task status is `ready`.
 
@@ -713,7 +872,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.on_retry`
+### `Task.on_retry`
 
 Defines actions to perform when the task is retried.
 
@@ -731,7 +890,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.on_skipped`
+### `Task.on_skipped`
 
 Defines actions to perform when the task status is set to `skipped`.
 
@@ -748,7 +907,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.on_started`
+### `Task.on_started`
 
 Defines actions to perform when the task status is set to 'started'.
 
@@ -765,7 +924,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.on_triggered`
+### `Task.on_triggered`
 
 Defines actions to perform when the task status is set to `triggered`.
 
@@ -783,7 +942,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.on_waiting`
+### `Task.on_waiting`
 
 Defines actions to perform when the task status is set to `waiting`.
 
@@ -801,22 +960,19 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.print_err`
+### `Task.print_err`
 
-No documentation available.
+Print message to stderr and style it as error.
 
+### `Task.print_out`
 
-### `AnyTask.print_out`
+Print message to stderr as normal text.
 
-No documentation available.
+### `Task.print_out_dark`
 
+Print message to stdout and style it as faint.
 
-### `AnyTask.print_out_dark`
-
-No documentation available.
-
-
-### `AnyTask.print_result`
+### `Task.print_result`
 
 Outputs the task result to stdout for further processing.
 
@@ -830,43 +986,41 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
-
-### `AnyTask.render_any`
-
-No documentation available.
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
 
 
-### `AnyTask.render_bool`
+### `Task.render_any`
 
-No documentation available.
+Render any value.
 
+### `Task.render_bool`
 
-### `AnyTask.render_file`
+Render int value.
 
-No documentation available.
+### `Task.render_file`
 
+Render file content.
 
-### `AnyTask.render_float`
+### `Task.render_float`
 
-No documentation available.
+Render float value.
 
-
-### `AnyTask.render_int`
-
-No documentation available.
-
-
-### `AnyTask.render_str`
+### `Task.render_int`
 
 No documentation available.
 
 
-### `AnyTask.run`
+### `Task.render_str`
+
+Render str value.
+
+### `Task.run`
 
 Executes the main logic of the task.
 
@@ -895,7 +1049,7 @@ class MyTask(Task):
 ```
 
 
-### `AnyTask.set_checking_interval`
+### `Task.set_checking_interval`
 
 Sets the interval for checking the task's readiness or completion status.
 
@@ -906,7 +1060,7 @@ __Arguments:__
 
 - `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
-### `AnyTask.set_color`
+### `Task.set_color`
 
 Defines a new color for the current task.
 
@@ -917,7 +1071,7 @@ __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
 
-### `AnyTask.set_description`
+### `Task.set_description`
 
 Sets a new description for the current task.
 
@@ -928,7 +1082,7 @@ __Arguments:__
 
 - `new_description` (`str`): A string representing the new description of the task.
 
-### `AnyTask.set_icon`
+### `Task.set_icon`
 
 Assigns a new icon to the current task.
 
@@ -939,7 +1093,7 @@ __Arguments:__
 
 - `new_icon` (`str`): A string representing the icon identifier for the task.
 
-### `AnyTask.set_name`
+### `Task.set_name`
 
 Sets a new name for the current task.
 
@@ -950,7 +1104,7 @@ __Arguments:__
 
 - `new_name` (`str`): A string representing the new name to be assigned to the task.
 
-### `AnyTask.set_retry`
+### `Task.set_retry`
 
 Sets the number of retry attempts for the task.
 
@@ -961,7 +1115,7 @@ __Arguments:__
 
 - `new_retry` (`int`): An integer representing the number of retry attempts.
 
-### `AnyTask.set_retry_interval`
+### `Task.set_retry_interval`
 
 Specifies the interval between retry attempts for the task.
 
@@ -972,7 +1126,7 @@ __Arguments:__
 
 - `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
-### `AnyTask.set_should_execute`
+### `Task.set_should_execute`
 
 Determines whether the task should execute.
 
@@ -984,7 +1138,7 @@ __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
-### `AnyTask.to_function`
+### `Task.to_function`
 
 Converts the current task into a callable function.
 

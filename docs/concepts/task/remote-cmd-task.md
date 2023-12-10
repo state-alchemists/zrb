@@ -1,43 +1,8 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
 # RemoteCmdTask
 
-```python
-from zrb import (
-    runner, CmdTask, RemoteCmdTask, RemoteConfig, PasswordInput
-)
-
-install_curl = RemoteCmdTask(
-    name='install-curl',
-    inputs=[
-        PasswordInput(name='passsword')
-    ],
-    remote_configs=[
-        RemoteConfig(
-            host='192.168.1.10,
-            user='ubuntu,
-            password='{{input.password}}'
-        )
-    ],
-    cmd=[
-        'sudo apt update',
-        'sudo apt install curl --y'
-    ]
-)
-runner.register(install_curl)
-```
-
-RemoteCmdTask exposes several environments that you can use on your `cmd` and `cmd_path`
-
-- `_CONFIG_HOST`
-- `_CONFIG_PORT`
-- `_CONFIG_SSH_KEY`
-- `_CONFIG_USER`
-- `_CONFIG_PASSWORD`
-- `_CONFIG_MAP_<UPPER_SNAKE_CASE_NAME>`
-
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `RemoteCmdTask`
@@ -238,7 +203,9 @@ No documentation available.
 
 ### `RemoteCmdTask._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `RemoteCmdTask._mark_awaited`
 
@@ -257,7 +224,9 @@ No documentation available.
 
 ### `RemoteCmdTask._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `RemoteCmdTask._propagate_execution_id`
 
@@ -266,7 +235,9 @@ No documentation available.
 
 ### `RemoteCmdTask._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `RemoteCmdTask._run_and_check_all`
 
@@ -310,7 +281,9 @@ No documentation available.
 
 ### `RemoteCmdTask._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `RemoteCmdTask._set_kwargs`
 
@@ -521,7 +494,20 @@ __Returns:__
 
 ### `RemoteCmdTask.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `RemoteCmdTask.get_execution_id`
@@ -549,7 +535,20 @@ __Returns:__
 
 ### `RemoteCmdTask.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `RemoteCmdTask.inject_checkers`
@@ -722,28 +721,33 @@ task.insert_upstream(upstream_task)
 
 ### `RemoteCmdTask.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RemoteCmdTask.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RemoteCmdTask.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RemoteCmdTask.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RemoteCmdTask.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RemoteCmdTask.on_failed`
 
@@ -879,18 +883,15 @@ class MyTask(Task):
 
 ### `RemoteCmdTask.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `RemoteCmdTask.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `RemoteCmdTask.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `RemoteCmdTask.print_result`
 
@@ -906,31 +907,30 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `RemoteCmdTask.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `RemoteCmdTask.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `RemoteCmdTask.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `RemoteCmdTask.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `RemoteCmdTask.render_int`
 
@@ -939,8 +939,7 @@ No documentation available.
 
 ### `RemoteCmdTask.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `RemoteCmdTask.run`
 
@@ -1100,4 +1099,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)

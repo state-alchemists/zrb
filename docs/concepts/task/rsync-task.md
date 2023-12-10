@@ -1,69 +1,8 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
-# RsyncTask
+# RyncTask
 
-```python
-from zrb import (
-    runner, CmdTask, RsyncTask, RemoteConfig, PasswordInput, StrInput
-)
-
-upload = RsyncTask(
-    name='upload',
-    inputs=[
-        PasswordInput(name='passsword'),
-        StrInput(name='src'),
-        StrInput(name='dst'),
-    ],
-    remote_configs=[
-        RemoteConfig(
-            host='192.168.1.10,
-            user='ubuntu,
-            password='{{input.password}}',
-            config_map={
-                'dir': '192-168-1-10'
-            }
-        )
-    ],
-    is_remote_src=False,
-    src='$_CONFIG_MAP_DIR/{{input.src}}',
-    is_remote_dst=True,
-    dst='{{input.dst}}',
-)
-runner.register(upload)
-
-download = RsyncTask(
-    name='download',
-    inputs=[
-        PasswordInput(name='passsword'),
-        StrInput(name='src'),
-        StrInput(name='dst'),
-    ],
-    remote_configs=[
-        RemoteConfig(
-            host='192.168.1.10,
-            user='ubuntu,
-            password='{{input.password}}'
-        )
-    ],
-    is_remote_src=True,
-    src='{{input.src}}',
-    is_remote_dst=False,
-    dst='$_CONFIG_MAP_DIR/{{input.dst}}',
-)
-runner.register(download)
-```
-
-RsyncTask exposes several environments that you can use on your `src` and `dst`
-
-- `_CONFIG_HOST`
-- `_CONFIG_PORT`
-- `_CONFIG_SSH_KEY`
-- `_CONFIG_USER`
-- `_CONFIG_PASSWORD`
-- `_CONFIG_MAP_<UPPER_SNAKE_CASE_NAME>`
-
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `RsyncTask`
@@ -269,7 +208,9 @@ No documentation available.
 
 ### `RsyncTask._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `RsyncTask._mark_awaited`
 
@@ -288,7 +229,9 @@ No documentation available.
 
 ### `RsyncTask._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `RsyncTask._propagate_execution_id`
 
@@ -297,7 +240,9 @@ No documentation available.
 
 ### `RsyncTask._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `RsyncTask._run_and_check_all`
 
@@ -341,7 +286,9 @@ No documentation available.
 
 ### `RsyncTask._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `RsyncTask._set_kwargs`
 
@@ -552,7 +499,20 @@ __Returns:__
 
 ### `RsyncTask.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `RsyncTask.get_execution_id`
@@ -580,7 +540,20 @@ __Returns:__
 
 ### `RsyncTask.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `RsyncTask.inject_checkers`
@@ -753,28 +726,33 @@ task.insert_upstream(upstream_task)
 
 ### `RsyncTask.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RsyncTask.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RsyncTask.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RsyncTask.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RsyncTask.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `RsyncTask.on_failed`
 
@@ -910,18 +888,15 @@ class MyTask(Task):
 
 ### `RsyncTask.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `RsyncTask.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `RsyncTask.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `RsyncTask.print_result`
 
@@ -937,31 +912,30 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `RsyncTask.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `RsyncTask.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `RsyncTask.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `RsyncTask.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `RsyncTask.render_int`
 
@@ -970,8 +944,7 @@ No documentation available.
 
 ### `RsyncTask.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `RsyncTask.run`
 
@@ -1131,4 +1104,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)

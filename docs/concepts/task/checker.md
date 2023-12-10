@@ -1,61 +1,8 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
-# Checkers
+# Checker
 
-Checkers are special type of tasks. You can use checkers to check for other task's readiness.
-
-Currently there are three types of checkers:
-- PathChecker
-- PortChecker
-- HttpChecker
-
-
-Let's say you invoke `npm run build:watch`. This command will build your Node.js App into `dist` directory, as well as watch the changes and rebuild your app as soon as there are some changes.
-
-- A web server is considered ready if it's HTTP Port is accessible. You can use `HTTPChecker` to check for web server readiness.
-- But, before running the web server to start, you need to build the frontend and make sure that the `src/frontend/dist` has been created. You can use `PathChecker` to check for frontend readiness.
-
-Let's see how we can do this:
-
-```python
-from zrb import CmdTask, PathChecker, Env, EnvFile, runner
-
-build_frontend = CmdTask(
-    name='build-frontend',
-    cmd='npm run build',
-    cwd='src/frontend',
-    checkers=[
-        PathChecker(path='src/frontend/dist')
-    ]
-)
-
-run_server = CmdTask(
-    name='run-server',
-    envs=[
-        Env(name='PORT', os_name='WEB_PORT', default='3000')
-    ],
-    env_files=[
-        EnvFile(path='src/template.env', prefix='WEB')
-    ]
-    cmd='python main.py',
-    cwd='src',
-    upstreams=[
-        build_frontend
-    ],
-    checkers=[HTTPChecker(port='{{env.PORT}}')],
-)
-runner.register(run_server)
-```
-
-> Aside from `PathChecker` and `HTTPChecker`, you can also use `PortChecker` to check for TCP port readiness.
-
-You can then run the server by invoking:
-
-```bash
-zrb run-server
-```
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `Checker`
@@ -256,7 +203,9 @@ No documentation available.
 
 ### `Checker._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `Checker._mark_awaited`
 
@@ -275,7 +224,9 @@ No documentation available.
 
 ### `Checker._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `Checker._propagate_execution_id`
 
@@ -284,7 +235,9 @@ No documentation available.
 
 ### `Checker._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `Checker._run_and_check_all`
 
@@ -328,7 +281,9 @@ No documentation available.
 
 ### `Checker._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `Checker._set_kwargs`
 
@@ -539,7 +494,20 @@ __Returns:__
 
 ### `Checker.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `Checker.get_execution_id`
@@ -567,7 +535,20 @@ __Returns:__
 
 ### `Checker.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `Checker.inject_checkers`
@@ -745,28 +726,33 @@ No documentation available.
 
 ### `Checker.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `Checker.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `Checker.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `Checker.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `Checker.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `Checker.on_failed`
 
@@ -902,18 +888,15 @@ class MyTask(Task):
 
 ### `Checker.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `Checker.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `Checker.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `Checker.print_result`
 
@@ -929,31 +912,30 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `Checker.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `Checker.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `Checker.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `Checker.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `Checker.render_int`
 
@@ -962,8 +944,7 @@ No documentation available.
 
 ### `Checker.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `Checker.run`
 
@@ -1128,4 +1109,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)

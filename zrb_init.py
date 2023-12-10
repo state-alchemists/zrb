@@ -1,9 +1,10 @@
 from typing import Any, Mapping
 from zrb import (
-    runner, python_task, AnyTask, Task, CmdTask, DockerComposeTask, FlowTask,
-    Checker, ResourceMaker, RsyncTask, RemoteCmdTask, PathWatcher,
-    RecurringTask, HTTPChecker, Env, EnvFile, Group, AnyInput, Input,
-    BoolInput, ChoiceInput, FloatInput, IntInput, PasswordInput, StrInput
+    runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
+    ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
+    TimeWatcher, PortChecker, RecurringTask, HTTPChecker, BaseRemoteCmdTask,
+    Env, EnvFile, Group, Input, BoolInput, ChoiceInput, FloatInput, IntInput,
+    PasswordInput, StrInput
 )
 from helper.doc import inject_doc
 import os
@@ -106,16 +107,23 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(doc_concept_dir, 'task-group.md'): Group,
         os.path.join(doc_concept_dir, 'task-env.md'): Env,
         os.path.join(doc_concept_dir, 'task-env-file.md'): EnvFile,
-        os.path.join(doc_concept_task_dir, 'README.md'): AnyTask,
-        os.path.join(doc_concept_task_dir, 'checkers.md'): Checker,
+        os.path.join(doc_concept_task_dir, 'README.md'): Task,
+        os.path.join(doc_concept_task_dir, 'base-remote-cmd-task.md'): BaseRemoteCmdTask,  # noqa
+        os.path.join(doc_concept_task_dir, 'checker.md'): Checker,
         os.path.join(doc_concept_task_dir, 'cmd-task.md'): CmdTask,
         os.path.join(doc_concept_task_dir, 'docker-compose-task.md'): DockerComposeTask,  # noqa
         os.path.join(doc_concept_task_dir, 'flow-task.md'): FlowTask,
+        os.path.join(doc_concept_task_dir, 'http-checker.md'): HTTPChecker,
+        os.path.join(doc_concept_task_dir, 'path-checker.md'): PathChecker,
+        os.path.join(doc_concept_task_dir, 'path-watcher.md'): PathWatcher,
+        os.path.join(doc_concept_task_dir, 'port-checker.md'): PortChecker,
         os.path.join(doc_concept_task_dir, 'python-task.md'): python_task,
+        os.path.join(doc_concept_task_dir, 'recurring-task.md'): RecurringTask,
         os.path.join(doc_concept_task_dir, 'remote-cmd-task.md'): RemoteCmdTask,  # noqa
         os.path.join(doc_concept_task_dir, 'resource-maker.md'): ResourceMaker,
         os.path.join(doc_concept_task_dir, 'rsync-task.md'): RsyncTask,
-        os.path.join(doc_concept_task_input_dir, 'README.md'): AnyInput,
+        os.path.join(doc_concept_task_dir, 'time-watcher.md'): TimeWatcher,
+        os.path.join(doc_concept_task_input_dir, 'README.md'): Input,
         os.path.join(doc_concept_task_input_dir, 'bool-input.md'): BoolInput,
         os.path.join(doc_concept_task_input_dir, 'choice-input.md'): ChoiceInput,  # noqa
         os.path.join(doc_concept_task_input_dir, 'float-input.md'): FloatInput,

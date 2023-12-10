@@ -7,43 +7,43 @@
 <!--start-doc-->
 ## `IntInput`
 
-A concrete implementation of the AnyInput abstract base class, representing a specific type of task input.
-This class allows for the creation of interactive and configurable inputs for tasks, with various attributes
-to customize its behavior and appearance.
+A specialized input class for handling integer values in task inputs.
 
-__Attributes:__
+`IntInput` extends `BaseInput` to specifically handle inputs where integer values are required.
+It supports various features like default values, prompts, flags, and other customization options,
+making it suitable for tasks that require numerical input in the form of integers.
 
-- `name` (`str`): The name of the input, used as a unique identifier.
-- `shortcut` (`Optional[str]`): An optional single-character shortcut for the input.
-- `default` (`Optional[Any]`): The default value of the input.
-- `description` (`Optional[str]`): A brief description of what the input is for.
-- `show_default` (`Union[bool, JinjaTemplate, None]`): Determines whether the default value should be displayed.
-- `prompt` (`Union[bool, str]`): The prompt text to be displayed when asking for the input.
-- `confirmation_prompt` (`Union[bool, str]`): A prompt for confirmation if required.
-- `prompt_required` (`bool`): Indicates whether a prompt is required.
-- `hide_input` (`bool`): If True, the input value will be hidden (e.g., for passwords).
-- `is_flag` (`Optional[bool]`): Specifies whether the input is a flag.
-- `flag_value` (`Optional[Any]`): The value to be used if the input is a flag.
-- `multiple` (`bool`): Allows multiple values for this input if True.
-- `count` (`bool`): If True, counts the occurrences of the input.
-- `allow_from_autoenv` (`bool`): If True, allows values to be automatically sourced from the environment.
-- `type` (`Optional[Any]`): The expected type of the input value.
-- `hidden` (`bool`): If True, the input is hidden and not rendered.
-- `show_choices` (`bool`): Indicates whether to show available choices for the input.
-- `show_envvar` (`bool`): If True, shows the corresponding environment variable.
-- `nargs` (`int`): Number of arguments expected for this input.
-- `should_render` (`bool`): Determines whether the input should be rendered.
+__Arguments:__
+
+- `name` (`str`): The name of the input, serving as an identifier.
+- `shortcut` (`Optional[str]`): An optional shortcut for easier reference to the input.
+- `default` (`Optional[Any]`): The default value for the input, should be an integer if provided.
+- `description` (`Optional[str]`): A brief description of what the input represents or its intended use.
+- `show_default` (`Union[bool, str, None]`): Option to show the default value in prompts or documentation.
+- `prompt` (`Union[bool, str]`): A boolean or string to determine the prompt for user input. If `True`, uses a default prompt.
+- `confirmation_prompt` (`Union[bool, str]`): If `True`, the user will be asked to confirm their input.
+- `prompt_required` (`bool`): If `True`, makes the input prompt mandatory.
+- `hide_input` (`bool`): If `True`, hides the input value, typically used for sensitive information.
+- `is_flag` (`Optional[bool]`): Indicates if the input functions as a flag, taking boolean values.
+- `flag_value` (`Optional[Any]`): The value associated with the input when used as a flag.
+- `multiple` (`bool`): If `True`, allows entering multiple integer values.
+- `count` (`bool`): If `True`, counts the occurrences of the input.
+- `allow_from_autoenv` (`bool`): If `True`, enables automatic population of the input from environment variables.
+- `hidden` (`bool`): If `True`, keeps the input hidden in help messages or documentation.
+- `show_choices` (`bool`): If `True`, shows any restricted choices for the input value.
+- `show_envvar` (`bool`): If `True`, displays the associated environment variable, if applicable.
+- `nargs` (`int`): The number of arguments that the input can accept.
+- `should_render` (`bool`): If `True`, renders the input in the user interface or command-line interface.
 
 __Examples:__
 
 ```python
-from zrb import Input, Task
-task = Task(
-    name='task',
-    inputs=[
-        Input(name='delay', default=10, description='Delay')
-    ]
-)
+int_input = IntInput(name='age', default=30, description='Enter your age')
+int_input.get_default()
+```
+
+```
+30
 ```
 
 

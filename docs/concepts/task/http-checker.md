@@ -1,182 +1,93 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
-# CmdTask
+# HTTPChecker
 
 # Technical Specification
 
 <!--start-doc-->
-## `CmdTask`
+## `HTTPChecker`
 
-Command Task.
-You can use this task to run shell command.
+Base class for all tasks.
+Every task definition should be extended from this class.
 
-For example:
-```python
-# run a simple task
-hello = CmdTask(
-name='hello',
-inputs=[StrInput(name='name', default='World')],
-envs=[Env(name='HOME_DIR', os_name='HOME')],
-cmd=[
-'echo Hello {{ input.name }}',
-'echo Home directory is: $HOME_DIR',
-]
-)
-runner.register(hello)
-
-# run a long running process
-run_server = CmdTask(
-name='run',
-inputs=[StrInput(name='dir', default='.')],
-envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
-cmd='python -m http.server $PORT --directory {{input.dir}}',
-checkers=[HTTPChecker(port='{{env.PORT}}')]
-)
-runner.register(run_server)
-```
-
-### `CmdTask._BaseTaskModel__get_colored`
+### `HTTPChecker._BaseTaskModel__get_colored`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_colored_print_prefix`
+### `HTTPChecker._BaseTaskModel__get_colored_print_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_common_prefix`
+### `HTTPChecker._BaseTaskModel__get_common_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_executable_name`
+### `HTTPChecker._BaseTaskModel__get_executable_name`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_log_prefix`
+### `HTTPChecker._BaseTaskModel__get_log_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_print_prefix`
+### `HTTPChecker._BaseTaskModel__get_print_prefix`
 
 No documentation available.
 
 
-### `CmdTask._BaseTaskModel__get_rjust_full_cli_name`
+### `HTTPChecker._BaseTaskModel__get_rjust_full_cli_name`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__add_to_buffer`
+### `HTTPChecker._Renderer__ensure_cached_render_data`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__get_multiline_repr`
+### `HTTPChecker._Renderer__get_render_data`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__get_rendered_cmd`
+### `HTTPChecker._cached_check`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__get_rendered_cmd_path`
+### `HTTPChecker._cached_run`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__is_process_exist`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__kill_by_pid`
-
-Kill a pid, gracefully
-
-### `CmdTask._CmdTask__log_from_queue`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__on_exit`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__on_kill`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__queue_stream`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__set_cwd`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__wait_process`
-
-No documentation available.
-
-
-### `CmdTask._Renderer__ensure_cached_render_data`
-
-No documentation available.
-
-
-### `CmdTask._Renderer__get_render_data`
-
-No documentation available.
-
-
-### `CmdTask._cached_check`
-
-No documentation available.
-
-
-### `CmdTask._cached_run`
-
-No documentation available.
-
-
-### `CmdTask._check`
+### `HTTPChecker._check`
 
 Check current task readiness.
 - If self.checkers is defined,
 this will return True once every self.checkers is completed
 - Otherwise, this will return check method's return value.
 
-### `CmdTask._check_should_execute`
+### `HTTPChecker._check_should_execute`
 
 No documentation available.
 
 
-### `CmdTask._create_cmd_script`
+### `HTTPChecker._end_timer`
 
 No documentation available.
 
 
-### `CmdTask._end_timer`
+### `HTTPChecker._get_attempt`
 
 No documentation available.
 
 
-### `CmdTask._get_attempt`
-
-No documentation available.
-
-
-### `CmdTask._get_checkers`
+### `HTTPChecker._get_checkers`
 
 Retrieves the checkers set for the task.
 
@@ -188,22 +99,22 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of checkers associated with the task.
 
-### `CmdTask._get_combined_env`
+### `HTTPChecker._get_combined_env`
 
 No documentation available.
 
 
-### `CmdTask._get_combined_inputs`
+### `HTTPChecker._get_combined_inputs`
 
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
-### `CmdTask._get_elapsed_time`
+### `HTTPChecker._get_elapsed_time`
 
 No documentation available.
 
 
-### `CmdTask._get_env_files`
+### `HTTPChecker._get_env_files`
 
 Retrieves the list of environment variable files associated with the task.
 
@@ -214,7 +125,7 @@ __Returns:__
 
 `List[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
-### `CmdTask._get_envs`
+### `HTTPChecker._get_envs`
 
 Retrieves the list of environment variables set for the task.
 
@@ -225,7 +136,7 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `CmdTask._get_full_cli_name`
+### `HTTPChecker._get_full_cli_name`
 
 Retrieves the full command-line interface (CLI) name of the task.
 
@@ -236,7 +147,7 @@ __Returns:__
 
 `str`: The full CLI name of the task.
 
-### `CmdTask._get_inputs`
+### `HTTPChecker._get_inputs`
 
 Retrieves the list of inputs associated with the task.
 
@@ -248,17 +159,17 @@ __Returns:__
 
 `List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
-### `CmdTask._get_max_attempt`
+### `HTTPChecker._get_max_attempt`
 
 No documentation available.
 
 
-### `CmdTask._get_task_pid`
+### `HTTPChecker._get_task_pid`
 
 No documentation available.
 
 
-### `CmdTask._get_upstreams`
+### `HTTPChecker._get_upstreams`
 
 Retrieves the upstream tasks of the current task.
 
@@ -270,80 +181,80 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of upstream tasks.
 
-### `CmdTask._increase_attempt`
+### `HTTPChecker._increase_attempt`
 
 No documentation available.
 
 
-### `CmdTask._is_done`
+### `HTTPChecker._is_done`
 
 No documentation available.
 
 
-### `CmdTask._is_last_attempt`
+### `HTTPChecker._is_last_attempt`
 
 No documentation available.
 
 
-### `CmdTask._lock_upstreams`
+### `HTTPChecker._lock_upstreams`
 
 No documentation available.
 
 
-### `CmdTask._loop_check`
+### `HTTPChecker._loop_check`
 
 For internal use.
 
 Regularly check whether the task is ready or not.
 
-### `CmdTask._mark_awaited`
+### `HTTPChecker._mark_awaited`
 
 No documentation available.
 
 
-### `CmdTask._mark_done`
+### `HTTPChecker._mark_done`
 
 No documentation available.
 
 
-### `CmdTask._play_bell`
+### `HTTPChecker._play_bell`
 
 No documentation available.
 
 
-### `CmdTask._print_result`
+### `HTTPChecker._print_result`
 
 For internal use.
 
 Directly call `print_result`
 
-### `CmdTask._propagate_execution_id`
+### `HTTPChecker._propagate_execution_id`
 
 No documentation available.
 
 
-### `CmdTask._run_all`
+### `HTTPChecker._run_all`
 
 For internal use.
 
 Run this task and all its upstreams.
 
-### `CmdTask._run_and_check_all`
+### `HTTPChecker._run_and_check_all`
 
 No documentation available.
 
 
-### `CmdTask._set_args`
+### `HTTPChecker._set_args`
 
 No documentation available.
 
 
-### `CmdTask._set_env_map`
+### `HTTPChecker._set_env_map`
 
 No documentation available.
 
 
-### `CmdTask._set_execution_id`
+### `HTTPChecker._set_execution_id`
 
 Sets the execution ID for the current task.
 
@@ -356,65 +267,65 @@ __Arguments:__
 
 - `execution_id` (`str`): A string representing the unique execution ID.
 
-### `CmdTask._set_has_cli_interface`
+### `HTTPChecker._set_has_cli_interface`
 
 Marks the task as having a CLI interface.
 
 This internal method is used to indicate that the task is accessible and executable through a CLI,
 enabling the task system to appropriately handle its CLI interactions.
 
-### `CmdTask._set_input_map`
+### `HTTPChecker._set_input_map`
 
 No documentation available.
 
 
-### `CmdTask._set_keyval`
+### `HTTPChecker._set_keyval`
 
 For internal use.
 
 Set current task's key values.
 
-### `CmdTask._set_kwargs`
+### `HTTPChecker._set_kwargs`
 
 No documentation available.
 
 
-### `CmdTask._set_local_keyval`
+### `HTTPChecker._set_local_keyval`
 
 No documentation available.
 
 
-### `CmdTask._set_task_pid`
+### `HTTPChecker._set_task_pid`
 
 No documentation available.
 
 
-### `CmdTask._should_attempt`
+### `HTTPChecker._should_attempt`
 
 No documentation available.
 
 
-### `CmdTask._show_done_info`
+### `HTTPChecker._show_done_info`
 
 No documentation available.
 
 
-### `CmdTask._show_env_prefix`
+### `HTTPChecker._show_env_prefix`
 
 No documentation available.
 
 
-### `CmdTask._show_run_command`
+### `HTTPChecker._show_run_command`
 
 No documentation available.
 
 
-### `CmdTask._start_timer`
+### `HTTPChecker._start_timer`
 
 No documentation available.
 
 
-### `CmdTask.add_env`
+### `HTTPChecker.add_env`
 
 Adds one or more `Env` instances to the end of the current task's environment variable list.
 
@@ -435,7 +346,7 @@ task.add_env(env_var)
 ```
 
 
-### `CmdTask.add_env_file`
+### `HTTPChecker.add_env_file`
 
 Adds one or more `EnvFile` instances to the end of the current task's environment file list.
 
@@ -457,7 +368,7 @@ task.add_env_file(env_file)
 ```
 
 
-### `CmdTask.add_input`
+### `HTTPChecker.add_input`
 
 Adds one or more `AnyInput` instances to the end of the current task's input list.
 
@@ -478,7 +389,7 @@ task.add_input(email_input)
 ```
 
 
-### `CmdTask.add_upstream`
+### `HTTPChecker.add_upstream`
 
 Adds one or more `AnyTask` instances to the end of the current task's upstream list.
 
@@ -499,7 +410,7 @@ task.add_upstream(upstream_task)
 ```
 
 
-### `CmdTask.check`
+### `HTTPChecker.check`
 
 Checks if the current task is `ready`.
 
@@ -527,7 +438,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.copy`
+### `HTTPChecker.copy`
 
 Creates and returns a copy of the current task.
 
@@ -548,7 +459,7 @@ copied_task.set_name('new_name')
 ```
 
 
-### `CmdTask.get_cli_name`
+### `HTTPChecker.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
 
@@ -559,12 +470,7 @@ __Returns:__
 
 `str`: The CLI name of the task.
 
-### `CmdTask.get_cmd_script`
-
-No documentation available.
-
-
-### `CmdTask.get_color`
+### `HTTPChecker.get_color`
 
 Retrieves the color associated with the current task.
 
@@ -575,7 +481,7 @@ __Returns:__
 
 `str`: A string representing the color assigned to the task.
 
-### `CmdTask.get_description`
+### `HTTPChecker.get_description`
 
 Fetches the current description of the task.
 
@@ -586,7 +492,7 @@ __Returns:__
 
 `str`: The description of the task.
 
-### `CmdTask.get_env_map`
+### `HTTPChecker.get_env_map`
 
 Get a map representing task's Envs and EnvFiles
 
@@ -604,7 +510,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `CmdTask.get_execution_id`
+### `HTTPChecker.get_execution_id`
 
 Retrieves the execution ID of the task.
 
@@ -616,7 +522,7 @@ __Returns:__
 
 `str`: The unique execution ID of the task.
 
-### `CmdTask.get_icon`
+### `HTTPChecker.get_icon`
 
 Retrieves the icon identifier of the current task.
 
@@ -627,7 +533,7 @@ __Returns:__
 
 `str`: A string representing the icon identifier for the task
 
-### `CmdTask.get_input_map`
+### `HTTPChecker.get_input_map`
 
 Get a map representing task's Inputs.
 
@@ -645,7 +551,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `CmdTask.inject_checkers`
+### `HTTPChecker.inject_checkers`
 
 Injects custom checkers into the task.
 
@@ -663,7 +569,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_env_files`
+### `HTTPChecker.inject_env_files`
 
 Injects additional `EnvFile` into the task.
 
@@ -677,7 +583,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_envs`
+### `HTTPChecker.inject_envs`
 
 Injects environment variables into the task.
 
@@ -691,7 +597,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_inputs`
+### `HTTPChecker.inject_inputs`
 
 Injects custom inputs into the task.
 
@@ -709,7 +615,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.inject_upstreams`
+### `HTTPChecker.inject_upstreams`
 
 Injects upstream tasks into the current task.
 
@@ -727,7 +633,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.insert_env`
+### `HTTPChecker.insert_env`
 
 Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
 
@@ -748,7 +654,7 @@ task.insert_env(env_var)
 ```
 
 
-### `CmdTask.insert_env_file`
+### `HTTPChecker.insert_env_file`
 
 Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
 
@@ -770,7 +676,7 @@ task.insert_env_file(env_file)
 ```
 
 
-### `CmdTask.insert_input`
+### `HTTPChecker.insert_input`
 
 Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
 
@@ -791,7 +697,7 @@ task.insert_input(email_input)
 ```
 
 
-### `CmdTask.insert_upstream`
+### `HTTPChecker.insert_upstream`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
 
@@ -813,37 +719,42 @@ task.insert_upstream(upstream_task)
 ```
 
 
-### `CmdTask.log_critical`
+### `HTTPChecker.inspect`
+
+No documentation available.
+
+
+### `HTTPChecker.log_critical`
 
 Log message with log level "CRITICAL"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_debug`
+### `HTTPChecker.log_debug`
 
 Log message with log level "DEBUG"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_error`
+### `HTTPChecker.log_error`
 
 Log message with log level "ERROR"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_info`
+### `HTTPChecker.log_info`
 
 Log message with log level "INFO"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.log_warn`
+### `HTTPChecker.log_warn`
 
 Log message with log level "WARNING"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `CmdTask.on_failed`
+### `HTTPChecker.on_failed`
 
 Specifies the behavior when the task execution fails.
 
@@ -869,7 +780,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_ready`
+### `HTTPChecker.on_ready`
 
 Defines actions to be performed when the task status is `ready`.
 
@@ -887,7 +798,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_retry`
+### `HTTPChecker.on_retry`
 
 Defines actions to perform when the task is retried.
 
@@ -905,7 +816,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_skipped`
+### `HTTPChecker.on_skipped`
 
 Defines actions to perform when the task status is set to `skipped`.
 
@@ -922,7 +833,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_started`
+### `HTTPChecker.on_started`
 
 Defines actions to perform when the task status is set to 'started'.
 
@@ -939,7 +850,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_triggered`
+### `HTTPChecker.on_triggered`
 
 Defines actions to perform when the task status is set to `triggered`.
 
@@ -957,7 +868,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.on_waiting`
+### `HTTPChecker.on_waiting`
 
 Defines actions to perform when the task status is set to `waiting`.
 
@@ -975,19 +886,19 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.print_err`
+### `HTTPChecker.print_err`
 
 Print message to stderr and style it as error.
 
-### `CmdTask.print_out`
+### `HTTPChecker.print_out`
 
 Print message to stderr as normal text.
 
-### `CmdTask.print_out_dark`
+### `HTTPChecker.print_out_dark`
 
 Print message to stdout and style it as faint.
 
-### `CmdTask.print_result`
+### `HTTPChecker.print_result`
 
 Outputs the task result to stdout for further processing.
 
@@ -1010,32 +921,32 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.render_any`
+### `HTTPChecker.render_any`
 
 Render any value.
 
-### `CmdTask.render_bool`
+### `HTTPChecker.render_bool`
 
 Render int value.
 
-### `CmdTask.render_file`
+### `HTTPChecker.render_file`
 
 Render file content.
 
-### `CmdTask.render_float`
+### `HTTPChecker.render_float`
 
 Render float value.
 
-### `CmdTask.render_int`
+### `HTTPChecker.render_int`
 
 No documentation available.
 
 
-### `CmdTask.render_str`
+### `HTTPChecker.render_str`
 
 Render str value.
 
-### `CmdTask.run`
+### `HTTPChecker.run`
 
 Executes the main logic of the task.
 
@@ -1064,7 +975,7 @@ class MyTask(Task):
 ```
 
 
-### `CmdTask.set_checking_interval`
+### `HTTPChecker.set_checking_interval`
 
 Sets the interval for checking the task's readiness or completion status.
 
@@ -1075,7 +986,7 @@ __Arguments:__
 
 - `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
-### `CmdTask.set_color`
+### `HTTPChecker.set_color`
 
 Defines a new color for the current task.
 
@@ -1086,12 +997,7 @@ __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
 
-### `CmdTask.set_cwd`
-
-No documentation available.
-
-
-### `CmdTask.set_description`
+### `HTTPChecker.set_description`
 
 Sets a new description for the current task.
 
@@ -1102,7 +1008,7 @@ __Arguments:__
 
 - `new_description` (`str`): A string representing the new description of the task.
 
-### `CmdTask.set_icon`
+### `HTTPChecker.set_icon`
 
 Assigns a new icon to the current task.
 
@@ -1113,7 +1019,7 @@ __Arguments:__
 
 - `new_icon` (`str`): A string representing the icon identifier for the task.
 
-### `CmdTask.set_name`
+### `HTTPChecker.set_name`
 
 Sets a new name for the current task.
 
@@ -1124,7 +1030,7 @@ __Arguments:__
 
 - `new_name` (`str`): A string representing the new name to be assigned to the task.
 
-### `CmdTask.set_retry`
+### `HTTPChecker.set_retry`
 
 Sets the number of retry attempts for the task.
 
@@ -1135,7 +1041,7 @@ __Arguments:__
 
 - `new_retry` (`int`): An integer representing the number of retry attempts.
 
-### `CmdTask.set_retry_interval`
+### `HTTPChecker.set_retry_interval`
 
 Specifies the interval between retry attempts for the task.
 
@@ -1146,7 +1052,7 @@ __Arguments:__
 
 - `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
-### `CmdTask.set_should_execute`
+### `HTTPChecker.set_should_execute`
 
 Determines whether the task should execute.
 
@@ -1158,7 +1064,12 @@ __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
-### `CmdTask.to_function`
+### `HTTPChecker.show_progress`
+
+No documentation available.
+
+
+### `HTTPChecker.to_function`
 
 Converts the current task into a callable function.
 

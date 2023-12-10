@@ -1,58 +1,8 @@
-
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
 # FlowTask
 
-FlowTask allows you to compose several unrelated tasks/actions into a single tasks.
-
-```python
-from zrb import FlowTask, CmdTask, HttpChecker, runner
-import os
-
-CURRENT_DIR = os.dirname(__file__)
-
-prepare_backend = CmdTask(
-    name='prepare-backend',
-    cwd=os.path.join(CURRENT_DIR, 'app', 'backend'),
-    cmd='pip install -r requirements.txt'
-)
-
-prepare_frontend = CmdTask(
-    name='prepare-backend',
-    cwd=os.path.join(CURRENT_DIR, 'app', 'frontend'),
-    cmd='npm install && npm run build'
-)
-
-start_app = CmdTask(
-    name='start-app',
-    cwd=os.path.join(CURRENT_DIR, 'app', 'backend'),
-    cmd='uvicorn main:app --port 8080',
-    checkers=[
-        HttpChecker(port=8080)
-    ]
-)
-
-prepare_and_start_app = FlowTask(
-    name='prepare-and-start-app',
-    steps=[
-        # Prepare backend and frontend concurrently
-        [
-            prepare_backend,
-            prepare_frontend
-        ],
-        # Then start app
-        start_app,
-        # And finally show instruction
-        CmdTask(
-            name='show-instruction',
-            cmd='echo "App is ready, Check your browser"'
-        )
-    ]
-)
-runner.register(prepare_app)
-```
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `FlowTask`
@@ -258,7 +208,9 @@ No documentation available.
 
 ### `FlowTask._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `FlowTask._mark_awaited`
 
@@ -277,7 +229,9 @@ No documentation available.
 
 ### `FlowTask._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `FlowTask._propagate_execution_id`
 
@@ -286,7 +240,9 @@ No documentation available.
 
 ### `FlowTask._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `FlowTask._run_and_check_all`
 
@@ -330,7 +286,9 @@ No documentation available.
 
 ### `FlowTask._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `FlowTask._set_kwargs`
 
@@ -546,7 +504,20 @@ __Returns:__
 
 ### `FlowTask.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `FlowTask.get_execution_id`
@@ -574,7 +545,20 @@ __Returns:__
 
 ### `FlowTask.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `FlowTask.inject_checkers`
@@ -747,28 +731,33 @@ task.insert_upstream(upstream_task)
 
 ### `FlowTask.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `FlowTask.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `FlowTask.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `FlowTask.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `FlowTask.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `FlowTask.on_failed`
 
@@ -904,18 +893,15 @@ class MyTask(Task):
 
 ### `FlowTask.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `FlowTask.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `FlowTask.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `FlowTask.print_result`
 
@@ -931,31 +917,30 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `FlowTask.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `FlowTask.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `FlowTask.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `FlowTask.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `FlowTask.render_int`
 
@@ -964,8 +949,7 @@ No documentation available.
 
 ### `FlowTask.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `FlowTask.run`
 
@@ -1125,4 +1109,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)

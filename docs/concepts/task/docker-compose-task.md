@@ -1,56 +1,8 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
 # DockerComposeTask
 
-Docker Compose is a convenient way to run containers on your local computer.
-
-Suppose you have the following Docker Compose file:
-
-```yaml
-# docker-compose.yml file
-version: '3'
-
-services:
-  # The load balancer
-  nginx:
-    image: nginx:1.16.0-alpine
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "${HOST_PORT:-8080}:80"
-```
-
-You can define a task to run your Docker Compose file (i.e., `docker compose up`) like this:
-
-```python
-from zrb import DockerComposeTask, HTTPChecker, Env, runner
-
-run_container = DockerComposeTask(
-    name='run-container',
-    compose_cmd='up',
-    compose_file='docker-compose.yml',
-    envs=[
-        Env(name='HOST_PORT', default='3000')
-    ],
-    checkers=[
-        HTTPChecker(
-            name='check-readiness', port='{{env.HOST_PORT}}'
-        )
-    ]
-)
-runner.register(run_container)
-```
-
-You can then run the task by invoking:
-
-```bash
-zrb run-container
-```
-
-Under the hood, Zrb will read your `compose_file` populate it with some additional configuration, and create a runtime compose file `._<compose-file>-<task-name>.runtime.yml`. Zrb will use the run the runtime compose file to run your `compose_cmd` (i.e., `docker compose -f <compose-file>-<task-name>.runtime.yml <compose-cmd>`)
-
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `DockerComposeTask`
@@ -375,7 +327,9 @@ No documentation available.
 
 ### `DockerComposeTask._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `DockerComposeTask._mark_awaited`
 
@@ -394,7 +348,9 @@ No documentation available.
 
 ### `DockerComposeTask._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `DockerComposeTask._propagate_execution_id`
 
@@ -403,7 +359,9 @@ No documentation available.
 
 ### `DockerComposeTask._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `DockerComposeTask._run_and_check_all`
 
@@ -447,7 +405,9 @@ No documentation available.
 
 ### `DockerComposeTask._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `DockerComposeTask._set_kwargs`
 
@@ -663,7 +623,20 @@ __Returns:__
 
 ### `DockerComposeTask.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `DockerComposeTask.get_execution_id`
@@ -691,7 +664,20 @@ __Returns:__
 
 ### `DockerComposeTask.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `DockerComposeTask.inject_checkers`
@@ -864,28 +850,33 @@ task.insert_upstream(upstream_task)
 
 ### `DockerComposeTask.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `DockerComposeTask.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `DockerComposeTask.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `DockerComposeTask.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `DockerComposeTask.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `DockerComposeTask.on_failed`
 
@@ -1021,18 +1012,15 @@ class MyTask(Task):
 
 ### `DockerComposeTask.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `DockerComposeTask.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `DockerComposeTask.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `DockerComposeTask.print_result`
 
@@ -1048,31 +1036,30 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `DockerComposeTask.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `DockerComposeTask.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `DockerComposeTask.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `DockerComposeTask.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `DockerComposeTask.render_int`
 
@@ -1081,8 +1068,7 @@ No documentation available.
 
 ### `DockerComposeTask.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `DockerComposeTask.run`
 
@@ -1247,4 +1233,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)

@@ -78,11 +78,21 @@ def parse_docstring(docstring: str) -> str:
         # Handle lines
         if is_code:
             markdown_lines.append(line[4:])
-        elif line.startswith('Attributes:'):
+        elif (
+            line.startswith('Attributes:') or
+            line.startswith('Attribute:') or
+            line.startswith('Attrs:') or
+            line.startswith('Attr:')
+        ):
             markdown_lines.append('__Attributes:__\n')
             section = 'attributes'
             is_new_section = True
-        elif line.startswith('Args:'):
+        elif (
+            line.startswith('Args:') or
+            line.startswith('Arg:') or
+            line.startswith('Arguments:') or
+            line.startswith('Argument:')
+        ):
             markdown_lines.append('__Arguments:__\n')
             section = 'args'
             is_new_section = True
@@ -90,7 +100,10 @@ def parse_docstring(docstring: str) -> str:
             markdown_lines.append('__Returns:__\n')
             section = 'returns'
             is_new_section = True
-        elif line.startswith('Examples:'):
+        elif (
+            line.startswith('Examples:') or
+            line.startswith('Examples:')
+        ):
             markdown_lines.append('__Examples:__\n')
             section = 'examples'
             is_new_section = True

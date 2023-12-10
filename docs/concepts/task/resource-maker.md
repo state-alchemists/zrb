@@ -1,65 +1,8 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
 
 # ResourceMaker
 
-ResourceMaker helps you create text resources, whether they are code or licenses.
-
-For example, let's say you have the following template under `mit-license-template/license`
-
-```
-Copyright (c) <zrb_year> <zrb_copyright_holders>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-You want your user to be able to add the license to any app and replacing `<year>` and `<copyright holders>` with user input.
-
-To accomplish this, you can make a resource maker:
-
-```python
-from zrb import ResourceMaker, StrInput, runner
-import os
-
-CURRENT_DIR = os.path.dirname(__file__)
-
-add_mit_license = ResourceMaker(
-    name='add-mit-license',
-    inputs=[
-        StrInput(name='destination'),
-        StrInput(name='year'),
-        StrInput(name='copyright-holder')
-    ],
-    destination_path='{{input.destination}}',
-    template_path=os.path.join(CURRENT_DIR, 'mit-license-template'),
-    replacements={
-        '<zrb_year>': '{{input.year}}',
-        '<zrb_copyright_holders>': '{{input.copyright_holder}}',
-    }
-)
-
-runner.register(add_mit_license)
-```
-
-Note that your template folder might contains a very complex structure. For example, you can make your application boiler plate into a template.
-
-
-# Technical Documentation
+# Technical Specification
 
 <!--start-doc-->
 ## `ResourceMaker`
@@ -265,7 +208,9 @@ No documentation available.
 
 ### `ResourceMaker._loop_check`
 
-For internal use
+For internal use.
+
+Regularly check whether the task is ready or not.
 
 ### `ResourceMaker._mark_awaited`
 
@@ -284,7 +229,9 @@ No documentation available.
 
 ### `ResourceMaker._print_result`
 
-For internal use
+For internal use.
+
+Directly call `print_result`
 
 ### `ResourceMaker._propagate_execution_id`
 
@@ -293,7 +240,9 @@ No documentation available.
 
 ### `ResourceMaker._run_all`
 
-For internal use
+For internal use.
+
+Run this task and all its upstreams.
 
 ### `ResourceMaker._run_and_check_all`
 
@@ -337,7 +286,9 @@ No documentation available.
 
 ### `ResourceMaker._set_keyval`
 
-For internal use
+For internal use.
+
+Set current task's key values.
 
 ### `ResourceMaker._set_kwargs`
 
@@ -553,7 +504,20 @@ __Returns:__
 
 ### `ResourceMaker.get_env_map`
 
-No documentation available.
+Get a map representing task's Envs and EnvFiles
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Env
+@python_task(name='task', envs=[Env(name='DB_URL')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_env_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `ResourceMaker.get_execution_id`
@@ -581,7 +545,20 @@ __Returns:__
 
 ### `ResourceMaker.get_input_map`
 
-No documentation available.
+Get a map representing task's Inputs.
+
+Typically used inside `run`, `check`, or in `@python_task` decorator
+
+__Examples:__
+
+```python
+from zrb import python_task, Task, Input
+@python_task(name='task', inputs=[Input(name='name')])
+def task(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    for key, value in task.get_input_map():
+        task.print_out(f'{key}: {value}')
+```
 
 
 ### `ResourceMaker.inject_checkers`
@@ -754,28 +731,33 @@ task.insert_upstream(upstream_task)
 
 ### `ResourceMaker.log_critical`
 
-No documentation available.
+Log message with log level "CRITICAL"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_debug`
 
-No documentation available.
+Log message with log level "DEBUG"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_error`
 
-No documentation available.
+Log message with log level "ERROR"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_info`
 
-No documentation available.
+Log message with log level "INFO"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.log_warn`
 
-No documentation available.
+Log message with log level "WARNING"
 
+You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 ### `ResourceMaker.on_failed`
 
@@ -911,18 +893,15 @@ class MyTask(Task):
 
 ### `ResourceMaker.print_err`
 
-No documentation available.
-
+Print message to stderr and style it as error.
 
 ### `ResourceMaker.print_out`
 
-No documentation available.
-
+Print message to stderr as normal text.
 
 ### `ResourceMaker.print_out_dark`
 
-No documentation available.
-
+Print message to stdout and style it as faint.
 
 ### `ResourceMaker.print_result`
 
@@ -938,31 +917,30 @@ __Arguments:__
 
 __Examples:__
 
->> from zrb import Task
->> # Example of overriding in a subclass
->> class MyTask(Task):
->>    def print_result(self, result: Any):
->>        print(f'Result: {result}')
+```python
+from zrb import Task
+# Example of overriding in a subclass
+class MyTask(Task):
+   def print_result(self, result: Any):
+       print(f'Result: {result}')
+```
+
 
 ### `ResourceMaker.render_any`
 
-No documentation available.
-
+Render any value.
 
 ### `ResourceMaker.render_bool`
 
-No documentation available.
-
+Render int value.
 
 ### `ResourceMaker.render_file`
 
-No documentation available.
-
+Render file content.
 
 ### `ResourceMaker.render_float`
 
-No documentation available.
-
+Render float value.
 
 ### `ResourceMaker.render_int`
 
@@ -971,8 +949,7 @@ No documentation available.
 
 ### `ResourceMaker.render_str`
 
-No documentation available.
-
+Render str value.
 
 ### `ResourceMaker.run`
 
@@ -1132,4 +1109,4 @@ fn()
 
 <!--end-doc-->
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Tasks](README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Task](./README.md)
