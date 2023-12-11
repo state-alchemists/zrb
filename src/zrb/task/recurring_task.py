@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union
+    Any, Callable, Iterable, List, Mapping, Optional, Union
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.accessories.name import get_random_name
@@ -75,8 +75,10 @@ class RecurringTask(BaseTask):
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
         )
-        self._task = task
-        self._triggers = triggers
+        self._task: AnyTask = task.copy()
+        self._triggers: List[AnyTask] = [
+            trigger.copy() for trigger in triggers
+        ]
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
