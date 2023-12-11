@@ -136,17 +136,6 @@ def make_docs(*args: Any, **kwargs: Any):
         inject_doc(file_name, cls)
 
 
-auto_make_docs = RecurringTask(
-    name='auto-make-docs',
-    description='Make documentation whenever there is any changes in the code',
-    triggers=[
-        PathWatcher(path=os.path.join(CURRENT_DIR, '**', '*.py'))
-    ],
-    task=make_docs
-)
-runner.register(auto_make_docs)
-
-
 build = CmdTask(
     name='build',
     description='Build Zrb',
