@@ -26,10 +26,11 @@ Zrb provides three installation methods to help you get started.
 
 ## Installing Zrb Using Installation Script
 
-<center>
+<p align="center">
   <img src="_images/emoji/scroll.png">
-  <p>Installation Script: Get you started in less than 5 minutes</p>
-</center>
+  <br />
+  Installation Script: Get you started in less than 5 minutes
+</p>
 
 If you are on a new computer or are new to Python, we have an [installation script](https://github.com/state-alchemists/zrb/blob/main/install.sh) that help you install [`Pyenv`](https://github.com/pyenv/pyenv) and `Zrb`.
 
@@ -43,10 +44,11 @@ We recommend this installation method if you work on a new computer/VM.
 
 ## Installing Zrb As A Python Package
 
-<center>
+<p align="center">
   <img src="_images/emoji/package.png">
-  <p>Pip package: Just like Pandas, Numpy, or FastAPI</p>
-</center>
+  <br />
+  Pip package: Just like Pandas, Numpy, or FastAPI
+</p>
 
 If you already have your own Python Ecosystem (i.e., [Pyenv](https://github.com/pyenv/pyenv), [Conda](https://docs.conda.io/en/latest), or Venv), you can install Zrb as a Python package using the Pip command.
 
@@ -87,10 +89,11 @@ Like any Python package, you can install Zrb in your [virtual environment](https
 
 ## Installing Zrb As A Docker Container
 
-<center>
+<p align="center">
   <img src="_images/emoji/whale.png">
-  <p>Docker Container: Always ready for anything</p>
-</center>
+  <br />
+  Docker Container: Always ready for anything
+</p>
 
 If you prefer to work with Docker or you don't want to install Python on your computer, you can install Zrb as a Docker container.
 
