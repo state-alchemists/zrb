@@ -29,9 +29,9 @@ Zrb provides three installation methods to help you get started.
 <div align="center">
   <img src="_images/emoji/scroll.png">
   <p>
-    <small>
+    <sub>
       Installation Script: Get you started in less than 5 minutes
-    </small>
+    </sub>
   </p>
 </div>
 
@@ -50,9 +50,9 @@ We recommend this installation method if you work on a new computer/VM.
 <div align="center">
   <img src="_images/emoji/package.png">
   <p>
-    <small>
+    <sub>
       Pip package: Just like Pandas, Numpy, or FastAPI
-    </small>
+    </sub>
   </p>
 </div>
 
@@ -98,9 +98,9 @@ Like any Python package, you can install Zrb in your [virtual environment](https
 <div align="center">
   <img src="_images/emoji/whale.png">
   <p>
-    <small>
+    <sub>
       Docker Container: Always ready for anything
-    </small>
+    </sub>
   </p>
 </div>
 
@@ -203,9 +203,9 @@ docker compose up -d
 <div align="center">
   <img src="_images/emoji/postbox.png">
   <p>
-    <small>
+    <sub>
       Postbox: We can't find any emoji representing post-installation, so here is a postbox.
-    </small>
+    </sub>
   </p>
 </div>
 
