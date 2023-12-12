@@ -26,11 +26,14 @@ Zrb provides three installation methods to help you get started.
 
 ## Installing Zrb Using Installation Script
 
-<p align="center">
+<div align="center">
   <img src="_images/emoji/scroll.png">
-  <br />
-  Installation Script: Get you started in less than 5 minutes
-</p>
+  <p>
+    <small>
+      Installation Script: Get you started in less than 5 minutes
+    </small>
+  </p>
+</div>
 
 If you are on a new computer or are new to Python, we have an [installation script](https://github.com/state-alchemists/zrb/blob/main/install.sh) that help you install [`Pyenv`](https://github.com/pyenv/pyenv) and `Zrb`.
 
@@ -44,11 +47,14 @@ We recommend this installation method if you work on a new computer/VM.
 
 ## Installing Zrb As A Python Package
 
-<p align="center">
+<div align="center">
   <img src="_images/emoji/package.png">
-  <br />
-  Pip package: Just like Pandas, Numpy, or FastAPI
-</p>
+  <p>
+    <small>
+      Pip package: Just like Pandas, Numpy, or FastAPI
+    </small>
+  </p>
+</div>
 
 If you already have your own Python Ecosystem (i.e., [Pyenv](https://github.com/pyenv/pyenv), [Conda](https://docs.conda.io/en/latest), or Venv), you can install Zrb as a Python package using the Pip command.
 
@@ -89,11 +95,14 @@ Like any Python package, you can install Zrb in your [virtual environment](https
 
 ## Installing Zrb As A Docker Container
 
-<p align="center">
+<div align="center">
   <img src="_images/emoji/whale.png">
-  <br />
-  Docker Container: Always ready for anything
-</p>
+  <p>
+    <small>
+      Docker Container: Always ready for anything
+    </small>
+  </p>
+</div>
 
 If you prefer to work with Docker or you don't want to install Python on your computer, you can install Zrb as a Docker container.
 
@@ -190,6 +199,15 @@ docker compose up -d
 
 
 # Post Installation
+
+<div align="center">
+  <img src="_images/emoji/postbox.png">
+  <p>
+    <small>
+      Postbox: We can't find any emoji representing post-installation, so here is a postbox.
+    </small>
+  </p>
+</div>
 
 Once you installed Zrb, you can install third-party developer tools as needed. Some tools like `docker` and `nvm` are crucial if you want to create and test your application.
 
