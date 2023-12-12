@@ -88,7 +88,7 @@ zrb_latest_image_env = Env(
 )
 
 ###############################################################################
-# Task Definitions
+# ⚙️ make-docs
 ###############################################################################
 
 
@@ -132,14 +132,45 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(doc_concept_task_input_dir, 'str-input.md'): StrInput,
     }
     for file_name, cls in configs.items():
-        task.print_out(f'Injecting doc for `{cls.__name__}` on {file_name}')
+        task.print_out(f'Inject `{cls.__name__} docstring` to {file_name}')
         inject_doc(file_name, cls)
 
+
+###############################################################################
+# ⚙️ remake-docs
+###############################################################################
+
+remake_docs = CmdTask(
+    name='remake-docs',
+    cwd=CURRENT_DIR,
+    envs=[
+        Env('ZRB_SHOW_TIME', os_name='', default='0')
+    ],
+    cmd='zrb make-docs'
+)
+
+###############################################################################
+# ⚙️ auto-make-docs
+###############################################################################
+
+auto_make_docs = RecurringTask(
+    name='auto-make-docs',
+    description='Make documentation whenever there is any changes in the code',
+    triggers=[
+        PathWatcher(path=os.path.join(CURRENT_DIR, '**', '*.py'))
+    ],
+    task=remake_docs
+)
+runner.register(auto_make_docs)
+
+###############################################################################
+# ⚙️ build
+###############################################################################
 
 build = CmdTask(
     name='build',
     description='Build Zrb',
-    upstreams=[make_docs],
+    upstreams=[remake_docs],
     cwd=CURRENT_DIR,
     cmd=[
         'set -e',
@@ -154,6 +185,10 @@ skippable_build.add_input(build_zrb_input)
 skippable_build.set_should_execute('{{ input.build_zrb}}')
 runner.register(build)
 
+###############################################################################
+# ⚙️ publish-pip
+###############################################################################
+
 publish_pip = CmdTask(
     name='publish-pip',
     description='Publish zrb to pypi',
@@ -166,6 +201,10 @@ publish_pip = CmdTask(
     ]
 )
 runner.register(publish_pip)
+
+###############################################################################
+# ⚙️ publish-pip-test
+###############################################################################
 
 publish_pip_test = CmdTask(
     name='publish-pip-test',
@@ -180,6 +219,10 @@ publish_pip_test = CmdTask(
 )
 runner.register(publish_pip_test)
 
+###############################################################################
+# ⚙️ check-pip
+###############################################################################
+
 check_pip = HTTPChecker(
     name='check-pip',
     inputs=[zrb_version_input],
@@ -188,6 +231,10 @@ check_pip = HTTPChecker(
     url='pypi/zrb/{{ input.zrb_version }}/json',
     port=443
 )
+
+###############################################################################
+# ⚙️ build-image
+###############################################################################
 
 build_image = DockerComposeTask(
     name='build-image',
@@ -206,6 +253,10 @@ build_image = DockerComposeTask(
     compose_args=['zrb']
 )
 runner.register(build_image)
+
+###############################################################################
+# ⚙️ build-latest-image
+###############################################################################
 
 build_latest_image = DockerComposeTask(
     name='build-latest-image',
@@ -228,6 +279,10 @@ build_latest_image = DockerComposeTask(
 )
 runner.register(build_latest_image)
 
+###############################################################################
+# ⚙️ stop-container
+###############################################################################
+
 stop_container = DockerComposeTask(
     name='stop-container',
     description='remove docker container',
@@ -241,6 +296,10 @@ stop_container = DockerComposeTask(
     compose_cmd='down'
 )
 runner.register(stop_container)
+
+###############################################################################
+# ⚙️ start-container
+###############################################################################
 
 start_container = DockerComposeTask(
     name='start-container',
@@ -263,6 +322,10 @@ start_container = DockerComposeTask(
 )
 runner.register(start_container)
 
+###############################################################################
+# ⚙️ push-image
+###############################################################################
+
 push_image = DockerComposeTask(
     name='push-image',
     description='Push docker image',
@@ -280,6 +343,10 @@ push_image = DockerComposeTask(
     compose_args=['zrb']
 )
 runner.register(push_image)
+
+###############################################################################
+# ⚙️ push-latest-image
+###############################################################################
 
 push_latest_image = DockerComposeTask(
     name='push-latest-image',
@@ -302,6 +369,10 @@ push_latest_image = DockerComposeTask(
 )
 runner.register(push_latest_image)
 
+###############################################################################
+# ⚙️ publish
+###############################################################################
+
 publish = FlowTask(
     name='publish',
     description='Publish new version',
@@ -311,6 +382,10 @@ publish = FlowTask(
     ]
 )
 runner.register(publish)
+
+###############################################################################
+# ⚙️ install-symlink
+###############################################################################
 
 install_symlink = CmdTask(
     name='install-symlink',
@@ -330,6 +405,10 @@ skippable_install_symlink.add_input(
 )
 skippable_install_symlink.set_should_execute('{{ input.install_symlink}}')
 runner.register(install_symlink)
+
+###############################################################################
+# ⚙️ test
+###############################################################################
 
 test = CmdTask(
     name='test',
@@ -354,6 +433,10 @@ test = CmdTask(
     checking_interval=1
 )
 runner.register(test)
+
+###############################################################################
+# ⚙️ serve-test
+###############################################################################
 
 serve_test = CmdTask(
     name='serve-test',
@@ -382,6 +465,10 @@ serve_test = CmdTask(
 )
 runner.register(serve_test)
 
+###############################################################################
+# ⚙️ create
+###############################################################################
+
 create_playground = CmdTask(
     name='create',
     description='Create playground',
@@ -401,6 +488,10 @@ skippable_create_playground.add_input(
 skippable_create_playground.set_should_execute('{{ input.create_playground}}')
 runner.register(create_playground)
 
+###############################################################################
+# ⚙️ test-fastapp
+###############################################################################
+
 test_fastapp_playground = CmdTask(
     name='test-fastapp',
     description='Test Fastapp',
@@ -416,6 +507,10 @@ test_fastapp_playground = CmdTask(
 )
 runner.register(test_fastapp_playground)
 
+###############################################################################
+# ⚙️ test-install-symlink
+###############################################################################
+
 test_install_playground_symlink = CmdTask(
     name='test-install-symlink',
     description='Test installing symlink',
@@ -430,6 +525,10 @@ test_install_playground_symlink = CmdTask(
     preexec_fn=None
 )
 runner.register(test_install_playground_symlink)
+
+###############################################################################
+# ⚙️ test-playground
+###############################################################################
 
 test_playground = CmdTask(
     name='test',
