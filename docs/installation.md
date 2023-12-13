@@ -1,8 +1,17 @@
 🔖 [Table of Contents](README.md)
 
+<div align="center">
+  <img src="_images/emoji/wrench.png">
+  <p>
+    <sub>
+      Installation: Let's put this into your machine.
+    </sub>
+  </p>
+</div>
+
 # Installation
 
-Zrb provide a few installation methods as well as some commands to help you install third party devtools.
+Zrb provides a few installation methods as well as some commands to help you install third-party devtools.
 
 This Installation Section will help you to set up your machine.
 
@@ -51,7 +60,7 @@ We recommend this installation method if you work on a new computer/VM.
   <img src="_images/emoji/package.png">
   <p>
     <sub>
-      Pip package: Just like Pandas, Numpy, or FastAPI
+      Pip package: Just like Pandas, Numpy, or FastAPI.
     </sub>
   </p>
 </div>
@@ -99,7 +108,7 @@ Like any Python package, you can install Zrb in your [virtual environment](https
   <img src="_images/emoji/whale.png">
   <p>
     <sub>
-      Docker Container: Always ready for anything
+      Docker Container: Always ready for anything.
     </sub>
   </p>
 </div>

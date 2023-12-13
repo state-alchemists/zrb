@@ -283,7 +283,7 @@ Help Red Skull to click the donation button:
 
 # 🙇 Credits
 
-We are thankful for the following libraries and services.
+We are thankful for the following libraries and services. They accelerate Zrb development processes and make things more fun.
 
 - Libraries
     - [Beartype](https://pypi.org/project/beartype/): Catch invalid typing earlier during runtime.
@@ -291,9 +291,12 @@ We are thankful for the following libraries and services.
     - [Termcolor](https://pypi.org/project/termcolor/): Make the terminal interface more colorful.
     - [Jinja](https://pypi.org/project/Jinja2): A robust templating engine.
     - [Ruamel.yaml](https://pypi.org/project/ruamel.yaml/): Parse YAML effortlessly.
+    - [Jsons](https://pypi.org.project/jsons/): Parse JSON. This package should be part of the standard library.
     - [Libcst](https://pypi.org/project/libcst/): Turn Python code into a Concrete Syntax Tree.
-    - And many more. See the complete list on Zrb's requirements.txt
+    - [Croniter](https://pypi.org/project/croniter/): Parse cron pattern.
+    - [Flit](https://pypi.org/project/flit), [Twine](https://pypi.org/project/twine/), and many more. See the complete list of Zrb's requirements.txt
 - Services
-    - [emojipedia.org](https://emojipedia.org/): Find emoji
+    - [asciiflow.com](https://asciiflow.com/): Creates beautiful ASCII-based diagrams.
+    - [emojipedia.org](https://emojipedia.org/): Find emoji.
     - [emoji.aranja.com](https://emoji.aranja.com/): Turns emoji into images
-    - [favicon.io](https://favicon.io/): Turns images and texts (including emoji) into favicon
+    - [favicon.io](https://favicon.io/): Turns pictures and texts (including emoji) into favicon.

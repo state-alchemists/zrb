@@ -1,3 +1,13 @@
+
+<div align="center">
+  <img src="_images/emoji/books.png">
+  <p>
+    <sub>
+      RTFM, They say.
+    </sub>
+  </p>
+</div>
+
 # Table of Content
 
 - [Installation](installation.md)
