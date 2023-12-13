@@ -19,7 +19,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
   - [Getting Available Tasks/Task Groups](#getting-available-taskstask-groups)
   - [Using Interactive Mode](#using-interactive-mode)
 - [Creating a Project](#creating-a-project)
-  - [Activating Virtual Environment](#activating-virtual-environment)
+  - [Using `project.sh`](#using-projectsh)
 - [Creating a Task](#creating-a-task)
   - [Scaffolding a Task](#scaffolding-a-task)
   - [Updating Task definition](#updating-task-definition)
@@ -343,7 +343,31 @@ Anytime you start working on your project, you should load `project.sh`.
 
 # Creating a Task
 
-A task is the smallest unit of job definition. You can link your tasks together to form a more complex workflow.
+<div align="center">
+  <img src="_images/emoji/clipboard.png">
+  <p>
+    <sub>
+      Finishing a task: 10% skill, 90% not getting distracted by the internet.
+    </sub>
+  </p>
+</div>
+
+Tasks are your most negligible unit of job definition.
+
+Zrb has multiple task types, including `CmdTask`, `python_task`, `DockerComposeTask`, `RecurringTask`, `ResourceMaker`, etc.
+
+Typically, a Zrb Task has multiple properties:
+
+- Retry mechanism
+- Task Upstreams
+- Task Environment and Environment File
+- Task Input/Parameter 
+
+In this Getting-Started tutorial, we will only focus on `CmdTask` and `python_task`. So, let's focus on these two.
+
+---
+
+A Task is the smallest unit of job definition. You can link your tasks together to form a more complex workflow.
 
 Zrb has a powerful command to create tasks under a project. Let's re-create the tasks we make in our [README.md](../README.md).
 
