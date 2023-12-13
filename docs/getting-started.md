@@ -341,45 +341,6 @@ source project.sh
 
 Anytime you start working on your project, you should load `project.sh`.
 
-
-
-## Activating Virtual Environment
-
-> __📝 NOTE:__ Using virtual environment is not required, but highly recommended.
-
-A virtual environment encapsulates your project pip packages from other projects, ensuring better independence and reproducibility.
-
-### Activating Virtual Environment On A Generated Project
-
-If you generate the project by invoking `zrb project create`, you can create/activate the virtual environment by running the following command:
-
-```bash
-source project.sh
-```
-
-The command will activate the project's virtual environment and install the necessary pip packages.
-
-You should run the command every time you start working on the project.
-
-### Activating Virtual Environment On A Manually Created Project
-
-If you create the project manually (i.e., by creating `zrb_init.py`),  you also need to make a virtual environment for your project. Creating a virtual environment is necessary if you work with non-standard Python libraries.
-
-To create a virtual environment, you can invoke the following command:
-
-```bash
-python -m venv .venv
-```
-
-Once you make the virtual environment, you can activate it by invoking the following command:
-
-```bash
-source .venv/bin/activate
-```
-
-You should activate the virtual environment whenever you start working on the project.
-
-
 # Creating a Task
 
 A task is the smallest unit of job definition. You can link your tasks together to form a more complex workflow.
