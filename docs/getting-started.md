@@ -73,7 +73,7 @@ Alternatively, you can also install Zrb as a container. Please see the [installa
   <img src="_images/emoji/runner.png">
   <p>
     <sub>
-      Run, run, run.
+      <a href="https://www.youtube.com/watch?v=2wVPyo_hnWw" target="blank">Run! run! run!</a>
     </sub>
   </p>
 </div>
