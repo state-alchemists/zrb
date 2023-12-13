@@ -286,18 +286,17 @@ In the rest of this section, you will learn about Zrb project and how to make yo
   </p>
 </div>
 
-As a software engineer (or anyone), you probably need to work on multiple things simultaneously.
+You probably want to organize your jobs under multiple projects to keep them separated.
 
+At its basic, a project is a directory containing a single file named `zrb_init.py`. This setup is probably sufficient for a simple hello-world project.
 
-To make things more manageable, you must put all related resources and task definitions under a `project`. A project is a directory containing `zrb_init.py`.
-
-You can create a project manually or use Zrb's built-in task to generate the project. Suppose you want to create a project named `my-project`. You can do so by invoking the following command:
+To make something more than a simple hello-world, you better use `zrb project create` command.
 
 ```bash
 zrb project create --project-dir my-project --project-name my-project
 ```
 
-Once invoked, you will see a directory named `my-project`. Let's see what the project looks like:
+Once invoked, you will see a project named `my-project`. Let's see what this project looks like:
 
 ```bash
 cd my-project
@@ -321,43 +320,28 @@ drwxr-xr-x  2 gofrendi gofrendi 4096 Nov 12 07:52 src
 -rw-r--r--  1 gofrendi gofrendi   54 Nov 12 07:52 zrb_init.py
 ```
 
-Every Zrb project has a file named `zrb_init.py` under the top-level directory. This file is your entry point to define your task definitions.
+Every Zrb project has a file named `zrb_init.py` under the top-level directory. This file is your entry point to define your Task definitions.
 
 By convention, a project usually contains two sub-directories:
 
 - ___automate__: This folder contains all your automation scripts and task definitions
 - __src__: This folder contains all your resources like Docker compose file, helm charts, and source code.
 
-When you make a project using `zrb project create` command, Zrb will generate a default `task-group` named `project`. This `task-group` contains some tasks to run/deploy your applications. Try to type `zrb project` to see what tasks are available by default:
+Moreover, Zrb provides some built-in Tasks under `project` Task Group. As always, you can invoke `zrb project` to see those tasks.
+
+## Using `project.sh`
+
+When you create a project using `zrb project create` command, you will find a file named `project.sh`. This script file helps you to load the virtual environment, install requirements, and activate shell completion.
+
+To use the script, you need to invoke the following command:
 
 ```bash
-zrb project
+source project.sh
 ```
 
-```
-Usage: zrb project [OPTIONS] COMMAND [ARGS]...
-
-  Project management
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  add                Add resources to project
-  build-images       Build project images
-  create             create
-  deploy             Deploy project
-  destroy            Remove project deployment
-  get-default-env    Get default values for project environments
-  push-images        Build project images
-  remove-containers  Remove project containers
-  start              Start project
-  start-containers   Start as containers
-  stop-containers    Stop project containers
-```
+Anytime you start working on your project, you should load `project.sh`.
 
 
-> __💡 HINT:__ To start working with Zrb, it is better to create a project. You can create a project by using `zrb project create` command, or by creating a file named `zrb_init.py`
 
 ## Activating Virtual Environment
 
