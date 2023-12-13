@@ -267,11 +267,27 @@ bm9uLWNyZWRlbnRpYWwtc3RyaW5n
 To run again: zrb base64 encode --text "non-credential-string"
 ```
 
-> __📝 NOTE:__ If you need to disable prompt entirely, you can set `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
+> __📝 NOTE:__ You can disable the interactive mode by setting `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
 >
-> When prompts are disabled, Zrb will automatically use task-input's default values.
+> When prompts are disabled, Zrb will automatically use task-parameter's default values.
+
+That's it. That's all you need to know to work with Zrb.
+
+In the rest of this section, you will learn about Zrb project and how to make your own Zrb Tasks.
 
 # Creating a project
+
+<div align="center">
+  <img src="_images/emoji/building_construction.png">
+  <p>
+    <sub>
+      A project is like a fridge light; it only works when you open it to check.
+    </sub>
+  </p>
+</div>
+
+As a software engineer (or anyone), you probably need to work on multiple things simultaneously.
+
 
 To make things more manageable, you must put all related resources and task definitions under a `project`. A project is a directory containing `zrb_init.py`.
 
