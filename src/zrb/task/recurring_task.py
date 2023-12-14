@@ -8,6 +8,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
+from zrb.task.task import Task
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -47,9 +48,10 @@ class RecurringTask(BaseTask):
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
-        inputs = list(inputs) + task._get_combined_inputs()
-        envs = list(envs) + task._get_envs()
-        env_files = list(env_files) + task._get_env_files()
+        self._task: AnyTask = task.copy()
+        inputs = list(inputs) + self._task._get_combined_inputs()
+        envs = list(envs) + self._task._get_envs()
+        env_files = list(env_files) + self._task._get_env_files()
         BaseTask.__init__(
             self,
             name=name,
@@ -75,7 +77,6 @@ class RecurringTask(BaseTask):
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
         )
-        self._task: AnyTask = task.copy()
         self._triggers: List[AnyTask] = [
             trigger.copy() for trigger in triggers
         ]

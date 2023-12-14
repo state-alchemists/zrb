@@ -354,16 +354,39 @@ Anytime you start working on your project, you should load `project.sh`.
 
 Tasks are your most negligible unit of job definition.
 
-Zrb has multiple task types, including `CmdTask`, `python_task`, `DockerComposeTask`, `RecurringTask`, `ResourceMaker`, etc.
+Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `RecurringTask`, `ResourceMaker`, etc.
 
-Typically, a Zrb Task has multiple properties:
+Typically, a Zrb Task has multiple settings:
 
 - Retry mechanism
 - Task Upstreams
 - Task Environment and Environment File
 - Task Input/Parameter 
+- Readiness Checker
 
-In this Getting-Started tutorial, we will only focus on `CmdTask` and `python_task`. So, let's focus on these two.
+In this Getting-Started tutorial, we will only cover a few Task Types.
+
+## Use Case
+
+Let's start with a use case:
+
+- We want to serve a single HTML file
+- The HTML file contains some information from environment variables and user inputs.
+- Zrb should generate the HTML file based on a single HTML template.
+- Whenever the HTML template is modified, Zrb should re-generate the HTML file.
+
+We can break down the requirements into some tasks.
+
+```
+        🥬                      🧑‍🍳               🥗
+Prepare Resources ────► Monitor and Rebuild ────► Serve
+```
+
+## Implementation
+
+
+
+
 
 ---
 

@@ -7,7 +7,7 @@ from zrb.runner import runner
 import datetime
 import random
 
-_MIN_WIDTH = 50
+_MIN_WIDTH = 10
 _MOTIVATIONAL_QUOTES = [
     [
         'The best time to plant a tree was 20 years ago.',
@@ -90,7 +90,7 @@ _MOTIVATIONAL_QUOTES = [
     runner=runner
 )
 def say(*args: Any, **kwargs: Any):
-    width: int = kwargs.get('width', 50)
+    width: int = kwargs.get('width', 80)
     if width < _MIN_WIDTH:
         width = _MIN_WIDTH
     text: str = kwargs.get('text', '')
