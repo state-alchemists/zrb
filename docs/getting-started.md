@@ -21,18 +21,8 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 - [Creating a Project](#creating-a-project)
   - [Using `project.sh`](#using-projectsh)
 - [Creating a Task](#creating-a-task)
-  - [Scaffolding a Task](#scaffolding-a-task)
-  - [Updating Task definition](#updating-task-definition)
-- [Understanding The Code](#understanding-the-code)
     - [Task Definition](#task-definition)
-      - [Creating a Task Using Task Classes](#creating-a-task-using-task-classes)
-      - [Creating a Task Using Python Decorator](#creating-a-task-using-python-decorator)
-      - [Task Parameters](#task-parameters)
-    - [Task Dependencies](#task-dependencies)
-    - [Task Inputs](#task-inputs)
-    - [Task Environments](#task-environments)
-    - [Switching Environment](#switching-environment)
-- [Creating a Long-Running Task](#creating-a-long-running-task)
+- [More Example](#more-example)
 
 This guide assumes you have some familiarity with CLI and Python.
 
@@ -375,6 +365,15 @@ Let's see some simple task definitions and break them down.
 
 ### The Example
 
+<div align="center">
+  <img src="_images/emoji/feet.png">
+  <p>
+    <sub>
+      One small step for a man, one giant leap for mankind.
+    </sub>
+  </p>
+</div>
+
 ```python
 from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
 
@@ -429,9 +428,18 @@ Finally, by invoking `runner.register(hello, hello_cmd, hello_py)`; we want the 
 
 <details>
 
-<summary>🖱️ Click here to see the complete explanation</summary>
+<summary>👉 <b>Click here to break down the code</b> 👈</summary>
 
 ### Import Statement
+
+<div align="center">
+  <img src="_images/emoji/truck.png">
+  <p>
+    <sub>
+      <a href="https://xkcd.com/353/" target="blank">import antigravity.</a>
+    </sub>
+  </p>
+</div>
 
 ```python
 from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
@@ -448,6 +456,15 @@ At the very beginning, we import some resources from `zrb` package:
 - `StrInput`: We need this class to define Task Input/Parameter.
 
 ### `hello-cmd` Definition
+
+<div align="center">
+  <img src="_images/emoji/shell.png">
+  <p>
+    <sub>
+      Shell Script: Every problem is a line of code away from being solved.
+    </sub>
+  </p>
+</div>
 
 ```python
 hello_cmd = CmdTask(
@@ -469,6 +486,15 @@ To access the value of `MODE` environment, we can use `{{ env.MODE }}`.
 Meanwhile, to access the value of `user-name` parameter, we can use `{{ input.user_name }}`. Notice how Zrb translates the input name into `snake_case`.
 
 ### `hello-py` Definition
+
+<div align="center">
+  <img src="_images/emoji/snake.png">
+  <p>
+    <sub>
+      Python: The programming language, not the snake.
+    </sub>
+  </p>
+</div>
 
 ```python
 @python_task(
@@ -510,6 +536,16 @@ mode = env_map.get('MODE')
 
 ### `hello` Definition And Its Dependencies
 
+
+<div align="center">
+  <img src="_images/emoji/pill.png">
+  <p>
+    <sub>
+      Adding a new dependency is like inviting a stranger to live in your codebase.
+    </sub>
+  </p>
+</div>
+
 ```python
 hello = Task(name='hello')
 Parallel(hello_cmd, hello_py) >> hello
@@ -526,6 +562,16 @@ hello-cmd ──┘
 ```
 
 ### Register Tasks to The `runner`
+
+<div align="center">
+  <img src="_images/emoji/page_facing_up.png">
+  <p>
+    <sub>
+      Fotokopi KTP dan biaya registrasi lima ribu rupiah.
+    </sub>
+  </p>
+</div>
+
 
 ```python
 runner.register(hello, hello_cmd, hello_py)
@@ -567,7 +613,7 @@ zrb hello
 Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
 
 
-## Use Case
+# More Example
 
 Let's start with a use case:
 
