@@ -491,7 +491,7 @@ Meanwhile, to access the value of `user-name` parameter, we can use `{{ input.us
   <img src="_images/emoji/snake.png">
   <p>
     <sub>
-      Python: The programming language, not the snake.
+      Python: This should be the programming language, not the snake.
     </sub>
   </p>
 </div>
@@ -582,6 +582,15 @@ Finally, we want `hello`, `hello-cmd`, and `hello-py` to be available from the C
 </details>
 
 ### The Output
+
+<div align="center">
+  <img src="_images/emoji/printer.png">
+  <p>
+    <sub>
+      System.out.print("Brrrr");
+    </sub>
+  </p>
+</div>
 
 Try to run `zrb hello` and see how Zrb executes `hello_cmd` and `hello_py` along the way.
 
