@@ -993,6 +993,16 @@ Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
 
 ### Advance Example: Long Running Task
 
+<div align="center">
+  <img src="_images/emoji/railway_car.png"/>
+  <p>
+    <sub>
+      <a href="https://www.youtube.com/watch?v=vYh-PjASgNk" target="blank">It's a long, long journey</a>
+    </sub>
+  </p>
+</div>
+
+
 Let's start with a use case:
 
 - We want to serve a single HTML file
