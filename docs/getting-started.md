@@ -22,8 +22,12 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
   - [Using `project.sh`](#using-projectsh)
 - [Creating a Task](#creating-a-task)
     - [Task Definition](#task-definition)
+    - [Common Task Properties](#common-task-properties)
+    - [Task Dependencies](#task-dependencies)
+    - [Task Inputs](#task-inputs)
+    - [Task Environments](#task-environments)
     - [Basic Example](#basic-example)
-- [More Example](#more-example)
+    - [Advance Example](#advance-example-long-running-task)
 
 This guide assumes you have some familiarity with CLI and Python.
 
@@ -789,7 +793,7 @@ Finally, by invoking `runner.register(hello, hello_cmd, hello_py)`; we want the 
 
 <summary>👉 <b>Click here to break down the code</b> 👈</summary>
 
-## Import Statement
+### Import Statement
 
 <div align="center">
   <img src="_images/emoji/truck.png"/>
@@ -814,7 +818,7 @@ At the very beginning, we import some resources from `zrb` package:
 - `Env`: We need this class to define Task Environments.
 - `StrInput`: We need this class to define Task Input/Parameter.
 
-## `hello-cmd` Definition
+### `hello-cmd` Definition
 
 <div align="center">
   <img src="_images/emoji/shell.png"/>
@@ -844,7 +848,7 @@ To access the value of `MODE` environment, we can use `{{ env.MODE }}`.
 
 Meanwhile, to access the value of `user-name` parameter, we can use `{{ input.user_name }}`. Notice how Zrb translates the input name into `snake_case`.
 
-## `hello-py` Definition
+### `hello-py` Definition
 
 <div align="center">
   <img src="_images/emoji/snake.png"/>
@@ -893,7 +897,7 @@ env_map = task.get_env_map()
 mode = env_map.get('MODE')
 ```
 
-## `hello` Definition And Its Dependencies
+### `hello` Definition And Its Dependencies
 
 
 <div align="center">
@@ -920,7 +924,7 @@ hello-py ───┐
 hello-cmd ──┘
 ```
 
-## Register Tasks to The `runner`
+### Register Tasks to The `runner`
 
 <div align="center">
   <img src="_images/emoji/page_facing_up.png"/>
@@ -947,7 +951,7 @@ zrb hello
 
 </details>
 
-## The Output
+### The Output
 
 <div align="center">
   <img src="_images/emoji/printer.png"/>
@@ -987,7 +991,7 @@ zrb hello
 
 Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
 
-## Advance Example: Long Running Task
+### Advance Example: Long Running Task
 
 Let's start with a use case:
 
