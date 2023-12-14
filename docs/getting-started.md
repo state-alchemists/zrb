@@ -369,9 +369,11 @@ There are two ways to create a Zrb Task:
 - __Using Task Class__ (e.g., `CmdTask`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc)
 - __Using `@python_task` decorator__
 
+## Task Definition
+
 Let's see some simple task definitions and break them down.
 
-__The Full Code__
+### The Example
 
 ```python
 from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
@@ -429,8 +431,7 @@ Finally, by invoking `runner.register(hello, hello_cmd, hello_py)`; we want the 
 
 <summary>🖱️ Click here to see the complete explanation</summary>
 
-
-__Import Statements__
+### Import Statement
 
 ```python
 from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
@@ -446,8 +447,7 @@ At the very beginning, we import some resources from `zrb` package:
 - `Env`: We need this class to define Task Environments.
 - `StrInput`: We need this class to define Task Input/Parameter.
 
-
-__Defining `hello-cmd`__
+### `hello-cmd` Definition
 
 ```python
 hello_cmd = CmdTask(
@@ -468,7 +468,7 @@ To access the value of `MODE` environment, we can use `{{ env.MODE }}`.
 
 Meanwhile, to access the value of `user-name` parameter, we can use `{{ input.user_name }}`. Notice how Zrb translates the input name into `snake_case`.
 
-__Defining `hello-py`__
+### `hello-py` Definition
 
 ```python
 @python_task(
@@ -508,7 +508,7 @@ env_map = task.get_env_map()
 mode = env_map.get('MODE')
 ```
 
-__Defining `hello` And Its Dependencies__
+### `hello` Definition And Its Dependencies
 
 ```python
 hello = Task(name='hello')
@@ -525,7 +525,7 @@ hello-py ───┐
 hello-cmd ──┘
 ```
 
-__Registering The Tasks__
+### Register Tasks to The `runner`
 
 ```python
 runner.register(hello, hello_cmd, hello_py)
@@ -535,6 +535,7 @@ Finally, we want `hello`, `hello-cmd`, and `hello-py` to be available from the C
 
 </details>
 
+### The Output
 
 Try to run `zrb hello` and see how Zrb executes `hello_cmd` and `hello_py` along the way.
 
