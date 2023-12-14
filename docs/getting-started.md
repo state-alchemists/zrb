@@ -1,7 +1,7 @@
 🔖 [Table of Contents](README.md)
 
 <div align="center">
-  <img src="_images/emoji/checkered_flag.png">
+  <img src="_images/emoji/checkered_flag.png"/>
   <p>
     <sub>
       Let's get started
@@ -22,6 +22,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
   - [Using `project.sh`](#using-projectsh)
 - [Creating a Task](#creating-a-task)
     - [Task Definition](#task-definition)
+    - [Basic Example](#basic-example)
 - [More Example](#more-example)
 
 This guide assumes you have some familiarity with CLI and Python.
@@ -29,7 +30,7 @@ This guide assumes you have some familiarity with CLI and Python.
 # Installing Zrb
 
 <div align="center">
-  <img src="_images/emoji/wrench.png">
+  <img src="_images/emoji/wrench.png"/>
   <p>
     <sub>
       Installation: Let's put this into your machine.
@@ -60,7 +61,7 @@ Alternatively, you can also install Zrb as a container. Please see the [installa
 
 
 <div align="center">
-  <img src="_images/emoji/runner.png">
+  <img src="_images/emoji/runner.png"/>
   <p>
     <sub>
       <a href="https://www.youtube.com/watch?v=2wVPyo_hnWw" target="blank">Run! run! run!</a>
@@ -113,7 +114,7 @@ In our previous example, Zrb will put `bm9uLWNyZWRlbnRpYWwtc3RyaW5n` into `Stand
 ## How Tasks are Organized
 
 <div align="center">
-  <img src="_images/emoji/file_cabinet.png">
+  <img src="_images/emoji/file_cabinet.png"/>
   <p>
     <sub>
       Put related Tasks under the same Group for better discoverability.
@@ -224,7 +225,7 @@ You will find two tasks (i.e., `decode` and `encode`) under the `base64` group.
 ## Using Interactive Mode
 
 <div align="center">
-  <img src="_images/emoji/speech_balloon.png">
+  <img src="_images/emoji/speech_balloon.png"/>
   <p>
     <sub>
       Most life issues are just communication problems in disguise.
@@ -268,7 +269,7 @@ In the rest of this section, you will learn about Zrb project and how to make yo
 # Creating A Project
 
 <div align="center">
-  <img src="_images/emoji/building_construction.png">
+  <img src="_images/emoji/building_construction.png"/>
   <p>
     <sub>
       A project is like a fridge light; it only works when you open it to check.
@@ -334,7 +335,7 @@ Anytime you start working on your project, you should load `project.sh`.
 # Creating A Task
 
 <div align="center">
-  <img src="_images/emoji/clipboard.png">
+  <img src="_images/emoji/clipboard.png"/>
   <p>
     <sub>
       Finishing a task: 10% skill, 90% not getting distracted by the internet.
@@ -354,19 +355,377 @@ Typically, a Zrb Task has multiple settings:
 - Task Input/Parameter 
 - Readiness Checker
 
+## Task Definition
+
+<div align="center">
+  <img src="_images/emoji/sparkles.png"/>
+  <p>
+    <sub>
+      And then there was light.
+    </sub>
+  </p>
+</div>
+
 There are two ways to create a Zrb Task:
 
 - __Using Task Class__ (e.g., `CmdTask`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc)
 - __Using `@python_task` decorator__
 
-## Task Definition
+### Using Task Class
 
-Let's see some simple task definitions and break them down.
+You can use Task Class as follows:
 
-### The Example
+```python
+variable_name = TaskClass(
+    name='task-name',
+    # other_task_property=some_value,
+    # ...
+)
+```
+
+Each Task Class handles a specific use case. For example, you can use `CmdTask` to run a shell script, but it is better to use `DockerComposeTask` for docker-compose-related jobs.
+
+Here is a quick list to see which class is better for what:
+
+- __Task__: General purpose class, usually created using `@python_task` decorator.
+- __CmdTask__: Run a CLI command/shell script.
+- __DockerComposeTask__: Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
+- __RemoteCmdTask__: Run a CLI command/shell script on remote computers using SSH.
+- __RSyncTask__: Copy file from/to remote computers using `rsync` command.
+- __ResourceMaker__: Create resources (source code/documents) based on provided templates.
+- __FlowTask__: Combine unrelated tasks into a single Workflow.
+- __RecurringTask__: Create a long-running recurring task.
+
+
+### Using `@python_task` decorator
+
+`@python_task` decorator is a syntactic sugar for `Task` class. You can use the decorator as follows:
+
+```python
+@python_task(
+    name='task-name,
+    # other_task_property=some_value,
+    # ...
+)
+def function_name(*args, **kwargs):
+    pass
+```
+
+`@python_task` decorator turns your function into a `Task`.
+
+## Common Task Properties
 
 <div align="center">
-  <img src="_images/emoji/feet.png">
+  <img src="_images/emoji/house.png"/>
+  <p>
+    <sub>
+      Property buying: where Monopoly meets your real bank balance.
+    </sub>
+  </p>
+</div>
+
+The following properties are usually available:
+
+- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`)
+- __description__: The description of the task.
+- __group__: The task group where the task belongs to
+- __inputs__: Task inputs and their default values.
+- __envs__: Task's environment variables.
+- __env_files__: Task's environment files.
+- __retry__: How many time to retry the execution before entering `Failed` state.
+- __upstreams__: Upstreams of the task. You can provide `AnyTask` as upstream.
+- __checkers__: List of checker tasks. You usually need this for long-running tasks.
+- __runner__: Only available in `@python_task`, the valid value is `zrb.runner`.
+
+
+## Task Dependencies
+
+<div align="center">
+  <img src="_images/emoji/chicken.png"/>
+  <img height="50em" src="_images/emoji/baby_chick.png">
+  <img height="50em" src="_images/emoji/baby_chick.png">
+  <img height="50em" src="_images/emoji/baby_chick.png">
+  <p>
+    <sub>
+      Followers are like shadows: bigger in the spotlight.
+    </sub>
+  </p>
+</div>
+
+There are two ways to define task dependencies in Zrb.
+
+- Using shift-right (i.e., `>>`) operator.
+- Using `upstreams` parameter.
+
+By defining dependencies, you can ensure that Zrb will wait for your upstreams to be ready before proceeding with the main task.
+
+You can use `>>` operator as follows:
+
+```python
+task_1 = CmdTask(name='task-1')
+task_2 = CmdTask(name='task-2')
+task_3 = CmdTask(name='task-3')
+task_4 = CmdTask(name='task-4')
+task_5 = CmdTask(name='task-5')
+task_6 = CmdTask(name='task-6')
+
+task_1 >> Parallel(task_2, task_3) >> Parallel(task_4, task_5) >> task_6
+```
+
+Or you can use `upstreams` parameter as follows:
+
+```python
+task_1 = CmdTask(name='task-1')
+task_2 = CmdTask(name='task-2', upstreams=[task_1])
+task_3 = CmdTask(name='task-3', upstreams=[task_1])
+task_4 = CmdTask(name='task-4', upstreams=[task_2, task_3])
+task_5 = CmdTask(name='task-5', upstreams=[task_2, task_3])
+task_6 = CmdTask(name='task-6', upstreams=[task_4, task_5])
+```
+
+## Task Inputs
+
+<div align="center">
+  <img src="_images/emoji/abcd.png"/>
+  <p>
+    <sub>
+      Input: where your program politely asks, 'What's the magic word?
+    </sub>
+  </p>
+</div>
+
+
+You can define task inputs using `StrInput`, `BoolInput`, `ChoiceInput`, `FloatInput`, `IntInput`, or `PasswordInput`.
+To create an input, you need to provide some parameters:
+
+- __name__: The name of the input. By convention, this should be kebab-cased (required).
+- __default__: The default value of the input (optional, default: `None`).
+- __should_render__: Whether the input should be rendered as Jinja template or not (optional, default: `True`).
+
+For example, here you have an input named `message` with `Hello World` as the default value:
+
+```python
+from zrb import StrInput
+
+message = StrInput(name='message', default='Hello World')
+```
+
+When you run a task with task inputs, Zrb will prompt you to override the input values. You can press `enter` if you want to use the default values.
+
+### Using Task Inputs on Task Class
+
+To access the values of your inputs in your Task Properties, you can use Jinja template `{{ input.input_name }}`. Notice that you should use `snake_case` instead of `kebab-case` to refer to the input. Let's see the following example:
+
+```python
+from zrb import runner, CmdTask, StrInput
+
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    inputs=[
+        StrInput(name='your-name', default='World')
+    ],
+    # Notice, we use {{input.your_name}} not {{input.your-name}} !!!
+    cmd='echo Hello {{input.your_name}}'
+)
+runner.register(hello_cmd)
+```
+
+You can then run the task by invoking:
+
+```bash
+zrb hello-cmd
+# or
+zrb hello-cmd --your-name "John Wick"
+```
+
+### Using Task Inputs on `@python_task` Decorator
+
+As for `@python_task`, you can use `kwargs` dictionary to get the input.
+
+```python
+from zrb import runner, python_task, StrInput
+
+@python_task(
+    name='hello-py',
+    inputs=[
+        StrInput(name='your-name', default='World')
+    ],
+    runner=runner
+)
+def hello_py(*args, **kwargs):
+    # Notice, we use `your_name` instead of `your-name` !!!
+    name = kwargs.get('your_name')
+    return f'Hello {name}'
+```
+
+
+You can then run the task by invoking:
+
+```bash
+zrb hello-py
+# or
+zrb hello-py --your-name "John Wick"
+```
+
+## Task Environments
+
+<div align="center">
+  <img src="_images/emoji/palm_tree.png"/>
+  <p>
+    <sub>
+      Save the Earth. It's the only planet with chocolate!
+    </sub>
+  </p>
+</div>
+
+Aside from input, you can also define the `Task`'s environment variables using `Env` and `EnvFile`.
+
+### Env
+
+You can use `Env` to define a single environment variable for your Tasks. Typically, a Task could take multiple `Env`.
+
+To create an `Env`, you need to provide some parameters:
+
+- __name__: Name of the environment variable (required).
+- __os_name__: Name of OS environment (optional, default=`None`)
+    - if set to `None`, Zrb will link the environment variable to the OS environment.
+    - if set to an empty string (i.e., `''`), Zrb will not link the environment variable to the OS's environment.
+    - if set to a non-empty string, Zrb will link the environment variable to the OS's environment corresponding to this value.
+- __default__: Default value of the environment variable (optional, default: `None`).
+- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
+
+
+```python
+from zrb import Env
+
+env = Env(name='MESSAGE')
+```
+
+### EnvFile
+
+<div align="center">
+  <img src="_images/emoji/desert_island.png"/>
+  <p>
+    <sub>
+      An island is just a sea's attempt at a mountain peak joke.
+    </sub>
+  </p>
+</div>
+
+`EnvFile` loads an environment file and uses its values as Task's environment variables. Typically a Task could take multiple `EnvFile`.
+
+To create an `EnvFile`, you need to provide some parameters:
+
+- __env_file__: Name of the environment file (required).
+- __prefix__: Custom prefix for environment's os_name (optional, default=`None`)
+- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
+
+```python
+from zrb import EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
+env_file = EnvFile(path=PROJECT_ENV)
+```
+
+### Using Env and EnvFile
+
+To use `EnvFile` in your tasks. Let's first create an environment file named `project.env`:
+
+```bash
+# file-name: project.env
+SERVER_HOST=localhost
+```
+
+### Using Env and EnvFile on Task Class
+
+To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ env.ENV_NAME }}`.
+
+```python
+from zrb import runner, CmdTask, Env, EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
+
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    envs=[
+        Env(name='MESSAGE', default='Hello world'),
+    ],
+    env_files=[
+        EnvFile(path=PROJECT_ENV)
+    ],
+    cmd=[
+        'echo Message: {{env.MESSAGE}}',
+        'echo Host: {{env.SERVER_HOST}}',
+    ]
+)
+runner.register(hello_cmd)
+```
+
+You can then run the task by invoking:
+
+```bash
+zrb hello-cmd
+```
+
+It will give you the following results:
+
+```
+Message: Hello world
+Host: localhost
+```
+
+### Using Env and EnvFile on `@python_task` Decorator
+
+As for `@python_task`, you cannot use `os.getenv` to access task's environment. Instead, you should get the `task` instance from `kwargs`` and invoke `task.get_env_map()`.
+
+```python
+from zrb import runner, AnyTask, python_task, Env, EnvFile
+import os
+
+PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
+
+
+@python_task(
+    name='hello-py',
+    envs=[
+        Env(name='MESSAGE', default='Hello world'),
+    ],
+    env_files=[
+        EnvFile(path=PROJECT_ENV)
+    ],
+    runner=runner
+)
+def hello_py(*args, **kwargs):
+    task: AnyTask = kwargs.get('_task')
+    env_map = task.get_env_map()
+    message = env_map.get('MESSAGE')
+    server_host = env_map.get('SERVER_HOST')
+    return '\n'.join([
+        f'Message: {message}',
+        f'Host: {server_host}'
+    ])
+```
+
+You can then run the task by invoking:
+
+```bash
+zrb hello-cmd
+```
+
+It will give you the following results:
+
+```
+Message: Hello world
+Host: localhost
+```
+
+
+## Basic Example
+
+<div align="center">
+  <img src="_images/emoji/feet.png"/>
   <p>
     <sub>
       One small step for a man, one giant leap for mankind.
@@ -430,10 +789,10 @@ Finally, by invoking `runner.register(hello, hello_cmd, hello_py)`; we want the 
 
 <summary>👉 <b>Click here to break down the code</b> 👈</summary>
 
-### Import Statement
+## Import Statement
 
 <div align="center">
-  <img src="_images/emoji/truck.png">
+  <img src="_images/emoji/truck.png"/>
   <p>
     <sub>
       <a href="https://xkcd.com/353/" target="blank">import antigravity.</a>
@@ -455,10 +814,10 @@ At the very beginning, we import some resources from `zrb` package:
 - `Env`: We need this class to define Task Environments.
 - `StrInput`: We need this class to define Task Input/Parameter.
 
-### `hello-cmd` Definition
+## `hello-cmd` Definition
 
 <div align="center">
-  <img src="_images/emoji/shell.png">
+  <img src="_images/emoji/shell.png"/>
   <p>
     <sub>
       Shell Script: Every problem is a line of code away from being solved.
@@ -485,10 +844,10 @@ To access the value of `MODE` environment, we can use `{{ env.MODE }}`.
 
 Meanwhile, to access the value of `user-name` parameter, we can use `{{ input.user_name }}`. Notice how Zrb translates the input name into `snake_case`.
 
-### `hello-py` Definition
+## `hello-py` Definition
 
 <div align="center">
-  <img src="_images/emoji/snake.png">
+  <img src="_images/emoji/snake.png"/>
   <p>
     <sub>
       Python: This should be the programming language, not the snake.
@@ -534,11 +893,11 @@ env_map = task.get_env_map()
 mode = env_map.get('MODE')
 ```
 
-### `hello` Definition And Its Dependencies
+## `hello` Definition And Its Dependencies
 
 
 <div align="center">
-  <img src="_images/emoji/pill.png">
+  <img src="_images/emoji/pill.png"/>
   <p>
     <sub>
       Adding a new dependency is like inviting a stranger to live in your codebase.
@@ -561,10 +920,10 @@ hello-py ───┐
 hello-cmd ──┘
 ```
 
-### Register Tasks to The `runner`
+## Register Tasks to The `runner`
 
 <div align="center">
-  <img src="_images/emoji/page_facing_up.png">
+  <img src="_images/emoji/page_facing_up.png"/>
   <p>
     <sub>
       Fotokopi KTP dan biaya registrasi lima ribu rupiah.
@@ -577,14 +936,21 @@ hello-cmd ──┘
 runner.register(hello, hello_cmd, hello_py)
 ```
 
-Finally, we want `hello`, `hello-cmd`, and `hello-py` to be available from the CLI.
+Finally, we want `hello`, `hello-cmd`, and `hello-py` to be available from the CLI. By registering the tasks, you will be able to invoke them from the CLI:
+
+```bash
+zrb hello-py
+zrb hello-cmd
+zrb hello
+```
+
 
 </details>
 
-### The Output
+## The Output
 
 <div align="center">
-  <img src="_images/emoji/printer.png">
+  <img src="_images/emoji/printer.png"/>
   <p>
     <sub>
       System.out.print("Brrrr");
@@ -1112,246 +1478,7 @@ Each task has its specific parameter. However, the following parameters are typi
 You can apply task parameters to both Task classes and `@python_task` decorator.
 
 
-# Task Dependencies
 
-There are two ways to define task dependencies in Zrb.
-
-- Using `>>` operator.
-- Using `upstreams` parameter.
-
-You can use `>>` operator as follows:
-
-```python
-task_1 = CmdTask(name='task-1')
-task_2 = CmdTask(name='task-2')
-task_3 = CmdTask(name='task-3')
-task_4 = CmdTask(name='task-4')
-task_5 = CmdTask(name='task-5')
-task_6 = CmdTask(name='task-6')
-
-task_1 >> Parallel(task_2, task_3) >> Parallel(task_4, task_5) >> task_6
-```
-
-Or you can use `upstreams` parameter as follows:
-
-```python
-task_1 = CmdTask(name='task-1')
-task_2 = CmdTask(name='task-2', upstreams=[task_1])
-task_3 = CmdTask(name='task-3', upstreams=[task_1])
-task_4 = CmdTask(name='task-4', upstreams=[task_2, task_3])
-task_5 = CmdTask(name='task-5', upstreams=[task_2, task_3])
-task_6 = CmdTask(name='task-6', upstreams=[task_4, task_5])
-```
-
-## Task Inputs
-
-You can define task inputs using `StrInput`, `BoolInput`, `ChoiceInput`, `FloatInput`, `IntInput`, or `PasswordInput`.
-To create an input, you need to provide some parameters:
-
-- __name__: The name of the input. By convention, this should be kebab-cased (required).
-- __default__: The default value of the input (optional, default: `None`).
-- __should_render__: Whether the input should be rendered as Jinja template or not (optional, default: `True`).
-
-For example, here you have an input named `message` with `Hello World` as the default value:
-
-```python
-from zrb import StrInput
-
-message = StrInput(name='message', default='Hello World')
-```
-
-When you run a task with task inputs, Zrb will prompt you to override the input values. You can press `enter` if you want to use the default values.
-
-### Using Task Inputs on CmdTask
-
-To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ input.input_name }}`. Notice that you should use `snake_case` instead of `kebab-case` to refer to the input. Let's see the following example:
-
-```python
-from zrb import runner, CmdTask, StrInput
-
-hello_cmd = CmdTask(
-    name='hello-cmd',
-    inputs=[
-        StrInput(name='your-name', default='World')
-    ],
-    # Notice, we use {{input.your_name}} not {{input.your-name}} !!!
-    cmd='echo Hello {{input.your_name}}'
-)
-runner.register(hello_cmd)
-```
-
-You can then run the task by invoking:
-
-```bash
-zrb hello-cmd
-# or
-zrb hello-cmd --your-name "John Wick"
-```
-
-### Using Task Inputs on @python_task Decorator
-
-As for `@python_task`, you can use `kwargs` dictionary to get the input.
-
-```python
-from zrb import runner, python_task, StrInput
-
-@python_task(
-    name='hello-py',
-    inputs=[
-        StrInput(name='your-name', default='World')
-    ],
-    runner=runner
-)
-def hello_py(*args, **kwargs):
-    # Notice, we use `your_name` instead of `your-name` !!!
-    name = kwargs.get('your_name')
-    return f'Hello {name}'
-```
-
-
-You can then run the task by invoking:
-
-```bash
-zrb hello-py
-# or
-zrb hello-py --your-name "John Wick"
-```
-
-## Task Environments
-
-Aside from input, you can also define the `Task`'s environment variables using `Env` and `EnvFile`.
-
-### Env
-
-You can use `Env` to define a single environment variable for your Tasks. Typically, a Task could take multiple `Env`.
-
-To create an `Env`, you need to provide some parameters:
-
-- __name__: Name of the environment variable (required).
-- __os_name__: Name of OS environment (optional, default=`None`)
-    - if set to `None`, Zrb will link the environment variable to the OS environment.
-    - if set to an empty string (i.e., `''`), Zrb will not link the environment variable to the OS's environment.
-    - if set to a non-empty string, Zrb will link the environment variable to the OS's environment corresponding to this value.
-- __default__: Default value of the environment variable (optional, default: `None`).
-- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
-
-
-```python
-from zrb import Env
-
-env = Env(name='MESSAGE')
-```
-
-### EnvFile
-
-`EnvFile` loads an environment file and uses its values as Task's environment variables. Typically a Task could take multiple `EnvFile`.
-
-To create an `EnvFile`, you need to provide some parameters:
-
-- __env_file__: Name of the environment file (required).
-- __prefix__: Custom prefix for environment's os_name (optional, default=`None`)
-- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
-
-```python
-from zrb import EnvFile
-import os
-
-PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
-env_file = EnvFile(path=PROJECT_ENV)
-```
-
-### Using Env and EnvFile
-
-To use `EnvFile` in your tasks. Let's first create an environment file named `project.env`:
-
-```bash
-# file-name: project.env
-SERVER_HOST=localhost
-```
-
-### Using Env and EnvFile on CmdTask
-
-To access the values of your inputs from your `CmdTask`, you can use Jinja template `{{ env.ENV_NAME }}`.
-
-```python
-from zrb import runner, CmdTask, Env, EnvFile
-import os
-
-PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
-
-hello_cmd = CmdTask(
-    name='hello-cmd',
-    envs=[
-        Env(name='MESSAGE', default='Hello world'),
-    ],
-    env_files=[
-        EnvFile(path=PROJECT_ENV)
-    ],
-    cmd=[
-        'echo Message: {{env.MESSAGE}}',
-        'echo Host: {{env.SERVER_HOST}}',
-    ]
-)
-runner.register(hello_cmd)
-```
-
-You can then run the task by invoking:
-
-```bash
-zrb hello-cmd
-```
-
-It will give you the following results:
-
-```
-Message: Hello world
-Host: localhost
-```
-
-### Using Env and EnvFile on @python_task Decorator
-
-As for `@python_task`, you cannot use `os.getenv` to access task's environment. Instead, you should get the `task` instance from `kwargs`` and invoke `task.get_env_map()`.
-
-```python
-from zrb import runner, AnyTask, python_task, Env, EnvFile
-import os
-
-PROJECT_ENV = os.path.join(os.path.dirname(__file__), 'project.env')
-
-
-@python_task(
-    name='hello-py',
-    envs=[
-        Env(name='MESSAGE', default='Hello world'),
-    ],
-    env_files=[
-        EnvFile(path=PROJECT_ENV)
-    ],
-    runner=runner
-)
-def hello_py(*args, **kwargs):
-    task: AnyTask = kwargs.get('_task')
-    env_map = task.get_env_map()
-    message = env_map.get('MESSAGE')
-    server_host = env_map.get('SERVER_HOST')
-    return '\n'.join([
-        f'Message: {message}',
-        f'Host: {server_host}'
-    ])
-```
-
-You can then run the task by invoking:
-
-```bash
-zrb hello-cmd
-```
-
-It will give you the following results:
-
-```
-Message: Hello world
-Host: localhost
-```
 
 ## Switching Environment
 

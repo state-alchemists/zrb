@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="_images/emoji/books.png">
+  <img src="_images/emoji/books.png"/>
   <p>
     <sub>
       RTFM, They say.
