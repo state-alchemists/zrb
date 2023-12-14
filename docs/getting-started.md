@@ -275,7 +275,7 @@ That's it. That's all you need to know to work with Zrb.
 
 In the rest of this section, you will learn about Zrb project and how to make your own Zrb Tasks.
 
-# Creating a project
+# Creating A Project
 
 <div align="center">
   <img src="_images/emoji/building_construction.png">
@@ -341,7 +341,7 @@ source project.sh
 
 Anytime you start working on your project, you should load `project.sh`.
 
-# Creating a Task
+# Creating A Task
 
 <div align="center">
   <img src="_images/emoji/clipboard.png">
@@ -354,7 +354,7 @@ Anytime you start working on your project, you should load `project.sh`.
 
 Tasks are your most negligible unit of job definition.
 
-Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `RecurringTask`, `ResourceMaker`, etc.
+Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
 
 Typically, a Zrb Task has multiple settings:
 
@@ -364,7 +364,207 @@ Typically, a Zrb Task has multiple settings:
 - Task Input/Parameter 
 - Readiness Checker
 
-In this Getting-Started tutorial, we will only cover a few Task Types.
+There are two ways to create a Zrb Task:
+
+- __Using Task Class__ (e.g., `CmdTask`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc)
+- __Using `@python_task` decorator__
+
+Let's see some simple task definitions and break them down.
+
+__The Full Code__
+
+```python
+from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
+
+# Define first task
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    envs=[
+        Env(name='MODE', default='DEV')
+    ],
+    inputs=[
+        StrInput(name='user-name', default='Tom')
+    ],
+    cmd='echo "Hello, {{ input.user_name }}. Current mode: {{ env.MODE }}"'
+)
+
+# Define second task
+@python_task(
+    name='hello-py',
+    envs=[
+        Env(name='MODE', default='DEV')
+    ],
+    inputs=[
+        StrInput(name='user-name', default='Tom')
+    ]
+)
+def hello_py(*args, **kwargs) -> str:
+    task: Task = kwargs.get('_task')
+    env_map = task.get_env_map()
+    user_name = kwargs.get('user_name')
+    mode = env_map.get('MODE')
+    task.print_out(f'Hello, {user_name}. Current mode: {mode}')
+
+# Define third task along with it's dependencies
+hello = Task(name='hello')
+Parallel(hello_cmd, hello_py) >> hello
+
+# Register tasks to runner
+runner.register(hello, hello_cmd, hello_py)
+```
+
+In the example, we have three task definitions:
+
+- `hello-cmd`
+- `hello-py`
+- `hello`
+
+We also set `hello-cmd` and `hello-py` as `hello`'s dependencies. That means Zrb will always wait for `hello-cmd` and `hello-py` readiness before proceeding with `hello`.
+
+Finally, by invoking `runner.register(hello, hello_cmd, hello_py)`; we want the tasks to be available from the CLI.
+
+> __⚠️ WARNING:__ Notice how `user-name` input is retrieved as `{{ input.user_name }}` or `kwargs.get('user_name')`. Zrb automatically translate the input name into `snake_case` since Python doesn't recognize `kebab-case` as valid variable name.
+
+<details>
+
+<summary>🖱️ Click here to see the complete explanation</summary>
+
+
+__Import Statements__
+
+```python
+from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
+```
+
+At the very beginning, we import some resources from `zrb` package:
+
+- `runner`: We need Zrb runner to register our tasks and make them available from the CLI.
+- `Parallel`: We need this class to define concurrent dependencies.
+- `Task`: We need this class to create a simple Zrb Task. We can also use this class for type-hint.
+- `CmdTask`: We need this class to create a shell script Task.
+- `python_task`: We need this class to create a Python Task.
+- `Env`: We need this class to define Task Environments.
+- `StrInput`: We need this class to define Task Input/Parameter.
+
+
+__Defining `hello-cmd`__
+
+```python
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    envs=[
+        Env(name='MODE', default='DEV')
+    ],
+    inputs=[
+        StrInput(name='user-name', default='Tom')
+    ],
+    cmd='echo "Hello, {{ input.user_name }}. Current mode: {{ env.MODE }}"'
+)
+```
+
+`hello-cmd` is a `CmdTask`. It has an environment variable named `MODE` and a parameter named `user-name`.
+
+To access the value of `MODE` environment, we can use `{{ env.MODE }}`.
+
+Meanwhile, to access the value of `user-name` parameter, we can use `{{ input.user_name }}`. Notice how Zrb translates the input name into `snake_case`.
+
+__Defining `hello-py`__
+
+```python
+@python_task(
+    name='hello-py',
+    envs=[
+        Env(name='MODE', default='DEV')
+    ],
+    inputs=[
+        StrInput(name='user-name', default='Tom')
+    ]
+)
+def hello_py(*args, **kwargs) -> str:
+    task: Task = kwargs.get('_task')
+    env_map = task.get_env_map()
+    user_name = kwargs.get('user_name')
+    mode = env_map.get('MODE')
+    task.print_out(f'Hello, {user_name}. Current mode: {mode}')
+```
+
+`hello-py` is a Python Task. Like `hello-cmd`, it has an environment variable named `MODE` and a parameter named `user-name`.
+
+We use `@python_task` decorator to turn `hello_py` into a Task.
+
+`hello_py` function takes a keyword argument `kwargs`. You can see that `Zrb` automatically inject the inputs as keyword arguments. Additionally, the keyword argument also contains a `_task` object, representing the current task.
+
+You can retrieve `user-name` input value by from the `kwargs` argument as follow:
+
+```python
+user_name = kwargs.get('user_name')
+```
+
+Meanwhile, to access the value of `MODE` environment you cannot use `os.getenv` or `os.environ`. Instead, you should retrieve the task first and get the environment map:
+
+```python
+task: Task = kwargs.get('_task')
+env_map = task.get_env_map()
+mode = env_map.get('MODE')
+```
+
+__Defining `hello` And Its Dependencies__
+
+```python
+hello = Task(name='hello')
+Parallel(hello_cmd, hello_py) >> hello
+```
+
+`hello` is a simple Zrb Task. This task wraps our two previous tasks into a single command.
+
+You can use the shift-right operator (i.e., `>>`) to define the dependencies. In this example, we want `hello` to depend on `hello-py` and `hello-cmd`. Thus, we can expect Zrb to run `hello-py` and `hello-cmd` before proceeding with `hello`.
+
+```
+hello-py ───┐
+            ├─► hello
+hello-cmd ──┘
+```
+
+__Registering The Tasks__
+
+```python
+runner.register(hello, hello_cmd, hello_py)
+```
+
+Finally, we want `hello`, `hello-cmd`, and `hello-py` to be available from the CLI.
+
+</details>
+
+
+Try to run `zrb hello` and see how Zrb executes `hello_cmd` and `hello_py` along the way.
+
+```bash
+zrb hello
+```
+
+```
+User name [Tom]: Jerry
+🤖 ○ ◷ 2023-12-14 20:48:05.852 ❁  45423 → 1/3 🍋        zrb hello-cmd • Run script: echo "Hello, Jerry. Current mode: DEV"
+🤖 ○ ◷ 2023-12-14 20:48:05.853 ❁  45423 → 1/3 🍋        zrb hello-cmd • Working directory: /home/gofrendi/playground/getting-started
+🤖 ○ ◷ 2023-12-14 20:48:05.859 ❁  45423 → 1/3 🐨         zrb hello-py • Hello, Jerry. Current mode: DEV
+🤖 ○ ◷ 2023-12-14 20:48:05.862 ❁  45444 → 1/3 🍋        zrb hello-cmd • Hello, Jerry. Current mode: DEV
+Support zrb growth and development!
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+🤖 ○ ◷ 2023-12-14 20:48:05.902 ❁  45423 → 1/3 🐱            zrb hello • Completed in 0.05356645584106445 seconds
+To run again: zrb hello --user-name "Jerry"
+```
+
+Furthermore, you can try to set `MODE` environment in your terminal and see how it affects the output:
+
+```bash
+export MODE=PROD
+zrb hello
+```
+
+Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
+
 
 ## Use Case
 
@@ -378,13 +578,116 @@ Let's start with a use case:
 We can break down the requirements into some tasks.
 
 ```
-        🥬                      🧑‍🍳               🥗
+        🥬                      🔍               🥗
 Prepare Resources ────► Monitor and Rebuild ────► Serve
 ```
 
 ## Implementation
 
 
+```python
+from typing import Any
+from zrb import (
+    runner, Parallel, Task, CmdTask, python_task, ResourceMaker, RecurringTask,
+    PathWatcher, TimeWatcher, HTTPChecker, Env, EnvFile, IntInput
+)
+import os
+
+CURRENT_DIR = os.path.dirname(__file__)
+
+
+@python_task(
+    icon='🍆',
+    name='prepare-template',
+)
+def prepare_template(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    template_dir = os.path.join(CURRENT_DIR, 'template')
+    template_html_file = os.path.join(template_dir, 'index.html')
+    if os.path.isfile(template_html_file):
+        task.print_out(f'{template_html_file} already exists')
+        return
+    os.makedirs(template_dir, exist_ok=True)
+    with open(template_html_file, 'w') as file:
+        task.print_out(f'Creating {template_html_file}')
+        file.write('\n'.join([
+            '<title>ConfigTitle</title>',
+            '<p>Message: ConfigMessage</p>',
+            '<p>Author: ConfigAuthor</p>',
+            '<p>Last Generated: LastGenerated</p>'
+        ]))
+
+
+@python_task(
+    icon='🥬',
+    name='prepare-env',
+)
+def prepare_env(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    env_file = os.path.join(CURRENT_DIR, '.env')
+    if os.path.isfile(env_file):
+        task.print_out(f'{env_file} already exists')
+        return
+    with open(env_file, 'w') as file:
+        task.print_out(f'Creating {env_file}')
+        file.write('\n'.join([
+            'TITLE=My-page',
+            'DEV_TITLE=My-page-dev',
+            'AUTHOR=No-one'
+        ]))
+
+
+build = ResourceMaker(
+    icon='🍳',
+    name='build',
+    envs=[
+        Env(name='MESSAGE', default='Salve Mane')
+    ],
+    env_files=[
+        EnvFile(path=os.path.join(CURRENT_DIR, '.env'))
+    ],
+    template_path=os.path.join(CURRENT_DIR, 'template'),
+    destination_path=os.path.join(CURRENT_DIR, 'web'),
+    replacements={
+        'ConfigTitle': '{{ env.TITLE }}',
+        'ConfigMessage': '{{ env.MESSAGE }}',
+        'ConfigAuthor': '{{ env.AUTHOR }}',
+        'LastGenerated': '{{ datetime.datetime.now() }}'
+    }
+)
+
+
+monitor = RecurringTask(
+    icon='🔍',
+    name='monitor',
+    task=build,
+    triggers=[
+        PathWatcher(path=os.path.join(CURRENT_DIR, 'template', '*.*')),
+        PathWatcher(path=os.path.join(CURRENT_DIR, '.env')),
+        TimeWatcher(schedule='* * * * *')
+    ]
+)
+
+serve = CmdTask(
+    icon='🥗',
+    name='serve',
+    envs=[
+        Env('BIND_ADDRESS', default='0.0.0.0')
+    ],
+    inputs=[
+        IntInput(name='port', default='8080')
+    ],
+    cwd=os.path.join(CURRENT_DIR, 'web'),
+    cmd='python -m http.server {{ input.port }} --bind {{ env.BIND_ADDRESS }}',
+    checkers=[
+        HTTPChecker(host='{{ env.BIND_ADDRESS }}', port='{{ input.port }}')
+    ]
+)
+
+Parallel(prepare_env, prepare_template) >> Parallel(build, monitor) >> serve
+runner.register(build, monitor, serve)
+
+```
 
 
 
