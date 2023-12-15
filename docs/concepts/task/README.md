@@ -86,7 +86,7 @@ Triggered ─────► Waiting ────► Started ─────► 
 <!--start-doc-->
 ## `Task`
 
-Alias for BaseTask
+Alias for BaseTask.
 
 ### `Task._BaseTaskModel__get_colored`
 

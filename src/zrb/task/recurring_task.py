@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union
+    Any, Callable, Iterable, List, Mapping, Optional, Union
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.accessories.name import get_random_name
@@ -8,6 +8,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
+from zrb.task.task import Task
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -47,9 +48,10 @@ class RecurringTask(BaseTask):
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
-        inputs = list(inputs) + task._get_combined_inputs()
-        envs = list(envs) + task._get_envs()
-        env_files = list(env_files) + task._get_env_files()
+        self._task: AnyTask = task.copy()
+        inputs = list(inputs) + self._task._get_combined_inputs()
+        envs = list(envs) + self._task._get_envs()
+        env_files = list(env_files) + self._task._get_env_files()
         BaseTask.__init__(
             self,
             name=name,
@@ -75,8 +77,9 @@ class RecurringTask(BaseTask):
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
         )
-        self._task = task
-        self._triggers = triggers
+        self._triggers: List[AnyTask] = [
+            trigger.copy() for trigger in triggers
+        ]
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)

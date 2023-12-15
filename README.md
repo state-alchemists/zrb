@@ -280,3 +280,23 @@ Help Red Skull to click the donation button:
 > Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
 
 ![Madou Ring Zaruba on Kouga's Hand](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/madou-ring-zaruba.jpg)
+
+# 🙇 Credits
+
+We are thankful for the following libraries and services. They accelerate Zrb development processes and make things more fun.
+
+- Libraries
+    - [Beartype](https://pypi.org/project/beartype/): Catch invalid typing earlier during runtime.
+    - [Click](https://pypi.org/project/click/): Creating a beautiful CLI interface.
+    - [Termcolor](https://pypi.org/project/termcolor/): Make the terminal interface more colorful.
+    - [Jinja](https://pypi.org/project/Jinja2): A robust templating engine.
+    - [Ruamel.yaml](https://pypi.org/project/ruamel.yaml/): Parse YAML effortlessly.
+    - [Jsons](https://pypi.org.project/jsons/): Parse JSON. This package should be part of the standard library.
+    - [Libcst](https://pypi.org/project/libcst/): Turn Python code into a Concrete Syntax Tree.
+    - [Croniter](https://pypi.org/project/croniter/): Parse cron pattern.
+    - [Flit](https://pypi.org/project/flit), [Twine](https://pypi.org/project/twine/), and many more. See the complete list of Zrb's requirements.txt
+- Services
+    - [asciiflow.com](https://asciiflow.com/): Creates beautiful ASCII-based diagrams.
+    - [emojipedia.org](https://emojipedia.org/): Find emoji.
+    - [emoji.aranja.com](https://emoji.aranja.com/): Turns emoji into images
+    - [favicon.io](https://favicon.io/): Turns pictures and texts (including emoji) into favicon.
