@@ -1215,7 +1215,7 @@ You can try to run the task by invoking the following command:
 zrb serve
 ```
 
-The html page will be available from [http://localhost:8080](http://localhost:8080).
+The HTML page will be available from [http://localhost:8080](http://localhost:8080).
 
 Furthermore, you can set `ZRB_ENV` into `DEV` and see how Zrb automatically cascade `DEV_TITLE` into `TITLE`
 
@@ -1224,7 +1224,14 @@ export ZRB_ENV=DEV
 zrb serve
 ```
 
-Once you do so, you will see that Zrb is now showing `My-page-dev` instead of `My-page` as the page title.
+Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title.
+
+
+# Next
+
+Now you are ready. You can proceed with [concept section](concepts/README.md) to learn more about the details.
+
+Have fun, Happy Coding, and Automate More!!!
 
 
 🔖 [Table of Contents](README.md)
