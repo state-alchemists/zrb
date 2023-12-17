@@ -170,7 +170,7 @@ runner.register(auto_make_docs)
 build = CmdTask(
     name='build',
     description='Build Zrb',
-    upstreams=[remake_docs],
+    upstreams=[make_docs],
     cwd=CURRENT_DIR,
     cmd=[
         'set -e',
@@ -425,14 +425,36 @@ test = CmdTask(
     upstreams=[install_symlink],
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Perform test"',
-        'pytest -vv --ignore-glob="**/template/**/test" --ignore-glob="**/generator/**/app" --ignore=playground --cov=zrb --cov-config=".coveragerc" --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
+        'pytest -vv \\',
+        '  --ignore-glob="**/template/**/test" \\',
+        '  --ignore-glob="**/generator/**/app"  \\',
+        '  --ignore=playground \\',
+        '  --cov=zrb \\',
+        '  --cov-config=".coveragerc" \\',
+        '  --cov-report=html \\',
+        '  --cov-report=term \\',
+        '  --cov-report=term-missing {{input.test}}'
     ],
     retry=0,
     checking_interval=1
 )
 runner.register(test)
+
+###############################################################################
+# ⚙️ auto-test
+###############################################################################
+
+auto_test = RecurringTask(
+    name='auto-test',
+    description='Keep running the test whenever there is any changes',
+    task=test,
+    triggers=[
+        PathWatcher(path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.*')),
+        PathWatcher(path=os.path.join(CURRENT_DIR, 'test', '**', '*.*'))
+    ]
+)
+runner.register(auto_test)
 
 ###############################################################################
 # ⚙️ serve-test
@@ -450,7 +472,10 @@ serve_test = CmdTask(
             default='9000'
         )
     ],
-    upstreams=[test],
+    upstreams=[
+        test,
+        auto_test
+    ],
     cmd=[
         'set -e',
         'echo "🤖 Serve coverage report"',
