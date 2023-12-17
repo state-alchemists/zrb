@@ -453,9 +453,9 @@ serve_test = CmdTask(
     upstreams=[test],
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Serve coverage report"',
-        f'python -m http.server {{input.port}} --directory {CURRENT_DIR}/htmlcov',  # noqa
+        'python -m http.server {{input.port}} \\',
+        f'  --directory "{CURRENT_DIR}/htmlcov"',
     ],
     checkers=[
         HTTPChecker(port='{{input.port}}')

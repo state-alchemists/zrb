@@ -35,7 +35,7 @@ class Group():
         parent: Optional[TGroup] = None
     ):
         self.__name = name
-        self.__description = description
+        self.__description = description if description is not None else ''
         self._parent = parent
         if parent is not None:
             parent.__children.append(self)
