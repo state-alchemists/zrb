@@ -442,21 +442,6 @@ test = CmdTask(
 runner.register(test)
 
 ###############################################################################
-# ⚙️ auto-test
-###############################################################################
-
-auto_test = RecurringTask(
-    name='auto-test',
-    description='Keep running the test whenever there is any changes',
-    task=test,
-    triggers=[
-        PathWatcher(path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.*')),
-        PathWatcher(path=os.path.join(CURRENT_DIR, 'test', '**', '*.*'))
-    ]
-)
-runner.register(auto_test)
-
-###############################################################################
 # ⚙️ serve-test
 ###############################################################################
 
@@ -472,10 +457,7 @@ serve_test = CmdTask(
             default='9000'
         )
     ],
-    upstreams=[
-        test,
-        auto_test
-    ],
+    upstreams=[test],
     cmd=[
         'set -e',
         'echo "🤖 Serve coverage report"',
