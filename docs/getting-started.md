@@ -69,7 +69,7 @@ Alternatively, you can also install Zrb as a container. Please see the [installa
   <img src="_images/emoji/runner.png"/>
   <p>
     <sub>
-      <a href="https://www.youtube.com/watch?v=2wVPyo_hnWw" target="blank">Run! run! run!</a>
+      <a href="https://www.youtube.com/watch?v=2wVPyo_hnWw" target="_blank">Run! run! run!</a>
     </sub>
   </p>
 </div>
@@ -728,6 +728,15 @@ Host: localhost
 
 ## Environment Cascading
 
+<div align="center">
+  <img src="_images/emoji/fountain.png"/>
+  <p>
+    <sub>
+      Cascading: Nature's way of saying, 'Let's take this step by step, but faster!'
+    </sub>
+  </p>
+</div>
+
 Zrb has a feature named environment-cascading. In short, it can help you to switch between `DEV`, `PROD`, or `STAGING` based on `ZRB_ENV` value.
 
 For example, suppose we have the following task:
@@ -852,7 +861,7 @@ Finally, by invoking `runner.register(hello, hello_cmd, hello_py)`; we want the 
   <img src="_images/emoji/truck.png"/>
   <p>
     <sub>
-      <a href="https://xkcd.com/353/" target="blank">import antigravity.</a>
+      <a href="https://xkcd.com/353/" target="_blank">import antigravity.</a>
     </sub>
   </p>
 </div>
@@ -1050,7 +1059,7 @@ Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
   <img src="_images/emoji/railway_car.png"/>
   <p>
     <sub>
-      <a href="https://www.youtube.com/watch?v=vYh-PjASgNk" target="blank">It's a long, long journey</a>
+      <a href="https://www.youtube.com/watch?v=vYh-PjASgNk" target="_blank">It's a long, long journey</a>
     </sub>
   </p>
 </div>
@@ -1195,9 +1204,9 @@ Let's break down the task.
   - If there is any changes in `.env`
   - If there is any changes under `template` directory
   - Every minute
-- `serve`: This task serve the HTML. Zrb will check whether this task is `Completed` or not by using a `HTTPChecker`.
+- `serve`: This task serves the HTML. Zrb will check whether this task is `Completed` by using a `HTTPChecker`.
 
-We also define task dependencies and make some tasks (i.e., `build`, `monitor`, and `serve`) are available from the CLI
+We also define task dependencies and make some tasks (i.e., `build`, `monitor`, and `serve`) available from the CLI
 
 
 You can try to run the task by invoking the following command:
@@ -1206,7 +1215,7 @@ You can try to run the task by invoking the following command:
 zrb serve
 ```
 
-The html page will be available from [http://localhost:8080](http://localhost:8080).
+The HTML page will be available from [http://localhost:8080](http://localhost:8080).
 
 Furthermore, you can set `ZRB_ENV` into `DEV` and see how Zrb automatically cascade `DEV_TITLE` into `TITLE`
 
@@ -1215,7 +1224,14 @@ export ZRB_ENV=DEV
 zrb serve
 ```
 
-Once you do so, you will see that Zrb is now showing `My-page-dev` instead of `My-page` as the page title.
+Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title.
+
+
+# Next
+
+Now you are ready. You can proceed with [concept section](concepts/README.md) to learn more about the details.
+
+Have fun, Happy Coding, and Automate More!!!
 
 
 🔖 [Table of Contents](README.md)

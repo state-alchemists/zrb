@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, List, Mapping
 from zrb import (
     runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
     ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
@@ -7,6 +7,7 @@ from zrb import (
     PasswordInput, StrInput
 )
 from helper.doc import inject_doc
+import glob
 import os
 import sys
 import tomli
@@ -170,7 +171,7 @@ runner.register(auto_make_docs)
 build = CmdTask(
     name='build',
     description='Build Zrb',
-    upstreams=[remake_docs],
+    upstreams=[make_docs],
     cwd=CURRENT_DIR,
     cmd=[
         'set -e',
@@ -413,6 +414,7 @@ runner.register(install_symlink)
 test = CmdTask(
     name='test',
     description='Run zrb test',
+    upstreams=[install_symlink],
     inputs=[
         StrInput(
             name='test',
@@ -422,12 +424,18 @@ test = CmdTask(
             default=''
         ),
     ],
-    upstreams=[install_symlink],
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Perform test"',
-        'pytest -vv --ignore-glob="**/template/**/test" --ignore-glob="**/generator/**/app" --ignore=playground --cov=zrb --cov-config=".coveragerc" --cov-report=html --cov-report=term --cov-report=term-missing {{input.test}}'  # noqa
+        'pytest -vv \\',
+        '  --ignore-glob="**/template/**/test" \\',
+        '  --ignore-glob="**/generator/**/app"  \\',
+        '  --ignore=playground \\',
+        '  --cov=zrb \\',
+        '  --cov-config=".coveragerc" \\',
+        '  --cov-report=html \\',
+        '  --cov-report=term \\',
+        '  --cov-report=term-missing {{input.test}}'
     ],
     retry=0,
     checking_interval=1
@@ -453,9 +461,9 @@ serve_test = CmdTask(
     upstreams=[test],
     cmd=[
         'set -e',
-        f'cd {CURRENT_DIR}',
         'echo "🤖 Serve coverage report"',
-        f'python -m http.server {{input.port}} --directory {CURRENT_DIR}/htmlcov',  # noqa
+        'python -m http.server {{input.port}} \\',
+        f'  --directory "{CURRENT_DIR}/htmlcov"',
     ],
     checkers=[
         HTTPChecker(port='{{input.port}}')
