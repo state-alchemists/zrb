@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, List, Mapping
 from zrb import (
     runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
     ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
@@ -7,6 +7,7 @@ from zrb import (
     PasswordInput, StrInput
 )
 from helper.doc import inject_doc
+import glob
 import os
 import sys
 import tomli
@@ -410,9 +411,10 @@ runner.register(install_symlink)
 # ⚙️ test
 ###############################################################################
 
-just_test = CmdTask(
+test = CmdTask(
     name='test',
     description='Run zrb test',
+    upstreams=[install_symlink],
     inputs=[
         StrInput(
             name='test',
@@ -438,24 +440,7 @@ just_test = CmdTask(
     retry=0,
     checking_interval=1
 )
-test: CmdTask = just_test.copy()
-test.add_upstream(install_symlink)
 runner.register(test)
-
-###############################################################################
-# ⚙️ auto-test
-###############################################################################
-
-auto_test = RecurringTask(
-    name='auto-test',
-    description='Auto test',
-    upstreams=[test],
-    task=just_test,
-    triggers=[
-        PathWatcher(path=os.path.join(CURRENT_DIR, 'test', '**', '*.*')),
-        PathWatcher(path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.*')),
-    ]
-)
 
 ###############################################################################
 # ⚙️ serve-test
@@ -473,7 +458,7 @@ serve_test = CmdTask(
             default='9000'
         )
     ],
-    upstreams=[auto_test],
+    upstreams=[test],
     cmd=[
         'set -e',
         'echo "🤖 Serve coverage report"',
