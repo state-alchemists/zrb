@@ -60,7 +60,7 @@ class CommonTaskModel():
         self._retry = retry
         self._retry_interval = retry_interval
         self._upstreams = upstreams
-        self._checkers = checkers
+        self._checkers = [checker.copy() for checker in checkers]
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
         self._on_triggered = on_triggered
@@ -77,10 +77,10 @@ class CommonTaskModel():
         self.__allow_add_env_files = True
         self.__allow_add_inputs = True
         self.__allow_add_upstreams: bool = True
+        self.__allow_add_checkers: bool = True
         self.__has_already_inject_env_files: bool = False
         self.__has_already_inject_envs: bool = False
         self.__has_already_inject_inputs: bool = False
-        self.__has_already_inject_checkers: bool = False
         self.__has_already_inject_upstreams: bool = False
         self.__all_inputs: Optional[List[AnyInput]] = None
 
@@ -275,18 +275,20 @@ class CommonTaskModel():
     def insert_checker(self, *checkers: AnyTask):
         if not self.__allow_add_checkers:
             raise Exception(f'Cannot insert checkers to `{self._name}`')
-        self._checkers = list(checkers) + list(self._checkers)
+        additional_checkers = [checker.copy() for checker in checkers]
+        self._checkers = additional_checkers + self._checkers
 
     def add_checker(self, *checkers: AnyTask):
         if not self.__allow_add_checkers:
             raise Exception(f'Cannot add checkers to `{self._name}`')
-        self._checkers = list(self._checkers) + list(checkers)
+        additional_checkers = [checker.copy() for checker in checkers]
+        self._checkers = self._checkers + additional_checkers
 
     def inject_checkers(self):
         pass
 
     def _get_checkers(self) -> List[AnyTask]:
-        if not self.__has_already_inject_checkers:
+        if not self.__allow_add_checkers:
             self.inject_checkers()
-            self.__has_already_inject_checkers = True
-        return [checker.copy() for checker in list(self._checkers)]
+            self.__allow_add_checkers = True
+        return self._checkers
