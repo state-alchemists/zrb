@@ -325,6 +325,27 @@ No documentation available.
 No documentation available.
 
 
+### `PathChecker.add_checker`
+
+Adds one or more `AnyTask` instances to the end of the current task's checker list.
+
+This method appends tasks to the checker list, indicating that these tasks should be executed
+before the current task, but after any tasks already in the checker list.
+
+__Arguments:__
+
+- `checkers` (`TAnyTask`): One or more task instances to be added to the checker list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+checker_task = Task(name='checker-task')
+task.add_checker(checker_task)
+```
+
+
 ### `PathChecker.add_env`
 
 Adds one or more `Env` instances to the end of the current task's environment variable list.
@@ -630,6 +651,28 @@ from zrb import Task
 class MyTask(Task):
     def inject_upstreams(self):
         self.add_upstream(another_task)
+```
+
+
+### `PathChecker.insert_checker`
+
+Inserts one or more `AnyTask` instances at the beginning of the current task's checker list.
+
+This method is used to define dependencies for the current task. Tasks in the checker list are
+executed before the current task. Adding a task to the beginning of the list means it will be
+executed earlier than those already in the list.
+
+__Arguments:__
+
+- `checkers` (`TAnyTask`): One or more task instances to be added to the checker list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+checker_task = Task(name='checker-task')
+task.insert_checker(checker_task)
 ```
 
 

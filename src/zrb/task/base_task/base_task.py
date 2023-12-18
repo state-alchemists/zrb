@@ -270,14 +270,14 @@ class BaseTask(
           this will return True once every self.checkers is completed
         - Otherwise, this will return check method's return value.
         '''
-        if len(self._checkers) == 0:
+        if len(self._get_checkers()) == 0:
             return await self.check()
         self.log_debug('Waiting execution to be started')
         while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
             await asyncio.sleep(0.1)
         check_coroutines: Iterable[asyncio.Task] = []
-        for checker_task in self._checkers:
+        for checker_task in self._get_checkers():
             checker_task._set_execution_id(self.get_execution_id())
             check_coroutines.append(
                 asyncio.create_task(checker_task._run_all())

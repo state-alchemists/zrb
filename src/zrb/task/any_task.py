@@ -255,6 +255,45 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def insert_checker(self, *checkers: TAnyTask):
+        '''
+        Inserts one or more `AnyTask` instances at the beginning of the current task's checker list.
+
+        This method is used to define dependencies for the current task. Tasks in the checker list are 
+        executed before the current task. Adding a task to the beginning of the list means it will be 
+        executed earlier than those already in the list.
+
+        Args:
+            checkers (TAnyTask): One or more task instances to be added to the checker list.
+
+        Examples:
+            >>> from zrb import Task
+            >>> task = Task(name='task')
+            >>> checker_task = Task(name='checker-task')
+            >>> task.insert_checker(checker_task)
+        '''
+        pass
+
+    @abstractmethod
+    def add_checker(self, *checkers: TAnyTask):
+        '''
+        Adds one or more `AnyTask` instances to the end of the current task's checker list.
+
+        This method appends tasks to the checker list, indicating that these tasks should be executed 
+        before the current task, but after any tasks already in the checker list.
+
+        Args:
+            checkers (TAnyTask): One or more task instances to be added to the checker list.
+
+        Examples:
+            >>> from zrb import Task
+            >>> task = Task(name='task')
+            >>> checker_task = Task(name='checker-task')
+            >>> task.add_checker(checker_task)
+        '''
+        pass
+
+    @abstractmethod
     def insert_upstream(self, *upstreams: TAnyTask):
         '''
         Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.

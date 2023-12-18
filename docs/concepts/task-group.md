@@ -14,7 +14,7 @@ and generate Command-Line Interface (CLI) names based on group names.
 __Attributes:__
 
 - `name` (`str`): The name of the group.
-- `description` (`Optional[str]`): An optional description of the group.
+- `description` (`str`): The description of the group.
 - `parent` (`Optional[TGroup]`): The parent group of the current group, if any.
 
 __Examples:__

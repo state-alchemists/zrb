@@ -272,6 +272,16 @@ class CommonTaskModel():
             self.__has_already_inject_env_files = True
         return self._env_files
 
+    def insert_checker(self, *checkers: AnyTask):
+        if not self.__allow_add_checkers:
+            raise Exception(f'Cannot insert checkers to `{self._name}`')
+        self._checkers = list(checkers) + list(self._checkers)
+
+    def add_checker(self, *checkers: AnyTask):
+        if not self.__allow_add_checkers:
+            raise Exception(f'Cannot add checkers to `{self._name}`')
+        self._checkers = list(self._checkers) + list(checkers)
+
     def inject_checkers(self):
         pass
 
@@ -279,4 +289,4 @@ class CommonTaskModel():
         if not self.__has_already_inject_checkers:
             self.inject_checkers()
             self.__has_already_inject_checkers = True
-        return list(self._checkers)
+        return [checker.copy() for checker in list(self._checkers)]
