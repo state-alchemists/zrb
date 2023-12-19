@@ -73,4 +73,4 @@ def _get_new_python_path(project_dir: str) -> str:
     current_python_path = os.getenv('PYTHONPATH')
     if current_python_path is None or current_python_path == '':
         return project_dir
-    return current_python_path + ':' + project_dir
+    return ':'.join([current_python_path, project_dir])

@@ -2,9 +2,11 @@ from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Mapping, Optional
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
+from functools import lru_cache
 import os
 
 _PROJECT_DIR_MAP: Mapping[str, str] = {}
+_DEFAULT_HOME_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
 def inject_default_env():
@@ -13,12 +15,11 @@ def inject_default_env():
         logger.info(colored('Set PYTHONUNBUFFERED to 1', attrs=['dark']))
         os.environ['PYTHONUNBUFFERED'] = '1'
     # Inject ZRB_HOME_DIR
-    zrb_home_dir = os.path.dirname(os.path.dirname(__file__))
     if 'ZRB_HOME_DIR' not in os.environ:
         logger.info(colored(
-            f'Set ZRB_HOME_DIR to {zrb_home_dir}', attrs=['dark']
+            f'Set ZRB_HOME_DIR to {_DEFAULT_HOME_DIR}', attrs=['dark']
         ))
-        os.environ['ZRB_HOME_DIR'] = zrb_home_dir
+        os.environ['ZRB_HOME_DIR'] = _DEFAULT_HOME_DIR
     # Inject ZRB_PROJECT_DIR
     current_dir = os.getcwd()
     if current_dir not in _PROJECT_DIR_MAP:
@@ -40,6 +41,7 @@ def inject_default_env():
         os.environ['ZRB_PROJECT_NAME'] = zrb_project_name
 
 
+@lru_cache
 @typechecked
 def _get_project_dir(project_dir: str) -> Optional[str]:
     project_script = os.path.join(project_dir, 'zrb_init.py')
