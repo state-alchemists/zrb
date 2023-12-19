@@ -4,6 +4,8 @@ playground
 .pytest_cache
 .coverage
 .coverage.*
+.cprofile.prof
+.cprofile.svg
 .env
 .venv
 docker/._docker-compose.*.runtime.yml

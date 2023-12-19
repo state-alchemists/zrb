@@ -26,6 +26,9 @@ pytest~=7.4.0
 pytest-cov~=4.1.0
 pytest-asyncio~=0.21.0
 
+# Profiling (should be copied to `pyproject.toml`)
+flameprof~=0.4
+
 # Other dependencies (just for auto-completion, not included in `pyproject.toml`)
 pulumi==3.78.1
 pulumi-kubernetes==4.1.0

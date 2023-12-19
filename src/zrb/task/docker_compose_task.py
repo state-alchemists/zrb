@@ -293,7 +293,6 @@ class DockerComposeTask(CmdTask):
             ]:
                 if os.path.exists(os.path.join(self._cwd, _compose_file)):
                     return os.path.join(self._cwd, _compose_file)
-                    return
             raise Exception(f'Cannot find compose file on {self._cwd}')
         if os.path.isabs(compose_file) and os.path.exists(compose_file):
             return compose_file

@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping
+from typing import Any, Mapping
 from zrb import (
     runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
     ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
@@ -6,9 +6,10 @@ from zrb import (
     Env, EnvFile, Group, Input, BoolInput, ChoiceInput, FloatInput, IntInput,
     PasswordInput, StrInput
 )
-from helper.doc import inject_doc
-import glob
+from zrb.helper.docstring import get_markdown_from_docstring
+
 import os
+import re
 import sys
 import tomli
 
@@ -25,6 +26,23 @@ if IS_PLAYGROUND_EXIST:
 with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
     toml_dict = tomli.load(f)
     VERSION = toml_dict['project']['version']
+
+
+def inject_doc(markdown_file_name: str, cls):
+    docstring_markdown = get_markdown_from_docstring(cls)
+    with open(markdown_file_name, 'r') as file:
+        original_content = file.read()
+    pattern = r'<!--start-doc-->.*?<!--end-doc-->'
+    replacement_text = '\n'.join([
+        '<!--start-doc-->',
+        docstring_markdown,
+        '<!--end-doc-->',
+    ])
+    new_content = re.sub(
+        pattern, replacement_text, original_content, flags=re.DOTALL
+    )
+    with open(markdown_file_name, 'w') as file:
+        file.write(new_content)
 
 
 ###############################################################################
@@ -550,3 +568,29 @@ test_playground = CmdTask(
     retry=0
 )
 runner.register(test_playground)
+
+
+###############################################################################
+# ⚙️ prepare-profile
+###############################################################################
+
+prepare_profile = CmdTask(
+    name='prepare-profile',
+    description='Prepare profile',
+    cmd='python -m cProfile -o .cprofile.prof $(pwd)/src/zrb/__main__.py',
+    # cmd='python -m cProfile -o .cprofile.prof -m zrb',
+    retry=0
+)
+
+###############################################################################
+# ⚙️ profile
+###############################################################################
+
+profile = CmdTask(
+    name='profile',
+    description='Visualize profile',
+    upstreams=[prepare_profile],
+    cmd='flameprof .cprofile.prof > .cprofile.svg',
+    retry=0
+)
+runner.register(profile)
