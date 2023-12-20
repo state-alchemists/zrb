@@ -11,6 +11,7 @@ from zrb.helper.docstring import get_markdown_from_docstring
 import os
 import re
 import sys
+import time
 import tomli
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -622,3 +623,58 @@ profile = CmdTask(
     retry=0
 )
 runner.register(profile)
+
+###############################################################################
+# ⚙️ benchmark-import
+###############################################################################
+
+
+@python_task(
+    name='benchmark-import',
+    description='Benchmark import',
+    runner=runner
+)
+def benchmark_import(*args: Any, **kwargs: Any):
+    import_statements = [
+        'import zrb.runner',
+        'import zrb.task.decorator',
+        'import zrb.task.any_task',
+        'import zrb.task.any_task_event_handler',
+        'import zrb.task.parallel',
+        'import zrb.task.task',
+        'import zrb.task.cmd_task',
+        'import zrb.task.docker_compose_task',
+        'import zrb.task.base_remote_cmd_task',
+        'import zrb.task.remote_cmd_task',
+        'import zrb.task.rsync_task',
+        'import zrb.task.checker',
+        'import zrb.task.http_checker',
+        'import zrb.task.port_checker',
+        'import zrb.task.path_checker',
+        'import zrb.task.path_watcher',
+        'import zrb.task.time_watcher',
+        'import zrb.task.resource_maker',
+        'import zrb.task.flow_task',
+        'import zrb.task.recurring_task',
+        'import zrb.task_input.any_input',
+        'import zrb.task_input.task_input',
+        'import zrb.task_input.bool_input',
+        'import zrb.task_input.choice_input',
+        'import zrb.task_input.float_input',
+        'import zrb.task_input.int_input',
+        'import zrb.task_input.password_input',
+        'import zrb.task_input.str_input',
+        'import zrb.task_env.env',
+        'import zrb.task_env.env_file',
+        'import zrb.task_group.group',
+        'import zrb.helper.default_env',
+    ]
+    results = []
+    for import_statement in import_statements:
+        start_time = time.time()
+        exec(import_statement)
+        end_time = time.time()
+        results.append(
+            f'[{end_time - start_time:.5f} seconds] {import_statement}'
+        )
+    return '\n'.join(results)

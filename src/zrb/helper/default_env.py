@@ -9,7 +9,6 @@ import logging
 import os
 
 _PROJECT_DIR_MAP: Mapping[str, str] = {}
-_DEFAULT_HOME_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
 def inject_default_env():
@@ -20,11 +19,12 @@ def inject_default_env():
         os.environ['PYTHONUNBUFFERED'] = '1'
     # Inject ZRB_HOME_DIR
     if 'ZRB_HOME_DIR' not in os.environ:
+        default_home_dir = os.path.dirname(os.path.dirname(__file__))
         if logging_level <= logging.INFO:
             logger.info(colored(
-                f'Set ZRB_HOME_DIR to {_DEFAULT_HOME_DIR}', attrs=['dark']
+                f'Set ZRB_HOME_DIR to {default_home_dir}', attrs=['dark']
             ))
-        os.environ['ZRB_HOME_DIR'] = _DEFAULT_HOME_DIR
+        os.environ['ZRB_HOME_DIR'] = default_home_dir
     # Inject ZRB_PROJECT_DIR
     current_dir = os.getcwd()
     if current_dir not in _PROJECT_DIR_MAP:
