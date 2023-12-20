@@ -1,9 +1,11 @@
+from zrb.config.config import logging_level
 from zrb.helper.typing import Iterable, Mapping, Optional
 from zrb.helper.typecheck import typechecked
 from zrb.helper.file.text import read_text_file_async, write_text_file_async
 from zrb.helper.string.parse_replacement import parse_replacement
 from zrb.helper.log import logger
 
+import logging
 import os
 import shutil
 import fnmatch
@@ -49,4 +51,5 @@ async def copy_tree(
             new_file_content = parse_replacement(file_content, replacements)
             await write_text_file_async(new_dst_name, new_file_content)
         except Exception:
-            logger.error(f'Cannot parse file: {new_dst_name}')
+            if logging_level <= logging.ERROR:
+                logger.error(f'Cannot parse file: {new_dst_name}')

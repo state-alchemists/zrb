@@ -25,22 +25,12 @@ No documentation available.
 No documentation available.
 
 
-### `PathChecker._BaseTaskModel__get_executable_name`
-
-No documentation available.
-
-
 ### `PathChecker._BaseTaskModel__get_log_prefix`
 
 No documentation available.
 
 
 ### `PathChecker._BaseTaskModel__get_print_prefix`
-
-No documentation available.
-
-
-### `PathChecker._BaseTaskModel__get_rjust_full_cli_name`
 
 No documentation available.
 
@@ -135,17 +125,6 @@ configured for the task, essential for understanding and debugging the task's en
 __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
-
-### `PathChecker._get_full_cli_name`
-
-Retrieves the full command-line interface (CLI) name of the task.
-
-Intended for internal use, this method provides the complete CLI name, including any
-prefixes or namespaces, used primarily for logging or debugging purposes.
-
-__Returns:__
-
-`str`: The full CLI name of the task.
 
 ### `PathChecker._get_inputs`
 

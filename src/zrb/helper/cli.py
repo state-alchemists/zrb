@@ -6,6 +6,7 @@ from zrb.config.config import (
 from zrb.helper.loader.load_module import load_module
 from zrb.helper.log import logger
 from zrb.helper.accessories.color import colored
+from functools import lru_cache
 
 import click
 import logging
@@ -33,6 +34,7 @@ class MultilineHelpClickGroup(click.Group):
         formatter.write(self.help)
 
 
+@lru_cache
 @typechecked
 def create_cli() -> click.Group:
     if logging_level <= logging.INFO:
@@ -61,6 +63,7 @@ def create_cli() -> click.Group:
     return cli
 
 
+@lru_cache
 @typechecked
 def _load_zrb_init(project_dir: str):
     project_script = os.path.join(project_dir, 'zrb_init.py')
@@ -75,7 +78,8 @@ def _load_zrb_init(project_dir: str):
             colored(f'Set PYTHONPATH to {python_path}', attrs=['dark'])
         )
     os.environ['PYTHONPATH'] = python_path
-    logger.info(colored(f'Load modules from {project_script}', attrs=['dark']))
+    if logging_level <= logging.INFO:
+        logger.info(colored(f'Load modules from {project_script}', attrs=['dark']))
     load_module(script_path=project_script)
 
 

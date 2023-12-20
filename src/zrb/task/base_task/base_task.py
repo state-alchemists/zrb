@@ -104,7 +104,9 @@ class BaseTask(
         self.__is_execution_triggered: bool = False
         self.__is_execution_started: bool = False
 
-    def __rshift__(self, operand: Union[AnyParallel, AnyTask]):
+    def __rshift__(
+        self, operand: Union[AnyParallel, AnyTask]
+    ) -> Union[AnyParallel, AnyTask]:
         if isinstance(operand, AnyTask):
             operand.add_upstream(self)
             return operand
