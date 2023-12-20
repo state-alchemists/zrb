@@ -148,6 +148,11 @@ No documentation available.
 No documentation available.
 
 
+### `PathWatcher._get_rendered_ignored_paths`
+
+No documentation available.
+
+
 ### `PathWatcher._get_task_pid`
 
 No documentation available.

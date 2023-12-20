@@ -143,6 +143,11 @@ __Returns:__
 No documentation available.
 
 
+### `PathChecker._get_rendered_ignored_paths`
+
+No documentation available.
+
+
 ### `PathChecker._get_task_pid`
 
 No documentation available.

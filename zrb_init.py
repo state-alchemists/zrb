@@ -429,10 +429,9 @@ runner.register(install_symlink)
 # ⚙️ test
 ###############################################################################
 
-test = CmdTask(
+test_only = CmdTask(
     name='test',
     description='Run zrb test',
-    upstreams=[install_symlink],
     inputs=[
         StrInput(
             name='test',
@@ -458,7 +457,36 @@ test = CmdTask(
     retry=0,
     checking_interval=1
 )
+
+test = test_only.copy()
+test.add_upstream(install_symlink)
 runner.register(test)
+
+###############################################################################
+# ⚙️ auto-test
+###############################################################################
+
+auto_test = RecurringTask(
+    name='auto-test',
+    description='Run zrb test, automatically',
+    upstreams=[test],
+    task=test_only,
+    triggers=[
+        PathWatcher(
+            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py*'),
+        ),
+        PathWatcher(
+            path=os.path.join(CURRENT_DIR, 'test', '**', '*.py'),
+            ignored_path=[
+                os.path.join('**', 'template', '**', 'test', '**', '*.*'),
+                os.path.join('**', 'template', '**', 'test', '*.*'),
+                os.path.join('**', 'generator', '**', 'app', '**', '*.*'),
+                os.path.join('**', 'generator', '**', 'app', '*.*'),
+            ]
+        )
+    ]
+)
+runner.register(auto_test)
 
 ###############################################################################
 # ⚙️ serve-test
@@ -476,7 +504,7 @@ serve_test = CmdTask(
             default='9000'
         )
     ],
-    upstreams=[test],
+    upstreams=[auto_test],
     cmd=[
         'set -e',
         'echo "🤖 Serve coverage report"',

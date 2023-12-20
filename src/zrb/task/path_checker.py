@@ -1,5 +1,8 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Optional, Union, TypeVar
+)
 from zrb.helper.typecheck import typechecked
+from zrb.helper.file.match import get_file_names
 from zrb.task.checker import Checker
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -9,8 +12,6 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-
-import glob
 
 TPathChecker = TypeVar('TPathChecker', bound='PathChecker')
 
@@ -37,6 +38,7 @@ class PathChecker(Checker):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         path: str = '',
+        ignored_path: Union[str, Iterable[str]] = [],
         checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 5,
         expected_result: bool = True,
@@ -66,7 +68,9 @@ class PathChecker(Checker):
             should_execute=should_execute,
         )
         self._path = path
+        self._ignored_path = ignored_path
         self._rendered_path: str = ''
+        self._rendered_ignored_paths: List[str] = []
 
     def copy(self) -> TPathChecker:
         return super().copy()
@@ -84,12 +88,25 @@ class PathChecker(Checker):
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self._rendered_path = self.render_str(self._path)
+        self._rendered_ignored_paths = self._get_rendered_ignored_paths()
         return await super().run(*args, **kwargs)
+
+    def _get_rendered_ignored_paths(self) -> List[str]:
+        if isinstance(self._ignored_path, str):
+            return [self.render_str(self._ignored_path)]
+        return [
+            self.render_str(ignored_path)
+            for ignored_path in self._ignored_path
+        ]
 
     async def inspect(self, *args: Any, **kwargs: Any) -> bool:
         label = f'Checking {self._rendered_path}'
         try:
-            if len(glob.glob(self._rendered_path, recursive=True)) > 0:
+            matches = get_file_names(
+                glob_path=self._rendered_path,
+                glob_ignored_paths=self._rendered_ignored_paths
+            )
+            if len(matches) > 0:
                 self.print_out(f'{label} (Exist)')
                 return True
             self.show_progress(f'{label} (Not Exist)')
