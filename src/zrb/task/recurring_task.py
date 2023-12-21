@@ -22,11 +22,13 @@ class RunConfig():
         self,
         fn: Callable[..., Any],
         args: List[Any],
-        kwargs: Mapping[Any, Any]
+        kwargs: Mapping[Any, Any],
+        execution_id: str
     ):
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
+        self.execution_id = execution_id
 
     async def run(self):
         return await self.fn(*self.args, **self.kwargs)
@@ -159,9 +161,14 @@ class RecurringTask(BaseTask):
             fn = task_copy.to_function(
                 is_async=True, raise_error=False, show_done_info=False
             )
-            self.print_out_dark('Add task to queue')
+            self.print_out_dark(f'Add execution to the queue: {execution_id}')
             self._run_configs.append(
-                RunConfig(fn=fn, args=args, kwargs=task_kwargs)
+                RunConfig(
+                    fn=fn,
+                    args=args,
+                    kwargs=task_kwargs,
+                    execution_id=execution_id
+                )
             )
 
     async def __run_from_queue(self):
@@ -169,7 +176,7 @@ class RecurringTask(BaseTask):
             if len(self._run_configs) == 0:
                 await asyncio.sleep(0.1)
                 continue
-            run_param = self._run_configs.pop(0)
-            self.print_out_dark('Executing the task')
-            await run_param.run()
+            run_config = self._run_configs.pop(0)
+            self.print_out_dark(f'Executing {run_config.execution_id}')
+            await run_config.run()
             self._play_bell()

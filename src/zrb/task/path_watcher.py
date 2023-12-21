@@ -95,7 +95,11 @@ class PathWatcher(Checker):
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self._rendered_path = self.render_str(self._path)
-        self._rendered_ignored_paths = self._get_rendered_ignored_paths()
+        self._rendered_ignored_paths = [
+            ignored_path
+            for ignored_path in self._get_rendered_ignored_paths()
+            if ignored_path != ''
+        ]
         self._init_times = self._get_mod_times()
         return await super().run(*args, **kwargs)
 
@@ -119,11 +123,15 @@ class PathWatcher(Checker):
             new_files = mod_times.keys() - self._init_times.keys()
             for file in new_files:
                 self.print_out_dark(f'{label} [+] New file detected: {file}')
+                self.set_task_xcom('new-file', file)
+                self.set_task_xcom('file', file)
                 return True
         if self._watch_deleted_files:
             deleted_files = self._init_times.keys() - mod_times.keys()
             for file in deleted_files:
                 self.print_out_dark(f'{label} [-] File deleted: {file}')
+                self.set_task_xcom('deleted-file', file)
+                self.set_task_xcom('file', file)
                 return True
         if self._watch_modified_files:
             modified_files = {
@@ -132,6 +140,8 @@ class PathWatcher(Checker):
             }
             for file in modified_files:
                 self.print_out_dark(f'{label} [/] File modified: {file}')
+                self.set_task_xcom('modified-file', file)
+                self.set_task_xcom('file', file)
                 return True
         self.show_progress(f'{label} (Nothing changed)')
         return False

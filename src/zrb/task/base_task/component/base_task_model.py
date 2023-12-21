@@ -92,9 +92,15 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.__kwargs: Mapping[str, Any] = {}
 
     def _set_args(self, args: Iterable[Any]):
+        '''
+        Set args that will be shown at the end of the execution
+        '''
         self.__args = list(args)
 
     def _set_kwargs(self, kwargs: Mapping[str, Any]):
+        '''
+        Set kwargs that will be shown at the end of the execution
+        '''
         self.__kwargs = kwargs
 
     def log_debug(self, message: Any):

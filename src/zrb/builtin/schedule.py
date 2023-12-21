@@ -20,15 +20,16 @@ schedule = RecurringTask(
     ],
     triggers=[
         TimeWatcher(
-            name='watch-schedule',
+            name='watch-time',
             color='cyan',
             icon='⏰',
             schedule='{{input.schedule}}'
         )
     ],
     task=create_recurring_action(
-        title='Schedule',
-        default_message='{{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}',  # noqa
+        notif_title='Schedule',
+        trigger_caption='Schedule',
+        trigger_xcom_key='watch-time.scheduled-time'
     )
 )
 runner.register(schedule)

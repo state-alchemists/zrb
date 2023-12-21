@@ -7,7 +7,7 @@ import asyncio
 
 class DelayedChecker(Checker):
     async def inspect(self, *args, **kwargs) -> bool:
-        asyncio.sleep(1)
+        await asyncio.sleep(1)
         return True
 
 

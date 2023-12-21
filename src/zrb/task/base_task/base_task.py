@@ -37,6 +37,8 @@ class BaseTask(
     Base class for all tasks.
     Every task definition should be extended from this class.
     '''
+    __xcom: Mapping[str, Mapping[str, str]] = {}
+
     def __init__(
         self,
         name: str,
@@ -115,6 +117,26 @@ class BaseTask(
             for other_task in other_tasks:
                 other_task.add_upstream(self)
             return operand
+
+    def set_task_xcom(self, key: str, value: Any) -> str:
+        return self.set_xcom(
+            key='.'.join([self.get_name(), key]),
+            value=value
+        )
+
+    def set_xcom(self, key: str, value: Any) -> str:
+        execution_id = self.get_execution_id()
+        if execution_id not in self.__xcom:
+            self.__xcom[execution_id] = {}
+        execution_id = self.get_execution_id()
+        self.__xcom[execution_id][key] = f'{value}'
+        return ''
+
+    def get_xcom(self, key: str) -> str:
+        execution_id = self.get_execution_id()
+        if execution_id not in self.__xcom:
+            return ''
+        return self.__xcom[execution_id].get(key, '')
 
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
@@ -226,6 +248,7 @@ class BaseTask(
             ]
             results = await asyncio.gather(*coroutines)
             result = results[-1]
+            self.set_xcom(self.get_name(), f'{result}')
             self._print_result(result)
             return result
         except Exception as e:
@@ -399,6 +422,7 @@ class BaseTask(
         if self.__is_keyval_set:
             return True
         self.__is_keyval_set = True
+        # Set input_map for rendering
         self.log_info('Set input map')
         for task_input in self._get_combined_inputs():
             input_name = to_variable_name(task_input.get_name())
@@ -410,6 +434,7 @@ class BaseTask(
             'Input map:\n' + map_to_str(self.get_input_map(), item_prefix='  ')
         )
         self.log_info('Merging task envs, task env files, and native envs')
+        # Set env_map for rendering
         for env_name, env in self._get_combined_env().items():
             env_value = env.get(env_prefix)
             if env.should_render():
@@ -419,6 +444,8 @@ class BaseTask(
         self.log_debug(
             'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
         )
+        # set task
+        self._set_task(self)
 
     def __repr__(self) -> str:
         cls_name = self.__class__.__name__

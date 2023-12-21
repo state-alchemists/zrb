@@ -95,6 +95,69 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def set_xcom(self, key: str, value: Any) -> str:
+        '''
+        Set xcom for cross task communication.
+
+        Argss:
+            key (str): Xcom key
+            value (str): The value of the xcom
+
+        Returns:
+            str: Empty string
+        
+        Examples:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
+            >>>         self.set_xcom('magic_word', 'hello')
+            >>>         magic_word = self.get_xcom('magic_word')
+            >>>         return 42
+        '''
+        pass
+
+    @abstractmethod
+    def set_task_xcom(self, key: str, value: Any) -> str:
+        '''
+        Set task xcom for cross task communication.
+
+        Argss:
+            key (str): Xcom key
+            value (str): The value of the xcom
+
+        Returns:
+            str: Empty string
+        
+        Examples:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
+            >>>         self.set_task_xcom('magic_word', 'hello')
+            >>>         magic_word = self.get_xcom(f'{self.get_name()}.magic_word')
+            >>>         return 42
+        '''
+        pass
+
+    @abstractmethod
+    def get_xcom(self, key: str) -> str:
+        '''
+        Get xcom value for cross task communication.
+
+        Argss:
+            key (str): Xcom key
+
+        Returns:
+            str: Value of xcom
+        
+        Examples:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
+            >>>         return self.get_xcom('magic_word')
+        '''
+        pass
+
+    @abstractmethod
     async def on_triggered(self):
         '''
         Defines actions to perform when the task status is set to `triggered`.
@@ -624,6 +687,16 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def get_name(self) -> str:
+        '''
+        Get task name
+
+        Returns:
+            str: name of the task
+        '''
+        pass
+
+    @abstractmethod
     def get_cli_name(self) -> str:
         '''
         Gets the command-line interface (CLI) name of the task.
@@ -1011,14 +1084,14 @@ class AnyTask(ABC):
         '''
         For internal use.
 
-        Directly call `print_result`
+        Call `print_result` or print values based on result type and other conditions.
         '''
         pass
 
     @abstractmethod
     def print_result(self, result: Any):
         '''
-        Outputs the task result to stdout for further processing.
+        Print the task result to stdout for further processing.
 
         Override this method in subclasses to customize how the task result is displayed 
         or processed. Useful for integrating the task output with other systems or 

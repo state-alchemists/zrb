@@ -92,6 +92,7 @@ class TimeWatcher(Checker):
             self._rendered_schedule, slightly_before_check_time
         )
         self._scheduled_time = cron.get_next(datetime.datetime)
+        self.set_task_xcom(key='scheduled-time', value=self._scheduled_time)
         return await super().run(*args, **kwargs)
 
     async def inspect(self, *args: Any, **kwargs: Any) -> bool:

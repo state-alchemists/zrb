@@ -10,6 +10,7 @@ from zrb.helper.docstring import get_markdown_from_docstring
 
 import os
 import re
+import subprocess
 import sys
 import time
 import tomli
@@ -177,7 +178,9 @@ auto_make_docs = RecurringTask(
     name='auto-make-docs',
     description='Make documentation whenever there is any changes in the code',
     triggers=[
-        PathWatcher(path=os.path.join(CURRENT_DIR, '**', '*.py'))
+        PathWatcher(
+            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py*'),
+        )
     ],
     task=remake_docs
 )
@@ -479,10 +482,8 @@ auto_test = RecurringTask(
         PathWatcher(
             path=os.path.join(CURRENT_DIR, 'test', '**', '*.py'),
             ignored_path=[
-                os.path.join('**', 'template', '**', 'test', '**', '*.*'),
-                os.path.join('**', 'template', '**', 'test', '*.*'),
-                os.path.join('**', 'generator', '**', 'app', '**', '*.*'),
-                os.path.join('**', 'generator', '**', 'app', '*.*'),
+                os.path.join('**', 'template', '**', 'test'),
+                os.path.join('**', 'generator', '**', 'app'),
             ]
         )
     ]
@@ -521,7 +522,18 @@ serve_test = CmdTask(
 runner.register(serve_test)
 
 ###############################################################################
-# ⚙️ create
+# ⚙️ monitor
+###############################################################################
+
+monitor = Task(
+    name='monitor',
+    description='Monitor any changes and perform actions accordingly',
+    upstreams=[serve_test, auto_make_docs]
+)
+runner.register(monitor)
+
+###############################################################################
+# ⚙️ playground create
 ###############################################################################
 
 create_playground = CmdTask(
@@ -544,7 +556,7 @@ skippable_create_playground.set_should_execute('{{ input.create_playground}}')
 runner.register(create_playground)
 
 ###############################################################################
-# ⚙️ test-fastapp
+# ⚙️ playground test-fastapp
 ###############################################################################
 
 test_fastapp_playground = CmdTask(
@@ -563,7 +575,7 @@ test_fastapp_playground = CmdTask(
 runner.register(test_fastapp_playground)
 
 ###############################################################################
-# ⚙️ test-install-symlink
+# ⚙️ playground test-install-symlink
 ###############################################################################
 
 test_install_playground_symlink = CmdTask(
@@ -582,7 +594,7 @@ test_install_playground_symlink = CmdTask(
 runner.register(test_install_playground_symlink)
 
 ###############################################################################
-# ⚙️ test-playground
+# ⚙️ playground test
 ###############################################################################
 
 test_playground = CmdTask(
@@ -630,12 +642,12 @@ runner.register(profile)
 
 
 @python_task(
-    name='benchmark-import',
-    description='Benchmark import',
+    name='benchmark',
+    description='Benchmark',
     runner=runner
 )
-def benchmark_import(*args: Any, **kwargs: Any):
-    import_statements = [
+def benchmark(*args: Any, **kwargs: Any):
+    statements = [
         'import zrb.runner',
         'import zrb.task.decorator',
         'import zrb.task.any_task',
@@ -668,13 +680,15 @@ def benchmark_import(*args: Any, **kwargs: Any):
         'import zrb.task_env.env_file',
         'import zrb.task_group.group',
         'import zrb.helper.default_env',
+        'from zrb import builtin',
+        'import zrb',
     ]
     results = []
-    for import_statement in import_statements:
+    for statement in statements:
         start_time = time.time()
-        exec(import_statement)
+        subprocess.run(['python', '-c', statement])
         end_time = time.time()
         results.append(
-            f'[{end_time - start_time:.5f} seconds] {import_statement}'
+            f'[{end_time - start_time:.5f} seconds] {statement}'
         )
     return '\n'.join(results)

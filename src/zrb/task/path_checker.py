@@ -88,7 +88,11 @@ class PathChecker(Checker):
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self._rendered_path = self.render_str(self._path)
-        self._rendered_ignored_paths = self._get_rendered_ignored_paths()
+        self._rendered_ignored_paths = [
+            ignored_path
+            for ignored_path in self._get_rendered_ignored_paths()
+            if ignored_path != ''
+        ]
         return await super().run(*args, **kwargs)
 
     def _get_rendered_ignored_paths(self) -> List[str]:

@@ -1,3 +1,4 @@
+from zrb.task.any_task import AnyTask
 from zrb.helper.typing import Any, JinjaTemplate, Mapping, Optional, Union
 from zrb.helper.typecheck import typechecked
 from zrb.helper.string.conversion import to_boolean
@@ -24,9 +25,13 @@ class Renderer():
 
     def __init__(self):
         self.__input_map: Mapping[str, Any] = {}
+        self.__task: Optional[AnyTask] = None
         self.__env_map: Mapping[str, str] = {}
         self.__render_data: Optional[Mapping[str, Any]] = None
         self.__rendered_str: Mapping[str, str] = {}
+
+    def _set_task(self, task: AnyTask):
+        self.__task = task
 
     def get_input_map(self) -> Mapping[str, Any]:
         # This return reference to input map, so input map can be updated
@@ -126,6 +131,7 @@ class Renderer():
         render_data.update({
             'env': self.__env_map,
             'input': self.__input_map,
+            'task': self.__task,
         })
         self.__render_data = render_data
         return render_data

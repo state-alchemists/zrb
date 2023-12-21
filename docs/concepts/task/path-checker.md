@@ -210,7 +210,7 @@ No documentation available.
 
 For internal use.
 
-Directly call `print_result`
+Call `print_result` or print values based on result type and other conditions.
 
 ### `PathChecker._propagate_execution_id`
 
@@ -230,8 +230,7 @@ No documentation available.
 
 ### `PathChecker._set_args`
 
-No documentation available.
-
+Set args that will be shown at the end of the execution
 
 ### `PathChecker._set_env_map`
 
@@ -271,10 +270,14 @@ Set current task's key values.
 
 ### `PathChecker._set_kwargs`
 
+Set kwargs that will be shown at the end of the execution
+
+### `PathChecker._set_local_keyval`
+
 No documentation available.
 
 
-### `PathChecker._set_local_keyval`
+### `PathChecker._set_task`
 
 No documentation available.
 
@@ -553,6 +556,35 @@ def task(*args, **kwargs):
     task: Task = kwargs.get('_task')
     for key, value in task.get_input_map():
         task.print_out(f'{key}: {value}')
+```
+
+
+### `PathChecker.get_name`
+
+Get task name
+
+__Returns:__
+
+`str`: name of the task
+
+### `PathChecker.get_xcom`
+
+Get xcom value for cross task communication.
+
+Argss:
+key (str): Xcom key
+
+__Returns:__
+
+`str`: Value of xcom
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        return self.get_xcom('magic_word')
 ```
 
 
@@ -927,7 +959,7 @@ Print message to stdout and style it as faint.
 
 ### `PathChecker.print_result`
 
-Outputs the task result to stdout for further processing.
+Print the task result to stdout for further processing.
 
 Override this method in subclasses to customize how the task result is displayed
 or processed. Useful for integrating the task output with other systems or
@@ -1090,6 +1122,54 @@ conditional task execution based on dynamic criteria.
 __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
+
+### `PathChecker.set_task_xcom`
+
+Set task xcom for cross task communication.
+
+Argss:
+key (str): Xcom key
+value (str): The value of the xcom
+
+__Returns:__
+
+`str`: Empty string
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.set_task_xcom('magic_word', 'hello')
+        magic_word = self.get_xcom(f'{self.get_name()}.magic_word')
+        return 42
+```
+
+
+### `PathChecker.set_xcom`
+
+Set xcom for cross task communication.
+
+Argss:
+key (str): Xcom key
+value (str): The value of the xcom
+
+__Returns:__
+
+`str`: Empty string
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.set_xcom('magic_word', 'hello')
+        magic_word = self.get_xcom('magic_word')
+        return 42
+```
+
 
 ### `PathChecker.show_progress`
 

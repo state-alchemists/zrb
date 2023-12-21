@@ -10,11 +10,11 @@ def get_file_names(
 ) -> List[str]:
     matches = []
     for file in glob.glob(glob_path, recursive=True):
-        should_ignore = False
-        for ignored_path in glob_ignored_paths:
-            if fnmatch.fnmatch(file, ignored_path):
-                should_ignore = True
-                break
+        should_ignore = any(
+            fnmatch.fnmatch(file, ignored_path) or
+            fnmatch.fnmatch(file, ignored_path + '**')
+            for ignored_path in glob_ignored_paths
+        )
         if not should_ignore:
             matches.append(file)
     return matches

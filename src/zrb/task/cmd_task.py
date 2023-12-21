@@ -48,6 +48,9 @@ class CmdResult():
         self.output = output
         self.error = error
 
+    def __str__(self) -> str:
+        return self.output
+
 
 class CmdGlobalState():
     def __init__(self):
@@ -246,6 +249,8 @@ class CmdTask(BaseTask):
             raise Exception(
                 f'Process {self._name} exited ({return_code}): {error}'
             )
+        self.set_task_xcom(key='output', value=output)
+        self.set_task_xcom(key='error', value=error)
         return CmdResult(output, error)
 
     def _should_attempt(self) -> bool:
