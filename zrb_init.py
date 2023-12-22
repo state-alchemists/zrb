@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping
+from typing import Any, Mapping
 from zrb import (
     runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
     ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
@@ -6,10 +6,13 @@ from zrb import (
     Env, EnvFile, Group, Input, BoolInput, ChoiceInput, FloatInput, IntInput,
     PasswordInput, StrInput
 )
-from helper.doc import inject_doc
-import glob
+from zrb.helper.docstring import get_markdown_from_docstring
+
 import os
+import re
+import subprocess
 import sys
+import time
 import tomli
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -25,6 +28,23 @@ if IS_PLAYGROUND_EXIST:
 with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
     toml_dict = tomli.load(f)
     VERSION = toml_dict['project']['version']
+
+
+def inject_doc(markdown_file_name: str, cls):
+    docstring_markdown = get_markdown_from_docstring(cls)
+    with open(markdown_file_name, 'r') as file:
+        original_content = file.read()
+    pattern = r'<!--start-doc-->.*?<!--end-doc-->'
+    replacement_text = '\n'.join([
+        '<!--start-doc-->',
+        docstring_markdown,
+        '<!--end-doc-->',
+    ])
+    new_content = re.sub(
+        pattern, replacement_text, original_content, flags=re.DOTALL
+    )
+    with open(markdown_file_name, 'w') as file:
+        file.write(new_content)
 
 
 ###############################################################################
@@ -138,6 +158,20 @@ def make_docs(*args: Any, **kwargs: Any):
 
 
 ###############################################################################
+# ⚙️ show-trigger-info
+###############################################################################
+
+@python_task(
+    name='show-trigger-info'
+)
+def show_trigger_info(*args: Any, **kwargs: Any):
+    task = kwargs.get('_task')
+    file = task.get_xcom('watch-path.file')
+    if file != '':
+        task.print_out(f'Trigger: {file}')
+
+
+###############################################################################
 # ⚙️ remake-docs
 ###############################################################################
 
@@ -147,6 +181,7 @@ remake_docs = CmdTask(
     envs=[
         Env('ZRB_SHOW_TIME', os_name='', default='0')
     ],
+    upstreams=[show_trigger_info],
     cmd='zrb make-docs'
 )
 
@@ -158,9 +193,12 @@ auto_make_docs = RecurringTask(
     name='auto-make-docs',
     description='Make documentation whenever there is any changes in the code',
     triggers=[
-        PathWatcher(path=os.path.join(CURRENT_DIR, '**', '*.py'))
+        PathWatcher(
+            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py'),
+        )
     ],
-    task=remake_docs
+    task=remake_docs,
+    single_execution=True
 )
 runner.register(auto_make_docs)
 
@@ -411,10 +449,9 @@ runner.register(install_symlink)
 # ⚙️ test
 ###############################################################################
 
-test = CmdTask(
+test_only = CmdTask(
     name='test',
     description='Run zrb test',
-    upstreams=[install_symlink],
     inputs=[
         StrInput(
             name='test',
@@ -440,7 +477,42 @@ test = CmdTask(
     retry=0,
     checking_interval=1
 )
+
+test = test_only.copy()
+test.add_upstream(install_symlink)
 runner.register(test)
+
+###############################################################################
+# ⚙️ re-test
+###############################################################################
+retest = test_only.copy()
+retest.add_upstream(show_trigger_info)
+
+###############################################################################
+# ⚙️ auto-test
+###############################################################################
+
+auto_test = RecurringTask(
+    name='auto-test',
+    description='Run zrb test, automatically',
+    upstreams=[test],
+    task=retest,
+    triggers=[
+        PathWatcher(
+            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py'),
+        ),
+        PathWatcher(
+            path=os.path.join(CURRENT_DIR, 'test', '**', '*.py'),
+            ignored_path=[
+                os.path.join('**', 'template', '**', 'test'),
+                os.path.join('**', 'generator', '**', 'app'),
+                os.path.join('**', 'resource_maker', 'app'),
+            ]
+        )
+    ],
+    single_execution=True
+)
+runner.register(auto_test)
 
 ###############################################################################
 # ⚙️ serve-test
@@ -458,7 +530,7 @@ serve_test = CmdTask(
             default='9000'
         )
     ],
-    upstreams=[test],
+    upstreams=[auto_test],
     cmd=[
         'set -e',
         'echo "🤖 Serve coverage report"',
@@ -474,7 +546,18 @@ serve_test = CmdTask(
 runner.register(serve_test)
 
 ###############################################################################
-# ⚙️ create
+# ⚙️ monitor
+###############################################################################
+
+monitor = Task(
+    name='monitor',
+    description='Monitor any changes and perform actions accordingly',
+    upstreams=[serve_test, auto_make_docs]
+)
+runner.register(monitor)
+
+###############################################################################
+# ⚙️ playground create
 ###############################################################################
 
 create_playground = CmdTask(
@@ -497,7 +580,7 @@ skippable_create_playground.set_should_execute('{{ input.create_playground}}')
 runner.register(create_playground)
 
 ###############################################################################
-# ⚙️ test-fastapp
+# ⚙️ playground test-fastapp
 ###############################################################################
 
 test_fastapp_playground = CmdTask(
@@ -516,7 +599,7 @@ test_fastapp_playground = CmdTask(
 runner.register(test_fastapp_playground)
 
 ###############################################################################
-# ⚙️ test-install-symlink
+# ⚙️ playground test-install-symlink
 ###############################################################################
 
 test_install_playground_symlink = CmdTask(
@@ -535,7 +618,7 @@ test_install_playground_symlink = CmdTask(
 runner.register(test_install_playground_symlink)
 
 ###############################################################################
-# ⚙️ test-playground
+# ⚙️ playground test
 ###############################################################################
 
 test_playground = CmdTask(
@@ -550,3 +633,86 @@ test_playground = CmdTask(
     retry=0
 )
 runner.register(test_playground)
+
+
+###############################################################################
+# ⚙️ prepare-profile
+###############################################################################
+
+prepare_profile = CmdTask(
+    name='prepare-profile',
+    description='Prepare profile',
+    cmd='python -m cProfile -o .cprofile.prof $(pwd)/src/zrb/__main__.py',
+    # cmd='python -m cProfile -o .cprofile.prof -m zrb',
+    retry=0
+)
+
+###############################################################################
+# ⚙️ profile
+###############################################################################
+
+profile = CmdTask(
+    name='profile',
+    description='Visualize profile',
+    upstreams=[prepare_profile],
+    cmd='flameprof .cprofile.prof > .cprofile.svg',
+    retry=0
+)
+runner.register(profile)
+
+###############################################################################
+# ⚙️ benchmark-import
+###############################################################################
+
+
+@python_task(
+    name='benchmark',
+    description='Benchmark',
+    runner=runner
+)
+def benchmark(*args: Any, **kwargs: Any):
+    statements = [
+        'import zrb.runner',
+        'import zrb.task.decorator',
+        'import zrb.task.any_task',
+        'import zrb.task.any_task_event_handler',
+        'import zrb.task.parallel',
+        'import zrb.task.task',
+        'import zrb.task.cmd_task',
+        'import zrb.task.docker_compose_task',
+        'import zrb.task.base_remote_cmd_task',
+        'import zrb.task.remote_cmd_task',
+        'import zrb.task.rsync_task',
+        'import zrb.task.checker',
+        'import zrb.task.http_checker',
+        'import zrb.task.port_checker',
+        'import zrb.task.path_checker',
+        'import zrb.task.path_watcher',
+        'import zrb.task.time_watcher',
+        'import zrb.task.resource_maker',
+        'import zrb.task.flow_task',
+        'import zrb.task.recurring_task',
+        'import zrb.task_input.any_input',
+        'import zrb.task_input.task_input',
+        'import zrb.task_input.bool_input',
+        'import zrb.task_input.choice_input',
+        'import zrb.task_input.float_input',
+        'import zrb.task_input.int_input',
+        'import zrb.task_input.password_input',
+        'import zrb.task_input.str_input',
+        'import zrb.task_env.env',
+        'import zrb.task_env.env_file',
+        'import zrb.task_group.group',
+        'import zrb.helper.default_env',
+        'from zrb import builtin',
+        'import zrb',
+    ]
+    results = []
+    for statement in statements:
+        start_time = time.time()
+        subprocess.run(['python', '-c', statement])
+        end_time = time.time()
+        results.append(
+            f'[{end_time - start_time:.5f} seconds] {statement}'
+        )
+    return '\n'.join(results)

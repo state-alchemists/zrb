@@ -7,8 +7,10 @@
 <!--start-doc-->
 ## `TimeWatcher`
 
-Base class for all tasks.
-Every task definition should be extended from this class.
+TimeWatcher will wait for any changes specified on  path.
+
+Once the changes detected, TimeWatcher will be completed
+and <task-name>.scheduled-time xcom will be set.
 
 ### `TimeWatcher._BaseTaskModel__get_colored`
 
@@ -25,22 +27,12 @@ No documentation available.
 No documentation available.
 
 
-### `TimeWatcher._BaseTaskModel__get_executable_name`
-
-No documentation available.
-
-
 ### `TimeWatcher._BaseTaskModel__get_log_prefix`
 
 No documentation available.
 
 
 ### `TimeWatcher._BaseTaskModel__get_print_prefix`
-
-No documentation available.
-
-
-### `TimeWatcher._BaseTaskModel__get_rjust_full_cli_name`
 
 No documentation available.
 
@@ -136,17 +128,6 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `TimeWatcher._get_full_cli_name`
-
-Retrieves the full command-line interface (CLI) name of the task.
-
-Intended for internal use, this method provides the complete CLI name, including any
-prefixes or namespaces, used primarily for logging or debugging purposes.
-
-__Returns:__
-
-`str`: The full CLI name of the task.
-
 ### `TimeWatcher._get_inputs`
 
 Retrieves the list of inputs associated with the task.
@@ -226,7 +207,7 @@ No documentation available.
 
 For internal use.
 
-Directly call `print_result`
+Call `print_result` or print values based on result type and other conditions.
 
 ### `TimeWatcher._propagate_execution_id`
 
@@ -246,8 +227,7 @@ No documentation available.
 
 ### `TimeWatcher._set_args`
 
-No documentation available.
-
+Set args that will be shown at the end of the execution
 
 ### `TimeWatcher._set_env_map`
 
@@ -287,10 +267,14 @@ Set current task's key values.
 
 ### `TimeWatcher._set_kwargs`
 
+Set kwargs that will be shown at the end of the execution
+
+### `TimeWatcher._set_local_keyval`
+
 No documentation available.
 
 
-### `TimeWatcher._set_local_keyval`
+### `TimeWatcher._set_task`
 
 No documentation available.
 
@@ -323,6 +307,27 @@ No documentation available.
 ### `TimeWatcher._start_timer`
 
 No documentation available.
+
+
+### `TimeWatcher.add_checker`
+
+Adds one or more `AnyTask` instances to the end of the current task's checker list.
+
+This method appends tasks to the checker list, indicating that these tasks should be executed
+before the current task, but after any tasks already in the checker list.
+
+__Arguments:__
+
+- `checkers` (`TAnyTask`): One or more task instances to be added to the checker list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+checker_task = Task(name='checker-task')
+task.add_checker(checker_task)
+```
 
 
 ### `TimeWatcher.add_env`
@@ -438,6 +443,11 @@ class MyTask(Task):
 ```
 
 
+### `TimeWatcher.clear_xcom`
+
+No documentation available.
+
+
 ### `TimeWatcher.copy`
 
 Creates and returns a copy of the current task.
@@ -551,6 +561,35 @@ def task(*args, **kwargs):
 ```
 
 
+### `TimeWatcher.get_name`
+
+Get task name
+
+__Returns:__
+
+`str`: name of the task
+
+### `TimeWatcher.get_xcom`
+
+Get xcom value for cross task communication.
+
+Argss:
+key (str): Xcom key
+
+__Returns:__
+
+`str`: Value of xcom
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        return self.get_xcom('magic_word')
+```
+
+
 ### `TimeWatcher.inject_checkers`
 
 Injects custom checkers into the task.
@@ -630,6 +669,28 @@ from zrb import Task
 class MyTask(Task):
     def inject_upstreams(self):
         self.add_upstream(another_task)
+```
+
+
+### `TimeWatcher.insert_checker`
+
+Inserts one or more `AnyTask` instances at the beginning of the current task's checker list.
+
+This method is used to define dependencies for the current task. Tasks in the checker list are
+executed before the current task. Adding a task to the beginning of the list means it will be
+executed earlier than those already in the list.
+
+__Arguments:__
+
+- `checkers` (`TAnyTask`): One or more task instances to be added to the checker list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+checker_task = Task(name='checker-task')
+task.insert_checker(checker_task)
 ```
 
 
@@ -900,7 +961,7 @@ Print message to stdout and style it as faint.
 
 ### `TimeWatcher.print_result`
 
-Outputs the task result to stdout for further processing.
+Print the task result to stdout for further processing.
 
 Override this method in subclasses to customize how the task result is displayed
 or processed. Useful for integrating the task output with other systems or
@@ -1063,6 +1124,54 @@ conditional task execution based on dynamic criteria.
 __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
+
+### `TimeWatcher.set_task_xcom`
+
+Set task xcom for cross task communication.
+
+Argss:
+key (str): Xcom key
+value (str): The value of the xcom
+
+__Returns:__
+
+`str`: Empty string
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.set_task_xcom('magic_word', 'hello')
+        magic_word = self.get_xcom(f'{self.get_name()}.magic_word')
+        return 42
+```
+
+
+### `TimeWatcher.set_xcom`
+
+Set xcom for cross task communication.
+
+Argss:
+key (str): Xcom key
+value (str): The value of the xcom
+
+__Returns:__
+
+`str`: Empty string
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    async def run(self, *args: Any, **kwargs: Any) -> int:
+        self.set_xcom('magic_word', 'hello')
+        magic_word = self.get_xcom('magic_word')
+        return 42
+```
+
 
 ### `TimeWatcher.show_progress`
 

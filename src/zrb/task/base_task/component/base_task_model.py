@@ -2,7 +2,7 @@ from zrb.helper.typing import (
     Any, Callable, Iterable, List, Mapping, Optional, Union
 )
 from zrb.helper.typecheck import typechecked
-from zrb.config.config import show_time
+from zrb.config.config import show_time, logging_level
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
@@ -19,8 +19,10 @@ from zrb.task.base_task.component.trackers import TimeTracker
 from zrb.config.config import env_prefix
 from zrb.helper.string.modification import double_quote
 from zrb.helper.string.conversion import to_variable_name
+from functools import lru_cache
 
 import datetime
+import logging
 import os
 import sys
 
@@ -90,12 +92,20 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.__kwargs: Mapping[str, Any] = {}
 
     def _set_args(self, args: Iterable[Any]):
+        '''
+        Set args that will be shown at the end of the execution
+        '''
         self.__args = list(args)
 
     def _set_kwargs(self, kwargs: Mapping[str, Any]):
+        '''
+        Set kwargs that will be shown at the end of the execution
+        '''
         self.__kwargs = kwargs
 
     def log_debug(self, message: Any):
+        if logging_level > logging.DEBUG:
+            return
         prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
@@ -103,6 +113,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         logger.debug(colored_message)
 
     def log_warn(self, message: Any):
+        if logging_level > logging.WARNING:
+            return
         prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
@@ -110,6 +122,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         logger.warning(colored_message)
 
     def log_info(self, message: Any):
+        if logging_level > logging.INFO:
+            return
         prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', attrs=['dark']
@@ -117,6 +131,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         logger.info(colored_message)
 
     def log_error(self, message: Any):
+        if logging_level > logging.ERROR:
+            return
         prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', color='red', attrs=['bold']
@@ -124,6 +140,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         logger.error(colored_message, exc_info=True)
 
     def log_critical(self, message: Any):
+        if logging_level > logging.CRITICAL:
+            return
         prefix = self.__get_log_prefix()
         colored_message = colored(
             f'{prefix} • {message}', color='red', attrs=['bold']
@@ -203,13 +221,15 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
     def __get_print_prefix(self) -> str:
         common_prefix = self.__get_common_prefix(show_time=show_time)
         icon = self.get_icon()
-        rjust_cli_name = self.__get_rjust_full_cli_name()
+        length = LOG_NAME_LENGTH - len(icon)
+        rjust_cli_name = self.__get_rjust_full_cli_name(length)
         return f'{common_prefix} {icon} {rjust_cli_name}'
 
     def __get_log_prefix(self) -> str:
         common_prefix = self.__get_common_prefix(show_time=False)
         icon = self.get_icon()
-        filled_name = self.__get_rjust_full_cli_name()
+        length = LOG_NAME_LENGTH - len(icon)
+        filled_name = self.__get_rjust_full_cli_name(length)
         return f'{common_prefix} {icon} {filled_name}'
 
     def __get_common_prefix(self, show_time: bool) -> str:
@@ -221,18 +241,21 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
             return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
         return f'❁ {pid} → {attempt}/{max_attempt}'
 
-    def __get_rjust_full_cli_name(self) -> str:
+    @lru_cache
+    def __get_rjust_full_cli_name(self, length: int) -> str:
         if self.__rjust_full_cli_name is not None:
             return self.__rjust_full_cli_name
         complete_name = self._get_full_cli_name()
-        self.__rjust_full_cli_name = complete_name.rjust(LOG_NAME_LENGTH, ' ')
+        self.__rjust_full_cli_name = complete_name.rjust(length, ' ')
         return self.__rjust_full_cli_name
 
+    @lru_cache
     def __get_executable_name(self) -> str:
         if len(sys.argv) > 0 and sys.argv[0] != '':
             return os.path.basename(sys.argv[0])
         return 'zrb'
 
+    @lru_cache
     def _get_full_cli_name(self) -> str:
         if self.__complete_name is not None:
             return self.__complete_name

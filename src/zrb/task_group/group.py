@@ -19,7 +19,7 @@ class Group():
 
     Attributes:
         name (str): The name of the group.
-        description (Optional[str]): An optional description of the group.
+        description (str): The description of the group.
         parent (Optional[TGroup]): The parent group of the current group, if any.
 
     Examples:
@@ -31,11 +31,11 @@ class Group():
     def __init__(
         self,
         name: str,
-        description: Optional[str] = None,
+        description: str = '',
         parent: Optional[TGroup] = None
     ):
         self.__name = name
-        self.__description = description if description is not None else ''
+        self.__description = description
         self._parent = parent
         if parent is not None:
             parent.__children.append(self)

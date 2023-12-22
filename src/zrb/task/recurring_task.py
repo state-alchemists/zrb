@@ -8,7 +8,6 @@ from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
 )
-from zrb.task.task import Task
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -18,14 +17,40 @@ import asyncio
 import copy
 
 
+class RunConfig():
+    def __init__(
+        self,
+        fn: Callable[..., Any],
+        args: List[Any],
+        kwargs: Mapping[Any, Any],
+        execution_id: str
+    ):
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.execution_id = execution_id
+
+    async def run(self):
+        return await self.fn(*self.args, **self.kwargs)
+
+
 @typechecked
 class RecurringTask(BaseTask):
+    '''
+    A class representing a recurring task that is triggered based on
+    specified conditions.
+
+    Examples:
+
+        >>> from zrb import RecurringTask
+    '''
 
     def __init__(
         self,
         name: str,
         task: AnyTask,
         triggers: Iterable[AnyTask] = [],
+        single_execution: bool = False,
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -80,6 +105,8 @@ class RecurringTask(BaseTask):
         self._triggers: List[AnyTask] = [
             trigger.copy() for trigger in triggers
         ]
+        self._run_configs: List[RunConfig] = []
+        self._single_execution = single_execution
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
@@ -97,6 +124,12 @@ class RecurringTask(BaseTask):
         await asyncio.gather(*trigger_coroutines)
 
     async def run(self, *args: Any, **kwargs: Any):
+        await asyncio.gather(
+            asyncio.create_task(self.__check_trigger(*args, **kwargs)),
+            asyncio.create_task(self.__run_from_queue())
+        )
+
+    async def __check_trigger(self, *args: Any, **kwargs: Any):
         task_kwargs = {
             key: kwargs[key]
             for key in kwargs if key not in ['_task']
@@ -138,13 +171,31 @@ class RecurringTask(BaseTask):
             fn = task_copy.to_function(
                 is_async=True, raise_error=False, show_done_info=False
             )
-            self.print_out_dark('Executing the task')
-            asyncio.create_task(
-                self.__run_and_play_bell(fn, *args, **task_kwargs)
+            self.print_out_dark(f'Add execution to the queue: {execution_id}')
+            self._run_configs.append(
+                RunConfig(
+                    fn=fn,
+                    args=args,
+                    kwargs=task_kwargs,
+                    execution_id=execution_id
+                )
             )
 
-    async def __run_and_play_bell(
-        self, fn: Callable[..., Any], *args: Any, **kwargs: Any
-    ):
-        await fn(*args, **kwargs)
-        self._play_bell()
+    async def __run_from_queue(self):
+        while True:
+            if len(self._run_configs) == 0:
+                await asyncio.sleep(0.1)
+                continue
+            if self._single_execution:
+                # Drain the queue, leave only the latest task
+                while len(self._run_configs) > 1:
+                    run_config = self._run_configs.pop(0)
+                    self.print_out_dark(f'Skipping {run_config.execution_id}')
+                    self.clear_xcom(execution_id=run_config.execution_id)
+            # Run task
+            run_config = self._run_configs.pop(0)
+            self.print_out_dark(f'Executing {run_config.execution_id}')
+            self.print_out_dark(f'{len(self._run_configs)} tasks left')
+            await run_config.run()
+            self.clear_xcom(execution_id=run_config.execution_id)
+            self._play_bell()

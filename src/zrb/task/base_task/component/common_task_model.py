@@ -60,7 +60,7 @@ class CommonTaskModel():
         self._retry = retry
         self._retry_interval = retry_interval
         self._upstreams = upstreams
-        self._checkers = checkers
+        self._checkers = [checker.copy() for checker in checkers]
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
         self._on_triggered = on_triggered
@@ -77,10 +77,10 @@ class CommonTaskModel():
         self.__allow_add_env_files = True
         self.__allow_add_inputs = True
         self.__allow_add_upstreams: bool = True
+        self.__allow_add_checkers: bool = True
         self.__has_already_inject_env_files: bool = False
         self.__has_already_inject_envs: bool = False
         self.__has_already_inject_inputs: bool = False
-        self.__has_already_inject_checkers: bool = False
         self.__has_already_inject_upstreams: bool = False
         self.__all_inputs: Optional[List[AnyInput]] = None
 
@@ -104,12 +104,15 @@ class CommonTaskModel():
         return self.__execution_id
 
     def set_name(self, new_name: str):
-        if self._description == self._name:
+        if self._description == self.get_name():
             self._description = new_name
         self._name = new_name
 
+    def get_name(self) -> str:
+        return self._name
+
     def get_cli_name(self) -> str:
-        return to_cli_name(self._name)
+        return to_cli_name(self.get_name())
 
     def set_description(self, new_description: str):
         self._description = new_description
@@ -139,12 +142,12 @@ class CommonTaskModel():
 
     def insert_input(self, *inputs: AnyInput):
         if not self.__allow_add_inputs:
-            raise Exception(f'Cannot insert inputs for `{self._name}`')
+            raise Exception(f'Cannot insert inputs for `{self.get_name()}`')
         self._inputs = list(inputs) + list(self._inputs)
 
     def add_input(self, *inputs: AnyInput):
         if not self.__allow_add_inputs:
-            raise Exception(f'Cannot add inputs for `{self._name}`')
+            raise Exception(f'Cannot add inputs for `{self.get_name()}`')
         self._inputs = list(self._inputs) + list(inputs)
 
     def inject_inputs(self):
@@ -194,12 +197,12 @@ class CommonTaskModel():
 
     def insert_env(self, *envs: Env):
         if not self.__allow_add_envs:
-            raise Exception(f'Cannot insert envs to `{self._name}`')
+            raise Exception(f'Cannot insert envs to `{self.get_name()}`')
         self._envs = list(envs) + list(self._envs)
 
     def add_env(self, *envs: Env):
         if not self.__allow_add_envs:
-            raise Exception(f'Cannot add envs to `{self._name}`')
+            raise Exception(f'Cannot add envs to `{self.get_name()}`')
         self._envs = list(self._envs) + list(envs)
 
     def inject_envs(self):
@@ -230,12 +233,12 @@ class CommonTaskModel():
 
     def insert_env_file(self, *env_files: EnvFile):
         if not self.__allow_add_env_files:
-            raise Exception(f'Cannot insert env_files to `{self._name}`')
+            raise Exception(f'Cannot insert env_files to `{self.get_name()}`')
         self._env_files = list(env_files) + list(self._env_files)
 
     def add_env_file(self, *env_files: EnvFile):
         if not self.__allow_add_env_files:
-            raise Exception(f'Cannot add env_files to `{self._name}`')
+            raise Exception(f'Cannot add env_files to `{self.get_name()}`')
         self._env_files = list(self._env_files) + list(env_files)
 
     def inject_env_files(self):
@@ -243,12 +246,12 @@ class CommonTaskModel():
 
     def insert_upstream(self, *upstreams: AnyTask):
         if not self.__allow_add_upstreams:
-            raise Exception(f'Cannot insert upstreams to `{self._name}`')
+            raise Exception(f'Cannot insert upstreams to `{self.get_name()}`')
         self._upstreams = list(upstreams) + list(self._upstreams)
 
     def add_upstream(self, *upstreams: AnyTask):
         if not self.__allow_add_upstreams:
-            raise Exception(f'Cannot add upstreams to `{self._name}`')
+            raise Exception(f'Cannot add upstreams to `{self.get_name()}`')
         self._upstreams = list(self._upstreams) + list(upstreams)
 
     def inject_upstreams(self):
@@ -272,11 +275,23 @@ class CommonTaskModel():
             self.__has_already_inject_env_files = True
         return self._env_files
 
+    def insert_checker(self, *checkers: AnyTask):
+        if not self.__allow_add_checkers:
+            raise Exception(f'Cannot insert checkers to `{self.get_name()}`')
+        additional_checkers = [checker.copy() for checker in checkers]
+        self._checkers = additional_checkers + self._checkers
+
+    def add_checker(self, *checkers: AnyTask):
+        if not self.__allow_add_checkers:
+            raise Exception(f'Cannot add checkers to `{self.get_name()}`')
+        additional_checkers = [checker.copy() for checker in checkers]
+        self._checkers = self._checkers + additional_checkers
+
     def inject_checkers(self):
         pass
 
     def _get_checkers(self) -> List[AnyTask]:
-        if not self.__has_already_inject_checkers:
+        if not self.__allow_add_checkers:
             self.inject_checkers()
-            self.__has_already_inject_checkers = True
-        return list(self._checkers)
+            self.__allow_add_checkers = True
+        return self._checkers

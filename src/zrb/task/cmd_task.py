@@ -48,6 +48,9 @@ class CmdResult():
         self.output = output
         self.error = error
 
+    def __str__(self) -> str:
+        return self.output
+
 
 class CmdGlobalState():
     def __init__(self):
@@ -61,30 +64,18 @@ class CmdTask(BaseTask):
     Command Task.
     You can use this task to run shell command.
 
-    For example:
-    ```python
-    # run a simple task
-    hello = CmdTask(
-        name='hello',
-        inputs=[StrInput(name='name', default='World')],
-        envs=[Env(name='HOME_DIR', os_name='HOME')],
-        cmd=[
-            'echo Hello {{ input.name }}',
-            'echo Home directory is: $HOME_DIR',
-        ]
-    )
-    runner.register(hello)
-
-    # run a long running process
-    run_server = CmdTask(
-        name='run',
-        inputs=[StrInput(name='dir', default='.')],
-        envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
-        cmd='python -m http.server $PORT --directory {{input.dir}}',
-        checkers=[HTTPChecker(port='{{env.PORT}}')]
-    )
-    runner.register(run_server)
-    ```
+    Examples:
+        >>> from zrb import runner, CmdTask, StrInput, Env
+        >>> hello = CmdTask(
+        >>>     name='hello',
+        >>>     inputs=[StrInput(name='name', default='World')],
+        >>>     envs=[Env(name='HOME_DIR', os_name='HOME')],
+        >>>     cmd=[
+        >>>         'echo Hello {{ input.name }}',
+        >>>         'echo Home directory is: $HOME_DIR',
+        >>>     ]
+        >>> )
+        >>> runner.register(hello)
     '''
 
     _pids: List[int] = []
@@ -246,6 +237,8 @@ class CmdTask(BaseTask):
             raise Exception(
                 f'Process {self._name} exited ({return_code}): {error}'
             )
+        self.set_task_xcom(key='output', value=output)
+        self.set_task_xcom(key='error', value=error)
         return CmdResult(output, error)
 
     def _should_attempt(self) -> bool:

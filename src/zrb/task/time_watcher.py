@@ -20,6 +20,12 @@ TTimeWatcher = TypeVar('TTimeWatcher', bound='TimeWatcher')
 
 @typechecked
 class TimeWatcher(Checker):
+    '''
+    TimeWatcher will wait for any changes specified on  path.
+
+    Once the changes detected, TimeWatcher will be completed
+    and <task-name>.scheduled-time xcom will be set.
+    '''
 
     def __init__(
         self,
@@ -92,6 +98,7 @@ class TimeWatcher(Checker):
             self._rendered_schedule, slightly_before_check_time
         )
         self._scheduled_time = cron.get_next(datetime.datetime)
+        self.set_task_xcom(key='scheduled-time', value=self._scheduled_time)
         return await super().run(*args, **kwargs)
 
     async def inspect(self, *args: Any, **kwargs: Any) -> bool:
