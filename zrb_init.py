@@ -158,6 +158,20 @@ def make_docs(*args: Any, **kwargs: Any):
 
 
 ###############################################################################
+# ⚙️ show-trigger-info
+###############################################################################
+
+@python_task(
+    name='show-trigger-info'
+)
+def show_trigger_info(*args: Any, **kwargs: Any):
+    task = kwargs.get('_task')
+    file = task.get_xcom('watch-path.file')
+    if file != '':
+        task.print_out(f'Trigger: {file}')
+
+
+###############################################################################
 # ⚙️ remake-docs
 ###############################################################################
 
@@ -167,6 +181,7 @@ remake_docs = CmdTask(
     envs=[
         Env('ZRB_SHOW_TIME', os_name='', default='0')
     ],
+    upstreams=[show_trigger_info],
     cmd='zrb make-docs'
 )
 
@@ -182,7 +197,8 @@ auto_make_docs = RecurringTask(
             path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py*'),
         )
     ],
-    task=remake_docs
+    task=remake_docs,
+    single_execution=True
 )
 runner.register(auto_make_docs)
 
@@ -467,6 +483,12 @@ test.add_upstream(install_symlink)
 runner.register(test)
 
 ###############################################################################
+# ⚙️ re-test
+###############################################################################
+retest = test_only.copy()
+retest.add_upstream(show_trigger_info)
+
+###############################################################################
 # ⚙️ auto-test
 ###############################################################################
 
@@ -474,19 +496,21 @@ auto_test = RecurringTask(
     name='auto-test',
     description='Run zrb test, automatically',
     upstreams=[test],
-    task=test_only,
+    task=retest,
     triggers=[
         PathWatcher(
-            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py*'),
+            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py'),
         ),
         PathWatcher(
             path=os.path.join(CURRENT_DIR, 'test', '**', '*.py'),
             ignored_path=[
                 os.path.join('**', 'template', '**', 'test'),
                 os.path.join('**', 'generator', '**', 'app'),
+                os.path.join('**', 'resource_maker', 'app'),
             ]
         )
-    ]
+    ],
+    single_execution=True
 )
 runner.register(auto_test)
 

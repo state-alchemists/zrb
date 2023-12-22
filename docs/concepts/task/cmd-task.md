@@ -10,30 +10,22 @@
 Command Task.
 You can use this task to run shell command.
 
-For example:
+__Examples:__
+
 ```python
-# run a simple task
+from zrb import runner, CmdTask, StrInput, Env
 hello = CmdTask(
-name='hello',
-inputs=[StrInput(name='name', default='World')],
-envs=[Env(name='HOME_DIR', os_name='HOME')],
-cmd=[
-'echo Hello {{ input.name }}',
-'echo Home directory is: $HOME_DIR',
-]
+    name='hello',
+    inputs=[StrInput(name='name', default='World')],
+    envs=[Env(name='HOME_DIR', os_name='HOME')],
+    cmd=[
+        'echo Hello {{ input.name }}',
+        'echo Home directory is: $HOME_DIR',
+    ]
 )
 runner.register(hello)
-
-# run a long running process
-run_server = CmdTask(
-name='run',
-inputs=[StrInput(name='dir', default='.')],
-envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
-cmd='python -m http.server $PORT --directory {{input.dir}}',
-checkers=[HTTPChecker(port='{{env.PORT}}')]
-)
-runner.register(run_server)
 ```
+
 
 ### `CmdTask._BaseTaskModel__get_colored`
 
@@ -528,6 +520,11 @@ class MyTask(Task):
     async def check(self) -> bool:
         return self._completed
 ```
+
+
+### `CmdTask.clear_xcom`
+
+No documentation available.
 
 
 ### `CmdTask.copy`

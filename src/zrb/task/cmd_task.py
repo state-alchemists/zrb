@@ -64,30 +64,18 @@ class CmdTask(BaseTask):
     Command Task.
     You can use this task to run shell command.
 
-    For example:
-    ```python
-    # run a simple task
-    hello = CmdTask(
-        name='hello',
-        inputs=[StrInput(name='name', default='World')],
-        envs=[Env(name='HOME_DIR', os_name='HOME')],
-        cmd=[
-            'echo Hello {{ input.name }}',
-            'echo Home directory is: $HOME_DIR',
-        ]
-    )
-    runner.register(hello)
-
-    # run a long running process
-    run_server = CmdTask(
-        name='run',
-        inputs=[StrInput(name='dir', default='.')],
-        envs=[Env(name='PORT', os_name='WEB_PORT', default='3000')],
-        cmd='python -m http.server $PORT --directory {{input.dir}}',
-        checkers=[HTTPChecker(port='{{env.PORT}}')]
-    )
-    runner.register(run_server)
-    ```
+    Examples:
+        >>> from zrb import runner, CmdTask, StrInput, Env
+        >>> hello = CmdTask(
+        >>>     name='hello',
+        >>>     inputs=[StrInput(name='name', default='World')],
+        >>>     envs=[Env(name='HOME_DIR', os_name='HOME')],
+        >>>     cmd=[
+        >>>         'echo Hello {{ input.name }}',
+        >>>         'echo Home directory is: $HOME_DIR',
+        >>>     ]
+        >>> )
+        >>> runner.register(hello)
     '''
 
     _pids: List[int] = []

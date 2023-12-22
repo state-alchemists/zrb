@@ -441,6 +441,11 @@ class MyTask(Task):
 ```
 
 
+### `HTTPChecker.clear_xcom`
+
+No documentation available.
+
+
 ### `HTTPChecker.copy`
 
 Creates and returns a copy of the current task.

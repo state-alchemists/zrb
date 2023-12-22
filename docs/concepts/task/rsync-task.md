@@ -446,6 +446,11 @@ class MyTask(Task):
 ```
 
 
+### `RsyncTask.clear_xcom`
+
+No documentation available.
+
+
 ### `RsyncTask.copy`
 
 Creates and returns a copy of the current task.

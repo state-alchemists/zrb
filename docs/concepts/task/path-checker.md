@@ -446,6 +446,11 @@ class MyTask(Task):
 ```
 
 
+### `PathChecker.clear_xcom`
+
+No documentation available.
+
+
 ### `PathChecker.copy`
 
 Creates and returns a copy of the current task.

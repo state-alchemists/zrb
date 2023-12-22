@@ -20,6 +20,12 @@ TTimeWatcher = TypeVar('TTimeWatcher', bound='TimeWatcher')
 
 @typechecked
 class TimeWatcher(Checker):
+    '''
+    TimeWatcher will wait for any changes specified on  path.
+
+    Once the changes detected, TimeWatcher will be completed
+    and <task-name>.scheduled-time xcom will be set.
+    '''
 
     def __init__(
         self,

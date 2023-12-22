@@ -20,6 +20,16 @@ TPathWatcher = TypeVar('TPathWatcher', bound='PathWatcher')
 
 @typechecked
 class PathWatcher(Checker):
+    '''
+    PathWatcher will wait for any changes specified on  path.
+
+    Once the changes detected, PathWatcher will be completed
+    and several xcom will be set:
+    - <task-name>.file
+    - <task-name>.new-file
+    - <task-name>.modified-file
+    - <task-name>.deleted-file
+    '''
 
     def __init__(
         self,

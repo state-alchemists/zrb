@@ -7,8 +7,14 @@
 <!--start-doc-->
 ## `PathWatcher`
 
-Base class for all tasks.
-Every task definition should be extended from this class.
+PathWatcher will wait for any changes specified on  path.
+
+Once the changes detected, PathWatcher will be completed
+and several xcom will be set:
+- <task-name>.file
+- <task-name>.new-file
+- <task-name>.modified-file
+- <task-name>.deleted-file
 
 ### `PathWatcher._BaseTaskModel__get_colored`
 
@@ -449,6 +455,11 @@ class MyTask(Task):
     async def check(self) -> bool:
         return self._completed
 ```
+
+
+### `PathWatcher.clear_xcom`
+
+No documentation available.
 
 
 ### `PathWatcher.copy`

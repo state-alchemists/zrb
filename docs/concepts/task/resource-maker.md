@@ -451,6 +451,11 @@ class MyTask(Task):
 ```
 
 
+### `ResourceMaker.clear_xcom`
+
+No documentation available.
+
+
 ### `ResourceMaker.copy`
 
 Creates and returns a copy of the current task.

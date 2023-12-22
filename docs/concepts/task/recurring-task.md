@@ -7,8 +7,16 @@
 <!--start-doc-->
 ## `RecurringTask`
 
-Base class for all tasks.
-Every task definition should be extended from this class.
+A class representing a recurring task that is triggered based on
+specified conditions.
+
+__Examples:__
+
+
+```python
+from zrb import RecurringTask
+```
+
 
 ### `RecurringTask._BaseTaskModel__get_colored`
 
@@ -449,6 +457,11 @@ class MyTask(Task):
     async def check(self) -> bool:
         return self._completed
 ```
+
+
+### `RecurringTask.clear_xcom`
+
+No documentation available.
 
 
 ### `RecurringTask.copy`

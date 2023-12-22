@@ -7,8 +7,10 @@
 <!--start-doc-->
 ## `TimeWatcher`
 
-Base class for all tasks.
-Every task definition should be extended from this class.
+TimeWatcher will wait for any changes specified on  path.
+
+Once the changes detected, TimeWatcher will be completed
+and <task-name>.scheduled-time xcom will be set.
 
 ### `TimeWatcher._BaseTaskModel__get_colored`
 
@@ -439,6 +441,11 @@ class MyTask(Task):
     async def check(self) -> bool:
         return self._completed
 ```
+
+
+### `TimeWatcher.clear_xcom`
+
+No documentation available.
 
 
 ### `TimeWatcher.copy`

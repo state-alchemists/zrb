@@ -36,12 +36,21 @@ class RunConfig():
 
 @typechecked
 class RecurringTask(BaseTask):
+    '''
+    A class representing a recurring task that is triggered based on
+    specified conditions.
+
+    Examples:
+
+        >>> from zrb import RecurringTask
+    '''
 
     def __init__(
         self,
         name: str,
         task: AnyTask,
         triggers: Iterable[AnyTask] = [],
+        single_execution: bool = False,
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -97,6 +106,7 @@ class RecurringTask(BaseTask):
             trigger.copy() for trigger in triggers
         ]
         self._run_configs: List[RunConfig] = []
+        self._single_execution = single_execution
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
@@ -176,7 +186,15 @@ class RecurringTask(BaseTask):
             if len(self._run_configs) == 0:
                 await asyncio.sleep(0.1)
                 continue
+            if self._single_execution:
+                # Drain the queue, leave only the latest task
+                while len(self._run_configs) > 1:
+                    run_config = self._run_configs.pop(0)
+                    self.print_out_dark(f'Skipping {run_config.execution_id}')
+                    self.clear_xcom(execution_id=run_config.execution_id)
+            # Run task
             run_config = self._run_configs.pop(0)
             self.print_out_dark(f'Executing {run_config.execution_id}')
             await run_config.run()
+            self.clear_xcom(execution_id=run_config.execution_id)
             self._play_bell()

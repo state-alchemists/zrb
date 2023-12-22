@@ -138,6 +138,13 @@ class BaseTask(
             return ''
         return self.__xcom[execution_id].get(key, '')
 
+    def clear_xcom(self, execution_id: str = '') -> str:
+        if execution_id == '':
+            execution_id = self.get_execution_id()
+        if execution_id in self.__xcom:
+            del self.__xcom[execution_id]
+            return ''
+
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
 
