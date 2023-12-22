@@ -194,7 +194,7 @@ auto_make_docs = RecurringTask(
     description='Make documentation whenever there is any changes in the code',
     triggers=[
         PathWatcher(
-            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py*'),
+            path=os.path.join(CURRENT_DIR, 'src', 'zrb', '**', '*.py'),
         )
     ],
     task=remake_docs,

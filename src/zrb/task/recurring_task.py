@@ -195,6 +195,7 @@ class RecurringTask(BaseTask):
             # Run task
             run_config = self._run_configs.pop(0)
             self.print_out_dark(f'Executing {run_config.execution_id}')
+            self.print_out_dark(f'{len(self._run_configs)} tasks left')
             await run_config.run()
             self.clear_xcom(execution_id=run_config.execution_id)
             self._play_bell()
