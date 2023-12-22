@@ -11,6 +11,7 @@ from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
 from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.remote_cmd_task import RemoteCmdTask
 from zrb.task.rsync_task import RsyncTask
+from zrb.task.notifier import Notifier
 from zrb.task.checker import Checker
 from zrb.task.http_checker import HTTPChecker
 from zrb.task.port_checker import PortChecker

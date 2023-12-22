@@ -27,7 +27,9 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
     - [Task Inputs](#task-inputs)
     - [Task Environments](#task-environments)
     - [Environment Cascading](#environment-cascading)
-    - [Execution Id and Xcom](#execution-id-and-xcom)
+    - [Execution ID and Xcom](#execution-id-and-xcom)
+      - [Execution ID](#execution-id)
+      - [XCom (Cross Task Communication)](#xcom-cross-task-communication)
     - [Basic Example](#basic-example)
     - [Advance Example](#advance-example-long-running-task)
 
@@ -108,8 +110,8 @@ To run again: zrb base64 encode --text "non-credential-string"
 
 Like any CLI program, when you run a Zrb task, you get two kinds of outputs:
 
-- `Standard Error (stdout)`: Contains logs, error messages, and other information.
-- `Standard Output (stderr)`: Contains the output of the program.
+- `Standard Error (stderr)`: Contains logs, error messages, and other information.
+- `Standard Output (stdout)`: Contains the output of the program.
 
 In our previous example, Zrb will put `bm9uLWNyZWRlbnRpYWwtc3RyaW5n` into `Standard Output` and everything else into `Standard Error`. You will need this information if you want to [integrate Zrb with other tools](tutorials/integration-with-other-tools.md)
 
