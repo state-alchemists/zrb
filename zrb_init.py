@@ -3,8 +3,8 @@ from zrb import (
     runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
     ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
     TimeWatcher, PortChecker, RecurringTask, HTTPChecker, BaseRemoteCmdTask,
-    Env, EnvFile, Group, Input, BoolInput, ChoiceInput, FloatInput, IntInput,
-    PasswordInput, StrInput
+    Notifier, Env, EnvFile, Group, Input, BoolInput, ChoiceInput, FloatInput,
+    IntInput, PasswordInput, StrInput
 )
 from zrb.helper.docstring import get_markdown_from_docstring
 
@@ -143,6 +143,7 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(doc_concept_task_dir, 'remote-cmd-task.md'): RemoteCmdTask,  # noqa
         os.path.join(doc_concept_task_dir, 'resource-maker.md'): ResourceMaker,
         os.path.join(doc_concept_task_dir, 'rsync-task.md'): RsyncTask,
+        os.path.join(doc_concept_task_dir, 'notifier.md'): Notifier,
         os.path.join(doc_concept_task_dir, 'time-watcher.md'): TimeWatcher,
         os.path.join(doc_concept_task_input_dir, 'README.md'): Input,
         os.path.join(doc_concept_task_input_dir, 'bool-input.md'): BoolInput,
