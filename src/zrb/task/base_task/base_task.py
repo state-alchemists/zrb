@@ -255,7 +255,6 @@ class BaseTask(
             ]
             results = await asyncio.gather(*coroutines)
             result = results[-1]
-            self.set_xcom(self.get_name(), f'{result}')
             self._print_result(result)
             return result
         except Exception as e:
@@ -379,6 +378,8 @@ class BaseTask(
                 self._increase_attempt()
                 await asyncio.sleep(self._retry_interval)
                 await self.on_retry()
+        self.set_xcom(self.get_name(), f'{result}')
+        self.log_debug(f'XCom: {self.__xcom}')
         await self._mark_done()
         return result
 

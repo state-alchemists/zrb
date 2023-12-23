@@ -907,11 +907,37 @@ Parallel(set_xcom_cmd, set_xcom_py) >> Parallel(get_xcom_cmd, get_xcom_py) >> te
 runner.register(test_xcom)
 ```
 
-The example shows that `set-xcom-cmd` and `set-xcom-py` set XCom values `one` and `two` respectively.
+The example shows that `set-xcom-cmd` and `set-xcom-py` set XCom values `one` and `two`, respectively.
 
 On the other hand, `get-xcom-cmd` and `get-xcom-py` fetch the values and print them.
 
-Furthermore, every Zrb Task has their return values saved as `__xcom['execution-id']['task-name']`.
+Furthermore, every Zrb Task has its return values saved as `__xcom['execution-id']['task-name']`. Let's see the following example:
+
+```python
+from zrb import runner, Parallel, CmdTask, python_task
+
+hello_cmd = CmdTask(
+    name='hello-cmd',
+    cmd='echo hello-cmd',
+)
+
+@python_task(
+    name='hello-py'
+)
+def hello_py(*args, **kwargs):
+    return 'hello-py'
+
+hello = CmdTask(
+    name='hello',
+    cmd=[
+        'echo {{task.get_xcom("hello-cmd")}}',
+        'echo {{task.get_xcom("hello-py")}}',
+    ],
+)
+
+Parallel(hello_cmd, hello_py) >> hello
+runner.register(hello)
+```
 
 
 ## Basic Example
