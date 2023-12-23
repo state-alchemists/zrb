@@ -3,7 +3,7 @@ from zrb.task.cmd_task import CmdTask
 from zrb.task.task import Task
 
 
-def test_task_xcom():
+def test_set_xcom():
     set_xcom_cmd = CmdTask(
         name='set-xcom-cmd',
         cmd='echo "hi{{task.set_xcom("one", "ichi")}}"'
@@ -45,3 +45,27 @@ def test_task_xcom():
     assert result[0].output == 'ichi\nni'
     assert result[1] == 'ichi\nni'
 
+
+def test_get_return_value_as_xcom():
+    hello_cmd = CmdTask(
+        name='hello-cmd',
+        cmd='echo hello-cmd',
+    )
+
+    @python_task(
+        name='hello-py'
+    )
+    def hello_py(*args, **kwargs):
+        return 'hello-py'
+
+    hello = CmdTask(
+        name='hello',
+        upstreams=[hello_cmd, hello_py],
+        cmd=[
+            'echo {{task.get_xcom("hello-cmd")}}',
+            'echo {{task.get_xcom("hello-py")}}',
+        ],
+    )
+    fn = hello.to_function()
+    result = fn()
+    assert result.output == 'hello-cmd\nhello-py'
