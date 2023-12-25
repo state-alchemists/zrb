@@ -1,4 +1,4 @@
-# Human readable zrb package name
+# zrbPackageName
 
 kebab-zrb-package-name is a [pypi](https://pypi.org) package.
 
@@ -6,6 +6,8 @@ You can install kebab-zrb-package-name by invoking the following command:
 
 ```bash
 pip install kebab-zrb-package-name
+pip install -e /path/to/kebab-zrb-package-name
+pip install git+https://github.com/user-name/zrb-package-name.git
 ```
 
 Once kebab-zrb-package-name is installed, you can then run it by invoking the following command:
@@ -17,9 +19,7 @@ kebab-zrb-package-name
 You can also import `kebab-zrb-package-name` into your Python program:
 
 ```python
-from snake_zrb_package_name import hello
-
-print(hello())
+import snake_zrb_package_name
 ```
 
 
@@ -58,7 +58,7 @@ index-servers =
 To publish kebab-zrb-package-name, you can do the following command:
 
 ```bash
-zrb project publish-kebab-zrb-package-name
+zrb project publish-plugin
 ```
 
 ## Updating version
@@ -84,7 +84,7 @@ dependencies = [
 
 ## Adding script
 
-To make zrbPackageName executable, you can edit the following section in `pyproject.toml`:
+To make command under zrbPackageName, you can edit the following section in `pyproject.toml`:
 
 ```toml
 [project-scripts]

@@ -1,4 +1,5 @@
 from zrb.builtin.generator.project.create import create_project
+from zrb.builtin.generator.plugin import create as create_plugin
 from zrb.builtin.generator.cmd_task.add import add_cmd_task
 from zrb.builtin.generator.docker_compose_task.add import (
     add_docker_compose_task
@@ -15,6 +16,7 @@ from zrb.builtin.generator.pip_package import add as add_pip_package
 from zrb.builtin.generator.app_generator import add as add_app_generator
 
 assert create_project
+assert create_plugin
 assert add_cmd_task
 assert add_docker_compose_task
 assert add_python_task

@@ -9,7 +9,7 @@ RESOURCE_DIR = os.path.join(PROJECT_DIR, 'src', 'kebab-zrb-package-name')
 PACKAGE_DIR = os.path.join(RESOURCE_DIR, 'src')
 
 ###############################################################################
-# ⚙️ prepare-kebab-zrb-task-name
+# ⚙️ prepare-kebab-zrb-package-name
 ###############################################################################
 
 prepare_snake_zrb_package_name = CmdTask(
@@ -25,7 +25,7 @@ prepare_snake_zrb_package_name = CmdTask(
 runner.register(prepare_snake_zrb_package_name)
 
 ###############################################################################
-# ⚙️ build-kebab-zrb-task-name
+# ⚙️ build-kebab-zrb-package-name
 ###############################################################################
 
 build_snake_zrb_package_name = CmdTask(
@@ -42,7 +42,7 @@ build_snake_zrb_package_name = CmdTask(
 runner.register(build_snake_zrb_package_name)
 
 ###############################################################################
-# ⚙️ publish-kebab-zrb-task-name
+# ⚙️ publish-kebab-zrb-package-name
 ###############################################################################
 
 publish_snake_zrb_package_name = CmdTask(
@@ -67,7 +67,7 @@ publish_snake_zrb_package_name = CmdTask(
 runner.register(publish_snake_zrb_package_name)
 
 ###############################################################################
-# ⚙️ install-kebab-zrb-task-name-symlink
+# ⚙️ install-kebab-zrb-package-name-symlink
 ###############################################################################
 
 install_snake_zrb_package_name_symlink = CmdTask(

@@ -37,3 +37,6 @@ git_group = Group(
 process_group = Group(
     name='process', description='Process related commands'
 )
+plugin_group = Group(
+    name='plugin', description='Plugin related command'
+)
