@@ -1,0 +1,11 @@
+name: "Hello"
+run-name: "Run hello for ${{ github.actor }}"
+on: [push]
+
+jobs:
+  run-command:
+    uses: ./.github/workflows/_zrb.yml
+    with:
+      environment: DEV
+      command: |
+        zrb explain solid-principle

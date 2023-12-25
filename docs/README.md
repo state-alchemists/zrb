@@ -14,6 +14,7 @@
 - [Getting Started](getting-started.md)
 - [Concepts](concepts/README.md)
 - [Configurations](configurations.md)
+- [Plugins](plugins.md)
 - [Tutorials](tutorials/README.md)
 - [Troubleshooting](troubleshooting/README.md)
 - [Oops, I Did it Again: The Most Common Mistakes When Working with Zrb](oops-i-did-it-again/README.md)

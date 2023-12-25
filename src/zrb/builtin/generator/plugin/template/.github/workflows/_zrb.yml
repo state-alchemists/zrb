@@ -1,0 +1,41 @@
+name: Run Command
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+    secrets: {}
+
+jobs:
+
+  # Docs: https://docs.github.com/en/actions/using-workflows/reusing-workflows
+  Run-command:
+    runs-on: ubuntu-latest
+    container:
+      image: stalchmst/zrb:0.1.0
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Show Info
+        run: |
+          echo "🙋 PIC: ${{ github.actor }}"
+          echo "🎉 Event: ${{ github.event_name }}"
+          echo "🐧 OS: ${{ runner.os }}"
+          echo "🔎 Branch: ${{ github.ref }}"
+          echo "🔎 Repo: ${{ github.repository }}"
+      - name: Run command
+        shell: bash
+        run: |
+          set -e
+          export ZRB_ENV=${{ inputs.environment }}
+          export ZRB_SHOW_PROMPT=false
+          echo "🏁 Start running"
+          ${{ inputs.command }}
+      - run: echo "🍏 This job's status is ${{ job.status }}."
