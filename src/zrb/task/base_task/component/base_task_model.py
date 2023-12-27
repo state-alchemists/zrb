@@ -195,6 +195,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         print(colored(f'{colored_label}{colored_env_prefix}'), file=sys.stderr)
 
     def _show_run_command(self):
+        if not self.__has_cli_interface:
+            return
         params: List[str] = [double_quote(arg) for arg in self.__args]
         for task_input in self._get_combined_inputs():
             if task_input.is_hidden():
