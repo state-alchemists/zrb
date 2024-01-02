@@ -33,7 +33,7 @@ The following are the most common ways to install Python Packages:
 pip install package-name
 
 # Install a package from a directory
-pip install -e /path/to/directory
+pip install --use-feature=in-tree-build /path/to/directory
 
 # Install a package from a git repository
 pip install git+https://github.com/user-name/repo-name.git
