@@ -27,9 +27,8 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
     - [Task Inputs](#task-inputs)
     - [Task Environments](#task-environments)
     - [Environment Cascading](#environment-cascading)
-    - [Execution ID and Xcom](#execution-id-and-xcom)
-      - [Execution ID](#execution-id)
-      - [XCom (Cross Task Communication)](#xcom-cross-task-communication)
+    - [Execution ID](#execution-id)
+    - [XCom (Cross Task Communication)](#xcom-cross-task-communication)
     - [Basic Example](#basic-example)
     - [Advance Example](#advance-example-long-running-task)
 
@@ -163,7 +162,7 @@ zrb
 └── watch-changes
 ```
 
-When you type `zrb` in your terminal, you will see top-level Tasks and Task Groups. You can then type the Task Group or the Task until you find what you need.
+When you type `zrb` in your terminal, you will see top-level Tasks and Task Groups. You can then type the sub Task Group or the sub Task until you find what you need.
 
 Let's try it.
 
@@ -228,7 +227,7 @@ Commands:
   encode  Encode a text using base64 algorithm
 ```
 
-You will find two tasks (i.e., `decode` and `encode`) under the `base64` group.
+You will find two tasks (i.e., `decode` and `encode`) under the `base64` group. To execute the task, you can type `zrb base64 decode` or `zrb base64 encode`.
 
 ## Using Interactive Mode
 
@@ -241,13 +240,13 @@ You will find two tasks (i.e., `decode` and `encode`) under the `base64` group.
   </p>
 </div>
 
-You have seen how you can set the Task Parameters by using CLI options as follows:
+In the previous example, you have seen how you can set the Task Parameters by using CLI options as follows:
 
 ```bash
 zrb base64 encode --text "non-credential-string"
 ```
 
-The CLI Options are optional. You can run the task without specifying the options. When you do so, Zrb will activate the interactive mode so that you can supply the parameter values on the run.
+The CLI Options are always optional. You can run the task without specifying the options. When you do so, Zrb will activate the interactive mode so that you can supply the parameter values on the run.
 
 Let's try it.
 
@@ -270,7 +269,7 @@ To run again: zrb base64 encode --text "non-credential-string"
 >
 > When prompts are disabled, Zrb will automatically use task-parameter's default values.
 
-That's it. That's all you need to know to work with Zrb.
+That's all you need to know to run Zrb Tasks.
 
 In the rest of this section, you will learn about Zrb project and how to make your own Zrb Tasks.
 
@@ -285,17 +284,17 @@ In the rest of this section, you will learn about Zrb project and how to make yo
   </p>
 </div>
 
-You probably want to organize your jobs under multiple projects to keep them separated.
+Zrb allows you to isolate your work by putting them into multiple Zrb projects.
 
-At its basic, a project is a directory containing a single file named `zrb_init.py`. This setup is probably sufficient for a simple hello-world project.
+At its basic, a project is a directory containing a single file named `zrb_init.py`. This simple setup is already sufficient for a simple hello-world project.
 
-To make something more than a simple hello-world, you better use `zrb project create` command.
+However, to make something more than a simple hello-world, you better use `zrb project create` command.
 
 ```bash
 zrb project create --project-dir my-project --project-name my-project
 ```
 
-Once invoked, you will see a project named `my-project`. Let's see what this project looks like:
+Once invoked, you will see a project named `my-project` under your current directory. Let's see what this project looks like:
 
 ```bash
 cd my-project
@@ -321,7 +320,7 @@ drwxr-xr-x  2 gofrendi gofrendi 4096 Nov 12 07:52 src
 
 Every Zrb project has a file named `zrb_init.py` under the top-level directory. This file is your entry point to define your Task definitions.
 
-By convention, a project usually contains two sub-directories:
+By convention, a project usually contains other two sub-directories:
 
 - ___automate__: This folder contains all your automation scripts and task definitions
 - __src__: This folder contains all your resources like Docker compose file, helm charts, and source code.
@@ -351,7 +350,7 @@ Anytime you start working on your project, you should load `project.sh`.
   </p>
 </div>
 
-Tasks are your most negligible unit of job definition.
+Zrb Tasks are your most negligible unit of job definition.
 
 Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
 
@@ -415,11 +414,11 @@ Here is a quick list to see which class is better for what:
     # other_task_property=some_value,
     # ...
 )
-def function_name(*args, **kwargs):
+def task_name(*args, **kwargs):
     pass
 ```
 
-`@python_task` decorator turns your function into a `Task`.
+`@python_task` decorator turns your function into a `Task`. That means `task_name` is now a Zrb Task and you can no longer treat `task_name` as a function (i.e., `task_name()` won't work).
 
 ## Common Task Properties
 
@@ -434,16 +433,16 @@ def function_name(*args, **kwargs):
 
 The following properties are usually available:
 
-- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`)
+- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`).
 - __description__: The description of the task.
-- __group__: The task group where the task belongs to
+- __group__: The task group to which the task belongs.
 - __inputs__: Task inputs and their default values.
 - __envs__: Task's environment variables.
 - __env_files__: Task's environment files.
-- __retry__: How many time to retry the execution before entering `Failed` state.
+- __retry__: How many times to retry the execution before entering `Failed` state.
 - __upstreams__: Upstreams of the task. You can provide `AnyTask` as upstream.
-- __checkers__: List of checker tasks. You usually need this for long-running tasks.
-- __runner__: Only available in `@python_task`, the valid value is `zrb.runner`.
+- __checkers__: List of checker tasks. You need this for long-running tasks.
+- __runner__: Only available in `@python_task`. The valid value is `zrb.runner`.
 
 
 ## Task Dependencies
@@ -462,7 +461,7 @@ The following properties are usually available:
 
 There are two ways to define task dependencies in Zrb.
 
-- Using shift-right (i.e., `>>`) operator.
+- Using shift-right operator (i.e., `>>`).
 - Using `upstreams` parameter.
 
 By defining dependencies, you can ensure that Zrb will wait for your upstreams to be ready before proceeding with the main task.
@@ -686,7 +685,7 @@ Host: localhost
 
 ### Using Env and EnvFile on `@python_task` Decorator
 
-As for `@python_task`, you cannot use `os.getenv` to access task's environment. Instead, you should get the `task` instance from `kwargs` and invoke `task.get_env_map()`.
+As for `@python_task`, you cannot use `os.getenv` to access the task's environment. Instead, you should get the `task` instance from the `kwargs` argument and invoke `task.get_env_map()`.
 
 ```python
 from zrb import runner, AnyTask, python_task, Env, EnvFile
@@ -790,10 +789,8 @@ Now, since Zrb cannot find `DB_DB_URL`, it will use the `DB_URL` instead (i.e., 
 
 Using this behavior, you can work on multiple environments with the same codebase.
 
-## Execution ID and Xcom
 
-
-### Execution ID
+## Execution ID
 
 <div align="center">
   <img src="_images/emoji/ticket.png"/>
@@ -805,7 +802,7 @@ Using this behavior, you can work on multiple environments with the same codebas
 </div>
 
 In Zrb, a Task and all its upstreams will share the same Execution ID. 
-To get the Execution ID, you can use the `get_execution_id` method or `$_ZRB_EXECUTION_ID`, depending on the task.
+To get the Execution ID, you can use the `get_execution_id` method or `$_ZRB_EXECUTION_ID`, depending on whether you use a TaskClass or `@python_task` decorator.
 
 Let's see how we can get the Execution ID on different tasks:
 
@@ -833,11 +830,11 @@ Parallel(hello_cmd, hello_py) >> hello
 runner.register(hello)
 ```
 
-You will find that `hello-cmd`, `hello-py`, and `hello` always share the same Execution ID.
+You will find that `hello-cmd`, `hello-py`, and `hello` share the same Execution ID.
 
-You can use ExecutionID for many use cases, especially those related to Cross Task Communication (XCom).
+You can use ExecutionID for many cases, especially those related to Cross Task Communication (XCom).
 
-### XCom (Cross Task Communication)
+## XCom (Cross Task Communication)
 
 <div align="center">
   <img src="_images/emoji/telephone_receiver.png"/>
@@ -848,7 +845,7 @@ You can use ExecutionID for many use cases, especially those related to Cross Ta
   </p>
 </div>
 
-All instance of BaseTask share a global `xcom` dictionary. You can think of `xcom` as in-memory key-value storage.
+All instances of BaseTask share a global `xcom` dictionary. You can think of `xcom` as in-memory key-value storage.
 
 The structure of `xcom` dictionary is as follows:
 
@@ -911,7 +908,7 @@ The example shows that `set-xcom-cmd` and `set-xcom-py` set XCom values `one` an
 
 On the other hand, `get-xcom-cmd` and `get-xcom-py` fetch the values and print them.
 
-Furthermore, every Zrb Task has its return values saved as `__xcom['execution-id']['task-name']`. Let's see the following example:
+Furthermore, every Zrb Task has its return values saved as `__xcom['execution-id']['task-name']`. To have a better understanding, let's see the following example:
 
 ```python
 from zrb import runner, Parallel, CmdTask, python_task
@@ -938,6 +935,10 @@ hello = CmdTask(
 Parallel(hello_cmd, hello_py) >> hello
 runner.register(hello)
 ```
+
+With XCom, you can easily share your data across your tasks.
+
+Now, since you have already see the basic concepts, let's see some examples.
 
 
 ## Basic Example
