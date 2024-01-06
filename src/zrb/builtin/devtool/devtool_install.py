@@ -277,9 +277,9 @@ install_tmux = FlowTask(
     description='Terminal multiplexer',
     inputs=[
         StrInput(
-            name='config-file',
+            name='tmux-config-file',
             shortcut='c',
-            prompt='Config file',
+            prompt='Tmux config file',
             default='~/.tmux.conf'
         )
     ],
@@ -295,7 +295,7 @@ install_tmux = FlowTask(
                 template_file=os.path.join(
                     dir_path, 'tmux', 'resource', 'config.sh'
                 ),
-                config_file='{{input.config_file}}'
+                config_file='{{input.tmux_config_file}}'
             )
         ),
     ],
@@ -309,9 +309,9 @@ install_zsh = FlowTask(
     description='Zsh terminal + oh-my-zsh + zdharma',
     inputs=[
         StrInput(
-            name='config-file',
+            name='zsh-config-file',
             shortcut='c',
-            prompt='Config file',
+            prompt='Zsh config file',
             default='~/.zshrc'
         )
     ],
@@ -327,7 +327,7 @@ install_zsh = FlowTask(
                 template_file=os.path.join(
                     dir_path, 'zsh', 'resource', 'config.sh'
                 ),
-                config_file='{{input.config_file}}'
+                config_file='{{input.zsh_config_file}}'
             )
         ),
     ],
