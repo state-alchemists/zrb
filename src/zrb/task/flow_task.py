@@ -107,9 +107,29 @@ class FlowTask(BaseTask):
         embeded_tasks: List[AnyTask] = []
         for task in tasks:
             embeded_task = task.copy()
-            embeded_task.add_upstream(*upstreams)
+            embeded_task_root_upstreams = self._get_root_upstreams(
+                tasks=[embeded_task]
+            )
+            for embeded_task_root_upstream in embeded_task_root_upstreams:
+                embeded_task_root_upstream.add_upstream(*upstreams)
+            # embeded_task.add_upstream(*upstreams)
             embeded_task.add_env(*envs)
             embeded_task.add_env_file(*env_files)
             embeded_task.add_input(*inputs)
             embeded_tasks.append(embeded_task)
         return embeded_tasks
+
+    def _get_root_upstreams(self, tasks: List[AnyTask]):
+        root_upstreams = []
+        for task in tasks:
+            upstreams = task._get_upstreams()
+            if len(upstreams) == 0:
+                root_upstreams.append(task)
+                continue
+            for upstream in upstreams:
+                if len(upstream._get_upstreams()) == 0:
+                    root_upstreams.append(upstream)
+                    continue
+                root_upstreams += self._get_root_upstreams([upstream])
+        return root_upstreams
+
