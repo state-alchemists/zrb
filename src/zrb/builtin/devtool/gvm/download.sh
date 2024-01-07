@@ -1,13 +1,16 @@
 set -e
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
 if [ ! -d "${HOME}/.gvm" ]
 then
-    set +e
-    which apt
-    if [ "$?" = 0 ]
+    if command_exists apt
     then
-        sudo apt install bison
+        sudo apt install -y bison
     fi
-    set -e
     echo "Download GVM"
     curl -o- https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
 else

@@ -59,8 +59,13 @@ else
     echo "chsh command not found. Please change the default shell manually."
 fi
 
-echo "Installing oh-my-zsh"
-sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+if [ -d "$HOME/.oh-my-zsh" ]
+then
+    echo "oh-my-zsh is already installed"
+else
+    echo "Installing oh-my-zsh"
+    sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+fi
 
 echo "Installing zinit"
 bash -c "$(curl -fsSL https://git.io/zinit-install)"

@@ -34,7 +34,6 @@ else
     then
         if command_exists apt
         then
-            sudo apt install xclip
             sudo add-apt-repository ppa:maveonair/unzip-editor -y
             sudo apt update
             sudo apt install -y unzip
