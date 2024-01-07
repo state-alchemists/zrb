@@ -1,5 +1,5 @@
 set -e
-if [ -f './kubectl']
+if [ -f './kubectl' ]
 then
     echo 'kubectl already downloaded'
 else

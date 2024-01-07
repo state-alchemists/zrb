@@ -1,6 +1,7 @@
 from zrb.helper.typing import Any
 from zrb.builtin.group import git_group
 from zrb.task.decorator import python_task
+from zrb.task.cmd_task import CmdTask
 from zrb.task_input.str_input import StrInput
 from zrb.task_input.bool_input import BoolInput
 from zrb.runner import runner
@@ -11,6 +12,22 @@ from zrb.helper.python_task import show_lines
 ###############################################################################
 # Task Definitions
 ###############################################################################
+
+clear_branch = CmdTask(
+    name='clear-branch',
+    group=git_group,
+    description='Clear branches',
+    cmd=[
+        'for BRANCH in $(git branch)',
+        'do',
+        '  if [ "$BRANCH" != "main" ]',
+        '  then',
+        '    git branch -D $BRANCH',
+        '  fi',
+        'done',
+    ]
+)
+runner.register(clear_branch)
 
 
 @python_task(
@@ -40,7 +57,7 @@ from zrb.helper.python_task import show_lines
         BoolInput(
             name='include-updated',
             description='include updated file',
-            prompt='Include removed file',
+            prompt='Include updated file',
             default=True
         ),
     ],

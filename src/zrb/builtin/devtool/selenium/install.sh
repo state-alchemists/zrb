@@ -11,7 +11,7 @@ if [ "$OS_TYPE" = "Linux" ]
 then
    if command_exists apt
     then
-        sudo apt install unzip wget
+        sudo apt install -y unzip wget
     else
         echo "apt does not exists"
         exit 1
