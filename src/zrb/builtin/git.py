@@ -1,6 +1,7 @@
 from zrb.helper.typing import Any
 from zrb.builtin.group import git_group
-from zrb.task.decorator import python_task, CmdTask
+from zrb.task.decorator import python_task
+from zrb.task.cmd_task import CmdTask
 from zrb.task_input.str_input import StrInput
 from zrb.task_input.bool_input import BoolInput
 from zrb.runner import runner
