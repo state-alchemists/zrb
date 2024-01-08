@@ -326,13 +326,11 @@ class BaseTask(
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
-        # Add current task to processes
-        coroutines.append(self._cached_run(*args, **kwargs))
-        # Wait everything to complete
-        results = await asyncio.gather(*coroutines)
+        upstream_results = await asyncio.gather(*coroutines)
+        result = await self._cached_run(*args, **kwargs)
         if self._return_upstream_result:
-            return results[0:-1]
-        return results[-1]
+            return upstream_results
+        return result
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self.__is_execution_triggered:
@@ -410,7 +408,6 @@ class BaseTask(
                 )
             ))
         # set checker keyval
-        # local_env_map = self.get_env_map()
         checker_coroutines = []
         for checker_task in self._get_checkers():
             checker_task.add_input(*self._get_inputs())
