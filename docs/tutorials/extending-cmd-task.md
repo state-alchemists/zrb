@@ -57,7 +57,7 @@ class SlackPrintTask(CmdTask):
         self._message = message
 
     def inject_envs(self):
-        self.add_envs(
+        self.add_env(
             Env(
                 name='CHANNEL_ID', os_name='',
                 default=self.render_str(self._slack_channel_id)
