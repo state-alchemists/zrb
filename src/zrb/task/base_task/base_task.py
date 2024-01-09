@@ -332,7 +332,7 @@ class BaseTask(
         results = await asyncio.gather(*coroutines)
         if self._return_upstream_result:
             return results[0:-1]
-        return results[-1]    
+        return results[-1]
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self.__is_execution_triggered:
