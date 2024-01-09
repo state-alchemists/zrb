@@ -21,8 +21,8 @@ IS_PLAYGROUND_EXIST = os.path.isdir(PLAYGROUND_DIR)
 
 if IS_PLAYGROUND_EXIST:
     sys.path.append(PLAYGROUND_DIR)
-    from playground import zrb_init
-    assert zrb_init
+    from playground import zrb_init as playground_init
+    assert playground_init
 
 
 with open(os.path.join(CURRENT_DIR, 'pyproject.toml'), 'rb') as f:
@@ -571,70 +571,25 @@ create_playground = CmdTask(
     retry=0,
     preexec_fn=None
 )
-skippable_create_playground: CmdTask = create_playground.copy()
-skippable_create_playground.add_input(
-    build_zrb_input,
-    install_symlink_input,
-    create_playground_input
-)
-skippable_create_playground.set_should_execute('{{ input.create_playground}}')
 runner.register(create_playground)
-
-###############################################################################
-# ⚙️ playground test-fastapp
-###############################################################################
-
-test_fastapp_playground = CmdTask(
-    name='test-fastapp',
-    description='Test Fastapp',
-    group=playground_group,
-    upstreams=[skippable_create_playground],
-    cwd=CURRENT_DIR,
-    cmd_path=[
-        os.path.join(CURRENT_DIR, 'playground-init.sh'),
-        os.path.join(CURRENT_DIR, 'playground-test-fastapp.sh')
-    ],
-    retry=0,
-    preexec_fn=None
-)
-runner.register(test_fastapp_playground)
-
-###############################################################################
-# ⚙️ playground test-install-symlink
-###############################################################################
-
-test_install_playground_symlink = CmdTask(
-    name='test-install-symlink',
-    description='Test installing symlink',
-    group=playground_group,
-    upstreams=[skippable_create_playground],
-    cwd=CURRENT_DIR,
-    cmd_path=[
-        os.path.join(CURRENT_DIR, 'playground-init.sh'),
-        os.path.join(CURRENT_DIR, 'playground-test-install-symlink.sh')
-    ],
-    retry=0,
-    preexec_fn=None
-)
-runner.register(test_install_playground_symlink)
 
 ###############################################################################
 # ⚙️ playground test
 ###############################################################################
 
-test_playground = CmdTask(
-    name='test',
-    description='Test playground',
-    group=playground_group,
-    upstreams=[
-        test_fastapp_playground,
-        test_install_playground_symlink
-    ],
-    cmd='echo Test performed',
-    retry=0
-)
-runner.register(test_playground)
-
+if IS_PLAYGROUND_EXIST:
+    test_playground = CmdTask(
+        name='test',
+        description='Test playground',
+        group=playground_group,
+        upstreams=[
+            playground_init.fastapp_test.test_fastapp,
+            playground_init.zrb_pkg_local.install_zrb_pkg_symlink,
+        ],
+        cmd='echo Test performed',
+        retry=0
+    )
+    runner.register(test_playground)
 
 ###############################################################################
 # ⚙️ prepare-profile

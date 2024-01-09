@@ -326,11 +326,13 @@ class BaseTask(
             coroutines.append(asyncio.create_task(
                 upstream_task._run_all(**kwargs)
             ))
-        upstream_results = await asyncio.gather(*coroutines)
-        result = await self._cached_run(*args, **kwargs)
+        # Add current task to processes
+        coroutines.append(self._cached_run(*args, **kwargs))
+        # Wait everything to complete
+        results = await asyncio.gather(*coroutines)
         if self._return_upstream_result:
-            return upstream_results
-        return result
+            return results[0:-1]
+        return results[-1]    
 
     async def _cached_run(self, *args: Any, **kwargs: Any) -> Any:
         if self.__is_execution_triggered:

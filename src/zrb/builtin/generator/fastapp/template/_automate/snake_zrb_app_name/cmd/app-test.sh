@@ -5,4 +5,9 @@ echo "Activate virtual environment"
 source .venv/bin/activate
 
 cd ..
-pytest --cov=src --cov-report html --cov-report term --cov-report term-missing {{input.snake_zrb_app_name_test}}
+pytest \
+    --ignore=postgres-data \
+    --cov=src \
+    --cov-report html \
+    --cov-report term \
+    --cov-report term-missing {{input.snake_zrb_app_name_test}}
