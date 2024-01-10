@@ -13,8 +13,11 @@
 # Concepts
 
 - [Runner, Group, and Task](runner-group-and-task.md)
+- [Task Lifecycle](task-lifecycle.md)
+- [Task Upstream](task-upstream.md)
 - [Inputs](inputs.md)
 - [Environments](environments.md)
+- [Xcom](xcom.md)
 - [Template Rendering](template-rendering.md)
 - [Specialized Tasks](specialized-tasks.md)
   - [DockerComposeTask](specialized-tasks/docker-compose-task.md)
