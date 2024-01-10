@@ -1,8 +1,18 @@
 🔖 [Table of Contents](../README.md)
 
+<div align="center">
+  <img src="../_images/emoji/brain.png"/>
+  <p>
+    <sub>
+      Corgito Ergo Sum
+    </sub>
+  </p>
+</div>
+
+
 # Concepts
 
-- [Runner, Task, and Group](runner-task-and-group.md)
+- [Runner, Group, and Task](runner-group-and-task.md)
 - [Inputs](inputs.md)
 - [Environments](environments.md)
 - [Template Rendering](template-rendering.md)

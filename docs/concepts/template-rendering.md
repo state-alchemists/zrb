@@ -1,5 +1,5 @@
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
 
-# Runner, Task, and Group
+# Template Rendering
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
