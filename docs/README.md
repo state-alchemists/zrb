@@ -20,4 +20,5 @@
 - [Oops, I Did it Again: The Most Common Mistakes When Working with Zrb](oops-i-did-it-again/README.md)
 - [Contributor Guide](contributor-guide.md)
 - [Maintainer Guide](maintainer-guide.md)
+- [Technical Documentation](technical-documentation/README.md)
 - [FAQ](faq/README.md)

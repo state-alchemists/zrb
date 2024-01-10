@@ -56,6 +56,7 @@ assert BaseRemoteCmdTask
 assert RemoteConfig
 assert RemoteCmdTask
 assert RsyncTask
+assert Notifier
 assert Checker
 assert HTTPChecker
 assert PortChecker

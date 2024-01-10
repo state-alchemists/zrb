@@ -1,11 +1,12 @@
 from typing import Any, Mapping
 from zrb import (
-    runner, python_task, Task, CmdTask, DockerComposeTask, FlowTask, Checker,
-    ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
+    runner, AnyTask, python_task, Task, CmdTask, DockerComposeTask, FlowTask,
+    Checker, ResourceMaker, RsyncTask, RemoteCmdTask, PathChecker, PathWatcher,
     TimeWatcher, PortChecker, RecurringTask, HTTPChecker, BaseRemoteCmdTask,
     Notifier, Env, EnvFile, Group, Input, BoolInput, ChoiceInput, FloatInput,
     IntInput, PasswordInput, StrInput
 )
+from zrb.task.base_task.base_task import BaseTask
 from zrb.helper.docstring import get_markdown_from_docstring
 
 import os
@@ -120,38 +121,39 @@ zrb_latest_image_env = Env(
 )
 def make_docs(*args: Any, **kwargs: Any):
     task: Task = kwargs.get('_task')
-    doc_dir = os.path.join(CURRENT_DIR, 'docs')
-    doc_concept_dir = os.path.join(doc_dir, 'concepts')
-    doc_concept_task_dir = os.path.join(doc_concept_dir, 'task')
-    doc_concept_task_input_dir = os.path.join(doc_concept_dir, 'task-input')
+    dir = os.path.join(
+        CURRENT_DIR, 'docs', 'technical-documentation'
+    )
     configs: Mapping[str, Any] = {
-        os.path.join(doc_concept_dir, 'task-group.md'): Group,
-        os.path.join(doc_concept_dir, 'task-env.md'): Env,
-        os.path.join(doc_concept_dir, 'task-env-file.md'): EnvFile,
-        os.path.join(doc_concept_task_dir, 'README.md'): Task,
-        os.path.join(doc_concept_task_dir, 'base-remote-cmd-task.md'): BaseRemoteCmdTask,  # noqa
-        os.path.join(doc_concept_task_dir, 'checker.md'): Checker,
-        os.path.join(doc_concept_task_dir, 'cmd-task.md'): CmdTask,
-        os.path.join(doc_concept_task_dir, 'docker-compose-task.md'): DockerComposeTask,  # noqa
-        os.path.join(doc_concept_task_dir, 'flow-task.md'): FlowTask,
-        os.path.join(doc_concept_task_dir, 'http-checker.md'): HTTPChecker,
-        os.path.join(doc_concept_task_dir, 'path-checker.md'): PathChecker,
-        os.path.join(doc_concept_task_dir, 'path-watcher.md'): PathWatcher,
-        os.path.join(doc_concept_task_dir, 'port-checker.md'): PortChecker,
-        os.path.join(doc_concept_task_dir, 'python-task.md'): python_task,
-        os.path.join(doc_concept_task_dir, 'recurring-task.md'): RecurringTask,
-        os.path.join(doc_concept_task_dir, 'remote-cmd-task.md'): RemoteCmdTask,  # noqa
-        os.path.join(doc_concept_task_dir, 'resource-maker.md'): ResourceMaker,
-        os.path.join(doc_concept_task_dir, 'rsync-task.md'): RsyncTask,
-        os.path.join(doc_concept_task_dir, 'notifier.md'): Notifier,
-        os.path.join(doc_concept_task_dir, 'time-watcher.md'): TimeWatcher,
-        os.path.join(doc_concept_task_input_dir, 'README.md'): Input,
-        os.path.join(doc_concept_task_input_dir, 'bool-input.md'): BoolInput,
-        os.path.join(doc_concept_task_input_dir, 'choice-input.md'): ChoiceInput,  # noqa
-        os.path.join(doc_concept_task_input_dir, 'float-input.md'): FloatInput,
-        os.path.join(doc_concept_task_input_dir, 'int-input.md'): IntInput,
-        os.path.join(doc_concept_task_input_dir, 'password-input.md'): PasswordInput,  # noqa
-        os.path.join(doc_concept_task_input_dir, 'str-input.md'): StrInput,
+        os.path.join(dir, 'task-group.md'): Group,
+        os.path.join(dir, 'task-envs', 'env.md'): Env,
+        os.path.join(dir, 'task-envs', 'env-file.md'): EnvFile,
+        os.path.join(dir, 'tasks', 'any-task.md'): AnyTask,
+        os.path.join(dir, 'tasks', 'base-task.md'): BaseTask,
+        os.path.join(dir, 'tasks', 'task.md'): Task,
+        os.path.join(dir, 'tasks', 'base-remote-cmd-task.md'): BaseRemoteCmdTask,  # noqa
+        os.path.join(dir, 'tasks', 'checker.md'): Checker,
+        os.path.join(dir, 'tasks', 'cmd-task.md'): CmdTask,
+        os.path.join(dir, 'tasks', 'docker-compose-task.md'): DockerComposeTask,  # noqa
+        os.path.join(dir, 'tasks', 'flow-task.md'): FlowTask,
+        os.path.join(dir, 'tasks', 'http-checker.md'): HTTPChecker,
+        os.path.join(dir, 'tasks', 'path-checker.md'): PathChecker,
+        os.path.join(dir, 'tasks', 'path-watcher.md'): PathWatcher,
+        os.path.join(dir, 'tasks', 'port-checker.md'): PortChecker,
+        os.path.join(dir, 'tasks', 'python-task.md'): python_task,
+        os.path.join(dir, 'tasks', 'recurring-task.md'): RecurringTask,
+        os.path.join(dir, 'tasks', 'remote-cmd-task.md'): RemoteCmdTask,
+        os.path.join(dir, 'tasks', 'resource-maker.md'): ResourceMaker,
+        os.path.join(dir, 'tasks', 'rsync-task.md'): RsyncTask,
+        os.path.join(dir, 'tasks', 'notifier.md'): Notifier,
+        os.path.join(dir, 'tasks', 'time-watcher.md'): TimeWatcher,
+        os.path.join(dir, 'task-inputs', 'input.md'): Input,
+        os.path.join(dir, 'task-inputs', 'bool-input.md'): BoolInput,
+        os.path.join(dir, 'task-inputs', 'choice-input.md'): ChoiceInput,
+        os.path.join(dir, 'task-inputs', 'float-input.md'): FloatInput,
+        os.path.join(dir, 'task-inputs', 'int-input.md'): IntInput,
+        os.path.join(dir, 'task-inputs', 'password-input.md'): PasswordInput,
+        os.path.join(dir, 'task-inputs', 'str-input.md'): StrInput,
     }
     for file_name, cls in configs.items():
         task.print_out(f'Inject `{cls.__name__} docstring` to {file_name}')
