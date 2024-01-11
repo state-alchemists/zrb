@@ -136,7 +136,6 @@ zrb util base64 decode
 
 Tasks are the most basic unit in Zrb. There are many Task Classes you can use to create a Task.
 
-
 - [Task](../technical-documentation/tasks/task.md): General purpose class, usually created using [@python_task](../technical-documentation/tasks/python-task.md) decorator.
 - [CmdTask](../technical-documentation/tasks/cmd-task.md): Run a CLI command/shell script.
 - [DockerComposeTask](../technical-documentation/tasks/docker-compose-task.md): Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
@@ -145,6 +144,36 @@ Tasks are the most basic unit in Zrb. There are many Task Classes you can use to
 - [ResourceMaker](../technical-documentation/tasks/resource-maker.md): Create resources (source code/documents) based on provided templates.
 - [FlowTask](../technical-documentation/): Combine unrelated tasks into a single Workflow.
 - [RecurringTask](../technical-documentation/tasks/recurring-task.md): Create a long-running recurring task.
+
+You can see the relation among Zrb Task Classes in the following diagram: 
+
+```
+                                            AnyTask
+                                               │
+                                               │
+                                               ▼
+                                           BaseTask
+                                               │
+                                               │
+  ┌──────┬───────────┬───────────┬─────────────┼─────────────────┬────────────┐
+  │      │           │           │             │                 │            │
+  │      │           │           │             │                 │            │
+  ▼      ▼           ▼           ▼             ▼                 ▼            ▼
+Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask     Checker   ReccuringTask
+         │                                     │                 │
+         │                                     │                 │
+         ▼                               ┌─────┴──────┐          │
+   DockerComposeTask                     │            │          │
+                                         ▼            ▼          │
+                                   RemoteCmdTask   RsyncTask     │
+                                                                 │
+                              ┌───────────┬───────────┬──────────┼─────────────┐
+                              │           │           │          │             │
+                              ▼           ▼           ▼          ▼             ▼
+                         HttpChecker PortChecker PathChecker PathWatcher TimeWatcher
+```
+
+For now, we will focus on `CmdTask` and `Task`.
 
 ## Creating a `CmdTask`
 
