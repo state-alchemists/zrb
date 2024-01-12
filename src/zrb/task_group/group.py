@@ -41,14 +41,14 @@ class Group():
             parent.__children.append(self)
         self.__children: List[TGroup] = []
         self.__tasks: List[AnyTask] = []
-    
+
     def get_parent(self) -> Optional[TGroup]:
         '''
         Retrieves parent of the Group.
 
         Returns:
             Optional[Group]: Parent of the group.
-        
+
         Examples:
             >>> from zrb import Group 
             >>> system_group = Group(name='my system')
@@ -59,7 +59,7 @@ class Group():
             <Group "my-system">
         '''
         return self._parent
-    
+
     def get_description(self) -> str:
         '''
         Retrieves group description.

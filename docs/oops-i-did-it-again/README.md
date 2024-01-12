@@ -1,10 +1,20 @@
 🔖 [Table of Contents](../README.md) / [Oops, I Did It Again](README.md)
 
+
+<div align="center">
+  <img src="../_images/emoji/dancer.png"/>
+  <p>
+    <sub>
+      <a href="https://www.youtube.com/watch?v=CduA0TULnow" target="_blank">You are not that innocent</a>
+    </sub>
+  </p>
+</div>
+
+
+
 # Oops, I Did It Again: The Most Common Mistakes When Working with Zrb
 
-Collection of the most common mistakes when working with Zrb (You are not that innocent 😏)
-
-[![Oops I Did It Again](https://img.youtube.com/vi/CduA0TULnow/0.jpg)](https://www.youtube.com/watch?v=CduA0TULnow)
+Collection of the most common mistakes when working with Zrb.
 
 
 - [Not Registering A Task to A Runner](not-registering-a-task-to-a-runner.md)

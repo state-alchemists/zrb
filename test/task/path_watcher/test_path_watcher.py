@@ -16,7 +16,9 @@ def test_path_watcher():
         cmd=[
             'sleep 1',
             'touch a/a.txt',
+            'sleep 1',
             'touch b/b.txt',
+            'sleep 1',
             'touch c/c.txt',
         ]
     )

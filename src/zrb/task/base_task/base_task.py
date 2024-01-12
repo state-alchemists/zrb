@@ -410,7 +410,6 @@ class BaseTask(
                 )
             ))
         # set checker keyval
-        # local_env_map = self.get_env_map()
         checker_coroutines = []
         for checker_task in self._get_checkers():
             checker_task.add_input(*self._get_inputs())
@@ -430,6 +429,8 @@ class BaseTask(
         if self.__is_keyval_set:
             return True
         self.__is_keyval_set = True
+        # set task for rendering
+        self._set_task(self)
         # Set input_map for rendering
         self.log_info('Set input map')
         for task_input in self._get_combined_inputs():
@@ -452,8 +453,6 @@ class BaseTask(
         self.log_debug(
             'Env map:\n' + map_to_str(self.get_env_map(), item_prefix='  ')
         )
-        # set task
-        self._set_task(self)
 
     def __repr__(self) -> str:
         cls_name = self.__class__.__name__
