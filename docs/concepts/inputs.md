@@ -106,7 +106,7 @@ task = CmdTask(
 runner.register(task)
 ```
 
-You can see that `task` has `hello` as it's upstream. When you execute the `task`, Zrb will prompt you to set `your-name` value since `hello` is `task`'s upstream.
+You can see that `task` has `hello` as it's upstream. When you execute the `task`, Zrb will prompt you to set `your-name` value since `hello` is a `task`'s upstream.
 
 
 ```bash
@@ -118,11 +118,11 @@ Ok [True]:
 Your name [world]:
 ```
 
-# Input Priority
+# Conflicting Inputs
 
 If you declare multiple inputs with the same name, the latter overrides the previous ones.
 
-As for upstreams, Zrb adds upstreams inputs at the end of the current task's inputs. But the upstream input will not override the current task's input. 
+As for upstreams, Zrb adds upstream inputs at the end of the current task's inputs. But, the upstream input will not override the current task's input. 
 
 Let's see the following example.
 
@@ -154,7 +154,7 @@ runner.register(task)
 
 You will see that the default value of `your-name` will be `Earth` instead of `Mercury`, `Venus`, or `World`.
 
-# Restricitions
+# Limitations and Restricitions
 
 You cannot use the following keywords as your input names:
 
