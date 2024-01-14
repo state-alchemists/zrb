@@ -2,10 +2,9 @@
 
 # Runner, Group, and Task
 
-Runner, task, and group are some pretty simple but important concepts. Let's see how they are related to each other.
+Runner, task, and group are some pretty simple but important concepts in Zrb. Let's see how they are related to each other.
 
 # Runner
-
 
 <div align="center">
   <img src="../_images/emoji/runner.png"/>
@@ -16,7 +15,7 @@ Runner, task, and group are some pretty simple but important concepts. Let's see
   </p>
 </div>
 
-Any task registered to Zrb Runner will be accessible from the CLI. You can import Zrb Runner like the following:
+To make a Zrb Task accessible from the CLI, you need to register the Task to the Runner. You can import Zrb Runner as follows:
 
 ```python
 from zrb import runner
@@ -24,7 +23,7 @@ from zrb import runner
 
 ## Registering Tasks to Runner
 
-Once you import a Zrb Runner, you can use it to register your task like the following:
+Once you import a Zrb Runner, you can use it to register your task as follows:
 
 ```python
 from zrb import runner, Task
@@ -33,7 +32,7 @@ task = Task(name='task')
 runner.register(task)
 ```
 
-To access the task, you can run the following command in your terminal:
+To access the task, you need to run the following command in your terminal:
 
 ```bash
 zrb task
@@ -41,7 +40,7 @@ zrb task
 
 ## Registering Grouped Tasks to Runner
 
-You can also put your Task under Task Groups
+You can also put your Task under Task Groups.
 
 ```python
 from zrb import runner, Task, Group
@@ -51,7 +50,7 @@ task = Task(name='task', group=group)
 runner.register(task)
 ```
 
-To access the grouped task, you can run the following command in your terminal:
+To access the Grouped Task, you can run the following command in your terminal:
 
 ```bash
 zrb group task
