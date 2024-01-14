@@ -270,6 +270,14 @@ You can see the following output:
 - `PLANET: Jupiter`. There are two `env`s named `PLANET`. The latter overrides the first, and both override `env_file`s.
 - `ELEMENT: Fire`. There is no `env` named `ELEMENT`. As for `env_file`s, `b.env` overrides `a.env`.
 
+For more detailed visualization, please look at the following table:
+
+| Environment | `env_files[0]` a.env | `env_files[1]` b.env | `envs[0]` | `envs[1]`   | Final   |
+|-------------|----------------------|----------------------|-----------|-------------|---------|
+| GOD         | **Hermes**           |                      |           |             | Hermes  |
+| PLANET      | Mercury              | Mars                 | Venus     | **Jupiter** | Jupiter |
+| ELEMENT     | Air                  | **Fire**             |           |             | Fire    |
+
 # Next
 
 Next, you can learn about inter-task communication using [`xcom`](xcom.md).
