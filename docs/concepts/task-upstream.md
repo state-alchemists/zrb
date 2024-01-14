@@ -94,7 +94,7 @@ upstream-2    Triggered──► Waiting──► Started──► Ready──�
 task          Triggered──► Waiting──────────────────────► Started──► Ready
 ```
 
-# Upstream and Retry
+# Making Use of Upstream and Retry
 
 Zrb Tasks has a default retry mechanism. For example, default retry attempts for `CmdTask` and `Task` are two.
 
