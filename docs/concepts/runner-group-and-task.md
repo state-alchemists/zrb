@@ -256,7 +256,7 @@ runner.register(hello)
 
 ### Multiline CLI Command
 
-You can also put a list of multiline CLI commands into a `cmd` attribute.
+You can also put a list of multiline CLI commands into a `cmd` attribute by passing a list of strings representing the command.
 
 For example, you can set `DBT_PROFILE` environment before invoking `dbt run`.
 
@@ -275,7 +275,7 @@ runner.register(run_dbt)
 
 ### Using External Shell Script
 
-When you have a very long CLI command, it is better to put the command into a separate shell script. This gives you several advantages:
+For short CLI commands, `cmd` is sufficient. But, when you have a very long CLI command, it is better to put the command into a separate shell script. Having an external shell script gives you several advantages:
 
 - You get proper syntax highlighting when you open your shell script on your text editor.
 - You can run your shell script independently.
@@ -299,14 +299,18 @@ CURRENT_DIR = os.path.dirname(__file__)
 
 run_dbt = CmdTask(
     name='run-dbt',
-    cmd_path=os.path.join(CURRENT_DIR, 'cmd/dbt-run.sh')
+    cmd_path=os.path.join(CURRENT_DIR, 'cmd', 'dbt-run.sh')
 )
 runner.register(run_dbt)
 ```
 
+In the example, you use `cmd_path` instead of `cmd`. This practice allows you to define your workflow definition and the implementation separately.
+
 ## Creating a `Task`
 
-Sometimes, you need to define your automation in Python. In that case, you can use `Task`. Let's see an example.
+Sometimes, you need to define your automation in Python. Python gives you better flexibility and modern paradigms compared to shell script.
+
+To define your automation in Python, you can use `Task`. Let's see an example.
 
 ```python
 from zrb import runner, Task
@@ -321,9 +325,9 @@ hello = Task(
 runner.register(hello)
 ```
 
-In the example, you have a function named `print_hello`. This function accepts any arguments and return a text.
+In the example, you have a function named `print_hello`. This function accepts any arguments and returns a text.
 
-To create a Task that run a function, you have to make sure that the function accepts any arguments (i.e., having `*args` and `**kwargs` as its arguments).
+To create a Task that runs a function, you have to ensure that the function accepts any arguments (i.e., having `*args` and `**kwargs` as its arguments).
 
 Once you define your function, you then create a task named `hello` and set its `run` attribute to `print_hello`.
 
@@ -352,6 +356,6 @@ Furthermore, `@python_task` turns `hello` into a `Task`. Thus, you can no longer
 
 # Next
 
-You have learn the basic building blocks of Zrb automation. Next, you can continue with [Task Lifecycle](task-lifecycle.md).
+You have learned the basic building blocks of Zrb automation. Next, you can continue with [Task Lifecycle](task-lifecycle.md).
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
