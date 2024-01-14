@@ -2,6 +2,16 @@
 
 # Configuration
 
+<div align="center">
+  <img src="_images/emoji/gear.png"/>
+  <p>
+    <sub>
+      Klink, Klanng, Klinklang.
+    </sub>
+  </p>
+</div>
+
+
 You can configure Zrb using environment variables. For example, you can turn off advertisement by set `ZRB_SHOW_ADVERTISEMENT` to `false`
 
 ```bash
@@ -49,17 +59,20 @@ Zrb log verbosity.
 
 ## `ZRB_SHELL`
 
-Default shell to run Cmd Task. Should be `bash` compatible.
+Default shell to run Cmd Task (should be `bash` compatible).
 
-- __Default value:__ `bash`
+- __Default value:__ `zsh` or `bash`, depending on `$SHELL`
 - __Possible value:__
+    - `/usr/bin/zsh` 
     - `/usr/bin/bash`
-    - `/usr/bin/sh` 
     - etc.
+
+> __⚠️ WARNING:__ Stick with bash compatible shell. Most builtin tasks are written for bash scripts.
+
 
 ## `ZRB_SHOULD_LOAD_BULTIN`
 
-Whether Zrb should load builtin tasks or not.
+Whether Zrb should load the builtin tasks or not.
 
 - __Default value:__ `true`
 - __Possible value:__ boolean values
