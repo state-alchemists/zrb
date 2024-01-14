@@ -272,6 +272,6 @@ You can see the following output:
 
 # Next
 
-Next, you can learn about inter-task communication using `xcom`.
+Next, you can learn about inter-task communication using [`xcom`](xcom.md).
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
