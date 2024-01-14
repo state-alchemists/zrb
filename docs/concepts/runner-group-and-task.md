@@ -126,11 +126,11 @@ runner.register(task_2) # OK, task_1 and task_2 are located under different grou
   </p>
 </div>
 
-You can use Group to organize your Tasks. A Group will only be accessible from the CLI if at least one registered Task is under it.
+You can use Group to organize your Tasks. A Group will only be accessible from the CLI if at least one registered Task is located under the Group.
 
-You can also put a Group under another Group. Hierarchically speaking, you can think of Task Groups as directories to organize your Tasks.
+You can also put a Group under another Group.
 
-The following are some built-in Tasks and Task Groups in Zrb.
+Hierarchically speaking, you can think of Task Groups as directories to organize your Tasks.The following are some built-in Tasks and Task Groups in Zrb.
 
 ```
 zrb
@@ -154,7 +154,7 @@ zrb
 └── watch-changes
 ```
 
-Let's see how you can group your Zrb Tasks:
+Let's see how you can organize your Tasks under hierarchical Groups:
 
 ```python
 from zrb import runner, Task, Group
@@ -177,6 +177,8 @@ To access both `encode` and `decode`, you can use the following command from the
 zrb util json encode
 zrb util json decode
 ```
+
+By using Task Group, you can make your Tasks more organized.
 
 # Task
 
