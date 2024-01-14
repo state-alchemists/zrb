@@ -2,7 +2,7 @@
 
 # XCom
 
-Occasionally, you need your Tasks to pass data to each other. You can do this by using XCom mechanism.
+Occasionally, you need your Tasks to pass data to each other. You can do this by using the XCom mechanism.
 
 The Xcom mechanism is highly dependent on Task Execution ID. In short, a Task and all its upstreams/downstreams share the same Execution ID.
 

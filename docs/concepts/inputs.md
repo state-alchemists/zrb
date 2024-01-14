@@ -2,6 +2,17 @@
 
 # Inputs
 
+
+<div align="center">
+  <img src="../_images/emoji/abcd.png"/>
+  <p>
+    <sub>
+      Input: where your program politely asks, 'What's the magic word?
+    </sub>
+  </p>
+</div>
+
+
 Like most CLI commands, Zrb also allows you to define input arguments for your Tasks. To add input arguments, you can use `inputs` attributes.
 
 There are some available Inputs you can use:
@@ -49,14 +60,30 @@ def hello(*args, **kwargs) -> str:
     return f'Hello, {your_name}'
 ```
 
+There are some parameters you can use to define an `Input`.
+
+- __name__: The name of the Input. By convention, this should be kebab-cased (required).
+- __default__: The default value of the Input (optional, default: `None`).
+- __should_render__: Whether the Input should be rendered as Jinja Template or not (optional, default: `True`).
+- __description__: Description of the Input.
+- __prompt__: The prompt text (will be used in interactive mode).
+
+For `ChoiceInput`, you will find another parameter named `choices` to define the options. Let's see the following example:
+
+```python
+from zrb import ChoiceInput
+
+color_input = ChoiceInput(name='color', choices=['red', 'green', 'blue'], default='red')
+```
+
 # Set Input Values
 
 There are two ways to set a Task's input values:
 
 - By entering the interactive mode.
-- By passing the CLI arguments. 
+- By providing the CLI arguments. 
 
-For our previous example, you can enter the interactive mode by typing `zrb hello`. Zrb prompt you to set the value of `your-name` input.
+For our previous example, you can enter the interactive mode by typing `zrb hello`. Zrb prompts you to set the value of `your-name` input.
 
 ```bash
 zrb hello

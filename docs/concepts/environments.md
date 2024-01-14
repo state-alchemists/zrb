@@ -2,6 +2,16 @@
 
 # Environments
 
+<div align="center">
+  <img src="../_images/emoji/palm_tree.png"/>
+  <p>
+    <sub>
+      Save the Earth. It's the only planet with chocolate!
+    </sub>
+  </p>
+</div>
+
+
 You can use `envs` and `env_files` attributes to define Task Environments.
 
 Let's see the following example:
@@ -57,7 +67,28 @@ def hello(*args, **kwargs) -> str:
 
 Notice that Zrb is not altering your `os.environ`, so you cannot use a typical `os.getenv('USER_NAME')` here. This behavior is intentional since we want every Task to be isolated from each other.
 
+There are some parameters you can use to define an `Env`.
+
+- __name__: Name of the environment variable (required).
+- __os_name__: Name of OS environment (optional, default=`None`)
+    - If set to `None`, Zrb will link the environment variable to the OS environment.
+    - If set to an empty string (i.e., `''`), Zrb will not link the environment variable to the OS's environment.
+    - If set to a non-empty string, Zrb will link the environment variable to the OS's environment corresponding to this value.
+- __default__: Default value of the environment variable (optional, default: `None`).
+- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
+
+
 # Using Environment File
+
+<div align="center">
+  <img src="../_images/emoji/desert_island.png"/>
+  <p>
+    <sub>
+      An island is just a sea's attempt at a mountain peak joke.
+    </sub>
+  </p>
+</div>
+
 
 As with `cmd` and `cmd_path` in `CmdTask`, Zrb also allows you to load external environment files. You can use `env_files` attributes for this.
 
@@ -99,7 +130,7 @@ hello = CmdTask(
 runner.register(hello)
 ```
 
-As for `@python_task`, you can use the exact same methods
+As for `@python_task`, you can use the same methods
 
 
 ```python
@@ -133,7 +164,23 @@ def hello(*args, **kwargs) -> str:
     ])
 ```
 
+There are some parameters you can use to define an `EnvFile`.
+
+- __env_file__: Name of the environment file (required).
+- __prefix__: Custom prefix for environment's os_name (optional, default=`None`)
+- __should_render__: Whether the environment variable should be rendered as a Jinja template (optional, default: `True`).
+
 # Environment Cascading
+
+<div align="center">
+  <img src="../_images/emoji/fountain.png"/>
+  <p>
+    <sub>
+      Cascading: Nature's way of saying, 'Let's take this step by step, but faster!'
+    </sub>
+  </p>
+</div>
+
 
 We usually work on multiple environments (e.g., `dev`, `staging`, and `production`).
 
