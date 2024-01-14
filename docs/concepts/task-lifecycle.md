@@ -2,6 +2,21 @@
 
 # Task Lifecycle
 
+<div align="center">
+  <img height="60em" src="../_images/emoji/poultry_leg.png"/>
+  <img height="100em" src="../_images/emoji/chicken.png"/>
+  <img height="80em" src="../_images/emoji/baby_chick.png">
+  <img height="60em" src="../_images/emoji/hatching_chick.png">
+  <img height="50em" src="../_images/emoji/egg.png">
+  <p>
+    <sub>
+      All that grows must also wither and die, then nourish the living.
+    </sub>
+  </p>
+</div>
+
+
+
 All Zrb Task has the following lifecycle.
 
 ```

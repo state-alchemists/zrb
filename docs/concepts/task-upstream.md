@@ -2,6 +2,19 @@
 
 # Task Upstream
 
+<div align="center">
+  <img src="../_images/emoji/chicken.png"/>
+  <img height="50em" src="../_images/emoji/baby_chick.png">
+  <img height="50em" src="../_images/emoji/baby_chick.png">
+  <img height="50em" src="../_images/emoji/baby_chick.png">
+  <p>
+    <sub>
+      Followers are like shadows: bigger in the spotlight.
+    </sub>
+  </p>
+</div>
+
+
 In Zrb, you can define task upstreams (dependencies).
 
 A Task will only be `started` or `skipped` if all its upstreams are `ready`.
