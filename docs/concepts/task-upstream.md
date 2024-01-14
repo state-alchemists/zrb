@@ -133,6 +133,6 @@ Let's say you have a connection glitch while doing `upgrade`. Zrb will only retr
 
 # Next
 
-Next, you can learn about [environments](environments.md) and [inputs](inputs.md).
+Next, you can learn about [inputs](inputs.md) and [environments](environments.md).
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)

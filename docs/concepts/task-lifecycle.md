@@ -62,7 +62,33 @@ update_ubuntu = CmdTask(
 runner.register(update_ubuntu)
 ```
 
-Now, whenever you run `zrb update-ubuntu` on a non-Linux machine, the Task will enter `ready` state without actually do the execution.
+Now, whenever you run `zrb update-ubuntu` on a non-Linux machine, the Task will enter `ready` state without actually doing the execution.
+
+# Long Running Task
+
+We often need to set Zrb Task as `ready` even though the process is still running. For example, when we run a web server. We can say a web server is `ready` when it serves HTTP requests correctly. 
+
+Zrb Tasks has `checkers` attributes. This attribute helps you to define the current Task's readiness.
+
+Let's see the following example.
+
+```python
+from zrb import runner, CmdTask, HTTPChecker
+
+start_server = CmdTask(
+    name='start-server',
+    cmd='python -m http.server 8080',
+    checkers=[
+        HTTPChecker(port=8080)
+    ]
+)
+runner.register(start_server)
+```
+
+In the example, `start-server` is `ready` once a request to `http://localhost:8080` returns `HTTP response 200`.
+
+Zrb provides some built-in [checkers](specialized-tasks/checker.md) you can use.
+
 
 # Handling Task Lifecycle
 

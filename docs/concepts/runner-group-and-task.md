@@ -6,13 +6,23 @@ Runner, task, and group are some pretty simple but important concepts. Let's see
 
 # Runner
 
+
+<div align="center">
+  <img src="../_images/emoji/runner.png"/>
+  <p>
+    <sub>
+      <a href="https://www.youtube.com/watch?v=2wVPyo_hnWw" target="_blank">Run! run! run!</a>
+    </sub>
+  </p>
+</div>
+
 Any task registered to Zrb Runner will be accessible from the CLI. You can import Zrb Runner like the following:
 
 ```python
 from zrb import runner
 ```
 
-## Registering Tasks
+## Registering Tasks to Runner
 
 Once you import a Zrb Runner, you can use it to register your task like the following:
 
@@ -29,7 +39,7 @@ To access the task, you can run the following command in your terminal:
 zrb task
 ```
 
-## Registering Grouped Tasks
+## Registering Grouped Tasks to Runner
 
 You can also put your Task under Task Groups
 
@@ -47,7 +57,7 @@ To access the grouped task, you can run the following command in your terminal:
 zrb group task
 ```
 
-## Restrictions
+## Limitations And Restrictions
 
 - You can only register a task once.
 - Registered tasks cannot have the same names under the same group names.
@@ -106,17 +116,51 @@ runner.register(task_2) # OK, task_1 and task_2 are located under different grou
 
 # Group
 
+<div align="center">
+  <img src="../_images/emoji/file_cabinet.png"/>
+  <p>
+    <sub>
+      Put related Tasks under the same Group for better discoverability.
+    </sub>
+  </p>
+</div>
+
+
 You can use Group to organize your Tasks. A Group will only be accessible from the CLI if at least one registered Task is under it.
 
-You can also put a Group under another Group.
+You can also put a Group under another Group. Hierarchically speaking, you can think of Task Groups as directories to organize your Tasks.
 
-Let's see some examples:
+The following are some built-in Tasks and Task Groups in Zrb.
+
+```
+zrb
+├── base64
+│   ├── decode
+│   └── encode
+├── devtool
+│   ├── install
+│   │   ├── aws
+│   │   ├── docker
+│   │   ├── gcloud
+│   │   ├── ...
+│   │   └── zsh
+├── explain
+│   ├── dry-principle
+│   ├── kiss-principle
+│   ├── solid-principle
+│   ├── ...
+│   └── zen-of-python
+├── ...
+└── watch-changes
+```
+
+Let's see how you can group your Zrb Tasks:
 
 ```python
 from zrb import runner, Task, Group
 
 util = Group(name='util')
-base64 = Group(name='base64', parent=util)
+base64 = Group(name='json', parent=util)
 
 encode = Task(name='encode', group=base64)
 runner.register(encode)
@@ -125,14 +169,25 @@ decode = Task(name='decode', group=base64)
 runner.register(decode)
 ```
 
+In the example, you have a `json` Task Group under `util` Task Group. The `json` Task Group contains two Tasks: `encode` and `decode`.
+
 To access both `encode` and `decode`, you can use the following command from the CLI:
 
 ```bash
-zrb util base64 encode
-zrb util base64 decode
+zrb util json encode
+zrb util json decode
 ```
 
 # Task
+
+<div align="center">
+  <img src="../_images/emoji/clipboard.png"/>
+  <p>
+    <sub>
+      Finishing a task: 10% skill, 90% not getting distracted by the internet.
+    </sub>
+  </p>
+</div>
 
 Tasks are the most basic unit in Zrb. There are many Task Classes you can use to create a Task.
 
