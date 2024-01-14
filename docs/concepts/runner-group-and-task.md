@@ -56,7 +56,7 @@ To access the registered Grouped Task, you can run the following command in your
 zrb group task
 ```
 
-## Limitations And Restrictions
+## Limitations And Restriction
 
 - You can only register a Task once.
 - Registered Tasks cannot have the same names under the same Group names.
@@ -305,6 +305,8 @@ runner.register(run_dbt)
 ```
 
 In the example, you use `cmd_path` instead of `cmd`. This practice allows you to define your workflow definition and the implementation separately.
+
+> __⚠️ WARNING:__  `cmd` and `cmd_path` are exclusive to each other. You can only use one of them in a single CmdTask.
 
 ## Creating a `Task`
 

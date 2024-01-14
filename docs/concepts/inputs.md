@@ -154,7 +154,7 @@ runner.register(task)
 
 You will see that the default value of `your-name` will be `Earth` instead of `Mercury`, `Venus`, or `World`.
 
-# Limitations and Restricitions
+# Limitations and Restricition
 
 You cannot use the following keywords as your input names:
 
