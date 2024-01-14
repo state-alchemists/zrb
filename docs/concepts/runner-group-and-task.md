@@ -329,7 +329,7 @@ In the example, you have a function named `print_hello`. This function accepts a
 
 To create a Task that runs a function, you have to ensure that the function accepts any arguments (i.e., having `*args` and `**kwargs` as its arguments).
 
-Once you define your function, you then create a task named `hello` and set its `run` attribute to `print_hello`.
+Once you define your function, you then create a Task named `hello` and set its `run` attribute to `print_hello`.
 
 Now, whenever you run `zrb hello`, you will get a `Hello world`.
 
@@ -352,7 +352,7 @@ def hello(*args, **kwargs) -> str:
 
 `@python_task` decorator has a `runner` parameter. You can use the parameter to register your Task.
 
-Furthermore, `@python_task` turns `hello` into a `Task`. Thus, you can no longer treat it as a function (i.e., `hello()` won't work).
+Furthermore, `@python_task` turns `hello` into a `Task`. Thus, you can no longer treat it as a function (i.e., calling `hello()` won't work).
 
 # Next
 
