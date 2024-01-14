@@ -142,23 +142,23 @@ With environment cascading, you can switch your working environment seamlessly b
 Let's say you need an environment named `BASE_URL`, and you need to check whether the `BASE_URL` is accessible or not.
 
 The value of the `BASE_URL` depends on which working environment you are currently in.
-- For production, `BASE_URL` should be `http://your-company.com`
-- For staging, `BASE_URL` should be `http://staging.your-company.com`
-- For dev, `BASE_URL` should be `http://dev.your-company.com`
+- For production, `BASE_URL` should be `https://your-company.com`
+- For staging, `BASE_URL` should be `https://staging.your-company.com`
+- For dev, `BASE_URL` should be `https://dev.your-company.com`
 - For any other working environment, `BASE_URL` should be `http://localhost:8080`
 
 To do this, let's make an environment file `.env`:
 
 ```bash
 export BASE_URL=http://localhost:8080
-export DEV_BASE_URL=http://dev.your-company.com
-export STAGING_BASE_URL=http://staging.your-company.com
-export PROD_BASE_URL=http://your-company.com
+export DEV_BASE_URL=https://dev.your-company.com
+export STAGING_BASE_URL=https://staging.your-company.com
+export PROD_BASE_URL=https://your-company.com
 ```
 
 Notice how you define several `BASE_URL` with `DEV`, `STAGING`, and `PROD` prefixes. You will need these prefixes to distinguish one working environment from another.
 
-Once you create the environment files, you can use an `python_task` to check the accessibility of the `BASE_URL`.
+Once you create the environment files, you can use a `python_task` to check the accessibility of the `BASE_URL`.
 
 ```python
 from zrb import runner, python_task, Task, Env
@@ -215,6 +215,16 @@ zrb check # Will check on http://localhost:8080
 ```
 
 You can see that the value of `BASE_URL` will be used if Zrb cannot find any environment matching the `ZRB_ENV` prefix (i.e., we don't have `LOCAL_BASE_URL` and `UNKNOWN_BASE_URL` in our `.env`).
+
+To see the more detailed visualization, please look at the following table:
+
+| ZRB_ENV | BASE_URL                           | <ZRB_ENV>_BASE_URL                                    | Final                            |
+|---------|------------------------------------|-------------------------------------------------------|----------------------------------|
+| PROD    | BASE_URL=http://localhost:8080     | PROD_BASE_URL=**https://your-company.com**            | https://your-company.com         |
+| STAGING | BASE_URL=http://localhost:8080     | STAGING_BASE_URL=**https://staging.your-company.com** | https://staging.your-company.com |
+| DEV     | BASE_URL=http://localhost:8080     | DEV_BASE_URL=**https://dev.your-company.com**         | https://dev.your-company.com     |
+| LOCAL   | BASE_URL=**http://localhost:8080** | LOCAL_BASE_URL=                                       | http://localhost:8080            |
+| UNKNOWN | BASE_URL=**http://localhost:8080** | UNKNOWN_BASE_URL=                                     | http://localhost:8080            |
 
 Environment cascading is handy if you need to work with multiple working environments.
 
