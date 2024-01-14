@@ -32,7 +32,7 @@ task = Task(name='task')
 runner.register(task)
 ```
 
-To access the task, you need to run the following command in your terminal:
+To access the registered Task, you need to run the following command in your terminal:
 
 ```bash
 zrb task
@@ -50,7 +50,7 @@ task = Task(name='task', group=group)
 runner.register(task)
 ```
 
-To access the Grouped Task, you can run the following command in your terminal:
+To access the registered Grouped Task, you can run the following command in your terminal:
 
 ```bash
 zrb group task
@@ -58,14 +58,14 @@ zrb group task
 
 ## Limitations And Restrictions
 
-- You can only register a task once.
-- Registered tasks cannot have the same names under the same group names.
+- You can only register a Task once.
+- Registered Tasks cannot have the same names under the same Group names.
 
 Let's see some examples:
 
 ### Invalid Examples
 
-The following example is invalid because you cannot register a task twice:
+The following example is invalid because you can only register a Task once:
 
 ```python
 from zrb import runner, Task
@@ -87,7 +87,7 @@ task_2 = Task(name='task')
 runner.register(task_2) # This yield error.
 ```
 
-The following is also invalid because the Tasks shared the same name and were under the same group name.
+The following is also invalid because the Tasks shared the same name and were under the same Group name.
 
 ```python
 from zrb import runner, Group, Task
@@ -102,6 +102,8 @@ runner.register(task_2) # This yield error.
 ```
 
 ### Valid Examples
+
+The following example is valid. Even though `task_1` and `task_2` shared the same name, they were defined under different Groups.
 
 ```python
 from zrb import runner, Task, Group
@@ -123,7 +125,6 @@ runner.register(task_2) # OK, task_1 and task_2 are located under different grou
     </sub>
   </p>
 </div>
-
 
 You can use Group to organize your Tasks. A Group will only be accessible from the CLI if at least one registered Task is under it.
 
