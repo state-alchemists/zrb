@@ -12,7 +12,7 @@
 </div>
 
 
-You can configure Zrb using environment variables. For example, you can turn off advertisement by set `ZRB_SHOW_ADVERTISEMENT` to `false`
+You can configure Zrb using environment variables. For example, you can turn off advertisements by set `ZRB_SHOW_ADVERTISEMENT` to `false`
 
 ```bash
 export ZRB_SHOW_ADVERTISEMENT=false
@@ -21,7 +21,7 @@ zrb base64 encode --text non-credential-string
 
 Try to set `ZRB_SHOW_ADVERTISEMENT` to `true` and `false` and see the result.
 
-Some configurations are boolean. That's mean you can set them into:
+Some configurations are boolean. That means you can set them into:
 
 - `true`, `1`, `yes`, `y`, or `active` to represent `True`
 - `false`, `0`, `no`, `n`, or `inactivate` to represent `True`
@@ -30,7 +30,7 @@ Some configurations are boolean. That's mean you can set them into:
 
 ## `ZRB_ENV`
 
-Environment variable prefix for your tasks. When define, Zrb will first try to find `<ZRB_ENV>_<VARIABLE_NAME>`. If the variable is not defined, Zrb will use `<VARIABLE_NAME>`. Very useful if you have multiple environments (i.e., prod, dev, staging)
+Environment variable prefix for your tasks. When defined, Zrb will first try to find `<ZRB_ENV>_<VARIABLE_NAME>`. If the variable is not defined, Zrb will use `<VARIABLE_NAME>`. Very useful if you have multiple environments (i.e., prod, dev, staging)
 
 - __Default value:__ Empty
 - __Possible values:__ Any combination of alpha-numeric and underscore
