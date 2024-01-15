@@ -28,7 +28,9 @@ Triggered ─────► Waiting ────► Started ─────► 
 
 # Set Maximum Retry
 
-To set the maximum retries, you can use `retry` attribute.
+By default, Zrb Tasks has a retry mechanism. For Task and CmdTask, the default retry is two. That means that Zrb will attempt to re-execute the Task twice more time in case of failure.
+
+To set the maximum retries, you can use the `retry` attribute.
 
 ```python
 from zrb import runner, CmdTask
