@@ -2,6 +2,19 @@
 
 # Task Upstream
 
+<div align="center">
+  <img src="../_images/emoji/chicken.png"/>
+  <img height="50em" src="../_images/emoji/baby_chick.png">
+  <img height="50em" src="../_images/emoji/baby_chick.png">
+  <img height="50em" src="../_images/emoji/baby_chick.png">
+  <p>
+    <sub>
+      Followers are like shadows: bigger in the spotlight.
+    </sub>
+  </p>
+</div>
+
+
 In Zrb, you can define task upstreams (dependencies).
 
 A Task will only be `started` or `skipped` if all its upstreams are `ready`.
@@ -94,7 +107,7 @@ upstream-2    Triggered──► Waiting──► Started──► Ready──�
 task          Triggered──► Waiting──────────────────────► Started──► Ready
 ```
 
-# Upstream and Retry
+# Making Use of Upstream and Retry
 
 Zrb Tasks has a default retry mechanism. For example, default retry attempts for `CmdTask` and `Task` are two.
 
@@ -133,6 +146,6 @@ Let's say you have a connection glitch while doing `upgrade`. Zrb will only retr
 
 # Next
 
-Next, you can learn about [environments](environments.md) and [inputs](inputs.md).
+Next, you can learn about [inputs](inputs.md) and [environments](environments.md).
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)

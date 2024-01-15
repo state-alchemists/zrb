@@ -2,6 +2,21 @@
 
 # Task Lifecycle
 
+<div align="center">
+  <img height="60em" src="../_images/emoji/poultry_leg.png"/>
+  <img height="100em" src="../_images/emoji/chicken.png"/>
+  <img height="80em" src="../_images/emoji/baby_chick.png">
+  <img height="60em" src="../_images/emoji/hatching_chick.png">
+  <img height="50em" src="../_images/emoji/egg.png">
+  <p>
+    <sub>
+      All that grows must also wither and die, then nourish the living.
+    </sub>
+  </p>
+</div>
+
+
+
 All Zrb Task has the following lifecycle.
 
 ```
@@ -20,17 +35,17 @@ Triggered ─────► Waiting ────► Started ─────► 
 
 - `Triggered`: The Task is triggered.
 - `Waiting`: The Task is waiting for all upstreams to be ready.
-- `Skipped`: The Task is not executed and will immediately enter ready state.
+- `Skipped`: The Task is not executed and will immediately enter the `Ready` state.
 - `Started`: The Task execution is started.
-- `Failed`: The Task execution is failed. It will enter `Retry` state if the current attempt is less than the maximum attempt.
+- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than the maximum attempt.
 - `Retry`: The task will be restarted.
 - `Ready`: The task is ready.
 
 # Set Maximum Retry
 
-By default, Zrb Tasks has a retry mechanism. For Task and CmdTask, the default retry is two. That means that Zrb will attempt to re-execute the Task twice more time in case of failure.
+Most Zrb Tasks have a retry mechanism. For `Task` and `CmdTask`, the default retry is two.
 
-To set the maximum retries, you can use the `retry` attribute.
+To override the maximum retries, you can use the `retry` attribute.
 
 ```python
 from zrb import runner, CmdTask
@@ -39,7 +54,7 @@ update_ubuntu = CmdTask(
     name='update-ubuntu',
     cmd='sudo apt update && sudo apt upgrade -y',
     preexec_fn=None, # Let the user interact with the command
-    retry=2 # Will retry two times more if failed.
+    retry=3 # Will retry three times more if failed.
 )
 runner.register(update_ubuntu)
 ```
@@ -64,7 +79,33 @@ update_ubuntu = CmdTask(
 runner.register(update_ubuntu)
 ```
 
-Now, whenever you run `zrb update-ubuntu` on a non-Linux machine, the Task will enter `ready` state without actually do the execution.
+Now, whenever you run `zrb update-ubuntu` on a non-Linux machine, the Task will enter `Ready` state without actually doing the execution.
+
+# Long Running Task
+
+We often need to set Zrb Task as `Ready` even though the process is still running. For example, when we run a web server. We can say a web server is `Ready` when it serves HTTP requests correctly. 
+
+Zrb Tasks has `checkers` attributes. This attribute helps you to define the current Task's readiness.
+
+Let's see the following example.
+
+```python
+from zrb import runner, CmdTask, HTTPChecker
+
+start_server = CmdTask(
+    name='start-server',
+    cmd='python -m http.server 8080',
+    checkers=[
+        HTTPChecker(port=8080)
+    ]
+)
+runner.register(start_server)
+```
+
+In the example, `start-server` is `ready` once a request to `http://localhost:8080` returns `HTTP response 200`.
+
+Zrb provides some built-in [checkers](specialized-tasks/checker.md) you can use.
+
 
 # Handling Task Lifecycle
 
