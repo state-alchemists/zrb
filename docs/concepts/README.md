@@ -12,6 +12,7 @@
 
 # Concepts
 
+- [Project](project.md)
 - [Runner, Group, and Task](runner-group-and-task.md)
 - [Task Lifecycle](task-lifecycle.md)
 - [Task Upstream](task-upstream.md)
@@ -28,6 +29,7 @@
   - [RecurringTask](specialized-tasks/recurring-task.md)
   - [Checker](specialized-tasks/checker.md)
   - [FlowTask](specialized-tasks/flow-task.md)
+- [Copying Task](copying-task.md)
 - [Extending Task](extending-task.md)
 - [Extending CmdTask](extending-cmd-task.md)
 

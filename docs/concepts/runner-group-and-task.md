@@ -2,7 +2,13 @@
 
 # Runner, Group, and Task
 
-Runner, task, and group are some pretty simple but important concepts in Zrb. Let's see how they are related to each other.
+Runner, task, and group are some pretty simple but essential concepts in Zrb. Let's look at a short description of each terminology.
+
+- __Task__: Zrb Task is the smallest unit of your workflow.
+- __Runner__: When a Task is registered into Zrb Runner, it will be accessible from the CLI.
+- __Group__: Groups are like directory of Tasks. You can put related Tasks under the same Group, and you can make a nested Groups.
+
+Let's discuss each terminology in more detail.
 
 # Runner
 
@@ -178,7 +184,9 @@ zrb util json encode
 zrb util json decode
 ```
 
-By using Task Group, you can make your Tasks more organized.
+Furthermore, you can type `zrb util` or `zrb util json` to see all Groups and Tasks under the respective Groups.
+
+Using Task Group, you can make your Tasks more organized.
 
 # Task
 
