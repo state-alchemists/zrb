@@ -71,7 +71,7 @@ rendered-input 2024-01-16 08:25:27.325030
 
 # Env
 
-Env has an attribute named `should_render` that defaults to `True`. This attributes makes Zrb renderes Env's `default` value as Jinja template.
+Env has an attribute named `should_render` that defaults to `True`. This attributes makes Zrb renders Env's `default` value as Jinja template.
 
 ```python
 from zrb import runner, Env, CmdTask
