@@ -201,13 +201,13 @@ RENDERED_ENV crimson-metallum-07790
 
 # Task Attributes
 
-All template objects are accessible from Task Properties that allows Jinja Templating.
+All template objects are accessible from the following Task Properties. When in doubt, you can check on the properties annotation. Anything with `JinjaTemplate` are renderable.
 
 ## BaseTask
 
-The following attributes are rendered as Jinja Template:
+Zrb renders the following attributes as Jinja Template:
 
-- `should_execute`
+- `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
 
 Example:
 
@@ -221,15 +221,16 @@ task = Task(
     ],
     should_execute='{{ input.should_execute }}'
 )
+runner.register(task)
 ```
 
 ## CmdTask
 
-The following attributes are rendered as Jinja Template:
+Zrb renders the following attributes as Jinja Template:
 
-- `cmd`
-- `cmd_path`
-- `should_execute`
+- `cmd` (`CmdVal`)
+- `cmd_path` (`CmdVal`)
+- `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
 
 Example:
 
@@ -245,23 +246,90 @@ task = CmdTask(
     should_execute='{{ input.should_execute }}',
     cmd='echo "{{ input.name }}"'
 )
+runner.register(task)
 ```
 
+## RemoteCmdTask
 
-## DockerComposeTask
+Zrb renders the following attributes as Jinja Template:
 
-The following attributes are rendered as Jinja Template:
+- `cmd` (`CmdVal`)
+- `cmd_path` (`CmdVal`)
+- `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
 
-- `compose_cmd`
-- `compose_options`
-- `compose_flags`
-- `compose_args`
-- `should_execute`
+Furthermore, Zrb also renders [`remote_configs`](#remoteconfig) attributes as Jinja Template.
 
 Example:
 
 ```python
-from zrb import runner, BoolInput, StrInput, DockerComposeTask
+from zrb import runner, BoolInput, StrInput, PasswordInput, RemoteCmdTask, RemoteConfig
+
+task = RemoteCmdTask(
+    name='task',
+    inputs=[
+        BoolInput(name='should-execute', default=True),
+        StrInput(name='name', default='World'),
+        StrInput(name='server-1-host', default='stalchmst.com'),
+        StrInput(name='server-1-user', default='root'),
+        PasswordInput(name='server-1-pass'),
+        StrInput(name='server-2-host', default='contoso.com'),
+        StrInput(name='server-2-user', default='root'),
+        PasswordInput(name='server-2-pass')
+    ],
+    remote_configs=[
+        RemoteConfig(
+            host='{{ input.server_1_host }}',
+            user='{{ input.server_1_user }}',
+            password='{{ input.server_1_pass }}'
+        ),
+        RemoteConfig(
+            host='{{ input.server_2_host }}'
+            user='{{ input.server_2_user }}',
+            password='{{ input.server_2_pass }}'
+        ),
+    ],
+    should_execute='{{ input.should_execute }}',
+    cmd='echo "{{ input.name }}" && uname -a'
+)
+runner.register(task)
+```
+
+## RsyncTask
+
+Zrb renders the following attributes as Jinja Template:
+
+- `src` (`JinjaTemplate`)
+- `dst` (`JinjaTemplate`)
+
+Furthermore, Zrb also renders [`remote_configs`](#remoteconfig) attributes as Jinja Template.
+
+## RemoteConfig
+
+Zrb renders the following attributes as Jinja Template:
+
+- `host` (`JinjaTemplate`)
+- `user` (`JinjaTemplate`)
+- `password` (`JinjaTemplate`)
+- `ssh_key` (`JinjaTemplate`)
+- `port` (`JinjaTemplate`)
+- `config_map` (`Mapping[str, JinjaTemplate]`)
+
+
+## DockerComposeTask
+
+Zrb renders the following attributes as Jinja Template:
+
+- `compose_options` (`Mapping[JinjaTemplate, JinjaTemplate]`)
+- `compose_flags` (`Iterable[JinjaTemplate]`)
+- `compose_args` (`Iterable[JinjaTemplate]`)
+- `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
+- `setup_cmd` (`CmdVal`)
+- `setup_cmd_path` (`CmdVal`)
+
+Example:
+
+```python
+from zrb import runner, BoolInput, IntInput, DockerComposeTask
 
 task = DockerComposeTask(
     name='task',
@@ -275,7 +343,92 @@ task = DockerComposeTask(
         '-u': '{{ input.uid }}'
     }
 )
+runner.register(task)
 ```
+
+## ResourceMaker
+
+Zrb renders the following attributes as Jinja Template:
+
+- `template_path` (`JinjaTemplate`)
+- `destination_path` (`JinjaTemplate`)
+- `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
+
+Furthermore, Zrb also renders the `replacements` attribute values as Jinja Template.
+
+Example:
+
+```python
+from zrb import runner, BoolInput, StrInput, ResourceMaker
+import os
+
+CURRENT_DIR = os.path.dirname(__file__)
+
+task = ResourceMaker(
+    name='task',
+    template_path=os.path.join(CURRENT_DIR, 'template'),
+    inputs=[
+        StrInput(name='project-dir', default='.'),
+        StrInput(name='project-name', default='new_project')
+    ],
+    destination_path='{{ input.project_dir }}',
+    replacements={
+        'project_name': '{{ input.project_name }}'
+    }
+)
+runner.register(task)
+```
+
+
+## Notifier
+
+Zrb renders the following attributes as Jinja Template:
+
+- `title` (`JinjaTemplate`)
+- `message` (`JinjaTemplate`)
+
+Example:
+
+```python
+from zrb import Runner, StrInput, Notifier
+
+task = Notifier(
+    name='task',
+    inputs=[
+        StrInput(name='title', default='Notification'),
+        StrInput(name='message', default='Message'),
+    ],
+    title='{{ input.title }}',
+    message='{{ input.message }}',
+)
+runner.register(task)
+```
+
+## Checkers
+
+Zrb renders Checker attributes as Jinja Template. The detailed renderable attributes are as follows:
+
+- `TimeWatcher`
+    - `schedule` (`JinjaTemplate`)
+    - `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
+- `HTTPChecker`
+    - `host` (`JinjaTemplate`)
+    - `port` (`Union[JinjaTemplate, int]`)
+    - `timeout` (`Union[JinjaTemplate, int]`)
+    - `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
+- `PortChecker` 
+    - `host` (`JinjaTemplate`)
+    - `port` (`Union[JinjaTemplate, int]`)
+    - `timeout` (`Union[JinjaTemplate, int]`)
+    - `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
+- `PathChecker`
+    - `path` (`JinjaTemplate`)
+    - `ignored_path` (`Union[Iterable[JinjaTemplate], JinjaTemplate]`)
+    - `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
+- `PathWatcher`
+    - `path` (`JinjaTemplate`)
+    - `ignored_path` (`Union[Iterable[JinjaTemplate], JinjaTemplate]`)
+    - `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
 
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)

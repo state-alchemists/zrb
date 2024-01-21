@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union
+    Any, Callable, Iterable, List, Mapping, Optional, Union, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.config.config import show_time, logging_level
@@ -54,7 +54,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        should_execute: Union[bool, str, Callable[..., bool]] = True,
+        should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         self.__rjust_full_cli_name: Optional[str] = None

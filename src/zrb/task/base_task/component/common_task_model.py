@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union
+    Any, Callable, Iterable, List, Mapping, Optional, Union, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task_event_handler import (
@@ -44,7 +44,7 @@ class CommonTaskModel():
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        should_execute: Union[bool, str, Callable[..., bool]] = True,
+        should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
         return_upstream_result: bool = False
     ):
         self._name = name
@@ -130,7 +130,7 @@ class CommonTaskModel():
         self._retry = new_retry
 
     def set_should_execute(
-        self, should_execute: Union[bool, str, Callable[..., bool]]
+        self, should_execute: Union[bool, JinjaTemplate, Callable[..., bool]]
     ):
         self._should_execute = should_execute
 

@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Optional, Union, TypeVar, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.file.match import get_file_names
@@ -37,12 +37,12 @@ class PathChecker(Checker):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        path: str = '',
-        ignored_path: Union[str, Iterable[str]] = [],
+        path: JinjaTemplate = '',
+        ignored_path: Union[JinjaTemplate, Iterable[JinjaTemplate]] = [],
         checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 5,
         expected_result: bool = True,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True
     ):
         Checker.__init__(
             self,

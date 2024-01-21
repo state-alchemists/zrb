@@ -1,5 +1,6 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar,
+    JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.cmd_task import CmdTask, CmdResult, CmdVal
@@ -77,9 +78,9 @@ class DockerComposeTask(CmdTask):
         compose_service_configs: Mapping[str, ServiceConfig] = {},
         compose_file: Optional[str] = None,
         compose_cmd: str = 'up',
-        compose_options: Mapping[str, str] = {},
-        compose_flags: Iterable[str] = [],
-        compose_args: Iterable[str] = [],
+        compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
+        compose_flags: Iterable[JinjaTemplate] = [],
+        compose_args: Iterable[JinjaTemplate] = [],
         compose_env_prefix: str = '',
         setup_cmd: CmdVal = '',
         setup_cmd_path: CmdVal = '',

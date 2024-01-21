@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Optional, Union, JinjaTemplate
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
@@ -33,8 +35,8 @@ class Notifier(BaseTask):
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        title: str = '',
-        message: str = '',
+        title: JinjaTemplate = '',
+        message: JinjaTemplate = '',
         show_toast: bool = True,
         show_stdout: bool = True,
         upstreams: Iterable[AnyTask] = [],

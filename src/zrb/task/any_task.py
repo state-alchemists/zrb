@@ -580,7 +580,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def set_should_execute(
-        self, should_execute: Union[bool, str, Callable[..., bool]]
+        self, should_execute: Union[bool, JinjaTemplate, Callable[..., bool]]
     ):
         '''
         Determines whether the task should execute.

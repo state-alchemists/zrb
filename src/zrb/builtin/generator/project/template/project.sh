@@ -31,9 +31,15 @@ reload() {
 
     if [ -z "$PROJECT_AUTO_INSTALL_PIP" ] || [ "$PROJECT_AUTO_INSTALL_PIP" = 1 ]
     then
-        echo '🤖 Install requirements'
-        pip install --upgrade pip
-        pip install -r "${PROJECT_DIR}/requirements.txt"
+        echo '🤖 Checking .venv and requirements.txt timestamp'
+        _VENV_TIMESTAMP=$(find .venv -type d -exec stat -c %Y {} \; | sort -n | tail -n 1)
+        _REQUIREMENTS_TIMESTAMP=$(stat -c %Y requirements.txt)
+        if [ "$_VENV_TIMESTAMP" -lt "$_REQUIREMENTS_TIMESTAMP" ] 
+        then
+            echo '🤖 Install requirements'
+            pip install --upgrade pip
+            pip install -r "${PROJECT_DIR}/requirements.txt"
+        fi
     fi
 
     _CURRENT_SHELL=$(ps -p $$ | awk 'NR==2 {print $4}')

@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Optional, Union, TypeVar, JinjaTemplate
+)
 from zrb.task.checker import Checker
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
@@ -37,9 +39,9 @@ class PortChecker(Checker):
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        host: str = 'localhost',
-        port: Union[int, str] = 80,
-        timeout: Union[int, str] = 5,
+        host: JinjaTemplate = 'localhost',
+        port: Union[int, JinjaTemplate] = 80,
+        timeout: Union[int, JinjaTemplate] = 5,
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,
