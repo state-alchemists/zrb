@@ -211,4 +211,8 @@ To run again: zrb search --keyword "hakuna matata" --max-results "5"
 
 Add more examples.
 
+# Next
+
+Next you can see how you can [extend CmdTask](extending-cmd-task.md).
+
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
