@@ -199,7 +199,15 @@ Using Task Group, you can make your Tasks more organized.
   </p>
 </div>
 
-Tasks are the most basic unit in Zrb. There are many Task Classes you can use to create a Task.
+Tasks are the most basic unit in Zrb. Typically, a Zrb Task has some builtin settings.
+
+- Retry mechanism.
+- Upstreams/Dependencies.
+- Environment and Environment File.
+- Task Input/Parameter.
+- Readiness Checker.
+
+There are many Task Classes you can use to create a Task.
 
 - [Task](../technical-documentation/tasks/task.md): General purpose class, usually created using [@python_task](../technical-documentation/tasks/python-task.md) decorator.
 - [CmdTask](../technical-documentation/tasks/cmd-task.md): Run a CLI command/shell script.

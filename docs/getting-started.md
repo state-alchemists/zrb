@@ -310,6 +310,8 @@ Typically, a Zrb Task has multiple settings:
 - Task Input/Parameter 
 - Readiness Checker
 
+To learn more about Task, please visit [the concept section](concepts/README.md).
+
 ## Task Definition
 
 <div align="center">
@@ -381,7 +383,7 @@ def task_name(*args, **kwargs):
 
 The following properties are usually available:
 
-- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`).
+- __name__: The name of the Task. When you invoke the task using the CLI, you need to use this name. You should wrote Task name in `kebab-case` (i.e., separated by `-`).
 - __description__: The description of the task.
 - __group__: The task group to which the task belongs.
 - __inputs__: Task inputs and their default values.
@@ -829,12 +831,12 @@ export ZRB_ENV=DEV
 zrb serve
 ```
 
-Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title.
+Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title. You can learn more about environment cascading at the [environment section](concepts/environments.md).
 
 
 # Next
 
-Now you are ready. You can proceed with [concept section](concepts/README.md) to learn more about the details.
+Now you are ready. You can proceed with the [concept section](concepts/README.md) to learn more about the details.
 
 Have fun, Happy Coding, and Automate More!!!
 
