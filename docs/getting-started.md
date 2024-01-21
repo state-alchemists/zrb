@@ -19,18 +19,9 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
   - [Getting Available Tasks/Task Groups](#getting-available-taskstask-groups)
   - [Using Interactive Mode](#using-interactive-mode)
 - [Creating a Project](#creating-a-project)
-  - [Using `project.sh`](#using-projectsh)
 - [Creating a Task](#creating-a-task)
-    - [Task Definition](#task-definition)
-    - [Common Task Properties](#common-task-properties)
-    - [Task Dependencies](#task-dependencies)
-    - [Task Inputs](#task-inputs)
-    - [Task Environments](#task-environments)
-    - [Environment Cascading](#environment-cascading)
-    - [Execution ID](#execution-id)
-    - [XCom (Cross Task Communication)](#xcom-cross-task-communication)
-    - [Basic Example](#basic-example)
-    - [Advance Example](#advance-example-long-running-task)
+- [Basic Example](#basic-example)
+- [Advance Example](#advance-example-long-running-task)
 
 This guide assumes you have some familiarity with CLI and Python.
 
@@ -319,6 +310,8 @@ Typically, a Zrb Task has multiple settings:
 - Task Input/Parameter 
 - Readiness Checker
 
+To learn more about Task, please visit [the concept section](concepts/README.md).
+
 ## Task Definition
 
 <div align="center">
@@ -355,7 +348,7 @@ Here is a quick list to see which class is better for what:
 - __CmdTask__: Run a CLI command/shell script.
 - __DockerComposeTask__: Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
 - __RemoteCmdTask__: Run a CLI command/shell script on remote computers using SSH.
-- __RSyncTask__: Copy file from/to remote computers using `rsync` command.
+- __RsyncTask__: Copy file from/to remote computers using `rsync` command.
 - __ResourceMaker__: Create resources (source code/documents) based on provided templates.
 - __FlowTask__: Combine unrelated tasks into a single Workflow.
 - __RecurringTask__: Create a long-running recurring task.
@@ -390,7 +383,7 @@ def task_name(*args, **kwargs):
 
 The following properties are usually available:
 
-- __name__: The name of the task. When you invoke the task using the CLI, you need to use this name. By convention, the name should-be written in `kebab-case` (i.e., separated by `-`).
+- __name__: The name of the Task. When you invoke the task using the CLI, you need to use this name. You should wrote Task name in `kebab-case` (i.e., separated by `-`).
 - __description__: The description of the task.
 - __group__: The task group to which the task belongs.
 - __inputs__: Task inputs and their default values.
@@ -402,7 +395,7 @@ The following properties are usually available:
 - __runner__: Only available in `@python_task`. The valid value is `zrb.runner`.
 
 
-## Basic Example
+# Basic Example
 
 <div align="center">
   <img src="_images/emoji/feet.png"/>
@@ -667,7 +660,7 @@ zrb hello
 
 Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
 
-### Advance Example: Long Running Task
+# Advance Example: Long Running Task
 
 <div align="center">
   <img src="_images/emoji/railway_car.png"/>
@@ -838,12 +831,12 @@ export ZRB_ENV=DEV
 zrb serve
 ```
 
-Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title.
+Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title. You can learn more about environment cascading at the [environment section](concepts/environments.md).
 
 
 # Next
 
-Now you are ready. You can proceed with [concept section](concepts/README.md) to learn more about the details.
+Now you are ready. You can proceed with the [concept section](concepts/README.md) to learn more about the details.
 
 Have fun, Happy Coding, and Automate More!!!
 

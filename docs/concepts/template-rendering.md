@@ -2,15 +2,48 @@
 
 # Template Rendering
 
-Most Task, Env, and Input properties accept Jinja syntax as a value. Let's see some of them.
+Many properties in Zrb accept a Jinja Template. You can ensure whether a property accepts a Jinja Template by checking on its annotation. Any property with `JinjaTemplate` annotation accepts a Jinja Template value.
 
-Let's see some available objects in Zrb's Jinja template:
+You can learn more about Jinja [here](https://jinja.palletsprojects.com/en/2.10.x/templates/). The basic idea is as follows:
 
-- `datetime`: Python datetime module.
-- `os`: Python os module
-- `platform`: Python platform module.
-- `time`: Python time module.
-- `util`: Zrb utilities.
+- Showing a variable
+    ```
+    {{ variable_name }}
+    ```
+- Showing a property
+    ```
+    {{ some_object.some_property }}
+    ```
+- Showing a return value of a function
+    ```
+    {{ some_object.some_function() }}
+    or
+    {{ some_function() }}
+    ```
+- Branching
+    ```
+    {% if True %}
+    Ok
+    {% else %}
+    Not Ok
+    {% endif %}
+    ```
+- Loop
+    ```
+    {% for item in navigation %}
+    <a href="{{ item.href }}">{{ item.caption }}</a>
+    {% endfor %}
+    ```
+
+# Available Objects in JinjaTemplate
+
+Zrb automatically adds some objects and some Python packages you can access while using the Jinja Template.
+
+- `datetime` (Always accessible): Python datetime module.
+- `os` (Always accessible): Python os module
+- `platform` (Always accessible): Python platform module.
+- `time` (Always accessible): Python time module.
+- `util` (Always accessible): Zrb utilities.
     - `util.coalesce(value, *alternatives)`: Coalesce a value with the alternatives sequentially. An empty string is considered as a value.
     - `util.coalesce_str(value, *alternatives)`: Coalesce a value with the alternatives sequantially. An empty string is not considered as a value.
     - `util.to_camel-case(text)`: Returns a `camelCased` text.
@@ -22,19 +55,21 @@ Let's see some available objects in Zrb's Jinja template:
         - Returns `True` if text is either `true`, `1`, `yes`, `y`, `active`, or `on`. 
         - Returns `False` if text is either `fales`, `0`, `no`, `n`, `inactive`, or `off`.
         - Raises Exception otherwise.
-- `input`: Input value dictionary. The dictionary keys are __snake_cased__ Input names, while the dictionary values are the rendered Input values.
-- `env`: Env value dictionary. The dictionary keys are Env names, while the dictionary values are the rendered Env values. Under the hood, Zrb renders an EnvFile into multiple Envs. Thus, all variables in your environment file will be accessible from the `env` dictionary.
-- `task`: Current Task object.
-    - `task.get_env_map()`: Returning `env` dictionary.
-    - `task.get_input_map()`: Returning `input` dictionary.
-    - `task.set_xcom(key, value)`: Returning an empty string after setting an XCom key.
-    - `task.get_xcom(key)`: Getting an XCom value.
-    - `task.get_execution_id()`: Getting Execution ID
+- `input` (Accessible while rendering `Env`, `EnvFile`, and other Task Properties): Input value dictionary. The dictionary keys are __snake_cased__ Input names, while the dictionary values are the rendered Input values.
+- `env` (Accessible while rendering Task Properties): Env value dictionary. The dictionary keys are Env names, while the dictionary values are the rendered Env values. Under the hood, Zrb renders an EnvFile into multiple Envs. Thus, all variables in your environment file will be accessible from the `env` dictionary.
+- `task` (Available on runtime): Current Task object.
+    - `task.get_input_map()` (Available after input is rendered): Returning `input` dictionary.
+    - `task.get_env_map()` (Available after input and env is rendered): Returning `env` dictionary.
+    - `task.set_xcom(key, value)` (Available on runtime): Returning an empty string after setting an XCom key.
+    - `task.get_xcom(key)` (Available on runtime): Getting an XCom value.
+    - `task.get_execution_id()` (Available on runtime): Getting Execution ID
 
+
+In the rest of this document you will see how to use Jinja Template as Task property.
 
 # Input
 
-Input has an attribute named `should_render` that defaults to `True`. This attribute makes Zrb render Input's value as a Jinja template.
+Input has an attribute named `should_render` that defaults to `True`. This attribute makes Zrb render Input's value as a Jinja Template.
 
 The following objects are accessible from Input's value:
 
@@ -430,5 +465,8 @@ Zrb renders Checker attributes as Jinja Template. The detailed renderable attrib
     - `ignored_path` (`Union[Iterable[JinjaTemplate], JinjaTemplate]`)
     - `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
 
+# Next
+
+Next, you can learn more about [specialized tasks](specialized-tasks/README.md)
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)

@@ -302,7 +302,7 @@ class BaseTask(
         - Otherwise, this will return check method's return value.
         '''
         if len(self._get_checkers()) == 0:
-            return await self.check()
+            return await run_async(self.check)
         self.log_debug('Waiting execution to be started')
         while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
@@ -366,7 +366,7 @@ class BaseTask(
                     f'Started with args: {args} and kwargs: {local_kwargs}'
                 )
                 await self.on_started()
-                result = await self.run(*args, **local_kwargs)
+                result = await run_async(self.run, *args, **local_kwargs)
                 break
             except Exception as e:
                 is_last_attempt = self._is_last_attempt()

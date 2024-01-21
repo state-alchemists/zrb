@@ -1,6 +1,6 @@
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Specialized Tasks](README.md)
 
-# RSyncTask
+# RsyncTask
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md) / [Specialized Tasks](README.md)
 
