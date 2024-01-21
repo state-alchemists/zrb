@@ -35,9 +35,9 @@ You can learn more about Jinja [here](https://jinja.palletsprojects.com/en/2.10.
     {% endfor %}
     ```
 
-# Available Objects
+# Available Objects in JinjaTemplate
 
-Zrb automatically adds some objects and common Python packages you can access while using the Jinja Template.
+Zrb automatically adds some objects and some Python packages you can access while using the Jinja Template.
 
 - `datetime` (Always accessible): Python datetime module.
 - `os` (Always accessible): Python os module
@@ -65,7 +65,7 @@ Zrb automatically adds some objects and common Python packages you can access wh
     - `task.get_execution_id()` (Available on runtime): Getting Execution ID
 
 
-In the rest of this section you will see how to use Jinja Template as Task property.
+In the rest of this document you will see how to use Jinja Template as Task property.
 
 # Input
 

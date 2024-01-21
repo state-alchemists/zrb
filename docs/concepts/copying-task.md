@@ -52,8 +52,14 @@ dbt_test = CmdTask(
     cmd='dbt test',
     upstreams=[skippable_dbt_run]
 )
-
+runner.register(dbt_test)
 ```
+
+In the example, you create a task named `dbt-run`. You then copy the task into a variable named `skippable_dbt_run`. This new task has additional input and will be executed based on the input value.
+
+Finally, you create another task named `dbt-test`. This task depends on `skippable_dbt_run`.
+
+You see that despite the option to skip the execution, `dbt_run` and `skippable_dbt_run` do the same thing, and you don't need to define them twice.
 
 # Next
 
