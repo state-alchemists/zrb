@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Optional, Union, TypeVar
+    Any, Callable, Iterable, List, Optional, Union, TypeVar, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.string.conversion import to_variable_name
@@ -39,7 +39,11 @@ def _reset_stty():
             _has_stty = False
 
 
-CmdVal = Union[str, Iterable[str], Callable[..., Union[Iterable[str], str]]]
+CmdVal = Union[
+    JinjaTemplate,
+    Iterable[JinjaTemplate],
+    Callable[..., Union[Iterable[JinjaTemplate], JinjaTemplate]]
+]
 TCmdTask = TypeVar('TCmdTask', bound='CmdTask')
 
 
@@ -357,7 +361,9 @@ class CmdTask(BaseTask):
             for cmd_path_str in cmd_path
         ])
 
-    def __get_rendered_cmd(self, cmd: Union[str, Iterable[str]]) -> str:
+    def __get_rendered_cmd(
+        self, cmd: Union[JinjaTemplate, Iterable[JinjaTemplate]]
+    ) -> str:
         if isinstance(cmd, str):
             return self.render_str(cmd)
         return self.render_str('\n'.join(list(cmd)))

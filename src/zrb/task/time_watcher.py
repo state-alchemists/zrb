@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Optional, Union, TypeVar
+    Any, Callable, Iterable, Optional, Union, TypeVar, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.checker import Checker
@@ -45,10 +45,10 @@ class TimeWatcher(Checker):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        schedule: str = '',
+        schedule: JinjaTemplate = '',
         checking_interval: Union[int, float] = 1,
         progress_interval: Union[int, float] = 30,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True
     ):
         Checker.__init__(
             self,

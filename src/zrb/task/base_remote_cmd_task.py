@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.util import to_snake_case
@@ -31,12 +31,12 @@ TBaseRemoteCmdTask = TypeVar(
 class RemoteConfig:
     def __init__(
         self,
-        host: str,
-        user: str = '',
-        password: str = '',
-        ssh_key: str = '',
-        port: int = 22,
-        config_map: Optional[Mapping[str, str]] = None
+        host: JinjaTemplate,
+        user: JinjaTemplate = '',
+        password: JinjaTemplate = '',
+        ssh_key: JinjaTemplate = '',
+        port: Union[int, JinjaTemplate] = 22,
+        config_map: Optional[Mapping[str, JinjaTemplate]] = None
     ):
         self.host = host
         self.user = user

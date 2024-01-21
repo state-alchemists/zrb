@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, TypeVar
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Optional, Union, TypeVar, JinjaTemplate
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.checker import Checker
 from http.client import HTTPConnection, HTTPSConnection
@@ -58,9 +60,9 @@ class HTTPChecker(Checker):
         icon: Optional[str] = None,
         color: Optional[str] = None,
         description: str = '',
-        host: str = 'localhost',
-        port: Union[int, str] = 80,
-        timeout: Union[int, str] = 5,
+        host: JinjaTemplate = 'localhost',
+        port: Union[int, JinjaTemplate] = 80,
+        timeout: Union[int, JinjaTemplate] = 5,
         method: str = 'HEAD',
         url: str = '/',
         is_https: Union[bool, str] = False,
@@ -75,7 +77,7 @@ class HTTPChecker(Checker):
         checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 5,
         expected_result: bool = True,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True
     ):
         Checker.__init__(
             self,

@@ -1,5 +1,5 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar
+    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar, JinjaTemplate
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task.base_task import BaseTask
@@ -17,7 +17,7 @@ from zrb.helper.util import (
     to_human_readable, to_capitalized_human_readable
 )
 
-Replacement = Mapping[str, str]
+Replacement = Mapping[str, JinjaTemplate]
 ReplacementMutator = Callable[
     [AnyTask, Replacement],
     Replacement
@@ -31,8 +31,8 @@ class ResourceMaker(BaseTask):
     def __init__(
         self,
         name: str,
-        template_path: str,
-        destination_path: str,
+        template_path: JinjaTemplate,
+        destination_path: JinjaTemplate,
         replacements: Replacement = {},
         replacement_mutator: Optional[ReplacementMutator] = None,
         excludes: Iterable[str] = [],
@@ -51,7 +51,7 @@ class ResourceMaker(BaseTask):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        should_execute: Union[bool, str, Callable[..., bool]] = True,
+        should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
         skip_parsing: Optional[Iterable[str]] = None
     ):
         BaseTask.__init__(

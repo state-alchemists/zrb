@@ -1,4 +1,6 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, Optional, Union, JinjaTemplate
+)
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -37,8 +39,8 @@ class RsyncTask(BaseRemoteCmdTask):
         self,
         name: str,
         remote_configs: Iterable[RemoteConfig],
-        src: str,
-        dst: str,
+        src: JinjaTemplate,
+        dst: JinjaTemplate,
         is_remote_src: bool = False,
         is_remote_dst: bool = True,
         group: Optional[Group] = None,
