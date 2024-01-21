@@ -19,18 +19,9 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
   - [Getting Available Tasks/Task Groups](#getting-available-taskstask-groups)
   - [Using Interactive Mode](#using-interactive-mode)
 - [Creating a Project](#creating-a-project)
-  - [Using `project.sh`](#using-projectsh)
 - [Creating a Task](#creating-a-task)
-    - [Task Definition](#task-definition)
-    - [Common Task Properties](#common-task-properties)
-    - [Task Dependencies](#task-dependencies)
-    - [Task Inputs](#task-inputs)
-    - [Task Environments](#task-environments)
-    - [Environment Cascading](#environment-cascading)
-    - [Execution ID](#execution-id)
-    - [XCom (Cross Task Communication)](#xcom-cross-task-communication)
-    - [Basic Example](#basic-example)
-    - [Advance Example](#advance-example-long-running-task)
+- [Basic Example](#basic-example)
+- [Advance Example](#advance-example-long-running-task)
 
 This guide assumes you have some familiarity with CLI and Python.
 
@@ -355,7 +346,7 @@ Here is a quick list to see which class is better for what:
 - __CmdTask__: Run a CLI command/shell script.
 - __DockerComposeTask__: Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
 - __RemoteCmdTask__: Run a CLI command/shell script on remote computers using SSH.
-- __RSyncTask__: Copy file from/to remote computers using `rsync` command.
+- __RsyncTask__: Copy file from/to remote computers using `rsync` command.
 - __ResourceMaker__: Create resources (source code/documents) based on provided templates.
 - __FlowTask__: Combine unrelated tasks into a single Workflow.
 - __RecurringTask__: Create a long-running recurring task.
@@ -402,7 +393,7 @@ The following properties are usually available:
 - __runner__: Only available in `@python_task`. The valid value is `zrb.runner`.
 
 
-## Basic Example
+# Basic Example
 
 <div align="center">
   <img src="_images/emoji/feet.png"/>
@@ -667,7 +658,7 @@ zrb hello
 
 Now you will see `Current mode: PROD` instead of `Current mode: DEV`.
 
-### Advance Example: Long Running Task
+# Advance Example: Long Running Task
 
 <div align="center">
   <img src="_images/emoji/railway_car.png"/>
