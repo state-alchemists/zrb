@@ -43,11 +43,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def run(self, *args: Any, **kwargs: Any) -> Any:
+    def run(self, *args: Any, **kwargs: Any) -> Any:
         '''
         Executes the main logic of the task.
 
-        This asynchronous method should be implemented in subclasses to define the 
+        This method should be implemented in subclasses to define the 
         task's primary functionality. The specific behavior and the return value 
         depend on the task's nature and purpose.
 
@@ -69,7 +69,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def check(self) -> bool:
+    def check(self) -> bool:
         '''
         Checks if the current task is `ready`.
 
@@ -158,7 +158,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_triggered(self):
+    def on_triggered(self):
         '''
         Defines actions to perform when the task status is set to `triggered`.
 
@@ -175,7 +175,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_waiting(self):
+    def on_waiting(self):
         '''
         Defines actions to perform when the task status is set to `waiting`.
 
@@ -192,7 +192,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_skipped(self):
+    def on_skipped(self):
         '''
         Defines actions to perform when the task status is set to `skipped`.
 
@@ -208,7 +208,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_started(self):
+    def on_started(self):
         '''
         Defines actions to perform when the task status is set to 'started'.
 
@@ -224,11 +224,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_ready(self):
+    def on_ready(self):
         '''
         Defines actions to be performed when the task status is `ready`.
 
-        This asynchronous method should be implemented in subclasses to specify 
+        This method should be implemented in subclasses to specify 
         actions that occur when the task reaches the `ready` state. This can include 
         any cleanup, notification, or follow-up actions specific to the task.
 
@@ -241,11 +241,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_failed(self, is_last_attempt: bool, exception: Exception):
+    def on_failed(self, is_last_attempt: bool, exception: Exception):
         '''
         Specifies the behavior when the task execution fails.
 
-        This asynchronous method should be implemented in subclasses to handle task 
+        This method should be implemented in subclasses to handle task 
         failure scenarios. It can include logging the error, performing retries, or 
         any other failure handling mechanisms.
 
@@ -265,7 +265,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def on_retry(self):
+    def on_retry(self):
         '''
         Defines actions to perform when the task is retried.
 
