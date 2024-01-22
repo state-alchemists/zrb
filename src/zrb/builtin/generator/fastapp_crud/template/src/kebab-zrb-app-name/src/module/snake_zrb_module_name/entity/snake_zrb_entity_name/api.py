@@ -38,7 +38,7 @@ def register_api(
                 criterion={},
                 limit=limit,
                 offset=offset,
-                user_token_data=user_token_data.dict()
+                user_token_data=user_token_data.model_dump()
             )
             return PascalZrbEntityNameResult(**result_dict)
         except Exception as e:
@@ -58,7 +58,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'snake_zrb_module_name_get_snake_zrb_entity_name_by_id',
-                id=id, user_token_data=user_token_data.dict()
+                id=id, user_token_data=user_token_data.model_dump()
             )
             return PascalZrbEntityName(**result_dict)
         except Exception as e:
@@ -78,7 +78,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'snake_zrb_module_name_insert_snake_zrb_entity_name',
-                data=data.dict(), user_token_data=user_token_data.dict()
+                data=data.model_dump(), user_token_data=user_token_data.model_dump()
             )
             return PascalZrbEntityName(**result_dict)
         except Exception as e:
@@ -98,7 +98,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'snake_zrb_module_name_update_snake_zrb_entity_name',
-                id=id, data=data.dict(), user_token_data=user_token_data.dict()
+                id=id, data=data.model_dump(), user_token_data=user_token_data.model_dump()
             )
             return PascalZrbEntityName(**result_dict)
         except Exception as e:
@@ -118,7 +118,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'snake_zrb_module_name_delete_snake_zrb_entity_name',
-                id=id, user_token_data=user_token_data.dict()
+                id=id, user_token_data=user_token_data.model_dump()
             )
             return PascalZrbEntityName(**result_dict)
         except Exception as e:

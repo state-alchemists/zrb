@@ -56,7 +56,7 @@ class KafkaConsumer(Consumer):
         serializer: Optional[MessageSerializer] = None,
         kafka_admin: Optional[KafkaAdmin] = None,
         retry: int = 3,
-        retry_interval: int = 3,
+        retry_interval: int = 10,
         identifier='kafka-consumer'
     ):
         self.logger = logger

@@ -33,7 +33,7 @@ def register_rpc(
             limit=limit,
             offset=offset
         )
-        return result.dict()
+        return result.model_dump()
 
     @rpc_server.register('log_get_activity_by_id')
     async def get_by_id(
@@ -41,7 +41,7 @@ def register_rpc(
         user_token_data: Mapping[str, Any] = {}
     ) -> Mapping[str, Any]:
         row = await activity_model.get_by_id(id)
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register('log_insert_activity')
     async def insert(
@@ -54,7 +54,7 @@ def register_rpc(
         row = await activity_model.insert(
             data=ActivityData(**data)
         )
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register('log_update_activity')
     async def update(
@@ -67,7 +67,7 @@ def register_rpc(
         row = await activity_model.update(
             id=id, data=ActivityData(**data)
         )
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register('log_delete_activity')
     async def delete(
@@ -76,4 +76,4 @@ def register_rpc(
     ) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         row = await activity_model.delete(id=id)
-        return row.dict()
+        return row.model_dump()

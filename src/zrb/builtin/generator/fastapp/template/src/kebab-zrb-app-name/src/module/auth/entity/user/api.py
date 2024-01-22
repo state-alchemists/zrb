@@ -40,7 +40,7 @@ def register_auth_api(
     async def _create_token(data: UserLogin) -> TokenResponse:
         try:
             token_response_dict = await rpc_caller.call(
-                'auth_create_token', login_data=data.dict()
+                'auth_create_token', login_data=data.model_dump()
             )
             return TokenResponse(**token_response_dict)
         except Exception as e:
@@ -104,7 +104,7 @@ def register_api(
                 criterion={},
                 limit=limit,
                 offset=offset,
-                user_token_data=user_token_data.dict()
+                user_token_data=user_token_data.model_dump()
             )
             return UserResult(**result_dict)
         except Exception as e:
@@ -124,7 +124,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'auth_get_user_by_id',
-                id=id, user_token_data=user_token_data.dict()
+                id=id, user_token_data=user_token_data.model_dump()
             )
             return User(**result_dict)
         except Exception as e:
@@ -144,7 +144,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'auth_insert_user',
-                data=data.dict(), user_token_data=user_token_data.dict()
+                data=data.model_dump(), user_token_data=user_token_data.model_dump()
             )
             return User(**result_dict)
         except Exception as e:
@@ -164,7 +164,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'auth_update_user',
-                id=id, data=data.dict(), user_token_data=user_token_data.dict()
+                id=id, data=data.model_dump(), user_token_data=user_token_data.model_dump()
             )
             return User(**result_dict)
         except Exception as e:
@@ -184,7 +184,7 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 'auth_delete_user',
-                id=id, user_token_data=user_token_data.dict()
+                id=id, user_token_data=user_token_data.model_dump()
             )
             return User(**result_dict)
         except Exception as e:
