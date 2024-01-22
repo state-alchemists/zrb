@@ -1,6 +1,4 @@
-from config import (
-    app_enable_snake_zrb_module_name_module
-)
+from config import app_enable_snake_zrb_module_name_module
 from component.log import logger
 from component.db_connection import engine
 from helper.migration import migrate

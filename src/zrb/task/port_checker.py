@@ -1,11 +1,23 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Optional, Union, TypeVar, JinjaTemplate
+    Any,
+    Callable,
+    Iterable,
+    Optional,
+    Union,
+    TypeVar,
+    JinjaTemplate,
 )
 from zrb.task.checker import Checker
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -14,32 +26,31 @@ from zrb.task_input.any_input import AnyInput
 
 import socket
 
-TPortChecker = TypeVar('TPortChecker', bound='PortChecker')
+TPortChecker = TypeVar("TPortChecker", bound="PortChecker")
 
 
 @typechecked
-class PortConfig():
+class PortConfig:
     def __init__(self, host: str, port: int, timeout: int):
         self.host = host
         self.port = port
         self.timeout = timeout
-        self.label = f'Checking {host}:{port}'
+        self.label = f"Checking {host}:{port}"
 
 
 @typechecked
 class PortChecker(Checker):
-
     def __init__(
         self,
-        name: str = 'check-port',
+        name: str = "check-port",
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
-        host: JinjaTemplate = 'localhost',
+        description: str = "",
+        host: JinjaTemplate = "localhost",
         port: Union[int, JinjaTemplate] = 80,
         timeout: Union[int, JinjaTemplate] = 5,
         upstreams: Iterable[AnyTask] = [],
@@ -53,7 +64,7 @@ class PortChecker(Checker):
         checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 5,
         expected_result: bool = True,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
     ):
         Checker.__init__(
             self,
@@ -88,20 +99,18 @@ class PortChecker(Checker):
 
     def to_function(
         self,
-        env_prefix: str = '',
+        env_prefix: str = "",
         raise_error: bool = True,
         is_async: bool = False,
-        show_done_info: bool = True
+        show_done_info: bool = True,
     ) -> Callable[..., bool]:
-        return super().to_function(
-            env_prefix, raise_error, is_async, show_done_info
-        )
+        return super().to_function(env_prefix, raise_error, is_async, show_done_info)
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self._config = PortConfig(
             host=self.render_str(self._host),
             port=self.render_int(self._port),
-            timeout=self.render_int(self._timeout)
+            timeout=self.render_int(self._timeout),
         )
         return await super().run(*args, **kwargs)
 
@@ -109,13 +118,11 @@ class PortChecker(Checker):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(self._config.timeout)
-                result = sock.connect_ex(
-                    (self._config.host, self._config.port)
-                )
+                result = sock.connect_ex((self._config.host, self._config.port))
                 if result == 0:
-                    self.print_out(f'{self._config.label} (OK)')
+                    self.print_out(f"{self._config.label} (OK)")
                     return True
-                self.show_progress(f'{self._config.label} (Not OK)')
+                self.show_progress(f"{self._config.label} (Not OK)")
         except Exception:
-            self.show_progress(f'{self._config.label} (Socker error)')
+            self.show_progress(f"{self._config.label} (Socker error)")
         return False

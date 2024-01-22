@@ -3,7 +3,7 @@ from config import app_max_not_ready
 import asyncio
 
 
-class AppState():
+class AppState:
     __instance = None
 
     def __new__(cls):

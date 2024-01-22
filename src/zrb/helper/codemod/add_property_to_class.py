@@ -10,7 +10,7 @@ class AddPropertyTransformer(cst.CSTTransformer):
         class_name: str,
         property_name_node: cst.Name,
         property_type_node: cst.Annotation,
-        property_value_node: Optional[cst.BaseExpression]
+        property_value_node: Optional[cst.BaseExpression],
     ):
         self.class_name = class_name
         self.property_name_node = property_name_node
@@ -27,9 +27,9 @@ class AddPropertyTransformer(cst.CSTTransformer):
         if not isinstance(original_node.body, cst.EmptyLine):
             for stmt in original_node.body.body:
                 if (
-                    hasattr(stmt, 'body') and
-                    len(stmt.body) > 0 and
-                    isinstance(stmt.body[0], cst.Pass)
+                    hasattr(stmt, "body")
+                    and len(stmt.body) > 0
+                    and isinstance(stmt.body[0], cst.Pass)
                 ):
                     continue
                 # Add all old class body except any `pass` statement
@@ -59,7 +59,7 @@ def add_property_to_class(
     class_name: str,
     property_name: str,
     property_type: str,
-    property_value: Optional[str] = None
+    property_value: Optional[str] = None,
 ) -> str:
     module = cst.parse_module(code)
     property_name_node = cst.Name(value=property_name)
@@ -70,14 +70,14 @@ def add_property_to_class(
             class_name=class_name,
             property_name_node=property_name_node,
             property_type_node=property_type_node,
-            property_value_node=property_value_node
+            property_value_node=property_value_node,
         )
     )
     return transformed_module.code
 
 
 def _get_property_value_node(
-    property_value: Optional[str]
+    property_value: Optional[str],
 ) -> Optional[cst.BaseExpression]:
     if property_value is None:
         return None

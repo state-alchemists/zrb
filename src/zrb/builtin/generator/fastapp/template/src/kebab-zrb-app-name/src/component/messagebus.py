@@ -1,27 +1,37 @@
 from config import (
-    zrb_app_name, app_broker_type, app_rmq_connection_string,
-    app_kafka_bootstrap_servers, app_kafka_security_protocol,
-    app_kafka_sasl_mechanism, app_kafka_sasl_user, app_kafka_sasl_pass
+    zrb_app_name,
+    app_broker_type,
+    app_rmq_connection_string,
+    app_kafka_bootstrap_servers,
+    app_kafka_security_protocol,
+    app_kafka_sasl_mechanism,
+    app_kafka_sasl_user,
+    app_kafka_sasl_pass,
 )
 from core.messagebus import (
-    Admin, Consumer, MessageSerializer, Publisher,
-    MockAdmin, MockConsumer, MockPublisher,
-    KafkaAdmin, KafkaConsumer, KafkaPublisher,
-    RMQAdmin, RMQConsumer, RMQPublisher
+    Admin,
+    Consumer,
+    MessageSerializer,
+    Publisher,
+    MockAdmin,
+    MockConsumer,
+    MockPublisher,
+    KafkaAdmin,
+    KafkaConsumer,
+    KafkaPublisher,
+    RMQAdmin,
+    RMQConsumer,
+    RMQPublisher,
 )
 from component.log import logger
 
 
-def init_admin(
-    default_admin: Admin
-) -> Admin:
-    if app_broker_type == 'rabbitmq':
+def init_admin(default_admin: Admin) -> Admin:
+    if app_broker_type == "rabbitmq":
         return RMQAdmin(
-            logger=logger,
-            connection_string=app_rmq_connection_string,
-            configs={}
+            logger=logger, connection_string=app_rmq_connection_string, configs={}
         )
-    if app_broker_type == 'kafka':
+    if app_broker_type == "kafka":
         return KafkaAdmin(
             logger=logger,
             bootstrap_servers=app_kafka_bootstrap_servers,
@@ -29,24 +39,22 @@ def init_admin(
             sasl_mechanism=app_kafka_sasl_mechanism,
             sasl_plain_username=app_kafka_sasl_user,
             sasl_plain_password=app_kafka_sasl_pass,
-            configs={}
+            configs={},
         )
     return default_admin
 
 
 def init_publisher(
-    serializer: MessageSerializer,
-    admin: Admin,
-    default_publisher: Publisher
+    serializer: MessageSerializer, admin: Admin, default_publisher: Publisher
 ) -> Publisher:
-    if app_broker_type == 'rabbitmq':
+    if app_broker_type == "rabbitmq":
         return RMQPublisher(
             logger=logger,
             connection_string=app_rmq_connection_string,
             serializer=serializer,
-            rmq_admin=admin
+            rmq_admin=admin,
         )
-    if app_broker_type == 'kafka':
+    if app_broker_type == "kafka":
         return KafkaPublisher(
             logger=logger,
             bootstrap_servers=app_kafka_bootstrap_servers,
@@ -55,24 +63,22 @@ def init_publisher(
             sasl_plain_username=app_kafka_sasl_user,
             sasl_plain_password=app_kafka_sasl_pass,
             serializer=serializer,
-            kafka_admin=admin
+            kafka_admin=admin,
         )
     return default_publisher
 
 
 def init_consumer(
-    serializer: MessageSerializer,
-    admin: Admin,
-    default_consumer: Consumer
+    serializer: MessageSerializer, admin: Admin, default_consumer: Consumer
 ) -> Consumer:
-    if app_broker_type == 'rabbitmq':
+    if app_broker_type == "rabbitmq":
         return RMQConsumer(
             logger=logger,
             connection_string=app_rmq_connection_string,
             serializer=serializer,
-            rmq_admin=admin
+            rmq_admin=admin,
         )
-    if app_broker_type == 'kafka':
+    if app_broker_type == "kafka":
         return KafkaConsumer(
             logger=logger,
             bootstrap_servers=app_kafka_bootstrap_servers,
@@ -82,7 +88,7 @@ def init_consumer(
             sasl_plain_password=app_kafka_sasl_pass,
             group_id=zrb_app_name,
             serializer=serializer,
-            kafka_admin=admin
+            kafka_admin=admin,
         )
     return default_consumer
 
@@ -103,7 +109,5 @@ consumer = init_consumer(
     serializer=message_serializer, admin=admin, default_consumer=mock_consumer
 )
 publisher = init_publisher(
-    serializer=message_serializer,
-    admin=admin,
-    default_publisher=mock_publisher
+    serializer=message_serializer, admin=admin, default_publisher=mock_publisher
 )

@@ -1,21 +1,21 @@
 import logging
 
 LOGGING_LEVEL_MAP = {
-    'critical': logging.CRITICAL,
-    'fatal': logging.FATAL,
-    'error': logging.ERROR,
-    'warning': logging.WARNING,
-    'warn': logging.WARN,
-    'info': logging.INFO,
-    'debug': logging.DEBUG,
-    'notset': logging.NOTSET,
+    "critical": logging.CRITICAL,
+    "fatal": logging.FATAL,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "warn": logging.WARN,
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+    "notset": logging.NOTSET,
 }
 
 
 def str_to_boolean(value: str):
-    if value.lower() in ('0', 'false', 'no', 'n'):
+    if value.lower() in ("0", "false", "no", "n"):
         return False
-    if value.lower() in ('1', 'true', 'yes', 'y'):
+    if value.lower() in ("1", "true", "yes", "y"):
         return True
     raise Exception(f'Cannot convert to boolean: "{value}"')
 

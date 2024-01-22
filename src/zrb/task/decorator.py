@@ -1,10 +1,14 @@
-from zrb.helper.typing import (
-    Any, Callable, Iterable, Optional, Union
-)
+from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_input.any_input import AnyInput
 from zrb.task_env.env import Env
@@ -25,7 +29,7 @@ def python_task(
     env_files: Iterable[EnvFile] = [],
     icon: Optional[str] = None,
     color: Optional[str] = None,
-    description: str = '',
+    description: str = "",
     upstreams: Iterable[AnyTask] = [],
     on_triggered: Optional[OnTriggered] = None,
     on_waiting: Optional[OnWaiting] = None,
@@ -40,14 +44,14 @@ def python_task(
     retry_interval: float = 1,
     should_execute: Union[bool, str, Callable[..., bool]] = True,
     return_upstream_result: bool = False,
-    runner: Optional[Runner] = None
+    runner: Optional[Runner] = None,
 ) -> Callable[[Callable[..., Any]], Task]:
-    '''
+    """
     python_task decorator helps you turn any Python function into a task
 
     Returns:
         Callable[[Callable[..., Any]], Task]: A callable turning function into task.
-    
+
     Examples:
         >>> from zrb import python_task
         >>> @python_task(
@@ -57,7 +61,8 @@ def python_task(
         >>>    return 'hello world'
         >>> print(my_task)
         <Task name=my-task>
-    '''
+    """
+
     def _create_task(fn: Callable[..., Any]) -> Task:
         task = Task(
             name=name,
@@ -82,9 +87,10 @@ def python_task(
             retry_interval=retry_interval,
             run=fn,
             should_execute=should_execute,
-            return_upstream_result=return_upstream_result
+            return_upstream_result=return_upstream_result,
         )
         if runner is not None:
             runner.register(task)
         return task
+
     return _create_task

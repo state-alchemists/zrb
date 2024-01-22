@@ -5,7 +5,7 @@ import pytest
 
 
 @pytest.fixture()
-async def test_client_generator(scope='module'):
+async def test_client_generator(scope="module"):
     async with LifespanManager(app):
         async with AsyncClient(app=app, base_url="http://localhost") as ac:
             yield ac

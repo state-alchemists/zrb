@@ -9,9 +9,9 @@ from zrb.config.config import show_prompt
 
 @typechecked
 class BaseInput(AnyInput):
-    '''
+    """
     A concrete implementation of the AnyInput abstract base class, representing a specific type of task input.
-    This class allows for the creation of interactive and configurable inputs for tasks, with various attributes 
+    This class allows for the creation of interactive and configurable inputs for tasks, with various attributes
     to customize its behavior and appearance.
 
     Attributes:
@@ -44,7 +44,7 @@ class BaseInput(AnyInput):
         >>>         Input(name='delay', default=10, description='Delay')
         >>>     ]
         >>> )
-    '''
+    """
 
     def __init__(
         self,
@@ -67,10 +67,10 @@ class BaseInput(AnyInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         if name in RESERVED_INPUT_NAMES:
-            raise ValueError(f'Forbidden input name: {name}')
+            raise ValueError(f"Forbidden input name: {name}")
         self._name = name
         self._shortcut = shortcut
         self._prompt = prompt
@@ -99,32 +99,32 @@ class BaseInput(AnyInput):
         return self._default
 
     def get_param_decl(self) -> List[str]:
-        param_decl: List[str] = [f'--{self._name}']
+        param_decl: List[str] = [f"--{self._name}"]
         if self._shortcut is not None:
-            param_decl.append(f'-{self._shortcut}')
+            param_decl.append(f"-{self._shortcut}")
         return param_decl
 
     def get_options(self) -> Mapping[str, Any]:
         options: Mapping[str, Any] = {
-            'default': self._default,
-            'help': self._help,
-            'type': self._type,
-            'show_default': self._show_default,
-            'confirmation_prompt': self._confirmation_prompt,
-            'prompt_required': self._prompt_required,
-            'hide_input': self._hide_input,
-            'is_flag': self._is_flag,
-            'flag_value': self._flag_value,
-            'multiple': self._multiple,
-            'count': self._count,
-            'allow_from_autoenv': self._allow_from_autoenv,
-            'hidden': self._hidden,
-            'show_choices': self._show_choices,
-            'show_envvar': self._show_envvar,
-            'nargs': self._nargs
+            "default": self._default,
+            "help": self._help,
+            "type": self._type,
+            "show_default": self._show_default,
+            "confirmation_prompt": self._confirmation_prompt,
+            "prompt_required": self._prompt_required,
+            "hide_input": self._hide_input,
+            "is_flag": self._is_flag,
+            "flag_value": self._flag_value,
+            "multiple": self._multiple,
+            "count": self._count,
+            "allow_from_autoenv": self._allow_from_autoenv,
+            "hidden": self._hidden,
+            "show_choices": self._show_choices,
+            "show_envvar": self._show_envvar,
+            "nargs": self._nargs,
         }
         if show_prompt:
-            options['prompt'] = self._prompt
+            options["prompt"] = self._prompt
         return options
 
     def should_render(self) -> bool:

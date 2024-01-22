@@ -3,7 +3,13 @@ from zrb.helper.typecheck import typechecked
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -15,17 +21,16 @@ import asyncio
 
 @typechecked
 class Checker(BaseTask):
-
     def __init__(
         self,
-        name: str = 'check',
+        name: str = "check",
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,
@@ -37,7 +42,7 @@ class Checker(BaseTask):
         checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 30,
         expected_result: bool = True,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
     ):
         BaseTask.__init__(
             self,

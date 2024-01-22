@@ -1,11 +1,11 @@
 from typing import Any, Callable, Mapping, Optional
 from core.messagebus.messagebus import (
-    Consumer, TEventHandler, MessageSerializer,
-    must_get_message_serializer
+    Consumer,
+    TEventHandler,
+    MessageSerializer,
+    must_get_message_serializer,
 )
-from core.messagebus.kafka.admin import (
-    KafkaAdmin, must_get_kafka_admin
-)
+from core.messagebus.kafka.admin import KafkaAdmin, must_get_kafka_admin
 from aiokafka import AIOKafkaConsumer, __version__
 from aiokafka.consumer.consumer import RoundRobinPartitionAssignor
 
@@ -19,7 +19,7 @@ class KafkaConsumer(Consumer):
         self,
         logger: logging.Logger,
         bootstrap_servers: str,
-        client_id='aiokafka-' + __version__,
+        client_id="aiokafka-" + __version__,
         group_id: Optional[str] = None,
         key_deserializer=None,
         value_deserializer=None,
@@ -29,7 +29,7 @@ class KafkaConsumer(Consumer):
         max_partition_fetch_bytes=1 * 1024 * 1024,
         request_timeout_ms=40 * 1000,
         retry_backoff_ms=100,
-        auto_offset_reset='latest',
+        auto_offset_reset="latest",
         enable_auto_commit=True,
         auto_commit_interval_ms=5000,
         check_crcs=True,
@@ -42,22 +42,22 @@ class KafkaConsumer(Consumer):
         consumer_timeout_ms=200,
         max_poll_records=None,
         ssl_context=None,
-        security_protocol='PLAINTEXT',
-        api_version='auto',
+        security_protocol="PLAINTEXT",
+        api_version="auto",
         exclude_internal_topics=True,
         connections_max_idle_ms=540000,
         isolation_level="read_uncommitted",
         sasl_mechanism="PLAIN",
         sasl_plain_password=None,
         sasl_plain_username=None,
-        sasl_kerberos_service_name='kafka',
+        sasl_kerberos_service_name="kafka",
         sasl_kerberos_domain_name=None,
         sasl_oauth_token_provider=None,
         serializer: Optional[MessageSerializer] = None,
         kafka_admin: Optional[KafkaAdmin] = None,
         retry: int = 3,
         retry_interval: int = 3,
-        identifier='kafka-consumer'
+        identifier="kafka-consumer",
     ):
         self.logger = logger
         self.serializer = must_get_message_serializer(serializer)
@@ -124,6 +124,7 @@ class KafkaConsumer(Consumer):
             )
             self._handlers[event_name] = handler
             return handler
+
         return wrapper
 
     async def start(self):
@@ -144,37 +145,33 @@ class KafkaConsumer(Consumer):
                 await self._connect()
             await self._init_topics()
             topics = list(self._topic_to_event_map.keys())
-            self.logger.warning(
-                f'🐼 [{self.identifier}] Subscribe to topics: {topics}'
-            )
+            self.logger.warning(f"🐼 [{self.identifier}] Subscribe to topics: {topics}")
             self.consumer.subscribe(topics=topics)
             async for message in self.consumer:
                 topic_name = message.topic
                 event_name = self._topic_to_event_map[topic_name]
                 message_handler = self._handlers.get(event_name)
-                decoded_value = self.serializer.decode(
-                    event_name, message.value
-                )
+                decoded_value = self.serializer.decode(event_name, message.value)
                 self.logger.info(
-                    f'🐼 [{self.identifier}] Consume from "{topic_name}": ' +
-                    f'{decoded_value}'
+                    f'🐼 [{self.identifier}] Consume from "{topic_name}": '
+                    + f"{decoded_value}"
                 )
                 await self._run_handler(message_handler, decoded_value)
             retry = self.retry
         except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if retry > 0:
-                self.logger.error(f'🐼 [{self.identifier}]', exc_info=True)
+                self.logger.error(f"🐼 [{self.identifier}]", exc_info=True)
             if retry == 0:
                 self.logger.error(
-                    f'🐼 [{self.identifier}] Failed to consume message after ' +
-                    f'{self.retry} attempts'
+                    f"🐼 [{self.identifier}] Failed to consume message after "
+                    + f"{self.retry} attempts"
                 )
-                self.logger.fatal(f'🐼 [{self.identifier}] Cannot retry')
+                self.logger.fatal(f"🐼 [{self.identifier}] Cannot retry")
                 raise e
-            self.logger.warning(f'🐼 [{self.identifier}] Retry to consume')
+            self.logger.warning(f"🐼 [{self.identifier}] Retry to consume")
             await self._disconnect()
             await asyncio.sleep(self.retry_interval)
-            await self._start(retry-1)
+            await self._start(retry - 1)
         finally:
             await self._disconnect()
 
@@ -187,7 +184,7 @@ class KafkaConsumer(Consumer):
         }
 
     async def _connect(self):
-        self.logger.info(f'🐼 [{self.identifier}] Create kafka consumer')
+        self.logger.info(f"🐼 [{self.identifier}] Create kafka consumer")
         self.consumer = AIOKafkaConsumer(
             bootstrap_servers=self.bootstrap_servers,
             client_id=self.client_id,
@@ -225,30 +222,26 @@ class KafkaConsumer(Consumer):
             sasl_kerberos_domain_name=self.sasl_kerberos_domain_name,
             sasl_oauth_token_provider=self.sasl_oauth_token_provider,
         )
-        self.logger.info(f'🐼 [{self.identifier}] Start kafka consumer')
+        self.logger.info(f"🐼 [{self.identifier}] Start kafka consumer")
         await self.consumer.start()
-        self.logger.info(f'🐼 [{self.identifier}] Kafka consumer started')
+        self.logger.info(f"🐼 [{self.identifier}] Kafka consumer started")
 
     async def _disconnect(self):
         if self.consumer is not None:
             try:
                 self.logger.info(
-                    f'🐼 [{self.identifier}] Unsubscribe kafka consumer ' +
-                    'from all topics'
+                    f"🐼 [{self.identifier}] Unsubscribe kafka consumer "
+                    + "from all topics"
                 )
                 self.consumer.unsubscribe()
-                self.logger.info(f'🐼 [{self.identifier}] Stop kafka consumer')
+                self.logger.info(f"🐼 [{self.identifier}] Stop kafka consumer")
                 await self.consumer.stop()
-                self.logger.info(
-                    f'🐼 [{self.identifier}] Kafka consumer stopped'
-                )
+                self.logger.info(f"🐼 [{self.identifier}] Kafka consumer stopped")
             except (asyncio.CancelledError, GeneratorExit, Exception):
-                self.logger.error(f'🐼 [{self.identifier}]', exc_info=True)
+                self.logger.error(f"🐼 [{self.identifier}]", exc_info=True)
         self.consumer = None
 
-    async def _run_handler(
-        self, message_handler: TEventHandler, decoded_value: Any
-    ):
+    async def _run_handler(self, message_handler: TEventHandler, decoded_value: Any):
         if inspect.iscoroutinefunction(message_handler):
             return asyncio.create_task(message_handler(decoded_value))
         return message_handler(decoded_value)

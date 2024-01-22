@@ -1,6 +1,14 @@
 from beartype.typing import (
-    Any, Iterable, Callable, List, Mapping, Optional, TypeVar, Type, Tuple,
-    Union
+    Any,
+    Iterable,
+    Callable,
+    List,
+    Mapping,
+    Optional,
+    TypeVar,
+    Type,
+    Tuple,
+    Union,
 )
 
 JinjaTemplate = str

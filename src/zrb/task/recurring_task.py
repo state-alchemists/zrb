@@ -1,12 +1,16 @@
-from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union
-)
+from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.helper.typecheck import typechecked
 from zrb.helper.accessories.name import get_random_name
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -17,13 +21,13 @@ import asyncio
 import copy
 
 
-class RunConfig():
+class RunConfig:
     def __init__(
         self,
         fn: Callable[..., Any],
         args: List[Any],
         kwargs: Mapping[Any, Any],
-        execution_id: str
+        execution_id: str,
     ):
         self.fn = fn
         self.args = args
@@ -36,14 +40,14 @@ class RunConfig():
 
 @typechecked
 class RecurringTask(BaseTask):
-    '''
+    """
     A class representing a recurring task that is triggered based on
     specified conditions.
 
     Examples:
 
         >>> from zrb import RecurringTask
-    '''
+    """
 
     def __init__(
         self,
@@ -57,7 +61,7 @@ class RecurringTask(BaseTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,
@@ -71,7 +75,7 @@ class RecurringTask(BaseTask):
         retry: int = 0,
         retry_interval: float = 1,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         self._task: AnyTask = task.copy()
         inputs = list(inputs) + self._task._get_combined_inputs()
@@ -102,9 +106,7 @@ class RecurringTask(BaseTask):
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
         )
-        self._triggers: List[AnyTask] = [
-            trigger.copy() for trigger in triggers
-        ]
+        self._triggers: List[AnyTask] = [trigger.copy() for trigger in triggers]
         self._run_configs: List[RunConfig] = []
         self._single_execution = single_execution
 
@@ -116,29 +118,24 @@ class RecurringTask(BaseTask):
         for trigger in self._triggers:
             trigger.add_input(*self._get_inputs())
             trigger.add_env(*self._get_envs())
-            trigger_coroutines.append(asyncio.create_task(
-                trigger._set_keyval(
-                    kwargs=new_kwargs, env_prefix=env_prefix
+            trigger_coroutines.append(
+                asyncio.create_task(
+                    trigger._set_keyval(kwargs=new_kwargs, env_prefix=env_prefix)
                 )
-            ))
+            )
         await asyncio.gather(*trigger_coroutines)
 
     async def run(self, *args: Any, **kwargs: Any):
         await asyncio.gather(
             asyncio.create_task(self.__check_trigger(*args, **kwargs)),
-            asyncio.create_task(self.__run_from_queue())
+            asyncio.create_task(self.__run_from_queue()),
         )
 
     async def __check_trigger(self, *args: Any, **kwargs: Any):
-        task_kwargs = {
-            key: kwargs[key]
-            for key in kwargs if key not in ['_task']
-        }
+        task_kwargs = {key: kwargs[key] for key in kwargs if key not in ["_task"]}
         is_first_time = True
         while True:
-            execution_id = get_random_name(
-                add_random_digit=True, digit_count=5
-            )
+            execution_id = get_random_name(add_random_digit=True, digit_count=5)
             # Create trigger functions
             trigger_functions = []
             for trigger in self._triggers:
@@ -147,10 +144,10 @@ class RecurringTask(BaseTask):
                 trigger_function = trigger_copy.to_function(
                     is_async=True, raise_error=False, show_done_info=False
                 )
-                trigger_functions.append(asyncio.create_task(
-                    trigger_function(*args, **task_kwargs)
-                ))
-            self.print_out_dark('Waiting for next trigger')
+                trigger_functions.append(
+                    asyncio.create_task(trigger_function(*args, **task_kwargs))
+                )
+            self.print_out_dark("Waiting for next trigger")
             # Mark task as done since trigger has been defined.
             if is_first_time:
                 await self._mark_done()
@@ -171,13 +168,10 @@ class RecurringTask(BaseTask):
             fn = task_copy.to_function(
                 is_async=True, raise_error=False, show_done_info=False
             )
-            self.print_out_dark(f'Add execution to the queue: {execution_id}')
+            self.print_out_dark(f"Add execution to the queue: {execution_id}")
             self._run_configs.append(
                 RunConfig(
-                    fn=fn,
-                    args=args,
-                    kwargs=task_kwargs,
-                    execution_id=execution_id
+                    fn=fn, args=args, kwargs=task_kwargs, execution_id=execution_id
                 )
             )
 
@@ -190,12 +184,12 @@ class RecurringTask(BaseTask):
                 # Drain the queue, leave only the latest task
                 while len(self._run_configs) > 1:
                     run_config = self._run_configs.pop(0)
-                    self.print_out_dark(f'Skipping {run_config.execution_id}')
+                    self.print_out_dark(f"Skipping {run_config.execution_id}")
                     self.clear_xcom(execution_id=run_config.execution_id)
             # Run task
             run_config = self._run_configs.pop(0)
-            self.print_out_dark(f'Executing {run_config.execution_id}')
-            self.print_out_dark(f'{len(self._run_configs)} tasks left')
+            self.print_out_dark(f"Executing {run_config.execution_id}")
+            self.print_out_dark(f"{len(self._run_configs)} tasks left")
             await run_config.run()
             self.clear_xcom(execution_id=run_config.execution_id)
             self._play_bell()

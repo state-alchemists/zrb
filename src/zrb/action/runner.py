@@ -14,15 +14,15 @@ CliSubcommand = Union[click.Group, click.Command]
 
 
 @typechecked
-class Runner():
-    '''
+class Runner:
+    """
     Runner class.
     Any tasks registered to the runner will be accessible from the terminal
-    '''
+    """
 
-    def __init__(self, env_prefix: str = ''):
+    def __init__(self, env_prefix: str = ""):
         if logging_level <= logging.INFO:
-            logger.info(colored('Create runner', attrs=['dark']))
+            logger.info(colored("Create runner", attrs=["dark"]))
         self.__env_prefix = env_prefix
         self.__tasks: List[AnyTask] = []
         self.__registered_groups: Mapping[str, click.Group] = {}
@@ -30,26 +30,20 @@ class Runner():
         self.__subcommands: Mapping[str, List[click.Group]] = {}
         self.__registered_task_cli_name: List[str] = []
         if logging_level <= logging.INFO:
-            logger.info(colored('Runner created', attrs=['dark']))
+            logger.info(colored("Runner created", attrs=["dark"]))
 
     def register(self, *tasks: AnyTask):
         for task in tasks:
             task._set_has_cli_interface()
             cli_name = task._get_full_cli_name()
             if cli_name in self.__registered_task_cli_name:
-                raise RuntimeError(
-                    f'Task "{cli_name}" has already been registered'
-                )
+                raise RuntimeError(f'Task "{cli_name}" has already been registered')
             if logging_level <= logging.DEBUG:
-                logger.debug(
-                    colored(f'Register task: "{cli_name}"', attrs=['dark'])
-                )
+                logger.debug(colored(f'Register task: "{cli_name}"', attrs=["dark"]))
             self.__tasks.append(task)
             self.__registered_task_cli_name.append(cli_name)
             if logging_level <= logging.DEBUG:
-                logger.debug(
-                    colored(f'Task registered: "{cli_name}"', attrs=['dark'])
-                )
+                logger.debug(colored(f'Task registered: "{cli_name}"', attrs=["dark"]))
 
     def serve(self, cli: click.Group) -> click.Group:
         for task in self.__tasks:
@@ -99,15 +93,13 @@ class Runner():
         task_inputs = task._get_combined_inputs()
         task_cli_name = task.get_cli_name()
         task_description = task.get_description()
-        task_function = task.to_function(
-            env_prefix=self.__env_prefix, raise_error=True
-        )
+        task_function = task.to_function(env_prefix=self.__env_prefix, raise_error=True)
         callback = self.__wrap_task_function(task_function)
         command = click.Command(
             callback=callback, name=task_cli_name, help=task_description
         )
         # by default, add an argument named _args
-        command.params.append(click.Argument(['_args'], nargs=-1))
+        command.params.append(click.Argument(["_args"], nargs=-1))
         # add task inputs,
         # if there are inputs with the same name, choose the first.
         registered_input: Mapping[str, bool] = {}
@@ -120,12 +112,11 @@ class Runner():
             command.params.append(click.Option(param_decl, **options))
         return command
 
-    def __wrap_task_function(
-        self, function: Callable[..., Any]
-    ) -> Callable[..., Any]:
+    def __wrap_task_function(self, function: Callable[..., Any]) -> Callable[..., Any]:
         def wrapped_function(*args: Any, **kwargs: Any) -> Any:
             try:
                 function(*args, **kwargs)
             except Exception:
                 sys.exit(1)
+
         return wrapped_function

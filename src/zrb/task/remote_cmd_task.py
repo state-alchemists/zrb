@@ -2,7 +2,13 @@ from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -16,17 +22,17 @@ import pathlib
 
 
 CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, '..', 'shell-scripts')
-with open(os.path.join(SHELL_SCRIPT_DIR, 'ssh-util.sh')) as file:
+SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
+with open(os.path.join(SHELL_SCRIPT_DIR, "ssh-util.sh")) as file:
     SSH_UTIL_SCRIPT = file.read()
 
 ensure_ssh_is_installed = CmdTask(
-    name='ensure-ssh-is-installed',
+    name="ensure-ssh-is-installed",
     cmd_path=[
-        os.path.join(SHELL_SCRIPT_DIR, '_common-util.sh'),
-        os.path.join(SHELL_SCRIPT_DIR, 'ensure-ssh-is-installed.sh')
+        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+        os.path.join(SHELL_SCRIPT_DIR, "ensure-ssh-is-installed.sh"),
     ],
-    preexec_fn=None
+    preexec_fn=None,
 )
 
 
@@ -42,10 +48,10 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         executable: Optional[str] = None,
-        cmd: CmdVal = '',
-        cmd_path: CmdVal = '',
+        cmd: CmdVal = "",
+        cmd_path: CmdVal = "",
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -62,17 +68,15 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
     ):
-        pre_cmd = '\n'.join([
-            SSH_UTIL_SCRIPT,
-            '_SCRIPT="$(cat <<\'ENDSCRIPT\'',
-        ])
-        post_cmd = '\n'.join([
-            'ENDSCRIPT',
-            ')"',
-            'auth_ssh "$_SCRIPT"'
-        ])
+        pre_cmd = "\n".join(
+            [
+                SSH_UTIL_SCRIPT,
+                "_SCRIPT=\"$(cat <<'ENDSCRIPT'",
+            ]
+        )
+        post_cmd = "\n".join(["ENDSCRIPT", ')"', 'auth_ssh "$_SCRIPT"'])
         BaseRemoteCmdTask.__init__(
             self,
             name=name,
@@ -105,5 +109,5 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            should_execute=should_execute
+            should_execute=should_execute,
         )

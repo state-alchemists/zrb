@@ -7,10 +7,11 @@ from zrb.task_env.env import Env
 
 # flake8: noqa E501
 
+
 @typechecked
-class EnvFile():
-    '''
-    Represents a handler for an environment file, facilitating the creation and management of environment variables 
+class EnvFile:
+    """
+    Represents a handler for an environment file, facilitating the creation and management of environment variables
     (Env objects) based on the contents of the specified environment file.
 
     Attributes:
@@ -28,13 +29,10 @@ class EnvFile():
         >>>         EnvFile(path=os.path.join(CURRENT_DIR, '.env'), prefix='SYSTEM')
         >>>     ]
         >>> )
-    '''
+    """
 
     def __init__(
-        self,
-        path: str,
-        prefix: Optional[str] = None,
-        should_render: bool = False
+        self, path: str, prefix: Optional[str] = None, should_render: bool = False
     ):
         self.__path = path
         self.__prefix = prefix.upper() if prefix is not None else None
@@ -43,8 +41,8 @@ class EnvFile():
         self.__env_list_fetched: bool = False
 
     def get_envs(self) -> List[Env]:
-        '''
-        Retrieves a list of Env objects based on the environment file. If a prefix is provided, it is 
+        """
+        Retrieves a list of Env objects based on the environment file. If a prefix is provided, it is
         applied to the environment variable names.
 
         Returns:
@@ -54,7 +52,7 @@ class EnvFile():
             >>> from zrb import Env, EnvFile
             >>> env_file = EnvFile(path='some_file.env')
             >>> envs: List[Env] = env_file.get_envs()
-        '''
+        """
         if self.__env_list_fetched:
             return self.__env_list
         env_list: List[Env] = []
@@ -63,14 +61,16 @@ class EnvFile():
             if key in RESERVED_ENV_NAMES:
                 continue
             os_name: Optional[str] = None
-            if self.__prefix is not None and self.__prefix != '':
-                os_name = f'{self.__prefix}_{key}'
-            env_list.append(Env(
-                name=key,
-                os_name=os_name,
-                default=value,
-                should_render=self.__should_render
-            ))
+            if self.__prefix is not None and self.__prefix != "":
+                os_name = f"{self.__prefix}_{key}"
+            env_list.append(
+                Env(
+                    name=key,
+                    os_name=os_name,
+                    default=value,
+                    should_render=self.__should_render,
+                )
+            )
         self.__env_list = env_list
         self.__env_list_fetched = True
         return env_list
@@ -79,4 +79,4 @@ class EnvFile():
         cls_name = self.__class__.__name__
         path = double_quote(self.__path)
         prefix = double_quote(self.__prefix)
-        return f'<{cls_name} path={path} prefix={prefix}>'
+        return f"<{cls_name} path={path} prefix={prefix}>"

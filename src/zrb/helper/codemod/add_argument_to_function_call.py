@@ -9,16 +9,12 @@ class AddArgumentTransformer(cst.CSTTransformer):
         self.argument_name = argument_name
         super().__init__()
 
-    def leave_Call(
-        self, original_node: cst.Call, updated_node: cst.Call
-    ) -> cst.Call:
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         if (
             isinstance(updated_node.func, cst.Name)
             and updated_node.func.value == self.function_name
         ):
-            new_args = updated_node.args + (
-                cst.Arg(cst.Name(self.argument_name)),
-            )
+            new_args = updated_node.args + (cst.Arg(cst.Name(self.argument_name)),)
             return updated_node.with_changes(args=new_args)
         return updated_node
 

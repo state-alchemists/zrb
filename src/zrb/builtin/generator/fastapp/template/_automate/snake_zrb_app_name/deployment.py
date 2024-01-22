@@ -3,12 +3,18 @@ from zrb.builtin.group import project_group
 from .image import push_snake_zrb_app_name_image
 from ._config import CURRENT_DIR, DEPLOYMENT_DIR
 from ._input import (
-    enable_monitoring_input, image_input, deploy_mode_input, pulumi_stack_input
+    enable_monitoring_input,
+    image_input,
+    deploy_mode_input,
+    pulumi_stack_input,
 )
 from ._env import (
-    image_env, pulumi_backend_url_env, pulumi_config_passphrase_env,
-    deployment_modules_env, deployment_mode_env,
-    deployment_enable_monitoring_env
+    image_env,
+    pulumi_backend_url_env,
+    pulumi_config_passphrase_env,
+    deployment_modules_env,
+    deployment_mode_env,
+    deployment_enable_monitoring_env,
 )
 from ._env_file import deployment_app_env_file, deployment_config_env_file
 import os
@@ -18,9 +24,9 @@ import os
 ###############################################################################
 
 deploy_snake_zrb_app_name = CmdTask(
-    icon='🚧',
-    name='deploy-kebab-zrb-app-name',
-    description='Deploy human readable zrb app name',
+    icon="🚧",
+    name="deploy-kebab-zrb-app-name",
+    description="Deploy human readable zrb app name",
     group=project_group,
     inputs=[
         image_input,
@@ -43,9 +49,9 @@ deploy_snake_zrb_app_name = CmdTask(
         deployment_enable_monitoring_env,
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, 'cmd', 'pulumi-init-stack.sh'),
-        os.path.join(CURRENT_DIR, 'cmd', 'pulumi-up.sh'),
-    ]
+        os.path.join(CURRENT_DIR, "cmd", "pulumi-init-stack.sh"),
+        os.path.join(CURRENT_DIR, "cmd", "pulumi-up.sh"),
+    ],
 )
 runner.register(deploy_snake_zrb_app_name)
 
@@ -54,9 +60,9 @@ runner.register(deploy_snake_zrb_app_name)
 ###############################################################################
 
 destroy_snake_zrb_app_name = CmdTask(
-    icon='💨',
-    name='destroy-kebab-zrb-app-name',
-    description='Remove human readable zrb app name deployment',
+    icon="💨",
+    name="destroy-kebab-zrb-app-name",
+    description="Remove human readable zrb app name deployment",
     group=project_group,
     inputs=[
         pulumi_stack_input,
@@ -73,8 +79,8 @@ destroy_snake_zrb_app_name = CmdTask(
         deployment_modules_env,
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, 'cmd', 'pulumi-init-stack.sh'),
-        os.path.join(CURRENT_DIR, 'cmd', 'pulumi-destroy.sh'),
-    ]
+        os.path.join(CURRENT_DIR, "cmd", "pulumi-init-stack.sh"),
+        os.path.join(CURRENT_DIR, "cmd", "pulumi-destroy.sh"),
+    ],
 )
 runner.register(destroy_snake_zrb_app_name)

@@ -10,14 +10,14 @@ PROJECT_DIR = os.path.dirname(__file__)
 ###############################################################################
 
 prepare_plugin = CmdTask(
-    name='prepare',
+    name="prepare",
     group=plugin_group,
-    description='Prepare venv for plugin',
+    description="Prepare venv for plugin",
     cwd=PROJECT_DIR,
     cmd_path=[
-        os.path.join(PROJECT_DIR, '_cmd', 'activate-venv.sh'),
-        os.path.join(PROJECT_DIR, '_cmd', 'prepare-venv.sh'),
-    ]
+        os.path.join(PROJECT_DIR, "_cmd", "activate-venv.sh"),
+        os.path.join(PROJECT_DIR, "_cmd", "prepare-venv.sh"),
+    ],
 )
 runner.register(prepare_plugin)
 
@@ -26,15 +26,15 @@ runner.register(prepare_plugin)
 ###############################################################################
 
 build_plugin = CmdTask(
-    name='build',
+    name="build",
     group=plugin_group,
-    description='Build plugin',
+    description="Build plugin",
     upstreams=[prepare_plugin],
     cwd=PROJECT_DIR,
     cmd_path=[
-        os.path.join(PROJECT_DIR, '_cmd', 'activate-venv.sh'),
-        os.path.join(PROJECT_DIR, '_cmd', 'build.sh'),
-    ]
+        os.path.join(PROJECT_DIR, "_cmd", "activate-venv.sh"),
+        os.path.join(PROJECT_DIR, "_cmd", "build.sh"),
+    ],
 )
 runner.register(build_plugin)
 
@@ -43,23 +43,23 @@ runner.register(build_plugin)
 ###############################################################################
 
 publish_plugin = CmdTask(
-    name='publish',
+    name="publish",
     group=plugin_group,
-    description='Publish plugin',
+    description="Publish plugin",
     inputs=[
         StrInput(
-            name='plugin-repo',
-            prompt='Pypi repository for plugin',
-            description='Pypi repository for human readalbe zrb package name',
-            default='pypi',
+            name="plugin-repo",
+            prompt="Pypi repository for plugin",
+            description="Pypi repository for human readalbe zrb package name",
+            default="pypi",
         )
     ],
     upstreams=[build_plugin],
     cwd=PROJECT_DIR,
     cmd_path=[
-        os.path.join(PROJECT_DIR, '_cmd', 'activate-venv.sh'),
-        os.path.join(PROJECT_DIR, '_cmd', 'publish.sh'),
-    ]
+        os.path.join(PROJECT_DIR, "_cmd", "activate-venv.sh"),
+        os.path.join(PROJECT_DIR, "_cmd", "publish.sh"),
+    ],
 )
 runner.register(publish_plugin)
 
@@ -68,14 +68,14 @@ runner.register(publish_plugin)
 ###############################################################################
 
 install_plugin_symlink = CmdTask(
-    name='install-symlink',
+    name="install-symlink",
     group=plugin_group,
-    description='Install plugin as symlink',
+    description="Install plugin as symlink",
     upstreams=[build_plugin],
     cwd=PROJECT_DIR,
     cmd_path=[
-        os.path.join(PROJECT_DIR, '_cmd', 'activate-venv.sh'),
-        os.path.join(PROJECT_DIR, '_cmd', 'install-symlink.sh'),
-    ]
+        os.path.join(PROJECT_DIR, "_cmd", "activate-venv.sh"),
+        os.path.join(PROJECT_DIR, "_cmd", "install-symlink.sh"),
+    ],
 )
 runner.register(install_plugin_symlink)

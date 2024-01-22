@@ -13,19 +13,14 @@ class DBEntityGroup(Base, DBEntityMixin):
     __tablename__ = "groups"
     name = Column(String)
     description = Column(String)
-    permissions = relationship(
-        "DBEntityPermission",
-        secondary=group_permission
-    )
+    permissions = relationship("DBEntityPermission", secondary=group_permission)
 
 
 class GroupRepo(Repo[Group, GroupData], ABC):
     pass
 
 
-class GroupDBRepo(
-    DBRepo[Group, GroupData], GroupRepo
-):
+class GroupDBRepo(DBRepo[Group, GroupData], GroupRepo):
     schema_cls = Group
     db_entity_cls = DBEntityGroup
 
@@ -34,7 +29,9 @@ class GroupDBRepo(
     ) -> Mapping[str, Any]:
         db_entity_map = super()._schema_data_to_db_entity_map(db, group_data)
         # Transform permissions
-        db_entity_map['permissions'] = db.query(DBEntityPermission).filter(
-            DBEntityPermission.id.in_(group_data.permissions)
-        ).all()
+        db_entity_map["permissions"] = (
+            db.query(DBEntityPermission)
+            .filter(DBEntityPermission.id.in_(group_data.permissions))
+            .all()
+        )
         return db_entity_map

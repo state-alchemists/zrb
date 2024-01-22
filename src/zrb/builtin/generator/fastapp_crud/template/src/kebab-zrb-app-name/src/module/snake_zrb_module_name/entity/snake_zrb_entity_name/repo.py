@@ -1,7 +1,8 @@
 from sqlalchemy import Column, String
 from core.repo import Repo, DBEntityMixin, DBRepo
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
-    PascalZrbEntityName, PascalZrbEntityNameData
+    PascalZrbEntityName,
+    PascalZrbEntityNameData,
 )
 from module.snake_zrb_module_name.component import Base
 

@@ -19,10 +19,10 @@ current_shell = get_current_shell()
 ###############################################################################
 
 terminal_config_file_input = StrInput(
-    name='config-file',
-    shortcut='c',
-    prompt='Config file',
-    default='~/.zshrc' if current_shell == 'zsh' else '~/.bashrc'
+    name="config-file",
+    shortcut="c",
+    prompt="Config file",
+    default="~/.zshrc" if current_shell == "zsh" else "~/.bashrc",
 )
 
 ###############################################################################
@@ -35,25 +35,24 @@ def write_config(
     template_file: str, config_file: str, remove_old_config: bool = False
 ) -> Callable[..., Any]:
     async def set_config(*args, **kwargs):
-        task: Task = kwargs.get('_task')
-        rendered_config_file = os.path.expandvars(os.path.expanduser(
-            task.render_str(config_file)
-        ))
-        rendered_template_file = os.path.expandvars(os.path.expanduser(
-            task.render_str(template_file)
-        ))
-        if remove_old_config and os.path.exists(rendered_config_file):
-            task.print_out(f'Removing {rendered_config_file}')
-            os.remove(rendered_config_file)
-        additional_content = await read_text_file_async(
-            rendered_template_file
+        task: Task = kwargs.get("_task")
+        rendered_config_file = os.path.expandvars(
+            os.path.expanduser(task.render_str(config_file))
         )
-        content = ''
+        rendered_template_file = os.path.expandvars(
+            os.path.expanduser(task.render_str(template_file))
+        )
+        if remove_old_config and os.path.exists(rendered_config_file):
+            task.print_out(f"Removing {rendered_config_file}")
+            os.remove(rendered_config_file)
+        additional_content = await read_text_file_async(rendered_template_file)
+        content = ""
         if os.path.exists(rendered_config_file):
-            content = await read_text_file_async(rendered_config_file) + '\n'
+            content = await read_text_file_async(rendered_config_file) + "\n"
         new_content = content + additional_content
-        task.print_out(f'Writing content to {rendered_config_file}')
+        task.print_out(f"Writing content to {rendered_config_file}")
         await write_text_file_async(rendered_config_file, new_content)
+
     return set_config
 
 
@@ -62,405 +61,391 @@ def write_config(
 ###############################################################################
 
 install_gvm = FlowTask(
-    name='gvm',
+    name="gvm",
     group=dev_tool_install_group,
-    description='GVM provides interface to manage go version',
+    description="GVM provides interface to manage go version",
     inputs=[
         StrInput(
-            name='go-default-version',
-            description='Go default version',
-            default='go1.21'
+            name="go-default-version",
+            description="Go default version",
+            default="go1.21",
         ),
         terminal_config_file_input,
     ],
     steps=[
         CmdTask(
-            name='download-gvm',
-            cmd_path=os.path.join(dir_path, 'gvm', 'download.sh'),
-            preexec_fn=None
+            name="download-gvm",
+            cmd_path=os.path.join(dir_path, "gvm", "download.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-gvm',
+            name="configure-gvm",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'gvm', 'resource', 'config.sh'
-                ),
-                config_file='{{input.config_file}}'
-            )
+                template_file=os.path.join(dir_path, "gvm", "resource", "config.sh"),
+                config_file="{{input.config_file}}",
+            ),
         ),
         CmdTask(
-            name='finalize-gvm-installation',
-            cmd_path=os.path.join(dir_path, 'gvm', 'finalize.sh'),
-            preexec_fn=None
-        )
+            name="finalize-gvm-installation",
+            cmd_path=os.path.join(dir_path, "gvm", "finalize.sh"),
+            preexec_fn=None,
+        ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_gvm)
 
 install_pyenv = FlowTask(
-    name='pyenv',
+    name="pyenv",
     group=dev_tool_install_group,
-    description='Simple Python version management',
+    description="Simple Python version management",
     inputs=[
         StrInput(
-            name='python-default-version',
-            description='Python default version',
-            default='3.10.0'
+            name="python-default-version",
+            description="Python default version",
+            default="3.10.0",
         ),
         terminal_config_file_input,
     ],
     steps=[
         CmdTask(
-            name='download-pyenv',
-            cmd_path=os.path.join(dir_path, 'pyenv', 'download.sh'),
-            preexec_fn=None
+            name="download-pyenv",
+            cmd_path=os.path.join(dir_path, "pyenv", "download.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-pyenv',
+            name="configure-pyenv",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'pyenv', 'resource', 'config.sh'
-                ),
-                config_file='{{input.config_file}}'
-            )
+                template_file=os.path.join(dir_path, "pyenv", "resource", "config.sh"),
+                config_file="{{input.config_file}}",
+            ),
         ),
         CmdTask(
-            name='finalize-pyenv-installation',
-            cmd_path=os.path.join(dir_path, 'pyenv', 'finalize.sh'),
-            preexec_fn=None
-        )
+            name="finalize-pyenv-installation",
+            cmd_path=os.path.join(dir_path, "pyenv", "finalize.sh"),
+            preexec_fn=None,
+        ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_pyenv)
 
 install_nvm = FlowTask(
-    name='nvm',
+    name="nvm",
     group=dev_tool_install_group,
-    description='NVM allows you to quickly install and use different versions of node via the command line', # noqa
+    description="NVM allows you to quickly install and use different versions of node via the command line",  # noqa
     inputs=[
         StrInput(
-            name='node-default-version',
-            description='Node default version',
-            default='node'
+            name="node-default-version",
+            description="Node default version",
+            default="node",
         ),
         terminal_config_file_input,
     ],
     steps=[
         CmdTask(
-            name='download-nvm',
-            cmd_path=os.path.join(dir_path, 'nvm', 'download.sh'),
-            preexec_fn=None
+            name="download-nvm",
+            cmd_path=os.path.join(dir_path, "nvm", "download.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-nvm',
+            name="configure-nvm",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'nvm', 'resource', 'config.sh'
-                ),
-                config_file='{{input.config_file}}'
-            )
+                template_file=os.path.join(dir_path, "nvm", "resource", "config.sh"),
+                config_file="{{input.config_file}}",
+            ),
         ),
         CmdTask(
-            name='finalize-nvm-installation',
-            cmd_path=os.path.join(dir_path, 'nvm', 'finalize.sh'),
-            preexec_fn=None
-        )
+            name="finalize-nvm-installation",
+            cmd_path=os.path.join(dir_path, "nvm", "finalize.sh"),
+            preexec_fn=None,
+        ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_nvm)
 
 install_sdkman = FlowTask(
-    name='sdkman',
+    name="sdkman",
     group=dev_tool_install_group,
-    description='SDKMAN! is a tool for managing parallel versions of multiple Software Development Kits on most Unix based systems', # noqa
+    description="SDKMAN! is a tool for managing parallel versions of multiple Software Development Kits on most Unix based systems",  # noqa
     inputs=[
         BoolInput(
-            name='install-java',
-            description='Install Java',
-            prompt='Do you want to install Java?',
-            default=True
+            name="install-java",
+            description="Install Java",
+            prompt="Do you want to install Java?",
+            default=True,
         ),
         BoolInput(
-            name='install-scala',
-            description='Install Scala',
-            prompt='Do you want to install Scala?',
-            default=True
+            name="install-scala",
+            description="Install Scala",
+            prompt="Do you want to install Scala?",
+            default=True,
         ),
         terminal_config_file_input,
     ],
     steps=[
         CmdTask(
-            name='download-sdkman',
-            cmd_path=os.path.join(dir_path, 'sdkman', 'download.sh'),
-            preexec_fn=None
+            name="download-sdkman",
+            cmd_path=os.path.join(dir_path, "sdkman", "download.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-sdkman',
+            name="configure-sdkman",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'sdkman', 'resource', 'config.sh'
-                ),
-                config_file='{{input.config_file}}'
-            )
+                template_file=os.path.join(dir_path, "sdkman", "resource", "config.sh"),
+                config_file="{{input.config_file}}",
+            ),
         ),
         CmdTask(
-            name='finalize-sdkman-installation',
-            cmd_path=os.path.join(dir_path, 'sdkman', 'finalize.sh'),
-            preexec_fn=None
-        )
+            name="finalize-sdkman-installation",
+            cmd_path=os.path.join(dir_path, "sdkman", "finalize.sh"),
+            preexec_fn=None,
+        ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_sdkman)
 
 install_pulumi = FlowTask(
-    name='pulumi',
+    name="pulumi",
     group=dev_tool_install_group,
-    description='Universal infrastructure as code',
+    description="Universal infrastructure as code",
     inputs=[terminal_config_file_input],
     steps=[
         CmdTask(
-            name='install-pulumi',
-            cmd_path=os.path.join(dir_path, 'pulumi', 'install.sh'),
-            preexec_fn=None
+            name="install-pulumi",
+            cmd_path=os.path.join(dir_path, "pulumi", "install.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-pulumi',
+            name="configure-pulumi",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'pulumi', 'resource', 'config.sh'
-                ),
-                config_file='{{input.config_file}}'
-            )
+                template_file=os.path.join(dir_path, "pulumi", "resource", "config.sh"),
+                config_file="{{input.config_file}}",
+            ),
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_pulumi)
 
 install_aws = FlowTask(
-    name='aws',
+    name="aws",
     group=dev_tool_install_group,
-    description='AWS CLI',
+    description="AWS CLI",
     steps=[
         CmdTask(
-            name='install-aws',
-            cmd_path=os.path.join(dir_path, 'aws', 'install.sh'),
-            preexec_fn=None
+            name="install-aws",
+            cmd_path=os.path.join(dir_path, "aws", "install.sh"),
+            preexec_fn=None,
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_aws)
 
 install_gcloud = FlowTask(
-    name='gcloud',
+    name="gcloud",
     group=dev_tool_install_group,
-    description='Gcloud CLI',
+    description="Gcloud CLI",
     steps=[
         CmdTask(
-            name='install-gcloud',
-            cmd_path=os.path.join(dir_path, 'gcloud', 'install.sh'),
-            preexec_fn=None
+            name="install-gcloud",
+            cmd_path=os.path.join(dir_path, "gcloud", "install.sh"),
+            preexec_fn=None,
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_gcloud)
 
 install_tmux = FlowTask(
-    name='tmux',
+    name="tmux",
     group=dev_tool_install_group,
-    description='Terminal multiplexer',
+    description="Terminal multiplexer",
     inputs=[
         StrInput(
-            name='tmux-config-file',
-            shortcut='c',
-            prompt='Tmux config file',
-            default='~/.tmux.conf'
+            name="tmux-config-file",
+            shortcut="c",
+            prompt="Tmux config file",
+            default="~/.tmux.conf",
         )
     ],
     steps=[
         CmdTask(
-            name='install-tmux',
-            cmd_path=os.path.join(dir_path, 'tmux', 'install.sh'),
-            preexec_fn=None
+            name="install-tmux",
+            cmd_path=os.path.join(dir_path, "tmux", "install.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-tmux',
+            name="configure-tmux",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'tmux', 'resource', 'config.sh'
-                ),
-                config_file='{{input.tmux_config_file}}'
-            )
+                template_file=os.path.join(dir_path, "tmux", "resource", "config.sh"),
+                config_file="{{input.tmux_config_file}}",
+            ),
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_tmux)
 
 install_zsh = FlowTask(
-    name='zsh',
+    name="zsh",
     group=dev_tool_install_group,
-    description='Zsh terminal + oh-my-zsh + zdharma',
+    description="Zsh terminal + oh-my-zsh + zdharma",
     inputs=[
         StrInput(
-            name='zsh-config-file',
-            shortcut='c',
-            prompt='Zsh config file',
-            default='~/.zshrc'
+            name="zsh-config-file",
+            shortcut="c",
+            prompt="Zsh config file",
+            default="~/.zshrc",
         )
     ],
     steps=[
         CmdTask(
-            name='install-zsh',
-            cmd_path=os.path.join(dir_path, 'zsh', 'install.sh'),
-            preexec_fn=None
+            name="install-zsh",
+            cmd_path=os.path.join(dir_path, "zsh", "install.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-zsh',
+            name="configure-zsh",
             run=write_config(
-                template_file=os.path.join(
-                    dir_path, 'zsh', 'resource', 'config.sh'
-                ),
-                config_file='{{input.zsh_config_file}}'
-            )
+                template_file=os.path.join(dir_path, "zsh", "resource", "config.sh"),
+                config_file="{{input.zsh_config_file}}",
+            ),
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_zsh)
 
 install_kubectl = FlowTask(
-    name='kubectl',
+    name="kubectl",
     group=dev_tool_install_group,
-    description='Kubernetes CLI tool',
+    description="Kubernetes CLI tool",
     steps=[
         CmdTask(
-            name='install-kubectl',
-            cmd_path=os.path.join(dir_path, 'kubectl', 'install.sh'),
-            preexec_fn=None
+            name="install-kubectl",
+            cmd_path=os.path.join(dir_path, "kubectl", "install.sh"),
+            preexec_fn=None,
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_kubectl)
 
 install_helm = FlowTask(
-    name='helm',
+    name="helm",
     group=dev_tool_install_group,
-    description='Package manager for kubernetes',
+    description="Package manager for kubernetes",
     steps=[
         CmdTask(
-            name='install-helm',
-            cmd_path=os.path.join(dir_path, 'helm', 'install.sh'),
-            preexec_fn=None
+            name="install-helm",
+            cmd_path=os.path.join(dir_path, "helm", "install.sh"),
+            preexec_fn=None,
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_helm)
 
 install_docker = FlowTask(
-    name='docker',
+    name="docker",
     group=dev_tool_install_group,
-    description='Most popular containerization platform',
+    description="Most popular containerization platform",
     steps=[
         CmdTask(
-            name='install-docker',
-            cmd_path=os.path.join(dir_path, 'docker', 'install.sh'),
-            preexec_fn=None
+            name="install-docker",
+            cmd_path=os.path.join(dir_path, "docker", "install.sh"),
+            preexec_fn=None,
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_docker)
 
 install_terraform = FlowTask(
-    name='terraform',
+    name="terraform",
     group=dev_tool_install_group,
-    description='Open source IAC by Hashicorp',
-    inputs=[
-        terminal_config_file_input
-    ],
+    description="Open source IAC by Hashicorp",
+    inputs=[terminal_config_file_input],
     steps=[
         CmdTask(
-            name='install-terraform',
-            cmd_path=os.path.join(dir_path, 'terraform', 'install.sh'),
-            preexec_fn=None
+            name="install-terraform",
+            cmd_path=os.path.join(dir_path, "terraform", "install.sh"),
+            preexec_fn=None,
         ),
         Task(
-            name='configure-terraform',
+            name="configure-terraform",
             run=write_config(
                 template_file=os.path.join(
-                    dir_path, 'terraform', 'resource', 'config.sh'
+                    dir_path, "terraform", "resource", "config.sh"
                 ),
-                config_file='{{input.config_file}}'
-            )
+                config_file="{{input.config_file}}",
+            ),
         ),
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_terraform)
 
 install_helix = FlowTask(
-    name='helix',
+    name="helix",
     group=dev_tool_install_group,
-    description='Post modern text editor',
+    description="Post modern text editor",
     steps=[
         CmdTask(
-            name='install-helix',
-            cmd_path=os.path.join(dir_path, 'helix', 'install.sh'),
-            preexec_fn=None
+            name="install-helix",
+            cmd_path=os.path.join(dir_path, "helix", "install.sh"),
+            preexec_fn=None,
         ),
         [
             Task(
-                name='create-helix-theme',
+                name="create-helix-theme",
                 run=write_config(
                     template_file=os.path.join(
-                        dir_path, 'helix', 'resource', 'themes', 'gruvbox_transparent.toml'  # noqa
+                        dir_path,
+                        "helix",
+                        "resource",
+                        "themes",
+                        "gruvbox_transparent.toml",  # noqa
                     ),
-                    config_file='~/.config/helix/themes/gruvbox_transparent.toml',  # noqa
-                    remove_old_config=True
-                )
+                    config_file="~/.config/helix/themes/gruvbox_transparent.toml",  # noqa
+                    remove_old_config=True,
+                ),
             ),
             Task(
-                name='configure-helix',
+                name="configure-helix",
                 run=write_config(
                     template_file=os.path.join(
-                        dir_path, 'helix', 'resource', 'config.toml'
+                        dir_path, "helix", "resource", "config.toml"
                     ),
-                    config_file='~/.config/helix/config.toml',
-                    remove_old_config=True
-                )
+                    config_file="~/.config/helix/config.toml",
+                    remove_old_config=True,
+                ),
             ),
             CmdTask(
-                name='install-language-server',
-                cmd_path=os.path.join(
-                    dir_path, 'helix', 'install-language-server.sh'
-                ),
-                preexec_fn=None
+                name="install-language-server",
+                cmd_path=os.path.join(dir_path, "helix", "install-language-server.sh"),
+                preexec_fn=None,
             ),
         ],
     ],
-    retry=0
+    retry=0,
 )
 runner.register(install_helix)
 
 install_selenium = FlowTask(
-    name='selenium',
+    name="selenium",
     group=dev_tool_install_group,
-    description='Selenium + Chrome web driver',
+    description="Selenium + Chrome web driver",
     steps=[
         CmdTask(
-            name='install-selenium',
-            cmd_path=os.path.join(dir_path, 'selenium', 'install.sh'),
-            preexec_fn=None
+            name="install-selenium",
+            cmd_path=os.path.join(dir_path, "selenium", "install.sh"),
+            preexec_fn=None,
         )
-    ]
+    ],
 )
 runner.register(install_selenium)
