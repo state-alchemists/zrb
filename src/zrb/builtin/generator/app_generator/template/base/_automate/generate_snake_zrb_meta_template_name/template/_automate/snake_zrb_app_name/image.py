@@ -5,7 +5,5 @@ from zrb import Env
 ###############################################################################
 
 image_env = Env(
-    name='IMAGE',
-    os_name='CONTAINER_ZRB_ENV_PREFIX_IMAGE',
-    default='zrbMetaBaseImage'
+    name="IMAGE", os_name="CONTAINER_ZRB_ENV_PREFIX_IMAGE", default="zrbMetaBaseImage"
 )

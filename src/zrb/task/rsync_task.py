@@ -1,10 +1,14 @@
-from zrb.helper.typing import (
-    Any, Callable, Iterable, Optional, Union, JinjaTemplate
-)
+from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, JinjaTemplate
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -18,18 +22,18 @@ import pathlib
 
 
 CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, '..', 'shell-scripts')
-with open(os.path.join(SHELL_SCRIPT_DIR, 'rsync-util.sh')) as file:
+SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
+with open(os.path.join(SHELL_SCRIPT_DIR, "rsync-util.sh")) as file:
     RSYNC_UTIL_SCRIPT = file.read()
 
 ensure_rsync_is_installed = CmdTask(
-    name='ensure-ssh-is-installed',
+    name="ensure-ssh-is-installed",
     cmd_path=[
-        os.path.join(SHELL_SCRIPT_DIR, '_common-util.sh'),
-        os.path.join(SHELL_SCRIPT_DIR, 'ensure-ssh-is-installed.sh'),
-        os.path.join(SHELL_SCRIPT_DIR, 'ensure-rsync-is-installed.sh')
+        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+        os.path.join(SHELL_SCRIPT_DIR, "ensure-ssh-is-installed.sh"),
+        os.path.join(SHELL_SCRIPT_DIR, "ensure-rsync-is-installed.sh"),
     ],
-    preexec_fn=None
+    preexec_fn=None,
 )
 
 
@@ -49,7 +53,7 @@ class RsyncTask(BaseRemoteCmdTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         executable: Optional[str] = None,
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
@@ -67,7 +71,7 @@ class RsyncTask(BaseRemoteCmdTask):
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
-        should_execute: Union[bool, str, Callable[..., bool]] = True
+        should_execute: Union[bool, str, Callable[..., bool]] = True,
     ):
         parsed_src = self._get_parsed_path(is_remote_src, src)
         parsed_dst = self._get_parsed_path(is_remote_dst, dst)
@@ -102,10 +106,10 @@ class RsyncTask(BaseRemoteCmdTask):
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
-            should_execute=should_execute
+            should_execute=should_execute,
         )
 
     def _get_parsed_path(self, is_remote: bool, path: str) -> str:
         if not is_remote:
             return path
-        return '${_CONFIG_USER}@${_CONFIG_HOST}:' + path
+        return "${_CONFIG_USER}@${_CONFIG_HOST}:" + path

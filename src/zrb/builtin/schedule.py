@@ -6,30 +6,27 @@ from zrb.builtin.helper.reccuring_action import create_recurring_action
 
 
 schedule = RecurringTask(
-    name='schedule',
-    icon='📅',
-    color='yellow',
-    description='Show message/run command periodically',
+    name="schedule",
+    icon="📅",
+    color="yellow",
+    description="Show message/run command periodically",
     inputs=[
         StrInput(
-            name='schedule',
-            default='* * * * *',
-            prompt='Schedule cron pattern (minute hour day(month) month day(week)',  # noqa
-            description='Schedule cron pattern to show the message'
+            name="schedule",
+            default="* * * * *",
+            prompt="Schedule cron pattern (minute hour day(month) month day(week)",  # noqa
+            description="Schedule cron pattern to show the message",
         ),
     ],
     triggers=[
         TimeWatcher(
-            name='watch-time',
-            color='cyan',
-            icon='⏰',
-            schedule='{{input.schedule}}'
+            name="watch-time", color="cyan", icon="⏰", schedule="{{input.schedule}}"
         )
     ],
     task=create_recurring_action(
-        notif_title='Schedule',
-        trigger_caption='Schedule',
-        trigger_xcom_key='watch-time.scheduled-time'
-    )
+        notif_title="Schedule",
+        trigger_caption="Schedule",
+        trigger_xcom_key="watch-time.scheduled-time",
+    ),
 )
 runner.register(schedule)

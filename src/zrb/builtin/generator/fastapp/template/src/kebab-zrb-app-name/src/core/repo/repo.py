@@ -3,12 +3,11 @@ from pydantic import BaseModel
 from abc import ABC, abstractmethod
 from core.repo.search_filter import SearchFilter
 
-SchemaData = TypeVar('SchemaData', bound=BaseModel)
-Schema = TypeVar('Schema', bound=BaseModel)
+SchemaData = TypeVar("SchemaData", bound=BaseModel)
+Schema = TypeVar("Schema", bound=BaseModel)
 
 
 class Repo(Generic[Schema, SchemaData], ABC):
-
     @abstractmethod
     async def get_by_id(self, id: str) -> Schema:
         pass

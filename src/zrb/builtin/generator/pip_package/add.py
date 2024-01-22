@@ -1,11 +1,16 @@
 from zrb.helper.typing import Any
 from zrb.builtin.generator.common.task_input import (
-    project_dir_input, package_name_input, package_description_input,
-    package_homepage_input, package_bug_tracker_input,
-    package_author_name_input, package_author_email_input
+    project_dir_input,
+    package_name_input,
+    package_description_input,
+    package_homepage_input,
+    package_bug_tracker_input,
+    package_author_name_input,
+    package_author_email_input,
 )
 from zrb.builtin.generator.common.helper import (
-    validate_existing_project_dir, validate_inexisting_automation
+    validate_existing_project_dir,
+    validate_inexisting_automation,
 )
 from zrb.builtin.generator.common.task_factory import create_register_module
 from zrb.builtin.group import project_add_group
@@ -24,22 +29,16 @@ CURRENT_DIR = os.path.dirname(__file__)
 ###############################################################################
 
 
-@python_task(
-    name='validate',
-    inputs=[
-        project_dir_input,
-        package_name_input
-    ]
-)
+@python_task(name="validate", inputs=[project_dir_input, package_name_input])
 async def validate(*args: Any, **kwargs: Any):
-    project_dir = kwargs.get('project_dir')
+    project_dir = kwargs.get("project_dir")
     validate_existing_project_dir(project_dir)
-    package_name = kwargs.get('package_name')
+    package_name = kwargs.get("package_name")
     validate_inexisting_automation(project_dir, package_name)
 
 
 copy_resource = ResourceMaker(
-    name='copy-resource',
+    name="copy-resource",
     inputs=[
         project_dir_input,
         package_name_input,
@@ -47,34 +46,34 @@ copy_resource = ResourceMaker(
         package_homepage_input,
         package_bug_tracker_input,
         package_author_name_input,
-        package_author_email_input
+        package_author_email_input,
     ],
     upstreams=[validate],
     replacements={
-        'zrbPackageName': '{{input.package_name}}',
-        'zrbPackageDescription': '{{input.package_description}}',
-        'zrbPackageHomepage': '{{input.package_homepage}}',
-        'zrbPackageBugTracker': '{{input.package_bug_tracker}}',
-        'zrbPackageAuthorName': '{{input.package_author_name}}',
-        'zrbPackageAuthorEmail': '{{input.package_author_email}}'
+        "zrbPackageName": "{{input.package_name}}",
+        "zrbPackageDescription": "{{input.package_description}}",
+        "zrbPackageHomepage": "{{input.package_homepage}}",
+        "zrbPackageBugTracker": "{{input.package_bug_tracker}}",
+        "zrbPackageAuthorName": "{{input.package_author_name}}",
+        "zrbPackageAuthorEmail": "{{input.package_author_email}}",
     },
-    template_path=os.path.join(CURRENT_DIR, 'template'),
-    destination_path='{{ input.project_dir }}',
+    template_path=os.path.join(CURRENT_DIR, "template"),
+    destination_path="{{ input.project_dir }}",
     excludes=[
-        '*/__pycache__',
-    ]
+        "*/__pycache__",
+    ],
 )
 
 register_module = create_register_module(
-    module_path='_automate.{{util.to_snake_case(input.package_name)}}.local',
-    alias='{{util.to_snake_case(input.package_name)}}_local',
+    module_path="_automate.{{util.to_snake_case(input.package_name)}}.local",
+    alias="{{util.to_snake_case(input.package_name)}}_local",
     inputs=[package_name_input],
-    upstreams=[copy_resource]
+    upstreams=[copy_resource],
 )
 
 
 @python_task(
-    name='pip-package',
+    name="pip-package",
     group=project_add_group,
     upstreams=[register_module],
     inputs=[
@@ -84,10 +83,10 @@ register_module = create_register_module(
         package_homepage_input,
         package_bug_tracker_input,
         package_author_name_input,
-        package_author_email_input
+        package_author_email_input,
     ],
-    runner=runner
+    runner=runner,
 )
 async def add_pip_package(*args: Any, **kwargs: Any):
-    task: Task = kwargs.get('_task')
-    task.print_out('Success')
+    task: Task = kwargs.get("_task")
+    task.print_out("Success")

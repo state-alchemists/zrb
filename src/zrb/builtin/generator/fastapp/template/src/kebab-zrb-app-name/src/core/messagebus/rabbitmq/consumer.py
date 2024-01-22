@@ -1,10 +1,11 @@
 from typing import Any, Callable, Mapping, Optional
 from core.messagebus.messagebus import (
-    Consumer, TEventHandler, MessageSerializer, must_get_message_serializer
+    Consumer,
+    TEventHandler,
+    MessageSerializer,
+    must_get_message_serializer,
 )
-from core.messagebus.rabbitmq.admin import (
-    RMQAdmin, must_get_rmq_admin
-)
+from core.messagebus.rabbitmq.admin import RMQAdmin, must_get_rmq_admin
 import asyncio
 import aiormq
 import inspect
@@ -21,13 +22,11 @@ class RMQConsumer(Consumer):
         retry: int = 5,
         retry_interval: int = 5,
         prefetch_count: int = 20,
-        identifier='rmq-consumer'
+        identifier="rmq-consumer",
     ):
         self.logger = logger
         self.rmq_admin = must_get_rmq_admin(
-            logger=logger,
-            rmq_admin=rmq_admin,
-            connection_string=connection_string
+            logger=logger, rmq_admin=rmq_admin, connection_string=connection_string
         )
         self.connection_string = connection_string
         self.connection: Optional[aiormq.Connection] = None
@@ -48,6 +47,7 @@ class RMQConsumer(Consumer):
             )
             self._handlers[event_name] = handler
             return handler
+
         return wrapper
 
     async def start(self):
@@ -70,32 +70,29 @@ class RMQConsumer(Consumer):
             f'🐰 [{self.identifier}] Listening from "{event_names}"'
             for event_name in event_names:
                 queue_name = self.rmq_admin.get_queue_name(event_name)
-                on_message = self._create_consumer_callback(
-                    self.channel, event_name
-                )
+                on_message = self._create_consumer_callback(self.channel, event_name)
                 await self.channel.basic_consume(
                     queue=queue_name, consumer_callback=on_message
                 )
             retry = self.retry
             while not self._is_stop_triggered:
                 await asyncio.sleep(0.01)
-                if (
-                    not self._is_stop_triggered and
-                    (self.connection is None or self.connection.is_closed)
+                if not self._is_stop_triggered and (
+                    self.connection is None or self.connection.is_closed
                 ):
-                    raise Exception('Rabbitmq connection is closed')
+                    raise Exception("Rabbitmq connection is closed")
         except (asyncio.CancelledError, GeneratorExit, Exception) as e:
             if retry > 0:
-                self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+                self.logger.error(f"🐰 [{self.identifier}]", exc_info=True)
             if retry == 0:
                 self.logger.error(
-                    f'🐰 [{self.identifier}] Failed to consume message after ' +
-                    f'{self.retry} attempts'
+                    f"🐰 [{self.identifier}] Failed to consume message after "
+                    + f"{self.retry} attempts"
                 )
                 raise e
             await self._disconnect()
             await asyncio.sleep(self.retry_interval)
-            await self._start(retry-1)
+            await self._start(retry - 1)
         finally:
             await self._disconnect()
 
@@ -103,54 +100,34 @@ class RMQConsumer(Consumer):
         try:
             connection_created = False
             if self.connection is None or self.connection.is_closed:
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Create consumer connection'
-                )
+                self.logger.info(f"🐰 [{self.identifier}] Create consumer connection")
                 self.connection = await aiormq.connect(self.connection_string)
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Consumer connection created'
-                )
+                self.logger.info(f"🐰 [{self.identifier}] Consumer connection created")
                 connection_created = True
-            if (
-                connection_created or
-                self.channel is None or
-                self.channel.is_closed
-            ):
-                self.logger.info(f'🐰 [{self.identifier}] Get consumer channel')
+            if connection_created or self.channel is None or self.channel.is_closed:
+                self.logger.info(f"🐰 [{self.identifier}] Get consumer channel")
                 self.channel = await self.connection.channel()
-                await self.channel.basic_qos(
-                    prefetch_count=self.prefetch_count
-                )
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Consumer channel created'
-                )
+                await self.channel.basic_qos(prefetch_count=self.prefetch_count)
+                self.logger.info(f"🐰 [{self.identifier}] Consumer channel created")
         except (asyncio.CancelledError, GeneratorExit, Exception):
-            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
-            raise Exception('Cannot connect')
+            self.logger.error(f"🐰 [{self.identifier}]", exc_info=True)
+            raise Exception("Cannot connect")
 
     async def _disconnect(self):
         try:
             if self.channel is not None and not self.channel.is_closed:
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Close consumer channel'
-                )
+                self.logger.info(f"🐰 [{self.identifier}] Close consumer channel")
                 await self.channel.close()
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Consumer channel closed'
-                )
+                self.logger.info(f"🐰 [{self.identifier}] Consumer channel closed")
         except (asyncio.CancelledError, GeneratorExit, Exception):
-            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+            self.logger.error(f"🐰 [{self.identifier}]", exc_info=True)
         try:
             if self.connection is not None and not self.connection.is_closed:
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Close consumer connection'
-                )
+                self.logger.info(f"🐰 [{self.identifier}] Close consumer connection")
                 await self.connection.close()
-                self.logger.info(
-                    f'🐰 [{self.identifier}] Consumer connection closed'
-                )
+                self.logger.info(f"🐰 [{self.identifier}] Consumer connection closed")
         except (asyncio.CancelledError, GeneratorExit, Exception):
-            self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+            self.logger.error(f"🐰 [{self.identifier}]", exc_info=True)
         self.connection = None
         self.channel = None
 
@@ -161,24 +138,21 @@ class RMQConsumer(Consumer):
     ) -> Callable[[Any], Any]:
         async def on_message(message):
             try:
-                decoded_value = self.serializer.decode(
-                    event_name, message.body
-                )
+                decoded_value = self.serializer.decode(event_name, message.body)
                 handler = self._handlers.get(event_name)
                 queue_name = self.rmq_admin.get_queue_name(event_name)
                 self.logger.info(
-                    f'🐰 [{self.identifier}] Consume from "{queue_name}": ' +
-                    f'{decoded_value}'
+                    f'🐰 [{self.identifier}] Consume from "{queue_name}": '
+                    + f"{decoded_value}"
                 )
                 await self._run_handler(handler, decoded_value)
                 await channel.basic_ack(message.delivery_tag)
             except (asyncio.CancelledError, GeneratorExit, Exception):
-                self.logger.error(f'🐰 [{self.identifier}]', exc_info=True)
+                self.logger.error(f"🐰 [{self.identifier}]", exc_info=True)
+
         return on_message
 
-    async def _run_handler(
-        self, message_handler: TEventHandler, decoded_value: Any
-    ):
+    async def _run_handler(self, message_handler: TEventHandler, decoded_value: Any):
         if inspect.iscoroutinefunction(message_handler):
             return asyncio.create_task(message_handler(decoded_value))
         return message_handler(decoded_value)

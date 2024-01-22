@@ -1,6 +1,4 @@
-from config import (
-    app_enable_auth_module
-)
+from config import app_enable_auth_module
 from component.log import logger
 from component.db_connection import engine
 from helper.migration import migrate
@@ -14,5 +12,5 @@ async def migrate_auth():
         return
     logger.info('🥪 Perform DB migration for "auth"')
     await migrate(engine=engine, Base=Base)
-    logger.info('🥪 Register permissions')
+    logger.info("🥪 Register permissions")
     await register_permission()

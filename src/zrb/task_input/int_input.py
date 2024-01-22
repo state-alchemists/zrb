@@ -5,13 +5,14 @@ from zrb.task_input.base_input import BaseInput
 
 # flake8: noqa E501
 
+
 @typechecked
 class IntInput(BaseInput):
-    '''
+    """
     A specialized input class for handling integer values in task inputs.
 
-    `IntInput` extends `BaseInput` to specifically handle inputs where integer values are required. 
-    It supports various features like default values, prompts, flags, and other customization options, 
+    `IntInput` extends `BaseInput` to specifically handle inputs where integer values are required.
+    It supports various features like default values, prompts, flags, and other customization options,
     making it suitable for tasks that require numerical input in the form of integers.
 
     Args:
@@ -39,7 +40,7 @@ class IntInput(BaseInput):
         >>> int_input = IntInput(name='age', default=30, description='Enter your age')
         >>> int_input.get_default()
         30
-    '''
+    """
 
     def __init__(
         self,
@@ -61,7 +62,7 @@ class IntInput(BaseInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         BaseInput.__init__(
             self,
@@ -84,5 +85,5 @@ class IntInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
-            should_render=should_render
+            should_render=should_render,
         )

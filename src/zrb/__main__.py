@@ -8,8 +8,8 @@ import logging
 
 inject_default_env()
 if logging_level <= logging.INFO:
-    logger.info(colored('Create CLI instance', attrs=['dark']))
+    logger.info(colored("Create CLI instance", attrs=["dark"]))
 cli = create_cli()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

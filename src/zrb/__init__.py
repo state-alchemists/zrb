@@ -2,7 +2,13 @@ from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task.parallel import AnyParallel, Parallel
 from zrb.task.task import Task
@@ -18,9 +24,7 @@ from zrb.task.port_checker import PortChecker
 from zrb.task.path_checker import PathChecker
 from zrb.task.path_watcher import PathWatcher
 from zrb.task.time_watcher import TimeWatcher
-from zrb.task.resource_maker import (
-    ResourceMaker, Replacement, ReplacementMutator
-)
+from zrb.task.resource_maker import ResourceMaker, Replacement, ReplacementMutator
 from zrb.task.flow_task import FlowTask
 from zrb.task.recurring_task import RecurringTask
 from zrb.task_input.any_input import AnyInput

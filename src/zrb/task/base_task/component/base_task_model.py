@@ -1,11 +1,24 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, JinjaTemplate
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    JinjaTemplate,
 )
 from zrb.helper.typecheck import typechecked
 from zrb.config.config import show_time, logging_level
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.helper.log import logger
 from zrb.helper.accessories.color import colored
@@ -35,7 +48,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self,
         name: str,
         group: Optional[Group] = None,
-        description: str = '',
+        description: str = "",
         inputs: List[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
@@ -55,7 +68,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         self.__rjust_full_cli_name: Optional[str] = None
         self.__has_cli_interface = False
@@ -84,7 +97,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
             on_retry=on_retry,
             on_failed=on_failed,
             should_execute=should_execute,
-            return_upstream_result=return_upstream_result
+            return_upstream_result=return_upstream_result,
         )
         PidModel.__init__(self)
         TimeTracker.__init__(self)
@@ -92,77 +105,67 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.__kwargs: Mapping[str, Any] = {}
 
     def _set_args(self, args: Iterable[Any]):
-        '''
+        """
         Set args that will be shown at the end of the execution
-        '''
+        """
         self.__args = list(args)
 
     def _set_kwargs(self, kwargs: Mapping[str, Any]):
-        '''
+        """
         Set kwargs that will be shown at the end of the execution
-        '''
+        """
         self.__kwargs = kwargs
 
     def log_debug(self, message: Any):
         if logging_level > logging.DEBUG:
             return
         prefix = self.__get_log_prefix()
-        colored_message = colored(
-            f'{prefix} • {message}', attrs=['dark']
-        )
+        colored_message = colored(f"{prefix} • {message}", attrs=["dark"])
         logger.debug(colored_message)
 
     def log_warn(self, message: Any):
         if logging_level > logging.WARNING:
             return
         prefix = self.__get_log_prefix()
-        colored_message = colored(
-            f'{prefix} • {message}', attrs=['dark']
-        )
+        colored_message = colored(f"{prefix} • {message}", attrs=["dark"])
         logger.warning(colored_message)
 
     def log_info(self, message: Any):
         if logging_level > logging.INFO:
             return
         prefix = self.__get_log_prefix()
-        colored_message = colored(
-            f'{prefix} • {message}', attrs=['dark']
-        )
+        colored_message = colored(f"{prefix} • {message}", attrs=["dark"])
         logger.info(colored_message)
 
     def log_error(self, message: Any):
         if logging_level > logging.ERROR:
             return
         prefix = self.__get_log_prefix()
-        colored_message = colored(
-            f'{prefix} • {message}', color='red', attrs=['bold']
-        )
+        colored_message = colored(f"{prefix} • {message}", color="red", attrs=["bold"])
         logger.error(colored_message, exc_info=True)
 
     def log_critical(self, message: Any):
         if logging_level > logging.CRITICAL:
             return
         prefix = self.__get_log_prefix()
-        colored_message = colored(
-            f'{prefix} • {message}', color='red', attrs=['bold']
-        )
+        colored_message = colored(f"{prefix} • {message}", color="red", attrs=["bold"])
         logger.critical(colored_message, exc_info=True)
 
     def print_out(self, message: Any, trim_message: bool = True):
         prefix = self.__get_colored_print_prefix()
-        message_str = f'{message}'.rstrip() if trim_message else f'{message}'
-        print(f'🤖 ○ {prefix} • {message_str}', file=sys.stderr)
+        message_str = f"{message}".rstrip() if trim_message else f"{message}"
+        print(f"🤖 ○ {prefix} • {message_str}", file=sys.stderr)
         sys.stderr.flush()
 
     def print_err(self, message: Any, trim_message: bool = True):
         prefix = self.__get_colored_print_prefix()
-        message_str = f'{message}'.rstrip() if trim_message else f'{message}'
-        print(f'🤖 △ {prefix} • {message_str}', file=sys.stderr)
+        message_str = f"{message}".rstrip() if trim_message else f"{message}"
+        print(f"🤖 △ {prefix} • {message_str}", file=sys.stderr)
         sys.stderr.flush()
 
     def print_out_dark(self, message: Any, trim_message: bool = True):
-        message_str = f'{message}'
-        self.print_out(colored(message_str, attrs=['dark']), trim_message)
+        message_str = f"{message}"
+        self.print_out(colored(message_str, attrs=["dark"]), trim_message)
 
     def _print_result(self, result: Any):
         if result is None:
@@ -180,19 +183,19 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         print(result)
 
     def _play_bell(self):
-        print('\a', end='', file=sys.stderr, flush=True)
+        print("\a", end="", file=sys.stderr, flush=True)
 
     def _show_done_info(self):
         elapsed_time = self._get_elapsed_time()
-        self.print_out_dark(f'Completed in {elapsed_time} seconds')
+        self.print_out_dark(f"Completed in {elapsed_time} seconds")
         self._play_bell()
 
     def _show_env_prefix(self):
-        if env_prefix == '':
+        if env_prefix == "":
             return
-        colored_env_prefix = colored(env_prefix, color='yellow')
-        colored_label = colored('Your current environment: ', attrs=['dark'])
-        print(colored(f'{colored_label}{colored_env_prefix}'), file=sys.stderr)
+        colored_env_prefix = colored(env_prefix, color="yellow")
+        colored_label = colored("Your current environment: ", attrs=["dark"])
+        print(colored(f"{colored_label}{colored_env_prefix}"), file=sys.stderr)
 
     def _show_run_command(self):
         if not self.__has_cli_interface:
@@ -204,15 +207,15 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
             key = task_input.get_name()
             kwarg_key = to_variable_name(key)
             quoted_value = double_quote(str(self.__kwargs[kwarg_key]))
-            params.append(f'--{key} {quoted_value}')
+            params.append(f"--{key} {quoted_value}")
         run_cmd = self._get_full_cli_name()
         run_cmd_with_param = run_cmd
         if len(params) > 0:
-            param_str = ' '.join(params)
-            run_cmd_with_param += ' ' + param_str
-        colored_command = colored(run_cmd_with_param, color='yellow')
-        colored_label = colored('To run again: ', attrs=['dark'])
-        print(colored(f'{colored_label}{colored_command}'), file=sys.stderr)
+            param_str = " ".join(params)
+            run_cmd_with_param += " " + param_str
+        colored_command = colored(run_cmd_with_param, color="yellow")
+        colored_label = colored("To run again: ", attrs=["dark"])
+        print(colored(f"{colored_label}{colored_command}"), file=sys.stderr)
 
     def __get_colored_print_prefix(self) -> str:
         return self.__get_colored(self.__get_print_prefix())
@@ -225,51 +228,51 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         icon = self.get_icon()
         length = LOG_NAME_LENGTH - len(icon)
         rjust_cli_name = self.__get_rjust_full_cli_name(length)
-        return f'{common_prefix} {icon} {rjust_cli_name}'
+        return f"{common_prefix} {icon} {rjust_cli_name}"
 
     def __get_log_prefix(self) -> str:
         common_prefix = self.__get_common_prefix(show_time=False)
         icon = self.get_icon()
         length = LOG_NAME_LENGTH - len(icon)
         filled_name = self.__get_rjust_full_cli_name(length)
-        return f'{common_prefix} {icon} {filled_name}'
+        return f"{common_prefix} {icon} {filled_name}"
 
     def __get_common_prefix(self, show_time: bool) -> str:
         attempt = self._get_attempt()
         max_attempt = self._get_max_attempt()
         pid = str(self._get_task_pid()).rjust(6)
         if show_time:
-            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-            return f'◷ {now} ❁ {pid} → {attempt}/{max_attempt}'
-        return f'❁ {pid} → {attempt}/{max_attempt}'
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            return f"◷ {now} ❁ {pid} → {attempt}/{max_attempt}"
+        return f"❁ {pid} → {attempt}/{max_attempt}"
 
     @lru_cache
     def __get_rjust_full_cli_name(self, length: int) -> str:
         if self.__rjust_full_cli_name is not None:
             return self.__rjust_full_cli_name
         complete_name = self._get_full_cli_name()
-        self.__rjust_full_cli_name = complete_name.rjust(length, ' ')
+        self.__rjust_full_cli_name = complete_name.rjust(length, " ")
         return self.__rjust_full_cli_name
 
     @lru_cache
     def __get_executable_name(self) -> str:
-        if len(sys.argv) > 0 and sys.argv[0] != '':
+        if len(sys.argv) > 0 and sys.argv[0] != "":
             return os.path.basename(sys.argv[0])
-        return 'zrb'
+        return "zrb"
 
     @lru_cache
     def _get_full_cli_name(self) -> str:
         if self.__complete_name is not None:
             return self.__complete_name
-        executable_prefix = ''
+        executable_prefix = ""
         if self.__has_cli_interface:
-            executable_prefix += self.__get_executable_name() + ' '
+            executable_prefix += self.__get_executable_name() + " "
         cli_name = self.get_cli_name()
         if self._group is None:
-            self.__complete_name = f'{executable_prefix}{cli_name}'
+            self.__complete_name = f"{executable_prefix}{cli_name}"
             return self.__complete_name
         group_cli_name = self._group._get_full_cli_name()
-        self.__complete_name = f'{executable_prefix}{group_cli_name} {cli_name}'  # noqa
+        self.__complete_name = f"{executable_prefix}{group_cli_name} {cli_name}"  # noqa
         return self.__complete_name
 
     def _set_has_cli_interface(self):

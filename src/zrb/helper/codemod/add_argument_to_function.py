@@ -4,9 +4,7 @@ import libcst as cst
 
 @typechecked
 class AddArgumentTransformer(cst.CSTTransformer):
-    def __init__(
-        self, function_name: str, argument_name: str, argument_type: str
-    ):
+    def __init__(self, function_name: str, argument_name: str, argument_type: str):
         self.function_name = function_name
         self.argument_name = argument_name
         self.argument_type = argument_type

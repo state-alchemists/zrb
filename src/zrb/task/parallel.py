@@ -4,7 +4,7 @@ from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
 
 
-TParallel = TypeVar('TParallel', bound='Parallel')
+TParallel = TypeVar("TParallel", bound="Parallel")
 
 
 class AnyParallel(ABC):

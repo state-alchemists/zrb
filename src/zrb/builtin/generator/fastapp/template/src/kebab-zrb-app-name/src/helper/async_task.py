@@ -3,10 +3,7 @@ import asyncio
 import inspect
 
 
-def create_task(
-    awaitable: Awaitable,
-    on_error: Callable
-) -> asyncio.Task:
+def create_task(awaitable: Awaitable, on_error: Callable) -> asyncio.Task:
     async def critical_task(awaitable):
         try:
             return await awaitable
@@ -14,4 +11,5 @@ def create_task(
             if inspect.iscoroutinefunction(on_error):
                 return await on_error(e)
             return on_error(e)
+
     return asyncio.create_task(critical_task(awaitable))

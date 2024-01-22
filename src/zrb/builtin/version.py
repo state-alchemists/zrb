@@ -8,10 +8,6 @@ from zrb.config.config import version
 ###############################################################################
 
 
-@python_task(
-    name='version',
-    description='Get Zrb version',
-    runner=runner
-)
+@python_task(name="version", description="Get Zrb version", runner=runner)
 async def get_version(*args: Any, **kwargs: Any) -> str:
     return version

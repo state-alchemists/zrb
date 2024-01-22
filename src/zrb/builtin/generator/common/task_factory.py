@@ -2,7 +2,8 @@ from zrb.helper.typing import Any, List, Optional
 from zrb.helper.typecheck import typechecked
 from zrb.builtin.generator.common.task_input import project_dir_input
 from zrb.builtin.generator.common.helper import (
-    validate_existing_project_dir, register_module_to_project
+    validate_existing_project_dir,
+    register_module_to_project,
 )
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
@@ -19,30 +20,32 @@ def create_register_module(
     module_path: str,
     inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None,
-    alias: Optional[str] = None
+    alias: Optional[str] = None,
 ) -> Task:
     @python_task(
-        name='register-module',
+        name="register-module",
         inputs=[project_dir_input] + inputs if inputs is not None else [],
-        upstreams=upstreams if upstreams is not None else []
+        upstreams=upstreams if upstreams is not None else [],
     )
     async def register_module(*args: Any, **kwargs: Any):
-        task: Task = kwargs.get('_task')
-        project_dir = kwargs.get('project_dir')
+        task: Task = kwargs.get("_task")
+        project_dir = kwargs.get("project_dir")
         validate_existing_project_dir(project_dir)
         rendered_module_path = task.render_str(module_path)
         rendered_alias: Optional[str] = None
         if alias is not None:
             rendered_alias = task.render_str(alias)
         task.print_out(
-            f'Register module: {rendered_module_path}' +
-            f' as {rendered_alias}' if rendered_alias is not None else ''
+            f"Register module: {rendered_module_path}" + f" as {rendered_alias}"
+            if rendered_alias is not None
+            else ""
         )
         await register_module_to_project(
             project_dir=project_dir,
             module_path=rendered_module_path,
-            alias=rendered_alias
+            alias=rendered_alias,
         )
+
     return register_module
 
 
@@ -53,32 +56,31 @@ def create_add_upstream(
     upstream_module: str,
     upstream_task_var: str,
     inputs: Optional[List[AnyInput]] = None,
-    upstreams: Optional[List[AnyTask]] = None
+    upstreams: Optional[List[AnyTask]] = None,
 ) -> Task:
     @python_task(
-        name='register-upstream',
+        name="register-upstream",
         inputs=[project_dir_input] + inputs if inputs is not None else [],
-        upstreams=upstreams if upstreams is not None else []
+        upstreams=upstreams if upstreams is not None else [],
     )
     async def register_upstream(*args: Any, **kwargs: Any):
-        task: Task = kwargs.get('_task')
-        project_dir = kwargs.get('project_dir', '.')
+        task: Task = kwargs.get("_task")
+        project_dir = kwargs.get("project_dir", ".")
         rendered_task_file_name = task.render_str(task_file_name)
         rendered_task_name = task.render_str(task_name)
         rendered_upstream_module_path = task.render_str(upstream_module)
         rendered_upstream_task_var = task.render_str(upstream_task_var)
         if not os.path.isabs(rendered_task_file_name):
-            rendered_task_file_name = os.path.join(
-                project_dir, rendered_task_file_name
-            )
+            rendered_task_file_name = os.path.join(project_dir, rendered_task_file_name)
         code = await read_text_file_async(rendered_task_file_name)
         code = add_import_module(
             code=code,
             module_path=rendered_upstream_module_path,
-            resource=rendered_upstream_task_var
+            resource=rendered_upstream_task_var,
         )
         code = add_upstream_to_task(
             code, rendered_task_name, rendered_upstream_task_var
         )
         await write_text_file_async(rendered_task_file_name, code)
+
     return register_upstream

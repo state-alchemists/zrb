@@ -14,9 +14,7 @@ class Serializer(ABC):
 
 
 class CustomSerializer(Serializer):
-    def __init__(
-        self, encoder: Callable[[Any], Any], decoder: Callable[[Any], Any]
-    ):
+    def __init__(self, encoder: Callable[[Any], Any], decoder: Callable[[Any], Any]):
         self.encoder = encoder
         self.decoder = decoder
 

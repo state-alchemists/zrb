@@ -4,9 +4,10 @@ from zrb.task_input.base_input import BaseInput
 
 # flake8: noqa E501
 
+
 @typechecked
 class FloatInput(BaseInput):
-    '''
+    """
      A specialized input class designed to handle floating-point numbers in a task input context.
 
     Extending `BaseInput`, this class facilitates the handling of float-type inputs, accommodating
@@ -37,7 +38,7 @@ class FloatInput(BaseInput):
         >>> float_input = FloatInput(name='threshold', default=0.5, description='Set the threshold value')
         >>> float_input.get_default()
         0.5
-    '''
+    """
 
     def __init__(
         self,
@@ -59,7 +60,7 @@ class FloatInput(BaseInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         BaseInput.__init__(
             self,
@@ -82,5 +83,5 @@ class FloatInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
-            should_render=should_render
+            should_render=should_render,
         )

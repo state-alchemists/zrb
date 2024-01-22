@@ -9,19 +9,19 @@ from zrb.runner import runner
 
 
 @python_task(
-    name='eval',
+    name="eval",
     inputs=[
         StrInput(
-            name='expression',
-            shortcut='e',
-            default='',
-            description='Python expression',
+            name="expression",
+            shortcut="e",
+            default="",
+            description="Python expression",
         )
     ],
-    description='Evaluate Python expression',
+    description="Evaluate Python expression",
     retry=0,
-    runner=runner
+    runner=runner,
 )
 async def evaluate(*args: str, **kwargs: Any):
-    expression: str = kwargs.get('expression', '')
+    expression: str = kwargs.get("expression", "")
     return eval(expression)

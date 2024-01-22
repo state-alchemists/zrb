@@ -23,10 +23,7 @@ def add_function_call(code: str, function_name: str, parameters: list) -> str:
     new_function_call = cst.Expr(
         value=cst.Call(
             func=cst.Name(value=function_name),
-            args=[
-                cst.Arg(value=cst.parse_expression(param))
-                for param in parameters
-            ]
+            args=[cst.Arg(value=cst.parse_expression(param)) for param in parameters],
         )
     )
 

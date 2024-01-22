@@ -1,19 +1,29 @@
 from zrb import DockerComposeTask, runner
 from zrb.builtin.group import project_group
 from ._checker import (
-    app_container_checker, rabbitmq_checker, rabbitmq_management_checker,
-    redpanda_console_checker, kafka_outside_checker, kafka_plaintext_checker,
-    pandaproxy_outside_checker, pandaproxy_plaintext_checker
+    app_container_checker,
+    rabbitmq_checker,
+    rabbitmq_management_checker,
+    redpanda_console_checker,
+    kafka_outside_checker,
+    kafka_plaintext_checker,
+    pandaproxy_outside_checker,
+    pandaproxy_plaintext_checker,
 )
 from ._input import (
-    local_input, run_mode_input, enable_monitoring_input, host_input,
-    https_input, image_input
+    local_input,
+    run_mode_input,
+    enable_monitoring_input,
+    host_input,
+    https_input,
+    image_input,
 )
 from ._env import app_enable_otel_env, image_env
 from ._env_file import compose_env_file
 from ._helper import (
-    activate_selected_compose_profile, activate_all_compose_profile,
-    should_start_container
+    activate_selected_compose_profile,
+    activate_all_compose_profile,
+    should_start_container,
 )
 from ._config import RESOURCE_DIR, SERVICE_CONFIGS
 from .image import build_snake_zrb_app_name_image
@@ -24,17 +34,17 @@ from .image import build_snake_zrb_app_name_image
 ###############################################################################
 
 remove_snake_zrb_app_name_container = DockerComposeTask(
-    icon='💨',
-    name='remove-kebab-zrb-app-name-container',
-    description='Remove human readable zrb app name container',
+    icon="💨",
+    name="remove-kebab-zrb-app-name-container",
+    description="Remove human readable zrb app name container",
     group=project_group,
     cwd=RESOURCE_DIR,
     setup_cmd=activate_all_compose_profile,
-    compose_cmd='down',
-    compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
+    compose_cmd="down",
+    compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=SERVICE_CONFIGS,
     envs=[image_env],
-    env_files=[compose_env_file]
+    env_files=[compose_env_file],
 )
 runner.register(remove_snake_zrb_app_name_container)
 
@@ -43,8 +53,8 @@ runner.register(remove_snake_zrb_app_name_container)
 ###############################################################################
 
 init_snake_zrb_app_name_container = DockerComposeTask(
-    icon='🔥',
-    name='init-kebab-zrb-app-name-container',
+    icon="🔥",
+    name="init-kebab-zrb-app-name-container",
     group=project_group,
     inputs=[
         local_input,
@@ -54,15 +64,12 @@ init_snake_zrb_app_name_container = DockerComposeTask(
         image_input,
     ],
     should_execute=should_start_container,
-    upstreams=[
-        build_snake_zrb_app_name_image,
-        remove_snake_zrb_app_name_container
-    ],
+    upstreams=[build_snake_zrb_app_name_image, remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
     setup_cmd=activate_selected_compose_profile,
-    compose_cmd='up',
-    compose_flags=['-d'],
-    compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
+    compose_cmd="up",
+    compose_flags=["-d"],
+    compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=SERVICE_CONFIGS,
     envs=[
         image_env,
@@ -76,9 +83,9 @@ init_snake_zrb_app_name_container = DockerComposeTask(
 ###############################################################################
 
 start_snake_zrb_app_name_container = DockerComposeTask(
-    icon='🐳',
-    name='start-kebab-zrb-app-name-container',
-    description='Start human readable zrb app name container',
+    icon="🐳",
+    name="start-kebab-zrb-app-name-container",
+    description="Start human readable zrb app name container",
     group=project_group,
     inputs=[
         local_input,
@@ -91,9 +98,9 @@ start_snake_zrb_app_name_container = DockerComposeTask(
     upstreams=[init_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
     setup_cmd=activate_selected_compose_profile,
-    compose_cmd='logs',
-    compose_flags=['-f'],
-    compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
+    compose_cmd="logs",
+    compose_flags=["-f"],
+    compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=SERVICE_CONFIGS,
     envs=[image_env],
     env_files=[compose_env_file],
@@ -106,7 +113,7 @@ start_snake_zrb_app_name_container = DockerComposeTask(
         redpanda_console_checker,
         pandaproxy_outside_checker,
         pandaproxy_plaintext_checker,
-    ]
+    ],
 )
 runner.register(start_snake_zrb_app_name_container)
 
@@ -115,16 +122,16 @@ runner.register(start_snake_zrb_app_name_container)
 ###############################################################################
 
 stop_snake_zrb_app_name_container = DockerComposeTask(
-    icon='⛔',
-    name='stop-kebab-zrb-app-name-container',
-    description='Stop human readable zrb app name container',
+    icon="⛔",
+    name="stop-kebab-zrb-app-name-container",
+    description="Stop human readable zrb app name container",
     group=project_group,
     cwd=RESOURCE_DIR,
     setup_cmd=activate_all_compose_profile,
-    compose_cmd='stop',
-    compose_env_prefix='CONTAINER_ZRB_ENV_PREFIX',
+    compose_cmd="stop",
+    compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=SERVICE_CONFIGS,
     envs=[image_env],
-    env_files=[compose_env_file]
+    env_files=[compose_env_file],
 )
 runner.register(stop_snake_zrb_app_name_container)

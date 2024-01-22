@@ -1,9 +1,14 @@
 from module.auth.schema.user import User
 from config import (
-    app_auth_admin_user_id, app_auth_admin_username, app_auth_admin_password,
-    app_auth_admin_email, app_auth_admin_phone, app_auth_guest_user_id,
-    app_auth_guest_username, app_auth_guest_email,
-    app_auth_guest_phone
+    app_auth_admin_user_id,
+    app_auth_admin_username,
+    app_auth_admin_password,
+    app_auth_admin_email,
+    app_auth_admin_phone,
+    app_auth_guest_user_id,
+    app_auth_guest_username,
+    app_auth_guest_email,
+    app_auth_guest_phone,
 )
 
 admin_user_password = app_auth_admin_password
@@ -15,7 +20,7 @@ admin_user = User(
     phone=app_auth_admin_phone,
     groups=[],
     permissions=[],
-    description='System administrator'
+    description="System administrator",
 )
 
 guest_user = User(
@@ -25,5 +30,5 @@ guest_user = User(
     phone=app_auth_guest_phone,
     groups=[],
     permissions=[],
-    description='Visitor'
+    description="Visitor",
 )

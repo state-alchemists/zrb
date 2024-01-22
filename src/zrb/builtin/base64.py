@@ -10,12 +10,7 @@ import base64
 # 🔤 Input Definitions
 ###############################################################################
 
-text_input = StrInput(
-    name='text',
-    shortcut='t',
-    description='Text',
-    default=''
-)
+text_input = StrInput(name="text", shortcut="t", description="Text", default="")
 
 ###############################################################################
 # Task Definitions
@@ -23,28 +18,28 @@ text_input = StrInput(
 
 
 @python_task(
-    name='encode',
+    name="encode",
     group=base64_group,
     inputs=[text_input],
-    description='Encode a text using base64 algorithm',
+    description="Encode a text using base64 algorithm",
     retry=0,
-    runner=runner
+    runner=runner,
 )
 async def encode(*args: str, **kwargs: Any):
-    text: str = kwargs.get('text', '')
+    text: str = kwargs.get("text", "")
     encoded_text = base64.b64encode(text.encode())
     return encoded_text.decode()
 
 
 @python_task(
-    name='decode',
+    name="decode",
     group=base64_group,
     inputs=[text_input],
-    description='Decode a base64 encoded text',
+    description="Decode a base64 encoded text",
     retry=0,
-    runner=runner
+    runner=runner,
 )
 async def decode(*args: str, **kwargs: Any):
-    text: str = kwargs.get('text', '')
+    text: str = kwargs.get("text", "")
     encoded_text = base64.b64decode(text.encode())
     return encoded_text.decode()

@@ -8,7 +8,7 @@ def add_import_module(
     code: str,
     module_path: str,
     resource: Optional[str] = None,
-    alias: Optional[str] = None
+    alias: Optional[str] = None,
 ) -> str:
     """
     Parses the given code as a module using `libcst.parse_module()`,
@@ -29,16 +29,14 @@ def add_import_module(
     """
     module = cst.parse_module(code)
     new_import = _get_new_import(
-        module_path=module_path,
-        resource=resource,
-        alias=alias
+        module_path=module_path, resource=resource, alias=alias
     )
 
     last_import_index = None
     for i, node in enumerate(module.body):
         if isinstance(node, cst.SimpleStatementLine) and (
-            isinstance(node.body[0], cst.Import) or
-            isinstance(node.body[0], cst.ImportFrom)
+            isinstance(node.body[0], cst.Import)
+            or isinstance(node.body[0], cst.ImportFrom)
         ):
             last_import_index = i
 
@@ -58,44 +56,34 @@ def add_import_module(
 
 
 def _get_new_import(
-    module_path: str,
-    resource: Optional[str] = None,
-    alias: Optional[str] = None
+    module_path: str, resource: Optional[str] = None, alias: Optional[str] = None
 ) -> Union[cst.ImportFrom, cst.Import]:
     dots, module_path = _split_module_path(module_path)
     relative = [cst.Dot()] * len(dots)
     if resource is None:
         if len(relative) > 0:
-            raise Exception(
-                'Relative import is not allowed, please specify resource'
-            )
+            raise Exception("Relative import is not allowed, please specify resource")
         return cst.Import(
             names=[
                 cst.ImportAlias(
-                    name=cst.parse_expression(module_path),
-                    asname=_get_as_name(alias)
+                    name=cst.parse_expression(module_path), asname=_get_as_name(alias)
                 )
             ],
         )
     return cst.ImportFrom(
         module=cst.parse_expression(module_path),
-        names=[
-            cst.ImportAlias(
-                name=cst.Name(resource),
-                asname=_get_as_name(alias)
-            )
-        ],
-        relative=relative
+        names=[cst.ImportAlias(name=cst.Name(resource), asname=_get_as_name(alias))],
+        relative=relative,
     )
 
 
 @typechecked
 def _split_module_path(module_path) -> Tuple[str, str]:
-    prefix = ''
-    suffix = ''
+    prefix = ""
+    suffix = ""
     is_prefix = True
     for char in module_path:
-        if char != '.':
+        if char != ".":
             is_prefix = False
         if is_prefix:
             prefix += char
