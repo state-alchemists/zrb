@@ -4,7 +4,7 @@
 
 Occasionally, you need your Tasks to pass data to each other. You can do this by using the XCom mechanism.
 
-The Xcom mechanism is highly dependent on Task Execution ID. In short, a Task and all its upstreams/downstreams share the same Execution ID.
+The Xcom mechanism is highly dependent on Task Execution ID. Whenever you run a Zrb Task, you can ensure it shares the same Execution ID with all its upstreams.
 
 ## Execution ID
 
