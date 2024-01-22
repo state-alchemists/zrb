@@ -45,7 +45,7 @@ If you are working on a new computer, the following command will help you instal
 curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
 ```
 
-If you already have your own Python Ecosystem (i.e., [Pyenv](https://github.com/pyenv/pyenv), [Conda](https://docs.conda.io/en/latest), or Venv), you can install Zrb as a Python package using the Pip command.
+If you already have your own Python Ecosystem (i.e., [Pyenv](https://github.com/pyenv/pyenv), [Conda](https://docs.conda.io/en/latest), or Venv), you can install Zrb using the Pip command.
 
 ```bash
 # On a computer with its own Python ecosystem.

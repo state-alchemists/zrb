@@ -11,17 +11,27 @@
   </p>
 </div>
 
-Zrb allows you to isolate your work by putting them into multiple Zrb projects.
+Zrb allows you to isolate your work by putting them into Zrb Projects.
 
-At its core, a project is any directory containing a single file named `zrb_init.py`. This simple setup is already sufficient for a simple hello-world project.
+# Simple Project
 
-However, to make something more than a simple hello-world, you better use `zrb project create` command.
+At its core, a Project is any directory containing a single file named `zrb_init.py`. This simple setup is already sufficient for a simple hello-world project. Let's see how you can make a Project with a few commands.
+
+```bash
+mkdir my-project
+cd my-project
+touch zrb_init.py
+```
+
+# Standard Project
+
+To make something more than a simple hello-world, you better use the `zrb project create` command.
 
 ```bash
 zrb project create --project-dir my-project --project-name my-project
 ```
 
-Once invoked, you will see a project named `my-project` under your current directory. Let's see what this project looks like:
+Once invoked, you will see a Project named `my-project` under your current directory. Let's see what this Project looks like:
 
 ```bash
 cd my-project
@@ -45,18 +55,18 @@ drwxr-xr-x  2 gofrendi gofrendi 4096 Nov 12 07:52 src
 -rw-r--r--  1 gofrendi gofrendi   54 Nov 12 07:52 zrb_init.py
 ```
 
-Every Zrb project has a file named `zrb_init.py` under the top-level directory. This file is your entry point to define your Task definitions.
+Every Zrb Project has a file named `zrb_init.py` under the top-level directory. This file is your entry point to define your Task definitions.
 
-By convention, a project usually contains two other sub-directories:
+By convention, a Project usually contains two other sub-directories:
 
 - ___automate__: This folder contains all your automation scripts and task definitions
 - __src__: This folder contains all your resources like Docker compose file, helm charts, and source code.
 
-Moreover, Zrb provides some built-in Tasks under `project` Task Group. As always, you can invoke `zrb project` to see those tasks.
+Moreover, Zrb provides some built-in Tasks under the `project` Task Group. As always, you can invoke `zrb project` to see those tasks.
 
-# Using `project.sh`
+## Using `project.sh`
 
-When you create a project using `zrb project create` command, you will find a file named `project.sh`. This script file helps you to load the virtual environment, install requirements, and activate shell completion.
+When you create a Project using `zrb project create` command, you will find a file named `project.sh`. This script file helps you to load the virtual environment, install requirements, and activate shell completion.
 
 To use the script, you need to invoke the following command:
 
@@ -64,7 +74,7 @@ To use the script, you need to invoke the following command:
 source project.sh
 ```
 
-Anytime you start working on your project, you should load `project.sh`.
+Make sure you load `project.sh` every time you start working on a Project.
 
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)

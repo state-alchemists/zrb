@@ -10,7 +10,6 @@
 - [Getting Data from Other Tasks](getting-data-from-other-tasks.md)
 - [Define Task Dynamically](define-task-dynamically.md)
 - [Copy and Re-use task](copy-and-reuse-task.md)
-- [Extending CmdTask: Sending Message to Slack](extending-cmd-task.md)
 - [Access Task Using Web Interface: Generate PDF Form](accessing-task-using-web-interface.md)
 
 🔖 [Table of Contents](../README.md)
