@@ -52,7 +52,9 @@ def register_api(
             raise HTTPAPIException(403, "Unauthorized")
         try:
             result_dict = await rpc_caller.call(
-                "auth_get_group_by_id", id=id, user_token_data=user_token_data.model_dump()
+                "auth_get_group_by_id",
+                id=id,
+                user_token_data=user_token_data.model_dump(),
             )
             return Group(**result_dict)
         except Exception as e:
@@ -91,7 +93,7 @@ def register_api(
                 "auth_update_group",
                 id=id,
                 data=data.model_dump(),
-               user_token_data=user_token_data.model_dump(),
+                user_token_data=user_token_data.model_dump(),
             )
             return Group(**result_dict)
         except Exception as e:
