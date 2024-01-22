@@ -36,11 +36,7 @@ def register_api(
                 criterion={},
                 limit=limit,
                 offset=offset,
-<<<<<<< HEAD
-                user_token_data=user_token_data.model_dump()
-=======
                 user_token_data=user_token_data.model_dump(),
->>>>>>> main
             )
             return GroupResult(**result_dict)
         except Exception as e:
@@ -56,12 +52,7 @@ def register_api(
             raise HTTPAPIException(403, "Unauthorized")
         try:
             result_dict = await rpc_caller.call(
-<<<<<<< HEAD
-                'auth_get_group_by_id',
-                id=id, user_token_data=user_token_data.model_dump()
-=======
                 "auth_get_group_by_id", id=id, user_token_data=user_token_data.model_dump()
->>>>>>> main
             )
             return Group(**result_dict)
         except Exception as e:
@@ -116,12 +107,7 @@ def register_api(
             raise HTTPAPIException(403, "Unauthorized")
         try:
             result_dict = await rpc_caller.call(
-<<<<<<< HEAD
-                'auth_delete_group',
-                id=id, user_token_data=user_token_data.model_dump()
-=======
                 "auth_delete_group", id=id, user_token_data=user_token_data.model_dump()
->>>>>>> main
             )
             return Group(**result_dict)
         except Exception as e:
