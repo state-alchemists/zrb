@@ -36,7 +36,7 @@ def register_api(
                 criterion={},
                 limit=limit,
                 offset=offset,
-                user_token_data=user_token_data.model_dump(),
+                user_token_data=user_token_data.dict(),
             )
             return ActivityResult(**result_dict)
         except Exception as e:
@@ -54,7 +54,7 @@ def register_api(
             result_dict = await rpc_caller.call(
                 "log_get_activity_by_id",
                 id=id,
-                user_token_data=user_token_data.model_dump(),
+                user_token_data=user_token_data.dict(),
             )
             return Activity(**result_dict)
         except Exception as e:

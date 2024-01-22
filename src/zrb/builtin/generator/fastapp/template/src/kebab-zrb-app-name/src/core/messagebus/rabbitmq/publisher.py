@@ -39,7 +39,7 @@ class RMQPublisher(Publisher):
         queue_name = self.rmq_admin.get_queue_name(event_name)
         exchange_name = self.rmq_admin.get_exchange_name(event_name)
         if isinstance(message, BaseModel):
-            message = message.model_dump()
+            message = message.dict()
         for attempt in range(self.retry):
             try:
                 await self._connect()

@@ -39,6 +39,6 @@ class HistoricalRepoModel(RepoModel[Schema, SchemaData, SchemaResult]):
         activity_data = ActivityData(
             action=action,
             entity=self.log_entity_name,
-            data=jsons.dumps(result.model_dump()),
+            data=jsons.dumps(result.dict()),
         )
-        await self.publisher.publish("log_new_activity", activity_data.model_dump())
+        await self.publisher.publish("log_new_activity", activity_data.dict())
