@@ -617,8 +617,7 @@ zrb hello-cmd
 zrb hello
 ```
 
-
-</tails>
+</details>
 
 ## The Output
 
