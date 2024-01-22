@@ -56,6 +56,9 @@ Zrb automatically adds some objects and some Python packages you can access whil
         - Returns `False` if text is either `fales`, `0`, `no`, `n`, `inactive`, or `off`.
         - Raises Exception otherwise.
 - `input` (Accessible while rendering `Env`, `EnvFile`, and other Task Properties): Input value dictionary. The dictionary keys are __snake_cased__ Input names, while the dictionary values are the rendered Input values.
+    - `input.<snake_case_key>` (Accessible while rendering `Env`, `EnvFile`, and other Task Properties): Input value.
+    - `input._task` (Available on runtime): Representing current Task object.
+    - `input._args` (Available on runtime): Representing shell arguments.
 - `env` (Accessible while rendering Task Properties): Env value dictionary. The dictionary keys are Env names, while the dictionary values are the rendered Env values. Under the hood, Zrb renders an EnvFile into multiple Envs. Thus, all variables in your environment file will be accessible from the `env` dictionary.
 - `task` (Available on runtime): Current Task object.
     - `task.get_input_map()` (Available after input is rendered): Returning `input` dictionary.

@@ -20,7 +20,7 @@
 - [Environments](environments.md)
 - [Xcom](xcom.md)
 - [Template Rendering](template-rendering.md)
-- [Specialized Tasks](specialized-tasks.md)
+- [Specialized Tasks](specialized-tasks/README.md)
   - [DockerComposeTask](specialized-tasks/docker-compose-task.md)
   - [ResourceMaker](specialized-tasks/resource-maker.md)
   - [Notifier](specialized-tasks/notifider.md)

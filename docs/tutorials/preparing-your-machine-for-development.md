@@ -4,39 +4,24 @@
 
 > This guide has been tested under `debian 12` and `ubuntu 22.0.4`
 
-Zrb is a Python package. So, in order to get started, you will need to have:
+Before working with Zrb, you must ensure you have Zrb installed on your system.
 
-- Python
-- Pip
-- Venv
+If you are working on a new computer, the following command will help you install Zrb and Pyenv:
 
 ```bash
-sudo apt install python-is-python3 python3-dev python3-distutils python3-openssl python3-pip python3-venv
+# On a new computer
+curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
 ```
 
-# Creating Venv for Setup
-
-Once you have install Python, pip, and venv, you can make a directory named `zrb-setup` and create a virtual environment.
+If you already have your own Python Ecosystem (i.e., [Pyenv](https://github.com/pyenv/pyenv), [Conda](https://docs.conda.io/en/latest), or Venv), you can install Zrb using the Pip command.
 
 ```bash
-mkdir -p ~/zrb-setup
-cd ~/zrb-setup
-python -m venv .venv
-source .venv/bin/activate
-```
-
-Please note that whenever you want to work with the virtual environment, you will have to execute `source .venv/bin/activate`.
-
-Creating different virtual environment for each of your projects make your pip packages more manageable.
-For example, you will be able to have two different version of the same python package in the different project.
-
-# Install Zrb on Venv
-
-After having your virtual environment set up, you can install `zrb` on your virtual environment:
-
-```bash
+# On a computer with its own Python ecosystem.
 pip install zrb
 ```
+
+Alternatively, you can also install Zrb as a container. Please see the [installation guide](./installation.md) for more detailed instructions.
+
 
 # Install Essential Packages for Ubuntu/Debian
 
@@ -48,8 +33,8 @@ zrb ubuntu install essentials
 
 # Setup Zsh
 
-Zsh and oh-my-zsh is highly compatible, yet provide the same experience as `bash`.
-Installing zsh is not mandatory, but highly recommended.
+Zsh and `oh-my-zsh` is highly compatible with `bash`.
+Installing zsh is not mandatory but highly recommended.
 
 To setup and load Zsh, you need to run the following command:
 
@@ -147,7 +132,7 @@ zrb devtool install terraform
 
 # Next
 
-Now you are ready. Next, you can check our [low code tutorial](./development-to-deployment-low-code.md) or learn [zrb basic concepts](../concepts/README.md).
+Now you are ready. Next, you can check our [low-code tutorial](./development-to-deployment-low-code.md) or learn [basic concepts](../concepts/README.md).
 
 
 🔖 [Table of Contents](../README.md) / [Tutorials](README.md)
