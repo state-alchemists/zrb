@@ -7,12 +7,12 @@ from zrb.task_input.base_input import BaseInput
 
 @typechecked
 class BoolInput(BaseInput):
-    '''
+    """
     A specialized input class for handling boolean values in a task input context.
 
     This class extends `BaseInput` and provides specific functionality for boolean type inputs,
     including support for default values, prompts, flags, and various customization options.
-    
+
     Args:
         name (str): The name of the input.
         shortcut (Optional[str]): A shortcut string for the input.
@@ -38,7 +38,7 @@ class BoolInput(BaseInput):
         >>> bool_input = BoolInput(name='confirm', prompt='Do you agree?', default=False)
         >>> bool_input.get_default()
         False
-    '''
+    """
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class BoolInput(BaseInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         BaseInput.__init__(
             self,
@@ -83,5 +83,5 @@ class BoolInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
-            should_render=should_render
+            should_render=should_render,
         )

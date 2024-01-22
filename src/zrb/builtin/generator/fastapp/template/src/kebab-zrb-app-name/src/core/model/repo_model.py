@@ -3,9 +3,9 @@ from pydantic import BaseModel
 from core.repo.repo import Repo
 from core.repo.search_filter import SearchFilter
 
-Schema = TypeVar('Schema', bound=BaseModel)
-SchemaData = TypeVar('SchemaData', bound=BaseModel)
-SchemaResult = TypeVar('SchemaResult', bound=BaseModel)
+Schema = TypeVar("Schema", bound=BaseModel)
+SchemaData = TypeVar("SchemaData", bound=BaseModel)
+SchemaResult = TypeVar("SchemaResult", bound=BaseModel)
 
 
 class RepoModel(Generic[Schema, SchemaData, SchemaResult]):
@@ -22,15 +22,15 @@ class RepoModel(Generic[Schema, SchemaData, SchemaResult]):
         limit = 1000
         schema_list: List[Schema] = []
         for offset in range(0, count, limit):
-            partial_schema_list = await self.repo.get(
-                limit=limit, offset=offset
-            )
+            partial_schema_list = await self.repo.get(limit=limit, offset=offset)
             schema_list += partial_schema_list
         return schema_list
 
     async def get(
-        self, search_filter: Optional[SearchFilter] = None,
-        limit: int = 100, offset: int = 0
+        self,
+        search_filter: Optional[SearchFilter] = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> SchemaResult:
         count = await self.repo.count(search_filter)
         data = await self.repo.get(search_filter, limit, offset)

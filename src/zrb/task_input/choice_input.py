@@ -5,15 +5,16 @@ import click
 
 # flake8: noqa E501
 
+
 @typechecked
 class ChoiceInput(BaseInput):
-    '''
+    """
     A specialized input class for handling choice-based inputs in a task input context.
 
-    This class extends `BaseInput` and provides functionality for inputs where the user 
-    must select from a predefined set of choices. It includes support for default values, 
+    This class extends `BaseInput` and provides functionality for inputs where the user
+    must select from a predefined set of choices. It includes support for default values,
     prompts, flags, and various customization options.
-    
+
     Args:
         name (str): The name of the input.
         shortcut (Optional[str]): An optional shortcut string for the input.
@@ -40,7 +41,7 @@ class ChoiceInput(BaseInput):
         >>> choice_input = ChoiceInput(name='color', choices=['red', 'green', 'blue'], default='red')
         >>> choice_input.get_default()
         'red'
-    '''
+    """
 
     def __init__(
         self,
@@ -63,7 +64,7 @@ class ChoiceInput(BaseInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         BaseInput.__init__(
             self,
@@ -86,5 +87,5 @@ class ChoiceInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
-            should_render=should_render
+            should_render=should_render,
         )

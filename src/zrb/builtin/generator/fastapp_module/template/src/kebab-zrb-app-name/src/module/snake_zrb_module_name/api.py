@@ -10,6 +10,6 @@ def register_api(
     app: FastAPI,
     authorizer: Authorizer,
     rpc_caller: Caller,
-    publisher: Publisher
+    publisher: Publisher,
 ):
     logger.info('🥪 Register API for "snake_zrb_module_name"')

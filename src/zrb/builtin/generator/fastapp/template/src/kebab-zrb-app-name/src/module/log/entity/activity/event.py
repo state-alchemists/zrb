@@ -7,14 +7,11 @@ from module.log.schema.activity import ActivityData
 
 
 def register_event(
-    logger: Logger,
-    consumer: Consumer,
-    rpc_caller: Caller,
-    publisher: Publisher
+    logger: Logger, consumer: Consumer, rpc_caller: Caller, publisher: Publisher
 ):
     logger.info('🥪 Register event handlers for "log.activity"')
 
-    @consumer.register('log_new_activity')
+    @consumer.register("log_new_activity")
     async def insert(
         data: Mapping[str, Any],
     ):

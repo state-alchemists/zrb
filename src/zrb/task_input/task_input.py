@@ -2,8 +2,9 @@ from zrb.task_input.base_input import BaseInput
 
 # flake8: noqa E501
 
+
 class Input(BaseInput):
-    '''
+    """
     Alias for BaseInput
 
     Attributes:
@@ -36,5 +37,6 @@ class Input(BaseInput):
         >>>         Input(name='delay', default=10, description='Delay')
         >>>     ]
         >>> )
-    '''
+    """
+
     pass

@@ -7,7 +7,6 @@ import asyncio
 
 
 class MessagebusCaller(Caller):
-
     def __init__(
         self,
         logger: logging.Logger,
@@ -15,7 +14,7 @@ class MessagebusCaller(Caller):
         publisher: Publisher,
         consumer_factory: Callable[[], Consumer],
         timeout: float = 30,
-        check_reply_interval: float = 0.1
+        check_reply_interval: float = 0.1,
     ):
         self.logger = logger
         self.admin = admin
@@ -26,7 +25,7 @@ class MessagebusCaller(Caller):
 
     async def call(self, rpc_name: str, *args: Any, **kwargs: Any):
         random_uuid = str(ULID())
-        reply_event_name = f'reply_{rpc_name}_{random_uuid}'
+        reply_event_name = f"reply_{rpc_name}_{random_uuid}"
         await self.admin.create_events([reply_event_name])
         reply_consumer = self.consumer_factory()
         reply_received_event = asyncio.Event()
@@ -46,32 +45,30 @@ class MessagebusCaller(Caller):
                 rpc_name,
                 Message(
                     reply_event=reply_event_name, args=args, kwargs=kwargs
-                ).to_dict()
+                ).to_dict(),
             )
             await asyncio.gather(task)
-            await asyncio.wait_for(
-                reply_received_event.wait(), timeout=self.timeout
-            )
+            await asyncio.wait_for(reply_received_event.wait(), timeout=self.timeout)
         except asyncio.TimeoutError:
             self.logger.error(
-                '🤙 [messagebus-rpc-caller] ' +
-                f'Timeout while waiting for reply event {reply_event_name}'
+                "🤙 [messagebus-rpc-caller] "
+                + f"Timeout while waiting for reply event {reply_event_name}"
             )
             raise Exception(
-                f'Timeout while waiting for reply event: {reply_event_name}'
+                f"Timeout while waiting for reply event: {reply_event_name}"
             )
         finally:
             await self._clean_up(reply_consumer, reply_event_name)
         # raise call_error or return call_result
-        if call_error != '':
+        if call_error != "":
             self.logger.error(
-                '🤙 [messagebus-rpc-caller] RPC ' +
-                f'"{rpc_name}" returning error: {call_error}'
+                "🤙 [messagebus-rpc-caller] RPC "
+                + f'"{rpc_name}" returning error: {call_error}'
             )
             raise Exception(call_error)
         self.logger.info(
-            '🤙 [messagebus-rpc-caller] RPC ' +
-            f'"{rpc_name}" returning result: {call_result}'
+            "🤙 [messagebus-rpc-caller] RPC "
+            + f'"{rpc_name}" returning result: {call_result}'
         )
         return call_result
 
@@ -79,8 +76,8 @@ class MessagebusCaller(Caller):
         try:
             await reply_consumer.stop()
         except (asyncio.CancelledError, GeneratorExit, Exception):
-            self.logger.error('🤙 [messagebus-rpc-caller]', exc_info=True)
+            self.logger.error("🤙 [messagebus-rpc-caller]", exc_info=True)
         try:
             await self.admin.delete_events([reply_event_name])
         except (asyncio.CancelledError, GeneratorExit, Exception):
-            self.logger.error('🤙 [messagebus-rpc-caller]', exc_info=True)
+            self.logger.error("🤙 [messagebus-rpc-caller]", exc_info=True)

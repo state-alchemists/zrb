@@ -7,10 +7,10 @@ from .container import start_snake_zrb_app_name_container
 ###############################################################################
 
 start_snake_zrb_app_name = CmdTask(
-    icon='🚤',
-    name='start-kebab-zrb-app-name',
-    description='Start human readable zrb app name (as container)',
+    icon="🚤",
+    name="start-kebab-zrb-app-name",
+    description="Start human readable zrb app name (as container)",
     group=project_group,
-    upstreams=[start_snake_zrb_app_name_container]
+    upstreams=[start_snake_zrb_app_name_container],
 )
 runner.register(start_snake_zrb_app_name)

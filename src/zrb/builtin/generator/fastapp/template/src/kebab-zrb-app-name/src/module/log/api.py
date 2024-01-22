@@ -3,9 +3,7 @@ from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller
 from module.auth.core import Authorizer
-from module.log.entity.activity.api import (
-    register_api as register_activity_api
-)
+from module.log.entity.activity.api import register_api as register_activity_api
 
 
 def register_api(
@@ -13,7 +11,7 @@ def register_api(
     app: FastAPI,
     authorizer: Authorizer,
     rpc_caller: Caller,
-    publisher: Publisher
+    publisher: Publisher,
 ):
     logger.info('🥪 Register API for "log"')
     register_activity_api(logger, app, authorizer, rpc_caller, publisher)

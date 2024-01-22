@@ -1,6 +1,4 @@
-from core.messagebus.messagebus import (
-    Admin, Consumer, Publisher, MessageSerializer
-)
+from core.messagebus.messagebus import Admin, Consumer, Publisher, MessageSerializer
 from core.messagebus.mock import MockAdmin, MockConsumer, MockPublisher
 from core.messagebus.kafka.admin import KafkaAdmin
 from core.messagebus.kafka.consumer import KafkaConsumer

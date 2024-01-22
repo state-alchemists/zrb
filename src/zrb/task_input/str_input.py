@@ -5,13 +5,14 @@ from zrb.task_input.base_input import BaseInput
 
 # flake8: noqa E501
 
+
 @typechecked
 class StrInput(BaseInput):
-    '''
+    """
     A specialized input class for handling string-based inputs in various tasks.
 
-    `StrInput` extends `BaseInput` to manage string-type inputs, supporting features like 
-    default values, prompts, flags, and other customization options. This class is useful 
+    `StrInput` extends `BaseInput` to manage string-type inputs, supporting features like
+    default values, prompts, flags, and other customization options. This class is useful
     for tasks requiring textual input, such as names, descriptions, or any other string parameters.
 
     Args:
@@ -39,7 +40,7 @@ class StrInput(BaseInput):
         >>> str_input = StrInput(name='username', default='user123', description='Enter your username')
         >>> str_input.get_default()
         'user123'
-    '''
+    """
 
     def __init__(
         self,
@@ -61,7 +62,7 @@ class StrInput(BaseInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         BaseInput.__init__(
             self,
@@ -84,5 +85,5 @@ class StrInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
-            should_render=should_render
+            should_render=should_render,
         )

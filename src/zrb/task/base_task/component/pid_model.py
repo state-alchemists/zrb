@@ -4,8 +4,7 @@ import os
 
 
 @typechecked
-class PidModel():
-
+class PidModel:
     def __init__(self):
         self.__task_pid: int = os.getpid()
 
@@ -14,4 +13,3 @@ class PidModel():
 
     def _get_task_pid(self) -> int:
         return self.__task_pid
-

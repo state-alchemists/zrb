@@ -1,12 +1,25 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, TypeVar,
-    JinjaTemplate
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    TypeVar,
+    JinjaTemplate,
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.cmd_task import CmdTask, CmdResult, CmdVal
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
@@ -16,41 +29,37 @@ from zrb.task_input.any_input import AnyInput
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
-from zrb.helper.docker_compose.file import (
-    read_compose_file, write_compose_file
-)
-from zrb.helper.docker_compose.fetch_external_env import (
-    fetch_compose_file_env_map
-)
+from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
+from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
 
 import os
 import pathlib
 
 CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, '..', 'shell-scripts')
-TDockerComposeTask = TypeVar('TDockerComposeTask', bound='DockerComposeTask')
+SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
+TDockerComposeTask = TypeVar("TDockerComposeTask", bound="DockerComposeTask")
 
 ensure_docker_is_installed = CmdTask(
-    name='ensure-docker-is-installed',
+    name="ensure-docker-is-installed",
     cmd_path=[
-        os.path.join(SHELL_SCRIPT_DIR, '_common-util.sh'),
-        os.path.join(SHELL_SCRIPT_DIR, 'ensure-docker-is-installed.sh')
+        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+        os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
     ],
-    preexec_fn=None
+    preexec_fn=None,
 )
 
 ensure_zrb_network_exists = CmdTask(
-    name='ensure-zrb-network-exists',
+    name="ensure-zrb-network-exists",
     cmd=[
-        'docker network inspect zrb >/dev/null 2>&1 || \\',
-        'docker network create -d bridge zrb'
+        "docker network inspect zrb >/dev/null 2>&1 || \\",
+        "docker network create -d bridge zrb",
     ],
     upstreams=[ensure_docker_is_installed],
 )
 
 
 @typechecked
-class ServiceConfig():
+class ServiceConfig:
     def __init__(self, envs: List[Env] = [], env_files: List[EnvFile] = []):
         self._envs = envs
         self._env_files = env_files
@@ -73,17 +82,17 @@ class DockerComposeTask(CmdTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         executable: Optional[str] = None,
         compose_service_configs: Mapping[str, ServiceConfig] = {},
         compose_file: Optional[str] = None,
-        compose_cmd: str = 'up',
+        compose_cmd: str = "up",
         compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
         compose_args: Iterable[JinjaTemplate] = [],
-        compose_env_prefix: str = '',
-        setup_cmd: CmdVal = '',
-        setup_cmd_path: CmdVal = '',
+        compose_env_prefix: str = "",
+        setup_cmd: CmdVal = "",
+        setup_cmd_path: CmdVal = "",
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -101,7 +110,7 @@ class DockerComposeTask(CmdTask):
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         combined_env_files = list(env_files)
         CmdTask.__init__(
@@ -132,23 +141,21 @@ class DockerComposeTask(CmdTask):
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
             should_execute=should_execute,
-            return_upstream_result=return_upstream_result
+            return_upstream_result=return_upstream_result,
         )
         self._setup_cmd = setup_cmd
         self._setup_cmd_path = setup_cmd_path
         self._compose_service_configs = compose_service_configs
         self._compose_cmd = compose_cmd
         self._compose_options = compose_options
-        if '--f' in compose_options:
-            raise ValueError('compose option cannot contains --f')
-        if '--file' in compose_options:
-            raise ValueError('compose option cannot contains --file')
+        if "--f" in compose_options:
+            raise ValueError("compose option cannot contains --f")
+        if "--file" in compose_options:
+            raise ValueError("compose option cannot contains --file")
         self._compose_flags = compose_flags
         self._compose_args = compose_args
         self._compose_env_prefix = compose_env_prefix
-        self._compose_template_file = self.__get_compose_template_file(
-            compose_file
-        )
+        self._compose_template_file = self.__get_compose_template_file(compose_file)
         self._compose_runtime_file = self.__get_compose_runtime_file(
             self._compose_template_file
         )
@@ -184,8 +191,8 @@ class DockerComposeTask(CmdTask):
                 continue
             added_env_map[key] = True
             os_name = key
-            if self._compose_env_prefix != '':
-                os_name = f'{self._compose_env_prefix}_{os_name}'
+            if self._compose_env_prefix != "":
+                os_name = f"{self._compose_env_prefix}_{os_name}"
             self.insert_env(Env(name=key, os_name=os_name, default=value))
 
     def inject_env_files(self):
@@ -201,39 +208,38 @@ class DockerComposeTask(CmdTask):
             for env_file in env_files:
                 envs += env_file.get_envs()
             envs += service_config.get_envs()
-            compose_data = self.__apply_service_env(
-                compose_data, service, envs
-            )
+            compose_data = self.__apply_service_env(compose_data, service, envs)
         write_compose_file(self._compose_runtime_file, compose_data)
 
     def __apply_service_env(
         self, compose_data: Any, service: str, envs: List[Env]
     ) -> Any:
         # service not found
-        if 'services' not in compose_data or service not in compose_data['services']: # noqa
-            self.log_error(f'Cannot find services.{service}')
+        if (
+            "services" not in compose_data or service not in compose_data["services"]
+        ):  # noqa
+            self.log_error(f"Cannot find services.{service}")
             return compose_data
         # service has no environment definition
-        if 'environment' not in compose_data['services'][service]:
-            compose_data['services'][service]['environment'] = {
-                env.get_name(): self.__get_env_compose_value(env)
-                for env in envs
+        if "environment" not in compose_data["services"][service]:
+            compose_data["services"][service]["environment"] = {
+                env.get_name(): self.__get_env_compose_value(env) for env in envs
             }
             return compose_data
         # service environment is a map
-        if isinstance(compose_data['services'][service]['environment'], dict):
+        if isinstance(compose_data["services"][service]["environment"], dict):
             new_env_map = self.__get_service_new_env_map(
-                compose_data['services'][service]['environment'], envs
+                compose_data["services"][service]["environment"], envs
             )
             for key, value in new_env_map.items():
-                compose_data['services'][service]['environment'][key] = value
+                compose_data["services"][service]["environment"][key] = value
             return compose_data
         # service environment is a list
-        if isinstance(compose_data['services'][service]['environment'], list):
+        if isinstance(compose_data["services"][service]["environment"], list):
             new_env_list = self.__get_service_new_env_list(
-                compose_data['services'][service]['environment'], envs
+                compose_data["services"][service]["environment"], envs
             )
-            compose_data['services'][service]['environment'] += new_env_list
+            compose_data["services"][service]["environment"] += new_env_list
             return compose_data
         return compose_data
 
@@ -253,35 +259,38 @@ class DockerComposeTask(CmdTask):
     ) -> List[str]:
         new_service_envs: List[str] = []
         for env in new_envs:
-            should_be_added = 0 == len([
-                service_env for service_env in service_env_list
-                if service_env.startswith(env.get_name() + '=')
-            ])
+            should_be_added = 0 == len(
+                [
+                    service_env
+                    for service_env in service_env_list
+                    if service_env.startswith(env.get_name() + "=")
+                ]
+            )
             if not should_be_added:
                 continue
             new_service_envs.append(
-                env.get_name() + '=' + self.__get_env_compose_value(env)
+                env.get_name() + "=" + self.__get_env_compose_value(env)
             )
         return new_service_envs
 
     def __get_env_compose_value(self, env: Env) -> str:
-        return '${' + env.get_name() + ':-' + env.get_default() + '}'
+        return "${" + env.get_name() + ":-" + env.get_default() + "}"
 
     def __get_compose_runtime_file(self, compose_file_name: str) -> str:
         directory, file = os.path.split(compose_file_name)
-        prefix = '_' if file.startswith('.') else '._'
+        prefix = "_" if file.startswith(".") else "._"
         runtime_prefix = self.get_cli_name()
         if self._group is not None:
             group_prefix = to_cli_name(self._group._get_full_cli_name())
-            runtime_prefix = f'{group_prefix}-{runtime_prefix}'
-        runtime_prefix += '-' + get_random_name(
-            separator='-', add_random_digit=True, digit_count=3
+            runtime_prefix = f"{group_prefix}-{runtime_prefix}"
+        runtime_prefix += "-" + get_random_name(
+            separator="-", add_random_digit=True, digit_count=3
         )
-        runtime_prefix = '.' + runtime_prefix + '.runtime'
-        file_parts = file.split('.')
+        runtime_prefix = "." + runtime_prefix + ".runtime"
+        file_parts = file.split(".")
         if len(file_parts) > 1:
             file_parts[-2] += runtime_prefix
-            runtime_file_name = prefix + '.'.join(file_parts)
+            runtime_file_name = prefix + ".".join(file_parts)
             return os.path.join(directory, runtime_file_name)
         runtime_file_name = prefix + file + runtime_prefix
         return os.path.join(directory, runtime_file_name)
@@ -289,40 +298,52 @@ class DockerComposeTask(CmdTask):
     def __get_compose_template_file(self, compose_file: Optional[str]) -> str:
         if compose_file is None:
             for _compose_file in [
-                'compose.yml', 'compose.yaml',
-                'docker-compose.yml', 'docker-compose.yaml'
+                "compose.yml",
+                "compose.yaml",
+                "docker-compose.yml",
+                "docker-compose.yaml",
             ]:
                 if os.path.exists(os.path.join(self._cwd, _compose_file)):
                     return os.path.join(self._cwd, _compose_file)
-            raise Exception(f'Cannot find compose file on {self._cwd}')
+            raise Exception(f"Cannot find compose file on {self._cwd}")
         if os.path.isabs(compose_file) and os.path.exists(compose_file):
             return compose_file
         if os.path.exists(os.path.join(self._cwd, compose_file)):
             return os.path.join(self._cwd, compose_file)
-        raise Exception(f'Invalid compose file: {compose_file}')
+        raise Exception(f"Invalid compose file: {compose_file}")
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         setup_cmd_str = self._create_cmd_script(
             self._setup_cmd_path, self._setup_cmd, *args, **kwargs
         )
         command_options = dict(self._compose_options)
-        command_options['--file'] = self._compose_runtime_file
-        options = ' '.join([
-            f'{self.render_str(key)} {double_quote(self.render_str(val))}'
-            for key, val in command_options.items()
-            if self.render_str(val) != ''
-        ])
-        flags = ' '.join([
-            self.render_str(flag) for flag in self._compose_flags
-            if self.render_str(flag) != ''
-        ])
-        args = ' '.join([
-            double_quote(self.render_str(arg)) for arg in self._compose_args
-            if self.render_str(arg) != ''
-        ])
-        cmd_str = '\n'.join([
-            setup_cmd_str,
-            f'docker compose {options} {self._compose_cmd} {flags} {args}',
-        ])
-        self.log_info(f'Command: {cmd_str}')
+        command_options["--file"] = self._compose_runtime_file
+        options = " ".join(
+            [
+                f"{self.render_str(key)} {double_quote(self.render_str(val))}"
+                for key, val in command_options.items()
+                if self.render_str(val) != ""
+            ]
+        )
+        flags = " ".join(
+            [
+                self.render_str(flag)
+                for flag in self._compose_flags
+                if self.render_str(flag) != ""
+            ]
+        )
+        args = " ".join(
+            [
+                double_quote(self.render_str(arg))
+                for arg in self._compose_args
+                if self.render_str(arg) != ""
+            ]
+        )
+        cmd_str = "\n".join(
+            [
+                setup_cmd_str,
+                f"docker compose {options} {self._compose_cmd} {flags} {args}",
+            ]
+        )
+        self.log_info(f"Command: {cmd_str}")
         return cmd_str

@@ -1,6 +1,10 @@
 from typing import Any, Callable, List, Mapping
 from core.messagebus.messagebus import (
-    Admin, Publisher, Consumer, MessageSerializer, TEventHandler
+    Admin,
+    Publisher,
+    Consumer,
+    MessageSerializer,
+    TEventHandler,
 )
 import asyncio
 import inspect
@@ -8,9 +12,7 @@ import logging
 
 
 class MockConsumer(Consumer):
-    def __init__(
-        self, logger: logging.Logger, serializer: MessageSerializer
-    ):
+    def __init__(self, logger: logging.Logger, serializer: MessageSerializer):
         self.logger = logger
         self.serializer = serializer
         self._handlers: Mapping[str, TEventHandler] = {}
@@ -20,6 +22,7 @@ class MockConsumer(Consumer):
             self.logger.warning(f'🪵 Register handler for "{event_name}"')
             self._handlers[event_name] = handler
             return handler
+
         return wrapper
 
     async def handle(self, event_name: str, encoded_value: Any):
@@ -42,7 +45,7 @@ class MockPublisher(Publisher):
         self,
         logger: logging.Logger,
         consumer: MockConsumer,
-        serializer: MessageSerializer
+        serializer: MessageSerializer,
     ):
         self.logger = logger
         self.consumer = consumer

@@ -8,8 +8,7 @@ LOG_NAME_LENGTH = 20
 
 
 @typechecked
-class TimeTracker():
-
+class TimeTracker:
     def __init__(self):
         self.__start_time: float = 0
         self.__end_time: float = 0
@@ -25,8 +24,7 @@ class TimeTracker():
 
 
 @typechecked
-class AttemptTracker():
-
+class AttemptTracker:
     def __init__(self, retry: int = 2):
         self.__retry = retry
         self.__attempt: int = 1
@@ -52,8 +50,7 @@ class AttemptTracker():
 
 
 @typechecked
-class FinishTracker():
-
+class FinishTracker:
     def __init__(self):
         self.__execution_queue: Optional[asyncio.Queue] = None
         self.__counter = 0

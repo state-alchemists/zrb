@@ -7,12 +7,8 @@ from pydantic import BaseModel
 
 
 class MessagebusServer(Server):
-
     def __init__(
-        self,
-        logger: logging.Logger,
-        consumer: Consumer,
-        publisher: Publisher
+        self, logger: logging.Logger, consumer: Consumer, publisher: Publisher
     ):
         self.logger = logger
         self.consumer = consumer
@@ -34,11 +30,11 @@ class MessagebusServer(Server):
                 reply_event = message.reply_event
                 # get reply
                 self.logger.info(
-                    '🤙 [messagebus-rpc-server] ' +
-                    f'Invoke RPC: {rpc_name} ' +
-                    f', args: {args} ' +
-                    f', kwargs: {kwargs} ' +
-                    f', reply_event: {reply_event}'
+                    "🤙 [messagebus-rpc-server] "
+                    + f"Invoke RPC: {rpc_name} "
+                    + f", args: {args} "
+                    + f", kwargs: {kwargs} "
+                    + f", reply_event: {reply_event}"
                 )
                 try:
                     result = await self._run_handler(handler, *args, **kwargs)
@@ -52,13 +48,12 @@ class MessagebusServer(Server):
                     self.logger.error(e, exc_info=True)
                     # publish error
                     await self.publisher.publish(
-                        reply_event, Result(error=f'{e}').to_dict()
+                        reply_event, Result(error=f"{e}").to_dict()
                     )
+
         return wrapper
 
-    async def _run_handler(
-        self, handler: TRPCHandler, *args: Any, **kwargs: Any
-    ):
+    async def _run_handler(self, handler: TRPCHandler, *args: Any, **kwargs: Any):
         if inspect.iscoroutinefunction(handler):
             return await handler(*args, **kwargs)
         return handler(*args, **kwargs)

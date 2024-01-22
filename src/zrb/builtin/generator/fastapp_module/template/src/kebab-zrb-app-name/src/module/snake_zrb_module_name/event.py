@@ -4,9 +4,6 @@ from core.rpc import Caller
 
 
 def register_event(
-    logger: Logger,
-    consumer: Consumer,
-    rpc_caller: Caller,
-    publisher: Publisher
+    logger: Logger, consumer: Consumer, rpc_caller: Caller, publisher: Publisher
 ):
     logger.info('🥪 Register event handlers for "snake_zrb_module_name"')

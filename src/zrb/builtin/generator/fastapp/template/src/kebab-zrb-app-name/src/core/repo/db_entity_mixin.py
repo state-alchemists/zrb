@@ -10,10 +10,8 @@ def generate_primary_key() -> str:
 
 
 @declarative_mixin
-class DBEntityMixin():
-    id = Column(
-        String(36), primary_key=True, index=True, default=generate_primary_key
-    )
+class DBEntityMixin:
+    id = Column(String(36), primary_key=True, index=True, default=generate_primary_key)
     created_at = Column(DateTime, default=utcnow)
     created_by = Column(String(36), nullable=True)
     updated_at = Column(DateTime, nullable=True)

@@ -5,14 +5,15 @@ from zrb.task_input.base_input import BaseInput
 
 # flake8: noqa E501
 
+
 @typechecked
 class PasswordInput(BaseInput):
-    '''
+    """
     A specialized input class for handling password or sensitive data inputs in tasks.
 
-    `PasswordInput` extends `BaseInput` to manage inputs that should be treated as sensitive, 
-    such as passwords. It ensures that the input is hidden when entered, providing an added 
-    layer of security and privacy. This class supports various features like default values, 
+    `PasswordInput` extends `BaseInput` to manage inputs that should be treated as sensitive,
+    such as passwords. It ensures that the input is hidden when entered, providing an added
+    layer of security and privacy. This class supports various features like default values,
     prompts, and flags, tailored for the safe handling of sensitive information.
 
     Args:
@@ -39,7 +40,7 @@ class PasswordInput(BaseInput):
         >>> password_input = PasswordInput(name='password', description='Enter your password')
         >>> password_input.is_hidden()
         True
-    '''
+    """
 
     def __init__(
         self,
@@ -60,7 +61,7 @@ class PasswordInput(BaseInput):
         show_choices: bool = True,
         show_envvar: bool = False,
         nargs: int = 1,
-        should_render: bool = True
+        should_render: bool = True,
     ):
         BaseInput.__init__(
             self,
@@ -83,7 +84,7 @@ class PasswordInput(BaseInput):
             show_choices=show_choices,
             show_envvar=show_envvar,
             nargs=nargs,
-            should_render=should_render
+            should_render=should_render,
         )
 
     def is_hidden(self) -> bool:

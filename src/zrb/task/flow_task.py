@@ -1,11 +1,15 @@
-from zrb.helper.typing import (
-    Callable, Iterable, List, Optional, TypeVar, Union
-)
+from zrb.helper.typing import Callable, Iterable, List, Optional, TypeVar, Union
 from zrb.helper.typecheck import typechecked
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -13,12 +17,11 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
 
-TFlowTask = TypeVar('TFlowTask', bound='FlowTask')
+TFlowTask = TypeVar("TFlowTask", bound="FlowTask")
 
 
 @typechecked
 class FlowTask(BaseTask):
-
     def __init__(
         self,
         name: str,
@@ -28,7 +31,7 @@ class FlowTask(BaseTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,
@@ -43,7 +46,7 @@ class FlowTask(BaseTask):
         retry_interval: float = 1,
         steps: List[Union[AnyTask, List[AnyTask]]] = [],
         should_execute: Union[bool, str, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         final_upstreams: List[AnyTask] = list(upstreams)
         inputs: List[AnyInput] = list(inputs)
@@ -56,7 +59,7 @@ class FlowTask(BaseTask):
                 upstreams=final_upstreams,
                 inputs=inputs,
                 envs=envs,
-                env_files=env_files
+                env_files=env_files,
             )
             final_upstreams = new_upstreams
         BaseTask.__init__(
@@ -83,15 +86,13 @@ class FlowTask(BaseTask):
             retry_interval=retry_interval,
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
-            run=lambda *args, **kwargs: kwargs.get('_task').print_out('🆗')
+            run=lambda *args, **kwargs: kwargs.get("_task").print_out("🆗"),
         )
 
     def copy(self) -> TFlowTask:
         return super().copy()
 
-    def _step_to_tasks(
-        self, node: Union[AnyTask, List[AnyTask]]
-    ) -> List[AnyTask]:
+    def _step_to_tasks(self, node: Union[AnyTask, List[AnyTask]]) -> List[AnyTask]:
         if isinstance(node, AnyTask):
             return [node]
         return node
@@ -107,9 +108,7 @@ class FlowTask(BaseTask):
         embeded_tasks: List[AnyTask] = []
         for task in tasks:
             embeded_task = task.copy()
-            embeded_task_root_upstreams = self._get_root_upstreams(
-                tasks=[embeded_task]
-            )
+            embeded_task_root_upstreams = self._get_root_upstreams(tasks=[embeded_task])
             for embeded_task_root_upstream in embeded_task_root_upstreams:
                 embeded_task_root_upstream.add_upstream(*upstreams)
             # embeded_task.add_upstream(*upstreams)
@@ -132,4 +131,3 @@ class FlowTask(BaseTask):
                     continue
                 root_upstreams += self._get_root_upstreams([upstream])
         return root_upstreams
-

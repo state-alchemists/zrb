@@ -14,76 +14,76 @@ from zrb.helper.python_task import show_lines
 ###############################################################################
 
 clear_branch = CmdTask(
-    name='clear-branch',
+    name="clear-branch",
     group=git_group,
-    description='Clear branches',
+    description="Clear branches",
     cmd=[
-        'for BRANCH in $(git branch)',
-        'do',
+        "for BRANCH in $(git branch)",
+        "do",
         '  if [ "$BRANCH" != "main" ]',
-        '  then',
-        '    git branch -D $BRANCH',
-        '  fi',
-        'done',
-    ]
+        "  then",
+        "    git branch -D $BRANCH",
+        "  fi",
+        "done",
+    ],
 )
 runner.register(clear_branch)
 
 
 @python_task(
-    name='get-file-changes',
+    name="get-file-changes",
     group=git_group,
-    description='Get modified files',
+    description="Get modified files",
     inputs=[
         StrInput(
-            name='commit',
-            shortcut='c',
-            description='commit hash/tag',
-            prompt='Commit hash/Tag',
-            default='HEAD'
+            name="commit",
+            shortcut="c",
+            description="commit hash/tag",
+            prompt="Commit hash/Tag",
+            default="HEAD",
         ),
         BoolInput(
-            name='include-new',
-            description='include new files',
-            prompt='Include new files',
-            default=True
+            name="include-new",
+            description="include new files",
+            prompt="Include new files",
+            default=True,
         ),
         BoolInput(
-            name='include-removed',
-            description='include removed file',
-            prompt='Include removed file',
-            default=True
-        ), 
+            name="include-removed",
+            description="include removed file",
+            prompt="Include removed file",
+            default=True,
+        ),
         BoolInput(
-            name='include-updated',
-            description='include updated file',
-            prompt='Include updated file',
-            default=True
+            name="include-updated",
+            description="include updated file",
+            prompt="Include updated file",
+            default=True,
         ),
     ],
-    runner=runner
+    runner=runner,
 )
 async def get_file_changes(*args: Any, **kwargs: Any):
-    commit = kwargs.get('commit', 'HEAD')
-    include_new = kwargs.get('include_new', True)
-    include_removed = kwargs.get('include_removed', True)
-    include_updated = kwargs.get('include_updated', True)
+    commit = kwargs.get("commit", "HEAD")
+    include_new = kwargs.get("include_new", True)
+    include_removed = kwargs.get("include_removed", True)
+    include_updated = kwargs.get("include_updated", True)
     modified_file_states = get_modified_file_states(commit)
     modified_file_keys = []
     output = []
     for modified_file, state in modified_file_states.items():
         if include_updated and state.minus and state.plus:
-            output.append(colored(f'+- {modified_file}', color='yellow'))
+            output.append(colored(f"+- {modified_file}", color="yellow"))
             modified_file_keys.append(modified_file)
             continue
         if include_removed and state.minus and not state.plus:
-            output.append(colored(f'-- {modified_file}', color='red'))
+            output.append(colored(f"-- {modified_file}", color="red"))
             modified_file_keys.append(modified_file)
             continue
         if include_new and state.plus and not state.minus:
-            output.append(colored(f'++ {modified_file}', color='green'))
+            output.append(colored(f"++ {modified_file}", color="green"))
             modified_file_keys.append(modified_file)
             continue
-    show_lines(kwargs['_task'], *output)
+    show_lines(kwargs["_task"], *output)
     modified_file_keys.sort()
-    return '\n'.join(modified_file_keys)
+    return "\n".join(modified_file_keys)

@@ -1,9 +1,22 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, List, Mapping, Optional, Union, JinjaTemplate
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    JinjaTemplate,
 )
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task.any_task import AnyTask
 from zrb.helper.string.conversion import to_cli_name
@@ -20,12 +33,12 @@ import os
 
 
 @typechecked
-class CommonTaskModel():
+class CommonTaskModel:
     def __init__(
         self,
         name: str,
         group: Optional[Group] = None,
-        description: str = '',
+        description: str = "",
         inputs: List[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
@@ -45,7 +58,7 @@ class CommonTaskModel():
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         self._name = name
         self._group = group
@@ -72,7 +85,7 @@ class CommonTaskModel():
         self._on_failed = on_failed
         self._should_execute = should_execute
         self._return_upstream_result = return_upstream_result
-        self.__execution_id = ''
+        self.__execution_id = ""
         self.__allow_add_envs = True
         self.__allow_add_env_files = True
         self.__allow_add_inputs = True
@@ -88,7 +101,7 @@ class CommonTaskModel():
         self.__allow_add_upstreams = False
 
     def _set_execution_id(self, execution_id: str):
-        if self.__execution_id == '':
+        if self.__execution_id == "":
             self.__execution_id = execution_id
 
     def _propagate_execution_id(self):
@@ -142,12 +155,12 @@ class CommonTaskModel():
 
     def insert_input(self, *inputs: AnyInput):
         if not self.__allow_add_inputs:
-            raise Exception(f'Cannot insert inputs for `{self.get_name()}`')
+            raise Exception(f"Cannot insert inputs for `{self.get_name()}`")
         self._inputs = list(inputs) + list(self._inputs)
 
     def add_input(self, *inputs: AnyInput):
         if not self.__allow_add_inputs:
-            raise Exception(f'Cannot add inputs for `{self.get_name()}`')
+            raise Exception(f"Cannot add inputs for `{self.get_name()}`")
         self._inputs = list(self._inputs) + list(inputs)
 
     def inject_inputs(self):
@@ -160,9 +173,9 @@ class CommonTaskModel():
         return list(self._inputs)
 
     def _get_combined_inputs(self) -> Iterable[AnyInput]:
-        ''''
+        """'
         Getting all inputs of this task and all its upstream, non-duplicated.
-        '''
+        """
         if self.__all_inputs is not None:
             return self.__all_inputs
         self.__all_inputs: List[AnyInput] = []
@@ -197,12 +210,12 @@ class CommonTaskModel():
 
     def insert_env(self, *envs: Env):
         if not self.__allow_add_envs:
-            raise Exception(f'Cannot insert envs to `{self.get_name()}`')
+            raise Exception(f"Cannot insert envs to `{self.get_name()}`")
         self._envs = list(envs) + list(self._envs)
 
     def add_env(self, *envs: Env):
         if not self.__allow_add_envs:
-            raise Exception(f'Cannot add envs to `{self.get_name()}`')
+            raise Exception(f"Cannot add envs to `{self.get_name()}`")
         self._envs = list(self._envs) + list(envs)
 
     def inject_envs(self):
@@ -233,12 +246,12 @@ class CommonTaskModel():
 
     def insert_env_file(self, *env_files: EnvFile):
         if not self.__allow_add_env_files:
-            raise Exception(f'Cannot insert env_files to `{self.get_name()}`')
+            raise Exception(f"Cannot insert env_files to `{self.get_name()}`")
         self._env_files = list(env_files) + list(self._env_files)
 
     def add_env_file(self, *env_files: EnvFile):
         if not self.__allow_add_env_files:
-            raise Exception(f'Cannot add env_files to `{self.get_name()}`')
+            raise Exception(f"Cannot add env_files to `{self.get_name()}`")
         self._env_files = list(self._env_files) + list(env_files)
 
     def inject_env_files(self):
@@ -246,12 +259,12 @@ class CommonTaskModel():
 
     def insert_upstream(self, *upstreams: AnyTask):
         if not self.__allow_add_upstreams:
-            raise Exception(f'Cannot insert upstreams to `{self.get_name()}`')
+            raise Exception(f"Cannot insert upstreams to `{self.get_name()}`")
         self._upstreams = list(upstreams) + list(self._upstreams)
 
     def add_upstream(self, *upstreams: AnyTask):
         if not self.__allow_add_upstreams:
-            raise Exception(f'Cannot add upstreams to `{self.get_name()}`')
+            raise Exception(f"Cannot add upstreams to `{self.get_name()}`")
         self._upstreams = list(self._upstreams) + list(upstreams)
 
     def inject_upstreams(self):
@@ -277,13 +290,13 @@ class CommonTaskModel():
 
     def insert_checker(self, *checkers: AnyTask):
         if not self.__allow_add_checkers:
-            raise Exception(f'Cannot insert checkers to `{self.get_name()}`')
+            raise Exception(f"Cannot insert checkers to `{self.get_name()}`")
         additional_checkers = [checker.copy() for checker in checkers]
         self._checkers = additional_checkers + self._checkers
 
     def add_checker(self, *checkers: AnyTask):
         if not self.__allow_add_checkers:
-            raise Exception(f'Cannot add checkers to `{self.get_name()}`')
+            raise Exception(f"Cannot add checkers to `{self.get_name()}`")
         additional_checkers = [checker.copy() for checker in checkers]
         self._checkers = self._checkers + additional_checkers
 

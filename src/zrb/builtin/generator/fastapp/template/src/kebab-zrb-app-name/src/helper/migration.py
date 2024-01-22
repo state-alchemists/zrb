@@ -7,15 +7,14 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 async def migrate(engine: Engine, Base: DeclarativeBase):
-    '''
+    """
     Generate migration and run it
     See: https://alembic.sqlalchemy.org/en/latest/cookbook.html#run-alembic-operation-objects-directly-as-in-from-autogenerate  # noqa
-    '''
+    """
     connection = engine.connect()
     migration_context = MigrationContext.configure(connection)
     migration_script = produce_migrations(
-        context=migration_context,
-        metadata=Base.metadata
+        context=migration_context, metadata=Base.metadata
     )
     operations = Operations(migration_context)
     use_batch = engine.name == "sqlite"
@@ -23,10 +22,7 @@ async def migrate(engine: Engine, Base: DeclarativeBase):
     stack = [migration_script.upgrade_ops]
     while stack:
         elem = stack.pop(0)
-        if (
-            hasattr(elem, 'table_name') and
-            elem.table_name not in Base.metadata.tables
-        ):
+        if hasattr(elem, "table_name") and elem.table_name not in Base.metadata.tables:
             # We want the migration leave all unrelated tables as is
             continue
 

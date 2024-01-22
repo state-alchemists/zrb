@@ -1,11 +1,24 @@
 from zrb.helper.typing import (
-    Any, Callable, Iterable, Mapping, Optional, Union, TypeVar, JinjaTemplate
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    Optional,
+    Union,
+    TypeVar,
+    JinjaTemplate,
 )
 from zrb.helper.typecheck import typechecked
 from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered, OnWaiting, OnSkipped, OnStarted, OnReady, OnRetry, OnFailed
+    OnTriggered,
+    OnWaiting,
+    OnSkipped,
+    OnStarted,
+    OnReady,
+    OnRetry,
+    OnFailed,
 )
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task_env.env import Env
@@ -20,11 +33,9 @@ import pathlib
 
 
 TSingleBaseRemoteCmdTask = TypeVar(
-    'TSingleBaseRemoteCmdTask', bound='SingleBaseRemoteCmdTask'
+    "TSingleBaseRemoteCmdTask", bound="SingleBaseRemoteCmdTask"
 )
-TBaseRemoteCmdTask = TypeVar(
-    'TBaseRemoteCmdTask', bound='BaseRemoteCmdTask'
-)
+TBaseRemoteCmdTask = TypeVar("TBaseRemoteCmdTask", bound="BaseRemoteCmdTask")
 
 
 @typechecked
@@ -32,11 +43,11 @@ class RemoteConfig:
     def __init__(
         self,
         host: JinjaTemplate,
-        user: JinjaTemplate = '',
-        password: JinjaTemplate = '',
-        ssh_key: JinjaTemplate = '',
+        user: JinjaTemplate = "",
+        password: JinjaTemplate = "",
+        ssh_key: JinjaTemplate = "",
         port: Union[int, JinjaTemplate] = 22,
-        config_map: Optional[Mapping[str, JinjaTemplate]] = None
+        config_map: Optional[Mapping[str, JinjaTemplate]] = None,
     ):
         self.host = host
         self.user = user
@@ -58,14 +69,14 @@ class SingleBaseRemoteCmdTask(CmdTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         executable: Optional[str] = None,
-        pre_cmd: CmdVal = '',
-        pre_cmd_path: CmdVal = '',
-        cmd: CmdVal = '',
-        cmd_path: CmdVal = '',
-        post_cmd: CmdVal = '',
-        post_cmd_path: CmdVal = '',
+        pre_cmd: CmdVal = "",
+        pre_cmd_path: CmdVal = "",
+        cmd: CmdVal = "",
+        cmd_path: CmdVal = "",
+        post_cmd: CmdVal = "",
+        post_cmd_path: CmdVal = "",
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -83,7 +94,7 @@ class SingleBaseRemoteCmdTask(CmdTask):
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         CmdTask.__init__(
             self,
@@ -115,7 +126,7 @@ class SingleBaseRemoteCmdTask(CmdTask):
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
             should_execute=should_execute,
-            return_upstream_result=return_upstream_result
+            return_upstream_result=return_upstream_result,
         )
         self._pre_cmd = pre_cmd
         self._pre_cmd_path = pre_cmd_path
@@ -131,24 +142,29 @@ class SingleBaseRemoteCmdTask(CmdTask):
         # add remote config properties as env
         self.add_env(
             Env(
-                name='_CONFIG_HOST', os_name='',
-                default=self.render_str(self._remote_config.host)
+                name="_CONFIG_HOST",
+                os_name="",
+                default=self.render_str(self._remote_config.host),
             ),
             Env(
-                name='_CONFIG_PORT', os_name='',
-                default=str(self.render_int(self._remote_config.port))
+                name="_CONFIG_PORT",
+                os_name="",
+                default=str(self.render_int(self._remote_config.port)),
             ),
             Env(
-                name='_CONFIG_SSH_KEY', os_name='',
-                default=self.render_str(self._remote_config.ssh_key)
+                name="_CONFIG_SSH_KEY",
+                os_name="",
+                default=self.render_str(self._remote_config.ssh_key),
             ),
             Env(
-                name='_CONFIG_USER', os_name='',
-                default=self.render_str(self._remote_config.user)
+                name="_CONFIG_USER",
+                os_name="",
+                default=self.render_str(self._remote_config.user),
             ),
             Env(
-                name='_CONFIG_PASSWORD', os_name='',
-                default=self.render_str(self._remote_config.password)
+                name="_CONFIG_PASSWORD",
+                os_name="",
+                default=self.render_str(self._remote_config.password),
             ),
         )
         for key, val in self._remote_config.config_map.items():
@@ -157,22 +173,24 @@ class SingleBaseRemoteCmdTask(CmdTask):
             # add remote config map as env
             self.add_env(
                 Env(
-                    name='_CONFIG_MAP_' + upper_snake_key,
-                    os_name='',
-                    default=rendered_val
+                    name="_CONFIG_MAP_" + upper_snake_key,
+                    os_name="",
+                    default=rendered_val,
                 )
             )
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        cmd_str = '\n'.join([
-            self._create_cmd_script(
-                self._pre_cmd_path, self._pre_cmd, *args, **kwargs
-            ),
-            super().get_cmd_script(*args, **kwargs),
-            self._create_cmd_script(
-                self._post_cmd_path, self._post_cmd, *args, **kwargs
-            ),
-        ])
+        cmd_str = "\n".join(
+            [
+                self._create_cmd_script(
+                    self._pre_cmd_path, self._pre_cmd, *args, **kwargs
+                ),
+                super().get_cmd_script(*args, **kwargs),
+                self._create_cmd_script(
+                    self._post_cmd_path, self._post_cmd, *args, **kwargs
+                ),
+            ]
+        )
         return cmd_str
 
 
@@ -188,14 +206,14 @@ class BaseRemoteCmdTask(BaseTask):
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
         color: Optional[str] = None,
-        description: str = '',
+        description: str = "",
         executable: Optional[str] = None,
-        pre_cmd: CmdVal = '',
-        pre_cmd_path: CmdVal = '',
-        cmd: CmdVal = '',
-        cmd_path: CmdVal = '',
-        post_cmd: CmdVal = '',
-        post_cmd_path: CmdVal = '',
+        pre_cmd: CmdVal = "",
+        pre_cmd_path: CmdVal = "",
+        cmd: CmdVal = "",
+        cmd_path: CmdVal = "",
+        post_cmd: CmdVal = "",
+        post_cmd_path: CmdVal = "",
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -213,11 +231,11 @@ class BaseRemoteCmdTask(BaseTask):
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
-        return_upstream_result: bool = False
+        return_upstream_result: bool = False,
     ):
         sub_tasks = [
             SingleBaseRemoteCmdTask(
-                name=f'{name}-{remote_config.host}',
+                name=f"{name}-{remote_config.host}",
                 remote_config=remote_config,
                 inputs=inputs,
                 envs=envs,
@@ -247,7 +265,7 @@ class BaseRemoteCmdTask(BaseTask):
                 max_error_line=max_error_line,
                 preexec_fn=preexec_fn,
                 should_execute=should_execute,
-                return_upstream_result=return_upstream_result
+                return_upstream_result=return_upstream_result,
             )
             for remote_config in list(remote_configs)
         ]
@@ -260,5 +278,5 @@ class BaseRemoteCmdTask(BaseTask):
             description=description,
             upstreams=sub_tasks,
             retry=0,
-            return_upstream_result=True
+            return_upstream_result=True,
         )

@@ -7,9 +7,9 @@ from module.log.schema.activity import ActivityData
 import jsons
 
 
-Schema = TypeVar('Schema', bound=BaseModel)
-SchemaData = TypeVar('SchemaData', bound=BaseModel)
-SchemaResult = TypeVar('SchemaResult', bound=BaseModel)
+Schema = TypeVar("Schema", bound=BaseModel)
+SchemaData = TypeVar("SchemaData", bound=BaseModel)
+SchemaResult = TypeVar("SchemaResult", bound=BaseModel)
 
 
 class HistoricalRepoModel(RepoModel[Schema, SchemaData, SchemaResult]):
@@ -22,23 +22,23 @@ class HistoricalRepoModel(RepoModel[Schema, SchemaData, SchemaResult]):
 
     async def insert(self, data: SchemaData) -> Schema:
         result = await super().insert(data)
-        await self._publish_activity(action='insert', result=result)
+        await self._publish_activity(action="insert", result=result)
         return result
 
     async def update(self, id: str, data: SchemaData) -> Schema:
         result = await self.repo.update(id, data)
-        await self._publish_activity(action='update', result=result)
+        await self._publish_activity(action="update", result=result)
         return result
 
     async def delete(self, id: str) -> Schema:
         result = await self.repo.delete(id)
-        await self._publish_activity(action='delete', result=result)
+        await self._publish_activity(action="delete", result=result)
         return result
 
     async def _publish_activity(self, action: str, result: Schema):
         activity_data = ActivityData(
             action=action,
             entity=self.log_entity_name,
-            data=jsons.dumps(result.model_dump())
+            data=jsons.dumps(result.model_dump()),
         )
-        await self.publisher.publish('log_new_activity', activity_data.model_dump())
+        await self.publisher.publish("log_new_activity", activity_data.model_dump())

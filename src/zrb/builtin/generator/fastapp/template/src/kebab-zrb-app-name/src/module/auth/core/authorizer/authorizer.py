@@ -11,7 +11,5 @@ class Authorizer(ABC):
         pass
 
     @abstractmethod
-    async def is_having_permission(
-        self, user_id: str, *permission_names: str
-    ) -> bool:
+    async def is_having_permission(self, user_id: str, *permission_names: str) -> bool:
         pass

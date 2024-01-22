@@ -19,12 +19,11 @@ def add_assert_resource(code: str, resource: str) -> str:
     module = cst.parse_module(code)
 
     # Create the new assertion statement
-    new_assert = cst.SimpleStatementLine([
-        cst.Assert(
-            test=cst.Name(value=resource),
-            msg=None
-        ),
-    ])
+    new_assert = cst.SimpleStatementLine(
+        [
+            cst.Assert(test=cst.Name(value=resource), msg=None),
+        ]
+    )
 
     module.body.append(new_assert)
 
