@@ -217,7 +217,7 @@ class DockerComposeTask(CmdTask):
     ) -> Any:
         # service not found
         service_map = compose_data["services"]
-        if ("services" not in compose_data or service_name not in service_map):
+        if "services" not in compose_data or service_name not in service_map:
             self.log_error(f"Cannot find services.{service_name}")
             return compose_data
         # service has no environment definition
@@ -232,7 +232,7 @@ class DockerComposeTask(CmdTask):
             new_env_map = self.__get_service_new_env_map(
                 service_name=service_name,
                 service_env_map=compose_data["services"][service_name]["environment"],
-                new_envs=envs
+                new_envs=envs,
             )
             for key, value in new_env_map.items():
                 compose_data["services"][service_name]["environment"][key] = value
@@ -242,7 +242,7 @@ class DockerComposeTask(CmdTask):
             new_env_list = self.__get_service_new_env_list(
                 service_name=service_name,
                 service_env_list=compose_data["services"][service_name]["environment"],
-                new_envs=envs
+                new_envs=envs,
             )
             compose_data["services"][service_name]["environment"] += new_env_list
             return compose_data

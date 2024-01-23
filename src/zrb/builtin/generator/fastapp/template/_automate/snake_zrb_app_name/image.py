@@ -1,4 +1,4 @@
-from zrb import DockerComposeTask, runner, BoolInput
+from zrb import BoolInput, DockerComposeTask, runner
 from zrb.builtin.group import project_group
 
 from ._config import RESOURCE_DIR
@@ -20,8 +20,8 @@ build_snake_zrb_app_name_image = DockerComposeTask(
         BoolInput(
             name="build-kebab-zrb-app-name-with-cache",
             prompt="Build human readable zrb app name image with Cache",
-            default=True
-        )
+            default=True,
+        ),
     ],
     envs=[image_env],
     should_execute="{{ input.local_snake_zrb_app_name}}",

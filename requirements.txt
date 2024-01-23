@@ -21,6 +21,7 @@ croniter~=2.0.1
 # Zrb dev dependencies (should be copied to `pyproject.toml`)
 flake8~=6.0.0       # Linter
 black~=23.12.1
+isort~=5.13.2
 
 # Zrb test dependencies (should be copied to `pyproject.toml`)
 pytest~=7.4.0

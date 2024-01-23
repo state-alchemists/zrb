@@ -31,7 +31,9 @@ MODULES = jsons.loads(MODULE_JSON_STR)
 _OTEL_EXPORTER_ENDPOINT_ENV_NAME = "APP_OTEL_EXPORTER_OTLP_ENDPOINT"
 _OTEL_EXPORTER_ENDPOINT = "http://otel-collector:4317"
 _OTEL_EXPORTER_ENDPOINT_ENV = Env(
-    name=_OTEL_EXPORTER_ENDPOINT_ENV_NAME, os_name="", default=_OTEL_EXPORTER_ENDPOINT,
+    name=_OTEL_EXPORTER_ENDPOINT_ENV_NAME,
+    os_name="",
+    default=_OTEL_EXPORTER_ENDPOINT,
 )
 
 _CONTAINER_ENV_PREFIX = "CONTAINER_ZRB_ENV_PREFIX"
@@ -62,7 +64,7 @@ SERVICE_CONFIGS: Mapping[str, ServiceConfig] = {
         ],
         envs=[_OTEL_EXPORTER_ENDPOINT_ENV],
     ),
-    'kebab-zrb-app-name-gateway': ServiceConfig(
+    "kebab-zrb-app-name-gateway": ServiceConfig(
         env_files=[
             _APP_TEMPLATE_ENV_FILE,
             _DOCKER_COMPOSE_APP_ENV_FILE,
@@ -72,7 +74,7 @@ SERVICE_CONFIGS: Mapping[str, ServiceConfig] = {
     ),
 }
 for module in MODULES:
-    service_name = f'kebab-zrb-app-name-{to_kebab_case(module)}-service'
+    service_name = f"kebab-zrb-app-name-{to_kebab_case(module)}-service"
     SERVICE_CONFIGS[service_name] = ServiceConfig(
         env_files=[
             _APP_TEMPLATE_ENV_FILE,
