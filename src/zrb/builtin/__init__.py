@@ -1,21 +1,6 @@
-from zrb.builtin import (
-    base64,
-    devtool,
-    env,
-    eval,
-    explain,
-    generator,
-    git,
-    md5,
-    process,
-    project,
-    say,
-    schedule,
-    ubuntu,
-    update,
-    version,
-    watch_changes,
-)
+from zrb.builtin import (base64, devtool, env, eval, explain, generator, git,
+                         md5, process, project, say, schedule, ubuntu, update,
+                         version, watch_changes)
 
 assert base64
 assert env

@@ -1,9 +1,7 @@
 import os
 
-from zrb.builtin.generator.common.helper import (
-    register_module_to_project,
-    validate_existing_project_dir,
-)
+from zrb.builtin.generator.common.helper import (register_module_to_project,
+                                                 validate_existing_project_dir)
 from zrb.builtin.generator.common.task_input import project_dir_input
 from zrb.helper.codemod.add_import_module import add_import_module
 from zrb.helper.codemod.add_upstream_to_task import add_upstream_to_task

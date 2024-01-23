@@ -3,14 +3,8 @@ import os
 from zrb import CmdTask, Env, EnvFile, HTTPChecker, runner
 from zrb.builtin.group import project_group
 
-from ._common import (
-    APP_DIR,
-    APP_TEMPLATE_ENV_FILE_NAME,
-    CURRENT_DIR,
-    host_input,
-    https_input,
-    local_input,
-)
+from ._common import (APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR,
+                      host_input, https_input, local_input)
 
 ###############################################################################
 # ⚙️ kebab-zrb-task-name

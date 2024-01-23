@@ -1,8 +1,10 @@
 import logging
 
-from config import app_enable_otel, app_logging_level, app_otel_exporter_otlp_endpoint
+from config import (app_enable_otel, app_logging_level,
+                    app_otel_exporter_otlp_endpoint)
 from opentelemetry._logs import set_logger_provider
-from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import \
+    OTLPLogExporter
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 

@@ -1,9 +1,6 @@
 from module.log.core.historical_repo_model import HistoricalRepoModel
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
-    PascalZrbEntityName,
-    PascalZrbEntityNameData,
-    PascalZrbEntityNameResult,
-)
+    PascalZrbEntityName, PascalZrbEntityNameData, PascalZrbEntityNameResult)
 
 
 class PascalZrbEntityNameModel(

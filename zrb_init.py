@@ -109,6 +109,23 @@ zrb_latest_image_env = Env(
     default='{{input.zrb_latest_image_name}}'
 )
 
+
+###############################################################################
+# ⚙️ format-code
+###############################################################################
+
+format_code = CmdTask(
+    name='format-code',
+    description='Format code',
+    cwd=CURRENT_DIR,
+    cmd=[
+        'black src',
+        'isort src'
+    ]
+)
+runner.register(format_code)
+
+
 ###############################################################################
 # ⚙️ make-docs
 ###############################################################################
@@ -117,6 +134,7 @@ zrb_latest_image_env = Env(
 @python_task(
     name='make-docs',
     description='Make documentation',
+    upstreams=[format_code],
     runner=runner
 )
 def make_docs(*args: Any, **kwargs: Any):

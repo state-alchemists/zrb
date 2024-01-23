@@ -3,12 +3,8 @@ import os
 from zrb import CmdTask, Env, EnvFile, PathChecker, runner
 from zrb.builtin.group import project_group
 
-from ._config import (
-    APP_FRONTEND_BUILD_DIR,
-    APP_FRONTEND_DIR,
-    APP_TEMPLATE_ENV_FILE_NAME,
-    CURRENT_DIR,
-)
+from ._config import (APP_FRONTEND_BUILD_DIR, APP_FRONTEND_DIR,
+                      APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR)
 
 ###############################################################################
 # ⚙️ build-kebab-zrb-task-name-frontend

@@ -4,12 +4,9 @@ import logging
 from typing import Any, Callable, Mapping, Optional
 
 import aiormq
-from core.messagebus.messagebus import (
-    Consumer,
-    MessageSerializer,
-    TEventHandler,
-    must_get_message_serializer,
-)
+from core.messagebus.messagebus import (Consumer, MessageSerializer,
+                                        TEventHandler,
+                                        must_get_message_serializer)
 from core.messagebus.rabbitmq.admin import RMQAdmin, must_get_rmq_admin
 
 

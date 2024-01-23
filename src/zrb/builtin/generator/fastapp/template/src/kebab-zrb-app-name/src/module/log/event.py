@@ -2,7 +2,8 @@ from logging import Logger
 
 from core.messagebus import Consumer, Publisher
 from core.rpc import Caller
-from module.log.entity.activity.event import register_event as register_activity_event
+from module.log.entity.activity.event import \
+    register_event as register_activity_event
 
 
 def register_event(

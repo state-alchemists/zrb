@@ -1,16 +1,12 @@
 import os
 
 from zrb.builtin.generator.common.helper import (
-    validate_existing_project_dir,
-    validate_inexisting_automation,
-)
+    validate_existing_project_dir, validate_inexisting_automation)
 from zrb.builtin.generator.common.task_factory import create_register_module
-from zrb.builtin.generator.common.task_input import (
-    env_prefix_input,
-    http_port_input,
-    project_dir_input,
-    task_name_input,
-)
+from zrb.builtin.generator.common.task_input import (env_prefix_input,
+                                                     http_port_input,
+                                                     project_dir_input,
+                                                     task_name_input)
 from zrb.builtin.group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any

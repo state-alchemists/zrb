@@ -3,7 +3,8 @@ from logging import Logger
 from core.messagebus import Publisher
 from core.rpc import Caller, Server
 from module.auth.entity.group.rpc import register_rpc as register_group_rpc
-from module.auth.entity.permission.rpc import register_rpc as register_permission_rpc
+from module.auth.entity.permission.rpc import \
+    register_rpc as register_permission_rpc
 from module.auth.entity.user.rpc import register_rpc as register_user_rpc
 
 

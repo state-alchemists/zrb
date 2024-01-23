@@ -4,7 +4,8 @@ from core.messagebus import Publisher
 from core.rpc import Caller
 from fastapi import FastAPI
 from module.auth.core import Authorizer
-from module.log.entity.activity.api import register_api as register_activity_api
+from module.log.entity.activity.api import \
+    register_api as register_activity_api
 
 
 def register_api(

@@ -1,15 +1,9 @@
 from zrb.helper.default_env import inject_default_env
 from zrb.runner import runner
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (
-    OnFailed,
-    OnReady,
-    OnRetry,
-    OnSkipped,
-    OnStarted,
-    OnTriggered,
-    OnWaiting,
-)
+from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
+                                             OnSkipped, OnStarted, OnTriggered,
+                                             OnWaiting)
 from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.checker import Checker
 from zrb.task.cmd_task import CmdTask
@@ -24,7 +18,8 @@ from zrb.task.path_watcher import PathWatcher
 from zrb.task.port_checker import PortChecker
 from zrb.task.recurring_task import RecurringTask
 from zrb.task.remote_cmd_task import RemoteCmdTask
-from zrb.task.resource_maker import Replacement, ReplacementMutator, ResourceMaker
+from zrb.task.resource_maker import (Replacement, ReplacementMutator,
+                                     ResourceMaker)
 from zrb.task.rsync_task import RsyncTask
 from zrb.task.task import Task
 from zrb.task.time_watcher import TimeWatcher

@@ -3,7 +3,8 @@ from typing import Any
 
 from core.messagebus import Publisher
 from core.rpc import Caller, Server
-from module.log.entity.activity.rpc import register_rpc as register_activity_rpc
+from module.log.entity.activity.rpc import \
+    register_rpc as register_activity_rpc
 
 
 def register_rpc(

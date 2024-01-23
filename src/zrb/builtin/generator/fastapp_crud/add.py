@@ -2,20 +2,17 @@ import asyncio
 import os
 
 from zrb.builtin.generator.common.helper import validate_existing_project_dir
-from zrb.builtin.generator.common.task_input import (
-    app_name_input,
-    entity_name_input,
-    main_column_name_input,
-    module_name_input,
-    plural_entity_name_input,
-    project_dir_input,
-)
-from zrb.builtin.generator.fastapp_crud.helper import (
-    register_api,
-    register_permission,
-    register_rpc,
-)
-from zrb.builtin.generator.fastapp_crud.task_factory import create_add_navigation_task
+from zrb.builtin.generator.common.task_input import (app_name_input,
+                                                     entity_name_input,
+                                                     main_column_name_input,
+                                                     module_name_input,
+                                                     plural_entity_name_input,
+                                                     project_dir_input)
+from zrb.builtin.generator.fastapp_crud.helper import (register_api,
+                                                       register_permission,
+                                                       register_rpc)
+from zrb.builtin.generator.fastapp_crud.task_factory import \
+    create_add_navigation_task
 from zrb.builtin.group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any

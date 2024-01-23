@@ -10,26 +10,12 @@ from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Mapping,
-    Optional,
-    Union,
-)
+from zrb.helper.typing import (Any, Callable, Iterable, JinjaTemplate, List,
+                               Mapping, Optional, Union)
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (
-    OnFailed,
-    OnReady,
-    OnRetry,
-    OnSkipped,
-    OnStarted,
-    OnTriggered,
-    OnWaiting,
-)
+from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
+                                             OnSkipped, OnStarted, OnTriggered,
+                                             OnWaiting)
 from zrb.task.base_task.component.common_task_model import CommonTaskModel
 from zrb.task.base_task.component.pid_model import PidModel
 from zrb.task.base_task.component.trackers import TimeTracker

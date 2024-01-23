@@ -1,6 +1,7 @@
 import os
 
-from zrb import DockerComposeTask, Env, EnvFile, PortChecker, ServiceConfig, runner
+from zrb import (DockerComposeTask, Env, EnvFile, PortChecker, ServiceConfig,
+                 runner)
 from zrb.builtin.group import project_group
 
 from ._common import APP_DIR, RESOURCE_DIR, host_input, local_input

@@ -1,10 +1,6 @@
-from _common import (
-    NAMESPACE,
-    REDPANDA_AUTH_MECHANISM,
-    REDPANDA_AUTH_SASL_ENABLED,
-    REDPANDA_AUTH_USER_NAME,
-    REDPANDA_AUTH_USER_PASSWORD,
-)
+from _common import (NAMESPACE, REDPANDA_AUTH_MECHANISM,
+                     REDPANDA_AUTH_SASL_ENABLED, REDPANDA_AUTH_USER_NAME,
+                     REDPANDA_AUTH_USER_PASSWORD)
 from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 
 

@@ -5,12 +5,10 @@ from core.messagebus import Publisher
 from core.repo import SearchFilter
 from core.rpc import Caller, Server
 from module.auth.schema.token import AccessTokenData
-from module.snake_zrb_module_name.component.model.snake_zrb_entity_name_model import (
-    snake_zrb_entity_name_model,
-)
-from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
-    PascalZrbEntityNameData,
-)
+from module.snake_zrb_module_name.component.model.snake_zrb_entity_name_model import \
+    snake_zrb_entity_name_model
+from module.snake_zrb_module_name.schema.snake_zrb_entity_name import \
+    PascalZrbEntityNameData
 
 
 def register_rpc(

@@ -7,7 +7,6 @@ from sqlalchemy import Column, String
 
 
 class DBEntityPermission(Base, DBEntityMixin):
-
     class Config:
         orm_mode = True
         from_attributes = True
