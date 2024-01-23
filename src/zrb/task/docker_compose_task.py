@@ -241,7 +241,7 @@ class DockerComposeTask(CmdTask):
         if isinstance(compose_data["services"][service_name]["environment"], list):
             new_env_list = self.__get_service_new_env_list(
                 service_name=service_name,
-                service_env_map=compose_data["services"][service_name]["environment"],
+                service_env_list=compose_data["services"][service_name]["environment"],
                 new_envs=envs
             )
             compose_data["services"][service_name]["environment"] += new_env_list
