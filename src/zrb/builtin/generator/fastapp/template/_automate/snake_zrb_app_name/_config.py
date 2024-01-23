@@ -13,7 +13,7 @@ DEPLOYMENT_TEMPLATE_ENV_FILE_NAME = os.path.join(DEPLOYMENT_DIR, "template.env")
 APP_DIR = os.path.join(RESOURCE_DIR, "src")
 APP_FRONTEND_DIR = os.path.join(APP_DIR, "frontend")
 APP_FRONTEND_BUILD_DIR = os.path.join(APP_FRONTEND_DIR, "build")
-
+APP_TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, "template.env")
 LOAD_TEST_DIR = os.path.join(RESOURCE_DIR, "loadtest")
 LOAD_TEST_TEMPLATE_ENV_FILE_NAME = os.path.join(RESOURCE_DIR, "template.env")
 
@@ -34,9 +34,8 @@ _OTEL_EXPORTER_ENDPOINT_ENV = Env(
 )
 
 _CONTAINER_ENV_PREFIX = "CONTAINER_ZRB_ENV_PREFIX"
-_APP_TEMPLATE_ENV_FILE_NAME = os.path.join(APP_DIR, "template.env")
 _APP_TEMPLATE_ENV_FILE = EnvFile(
-    path=_APP_TEMPLATE_ENV_FILE_NAME, prefix=_CONTAINER_ENV_PREFIX
+    path=APP_TEMPLATE_ENV_FILE_NAME, prefix=_CONTAINER_ENV_PREFIX
 )
 _DOCKER_COMPOSE_APP_ENV_FILE_NAME = os.path.join(RESOURCE_DIR, "docker-compose-app.env")
 _DOCKER_COMPOSE_APP_ENV_FILE = EnvFile(

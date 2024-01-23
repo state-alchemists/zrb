@@ -1,12 +1,12 @@
 from zrb import EnvFile
 from ._config import (
     RESOURCE_DIR,
-    _APP_TEMPLATE_ENV_FILE_NAME,
+    APP_TEMPLATE_ENV_FILE_NAME,
     DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
 )
 import os
 
-app_env_file = EnvFile(path=_APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX")
+app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX")
 
 compose_env_file = EnvFile(
     path=os.path.join(RESOURCE_DIR, "docker-compose.env"),
@@ -14,7 +14,7 @@ compose_env_file = EnvFile(
 )
 
 deployment_app_env_file = EnvFile(
-    path=_APP_TEMPLATE_ENV_FILE_NAME, prefix="DEPLOYMENT_APP_ZRB_ENV_PREFIX"
+    path=APP_TEMPLATE_ENV_FILE_NAME, prefix="DEPLOYMENT_APP_ZRB_ENV_PREFIX"
 )
 
 deployment_config_env_file = EnvFile(

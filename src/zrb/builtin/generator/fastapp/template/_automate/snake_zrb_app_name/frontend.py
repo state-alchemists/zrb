@@ -4,7 +4,7 @@ from ._config import (
     APP_FRONTEND_DIR,
     APP_FRONTEND_BUILD_DIR,
     CURRENT_DIR,
-    _APP_TEMPLATE_ENV_FILE_NAME,
+    APP_TEMPLATE_ENV_FILE_NAME,
 )
 import os
 
@@ -25,7 +25,7 @@ build_snake_zrb_app_name_frontend = CmdTask(
         )
     ],
     env_files=[
-        EnvFile(path=_APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX"),
+        EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX"),
     ],
     envs=[Env(name="WATCH", os_name="", default="1")],
 )
@@ -47,7 +47,7 @@ build_snake_zrb_app_name_frontend_once = CmdTask(
         )
     ],
     env_files=[
-        EnvFile(path=_APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX"),
+        EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX"),
     ],
     envs=[Env(name="WATCH", os_name="", default="0")],
 )

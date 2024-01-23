@@ -10,7 +10,7 @@ from ._input import (
     enable_monitoring_input,
 )
 from ._env import app_enable_otel_env
-from ._config import CURRENT_DIR, APP_DIR, _APP_TEMPLATE_ENV_FILE_NAME, MODULES
+from ._config import CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, MODULES
 import os
 
 
@@ -90,7 +90,7 @@ def _get_service_env_file(module_name: str) -> EnvFile:
     snake_module_name = to_snake_case(module_name)
     upper_snake_module_name = snake_module_name.upper()
     return EnvFile(
-        path=_APP_TEMPLATE_ENV_FILE_NAME,
+        path=APP_TEMPLATE_ENV_FILE_NAME,
         prefix=f"ZRB_ENV_PREFIX_{upper_snake_module_name}",
     )
 
