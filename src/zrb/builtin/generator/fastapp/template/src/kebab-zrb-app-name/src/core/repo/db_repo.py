@@ -215,7 +215,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         Convert entity_data into dictionary
         The result of this convertion is used for inserting/updating db_entity.
         """
-        entity_dict = schema_data.dict()
+        entity_dict = schema_data.model_dump()
         return {
             field: value
             for field, value in entity_dict.items()

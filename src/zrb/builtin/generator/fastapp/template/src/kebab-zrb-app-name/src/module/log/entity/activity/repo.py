@@ -5,6 +5,10 @@ from module.log.component import Base
 
 
 class DBEntityActivity(Base, DBEntityMixin):
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
     __tablename__ = "activities"
     action = Column(String)
     entity: Column = Column(String)

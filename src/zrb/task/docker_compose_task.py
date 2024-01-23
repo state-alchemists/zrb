@@ -31,6 +31,7 @@ from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
 from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
+from zrb.helper.util import to_snake_case
 
 import os
 import pathlib
@@ -212,50 +213,54 @@ class DockerComposeTask(CmdTask):
         write_compose_file(self._compose_runtime_file, compose_data)
 
     def __apply_service_env(
-        self, compose_data: Any, service: str, envs: List[Env]
+        self, compose_data: Any, service_name: str, envs: List[Env]
     ) -> Any:
         # service not found
-        if (
-            "services" not in compose_data or service not in compose_data["services"]
-        ):  # noqa
-            self.log_error(f"Cannot find services.{service}")
+        service_map = compose_data["services"]
+        if ("services" not in compose_data or service_name not in service_map):
+            self.log_error(f"Cannot find services.{service_name}")
             return compose_data
         # service has no environment definition
-        if "environment" not in compose_data["services"][service]:
-            compose_data["services"][service]["environment"] = {
-                env.get_name(): self.__get_env_compose_value(env) for env in envs
+        if "environment" not in compose_data["services"][service_name]:
+            compose_data["services"][service_name]["environment"] = {
+                env.get_name(): self.__get_env_compose_value(service_name, env)
+                for env in envs
             }
             return compose_data
         # service environment is a map
-        if isinstance(compose_data["services"][service]["environment"], dict):
+        if isinstance(compose_data["services"][service_name]["environment"], dict):
             new_env_map = self.__get_service_new_env_map(
-                compose_data["services"][service]["environment"], envs
+                service_name=service_name,
+                service_env_map=compose_data["services"][service_name]["environment"],
+                new_envs=envs
             )
             for key, value in new_env_map.items():
-                compose_data["services"][service]["environment"][key] = value
+                compose_data["services"][service_name]["environment"][key] = value
             return compose_data
         # service environment is a list
-        if isinstance(compose_data["services"][service]["environment"], list):
+        if isinstance(compose_data["services"][service_name]["environment"], list):
             new_env_list = self.__get_service_new_env_list(
-                compose_data["services"][service]["environment"], envs
+                service_name=service_name,
+                service_env_list=compose_data["services"][service_name]["environment"],
+                new_envs=envs
             )
-            compose_data["services"][service]["environment"] += new_env_list
+            compose_data["services"][service_name]["environment"] += new_env_list
             return compose_data
         return compose_data
 
     def __get_service_new_env_map(
-        self, service_env_map: Mapping[str, str], new_envs: List[Env]
+        self, service_name: str, service_env_map: Mapping[str, str], new_envs: List[Env]
     ) -> Mapping[str, str]:
         new_service_envs: Mapping[str, str] = {}
         for env in new_envs:
             env_name = env.get_name()
             if env_name in service_env_map:
                 continue
-            new_service_envs[env_name] = self.__get_env_compose_value(env)
+            new_service_envs[env_name] = self.__get_env_compose_value(service_name, env)
         return new_service_envs
 
     def __get_service_new_env_list(
-        self, service_env_list: List[str], new_envs: List[Env]
+        self, service_name: str, service_env_list: List[str], new_envs: List[Env]
     ) -> List[str]:
         new_service_envs: List[str] = []
         for env in new_envs:
@@ -269,12 +274,15 @@ class DockerComposeTask(CmdTask):
             if not should_be_added:
                 continue
             new_service_envs.append(
-                env.get_name() + "=" + self.__get_env_compose_value(env)
+                env.get_name() + "=" + self.__get_env_compose_value(service_name, env)
             )
         return new_service_envs
 
-    def __get_env_compose_value(self, env: Env) -> str:
-        return "${" + env.get_name() + ":-" + env.get_default() + "}"
+    def __get_env_compose_value(self, service_name: str, env: Env) -> str:
+        env_prefix = to_snake_case(service_name).upper()
+        env_name = env.get_name()
+        env_default = env.get_default()
+        return "".join(["${", f"{env_prefix}_{env_name}:-{env_default}", "}"])
 
     def __get_compose_runtime_file(self, compose_file_name: str) -> str:
         directory, file = os.path.split(compose_file_name)

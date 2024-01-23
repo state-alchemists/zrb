@@ -8,6 +8,10 @@ from module.snake_zrb_module_name.component import Base
 
 
 class DBEntityPascalZrbEntityName(Base, DBEntityMixin):
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
     __tablename__ = "snake_zrb_plural_entity_name"
     snake_zrb_column_name = Column(String)
 

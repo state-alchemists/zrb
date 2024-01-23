@@ -32,14 +32,14 @@ def register_rpc(
             limit=limit,
             offset=offset,
         )
-        return result.dict()
+        return result.model_dump()
 
     @rpc_server.register("snake_zrb_module_name_get_snake_zrb_entity_name_by_id")
     async def get_by_id(
         id: str, user_token_data: Mapping[str, Any] = {}
     ) -> Mapping[str, Any]:
         row = await snake_zrb_entity_name_model.get_by_id(id)
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("snake_zrb_module_name_insert_snake_zrb_entity_name")
     async def insert(
@@ -51,7 +51,7 @@ def register_rpc(
         row = await snake_zrb_entity_name_model.insert(
             data=PascalZrbEntityNameData(**data)
         )
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("snake_zrb_module_name_update_snake_zrb_entity_name")
     async def update(
@@ -62,10 +62,10 @@ def register_rpc(
         row = await snake_zrb_entity_name_model.update(
             id=id, data=PascalZrbEntityNameData(**data)
         )
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("snake_zrb_module_name_delete_snake_zrb_entity_name")
     async def delete(id: str, user_token_data: Mapping[str, Any]) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         row = await snake_zrb_entity_name_model.delete(id=id)
-        return row.dict()
+        return row.model_dump()

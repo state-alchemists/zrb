@@ -10,6 +10,7 @@ ENV APP_HOST 0.0.0.0
 ENV APP_PORT 8080
 WORKDIR /home
 COPY requirements.txt .
+RUN apt update && apt install curl psmisc -y
 RUN pip install -r requirements.txt
 COPY . .
 COPY --from=frontend-builder /frontend/build /home/frontend/build

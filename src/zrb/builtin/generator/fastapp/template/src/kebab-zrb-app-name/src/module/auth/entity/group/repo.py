@@ -10,6 +10,10 @@ from module.auth.entity.permission.repo import DBEntityPermission
 
 
 class DBEntityGroup(Base, DBEntityMixin):
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
     __tablename__ = "groups"
     name = Column(String)
     description = Column(String)

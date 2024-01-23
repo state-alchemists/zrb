@@ -27,7 +27,7 @@ class JWTAccessTokenUtil(AccessTokenUtil):
 
     def encode(self, data: AccessTokenData) -> str:
         expire_time = datetime.utcnow() + timedelta(seconds=data.expire_seconds)
-        sub = jsons.dumps(data.dict())
+        sub = jsons.dumps(data.model_dump())
         data_dict = {"sub": sub, "exp": expire_time}
         encoded_jwt = jwt.encode(data_dict, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
@@ -41,7 +41,7 @@ class JWTAccessTokenUtil(AccessTokenUtil):
                 options=self._get_decode_options(parse_expired_token),
             )
             sub = jsons.loads(decoded_data["sub"])
-            token_data = AccessTokenData.parse_obj(sub)
+            token_data = AccessTokenData.model_validate(sub)
             if not parse_expired_token:
                 expire_time = decoded_data["exp"]
                 token_data.expire_seconds = (

@@ -3,14 +3,23 @@
 export PROJECT_DIR=$(pwd)
 echo "🤖 Set project directory to ${PROJECT_DIR}"
 
+_IS_EMPTY_VENV=0
 if [ ! -d "${PROJECT_DIR}/.venv" ]
 then
     echo '🤖 Create virtual environment'
     python -m venv "${PROJECT_DIR}/.venv"
+    _IS_EMPTY_VENV=1
 fi
 
 echo '🤖 Activate virtual environment'
 source "${PROJECT_DIR}/.venv/bin/activate"
+
+
+install_requirements() {
+    echo '🤖 Install requirements'
+    pip install --upgrade pip
+    pip install -r "${PROJECT_DIR}/requirements.txt"
+}
 
 reload() {
 
@@ -23,16 +32,20 @@ reload() {
     echo '🤖 Load project configuration (.env)'
     source "${PROJECT_DIR}/.env"
 
-    if [ -z "$PROJECT_AUTO_INSTALL_PIP" ] || [ "$PROJECT_AUTO_INSTALL_PIP" = 1 ]
+    if [ -z "$PROJECT_AUTO_INSTALL_PIP" ] || [ "$PROJECT_AUTO_INSTALL_PIP" = 1 ] || [ "$_IS_EMPTY_VENV" = 1 ]
     then
-        echo '🤖 Checking .venv and requirements.txt timestamp'
-        _VENV_TIMESTAMP=$(find .venv -type d -exec stat -c %Y {} \; | sort -n | tail -n 1)
-        _REQUIREMENTS_TIMESTAMP=$(stat -c %Y requirements.txt)
-        if [ "$_VENV_TIMESTAMP" -lt "$_REQUIREMENTS_TIMESTAMP" ] 
+        if [ "$_IS_EMPTY_VENV" = 1 ]
         then
-            echo '🤖 Install requirements'
-            pip install --upgrade pip
-            pip install -r "${PROJECT_DIR}/requirements.txt"
+            install_requirements
+            _IS_EMPTY_VENV=0
+        else
+            echo '🤖 Checking .venv and requirements.txt timestamp'
+            _VENV_TIMESTAMP=$(find .venv -type d -exec stat -c %Y {} \; | sort -n | tail -n 1)
+            _REQUIREMENTS_TIMESTAMP=$(stat -c %Y requirements.txt)
+            if [ "$_VENV_TIMESTAMP" -lt "$_REQUIREMENTS_TIMESTAMP" ] 
+            then
+                install_requirements
+            fi
         fi
     fi
 

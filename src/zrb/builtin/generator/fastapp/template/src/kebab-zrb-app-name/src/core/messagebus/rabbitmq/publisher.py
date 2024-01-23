@@ -20,7 +20,7 @@ class RMQPublisher(Publisher):
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 5,
-        retry_interval: int = 5,
+        retry_interval: int = 10,
         identifier="rmq-publisher",
     ):
         self.logger = logger
@@ -39,7 +39,7 @@ class RMQPublisher(Publisher):
         queue_name = self.rmq_admin.get_queue_name(event_name)
         exchange_name = self.rmq_admin.get_exchange_name(event_name)
         if isinstance(message, BaseModel):
-            message = message.dict()
+            message = message.model_dump()
         for attempt in range(self.retry):
             try:
                 await self._connect()

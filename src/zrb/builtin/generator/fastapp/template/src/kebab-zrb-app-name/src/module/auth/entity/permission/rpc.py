@@ -30,14 +30,14 @@ def register_rpc(
             limit=limit,
             offset=offset,
         )
-        return result.dict()
+        return result.model_dump()
 
     @rpc_server.register("auth_get_permission_by_id")
     async def get_by_id(
         id: str, user_token_data: Mapping[str, Any] = {}
     ) -> Mapping[str, Any]:
         row = await permission_model.get_by_id(id)
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("auth_insert_permission")
     async def insert(
@@ -47,7 +47,7 @@ def register_rpc(
         data["created_by"] = user_token_data.user_id
         data["updated_by"] = user_token_data.user_id
         row = await permission_model.insert(data=PermissionData(**data))
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("auth_update_permission")
     async def update(
@@ -56,10 +56,10 @@ def register_rpc(
         user_token_data = AccessTokenData(**user_token_data)
         data["updated_by"] = user_token_data.user_id
         row = await permission_model.update(id=id, data=PermissionData(**data))
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("auth_delete_permission")
     async def delete(id: str, user_token_data: Mapping[str, Any]) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         row = await permission_model.delete(id=id)
-        return row.dict()
+        return row.model_dump()

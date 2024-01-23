@@ -1,7 +1,7 @@
 from typing import List, Mapping, Optional
 from core.messagebus.messagebus import Admin
-from kafka.admin import KafkaAdminClient, NewTopic
-from kafka import __version__
+from aiokafka.admin import AIOKafkaAdminClient, NewTopic
+from aiokafka import __version__
 import asyncio
 import logging
 
@@ -121,8 +121,8 @@ class KafkaAdmin(Admin):
         )
         return topic
 
-    def _create_connection(self) -> KafkaAdminClient:
-        return KafkaAdminClient(
+    def _create_connection(self) -> AIOKafkaAdminClient:
+        return AIOKafkaAdminClient(
             bootstrap_servers=self.bootstrap_servers,
             client_id=self.client_id,
             security_protocol=self.security_protocol,
