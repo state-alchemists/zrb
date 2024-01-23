@@ -344,10 +344,11 @@ services:
     profiles:
     - monolith
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/readiness || exit 1"]
+      test: curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/readiness || killall uvicorn
       interval: 20s
       timeout: 3s
       retries: 10
+      start_period: 20s
     networks:
     - zrb
 
@@ -381,9 +382,7 @@ services:
     profiles:
     - microservices
     healthcheck:
-      test: 
-        - CMD-SHELL
-        - curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/readiness || killall uvicorn
+      test:  curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/readiness || killall uvicorn
       interval: 20s
       timeout: 3s
       retries: 10
@@ -417,9 +416,7 @@ services:
     profiles:
     - microservices
     healthcheck:
-      test:
-      - CMD-SHELL
-      - curl --fail http://localhost:${APP_AUTH_MODULE_PORT:-8081}/readiness || killall uvicorn
+      test: curl --fail http://localhost:${APP_AUTH_MODULE_PORT:-8081}/readiness || killall uvicorn
       interval: 20s
       timeout: 3s
       retries: 10
@@ -453,9 +450,7 @@ services:
     profiles:
     - microservices
     healthcheck:
-      test:
-      - CMD-SHELL
-      - curl --fail http://localhost:${APP_LOG_MODULE_PORT:-8082}/readiness || killall uvicorn
+      test: curl --fail http://localhost:${APP_LOG_MODULE_PORT:-8082}/readiness || killall uvicorn
       interval: 20s
       timeout: 3s
       retries: 10

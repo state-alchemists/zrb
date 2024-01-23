@@ -35,7 +35,7 @@ class JWTRefreshTokenUtil(RefreshTokenUtil):
                 token, self.secret_key, algorithms=[self.algorithm]
             )
             sub = jsons.loads(decoded_data["sub"])
-            token_data = RefreshTokenData.parse_obj(sub)
+            token_data = RefreshTokenData.model_validate(sub)
             expire_time = decoded_data["exp"]
             token_data.expire_seconds = (
                 datetime.fromtimestamp(expire_time) - datetime.utcnow()

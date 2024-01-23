@@ -41,7 +41,7 @@ class JWTAccessTokenUtil(AccessTokenUtil):
                 options=self._get_decode_options(parse_expired_token),
             )
             sub = jsons.loads(decoded_data["sub"])
-            token_data = AccessTokenData.parse_obj(sub)
+            token_data = AccessTokenData.model_validate(sub)
             if not parse_expired_token:
                 expire_time = decoded_data["exp"]
                 token_data.expire_seconds = (

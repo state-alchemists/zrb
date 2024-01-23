@@ -125,12 +125,7 @@ def _get_new_docker_compose_service_definition(
             "restart": "unless-stopped",
             "profiles": ["microservices"],
             "healthcheck": {
-                "test": [
-                    "CMD-SHELL",
-                    "curl --fail http://localhost:"
-                    + app_container_port_env
-                    + "/readiness || killall uvicorn",
-                ],
+                "test": f"curl --fail http://localhost:{app_container_port_env}/readiness || killall uvicorn",  # noqa
                 "interval": "20s",
                 "timeout": "3s",
                 "retries": 10,
