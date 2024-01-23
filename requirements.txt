@@ -20,6 +20,7 @@ croniter~=2.0.1
 
 # Zrb dev dependencies (should be copied to `pyproject.toml`)
 flake8~=6.0.0       # Linter
+black~=23.12.1
 
 # Zrb test dependencies (should be copied to `pyproject.toml`)
 pytest~=7.4.0
@@ -30,21 +31,25 @@ pytest-asyncio~=0.21.0
 flameprof~=0.4
 
 # Other dependencies (just for auto-completion, not included in `pyproject.toml`)
-pulumi==3.78.1
-pulumi-kubernetes==4.1.0
-fastapi==0.101.1
-aiormq==6.7.7
-aiokafka==0.8.1
-alembic==1.11.3
-SQLAlchemy==2.0.18
+pulumi~=3.78.1
+pulumi-kubernetes~=4.1.0
+
+SQLAlchemy==2.0.25
+aiormq==6.8.0
+aiokafka==0.10.0
+alembic==1.13.1
+bcrypt==4.1.2
+fastapi==0.109.0
+jsons==1.6.3
+pydantic==2.5.3
+psycopg2-binary==2.9.9
 python-jose==3.3.0
-bcrypt==4.0.1
+uvicorn==0.27.0
+watchfiles==0.21.0
 python-multipart==0.0.6
-httpx==0.24.1
-asgi-lifespan==2.1.0
-python-ulid==1.1.0
-locust==2.16.1
+python-ulid==2.2.0
 opentelemetry-distro==0.40b0
 opentelemetry-exporter-otlp==1.19.0
 opentelemetry-instrumentation-fastapi==0.40b0
-black==23.12.1
+httpx==0.26.0
+asgi-lifespan==2.1.0

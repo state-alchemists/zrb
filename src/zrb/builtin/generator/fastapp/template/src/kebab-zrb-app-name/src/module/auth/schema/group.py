@@ -18,6 +18,7 @@ class Group(GroupBase):
 
     class Config:
         orm_mode = True
+        from_attributes = True
 
 
 class GroupResult(BaseCountSchema):

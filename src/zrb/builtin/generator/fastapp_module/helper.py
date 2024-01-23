@@ -129,11 +129,12 @@ def _get_new_docker_compose_service_definition(
                     "CMD-SHELL",
                     "curl --fail http://localhost:"
                     + app_container_port_env
-                    + "/readiness || exit 1",  # noqa
+                    + "/readiness || killall uvicorn",
                 ],
-                "interval": "5s",
+                "interval": "20s",
                 "timeout": "3s",
                 "retries": 10,
+                "start_period": "20s",
             },
             "networks": ["zrb"],
         }
