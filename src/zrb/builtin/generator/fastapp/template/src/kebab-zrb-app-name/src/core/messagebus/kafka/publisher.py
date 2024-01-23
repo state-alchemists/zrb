@@ -100,7 +100,7 @@ class KafkaPublisher(Publisher):
         await self.kafka_admin.create_events([event_name])
         topic_name = self.kafka_admin.get_topic_name(event_name)
         if isinstance(message, BaseModel):
-            message = message.dict()
+            message = message.model_dump()
         for attempt in range(self.retry):
             try:
                 await self._connect()

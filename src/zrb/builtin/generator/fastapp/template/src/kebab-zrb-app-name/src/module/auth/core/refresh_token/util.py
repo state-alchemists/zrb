@@ -24,7 +24,7 @@ class JWTRefreshTokenUtil(RefreshTokenUtil):
 
     def encode(self, data: RefreshTokenData) -> str:
         expire_time = datetime.utcnow() + timedelta(seconds=data.expire_seconds)
-        sub = jsons.dumps(data.dict())
+        sub = jsons.dumps(data.model_dump())
         data_dict = {"sub": sub, "exp": expire_time}
         encoded_jwt = jwt.encode(data_dict, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt

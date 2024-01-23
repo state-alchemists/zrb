@@ -15,6 +15,11 @@ import logging
 
 
 class DBEntityUser(Base, DBEntityMixin):
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
     __tablename__ = "users"
     username = Column(String)
     phone = Column(String)
