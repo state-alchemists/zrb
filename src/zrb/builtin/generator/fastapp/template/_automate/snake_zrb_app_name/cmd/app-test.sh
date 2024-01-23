@@ -1,5 +1,5 @@
-PYTHONUNBUFFERED=1
-PYTHONPATH=$PYTHONPATH:$(pwd)/src
+export PYTHONUNBUFFERED=1
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 cd src
 echo "Activate virtual environment"
 source .venv/bin/activate

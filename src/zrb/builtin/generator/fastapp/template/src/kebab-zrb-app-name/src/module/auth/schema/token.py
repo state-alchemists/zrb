@@ -4,12 +4,12 @@ from pydantic import BaseModel
 class AccessTokenData(BaseModel):
     user_id: str
     username: str
-    expire_seconds: int
+    expire_seconds: int | float
 
 
 class RefreshTokenData(BaseModel):
     user_id: str
-    expire_seconds: int
+    expire_seconds: int | float
 
 
 class TokenResponse(BaseModel):

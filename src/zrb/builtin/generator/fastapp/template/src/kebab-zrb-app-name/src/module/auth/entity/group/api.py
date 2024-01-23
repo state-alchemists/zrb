@@ -37,7 +37,7 @@ def register_api(
                 criterion={},
                 limit=limit,
                 offset=offset,
-                user_token_data=user_token_data.dict(),
+                user_token_data=user_token_data.model_dump(),
             )
             return GroupResult(**result_dict)
         except Exception as e:
@@ -53,7 +53,9 @@ def register_api(
             raise HTTPAPIException(403, "Unauthorized")
         try:
             result_dict = await rpc_caller.call(
-                "auth_get_group_by_id", id=id, user_token_data=user_token_data.dict()
+                "auth_get_group_by_id",
+                id=id,
+                user_token_data=user_token_data.model_dump(),
             )
             return Group(**result_dict)
         except Exception as e:
@@ -70,8 +72,8 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 "auth_insert_group",
-                data=data.dict(),
-                user_token_data=user_token_data.dict(),
+                data=data.model_dump(),
+                user_token_data=user_token_data.model_dump(),
             )
             return Group(**result_dict)
         except Exception as e:
@@ -91,8 +93,8 @@ def register_api(
             result_dict = await rpc_caller.call(
                 "auth_update_group",
                 id=id,
-                data=data.dict(),
-                user_token_data=user_token_data.dict(),
+                data=data.model_dump(),
+                user_token_data=user_token_data.model_dump(),
             )
             return Group(**result_dict)
         except Exception as e:
@@ -108,7 +110,7 @@ def register_api(
             raise HTTPAPIException(403, "Unauthorized")
         try:
             result_dict = await rpc_caller.call(
-                "auth_delete_group", id=id, user_token_data=user_token_data.dict()
+                "auth_delete_group", id=id, user_token_data=user_token_data.model_dump()
             )
             return Group(**result_dict)
         except Exception as e:

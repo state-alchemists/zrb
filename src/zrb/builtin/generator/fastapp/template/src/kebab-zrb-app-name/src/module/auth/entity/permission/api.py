@@ -37,7 +37,7 @@ def register_api(
                 criterion={},
                 limit=limit,
                 offset=offset,
-                user_token_data=user_token_data.dict(),
+                user_token_data=user_token_data.model_dump(),
             )
             return PermissionResult(**result_dict)
         except Exception as e:
@@ -55,7 +55,7 @@ def register_api(
             result_dict = await rpc_caller.call(
                 "auth_get_permission_by_id",
                 id=id,
-                user_token_data=user_token_data.dict(),
+                user_token_data=user_token_data.model_dump(),
             )
             return Permission(**result_dict)
         except Exception as e:
@@ -73,8 +73,8 @@ def register_api(
         try:
             result_dict = await rpc_caller.call(
                 "auth_insert_permission",
-                data=data.dict(),
-                user_token_data=user_token_data.dict(),
+                data=data.model_dump(),
+                user_token_data=user_token_data.model_dump(),
             )
             return Permission(**result_dict)
         except Exception as e:
@@ -94,8 +94,8 @@ def register_api(
             result_dict = await rpc_caller.call(
                 "auth_update_permission",
                 id=id,
-                data=data.dict(),
-                user_token_data=user_token_data.dict(),
+                data=data.model_dump(),
+                user_token_data=user_token_data.model_dump(),
             )
             return Permission(**result_dict)
         except Exception as e:
@@ -111,7 +111,9 @@ def register_api(
             raise HTTPAPIException(403, "Unauthorized")
         try:
             result_dict = await rpc_caller.call(
-                "auth_delete_permission", id=id, user_token_data=user_token_data.dict()
+                "auth_delete_permission",
+                id=id,
+                user_token_data=user_token_data.model_dump(),
             )
             return Permission(**result_dict)
         except Exception as e:

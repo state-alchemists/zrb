@@ -27,14 +27,14 @@ def register_rpc(
             limit=limit,
             offset=offset,
         )
-        return result.dict()
+        return result.model_dump()
 
     @rpc_server.register("auth_get_group_by_id")
     async def get_by_id(
         id: str, user_token_data: Mapping[str, Any] = {}
     ) -> Mapping[str, Any]:
         row = await group_model.get_by_id(id)
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("auth_insert_group")
     async def insert(
@@ -44,7 +44,7 @@ def register_rpc(
         data["created_by"] = user_token_data.user_id
         data["updated_by"] = user_token_data.user_id
         row = await group_model.insert(data=GroupData(**data))
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("auth_update_group")
     async def update(
@@ -53,10 +53,10 @@ def register_rpc(
         user_token_data: AccessTokenData = AccessTokenData(**user_token_data)
         data["updated_by"] = user_token_data.user_id
         row = await group_model.update(id=id, data=GroupData(**data))
-        return row.dict()
+        return row.model_dump()
 
     @rpc_server.register("auth_delete_group")
     async def delete(id: str, user_token_data: Mapping[str, Any]) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         row = await group_model.delete(id=id)
-        return row.dict()
+        return row.model_dump()

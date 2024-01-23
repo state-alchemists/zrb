@@ -40,7 +40,7 @@ class MessagebusServer(Server):
                 try:
                     result = await self._run_handler(handler, *args, **kwargs)
                     if isinstance(result, BaseModel):
-                        result = result.dict()
+                        result = result.model_dump()
                     # publish result
                     await self.publisher.publish(
                         reply_event, Result(result=result).to_dict()

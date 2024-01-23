@@ -1,4 +1,4 @@
-PYTHONUNBUFFERED=1
+export PYTHONUNBUFFERED=1
 echo "Start load test"
 locust {%if input.snake_zrb_app_name_load_test_headless %}--headless{% endif %} \
     --web-port {{ input.snake_zrb_app_name_load_test_port }} \

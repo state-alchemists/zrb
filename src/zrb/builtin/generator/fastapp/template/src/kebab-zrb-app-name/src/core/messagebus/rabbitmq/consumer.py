@@ -21,7 +21,7 @@ class RMQConsumer(Consumer):
         serializer: Optional[MessageSerializer] = None,
         rmq_admin: Optional[RMQAdmin] = None,
         retry: int = 5,
-        retry_interval: int = 5,
+        retry_interval: int = 10,
         prefetch_count: int = 20,
         identifier="rmq-consumer",
     ):

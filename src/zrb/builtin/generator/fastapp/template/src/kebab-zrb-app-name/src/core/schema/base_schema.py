@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 
 class BaseDateTimeSchema(BaseModel):
-    created_at: Optional[datetime.datetime]
-    created_by: Optional[str]
-    updated_at: Optional[datetime.datetime]
-    updated_by: Optional[str]
+    created_at: Optional[datetime.datetime] = None
+    created_by: Optional[str] = None
+    updated_at: Optional[datetime.datetime] = None
+    updated_by: Optional[str] = None
 
 
 class BaseCountSchema(BaseModel):

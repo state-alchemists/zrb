@@ -14,11 +14,12 @@ class GroupData(GroupBase):
 
 
 class Group(GroupBase):
-    id: str
-    permissions: List[Permission] = []
-
     class Config:
         orm_mode = True
+        from_attributes = True
+
+    id: str
+    permissions: List[Permission] = []
 
 
 class GroupResult(BaseCountSchema):
