@@ -8,7 +8,10 @@ from module.auth.component import access_token_scheme
 from module.auth.core import Authorizer
 from module.auth.schema.token import AccessTokenData
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
-    PascalZrbEntityName, PascalZrbEntityNameData, PascalZrbEntityNameResult)
+    PascalZrbEntityName,
+    PascalZrbEntityNameData,
+    PascalZrbEntityNameResult,
+)
 
 
 def register_api(

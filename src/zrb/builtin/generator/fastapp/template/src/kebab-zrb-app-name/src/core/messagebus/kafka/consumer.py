@@ -6,9 +6,12 @@ from typing import Any, Callable, Mapping, Optional
 from aiokafka import AIOKafkaConsumer, __version__
 from aiokafka.consumer.consumer import RoundRobinPartitionAssignor
 from core.messagebus.kafka.admin import KafkaAdmin, must_get_kafka_admin
-from core.messagebus.messagebus import (Consumer, MessageSerializer,
-                                        TEventHandler,
-                                        must_get_message_serializer)
+from core.messagebus.messagebus import (
+    Consumer,
+    MessageSerializer,
+    TEventHandler,
+    must_get_message_serializer,
+)
 
 
 class KafkaConsumer(Consumer):

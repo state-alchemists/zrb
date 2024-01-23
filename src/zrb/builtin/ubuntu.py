@@ -1,9 +1,17 @@
-from zrb.builtin.devtool.devtool_install import (install_aws, install_docker,
-                                                 install_gcloud, install_gvm,
-                                                 install_helix, install_helm,
-                                                 install_kubectl, install_nvm,
-                                                 install_pyenv, install_sdkman,
-                                                 install_tmux, install_zsh)
+from zrb.builtin.devtool.devtool_install import (
+    install_aws,
+    install_docker,
+    install_gcloud,
+    install_gvm,
+    install_helix,
+    install_helm,
+    install_kubectl,
+    install_nvm,
+    install_pyenv,
+    install_sdkman,
+    install_tmux,
+    install_zsh,
+)
 from zrb.builtin.group import ubuntu_group, ubuntu_install_group
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask

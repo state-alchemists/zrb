@@ -2,12 +2,17 @@ import os
 import pathlib
 
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (Any, Callable, Iterable, JinjaTemplate,
-                               Optional, Union)
+from zrb.helper.typing import Any, Callable, Iterable, JinjaTemplate, Optional, Union
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
-                                             OnSkipped, OnStarted, OnTriggered,
-                                             OnWaiting)
+from zrb.task.any_task_event_handler import (
+    OnFailed,
+    OnReady,
+    OnRetry,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
+)
 from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.cmd_task import CmdTask
 from zrb.task_env.env import Env

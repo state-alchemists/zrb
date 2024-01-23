@@ -7,8 +7,13 @@ from zrb.helper.util import to_kebab_case, to_snake_case
 from ._config import APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, MODULES
 from ._env import app_enable_otel_env
 from ._helper import should_start_local_microservices
-from ._input import (enable_monitoring_input, host_input, https_input,
-                     local_input, run_mode_input)
+from ._input import (
+    enable_monitoring_input,
+    host_input,
+    https_input,
+    local_input,
+    run_mode_input,
+)
 
 
 def get_start_microservices(upstreams: List[Task]) -> List[Task]:

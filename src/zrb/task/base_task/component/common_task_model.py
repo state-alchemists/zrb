@@ -4,13 +4,27 @@ from zrb.helper.accessories.color import get_random_color
 from zrb.helper.accessories.icon import get_random_icon
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (Any, Callable, Iterable, JinjaTemplate, List,
-                               Mapping, Optional, Union)
+from zrb.helper.typing import (
+    Any,
+    Callable,
+    Iterable,
+    JinjaTemplate,
+    List,
+    Mapping,
+    Optional,
+    Union,
+)
 from zrb.helper.util import coalesce_str
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
-                                             OnSkipped, OnStarted, OnTriggered,
-                                             OnWaiting)
+from zrb.task.any_task_event_handler import (
+    OnFailed,
+    OnReady,
+    OnRetry,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
+)
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile

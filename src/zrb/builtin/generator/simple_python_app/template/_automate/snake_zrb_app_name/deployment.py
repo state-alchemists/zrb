@@ -3,8 +3,12 @@ import os
 from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
 from zrb.builtin.group import project_group
 
-from ._common import (APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, DEPLOYMENT_DIR,
-                      DEPLOYMENT_TEMPLATE_ENV_FILE_NAME)
+from ._common import (
+    APP_TEMPLATE_ENV_FILE_NAME,
+    CURRENT_DIR,
+    DEPLOYMENT_DIR,
+    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
+)
 from .image import image_env, image_input, push_snake_zrb_app_name_image
 
 ###############################################################################

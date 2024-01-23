@@ -1,9 +1,13 @@
 import os
 
 from zrb.builtin.generator.common.task_input import (
-    package_author_email_input, package_author_name_input,
-    package_bug_tracker_input, package_description_input,
-    package_homepage_input, project_dir_input)
+    package_author_email_input,
+    package_author_name_input,
+    package_bug_tracker_input,
+    package_description_input,
+    package_homepage_input,
+    project_dir_input,
+)
 from zrb.builtin.group import plugin_group
 from zrb.config.config import version
 from zrb.runner import runner

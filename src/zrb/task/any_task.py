@@ -1,7 +1,16 @@
 from abc import ABC, abstractmethod
 
-from zrb.helper.typing import (Any, Callable, Iterable, JinjaTemplate, List,
-                               Mapping, Optional, TypeVar, Union)
+from zrb.helper.typing import (
+    Any,
+    Callable,
+    Iterable,
+    JinjaTemplate,
+    List,
+    Mapping,
+    Optional,
+    TypeVar,
+    Union,
+)
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput

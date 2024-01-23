@@ -1,11 +1,9 @@
 import os
 
-from zrb import (DockerComposeTask, Env, EnvFile, HTTPChecker, ServiceConfig,
-                 runner)
+from zrb import DockerComposeTask, Env, EnvFile, HTTPChecker, ServiceConfig, runner
 from zrb.builtin.group import project_group
 
-from ._common import (APP_DIR, RESOURCE_DIR, host_input, https_input,
-                      local_input)
+from ._common import APP_DIR, RESOURCE_DIR, host_input, https_input, local_input
 from .image import build_snake_zrb_app_name_image, image_env, image_input
 
 ###############################################################################

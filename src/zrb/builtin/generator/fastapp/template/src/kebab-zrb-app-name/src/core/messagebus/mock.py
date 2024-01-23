@@ -3,8 +3,13 @@ import inspect
 import logging
 from typing import Any, Callable, List, Mapping
 
-from core.messagebus.messagebus import (Admin, Consumer, MessageSerializer,
-                                        Publisher, TEventHandler)
+from core.messagebus.messagebus import (
+    Admin,
+    Consumer,
+    MessageSerializer,
+    Publisher,
+    TEventHandler,
+)
 
 
 class MockConsumer(Consumer):

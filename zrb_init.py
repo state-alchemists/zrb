@@ -119,8 +119,8 @@ format_code = CmdTask(
     description='Format code',
     cwd=CURRENT_DIR,
     cmd=[
+        'isort src',
         'black src',
-        'isort src'
     ]
 )
 runner.register(format_code)

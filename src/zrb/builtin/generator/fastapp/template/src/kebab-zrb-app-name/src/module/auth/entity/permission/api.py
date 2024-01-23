@@ -6,8 +6,7 @@ from core.rpc import Caller
 from fastapi import Depends, FastAPI
 from module.auth.component import access_token_scheme
 from module.auth.core import Authorizer
-from module.auth.schema.permission import (Permission, PermissionData,
-                                           PermissionResult)
+from module.auth.schema.permission import Permission, PermissionData, PermissionResult
 from module.auth.schema.token import AccessTokenData
 
 

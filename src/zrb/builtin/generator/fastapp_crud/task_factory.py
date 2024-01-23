@@ -1,9 +1,11 @@
 import os
 
-from zrb.builtin.generator.common.task_input import (app_name_input,
-                                                     entity_name_input,
-                                                     module_name_input,
-                                                     project_dir_input)
+from zrb.builtin.generator.common.task_input import (
+    app_name_input,
+    entity_name_input,
+    module_name_input,
+    project_dir_input,
+)
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import List
 from zrb.task.any_task import AnyTask

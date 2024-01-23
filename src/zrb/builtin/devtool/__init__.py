@@ -1,11 +1,19 @@
-from zrb.builtin.devtool.devtool_install import (install_aws, install_docker,
-                                                 install_gcloud, install_gvm,
-                                                 install_helix, install_helm,
-                                                 install_kubectl, install_nvm,
-                                                 install_pulumi, install_pyenv,
-                                                 install_sdkman,
-                                                 install_terraform,
-                                                 install_tmux, install_zsh)
+from zrb.builtin.devtool.devtool_install import (
+    install_aws,
+    install_docker,
+    install_gcloud,
+    install_gvm,
+    install_helix,
+    install_helm,
+    install_kubectl,
+    install_nvm,
+    install_pulumi,
+    install_pyenv,
+    install_sdkman,
+    install_terraform,
+    install_tmux,
+    install_zsh,
+)
 
 assert install_gvm
 assert install_pyenv

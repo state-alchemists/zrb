@@ -5,9 +5,14 @@ from component.app_state import app_state, set_not_ready_on_error
 from component.log import logger
 from component.messagebus import consumer
 from component.rpc import rpc_server
-from config import (app_db_auto_migrate, app_enable_event_handler,
-                    app_enable_frontend, app_enable_rpc_server, app_src_dir,
-                    zrb_app_name)
+from config import (
+    app_db_auto_migrate,
+    app_enable_event_handler,
+    app_enable_frontend,
+    app_enable_rpc_server,
+    app_src_dir,
+    zrb_app_name,
+)
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from helper.async_task import create_task

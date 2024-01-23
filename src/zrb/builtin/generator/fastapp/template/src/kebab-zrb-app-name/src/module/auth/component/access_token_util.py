@@ -1,5 +1,8 @@
-from config import (app_auth_access_token_type, app_auth_jwt_token_algorithm,
-                    app_auth_jwt_token_secret_key)
+from config import (
+    app_auth_access_token_type,
+    app_auth_jwt_token_algorithm,
+    app_auth_jwt_token_secret_key,
+)
 from module.auth.core import AccessTokenUtil, JWTAccessTokenUtil
 
 

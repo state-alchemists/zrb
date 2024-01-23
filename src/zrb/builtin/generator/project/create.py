@@ -1,9 +1,10 @@
 import os
 
-from zrb.builtin.generator.common.task_input import (project_dir_input,
-                                                     project_name_input)
-from zrb.builtin.generator.project_task.task_factory import \
-    create_ensure_project_tasks
+from zrb.builtin.generator.common.task_input import (
+    project_dir_input,
+    project_name_input,
+)
+from zrb.builtin.generator.project_task.task_factory import create_ensure_project_tasks
 from zrb.builtin.group import project_group
 from zrb.config.config import version
 from zrb.helper.typecheck import typechecked

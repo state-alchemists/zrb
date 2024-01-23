@@ -2,20 +2,33 @@ import os
 import pathlib
 
 from zrb.helper.accessories.name import get_random_name
-from zrb.helper.docker_compose.fetch_external_env import \
-    fetch_compose_file_env_map
-from zrb.helper.docker_compose.file import (read_compose_file,
-                                            write_compose_file)
+from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
+from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (Any, Callable, Iterable, JinjaTemplate, List,
-                               Mapping, Optional, TypeVar, Union)
+from zrb.helper.typing import (
+    Any,
+    Callable,
+    Iterable,
+    JinjaTemplate,
+    List,
+    Mapping,
+    Optional,
+    TypeVar,
+    Union,
+)
 from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
-                                             OnSkipped, OnStarted, OnTriggered,
-                                             OnWaiting)
+from zrb.task.any_task_event_handler import (
+    OnFailed,
+    OnReady,
+    OnRetry,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
+)
 from zrb.task.cmd_task import CmdResult, CmdTask, CmdVal
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env

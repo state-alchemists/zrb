@@ -2,13 +2,21 @@ import asyncio
 import os
 
 from zrb.builtin.generator.common.helper import validate_existing_project_dir
-from zrb.builtin.generator.common.task_input import (app_name_input,
-                                                     module_name_input,
-                                                     project_dir_input)
+from zrb.builtin.generator.common.task_input import (
+    app_name_input,
+    module_name_input,
+    project_dir_input,
+)
 from zrb.builtin.generator.fastapp_module.helper import (
-    append_all_disabled_env, append_all_enabled_env,
-    append_deployment_template_env, append_src_template_env, create_app_config,
-    create_microservice_config, register_migration, register_module)
+    append_all_disabled_env,
+    append_all_enabled_env,
+    append_deployment_template_env,
+    append_src_template_env,
+    create_app_config,
+    create_microservice_config,
+    register_migration,
+    register_module,
+)
 from zrb.builtin.group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any

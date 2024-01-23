@@ -10,12 +10,17 @@ from zrb.helper.map.conversion import to_str as map_to_str
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (Any, Callable, Iterable, List, Mapping,
-                               Optional, Union)
+from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
-                                             OnSkipped, OnStarted, OnTriggered,
-                                             OnWaiting)
+from zrb.task.any_task_event_handler import (
+    OnFailed,
+    OnReady,
+    OnRetry,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
+)
 from zrb.task.base_task.component.base_task_model import BaseTaskModel
 from zrb.task.base_task.component.renderer import Renderer
 from zrb.task.base_task.component.trackers import AttemptTracker, FinishTracker
