@@ -1,16 +1,17 @@
-from fastapi import FastAPI, Depends
 from logging import Logger
+
+from core.error import HTTPAPIException
 from core.messagebus import Publisher
 from core.rpc import Caller
-from core.error import HTTPAPIException
+from fastapi import Depends, FastAPI
+from module.auth.component import access_token_scheme
 from module.auth.core import Authorizer
+from module.auth.schema.token import AccessTokenData
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
     PascalZrbEntityName,
     PascalZrbEntityNameData,
     PascalZrbEntityNameResult,
 )
-from module.auth.schema.token import AccessTokenData
-from module.auth.component import access_token_scheme
 
 
 def register_api(

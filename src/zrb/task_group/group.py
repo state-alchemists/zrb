@@ -1,8 +1,8 @@
-from zrb.helper.typing import List, Optional, TypeVar
-from zrb.helper.typecheck import typechecked
-from zrb.task.any_task import AnyTask
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import List, Optional, TypeVar
+from zrb.task.any_task import AnyTask
 
 # flake8: noqa E501
 TGroup = TypeVar("TGroup", bound="Group")

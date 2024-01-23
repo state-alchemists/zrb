@@ -1,15 +1,16 @@
-from typing import Annotated, List, Mapping
-from fastapi import FastAPI, Depends
-from fastapi.security import OAuth2PasswordRequestForm
 from logging import Logger
+from typing import Annotated, List, Mapping
+
+from core.error import HTTPAPIException
 from core.messagebus import Publisher
 from core.rpc import Caller
-from core.error import HTTPAPIException
-from module.auth.core import Authorizer
-from module.auth.schema.user import User, UserData, UserResult, UserLogin
-from module.auth.schema.token import AccessTokenData, TokenResponse
-from module.auth.schema.request import RefreshTokenRequest, IsAuthorizedRequest
+from fastapi import Depends, FastAPI
+from fastapi.security import OAuth2PasswordRequestForm
 from module.auth.component import access_token_scheme, bearer_token_scheme
+from module.auth.core import Authorizer
+from module.auth.schema.request import IsAuthorizedRequest, RefreshTokenRequest
+from module.auth.schema.token import AccessTokenData, TokenResponse
+from module.auth.schema.user import User, UserData, UserLogin, UserResult
 
 
 def register_auth_api(

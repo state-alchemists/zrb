@@ -1,12 +1,13 @@
-from zrb.task.any_task import AnyTask
-from zrb.helper.typing import Any, JinjaTemplate, Mapping, Optional, Union
-from zrb.helper.typecheck import typechecked
+import os
+
+import jinja2
+
+from zrb.helper.render_data import DEFAULT_RENDER_DATA
 from zrb.helper.string.conversion import to_boolean
 from zrb.helper.string.jinja import is_probably_jinja
-from zrb.helper.render_data import DEFAULT_RENDER_DATA
-
-import os
-import jinja2
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, JinjaTemplate, Mapping, Optional, Union
+from zrb.task.any_task import AnyTask
 
 
 class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):

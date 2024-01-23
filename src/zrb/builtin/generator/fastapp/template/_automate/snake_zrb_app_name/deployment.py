@@ -1,23 +1,25 @@
+import os
+
 from zrb import CmdTask, runner
 from zrb.builtin.group import project_group
-from .image import push_snake_zrb_app_name_image
+
 from ._config import CURRENT_DIR, DEPLOYMENT_DIR
-from ._input import (
-    enable_monitoring_input,
-    image_input,
-    deploy_mode_input,
-    pulumi_stack_input,
-)
 from ._env import (
+    deployment_enable_monitoring_env,
+    deployment_mode_env,
+    deployment_modules_env,
     image_env,
     pulumi_backend_url_env,
     pulumi_config_passphrase_env,
-    deployment_modules_env,
-    deployment_mode_env,
-    deployment_enable_monitoring_env,
 )
 from ._env_file import deployment_app_env_file, deployment_config_env_file
-import os
+from ._input import (
+    deploy_mode_input,
+    enable_monitoring_input,
+    image_input,
+    pulumi_stack_input,
+)
+from .image import push_snake_zrb_app_name_image
 
 ###############################################################################
 # ⚙️ deploy-kebab-zrb-task-name

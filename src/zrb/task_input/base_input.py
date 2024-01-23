@@ -1,8 +1,8 @@
-from zrb.helper.typing import Any, List, Mapping, Optional, Union
+from zrb.config.config import show_prompt
 from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, List, Mapping, Optional, Union
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
-from zrb.config.config import show_prompt
 
 # flake8: noqa E501
 

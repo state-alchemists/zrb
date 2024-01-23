@@ -1,8 +1,10 @@
+import re
+
+import jinja2
+
+from zrb.helper.string.conversion import to_boolean as conversion_to_boolean
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Optional
-from zrb.helper.string.conversion import to_boolean as conversion_to_boolean
-import re
-import jinja2
 
 NON_ALPHA_NUM = re.compile(r"[^a-zA-Z0-9]+")
 

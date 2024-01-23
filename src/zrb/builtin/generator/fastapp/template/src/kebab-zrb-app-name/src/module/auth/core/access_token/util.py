@@ -1,11 +1,11 @@
-from typing import Any, Mapping
 from abc import ABC, abstractmethod
-from core.error import HTTPAPIException
-from module.auth.schema.token import AccessTokenData
 from datetime import datetime, timedelta
-from jose import jwt
+from typing import Any, Mapping
 
 import jsons
+from core.error import HTTPAPIException
+from jose import jwt
+from module.auth.schema.token import AccessTokenData
 
 
 class AccessTokenUtil(ABC):

@@ -1,8 +1,10 @@
+import os
+
 from zrb import CmdTask, Env, EnvFile, IntInput, StrInput, runner
 from zrb.builtin.group import project_group
-from .image import image_env
+
 from ._common import CURRENT_DIR, DEPLOYMENT_DIR, DEPLOYMENT_TEMPLATE_ENV_FILE_NAME
-import os
+from .image import image_env
 
 ###############################################################################
 # 🔤 Input Definitions

@@ -1,7 +1,9 @@
-from typing import TypeVar
-from zrb.helper.string.constant import FALSE_STRS
-from beartype import beartype
 import os
+from typing import TypeVar
+
+from beartype import beartype
+
+from zrb.helper.string.constant import FALSE_STRS
 
 enable_type_checking_str = os.getenv("ZRB_ENABLE_TYPE_CHECKING", "1").lower()
 enable_type_checking = enable_type_checking_str not in FALSE_STRS

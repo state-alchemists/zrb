@@ -1,33 +1,33 @@
 from zrb import DockerComposeTask, runner
 from zrb.builtin.group import project_group
+
 from ._checker import (
     app_container_checker,
-    rabbitmq_checker,
-    rabbitmq_management_checker,
-    redpanda_console_checker,
     kafka_outside_checker,
     kafka_plaintext_checker,
     pandaproxy_outside_checker,
     pandaproxy_plaintext_checker,
+    rabbitmq_checker,
+    rabbitmq_management_checker,
+    redpanda_console_checker,
+)
+from ._config import RESOURCE_DIR, SERVICE_CONFIGS
+from ._env import app_enable_otel_env, image_env
+from ._env_file import compose_env_file
+from ._helper import (
+    activate_all_compose_profile,
+    activate_selected_compose_profile,
+    should_start_container,
 )
 from ._input import (
-    local_input,
-    run_mode_input,
     enable_monitoring_input,
     host_input,
     https_input,
     image_input,
+    local_input,
+    run_mode_input,
 )
-from ._env import app_enable_otel_env, image_env
-from ._env_file import compose_env_file
-from ._helper import (
-    activate_selected_compose_profile,
-    activate_all_compose_profile,
-    should_start_container,
-)
-from ._config import RESOURCE_DIR, SERVICE_CONFIGS
 from .image import build_snake_zrb_app_name_image
-
 
 ###############################################################################
 # ⚙️ remove-kebab-zrb-task-name-container

@@ -1,13 +1,13 @@
 from beartype.typing import (
     Any,
-    Iterable,
     Callable,
+    Iterable,
     List,
     Mapping,
     Optional,
-    TypeVar,
-    Type,
     Tuple,
+    Type,
+    TypeVar,
     Union,
 )
 

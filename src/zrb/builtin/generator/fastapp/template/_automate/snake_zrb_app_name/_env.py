@@ -1,6 +1,8 @@
-from zrb import Env
-from ._config import DEPLOYMENT_DIR, MODULES
 import jsons
+
+from zrb import Env
+
+from ._config import DEPLOYMENT_DIR, MODULES
 
 app_enable_otel_env = Env(
     name="APP_ENABLE_OTEL",

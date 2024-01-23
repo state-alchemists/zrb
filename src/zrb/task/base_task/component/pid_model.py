@@ -1,6 +1,6 @@
-from zrb.helper.typecheck import typechecked
-
 import os
+
+from zrb.helper.typecheck import typechecked
 
 
 @typechecked

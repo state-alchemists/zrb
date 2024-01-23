@@ -1,6 +1,7 @@
-from typing import Any, Mapping
 from logging import Logger
-from core.messagebus import Publisher, Consumer
+from typing import Any, Mapping
+
+from core.messagebus import Consumer, Publisher
 from core.rpc import Caller
 from module.log.component.model.activity_model import activity_model
 from module.log.schema.activity import ActivityData

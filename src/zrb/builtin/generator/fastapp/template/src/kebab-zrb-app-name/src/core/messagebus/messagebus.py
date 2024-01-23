@@ -1,6 +1,7 @@
-from typing import Any, Callable, List, Mapping, Optional
 from abc import ABC, abstractmethod
-from core.serializer.serializer import Serializer, JsonSerializer
+from typing import Any, Callable, List, Mapping, Optional
+
+from core.serializer.serializer import JsonSerializer, Serializer
 
 TEventHandler = Callable[[Any], Any]
 

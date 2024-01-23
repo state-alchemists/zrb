@@ -1,18 +1,17 @@
 """A Kubernetes Python Pulumi program to deploy kebab-zrb-app-name"""
 
-from _common import MODE, BROKER_TYPE, ENABLE_MONITORING
+import pulumi
+from _common import BROKER_TYPE, ENABLE_MONITORING, MODE
 from app_helper import (
-    create_app_monolith_deployment,
-    create_app_monolith_service,
     create_app_microservices_deployments,
     create_app_microservices_services,
+    create_app_monolith_deployment,
+    create_app_monolith_service,
 )
 from helm_postgresql_helper import create_postgresql
 from helm_rabbitmq_helper import create_rabbitmq
 from helm_redpanda_helper import create_redpanda
 from helm_signoz_helper import create_signoz
-
-import pulumi
 
 postgresql = create_postgresql()
 pulumi.export("db", postgresql.resources)

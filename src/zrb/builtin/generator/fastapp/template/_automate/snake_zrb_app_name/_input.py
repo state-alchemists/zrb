@@ -1,5 +1,6 @@
-from zrb import BoolInput, ChoiceInput, StrInput
 import os
+
+from zrb import BoolInput, ChoiceInput, StrInput
 
 enable_monitoring_input = BoolInput(
     name="enable-kebab-zrb-app-name-monitoring",

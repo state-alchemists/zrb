@@ -1,8 +1,9 @@
 from typing import List
-from pydantic import BaseModel
-from core.schema import BaseDateTimeSchema, BaseCountSchema
-from module.auth.schema.permission import Permission
+
+from core.schema import BaseCountSchema, BaseDateTimeSchema
 from module.auth.schema.group import Group
+from module.auth.schema.permission import Permission
+from pydantic import BaseModel
 
 
 class UserBase(BaseDateTimeSchema):

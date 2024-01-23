@@ -1,4 +1,5 @@
 from logging import Logger
+
 from core.messagebus import Consumer, Publisher
 from core.rpc import Caller
 

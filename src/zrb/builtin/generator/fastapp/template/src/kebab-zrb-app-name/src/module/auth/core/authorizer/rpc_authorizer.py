@@ -1,5 +1,5 @@
-from module.auth.core.authorizer.authorizer import Authorizer
 from core.rpc import Caller
+from module.auth.core.authorizer.authorizer import Authorizer
 
 
 class RPCAuthorizer(Authorizer):

@@ -1,8 +1,8 @@
-from zrb.task.cmd_task import CmdTask
 from zrb.builtin.group import process_group
+from zrb.runner import runner
+from zrb.task.cmd_task import CmdTask
 from zrb.task_input.int_input import IntInput
 from zrb.task_input.str_input import StrInput
-from zrb.runner import runner
 
 ###############################################################################
 # Task Definitions

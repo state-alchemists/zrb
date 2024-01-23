@@ -1,4 +1,5 @@
 from typing import Any
+
 from zrb import Task
 
 HELLO_WORLD = "👋🌍"

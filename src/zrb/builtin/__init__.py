@@ -1,19 +1,21 @@
-from zrb.builtin import base64
-from zrb.builtin import env
-from zrb.builtin import eval
-from zrb.builtin import git
-from zrb.builtin import md5
-from zrb.builtin import explain
-from zrb.builtin import project
-from zrb.builtin import ubuntu
-from zrb.builtin import update
-from zrb.builtin import version
-from zrb.builtin import devtool
-from zrb.builtin import generator
-from zrb.builtin import process
-from zrb.builtin import say
-from zrb.builtin import watch_changes
-from zrb.builtin import schedule
+from zrb.builtin import (
+    base64,
+    devtool,
+    env,
+    eval,
+    explain,
+    generator,
+    git,
+    md5,
+    process,
+    project,
+    say,
+    schedule,
+    ubuntu,
+    update,
+    version,
+    watch_changes,
+)
 
 assert base64
 assert env

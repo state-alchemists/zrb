@@ -1,7 +1,8 @@
-from zrb.helper.typing import List, Iterable
-from zrb.helper.typecheck import typechecked
 import fnmatch
 import glob
+
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Iterable, List
 
 
 @typechecked

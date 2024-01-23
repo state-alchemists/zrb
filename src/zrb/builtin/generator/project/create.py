@@ -1,18 +1,18 @@
-from zrb.helper.typing import Any, Mapping
-from zrb.helper.typecheck import typechecked
+import os
+
 from zrb.builtin.generator.common.task_input import (
     project_dir_input,
     project_name_input,
 )
 from zrb.builtin.generator.project_task.task_factory import create_ensure_project_tasks
 from zrb.builtin.group import project_group
+from zrb.config.config import version
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, Mapping
+from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
-from zrb.runner import runner
-from zrb.config.config import version
-
-import os
 
 CURRENT_DIR = os.path.dirname(__file__)
 SYSTEM_USER = os.getenv("USER", "incognito")

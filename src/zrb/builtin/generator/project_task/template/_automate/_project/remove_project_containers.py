@@ -1,5 +1,5 @@
-from zrb.builtin.group import project_group
 from zrb import Task, runner
+from zrb.builtin.group import project_group
 
 remove_project_containers = Task(
     name="remove-containers",

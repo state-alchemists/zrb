@@ -1,37 +1,38 @@
-from zrb import CmdTask, DockerComposeTask, Task, Env, runner
+import os
+
+from zrb import CmdTask, DockerComposeTask, Env, Task, runner
 from zrb.builtin.group import project_group
-from ._config import CURRENT_DIR, APP_DIR, RESOURCE_DIR
-from ._helper import (
-    activate_support_compose_profile,
-    should_start_support_container,
-    should_start_local_microservices,
-    should_start_local_monolith,
-)
+
 from ._checker import (
-    rabbitmq_checker,
-    rabbitmq_management_checker,
-    redpanda_console_checker,
+    app_local_checker,
     kafka_outside_checker,
     kafka_plaintext_checker,
     pandaproxy_outside_checker,
     pandaproxy_plaintext_checker,
-    app_local_checker,
+    rabbitmq_checker,
+    rabbitmq_management_checker,
+    redpanda_console_checker,
 )
-from ._input import (
-    local_input,
-    https_input,
-    run_mode_input,
-    enable_monitoring_input,
-    host_input,
-    image_input,
-)
+from ._config import APP_DIR, CURRENT_DIR, RESOURCE_DIR
 from ._env import app_enable_otel_env
 from ._env_file import app_env_file
 from ._get_start_microservices import get_start_microservices
+from ._helper import (
+    activate_support_compose_profile,
+    should_start_local_microservices,
+    should_start_local_monolith,
+    should_start_support_container,
+)
+from ._input import (
+    enable_monitoring_input,
+    host_input,
+    https_input,
+    image_input,
+    local_input,
+    run_mode_input,
+)
+from .container import compose_env_file, remove_snake_zrb_app_name_container
 from .frontend import build_snake_zrb_app_name_frontend
-from .container import remove_snake_zrb_app_name_container, compose_env_file
-import os
-
 
 ###############################################################################
 # ⚙️ init-kebab-zrb-task-name-support-container

@@ -1,8 +1,10 @@
+import os
+
 from zrb import DockerComposeTask, Env, EnvFile, HTTPChecker, ServiceConfig, runner
 from zrb.builtin.group import project_group
-from ._common import RESOURCE_DIR, APP_DIR, local_input, host_input, https_input
-from .image import image_input, image_env, build_snake_zrb_app_name_image
-import os
+
+from ._common import APP_DIR, RESOURCE_DIR, host_input, https_input, local_input
+from .image import build_snake_zrb_app_name_image, image_env, image_input
 
 ###############################################################################
 # 🌳 Env File Definitions

@@ -1,15 +1,15 @@
+import asyncio
+import logging
 from typing import Any, Optional
+
+import aiormq
 from core.messagebus.messagebus import (
-    Publisher,
     MessageSerializer,
+    Publisher,
     must_get_message_serializer,
 )
 from core.messagebus.rabbitmq.admin import RMQAdmin, must_get_rmq_admin
 from pydantic import BaseModel
-
-import aiormq
-import asyncio
-import logging
 
 
 class RMQPublisher(Publisher):

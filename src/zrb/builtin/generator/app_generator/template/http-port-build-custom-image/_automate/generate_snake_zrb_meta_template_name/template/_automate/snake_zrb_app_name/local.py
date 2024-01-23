@@ -1,15 +1,17 @@
+import os
+
 from zrb import CmdTask, Env, EnvFile, runner
 from zrb.builtin.group import project_group
+
+from ._checker import snake_zrb_app_name_checker
 from ._common import (
-    CURRENT_DIR,
     APP_DIR,
     APP_TEMPLATE_ENV_FILE_NAME,
-    local_input,
+    CURRENT_DIR,
     host_input,
     https_input,
+    local_input,
 )
-from ._checker import snake_zrb_app_name_checker
-import os
 
 ###############################################################################
 # 🌳 Env File Definitions

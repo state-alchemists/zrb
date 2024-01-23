@@ -1,7 +1,8 @@
 from typing import AsyncIterator
-from httpx import AsyncClient
-from src.config import app_auth_admin_username, app_auth_admin_password
+
 import pytest
+from httpx import AsyncClient
+from src.config import app_auth_admin_password, app_auth_admin_username
 
 inserted_success_data = {
     "name": "test-create-group-success",

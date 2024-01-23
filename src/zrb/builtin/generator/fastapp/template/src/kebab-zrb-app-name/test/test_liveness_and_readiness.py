@@ -1,7 +1,8 @@
 from typing import AsyncIterator
+
+import pytest
 from httpx import AsyncClient
 from src.config import zrb_app_name
-import pytest
 
 
 @pytest.mark.asyncio

@@ -1,17 +1,17 @@
-from zrb.helper.typing import Any
-from zrb.builtin.generator.common.task_input import project_dir_input, task_name_input
+import os
+
 from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir,
     validate_inexisting_automation,
 )
 from zrb.builtin.generator.common.task_factory import create_register_module
+from zrb.builtin.generator.common.task_input import project_dir_input, task_name_input
 from zrb.builtin.group import project_add_group
-from zrb.task.task import Task
+from zrb.helper.typing import Any
+from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
-from zrb.runner import runner
-
-import os
+from zrb.task.task import Task
 
 CURRENT_DIR = os.path.dirname(__file__)
 

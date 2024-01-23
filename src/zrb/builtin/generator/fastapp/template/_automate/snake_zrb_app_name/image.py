@@ -1,8 +1,9 @@
 from zrb import DockerComposeTask, runner, BoolInput
 from zrb.builtin.group import project_group
+
 from ._config import RESOURCE_DIR
-from ._input import local_input, image_input
 from ._env import image_env
+from ._input import image_input, local_input
 
 ###############################################################################
 # ⚙️ build-kebab-zrb-task-name-image

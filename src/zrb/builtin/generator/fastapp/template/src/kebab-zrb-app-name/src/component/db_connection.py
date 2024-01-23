@@ -1,8 +1,8 @@
-from sqlalchemy import create_engine, Engine
-from sqlalchemy import event
-from config import app_db_connection, app_db_engine_show_log
-from component.log import logger
 import time
+
+from component.log import logger
+from config import app_db_connection, app_db_engine_show_log
+from sqlalchemy import Engine, create_engine, event
 
 
 @event.listens_for(Engine, "before_cursor_execute")

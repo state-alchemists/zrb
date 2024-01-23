@@ -1,8 +1,9 @@
-from typing import Any, Mapping, List, Optional
-from core.messagebus.messagebus import Admin
-import logging
-import aiormq
 import asyncio
+import logging
+from typing import Any, List, Mapping, Optional
+
+import aiormq
+from core.messagebus.messagebus import Admin
 
 
 class RMQEventConfig:

@@ -1,5 +1,6 @@
-from typing import Any
 from logging import Logger
+from typing import Any
+
 from core.messagebus import Publisher
 from core.rpc import Caller, Server
 

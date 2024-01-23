@@ -1,5 +1,5 @@
-from module.auth.core import Authorizer, RPCAuthorizer
 from component.rpc import rpc_caller
+from module.auth.core import Authorizer, RPCAuthorizer
 
 authorizer: Authorizer = RPCAuthorizer(
     rpc_caller=rpc_caller,

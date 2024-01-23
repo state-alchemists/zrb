@@ -1,5 +1,6 @@
-from zrb import BoolInput, StrInput
 import os
+
+from zrb import BoolInput, StrInput
 
 ###############################################################################
 # 🏔️ Constants

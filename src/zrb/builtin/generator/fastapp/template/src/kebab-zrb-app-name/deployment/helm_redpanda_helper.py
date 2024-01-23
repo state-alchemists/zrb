@@ -1,4 +1,3 @@
-from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 from _common import (
     NAMESPACE,
     REDPANDA_AUTH_MECHANISM,
@@ -6,6 +5,7 @@ from _common import (
     REDPANDA_AUTH_USER_NAME,
     REDPANDA_AUTH_USER_PASSWORD,
 )
+from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 
 
 def create_redpanda() -> Chart:

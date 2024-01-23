@@ -1,9 +1,10 @@
+import os
 from typing import Mapping
-from zrb import Env, ServiceConfig, EnvFile
-from zrb.helper.util import to_kebab_case
 
 import jsons
-import os
+
+from zrb import Env, EnvFile, ServiceConfig
+from zrb.helper.util import to_kebab_case
 
 CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))

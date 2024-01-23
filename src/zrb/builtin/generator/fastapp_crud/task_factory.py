@@ -1,15 +1,15 @@
-from zrb.helper.typing import List
+import os
+
+from zrb.builtin.generator.common.task_input import (
+    app_name_input,
+    entity_name_input,
+    module_name_input,
+    project_dir_input,
+)
 from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import List
 from zrb.task.any_task import AnyTask
 from zrb.task.cmd_task import CmdTask
-from zrb.builtin.generator.common.task_input import (
-    project_dir_input,
-    app_name_input,
-    module_name_input,
-    entity_name_input,
-)
-
-import os
 
 CURRENT_DIR = os.path.dirname(__file__)
 CODEMOD_DIR = os.path.join(CURRENT_DIR, "nodejs", "codemod")

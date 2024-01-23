@@ -1,9 +1,6 @@
-from fastapi import FastAPI, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from component.app_lifespan import app_lifespan, app_state
+from component.frontend_index import frontend_index_response
 from config import (
-    zrb_app_name,
-    app_enable_frontend,
     app_cors_allow_credentials,
     app_cors_allow_headers,
     app_cors_allow_methods,
@@ -11,15 +8,17 @@ from config import (
     app_cors_allow_origins,
     app_cors_expose_headers,
     app_cors_max_age,
-    public_brand,
-    public_title,
+    app_enable_frontend,
     public_auth_access_token_cookie_key,
     public_auth_refresh_token_cookie_key,
+    public_brand,
+    public_title,
+    zrb_app_name,
 )
+from fastapi import FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from schema.frontend_config import FrontendConfig
-from component.app_lifespan import app_state
-from component.app_lifespan import app_lifespan
-from component.frontend_index import frontend_index_response
 
 app = FastAPI(title=zrb_app_name, lifespan=app_lifespan)
 

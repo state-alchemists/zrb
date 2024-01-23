@@ -1,7 +1,10 @@
-from zrb.helper.typing import Iterable, Optional
-from zrb.helper.typecheck import typechecked
-from termcolor import colored as term_colored, COLORS
 import random
+
+from termcolor import COLORS
+from termcolor import colored as term_colored
+
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Iterable, Optional
 
 
 @typechecked

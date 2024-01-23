@@ -1,10 +1,10 @@
-from sqlalchemy import Column, String
-from core.repo import Repo, DBEntityMixin, DBRepo
+from core.repo import DBEntityMixin, DBRepo, Repo
+from module.snake_zrb_module_name.component import Base
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
     PascalZrbEntityName,
     PascalZrbEntityNameData,
 )
-from module.snake_zrb_module_name.component import Base
+from sqlalchemy import Column, String
 
 
 class DBEntityPascalZrbEntityName(Base, DBEntityMixin):

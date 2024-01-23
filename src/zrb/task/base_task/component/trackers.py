@@ -1,8 +1,8 @@
-from zrb.helper.typing import Optional
-from zrb.helper.typecheck import typechecked
-
 import asyncio
 import time
+
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Optional
 
 LOG_NAME_LENGTH = 20
 

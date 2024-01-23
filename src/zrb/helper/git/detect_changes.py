@@ -1,6 +1,7 @@
+import subprocess
+
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Mapping
-import subprocess
 
 
 @typechecked

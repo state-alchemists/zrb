@@ -1,5 +1,6 @@
-from zrb.helper.typecheck import typechecked
 import libcst as cst
+
+from zrb.helper.typecheck import typechecked
 
 
 @typechecked

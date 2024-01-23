@@ -1,9 +1,9 @@
 from config import (
-    app_auth_refresh_token_type,
     app_auth_jwt_token_algorithm,
     app_auth_jwt_token_secret_key,
+    app_auth_refresh_token_type,
 )
-from module.auth.core import RefreshTokenUtil, JWTRefreshTokenUtil
+from module.auth.core import JWTRefreshTokenUtil, RefreshTokenUtil
 
 
 def init_token_util() -> RefreshTokenUtil:

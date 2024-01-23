@@ -1,7 +1,6 @@
+from helper.value import utcnow
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.orm import declarative_mixin
-from helper.value import utcnow
-
 from ulid import ULID
 
 

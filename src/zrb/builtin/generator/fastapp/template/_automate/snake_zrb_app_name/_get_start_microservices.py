@@ -1,17 +1,19 @@
+import os
 from typing import List
-from zrb import CmdTask, Env, HTTPChecker, Task, EnvFile
-from zrb.helper.util import to_snake_case, to_kebab_case
+
+from zrb import CmdTask, Env, EnvFile, HTTPChecker, Task
+from zrb.helper.util import to_kebab_case, to_snake_case
+
+from ._config import APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, MODULES
+from ._env import app_enable_otel_env
 from ._helper import should_start_local_microservices
 from ._input import (
-    local_input,
-    run_mode_input,
+    enable_monitoring_input,
     host_input,
     https_input,
-    enable_monitoring_input,
+    local_input,
+    run_mode_input,
 )
-from ._env import app_enable_otel_env
-from ._config import CURRENT_DIR, APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, MODULES
-import os
 
 
 def get_start_microservices(upstreams: List[Task]) -> List[Task]:

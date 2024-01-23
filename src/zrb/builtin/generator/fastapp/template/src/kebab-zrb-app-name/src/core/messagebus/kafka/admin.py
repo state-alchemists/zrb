@@ -1,9 +1,9 @@
-from typing import List, Mapping, Optional
-from core.messagebus.messagebus import Admin
-from aiokafka.admin import AIOKafkaAdminClient, NewTopic
-from aiokafka import __version__
 import asyncio
 import logging
+from typing import List, Mapping, Optional
+from aiokafka import __version__
+from aiokafka.admin import AIOKafkaAdminClient, NewTopic
+from core.messagebus.messagebus import Admin
 
 
 class KafkaEventConfig:

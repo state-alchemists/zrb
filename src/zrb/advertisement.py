@@ -1,5 +1,5 @@
-from zrb.helper.typing import List
 from zrb.helper.advertisement import Advertisement
+from zrb.helper.typing import List
 
 # flake8: noqa E501
 

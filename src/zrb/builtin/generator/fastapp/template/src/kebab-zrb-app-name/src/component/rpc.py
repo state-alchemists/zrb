@@ -1,19 +1,19 @@
-from core.rpc import Caller, Server, MessagebusCaller, MessagebusServer
-from core.messagebus import RMQConsumer, KafkaConsumer
+from component.log import logger
 from component.messagebus import (
     admin,
     consumer,
-    publisher,
     message_serializer,
     mock_consumer,
+    publisher,
 )
-from component.log import logger
 from config import (
-    zrb_app_name,
     app_broker_type,
-    app_rmq_connection_string,
     app_kafka_bootstrap_servers,
+    app_rmq_connection_string,
+    zrb_app_name,
 )
+from core.messagebus import KafkaConsumer, RMQConsumer
+from core.rpc import Caller, MessagebusCaller, MessagebusServer, Server
 from ulid import ULID
 
 

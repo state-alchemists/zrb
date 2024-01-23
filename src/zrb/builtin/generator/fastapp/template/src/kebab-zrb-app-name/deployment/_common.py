@@ -1,9 +1,10 @@
-from typing import Mapping, List
-from dotenv import dotenv_values
 import copy
-import jsons
 import os
 import re
+from typing import List, Mapping
+
+import jsons
+from dotenv import dotenv_values
 
 NON_ALPHA_NUM = re.compile(r"[^a-zA-Z0-9]+")
 CURRENT_DIR: str = os.path.dirname(__file__)

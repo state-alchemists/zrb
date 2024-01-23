@@ -1,5 +1,5 @@
-from zrb.builtin.group import project_group
 from zrb import Task, runner
+from zrb.builtin.group import project_group
 
 start_project = Task(
     name="start",

@@ -1,7 +1,8 @@
-from typing import List
-from helper.conversion import str_to_boolean, str_to_logging_level
-import os
 import json
+import os
+from typing import List
+
+from helper.conversion import str_to_boolean, str_to_logging_level
 
 app_src_dir = os.path.dirname(__file__)
 

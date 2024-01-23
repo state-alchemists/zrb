@@ -1,12 +1,12 @@
-from zrb.config.config import logging_level
-from zrb.helper.typecheck import typechecked
-from zrb.helper.log import logger
-from zrb.helper.accessories.color import colored
+import logging
+import os
+import re
 from functools import lru_cache
 
-import os
-import logging
-import re
+from zrb.config.config import logging_level
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
+from zrb.helper.typecheck import typechecked
 
 pattern = re.compile("[^a-zA-Z0-9]")
 

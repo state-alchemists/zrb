@@ -1,29 +1,29 @@
-from zrb.helper.typing import Any
-from zrb.builtin.generator.fastapp_crud.task_factory import create_add_navigation_task
+import asyncio
+import os
+
+from zrb.builtin.generator.common.helper import validate_existing_project_dir
+from zrb.builtin.generator.common.task_input import (
+    app_name_input,
+    entity_name_input,
+    main_column_name_input,
+    module_name_input,
+    plural_entity_name_input,
+    project_dir_input,
+)
 from zrb.builtin.generator.fastapp_crud.helper import (
     register_api,
     register_permission,
     register_rpc,
 )
-from zrb.builtin.generator.common.task_input import (
-    project_dir_input,
-    app_name_input,
-    module_name_input,
-    entity_name_input,
-    plural_entity_name_input,
-    main_column_name_input,
-)
-from zrb.builtin.generator.common.helper import validate_existing_project_dir
+from zrb.builtin.generator.fastapp_crud.task_factory import create_add_navigation_task
 from zrb.builtin.group import project_add_group
-from zrb.task.task import Task
-from zrb.task.decorator import python_task
-from zrb.task.cmd_task import CmdTask
-from zrb.task.resource_maker import ResourceMaker
-from zrb.runner import runner
 from zrb.helper import util
-
-import asyncio
-import os
+from zrb.helper.typing import Any
+from zrb.runner import runner
+from zrb.task.cmd_task import CmdTask
+from zrb.task.decorator import python_task
+from zrb.task.resource_maker import ResourceMaker
+from zrb.task.task import Task
 
 CURRENT_DIR = os.path.dirname(__file__)
 CODEMOD_DIR = os.path.join(CURRENT_DIR, "nodejs", "codemod")

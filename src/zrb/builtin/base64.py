@@ -1,10 +1,10 @@
-from zrb.helper.typing import Any
+import base64
+
 from zrb.builtin.group import base64_group
+from zrb.helper.typing import Any
+from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task_input.str_input import StrInput
-from zrb.runner import runner
-
-import base64
 
 ###############################################################################
 # 🔤 Input Definitions

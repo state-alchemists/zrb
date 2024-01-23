@@ -1,21 +1,21 @@
-from zrb.builtin.group import ubuntu_group, ubuntu_install_group
-from zrb.task.cmd_task import CmdTask
-from zrb.task.flow_task import FlowTask
-from zrb.runner import runner
 from zrb.builtin.devtool.devtool_install import (
-    install_tmux,
-    install_zsh,
+    install_aws,
+    install_docker,
+    install_gcloud,
     install_gvm,
+    install_helix,
+    install_helm,
+    install_kubectl,
     install_nvm,
     install_pyenv,
     install_sdkman,
-    install_aws,
-    install_gcloud,
-    install_docker,
-    install_kubectl,
-    install_helm,
-    install_helix,
+    install_tmux,
+    install_zsh,
 )
+from zrb.builtin.group import ubuntu_group, ubuntu_install_group
+from zrb.runner import runner
+from zrb.task.cmd_task import CmdTask
+from zrb.task.flow_task import FlowTask
 
 ###############################################################################
 # Task Definitions

@@ -1,8 +1,8 @@
-from zrb.helper.typing import TypeVar, List, Union
 from abc import ABC, abstractmethod
-from zrb.helper.typecheck import typechecked
-from zrb.task.any_task import AnyTask
 
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import List, TypeVar, Union
+from zrb.task.any_task import AnyTask
 
 TParallel = TypeVar("TParallel", bound="Parallel")
 

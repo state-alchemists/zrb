@@ -1,12 +1,13 @@
-from typing import Any, Mapping
 from abc import ABC
+from typing import Any, Mapping
+
+from core.repo import DBEntityMixin, DBRepo, Repo
+from module.auth.component import Base
+from module.auth.entity.permission.repo import DBEntityPermission
+from module.auth.entity.table import group_permission
+from module.auth.schema.group import Group, GroupData
 from sqlalchemy import Column, String
 from sqlalchemy.orm import Session, relationship
-from core.repo import Repo, DBEntityMixin, DBRepo
-from module.auth.schema.group import Group, GroupData
-from module.auth.component import Base
-from module.auth.entity.table import group_permission
-from module.auth.entity.permission.repo import DBEntityPermission
 
 
 class DBEntityGroup(Base, DBEntityMixin):

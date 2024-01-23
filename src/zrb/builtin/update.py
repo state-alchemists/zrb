@@ -1,5 +1,5 @@
-from zrb.task.cmd_task import CmdTask
 from zrb.runner import runner
+from zrb.task.cmd_task import CmdTask
 
 ###############################################################################
 # Task Definitions

@@ -1,4 +1,5 @@
 from typing import Any, Mapping
+
 from pydantic import BaseModel
 
 

@@ -1,19 +1,19 @@
-from zrb.builtin.group import plugin_group
+import os
+
 from zrb.builtin.generator.common.task_input import (
-    project_dir_input,
+    package_author_email_input,
+    package_author_name_input,
+    package_bug_tracker_input,
     package_description_input,
     package_homepage_input,
-    package_bug_tracker_input,
-    package_author_name_input,
-    package_author_email_input,
+    project_dir_input,
 )
-from zrb.task.resource_maker import ResourceMaker
-from zrb.task.cmd_task import CmdTask
-from zrb.task_input.str_input import StrInput
-from zrb.runner import runner
+from zrb.builtin.group import plugin_group
 from zrb.config.config import version
-
-import os
+from zrb.runner import runner
+from zrb.task.cmd_task import CmdTask
+from zrb.task.resource_maker import ResourceMaker
+from zrb.task_input.str_input import StrInput
 
 CURRENT_DIR = os.path.dirname(__file__)
 

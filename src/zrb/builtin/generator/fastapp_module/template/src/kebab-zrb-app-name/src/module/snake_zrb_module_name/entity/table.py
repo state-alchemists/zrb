@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, Table, ForeignKey
 from module.snake_zrb_module_name.component.base import Base
+from sqlalchemy import Column, ForeignKey, Integer, Table
 
 """
 You should put any "many-to-many" table declarations in this file.

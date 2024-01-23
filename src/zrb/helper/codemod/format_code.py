@@ -1,5 +1,6 @@
-from zrb.helper.typecheck import typechecked
 import autopep8
+
+from zrb.helper.typecheck import typechecked
 
 
 @typechecked
