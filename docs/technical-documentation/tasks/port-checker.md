@@ -817,7 +817,7 @@ You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
 Specifies the behavior when the task execution fails.
 
-This asynchronous method should be implemented in subclasses to handle task
+This method should be implemented in subclasses to handle task
 failure scenarios. It can include logging the error, performing retries, or
 any other failure handling mechanisms.
 
@@ -843,7 +843,7 @@ class MyTask(Task):
 
 Defines actions to be performed when the task status is `ready`.
 
-This asynchronous method should be implemented in subclasses to specify
+This method should be implemented in subclasses to specify
 actions that occur when the task reaches the `ready` state. This can include
 any cleanup, notification, or follow-up actions specific to the task.
 
@@ -1009,7 +1009,7 @@ Render str value.
 
 Executes the main logic of the task.
 
-This asynchronous method should be implemented in subclasses to define the
+This method should be implemented in subclasses to define the
 task's primary functionality. The specific behavior and the return value
 depend on the task's nature and purpose.
 

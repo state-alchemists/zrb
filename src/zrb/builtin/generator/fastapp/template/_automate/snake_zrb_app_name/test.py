@@ -1,6 +1,6 @@
 from zrb import CmdTask, StrInput, Env, EnvFile, runner, python_task
 from zrb.builtin.group import project_group
-from ._config import CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME
+from ._config import CURRENT_DIR, RESOURCE_DIR, _APP_TEMPLATE_ENV_FILE_NAME
 from .frontend import build_snake_zrb_app_name_frontend_once
 from .local import prepare_snake_zrb_app_name_backend
 import os
@@ -44,7 +44,7 @@ test_snake_zrb_app_name = CmdTask(
         remove_snake_zrb_app_name_test_db,
     ],
     cwd=RESOURCE_DIR,
-    env_files=[EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="TEST_ZRB_ENV_PREFIX")],
+    env_files=[EnvFile(path=_APP_TEMPLATE_ENV_FILE_NAME, prefix="TEST_ZRB_ENV_PREFIX")],
     envs=[
         Env(name="APP_BROKER_TYPE", os_name="TEST_APP_BROKER_TYPE", default="mock"),
         Env(

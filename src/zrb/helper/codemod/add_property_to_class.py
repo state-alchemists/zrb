@@ -28,6 +28,7 @@ class AddPropertyTransformer(cst.CSTTransformer):
             for stmt in original_node.body.body:
                 if (
                     hasattr(stmt, "body")
+                    and not isinstance(stmt.body, cst.IndentedBlock)
                     and len(stmt.body) > 0
                     and isinstance(stmt.body[0], cst.Pass)
                 ):
