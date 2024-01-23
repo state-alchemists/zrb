@@ -1,11 +1,11 @@
-from zrb.helper.typing import Iterable, Optional
-from zrb.helper.typecheck import typechecked
-from zrb.helper.accessories.color import colored
-
 import datetime
 import random
 import re
 import sys
+
+from zrb.helper.accessories.color import colored
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Iterable, Optional
 
 
 @typechecked

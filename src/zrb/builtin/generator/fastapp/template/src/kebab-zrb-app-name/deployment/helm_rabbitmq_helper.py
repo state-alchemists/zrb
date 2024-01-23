@@ -1,5 +1,5 @@
+from _common import NAMESPACE, RABBITMQ_AUTH_PASSWORD, RABBITMQ_AUTH_USERNAME
 from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
-from _common import NAMESPACE, RABBITMQ_AUTH_USERNAME, RABBITMQ_AUTH_PASSWORD
 
 
 def create_rabbitmq() -> Chart:

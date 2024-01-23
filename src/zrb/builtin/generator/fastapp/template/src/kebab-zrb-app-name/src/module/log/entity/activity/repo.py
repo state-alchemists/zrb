@@ -1,7 +1,7 @@
-from sqlalchemy import Column, String, Text
-from core.repo import Repo, DBEntityMixin, DBRepo
-from module.log.schema.activity import Activity, ActivityData
+from core.repo import DBEntityMixin, DBRepo, Repo
 from module.log.component import Base
+from module.log.schema.activity import Activity, ActivityData
+from sqlalchemy import Column, String, Text
 
 
 class DBEntityActivity(Base, DBEntityMixin):

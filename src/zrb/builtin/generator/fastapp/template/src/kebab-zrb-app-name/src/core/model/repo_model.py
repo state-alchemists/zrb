@@ -1,7 +1,8 @@
-from typing import Generic, List, Optional, TypeVar, Type
-from pydantic import BaseModel
+from typing import Generic, List, Optional, Type, TypeVar
+
 from core.repo.repo import Repo
 from core.repo.search_filter import SearchFilter
+from pydantic import BaseModel
 
 Schema = TypeVar("Schema", bound=BaseModel)
 SchemaData = TypeVar("SchemaData", bound=BaseModel)

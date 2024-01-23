@@ -1,8 +1,8 @@
 from zrb.helper.typing import Any
-from zrb.task.task import Task
-from zrb.task.decorator import python_task
 from zrb.task.cmd_task import CmdTask
+from zrb.task.decorator import python_task
 from zrb.task.notifier import Notifier
+from zrb.task.task import Task
 from zrb.task_input.str_input import StrInput
 
 

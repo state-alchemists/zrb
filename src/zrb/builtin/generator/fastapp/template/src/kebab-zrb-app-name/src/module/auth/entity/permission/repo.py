@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from sqlalchemy import Column, String
-from core.repo import Repo, DBEntityMixin, DBRepo
-from module.auth.schema.permission import Permission, PermissionData
+
+from core.repo import DBEntityMixin, DBRepo, Repo
 from module.auth.component import Base
+from module.auth.schema.permission import Permission, PermissionData
+from sqlalchemy import Column, String
 
 
 class DBEntityPermission(Base, DBEntityMixin):

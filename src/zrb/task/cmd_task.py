@@ -1,40 +1,40 @@
+import asyncio
+import atexit
+import os
+import pathlib
+import signal
+import subprocess
+import sys
+import time
+
+from zrb.config.config import default_shell
+from zrb.helper.string.conversion import to_variable_name
+from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
     Any,
     Callable,
     Iterable,
+    JinjaTemplate,
     List,
     Optional,
-    Union,
     TypeVar,
-    JinjaTemplate,
+    Union,
 )
-from zrb.helper.typecheck import typechecked
-from zrb.helper.string.conversion import to_variable_name
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered,
-    OnWaiting,
-    OnSkipped,
-    OnStarted,
+    OnFailed,
     OnReady,
     OnRetry,
-    OnFailed,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
 )
 from zrb.task.base_task.base_task import BaseTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-from zrb.config.config import default_shell
-
-import asyncio
-import atexit
-import os
-import pathlib
-import signal
-import sys
-import subprocess
-import time
 
 _has_stty = True
 try:

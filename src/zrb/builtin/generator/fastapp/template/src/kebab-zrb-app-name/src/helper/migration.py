@@ -1,7 +1,7 @@
-from alembic.migration import MigrationContext
 from alembic.autogenerate import produce_migrations
-from alembic.operations.ops import ModifyTableOps
+from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from alembic.operations.ops import ModifyTableOps
 from sqlalchemy import Engine
 from sqlalchemy.orm import DeclarativeBase
 

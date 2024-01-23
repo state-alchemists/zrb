@@ -1,5 +1,5 @@
-from zrb.builtin.group import project_group
 from zrb import Task, runner
+from zrb.builtin.group import project_group
 
 build_project_images = Task(
     name="build-images",

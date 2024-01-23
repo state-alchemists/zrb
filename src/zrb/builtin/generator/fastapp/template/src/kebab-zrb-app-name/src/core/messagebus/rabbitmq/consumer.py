@@ -1,15 +1,16 @@
+import asyncio
+import inspect
+import logging
 from typing import Any, Callable, Mapping, Optional
+
+import aiormq
 from core.messagebus.messagebus import (
     Consumer,
-    TEventHandler,
     MessageSerializer,
+    TEventHandler,
     must_get_message_serializer,
 )
 from core.messagebus.rabbitmq.admin import RMQAdmin, must_get_rmq_admin
-import asyncio
-import aiormq
-import inspect
-import logging
 
 
 class RMQConsumer(Consumer):

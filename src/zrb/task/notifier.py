@@ -1,25 +1,25 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, JinjaTemplate
+import os
+import subprocess
+
+from zrb.helper.accessories.icon import get_random_icon
+from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.task.base_task.base_task import BaseTask
+from zrb.helper.typing import Any, Callable, Iterable, JinjaTemplate, Optional, Union
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered,
-    OnWaiting,
-    OnSkipped,
-    OnStarted,
+    OnFailed,
     OnReady,
     OnRetry,
-    OnFailed,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
 )
+from zrb.task.base_task.base_task import BaseTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-from zrb.helper.accessories.icon import get_random_icon
-from zrb.helper.string.modification import double_quote
-
-import os
-import subprocess
 
 CURRENT_DIR = os.path.dirname(__file__)
 NOTIFY_PS1_PATH = os.path.realpath(

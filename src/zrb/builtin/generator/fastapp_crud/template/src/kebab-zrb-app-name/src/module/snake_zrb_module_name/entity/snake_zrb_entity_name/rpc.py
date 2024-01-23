@@ -1,15 +1,16 @@
-from typing import Any, Mapping
 from logging import Logger
+from typing import Any, Mapping
+
 from core.messagebus import Publisher
-from core.rpc import Caller, Server
 from core.repo import SearchFilter
+from core.rpc import Caller, Server
+from module.auth.schema.token import AccessTokenData
 from module.snake_zrb_module_name.component.model.snake_zrb_entity_name_model import (
     snake_zrb_entity_name_model,
 )
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
     PascalZrbEntityNameData,
 )
-from module.auth.schema.token import AccessTokenData
 
 
 def register_rpc(

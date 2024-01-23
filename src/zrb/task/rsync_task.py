@@ -1,25 +1,24 @@
-from zrb.helper.typing import Any, Callable, Iterable, Optional, Union, JinjaTemplate
+import os
+import pathlib
+
 from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, Callable, Iterable, JinjaTemplate, Optional, Union
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered,
-    OnWaiting,
-    OnSkipped,
-    OnStarted,
+    OnFailed,
     OnReady,
     OnRetry,
-    OnFailed,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
 )
+from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
+from zrb.task.cmd_task import CmdTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-from zrb.task.cmd_task import CmdTask
-from zrb.task.base_remote_cmd_task import RemoteConfig, BaseRemoteCmdTask
-
-import os
-import pathlib
-
 
 CURRENT_DIR = os.path.dirname(__file__)
 SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")

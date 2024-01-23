@@ -1,38 +1,38 @@
+from zrb.helper.file.copy_tree import copy_tree
+from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
     Any,
     Callable,
     Iterable,
+    JinjaTemplate,
     Mapping,
     Optional,
-    Union,
     TypeVar,
-    JinjaTemplate,
+    Union,
 )
-from zrb.helper.typecheck import typechecked
-from zrb.task.base_task.base_task import BaseTask
+from zrb.helper.util import (
+    to_camel_case,
+    to_capitalized_human_readable,
+    to_human_readable,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
+)
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered,
-    OnWaiting,
-    OnSkipped,
-    OnStarted,
+    OnFailed,
     OnReady,
     OnRetry,
-    OnFailed,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
 )
+from zrb.task.base_task.base_task import BaseTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-from zrb.helper.file.copy_tree import copy_tree
-from zrb.helper.util import (
-    to_camel_case,
-    to_pascal_case,
-    to_kebab_case,
-    to_snake_case,
-    to_human_readable,
-    to_capitalized_human_readable,
-)
 
 Replacement = Mapping[str, JinjaTemplate]
 ReplacementMutator = Callable[[AnyTask, Replacement], Replacement]

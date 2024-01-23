@@ -1,5 +1,6 @@
 from typing import List
-from core.schema import BaseDateTimeSchema, BaseCountSchema
+
+from core.schema import BaseCountSchema, BaseDateTimeSchema
 from module.auth.schema.permission import Permission
 
 

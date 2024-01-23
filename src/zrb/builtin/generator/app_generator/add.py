@@ -1,22 +1,22 @@
-from zrb.helper.typing import Any
-from zrb.builtin.generator.common.task_input import project_dir_input
+import os
+
 from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir,
     validate_inexisting_automation,
 )
 from zrb.builtin.generator.common.task_factory import create_register_module
+from zrb.builtin.generator.common.task_input import project_dir_input
 from zrb.builtin.group import project_add_group
-from zrb.task.decorator import python_task
-from zrb.task.task import Task
+from zrb.helper.accessories.name import get_random_name
+from zrb.helper.typing import Any
+from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
+from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
+from zrb.task.task import Task
+from zrb.task_input.bool_input import BoolInput
 from zrb.task_input.int_input import IntInput
 from zrb.task_input.str_input import StrInput
-from zrb.task_input.bool_input import BoolInput
-from zrb.helper.accessories.name import get_random_name
-from zrb.runner import runner
-
-import os
 
 CURRENT_DIR = os.path.dirname(__file__)
 

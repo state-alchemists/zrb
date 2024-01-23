@@ -1,11 +1,12 @@
-from zrb.helper.typing import Any, List
-from zrb.helper.python_task import show_lines
-from zrb.task.decorator import python_task
-from zrb.task_input.str_input import StrInput
-from zrb.task_input.int_input import IntInput
-from zrb.runner import runner
 import datetime
 import random
+
+from zrb.helper.python_task import show_lines
+from zrb.helper.typing import Any, List
+from zrb.runner import runner
+from zrb.task.decorator import python_task
+from zrb.task_input.int_input import IntInput
+from zrb.task_input.str_input import StrInput
 
 _MIN_WIDTH = 10
 _MOTIVATIONAL_QUOTES = [

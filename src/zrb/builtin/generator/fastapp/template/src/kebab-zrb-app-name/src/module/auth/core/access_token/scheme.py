@@ -1,10 +1,11 @@
 from typing import Callable, Optional
-from starlette.requests import Request
+
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from module.auth.core.access_token.util import AccessTokenUtil
 from module.auth.schema.token import AccessTokenData
 from module.auth.schema.user import User
-from module.auth.core.access_token.util import AccessTokenUtil
+from starlette.requests import Request
 
 AccessTokenScheme = Callable[[Request], AccessTokenData]
 

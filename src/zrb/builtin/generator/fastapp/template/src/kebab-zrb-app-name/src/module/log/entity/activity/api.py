@@ -1,12 +1,13 @@
-from fastapi import FastAPI, Depends
 from logging import Logger
+
+from core.error import HTTPAPIException
 from core.messagebus import Publisher
 from core.rpc import Caller
-from core.error import HTTPAPIException
-from module.auth.core import Authorizer
-from module.log.schema.activity import Activity, ActivityResult
-from module.auth.schema.token import AccessTokenData
+from fastapi import Depends, FastAPI
 from module.auth.component import access_token_scheme
+from module.auth.core import Authorizer
+from module.auth.schema.token import AccessTokenData
+from module.log.schema.activity import Activity, ActivityResult
 
 
 def register_api(

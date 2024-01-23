@@ -1,16 +1,16 @@
+import asyncio
+import logging
 from typing import Any, Optional
+
+from aiokafka import AIOKafkaProducer
+from aiokafka.producer.producer import DefaultPartitioner, _missing
+from core.messagebus.kafka.admin import KafkaAdmin, must_get_kafka_admin
 from core.messagebus.messagebus import (
-    Publisher,
     MessageSerializer,
+    Publisher,
     must_get_message_serializer,
 )
-from core.messagebus.kafka.admin import KafkaAdmin, must_get_kafka_admin
-from aiokafka import AIOKafkaProducer
-from aiokafka.producer.producer import _missing, DefaultPartitioner
 from pydantic import BaseModel
-
-import logging
-import asyncio
 
 
 class KafkaPublisher(Publisher):

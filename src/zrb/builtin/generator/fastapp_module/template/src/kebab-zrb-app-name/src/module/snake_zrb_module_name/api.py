@@ -1,7 +1,8 @@
-from fastapi import FastAPI
 from logging import Logger
+
 from core.messagebus import Publisher
 from core.rpc import Caller
+from fastapi import FastAPI
 from module.auth.core import Authorizer
 
 

@@ -1,7 +1,7 @@
-from zrb import CmdTask, runner, StrInput
-from zrb.builtin.group import plugin_group
-
 import os
+
+from zrb import CmdTask, StrInput, runner
+from zrb.builtin.group import plugin_group
 
 PROJECT_DIR = os.path.dirname(__file__)
 

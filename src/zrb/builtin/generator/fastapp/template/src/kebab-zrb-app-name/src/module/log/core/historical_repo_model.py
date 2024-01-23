@@ -1,11 +1,11 @@
-from typing import TypeVar, Type
-from pydantic import BaseModel
-from core.repo.repo import Repo
+from typing import Type, TypeVar
+
+import jsons
 from core.messagebus.messagebus import Publisher
 from core.model.repo_model import RepoModel
+from core.repo.repo import Repo
 from module.log.schema.activity import ActivityData
-import jsons
-
+from pydantic import BaseModel
 
 Schema = TypeVar("Schema", bound=BaseModel)
 SchemaData = TypeVar("SchemaData", bound=BaseModel)

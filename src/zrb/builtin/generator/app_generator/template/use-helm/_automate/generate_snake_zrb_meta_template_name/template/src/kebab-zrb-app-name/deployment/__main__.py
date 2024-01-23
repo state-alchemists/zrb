@@ -1,8 +1,9 @@
 """A Kubernetes Python Pulumi program to deploy kebab-zrb-app-name"""
 
-from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
-import pulumi
 import os
+
+import pulumi
+from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 
 CURRENT_DIR = os.path.dirname(__file__)
 NAMESPACE = os.getenv("NAMESPACE", "default")

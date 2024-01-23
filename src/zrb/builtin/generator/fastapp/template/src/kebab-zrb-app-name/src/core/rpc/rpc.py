@@ -1,5 +1,5 @@
-from typing import Any, Callable, List, Mapping, TypeVar
 from abc import ABC, abstractmethod
+from typing import Any, Callable, List, Mapping, TypeVar
 
 TRPCHandler = Callable[..., Any]
 TMessage = TypeVar("TMessage", bound="Message")

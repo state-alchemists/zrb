@@ -1,7 +1,7 @@
+import pytest
 from asgi_lifespan import LifespanManager
 from httpx import AsyncClient
 from src.main import app
-import pytest
 
 
 @pytest.fixture()

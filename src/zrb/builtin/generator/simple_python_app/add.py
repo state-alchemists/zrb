@@ -1,18 +1,18 @@
-from zrb.helper.typing import Any
+import os
+
 from zrb.builtin.generator.common.helper import (
     validate_existing_project_dir,
     validate_inexisting_automation,
 )
-from zrb.builtin.generator.common.task_input import (
-    project_dir_input,
-    app_name_input,
-    app_image_name_input,
-    http_port_input,
-    env_prefix_input,
-)
 from zrb.builtin.generator.common.task_factory import create_register_module
+from zrb.builtin.generator.common.task_input import (
+    app_image_name_input,
+    app_name_input,
+    env_prefix_input,
+    http_port_input,
+    project_dir_input,
+)
 from zrb.builtin.generator.project_task.task_factory import (
-    create_ensure_project_tasks,
     create_add_build_images_upstream,
     create_add_deploy_upstream,
     create_add_destroy_upstream,
@@ -21,15 +21,15 @@ from zrb.builtin.generator.project_task.task_factory import (
     create_add_start_containers_upstream,
     create_add_start_upstream,
     create_add_stop_containers_upstream,
+    create_ensure_project_tasks,
 )
 from zrb.builtin.group import project_add_group
-from zrb.task.task import Task
+from zrb.helper.typing import Any
+from zrb.helper.util import to_kebab_case
+from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
-from zrb.runner import runner
-from zrb.helper.util import to_kebab_case
-
-import os
+from zrb.task.task import Task
 
 CURRENT_DIR = os.path.dirname(__file__)
 SNAKE_APP_NAME_TPL = "{{util.to_snake_case(input.app_name)}}"

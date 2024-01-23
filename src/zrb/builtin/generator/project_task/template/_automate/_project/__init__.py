@@ -1,10 +1,10 @@
 from .build_project_images import build_project_images
 from .deploy_project import deploy_project
+from .destroy_project import destroy_project
 from .push_project_images import push_project_images
 from .remove_project_containers import remove_project_containers
-from .destroy_project import destroy_project
-from .start_project_containers import start_project_containers
 from .start_project import start_project
+from .start_project_containers import start_project_containers
 from .stop_project_containers import stop_project_containers
 
 assert build_project_images

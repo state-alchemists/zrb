@@ -1,18 +1,19 @@
-from zrb.helper.typing import Any, List, Optional
-from zrb.helper.typecheck import typechecked
-from zrb.builtin.generator.common.task_input import project_dir_input
+import os
+
 from zrb.builtin.generator.common.helper import (
-    validate_existing_project_dir,
     register_module_to_project,
+    validate_existing_project_dir,
 )
-from zrb.task.decorator import python_task
-from zrb.task.any_task import AnyTask
-from zrb.task.task import Task
-from zrb.task_input.any_input import AnyInput
-from zrb.helper.file.text import read_text_file_async, write_text_file_async
+from zrb.builtin.generator.common.task_input import project_dir_input
 from zrb.helper.codemod.add_import_module import add_import_module
 from zrb.helper.codemod.add_upstream_to_task import add_upstream_to_task
-import os
+from zrb.helper.file.text import read_text_file_async, write_text_file_async
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, List, Optional
+from zrb.task.any_task import AnyTask
+from zrb.task.decorator import python_task
+from zrb.task.task import Task
+from zrb.task_input.any_input import AnyInput
 
 
 @typechecked

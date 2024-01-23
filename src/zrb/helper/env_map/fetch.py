@@ -1,9 +1,9 @@
+from zrb.helper.string.jinja import is_probably_jinja
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import List, Mapping
-from zrb.task_group.group import Group
 from zrb.task.any_task import AnyTask
 from zrb.task_env.env import Env
-from zrb.helper.string.jinja import is_probably_jinja
+from zrb.task_group.group import Group
 
 
 @typechecked

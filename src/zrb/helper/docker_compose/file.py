@@ -1,6 +1,7 @@
+from ruamel.yaml import YAML, CommentedMap
+
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Mapping
-from ruamel.yaml import YAML, CommentedMap
 
 
 @typechecked

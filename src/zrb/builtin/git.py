@@ -1,13 +1,13 @@
-from zrb.helper.typing import Any
 from zrb.builtin.group import git_group
-from zrb.task.decorator import python_task
-from zrb.task.cmd_task import CmdTask
-from zrb.task_input.str_input import StrInput
-from zrb.task_input.bool_input import BoolInput
-from zrb.runner import runner
-from zrb.helper.git.detect_changes import get_modified_file_states
 from zrb.helper.accessories.color import colored
+from zrb.helper.git.detect_changes import get_modified_file_states
 from zrb.helper.python_task import show_lines
+from zrb.helper.typing import Any
+from zrb.runner import runner
+from zrb.task.cmd_task import CmdTask
+from zrb.task.decorator import python_task
+from zrb.task_input.bool_input import BoolInput
+from zrb.task_input.str_input import StrInput
 
 ###############################################################################
 # Task Definitions

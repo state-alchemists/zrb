@@ -1,4 +1,15 @@
-from zrb.helper.typing import Any
+import asyncio
+import os
+
+from zrb.builtin.generator.common.helper import validate_existing_project_dir
+from zrb.builtin.generator.common.task_input import (
+    app_name_input,
+    column_name_input,
+    column_type_input,
+    entity_name_input,
+    module_name_input,
+    project_dir_input,
+)
 from zrb.builtin.generator.fastapp_field.helper import (
     add_column_to_delete_page,
     add_column_to_detail_page,
@@ -9,23 +20,12 @@ from zrb.builtin.generator.fastapp_field.helper import (
     add_column_to_test,
     add_column_to_update_page,
 )
-from zrb.builtin.generator.common.task_input import (
-    project_dir_input,
-    app_name_input,
-    module_name_input,
-    entity_name_input,
-    column_name_input,
-    column_type_input,
-)
-from zrb.builtin.generator.common.helper import validate_existing_project_dir
 from zrb.builtin.group import project_add_group
-from zrb.task.task import Task
-from zrb.task.decorator import python_task
-from zrb.runner import runner
 from zrb.helper import util
-
-import asyncio
-import os
+from zrb.helper.typing import Any
+from zrb.runner import runner
+from zrb.task.decorator import python_task
+from zrb.task.task import Task
 
 CURRENT_DIR = os.path.dirname(__file__)
 

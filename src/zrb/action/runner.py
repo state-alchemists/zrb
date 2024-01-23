@@ -1,14 +1,15 @@
-from zrb.config.config import logging_level
-from zrb.helper.typing import Any, Callable, List, Mapping, Union
-from zrb.helper.typecheck import typechecked
-from zrb.helper.log import logger
-from zrb.helper.accessories.color import colored
-from zrb.task_group.group import Group as TaskGroup
-from zrb.task.any_task import AnyTask
-
-import click
 import logging
 import sys
+
+import click
+
+from zrb.config.config import logging_level
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, Callable, List, Mapping, Union
+from zrb.task.any_task import AnyTask
+from zrb.task_group.group import Group as TaskGroup
 
 CliSubcommand = Union[click.Group, click.Command]
 

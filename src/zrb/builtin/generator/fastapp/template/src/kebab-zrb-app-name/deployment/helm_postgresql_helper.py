@@ -1,11 +1,11 @@
-from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 from _common import (
     NAMESPACE,
     POSTGRESQL_AUTH_PASSWORD,
-    POSTGRESQL_AUTH_USERNAME,
     POSTGRESQL_AUTH_POSTGRES_PASSWORD,
+    POSTGRESQL_AUTH_USERNAME,
     POSTGRESQL_DB,
 )
+from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 
 
 def create_postgresql() -> Chart:

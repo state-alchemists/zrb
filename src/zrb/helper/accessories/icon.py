@@ -1,5 +1,6 @@
-from zrb.helper.typecheck import typechecked
 import random
+
+from zrb.helper.typecheck import typechecked
 
 
 @typechecked

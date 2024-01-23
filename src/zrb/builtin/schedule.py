@@ -1,9 +1,8 @@
+from zrb.builtin.helper.reccuring_action import create_recurring_action
+from zrb.runner import runner
 from zrb.task.recurring_task import RecurringTask
 from zrb.task.time_watcher import TimeWatcher
 from zrb.task_input.str_input import StrInput
-from zrb.runner import runner
-from zrb.builtin.helper.reccuring_action import create_recurring_action
-
 
 schedule = RecurringTask(
     name="schedule",

@@ -1,15 +1,16 @@
-from zrb.helper.typecheck import typechecked
-from zrb.runner import runner
-from zrb.config.config import init_scripts, should_load_builtin, version, logging_level
-from zrb.helper.loader.load_module import load_module
-from zrb.helper.log import logger
-from zrb.helper.accessories.color import colored
-from functools import lru_cache
-
-import click
 import logging
 import os
 import sys
+from functools import lru_cache
+
+import click
+
+from zrb.config.config import init_scripts, logging_level, should_load_builtin, version
+from zrb.helper.accessories.color import colored
+from zrb.helper.loader.load_module import load_module
+from zrb.helper.log import logger
+from zrb.helper.typecheck import typechecked
+from zrb.runner import runner
 
 HELP = f"""
                 bb

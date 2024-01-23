@@ -1,11 +1,12 @@
-from typing import Optional, List, Mapping
+from typing import List, Mapping, Optional
+
 from core.messagebus.messagebus import Publisher
-from module.log.core.historical_repo_model import HistoricalRepoModel
-from module.auth.schema.user import User, UserData, UserResult, UserLogin
-from module.auth.entity.user.repo import UserRepo
-from module.auth.schema.token import AccessTokenData, RefreshTokenData, TokenResponse
 from module.auth.core import AccessTokenUtil, RefreshTokenUtil
 from module.auth.entity.permission.model import PermissionModel
+from module.auth.entity.user.repo import UserRepo
+from module.auth.schema.token import AccessTokenData, RefreshTokenData, TokenResponse
+from module.auth.schema.user import User, UserData, UserLogin, UserResult
+from module.log.core.historical_repo_model import HistoricalRepoModel
 
 
 class UserModel(HistoricalRepoModel[User, UserData, UserResult]):

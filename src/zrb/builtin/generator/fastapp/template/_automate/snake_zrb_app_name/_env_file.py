@@ -1,10 +1,12 @@
+import os
+
 from zrb import EnvFile
+
 from ._config import (
-    RESOURCE_DIR,
     APP_TEMPLATE_ENV_FILE_NAME,
     DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
+    RESOURCE_DIR,
 )
-import os
 
 app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX")
 

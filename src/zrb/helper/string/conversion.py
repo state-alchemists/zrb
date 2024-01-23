@@ -1,8 +1,9 @@
-from zrb.helper.typecheck import typechecked
-from zrb.helper.string.constant import TRUE_STRS, FALSE_STRS
 import keyword
 import logging
 import re
+
+from zrb.helper.string.constant import FALSE_STRS, TRUE_STRS
+from zrb.helper.typecheck import typechecked
 
 NON_WORD = re.compile(r"[\W]+")
 LEADING_NUM = re.compile(r"^\d+")

@@ -1,6 +1,7 @@
 from typing import List, Optional
-from module.auth.schema.permission import PermissionData
+
 from module.auth.component.model.permission_model import permission_model
+from module.auth.schema.permission import PermissionData
 
 DEFAULT_ACTION_NAMES = ["get", "get_by_id", "insert", "update", "delete"]
 ACTION_DESCRIPTION = {

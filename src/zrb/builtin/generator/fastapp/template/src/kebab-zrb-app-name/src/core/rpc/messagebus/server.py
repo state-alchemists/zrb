@@ -1,8 +1,9 @@
-from typing import Any, Mapping
-from core.messagebus.messagebus import Consumer, Publisher
-from core.rpc.rpc import Server, TRPCHandler, Message, Result
-import logging
 import inspect
+import logging
+from typing import Any, Mapping
+
+from core.messagebus.messagebus import Consumer, Publisher
+from core.rpc.rpc import Message, Result, Server, TRPCHandler
 from pydantic import BaseModel
 
 

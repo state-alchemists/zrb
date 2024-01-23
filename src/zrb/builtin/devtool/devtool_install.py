@@ -1,15 +1,16 @@
-from zrb.helper.typing import Any, Callable
-from zrb.helper.typecheck import typechecked
+import os
+
+from zrb.builtin.group import dev_tool_install_group
 from zrb.config.config import get_current_shell
-from zrb.task.task import Task
+from zrb.helper.file.text import read_text_file_async, write_text_file_async
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, Callable
+from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.flow_task import FlowTask
-from zrb.task_input.str_input import StrInput
+from zrb.task.task import Task
 from zrb.task_input.bool_input import BoolInput
-from zrb.runner import runner
-from zrb.helper.file.text import read_text_file_async, write_text_file_async
-from zrb.builtin.group import dev_tool_install_group
-import os
+from zrb.task_input.str_input import StrInput
 
 dir_path = os.path.dirname(__file__)
 current_shell = get_current_shell()

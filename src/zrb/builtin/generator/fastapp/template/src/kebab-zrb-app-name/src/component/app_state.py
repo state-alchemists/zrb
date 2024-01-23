@@ -1,6 +1,7 @@
+import asyncio
+
 from component.log import logger
 from config import app_max_not_ready
-import asyncio
 
 
 class AppState:

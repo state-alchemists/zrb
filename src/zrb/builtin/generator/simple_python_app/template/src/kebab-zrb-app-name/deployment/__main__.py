@@ -1,9 +1,10 @@
 """A Kubernetes Python Pulumi program to deploy kebab-zrb-app-name"""
 
-from dotenv import dotenv_values
+import os
+
 import pulumi
 import pulumi_kubernetes as k8s
-import os
+from dotenv import dotenv_values
 
 CURRENT_DIR = os.path.dirname(__file__)
 APP_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "src"))

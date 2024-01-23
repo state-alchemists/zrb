@@ -1,7 +1,7 @@
-from zrb import CmdTask, runner, StrInput
-from zrb.builtin.group import project_group
-
 import os
+
+from zrb import CmdTask, StrInput, runner
+from zrb.builtin.group import project_group
 
 CURRENT_DIR = os.path.dirname(__file__)
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))

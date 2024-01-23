@@ -1,39 +1,39 @@
+import os
+import pathlib
+
+from zrb.helper.accessories.name import get_random_name
+from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
+from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
+from zrb.helper.string.conversion import to_cli_name
+from zrb.helper.string.modification import double_quote
+from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
     Any,
     Callable,
     Iterable,
+    JinjaTemplate,
     List,
     Mapping,
     Optional,
-    Union,
     TypeVar,
-    JinjaTemplate,
+    Union,
 )
-from zrb.helper.typecheck import typechecked
-from zrb.task.cmd_task import CmdTask, CmdResult, CmdVal
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered,
-    OnWaiting,
-    OnSkipped,
-    OnStarted,
+    OnFailed,
     OnReady,
     OnRetry,
-    OnFailed,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
 )
+from zrb.task.cmd_task import CmdResult, CmdTask, CmdVal
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-from zrb.helper.accessories.name import get_random_name
-from zrb.helper.string.conversion import to_cli_name
-from zrb.helper.string.modification import double_quote
-from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
-from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
-
-import os
-import pathlib
 
 CURRENT_DIR = os.path.dirname(__file__)
 SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")

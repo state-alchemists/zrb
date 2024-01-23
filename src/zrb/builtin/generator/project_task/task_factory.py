@@ -1,16 +1,17 @@
-from zrb.helper.typing import Any, List, Optional
-from zrb.helper.typecheck import typechecked
-from zrb.builtin.generator.common.task_input import project_dir_input
+import os
+
 from zrb.builtin.generator.common.task_factory import create_add_upstream
-from zrb.task.decorator import python_task
-from zrb.task.any_task import AnyTask
-from zrb.task.task import Task
-from zrb.task_input.any_input import AnyInput
-from zrb.helper.codemod.add_import_module import add_import_module
+from zrb.builtin.generator.common.task_input import project_dir_input
 from zrb.helper.codemod.add_assert_resource import add_assert_resource
+from zrb.helper.codemod.add_import_module import add_import_module
 from zrb.helper.file.copy_tree import copy_tree
 from zrb.helper.file.text import read_text_file_async, write_text_file_async
-import os
+from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, List, Optional
+from zrb.task.any_task import AnyTask
+from zrb.task.decorator import python_task
+from zrb.task.task import Task
+from zrb.task_input.any_input import AnyInput
 
 CURRENT_DIR = os.path.dirname(__file__)
 

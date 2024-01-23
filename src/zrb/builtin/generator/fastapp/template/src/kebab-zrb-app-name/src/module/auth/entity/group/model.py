@@ -1,5 +1,5 @@
-from module.log.core.historical_repo_model import HistoricalRepoModel
 from module.auth.schema.group import Group, GroupData, GroupResult
+from module.log.core.historical_repo_model import HistoricalRepoModel
 
 
 class GroupModel(HistoricalRepoModel[Group, GroupData, GroupResult]):

@@ -1,25 +1,26 @@
+from http.client import HTTPConnection, HTTPSConnection
+
+from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
     Any,
     Callable,
     Iterable,
-    Optional,
-    Union,
-    TypeVar,
     JinjaTemplate,
+    Optional,
+    TypeVar,
+    Union,
 )
-from zrb.helper.typecheck import typechecked
-from zrb.task.checker import Checker
-from http.client import HTTPConnection, HTTPSConnection
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
-    OnTriggered,
-    OnWaiting,
-    OnSkipped,
-    OnStarted,
+    OnFailed,
     OnReady,
     OnRetry,
-    OnFailed,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
 )
+from zrb.task.checker import Checker
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group

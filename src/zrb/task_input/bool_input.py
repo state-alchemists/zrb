@@ -1,5 +1,5 @@
-from zrb.helper.typing import Any, Optional, Union
 from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, Optional, Union
 from zrb.task_input.base_input import BaseInput
 
 # flake8: noqa E501

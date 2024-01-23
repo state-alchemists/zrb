@@ -1,9 +1,11 @@
-from zrb import CmdTask, StrInput, Env, EnvFile, runner, python_task
+import os
+
+from zrb import CmdTask, Env, EnvFile, StrInput, python_task, runner
 from zrb.builtin.group import project_group
-from ._config import CURRENT_DIR, RESOURCE_DIR, APP_TEMPLATE_ENV_FILE_NAME
+
+from ._config import APP_TEMPLATE_ENV_FILE_NAME, CURRENT_DIR, RESOURCE_DIR
 from .frontend import build_snake_zrb_app_name_frontend_once
 from .local import prepare_snake_zrb_app_name_backend
-import os
 
 ###############################################################################
 # ⚙️ remove-kebab-zrb-task-name-test-db

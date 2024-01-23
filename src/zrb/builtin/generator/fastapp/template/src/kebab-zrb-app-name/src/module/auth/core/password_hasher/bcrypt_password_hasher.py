@@ -1,5 +1,5 @@
-from module.auth.core.password_hasher.password_hasher import PasswordHasher
 import bcrypt
+from module.auth.core.password_hasher.password_hasher import PasswordHasher
 
 
 class BcryptPasswordHasher(PasswordHasher):
