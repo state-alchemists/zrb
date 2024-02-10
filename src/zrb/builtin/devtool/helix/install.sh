@@ -8,6 +8,15 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+try_sudo() {
+    if command_exists sudo
+    then
+        sudo $@
+    else
+        $@
+    fi
+}
+
 # Install helix
 if command_exists hx
 then
@@ -25,25 +34,28 @@ else
         fi
     elif [ "$OS_TYPE" = "Linux" ]
     then
-        if command_exists apt
+        if command_exists pkg
         then
-            sudo apt install -y xclip
-            sudo add-apt-repository ppa:maveonair/helix-editor -y
-            sudo apt update
-            sudo apt install -y helix
+            try_sudo pkg update
+            try_sudo pkg install -y xclip helix
+        elif command_exists apt
+        then
+            try_sudo add-apt-repository ppa:maveonair/helix-editor -y
+            try_sudo apt update
+            try_sudo apt install -y helix xclip
         elif command_exists yum
         then
-            sudo yum install -y helix
+            try_sudo yum install -y helix
         elif command_exists dnf
         then
-            sudo dnf copr enable varlad/helix
-            sudo dnf install -y helix
+            try_sudo dnf copr enable varlad/helix
+            try_sudo dnf install -y helix
         elif command_exists pacman
         then
-            sudo pacman -Syu --noconfirm helix
+            try_sudo pacman -Syu --noconfirm helix
         elif command_exists snap
         then
-            sudo snap install helix
+            try_sudo snap install helix
         else
             echo "No known package manager found. Please install helix manually."
             exit 1
@@ -52,4 +64,14 @@ else
         echo "Unsupported OS type. Please install helix manually."
         exit 1
     fi
+fi
+
+if command_exists hx
+then
+    hx --grammar fetch
+    hx --grammar build
+elif command_exists helix
+then
+    helix --grammar fetch
+    helix --grammar build
 fi

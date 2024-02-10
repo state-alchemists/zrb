@@ -8,6 +8,16 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+
+try_sudo() {
+    if command_exists sudo
+    then
+        sudo $@
+    else
+        $@
+    fi
+}
+
 # Install Zsh
 if command_exists zsh
 then
@@ -25,22 +35,26 @@ else
         fi
     elif [ "$OS_TYPE" = "Linux" ]
     then
-        if command_exists apt
+        if command_exists pkg
         then
-            sudo apt update
-            sudo apt install -y zsh
+            try_sudo pkg update
+            try_sudo pkg install -y zsh
+        elif command_exists apt
+        then
+            try_sudo apt update
+            try_sudo apt install -y zsh
         elif command_exists yum
         then
-            sudo yum install -y zsh
+            try_sudo yum install -y zsh
         elif command_exists dnf
         then
-            sudo dnf install -y zsh
+            try_sudo dnf install -y zsh
         elif command_exists pacman
         then
-            sudo pacman -Syu --noconfirm zsh
+            try_sudo pacman -Syu --noconfirm zsh
         elif command_exists snap
         then
-            sudo snap install zsh
+            try_sudo snap install zsh
         else
             echo "No known package manager found. Please install zsh manually."
             exit 1
@@ -54,7 +68,7 @@ fi
 if command_exists chsh
 then
     echo "Changing default shell to zsh..."
-    sudo chsh -s "$(command -v zsh)"
+    try_sudo chsh -s "$(command -v zsh)"
 else
     echo "chsh command not found. Please change the default shell manually."
 fi
