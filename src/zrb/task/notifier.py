@@ -125,7 +125,7 @@ class Notifier(BaseTask):
             cmd = ["notify-send", title, message]
             subprocess.run(cmd, stdout=subprocess.DEVNULL)
         if self._show_toast and _is_termux_notification_available():
-            cmd = ["termux-notify", "-t", title, "-c", message, "--sound"]
+            cmd = ["termux-notification", "-t", title, "-c", message, "--sound"]
             subprocess.run(cmd, stdout=subprocess.DEVNULL)
         if self._show_stdout:
             task.print_out(message)
