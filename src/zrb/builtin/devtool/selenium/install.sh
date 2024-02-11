@@ -1,17 +1,12 @@
-set -e
-
-OS_TYPE=$(uname)
-
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" &> /dev/null
-}
-
 if [ "$OS_TYPE" = "Linux" ]
 then
-   if command_exists apt
+    if command_exists pkg
     then
-        sudo apt install -y unzip wget
+        try_sudo pkg update
+        try_sudo pkg install -y unzip wget
+    elif command_exists apt
+    then
+       try_sudo apt install -y unzip wget
     else
         echo "apt does not exists"
         exit 1
@@ -20,13 +15,13 @@ then
     if command_exists dpkg
     then
         wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-        sudo dpkg -i google-chrome-stable_current_amd64.deb
+       try_sudo dpkg -i google-chrome-stable_current_amd64.deb
     else
         echo "dpkg does not exists"
         exit 1
     fi
 
-    sudo apt --fix-broken install
+   try_sudo apt --fix-broken install
 else
     echo "Unsupported OS type. Please install zsh manually."
     exit 1
