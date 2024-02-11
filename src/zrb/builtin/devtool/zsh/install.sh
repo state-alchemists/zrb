@@ -17,24 +17,24 @@ else
     then
         if command_exists pkg
         then
-            try-sudo pkg update
-            try-sudo pkg install -y zsh
+            try_sudo pkg update
+            try_sudo pkg install -y zsh
         elif command_exists apt
         then
-            try-sudo apt update
-            try-sudo apt install -y zsh
+            try_sudo apt update
+            try_sudo apt install -y zsh
         elif command_exists yum
         then
-            try-sudo yum install -y zsh
+            try_sudo yum install -y zsh
         elif command_exists dnf
         then
-            try-sudo dnf install -y zsh
+            try_sudo dnf install -y zsh
         elif command_exists pacman
         then
-            try-sudo pacman -Syu --noconfirm zsh
+            try_sudo pacman -Syu --noconfirm zsh
         elif command_exists snap
         then
-            try-sudo snap install zsh
+            try_sudo snap install zsh
         else
             echo "No known package manager found. Please install zsh manually."
             exit 1
@@ -48,7 +48,7 @@ fi
 if command_exists chsh
 then
     echo "Changing default shell to zsh..."
-     try-sudo chsh -s "$(command -v zsh)"
+     try_sudo chsh -s "$(command -v zsh)"
 else
     echo "chsh command not found. Please change the default shell manually."
 fi

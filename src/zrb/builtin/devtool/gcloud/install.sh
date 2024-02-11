@@ -1,9 +1,9 @@
 if command_exists apt
 then
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" |try_sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    try-sudo apt install -y apt-transport-https ca-certificates gnupg
+    try_sudo apt install -y apt-transport-https ca-certificates gnupg
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg |try_sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-    try-sudo apt update &&try_sudo apt install -y google-cloud-sdk
+    try_sudo apt update &&try_sudo apt install -y google-cloud-sdk
 else
     echo "apt not found"
     exit 1

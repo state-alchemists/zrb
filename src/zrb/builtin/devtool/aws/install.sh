@@ -24,26 +24,26 @@ else
     then
         if command_exists pkg
         then
-            try-sudo pkg update
-            try-sudo pkg install -y unzip
+            try_sudo pkg update
+            try_sudo pkg install -y unzip
         elif command_exists apt
         then
-            try-sudo add-apt-repository ppa:maveonair/unzip-editor -y
-            try-sudo apt update
-            try-sudo apt install -y unzip
+            try_sudo add-apt-repository ppa:maveonair/unzip-editor -y
+            try_sudo apt update
+            try_sudo apt install -y unzip
         elif command_exists yum
         then
-            try-sudo yum install -y unzip
+            try_sudo yum install -y unzip
         elif command_exists dnf
         then
-            try-sudo dnf copr enable varlad/unzip
-            try-sudo dnf install -y unzip
+            try_sudo dnf copr enable varlad/unzip
+            try_sudo dnf install -y unzip
         elif command_exists pacman
         then
-            try-sudo pacman -Syu --noconfirm unzip
+            try_sudo pacman -Syu --noconfirm unzip
         elif command_exists snap
         then
-            try-sudo snap install unzip
+            try_sudo snap install unzip
         else
             echo "No known package manager found. Please install unzip manually."
             exit 1

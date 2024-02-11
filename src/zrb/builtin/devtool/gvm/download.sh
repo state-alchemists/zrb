@@ -2,11 +2,11 @@ if [ ! -d "${HOME}/.gvm" ]
 then
     if command_exists pkg
     then
-        try-sudo pkg update
-        try-sudo pkg install -y bison
+        try_sudo pkg update
+        try_sudo pkg install -y bison
     elif command_exists apt
     then
-        try-sudo apt install -y bison
+        try_sudo apt install -y bison
     fi
     echo "Download GVM"
     curl -o- https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
