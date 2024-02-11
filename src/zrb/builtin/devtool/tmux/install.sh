@@ -17,24 +17,24 @@ else
     then
         if command_exists pkg
         then
-             try-sudo pkg update
-             try-sudo pkg install -y tmux
+            try-sudo pkg update
+            try-sudo pkg install -y tmux
         elif command_exists apt
         then
-             try-sudo apt update
-             try-sudo apt install -y tmux
+            try-sudo apt update
+            try-sudo apt install -y tmux
         elif command_exists yum
         then
-             try-sudo yum install -y tmux
+            try-sudo yum install -y tmux
         elif command_exists dnf
         then
-             try-sudo dnf install -y tmux
+            try-sudo dnf install -y tmux
         elif command_exists pacman
         then
-             try-sudo pacman -Syu --noconfirm tmux
+            try-sudo pacman -Syu --noconfirm tmux
         elif command_exists snap
         then
-             try-sudo snap install tmux
+            try-sudo snap install tmux
         else
             echo "No known package manager found. Please install tmux manually."
             exit 1

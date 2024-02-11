@@ -2,8 +2,8 @@ if [ "$OS_TYPE" = "Linux" ]
 then
     if command_exists pkg
     then
-         try-sudo pkg update
-         try-sudo pkg install -y unzip wget
+        try-sudo pkg update
+        try-sudo pkg install -y unzip wget
     elif command_exists apt
     then
         try-sudo apt install -y unzip wget

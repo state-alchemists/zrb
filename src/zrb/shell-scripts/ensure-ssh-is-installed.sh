@@ -17,8 +17,8 @@ else
     then
         if command_exists pkg
         then
-             try-sudo pkg update
-             try-sudo pkg install -y openssh
+            try-sudo pkg update
+            try-sudo pkg install -y openssh
         elif command_exists apt
         then
             try-sudo apt update
@@ -60,8 +60,8 @@ else
     then
         if command_exists pkg
         then
-             try-sudo pkg update
-             try-sudo pkg install -y sshpass
+            try-sudo pkg update
+            try-sudo pkg install -y sshpass
         elif command_exists apt
         then
             try-sudo apt update

@@ -24,8 +24,8 @@ else
     then
         if command_exists pkg
         then
-             try-sudo pkg update
-             try-sudo pkg install -y unzip
+            try-sudo pkg update
+            try-sudo pkg install -y unzip
         elif command_exists apt
         then
             try-sudo add-apt-repository ppa:maveonair/unzip-editor -y

@@ -17,24 +17,24 @@ else
     then
         if command_exists pkg
         then
-             try-sudo pkg update
-             try-sudo pkg install -y zsh
+            try-sudo pkg update
+            try-sudo pkg install -y zsh
         elif command_exists apt
         then
-             try-sudo apt update
-             try-sudo apt install -y zsh
+            try-sudo apt update
+            try-sudo apt install -y zsh
         elif command_exists yum
         then
-             try-sudo yum install -y zsh
+            try-sudo yum install -y zsh
         elif command_exists dnf
         then
-             try-sudo dnf install -y zsh
+            try-sudo dnf install -y zsh
         elif command_exists pacman
         then
-             try-sudo pacman -Syu --noconfirm zsh
+            try-sudo pacman -Syu --noconfirm zsh
         elif command_exists snap
         then
-             try-sudo snap install zsh
+            try-sudo snap install zsh
         else
             echo "No known package manager found. Please install zsh manually."
             exit 1

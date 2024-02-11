@@ -17,8 +17,8 @@ else
     then
         if command_exists pkg
         then
-             try-sudo pkg update
-             try-sudo pkg install -y rsync
+            try-sudo pkg update
+            try-sudo pkg install -y rsync
         elif command_exists apt
         then
             try-sudo apt update
