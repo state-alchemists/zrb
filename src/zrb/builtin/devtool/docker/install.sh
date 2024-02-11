@@ -18,29 +18,29 @@ else
     then
         if command_exists apt
         then
-           try_sudo apt update
-           try_sudo apt-get remove docker docker-engine docker.io containerd runc || true
-           try_sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+            try-sudo apt update
+            try-sudo apt-get remove docker docker-engine docker.io containerd runc || true
+            try-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
             curl -fsSL https://download.docker.com/linux/ubuntu/gpg |try_sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-           try_sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+            try-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
             echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" |try_sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-           try_sudo apt update
-           try_sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+            try-sudo apt update
+            try-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
         elif command_exists yum
         then
-           try_sudo yum install -y docker
-           try_sudo systemctl start docker
-           try_sudo systemctl enable docker
+            try-sudo yum install -y docker
+            try-sudo systemctl start docker
+            try-sudo systemctl enable docker
         elif command_exists dnf
         then
-           try_sudo dnf install -y docker
-           try_sudo systemctl start docker
-           try_sudo systemctl enable docker
+            try-sudo dnf install -y docker
+            try-sudo systemctl start docker
+            try-sudo systemctl enable docker
         elif command_exists pacman
         then
-           try_sudo pacman -Syu --noconfirm docker
-           try_sudo systemctl start docker
-           try_sudo systemctl enable docker
+            try-sudo pacman -Syu --noconfirm docker
+            try-sudo systemctl start docker
+            try-sudo systemctl enable docker
         else
             echo "No known package manager found. Please install Docker manually."
             exit 1

@@ -17,21 +17,21 @@ else
     then
         if command_exists pkg
         then
-            try_sudo pkg update
-            try_sudo pkg install -y rsync
+             try-sudo pkg update
+             try-sudo pkg install -y rsync
         elif command_exists apt
         then
-           try_sudo apt update
-           try_sudo apt install -y rsync
+            try-sudo apt update
+            try-sudo apt install -y rsync
         elif command_exists yum
         then
-           try_sudo yum install -y rsync
+            try-sudo yum install -y rsync
         elif command_exists dnf
         then
-           try_sudo dnf install -y rsync
+            try-sudo dnf install -y rsync
         elif command_exists pacman
         then
-           try_sudo pacman -Syu --noconfirm rsync
+            try-sudo pacman -Syu --noconfirm rsync
         else
             echo "No known package manager found. Please install Rsync manually."
             exit 1
