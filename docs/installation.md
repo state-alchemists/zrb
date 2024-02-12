@@ -22,6 +22,7 @@ This Installation Section will help you to set up your machine.
         - [Installing The Pip Package](#installing-the-pip-package)
     - [Installing Zrb As A Docker Container](#installing-zrb-as-a-docker-container)
         - [Extending Zrb Docker Image](#extending-zrb-docker-image)
+    - [Installing Zrb on Termux](#installing-zrb-on-termux)
 - [Post Installation](#post-installation)
 
 
@@ -101,6 +102,27 @@ pip install zrb
 
 Like any Python package, you can install Zrb in your [virtual environment](https://docs.python.org/3/library/venv.html). Installing Zrb in a virtual environment allows you to have many versions of Zrb on the same computer.
 
+
+## Installing Zrb On Termux
+
+```bash
+
+# install termux using f-droid
+termux-change-repo
+export cflags="-wno-incompatible-function-pointer-types"
+export grpc_python_disable_libc_compatibility=1
+export grpc_python_build_system_openssl=1 
+export grpc_python_build_system_zlib=1 
+export grpc_python_build_system_cares=1 
+export cflags="$cflags -u__android_api__ -d__android_api__=26 -include unistd.h"
+export ldflags="$ldflags -llog"
+pkg install python rust clang cmake build-essential golang git openssh tmux helix curl wget binutils postgresql
+
+pip install zrb
+
+hx --grammar fetch
+hx --grammar build
+```
 
 ## Installing Zrb As A Docker Container
 
