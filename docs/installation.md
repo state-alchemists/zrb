@@ -105,24 +105,87 @@ Like any Python package, you can install Zrb in your [virtual environment](https
 
 ## Installing Zrb On Termux
 
-```bash
 
-# install termux using f-droid
-termux-change-repo
-export cflags="-wno-incompatible-function-pointer-types"
-export grpc_python_disable_libc_compatibility=1
-export grpc_python_build_system_openssl=1 
-export grpc_python_build_system_zlib=1 
-export grpc_python_build_system_cares=1 
-export cflags="$cflags -u__android_api__ -d__android_api__=26 -include unistd.h"
-export ldflags="$ldflags -llog"
-pkg install python rust clang cmake build-essential golang git openssh tmux helix curl wget binutils postgresql
+<div align="center">
+  <img src="_images/emoji/shell.png"/>
+  <p>
+    <sub>
+      Termux: ずっとあなたの傍にいる
+    </sub>
+  </p>
+</div>
 
-pip install zrb
+Termux provides a terminal interface in your Android phone/tablet. It lacks a lot of things like docker, etc. But it is still usable in a lot of cases.
 
-hx --grammar fetch
-hx --grammar build
-```
+To install Termux on your device, you need to follow [Termux documentation](https://github.com/termux/termux-app#f-droid).
+
+In general, this is what you need to do:
+
+- Install F-droid on your device.
+- Install the following applications using F-droid:
+  - Termux
+  - Termux-notification
+  - Termux-api
+  - Termux-styling (optional)
+- Set Termux repository.
+
+  ```bash
+  termux-change-repo
+  ```
+
+- Set some environments. Execute the script.
+
+  ```bash
+  export CFLAGS="-wno-incompatible-function-pointer-types"
+  export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
+  export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
+  export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
+  export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
+  export CFLAGS="$CFLAGS -u__android_api__ -d__android_api__=26 -include unistd.h"
+  export LDFLAGS="$LDFLAGS -llog"
+  ```
+
+- Install necessary packages.
+
+  ```bash
+  pkg install python rust clang cmake build-essential golang git openssh tmux helix curl wget binutils postgresql
+  ```
+
+- Create a virtual environment and install Zrb.
+
+  ```bash
+  python -m venv ~/.local
+  source ~/.local/bin/activate
+  ```
+
+- Optionally, you can install `zsh`.
+
+  ```bash
+  zrb devtool install zsh
+  ```
+
+- Finally, add the script to `~/.bashrc` or `~/.zshrc`, depending on your default shell.
+
+  ```bash
+  export CFLAGS="-wno-incompatible-function-pointer-types"
+  export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
+  export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
+  export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
+  export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
+  export CFLAGS="$CFLAGS -u__android_api__ -d__android_api__=26 -include unistd.h"
+  export LDFLAGS="$LDFLAGS -llog"
+
+  source ~/.local/bin/activate
+  ```
+
+- If you like Tmux and Helix Editor, install them using Zrb.
+
+  ```bash
+  zrb devtool install helix
+  zrb devtool install tmux
+  hx --grammar fetch
+  hx --grammar build 
+  ```
 
 ## Installing Zrb As A Docker Container
 
