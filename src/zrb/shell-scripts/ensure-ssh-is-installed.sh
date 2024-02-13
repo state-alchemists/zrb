@@ -15,19 +15,23 @@ else
         fi
     elif [ "$OS_TYPE" = "Linux" ]
     then
-        if command_exists apt
+        if command_exists pkg
         then
-            sudo apt update
-            sudo apt install -y openssh-client
+            try_sudo pkg update
+            try_sudo pkg install -y openssh
+        elif command_exists apt
+        then
+            try_sudo apt update
+            try_sudo apt install -y openssh-client
         elif command_exists yum
         then
-            sudo yum install -y openssh-clients
+            try_sudo yum install -y openssh-clients
         elif command_exists dnf
         then
-            sudo dnf install -y openssh-clients
+            try_sudo dnf install -y openssh-clients
         elif command_exists pacman
         then
-            sudo pacman -Syu --noconfirm openssh
+            try_sudo pacman -Syu --noconfirm openssh
         else
             echo "No known package manager found. Please install SSH manually."
             exit 1
@@ -54,19 +58,23 @@ else
         fi
     elif [ "$OS_TYPE" = "Linux" ]
     then
-        if command_exists apt
+        if command_exists pkg
         then
-            sudo apt update
-            sudo apt install -y sshpass
+            try_sudo pkg update
+            try_sudo pkg install -y sshpass
+        elif command_exists apt
+        then
+            try_sudo apt update
+            try_sudo apt install -y sshpass
         elif command_exists yum
         then
-            sudo yum install -y sshpass
+            try_sudo yum install -y sshpass
         elif command_exists dnf
         then
-            sudo dnf install -y sshpass
+            try_sudo dnf install -y sshpass
         elif command_exists pacman
         then
-            sudo pacman -Syu --noconfirm sshpass
+            try_sudo pacman -Syu --noconfirm sshpass
         else
             echo "No known package manager found. Please install SSHPass manually."
             exit 1

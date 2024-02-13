@@ -21,6 +21,13 @@ install_requirements() {
     pip install -r "${PROJECT_DIR}/requirements.txt"
 }
 
+
+install_autocomplete_requirements() {
+    echo '🤖 Install autocomplete requirements'
+    pip install -r "${PROJECT_DIR}/autocomplete-requirements.txt"
+}
+
+
 reload() {
 
     if [ ! -f "${PROJECT_DIR}/.env" ]
@@ -45,6 +52,12 @@ reload() {
             if [ "$_VENV_TIMESTAMP" -lt "$_REQUIREMENTS_TIMESTAMP" ] 
             then
                 install_requirements
+            fi
+            echo '🤖 Checking autocomplete-requirements.txt timestamp'
+            _AUTOCOMPLETE_REQUIREMENTS_TIMESTAMP=$(stat -c %Y autocomplete-requirements.txt)
+            if [ "$_VENV_TIMESTAMP" -lt "$_AUTOCOMPLETE_REQUIREMENTS_TIMESTAMP" ] 
+            then
+                install_autocomplete_requirements
             fi
         fi
     fi

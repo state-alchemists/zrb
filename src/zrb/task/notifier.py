@@ -124,6 +124,9 @@ class Notifier(BaseTask):
         if self._show_toast and _is_notify_send_available():
             cmd = ["notify-send", title, message]
             subprocess.run(cmd, stdout=subprocess.DEVNULL)
+        if self._show_toast and _is_termux_notification_available():
+            cmd = ["termux-notification", "-t", title, "-c", message, "--sound"]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL)
         if self._show_stdout:
             task.print_out(message)
             task._play_bell()
@@ -133,6 +136,19 @@ def _is_powershell_available():
     try:
         subprocess.run(
             ["powershell.exe", "-Command", 'echo "Checking PowerShell"'],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
+        return False
+
+
+def _is_termux_notification_available():
+    try:
+        subprocess.run(
+            ["termux-notification", "--help"],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
