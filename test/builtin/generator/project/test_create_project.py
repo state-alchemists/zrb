@@ -33,7 +33,7 @@ def test_create_project():
         os.path.join(destination_path, 'pyproject.toml')
     ) as pyproject_file:
         pyproject_lines = pyproject_file.readlines()
-    assert f'zrb = ">={version}\n' in pyproject_lines
+    assert f'zrb = ">={version}"\n' in pyproject_lines
 
     # second attempt should failed
     is_error = False
