@@ -1,6 +1,16 @@
 set -e
+
+try_sudo() {
+    if command_exists sudo
+    then
+        sudo $@
+    else
+        $@
+    fi
+}
+
 echo '🤖 Remove playground'
-sudo rm -Rf playground
+try_sudo rm -Rf playground
 export ZRB_SHOW_PROMPT=0
 export ZRB_SHOW_TIME=0
 

@@ -61,7 +61,7 @@ then
     export MATHLIB="m"
 
     log_progress "Installing packages"
-    pkg install python rust clang cmake build-essential golang git openssh curl wget binutils postgresql sqlite
+    pkg install python rust clang cmake build-essential golang git openssh curl wget binutils binutils-is-llvm postgresql sqlite
 
     log_progress "Creating local venv"
     python -m venv $HOME/.local
