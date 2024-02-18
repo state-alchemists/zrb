@@ -131,18 +131,39 @@ package_homepage_input = StrInput(
     name="package-homepage",
     description="Package homepage",
     prompt="Package homepage",
-    default="https://github.com/"
-    + SYSTEM_USER
-    + "/{{util.to_kebab_case(input.package_name)}}",  # noqa
+    default="".join(
+        [
+            "https://github.com/",
+            SYSTEM_USER,
+            "/{{util.to_kebab_case(input.package_name)}}",
+        ]
+    ),
 )
 
-package_bug_tracker_input = StrInput(
-    name="package-bug-tracker",
-    description="Package bug tracker",
-    prompt="Package bug tracker",
-    default="https://github.com/"
-    + SYSTEM_USER
-    + "/{{util.to_kebab_case(input.package_name)}}/issues",  # noqa
+package_repository_input = StrInput(
+    name="package-repository",
+    description="Package repository",
+    prompt="Package homepage",
+    default="".join(
+        [
+            "https://github.com/",
+            SYSTEM_USER,
+            "/{{util.to_kebab_case(input.package_name)}}",
+        ]
+    ),
+)
+
+package_documentation_input = StrInput(
+    name="package-documentation",
+    description="Package documentation",
+    prompt="Package homepage",
+    default="".join(
+        [
+            "https://github.com/",
+            SYSTEM_USER,
+            "/{{util.to_kebab_case(input.package_name)}}",
+        ]
+    ),
 )
 
 package_author_name_input = StrInput(

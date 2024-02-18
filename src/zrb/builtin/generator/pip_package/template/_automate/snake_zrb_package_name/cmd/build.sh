@@ -5,4 +5,4 @@ echo "Remove dist"
 rm -Rf dist
 
 echo "Build"
-flit build
+poetry build

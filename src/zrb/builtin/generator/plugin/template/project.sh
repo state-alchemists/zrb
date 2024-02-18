@@ -16,7 +16,7 @@ init() {
         python -m venv "${PROJECT_DIR}/.venv"
         source "${PROJECT_DIR}/.venv/bin/activate"
         pip install --upgrade pip
-        pip install poetry==1.7.1
+        pip install "poetry==1.7.1"
         _IS_EMPTY_VENV=1
     fi
 

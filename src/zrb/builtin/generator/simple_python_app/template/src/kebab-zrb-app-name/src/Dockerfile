@@ -3,5 +3,6 @@ ENV APP_MESSAGE "Hello, world!"
 ENV APP_PORT 8080
 WORKDIR /home
 COPY . .
-RUN pip install -r requirements.txt
+RUN pip install "poetry==1.7.1"
+RUN poetry install --only main
 CMD uvicorn main:app --host "0.0.0.0" --port "$APP_PORT"

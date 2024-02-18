@@ -30,10 +30,10 @@ def test_create_project():
     assert readme_lines[0] == '# App\n'
 
     with open(
-        os.path.join(destination_path, 'requirements.txt')
-    ) as requirements_file:
-        requirements_lines = requirements_file.readlines()
-    assert requirements_lines[0] == f'zrb=={version}\n'
+        os.path.join(destination_path, 'pyproject.toml')
+    ) as pyproject_file:
+        pyproject_lines = pyproject_file.readlines()
+    assert f'zrb = ">={version}\n' in pyproject_lines
 
     # second attempt should failed
     is_error = False

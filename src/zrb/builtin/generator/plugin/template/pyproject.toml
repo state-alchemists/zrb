@@ -1,4 +1,3 @@
-
 [tool.poetry]
 name = "kebab-zrb-package-name"
 version = "0.0.1"
@@ -7,8 +6,8 @@ authors = ["zrbPackageAuthorName <zrbPackageAuthorEmail>"]
 license = "AGPL-3.0-or-later"
 readme = "README.md"
 homepage = "zrbPackageHomepage"
-repository = "zrbPackageHomepage"
-documentation = "zrbPackaageHomepage"
+repository = "zrbPackageRepository"
+documentation = "zrbPackageDocumentation"
 keywords = []
 
 [tool.poetry.dependencies]

@@ -3,9 +3,10 @@ import os
 from zrb.builtin.generator.common.task_input import (
     package_author_email_input,
     package_author_name_input,
-    package_bug_tracker_input,
     package_description_input,
+    package_documentation_input,
     package_homepage_input,
+    package_repository_input,
     project_dir_input,
 )
 from zrb.builtin.group import plugin_group
@@ -37,7 +38,8 @@ copy_resource = ResourceMaker(
         plugin_package_name_input,
         package_description_input,
         package_homepage_input,
-        package_bug_tracker_input,
+        package_repository_input,
+        package_documentation_input,
         package_author_name_input,
         package_author_email_input,
     ],
@@ -45,7 +47,8 @@ copy_resource = ResourceMaker(
         "zrbPackageName": "{{input.package_name}}",
         "zrbPackageDescription": "{{input.package_description}}",
         "zrbPackageHomepage": "{{input.package_homepage}}",
-        "zrbPackageBugTracker": "{{input.package_bug_tracker}}",
+        "zrbPackageRepository": "{{input.package_repository}}",
+        "zrbPackageDocumentation": "{{input.package_documentation}}",
         "zrbPackageAuthorName": "{{input.package_author_name}}",
         "zrbPackageAuthorEmail": "{{input.package_author_email}}",
         "zrbVersion": version,
