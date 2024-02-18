@@ -1,6 +1,17 @@
 set -e
 OS_TYPE=$(uname)
 
+if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
+then
+    IS_TERMUX=1
+else
+    IS_TERMUX=0
+fi
+
+log_progress() {
+    echo -e "🤖 \e[0;33m${1}\e[0;0m"
+}
+
 command_exists() {
     command -v "$1" &> /dev/null
 }
@@ -15,7 +26,7 @@ try_sudo() {
 }
 
 register_pyenv() {
-    echo "Registering Pyenv to $1"
+    log_progress "Registering Pyenv to $1"
     echo '' >> $1
     echo 'export pyenv_root="$HOME/.pyenv"' >> $1
     echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> $1
@@ -23,7 +34,7 @@ register_pyenv() {
 }
 
 register_local_venv() {
-    echo "Registering .local venv to $1"
+    log_progress "Registering .local venv to $1"
     echo '' >> $1
     echo 'export CFLAGS="-wno-incompatible-function-pointer-types"' >> $1
     echo 'export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1' >> $1
@@ -36,8 +47,10 @@ register_local_venv() {
     echo 'source $HOME/.local/bin/activate' >> $1
 }
 
-if [[ -n "$PREFIX" ]] && [[ "$PREFIX" == "/data/data/com.termux/files/usr" ]]; then
+if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local" ]
+then
 
+    log_progress "Setting environment variables"
     export CFLAGS="-wno-incompatible-function-pointer-types"
     export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
     export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
@@ -47,8 +60,10 @@ if [[ -n "$PREFIX" ]] && [[ "$PREFIX" == "/data/data/com.termux/files/usr" ]]; t
     export LDFLAGS="$LDFLAGS -llog"
     export MATHLIB="m"
 
+    log_progress "Installing packages"
     pkg install python rust clang cmake build-essential golang git openssh tmux helix curl wget binutils postgresql sqlite
 
+    log_progress "Creating local venv"
     python -m venv $HOME/.local
     source $HOME/.local/bin/activate
 
@@ -65,20 +80,21 @@ if [[ -n "$PREFIX" ]] && [[ "$PREFIX" == "/data/data/com.termux/files/usr" ]]; t
         register_local_venv "$HOME/.bashrc"
     fi
 
-else
-
+elif [ "$IS_TERMUX" = "0" ]
+then
+    
     # Make sure pyenv is installed
     if [ ! -d "$HOME/.pyenv" ]
     then
 
-        echo "installing pyenv prerequisites"
+        log_progress "Installing pyenv prerequisites"
         if [ "$os_type" = "darwin" ]
         then
             if command_exists brew
             then
                 brew install openssl readline sqlite3 xz zlib tcl-tk
             else
-                echo "brew not found, continuing anyway"
+                log_progress "Brew not found, continuing anyway"
             fi
         elif [ "$os_type" = "linux" ]
         then
@@ -105,13 +121,13 @@ else
             then
                 try_sudo apk add --no-cache git bash build-base libffi-dev openssl-dev bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev
             else
-                echo "no known package manager found, continuing anyway"
+                log_progress "No known package manager found, continuing anyway"
             fi
         else
-            echo "unknown package manager, cannot install pyenv pre-requisites, continuing anyway"
+            log_progress "Unsupported OS, cannot install pyenv pre-requisites, continuing anyway"
         fi
 
-        echo "installing pyenv"
+        log_progress "Installing pyenv"
         curl https://pyenv.run | bash
 
         # register .pyenv to .zshrc
@@ -127,20 +143,21 @@ else
         fi
 
         # activate pyenv
-        echo "activating pyenv"
+        log_progress "Activating pyenv"
         export pyenv_root="$HOME/.pyenv"
         command -v pyenv >/dev/null || (export path="$pyenv_root/bin:$path" && eval "$(pyenv init -)")
 
         # install python 3.10.0
-        echo "installing python 3.10.0"
+        log_progress "Installing python 3.10.0"
         pyenv install 3.10.0
 
         # set global python to 3.10.0
-        echo "set python 3.10.0 as global"
+        log_progress "Setting python 3.10.0 as global"
         pyenv global 3.10.0
     fi
-
+else
+    log_progress "Assuming Python is installed"
 fi
 
-echo "Installing Zrb"
+log_progress "Installing Zrb"
 pip install zrb
