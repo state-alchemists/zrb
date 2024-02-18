@@ -16,7 +16,7 @@ You can also create a `TestPypi` account:
 Once you have your API token, you need to configure poetry as follow:
 
 ```bash
-poetry config pyp-token.pypi <your-api-token>
+poetry config pypi-token.pypi <your-api-token>
 ```
 
 
