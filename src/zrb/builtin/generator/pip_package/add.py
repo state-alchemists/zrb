@@ -16,6 +16,7 @@ from zrb.builtin.generator.common.task_input import (
     project_dir_input,
 )
 from zrb.builtin.group import project_add_group
+from zrb.config.config import version
 from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
@@ -59,6 +60,7 @@ copy_resource = ResourceMaker(
         "zrbPackageDocumentation": "{{input.package_documentation}}",
         "zrbPackageAuthorName": "{{input.package_author_name}}",
         "zrbPackageAuthorEmail": "{{input.package_author_email}}",
+        "zrbVersion": version,
     },
     template_path=os.path.join(CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
