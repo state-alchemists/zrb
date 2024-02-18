@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "kebab-zrb-task-name"
+version = "0.0.1"
+description = "A docker compose task"
+authors = ["zrb"]
+packages = [
+  {include = "kebab-zrb-task-name", from = "../.."},
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10.0,<4.0.0"
+uvicorn = "==0.20.0"
+
+[tool.poetry.dev-dependencies]
+flake8 = "~6.0.0"
+black = "~23.12.1"
+isort = "~5.13.2"
+pytest = "~7.4.0"
+pytest-cov = "~4.1.0"
+pytest-asyncio = "~0.21.0"
+flameprof = "~0.4"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

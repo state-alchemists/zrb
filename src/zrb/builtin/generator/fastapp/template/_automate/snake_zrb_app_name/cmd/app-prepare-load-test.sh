@@ -1,3 +1,2 @@
 echo "Install packages"
-pip install -r requirements.txt
-
+poetry install --no-root

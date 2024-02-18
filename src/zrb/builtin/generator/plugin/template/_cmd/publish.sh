@@ -1,2 +1,2 @@
 echo "Publish"
-flit publish --repository {{input.plugin_repo}}
+poetry publish --repository {{input.plugin_repo}}

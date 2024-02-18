@@ -1,6 +1,9 @@
 import os
 
 from zrb.builtin.generator.common.task_input import (
+    project_author_email_input,
+    project_author_name_input,
+    project_description_input,
     project_dir_input,
     project_name_input,
 )
@@ -55,11 +58,20 @@ async def validate(*args: Any, **kwargs: Any):
 
 copy_resource = ResourceMaker(
     name="copy-resource",
-    inputs=[project_dir_input, project_name_input],
+    inputs=[
+        project_dir_input,
+        project_name_input,
+        project_description_input,
+        project_author_name_input,
+        project_author_email_input,
+    ],
     upstreams=[validate],
     replacements={
         "zrbProjectDir": "{{input.project_dir}}",
         "zrbProjectName": "{{input.project_name}}",
+        "zrbProjectDescription": "{{input.project_description}}",
+        "zrbProjectAuthorName": "{{input.project_author_name}}",
+        "zrbProjectAuthorEmail": "{{input.project_author_email}}",
         "zrbImageDefaultNamespace": IMAGE_DEFAULT_NAMESPACE,
         "zrbVersion": version,
     },

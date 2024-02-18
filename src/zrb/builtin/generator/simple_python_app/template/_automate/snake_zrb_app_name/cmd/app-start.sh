@@ -1,6 +1,6 @@
 PYTHONUNBUFFERED=1
 echo "Install packages"
-pip install -r requirements.txt
+poetry install --no-root
 
 echo "Start app"
-uvicorn main:app --host {{env.get("APP_HOST", "0.0.0.0")}} --port {{env.get("APP_PORT", "8080")}}
+poetry run uvicorn main:app --host {{env.get("APP_HOST", "0.0.0.0")}} --port {{env.get("APP_PORT", "8080")}}

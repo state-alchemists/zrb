@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "kebab-zrb-app-name-loadtest"
+version = "0.0.1"
+description = "Load test for zrbPackageName"
+authors = ["zrbAppAuthorName <zrbAppAuthorEmail>"]
+packages = [
+  {include = "kebab-zrb-app-name-loadtest", from = "../.."},
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10.0,<4.0.0"
+locust = "==2.16.1"
+
+[tool.poetry.dev-dependencies]
+flake8 = "~6.0.0"
+black = "~23.12.1"
+isort = "~5.13.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

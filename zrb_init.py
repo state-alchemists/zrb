@@ -53,7 +53,7 @@ if IS_PLAYGROUND_EXIST:
 
 with open(os.path.join(CURRENT_DIR, "pyproject.toml"), "rb") as f:
     toml_dict = tomli.load(f)
-    VERSION = toml_dict["project"]["version"]
+    VERSION = toml_dict["tool"]["poetry"]["version"]
 
 
 def inject_doc(markdown_file_name: str, cls):
@@ -244,7 +244,7 @@ build = CmdTask(
         'echo "🤖 Build zrb distribution"',
         f"rm -Rf {CURRENT_DIR}/dist",
         "git add . -A",
-        "flit build",
+        "poetry build",
     ],
 )
 skippable_build: CmdTask = build.copy()
@@ -264,27 +264,10 @@ publish_pip = CmdTask(
     cmd=[
         "set -e",
         'echo "🤖 Publish zrb to pypi"',
-        "flit publish --repository pypi",
+        "poetry publish"
     ],
 )
 runner.register(publish_pip)
-
-###############################################################################
-# ⚙️ publish-pip-test
-###############################################################################
-
-publish_pip_test = CmdTask(
-    name="publish-pip-test",
-    description="Publish zrb to testpypi",
-    upstreams=[build],
-    cwd=CURRENT_DIR,
-    cmd=[
-        "set -e",
-        'echo "🤖 Publish zrb to testpypi"',
-        "flit publish --repository testpypi",
-    ],
-)
-runner.register(publish_pip_test)
 
 ###############################################################################
 # ⚙️ check-pip
@@ -455,7 +438,7 @@ install_symlink = CmdTask(
         "set -e",
         f"cd {CURRENT_DIR}",
         'echo "🤖 Install zrb"',
-        "flit install --symlink",
+        "poetry install",
     ],
 )
 skippable_install_symlink: CmdTask = install_symlink.copy()

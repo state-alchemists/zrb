@@ -13,7 +13,7 @@ from zrb.task_input.bool_input import BoolInput
 from zrb.task_input.str_input import StrInput
 
 CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, '..', '..', 'shell-scripts')
+SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "shell-scripts")
 current_shell = get_current_shell()
 
 ###############################################################################
@@ -360,9 +360,7 @@ install_zsh = FlowTask(
         Task(
             name="configure-zsh",
             run=write_config(
-                template_file=os.path.join(
-                    CURRENT_DIR, "zsh", "resource", "config.sh"
-                ),
+                template_file=os.path.join(CURRENT_DIR, "zsh", "resource", "config.sh"),
                 config_file="{{input.zsh_config_file}}",
             ),
         ),

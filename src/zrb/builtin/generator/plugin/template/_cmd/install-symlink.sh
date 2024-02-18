@@ -1,2 +1,2 @@
 echo "Install symlink"
-flit install --symlink
+poetry install

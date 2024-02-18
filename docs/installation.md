@@ -133,49 +133,12 @@ In general, this is what you need to do:
   termux-change-repo
   ```
 
-- Set some environments. Execute the script.
-
-  ```bash
-  export CFLAGS="-wno-incompatible-function-pointer-types"
-  export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
-  export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
-  export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
-  export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
-  export CFLAGS="$CFLAGS -u__android_api__ -d__android_api__=26 -include unistd.h"
-  export LDFLAGS="$LDFLAGS -llog"
-  ```
-
-- Install necessary packages.
-
-  ```bash
-  pkg install python rust clang cmake build-essential golang git openssh tmux helix curl wget binutils postgresql
-  ```
-
-- Create a virtual environment and install Zrb.
-
-  ```bash
-  python -m venv ~/.local
-  source ~/.local/bin/activate
-  ```
-
+- Run the installation script
+- Restart the terminal
 - Optionally, you can install `zsh`.
 
   ```bash
   zrb devtool install zsh
-  ```
-
-- Finally, add the script to `~/.bashrc` or `~/.zshrc`, depending on your default shell.
-
-  ```bash
-  export CFLAGS="-wno-incompatible-function-pointer-types"
-  export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
-  export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
-  export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
-  export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
-  export CFLAGS="$CFLAGS -u__android_api__ -d__android_api__=26 -include unistd.h"
-  export LDFLAGS="$LDFLAGS -llog"
-
-  source ~/.local/bin/activate
   ```
 
 - If you like Tmux and Helix Editor, install them using Zrb.
@@ -186,6 +149,7 @@ In general, this is what you need to do:
   hx --grammar fetch
   hx --grammar build 
   ```
+
 
 ## Installing Zrb As A Docker Container
 
