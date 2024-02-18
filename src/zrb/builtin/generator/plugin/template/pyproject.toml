@@ -1,38 +1,32 @@
-[build-system]
-requires = ["flit_core>=3.4"]
-build-backend = "flit_core.buildapi"
 
-[project]
+[tool.poetry]
 name = "kebab-zrb-package-name"
 version = "0.0.1"
-authors = [
-  { name="zrbPackageAuthorName", email="zrbPackageAuthorEmail" },
-]
 description = "zrbPackageDescription"
+authors = ["zrbPackageAuthorName <zrbPackageAuthorEmail>"]
+license = "AGPL-3.0-or-later"
 readme = "README.md"
-requires-python = ">=3.8"
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
-  "Operating System :: OS Independent",
-]
-dependencies = [
-  "zrb>=zrbVersion"
-]
- 
+homepage = "zrbPackageHomepage"
+repository = "zrbPackageHomepage"
+documentation = "zrbPackaageHomepage"
+keywords = []
 
-[project.optional-dependencies]
-dev = []
-test = []
+[tool.poetry.dependencies]
+python = ">=3.10.0,<4.0.0"
+zrb = ">=zrbVersion"
 
-[project.urls]
-"Homepage" = "zrbPackageHomepage"
-"Bug Tracker" = "zrbPackageBugTracker"
+[tool.poetry.dev-dependencies]
+flake8 = "~6.0.0"
+black = "~23.12.1"
+isort = "~5.13.2"
+pytest = "~7.4.0"
+pytest-cov = "~4.1.0"
+pytest-asyncio = "~0.21.0"
+flameprof = "~0.4"
 
-[project.scripts]
+[tool.poetry.scripts]
 kebab-zrb-package-name = "snake_zrb_package_name.__main__:main"
 
-[tool.pytest.ini_options]
-pythonpath = [
-  "src"
-]
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
