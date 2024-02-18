@@ -3,6 +3,10 @@ name = "kebab-zrb-app-name"
 version = "0.0.1"
 description = "zrbAppDescription"
 authors = ["zrbAppAuthorName <zrbAppAuthorEmail>"]
+keywords = []
+packages = [
+  {include = "kebab-zrb-project-name", from = ".."},
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<4.0.0"

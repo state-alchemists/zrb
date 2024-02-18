@@ -1,5 +1,9 @@
 set -e
 
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
 try_sudo() {
     if command_exists sudo
     then
@@ -9,53 +13,58 @@ try_sudo() {
     fi
 }
 
-echo '🤖 Remove playground'
+log_progress() {
+    echo -e "🤖 \e[0;33m${1}\e[0;0m"
+}
+
+
+log_progress 'Remove playground'
 try_sudo rm -Rf playground
 export ZRB_SHOW_PROMPT=0
 export ZRB_SHOW_TIME=0
 
 
-echo '🤖 Create playground'
+log_progress 'Create playground'
 zrb project create --project-dir playground --project-name "Playground"
 cd playground
 
 
-echo '🤖 Add cmd-task'
+log_progress 'Add cmd-task'
 zrb project add cmd-task \
     --project-dir . \
     --task-name "run-cmd"
 
-echo '🤖 Add docker-compose-task'
+log_progress 'Add docker-compose-task'
 zrb project add docker-compose-task \
     --project-dir . \
     --task-name "run-container" \
     --compose-command "up" \
     --http-port 3001
 
-echo '🤖 Add python-task'
+log_progress 'Add python-task'
 zrb project add python-task \
     --project-dir . \
     --task-name "run-python"
 
-echo '🤖 Add simple-python-app'
+log_progress 'Add simple-python-app'
 zrb project add simple-python-app \
     --project-dir . \
     --app-name "simple" \
     --http-port 3002
 
-echo '🤖 Add fastapp'
+log_progress 'Add fastapp'
 zrb project add fastapp \
     --project-dir . \
     --app-name "fastapp" \
     --http-port 3003
 
-echo '🤖 Add fastapp module'
+log_progress 'Add fastapp module'
 zrb project add fastapp-module \
     --project-dir . \
     --app-name "fastapp" \
     --module-name "library"
 
-echo '🤖 Add fastapp crud'
+log_progress 'Add fastapp crud'
 zrb project add fastapp-crud \
     --project-dir . \
     --app-name "fastapp" \
@@ -64,7 +73,7 @@ zrb project add fastapp-crud \
     --plural-entity-name "books" \
     --column-name "code"
 
-echo '🤖 Add fastapp field'
+log_progress 'Add fastapp field'
 zrb project add fastapp-field \
     --project-dir . \
     --app-name "fastapp" \
@@ -73,7 +82,7 @@ zrb project add fastapp-field \
     --column-name "title" \
     --column-type "str"
 
-echo '🤖 Add python package'
+log_progress 'Add python package'
 zrb project add pip-package \
     --project-dir . \
     --package-name "zrb-pkg" \
@@ -84,11 +93,11 @@ zrb project add pip-package \
     --package-author-name "Go Frendi" \
     --package-author-email "gofrendiasgard@gmail.com" \
 
-echo '🤖 Add generator'
+log_progress 'Add generator'
 zrb project add app-generator \
     --template-name "app"
 
-echo '🤖 Add generator (maximum feature)'
+log_progress 'Add generator (maximum feature)'
 zrb project add app-generator \
     --template-name "app-max" \
     --build-custom-image true \
@@ -96,13 +105,13 @@ zrb project add app-generator \
     --is-http-port true \
     --use-helm true \
 
-echo '🤖 Add generator (No custom image)'
+log_progress 'Add generator (No custom image)'
 zrb project add app-generator \
     --template-name "app-no-custom-image" \
     --build-custom-image false \
     --is-container-only true
 
-echo '🤖 Run generator'
+log_progress 'Run generator'
 zrb project add app \
     --project-dir . \
     --app-name "app" \
@@ -110,7 +119,7 @@ zrb project add app \
     --app-port "8080" \
     --env-prefix "APP"
 
-echo '🤖 Run generator (maximum feature)'
+log_progress 'Run generator (maximum feature)'
 zrb project add app-max \
     --project-dir . \
     --app-name "app-max" \
@@ -118,7 +127,7 @@ zrb project add app-max \
     --app-port "8081" \
     --env-prefix "APP"
 
-echo '🤖 Run generator (no custom image)'
+log_progress 'Run generator (no custom image)'
 zrb project add app-no-custom-image \
     --project-dir . \
     --app-name "app-no-custom-image" \

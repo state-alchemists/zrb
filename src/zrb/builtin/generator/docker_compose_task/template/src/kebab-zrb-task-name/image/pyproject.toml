@@ -3,6 +3,9 @@ name = "kebab-zrb-task-name"
 version = "0.0.1"
 description = "A docker compose task"
 authors = ["zrb"]
+packages = [
+  {include = "kebab-zrb-task-name", from = "../.."},
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<4.0.0"
