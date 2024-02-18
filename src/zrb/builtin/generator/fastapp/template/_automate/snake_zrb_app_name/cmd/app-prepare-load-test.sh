@@ -1,2 +1,2 @@
 echo "Install packages"
-poetry install
+poetry install --no-root

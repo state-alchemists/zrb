@@ -13,7 +13,7 @@ RUN apt update && apt install curl psmisc -y
 RUN pip install -U pip
 RUN pip install "poetry==1.7.1"
 COPY ./pyproject.toml ./pyproject.toml
-RUN poetry install --only main
+RUN poetry install --only main --no-root
 COPY . .
 COPY --from=frontend-builder /frontend/build /home/frontend/build
 CMD ./start.sh

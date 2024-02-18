@@ -44,7 +44,7 @@ then
     echo "Start uvicorn with instrumentation, service name: ${APP_NAME}"
     OTEL_RESOURCE_ATTRIBUTES="service.name=${APP_NAME}" \
         OTEL_EXPORTER_OTLP_ENDPOINT="$APP_OTEL_EXPORTER_OTLP_ENDPOINT" \
-        opentelemetry-instrument uvicorn main:app --host "$APP_HOST" --port "$APP_PORT"
+        poetry run opentelemetry-instrument uvicorn main:app --host "$APP_HOST" --port "$APP_PORT"
 else
     # reload should only performed if otel is disabled
     _RELOAD=""
@@ -54,5 +54,5 @@ else
     fi
     # Run uvicorn
     echo "Start uvicorn"
-    uvicorn main:app --host "$APP_HOST" --port "$APP_PORT" $_RELOAD
+    poetry run uvicorn main:app --host "$APP_HOST" --port "$APP_PORT" $_RELOAD
 fi
