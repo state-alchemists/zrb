@@ -22,12 +22,54 @@ project_name_input = StrInput(
     default="",
 )
 
+project_author_name_input = StrInput(
+    name="project-author-name",
+    prompt="Project author name",
+    description="Project author name",
+    default=SYSTEM_USER,
+)
+
+project_author_email_input = StrInput(
+    name="project-author-email",
+    prompt="Project author email",
+    description="Project author email",
+    default=f"{SYSTEM_USER}@gmail.com",
+)
+
+project_description_input = StrInput(
+    name="project-description",
+    description="Project description",
+    prompt="Project description",
+    default="Just another Zrb project",
+)
+
 app_name_input = StrInput(
     name="app-name",
     shortcut="a",
     description="App name",
     prompt="App name",
     default="app",
+)
+
+app_author_name_input = StrInput(
+    name="app-author-name",
+    prompt="App author name",
+    description="App author name",
+    default=SYSTEM_USER,
+)
+
+app_author_email_input = StrInput(
+    name="app-author-email",
+    prompt="App author email",
+    description="App author email",
+    default=f"{SYSTEM_USER}@gmail.com",
+)
+
+app_description_input = StrInput(
+    name="app-description",
+    description="App description",
+    prompt="App description",
+    default="Just another app",
 )
 
 app_image_default_namespace = os.getenv(
@@ -124,7 +166,7 @@ package_description_input = StrInput(
     name="package-description",
     description="Package description",
     prompt="Package description",
-    default="My super package",
+    default="Just another package",
 )
 
 package_homepage_input = StrInput(

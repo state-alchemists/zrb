@@ -69,7 +69,8 @@ zrb project add pip-package \
     --package-name "zrb-pkg" \
     --package-description "A test package" \
     --package-homepage "https://github.com/state-alchemists/zrb" \
-    --package-bug-tracker "https://github.com/state-alchemists/zrb/issues" \
+    --package-repository "https://github.com/state-alchemists/zrb" \
+    --package-documentation "https://github.com/state-alchemists/zrb" \
     --package-author-name "Go Frendi" \
     --package-author-email "gofrendiasgard@gmail.com" \
 

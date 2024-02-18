@@ -6,6 +6,9 @@ from zrb.builtin.generator.common.helper import (
 )
 from zrb.builtin.generator.common.task_factory import create_register_module
 from zrb.builtin.generator.common.task_input import (
+    app_author_email_input,
+    app_author_name_input,
+    app_description_input,
     app_image_name_input,
     app_name_input,
     env_prefix_input,
@@ -58,6 +61,9 @@ copy_resource = ResourceMaker(
     inputs=[
         project_dir_input,
         app_name_input,
+        app_description_input,
+        app_author_name_input,
+        app_author_email_input,
         app_image_name_input,
         http_port_input,
         env_prefix_input,
@@ -65,6 +71,9 @@ copy_resource = ResourceMaker(
     upstreams=[validate],
     replacements={
         "zrbAppName": "{{input.app_name}}",
+        "zrbAppDescription": "{{input.app_description}}",
+        "zrbAppAuthorName": "{{input.app_author_name}}",
+        "zrbAppAuthorEmail": "{{input.app_author_email}}",
         "zrbAppHttpPort": '{{util.coalesce(input.http_port, "3000")}}',
         "ZRB_ENV_PREFIX": '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         "zrb-app-image-name": "{{input.app_image_name}}",

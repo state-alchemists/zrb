@@ -1,6 +1,8 @@
 [tool.poetry]
-name = "kebab-zrb-package-name-loadtest"
+name = "kebab-zrb-app-name-loadtest"
 version = "0.0.1"
+description = "Load test for zrbPackageName"
+authors = ["zrbAppAuthorName <zrbAppAuthorEmail>"]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<4.0.0"
