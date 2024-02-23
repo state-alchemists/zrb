@@ -5,19 +5,17 @@ log_progress() {
 }
 
 
-poetry() {
-    "${PROJECT_DIR}/.poetry-venv/bin/poetry" $@
+command_exists() {
+    command -v "$1" &> /dev/null
 }
 
 
 init() {
     export PROJECT_DIR=$(pwd)
     log_progress "Setting project directory to ${PROJECT_DIR}"
-    if [ ! -d "${PROJECT_DIR}/.poetry-venv" ]
+    if ! command_exists poetry
     then
-        log_progress 'Creating poetry virtual environment'
-        python -m venv "${PROJECT_DIR}/.poetry-venv"
-        source "${PROJECT_DIR}/.poetry-venv/bin/activate"
+        log_progress 'Install poetry'
         pip install --upgrade pip setuptools
         pip install "poetry==1.7.1"
     fi
