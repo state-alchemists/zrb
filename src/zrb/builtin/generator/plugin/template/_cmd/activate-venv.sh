@@ -13,5 +13,5 @@ then
   echo "Init virtual environment"
   python -m venv .venv
 fi
-Echo "Activate virtual environment"
+echo "Activate virtual environment"
 source .venv/bin/activate
