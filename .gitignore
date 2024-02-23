@@ -8,5 +8,6 @@ playground
 .cprofile.svg
 .env
 .venv
+.poetry-venv
 docker/._docker-compose.*.runtime.yml
 htmlcov
