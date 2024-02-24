@@ -126,6 +126,7 @@ In general, this is what you need to do:
   - Termux
   - Termux-notification
   - Termux-api
+  - Termux-storage (optional)
   - Termux-styling (optional)
 - Set Termux repository.
 
