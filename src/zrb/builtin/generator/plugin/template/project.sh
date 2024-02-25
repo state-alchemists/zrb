@@ -1,5 +1,13 @@
 #!/bin/bash
 
+if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
+then
+    IS_TERMUX=1
+else
+    IS_TERMUX=0
+fi
+
+
 log_progress() {
     echo -e "🤖 \e[0;33m${1}\e[0;0m"
 }
@@ -40,8 +48,21 @@ reload() {
     log_progress 'Loading project configuration (.env)'
     source "${PROJECT_DIR}/.env"
 
+    if [ "$IS_TERMUX" = "1" ]
+    then
+        log_progress 'Updating Build Flags'
+        _OLD_CFLAGS="$CFLAGS"
+        export CFLAGS="$_OLD_CFLAGS -Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
+    fi
+
     log_progress 'Install'
     poetry install
+
+    if [ "$IS_TERMUX" = "1" ]
+    then
+        log_progress 'Restoring Build Flags'
+        export CFLAGS="$_OLD_CFLAGS"
+    fi
 
     _CURRENT_SHELL=$(ps -p $$ | awk 'NR==2 {print $4}')
     case "$_CURRENT_SHELL" in

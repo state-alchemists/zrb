@@ -24,7 +24,7 @@ init() {
     if ! command_exists poetry
     then
         log_progress 'Install poetry'
-        pip install --upgrade pip setuptools poetry
+        pip install --upgrade pip setuptools
         pip install "poetry"
     fi
     if [ ! -d "${PROJECT_DIR}/.venv" ]
