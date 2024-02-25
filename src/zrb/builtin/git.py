@@ -20,7 +20,7 @@ clear_branch = CmdTask(
     cmd=[
         "for BRANCH in $(git branch)",
         "do",
-        '  if [ "$BRANCH" != "main" ]',
+        '  if [ "$BRANCH" != "main" ] && [ "$BRANCH" != "*" ]',
         "  then",
         "    git branch -D $BRANCH",
         "  fi",
