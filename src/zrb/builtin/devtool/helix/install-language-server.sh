@@ -29,5 +29,15 @@ else
     echo "Cannot install go language server, is go installed?"
 fi
 
+if command_exists hx
+then
+    hx --grammar fetch
+    hx --grammar build
+elif command_exists helix
+then
+    helix --grammar fetch
+    helix --grammar build
+fi
+
 set -e
 echo "Visit https://github.com/helix-editor/helix/wiki/How-to-install-the-default-language-servers for more information."

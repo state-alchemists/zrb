@@ -18,7 +18,7 @@ else
         if command_exists pkg
         then
              try_sudo pkg update
-             try_sudo pkg install -y xclip helix
+             try_sudo pkg install -y helix
         elif command_exists apt
         then
              try_sudo add-apt-repository ppa:maveonair/helix-editor -y
@@ -45,14 +45,4 @@ else
         echo "Unsupported OS type. Please install helix manually."
         exit 1
     fi
-fi
-
-if command_exists hx
-then
-    hx --grammar fetch
-    hx --grammar build
-elif command_exists helix
-then
-    helix --grammar fetch
-    helix --grammar build
 fi
