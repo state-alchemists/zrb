@@ -124,14 +124,13 @@ In general, this is what you need to do:
 - Install F-droid on your device.
 - Install the following applications using F-droid:
   - Termux
-  - Termux-notification
   - Termux-api
-  - Termux-storage (optional)
   - Termux-styling (optional)
 - Set Termux repository.
 
   ```bash
   termux-change-repo
+  termux-wake-lock
   ```
 
 - Run the installation script
@@ -140,15 +139,8 @@ In general, this is what you need to do:
 
   ```bash
   zrb devtool install zsh
-  ```
-
-- If you like Tmux and Helix Editor, install them using Zrb.
-
-  ```bash
   zrb devtool install helix
   zrb devtool install tmux
-  hx --grammar fetch
-  hx --grammar build 
   ```
 
 
