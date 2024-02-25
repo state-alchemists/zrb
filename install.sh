@@ -70,7 +70,7 @@ then
     fi
 
     log_progress "Installing new packages"
-    pkg install openssh curl wget git which \
+    pkg install termux-api openssh curl wget git which \
         python rust clang cmake build-essential golang \
         binutils postgresql sqlite
 
