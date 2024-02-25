@@ -70,9 +70,19 @@ then
     fi
 
     log_progress "Installing new packages"
+<<<<<<< HEAD
     pkg install openssh curl wget git which \
         python rust clang cmake build-essential golang \
         binutils postgresql sqlite
+=======
+<<<<<<< HEAD
+    pkg install openssh curl wget git which \
+        python rust clang cmake build-essential golang \
+        binutils postgresql sqlite
+=======
+    pkg install python rust clang cmake build-essential golang git openssh curl wget binutils postgresql sqlite
+>>>>>>> main
+>>>>>>> main
 
     log_progress "Creating local venv"
     python -m venv $HOME/.local
