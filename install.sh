@@ -71,7 +71,7 @@ then
 
     log_progress "Installing new packages"
     pkg install termux-api openssh curl wget git which \
-        python rust clang cmake build-essential golang \
+        python rust clang cmake build-essential golang swig \
         binutils ninja patchelf libxml2 libxslt \
         postgresql sqlite
 
