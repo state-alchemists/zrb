@@ -131,3 +131,17 @@ KUBE_PS1_CTX_COLOR=cyan
 PROMPT='$(kube_ps1)'$PROMPT
 
 export COLORTERM=truecolor
+
+# Activate pyenv if exists
+if [ -d "${HOME}/.pyenv" ]
+then
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init --path)"
+fi
+
+# Activate local venv if exists
+if [ -f "${HOME}/.local/bin/activate" ]
+then
+    source "${HOME}/.local/bin/activate"
+fi
