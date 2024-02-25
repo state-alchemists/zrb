@@ -170,8 +170,15 @@ else
     log_progress "Assuming Python is installed"
 fi
 
-log_progress "Installing Poetry"
-pip install poetry
+if ! command_exists poetry
+then
+    log_progress "Installing Poetry"
+    pip install --upgrade pip setuptools
+    pip install "poetry"
+fi
 
-log_progress "Installing Zrb"
-pip install zrb
+if ! command_exists zrb
+then
+    log_progress "Installing Zrb"
+    pip install zrb
+fi
