@@ -27,15 +27,20 @@ try_sudo() {
 
 register_pyenv() {
     log_progress "Registering Pyenv to $1"
-    echo '' >> $1
-    echo 'export pyenv_root="$HOME/.pyenv"' >> $1
-    echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> $1
-    echo 'eval "$(pyenv init -)"' >> $1
+    echo 'if [ -d "${HOME}/.pyenv" ]' >> $1
+    echo 'then' >> $1
+    echo '    export PYENV_ROOT="$HOME/.pyenv"' >> $1
+    echo '    export PATH="$PYENV_ROOT/bin:$PATH"' >> $1
+    echo '    eval "$(pyenv init --path)"' >> $1
+    echo 'fi' >> $1
 }
 
 register_local_venv() {
     log_progress "Registering .local venv to $1"
-    echo 'source $HOME/.local/bin/activate' >> $1
+    echo 'if [ -f "${HOME}/.local/bin/activate" ]' >> $1
+    echo 'then' >> $1
+    echo '    source "${HOME}/.local/bin/activate"' >> $1
+    echo 'fi' >> $1
 }
 
 if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local" ]
@@ -75,13 +80,13 @@ then
 
     
     # register local venv to .zshrc
-    if [ -f "$HOME/.zshrc" ]
+    if command_exists zsh
     then
         register_local_venv "$HOME/.zshrc"
     fi
 
     # register local venv to .bashrc
-    if [ -f "$HOME/.bashrc" ]
+    if command_exists bash
     then
         register_local_venv "$HOME/.bashrc"
     fi
