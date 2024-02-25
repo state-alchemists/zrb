@@ -72,7 +72,7 @@ then
     log_progress "Installing new packages"
     pkg install termux-api openssh curl wget git which \
         python rust clang cmake build-essential golang \
-        binutils ninja patchelf libxml libxslt \
+        binutils ninja patchelf libxml2 libxslt \
         postgresql sqlite
 
     log_progress "Creating local venv"
