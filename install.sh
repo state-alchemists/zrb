@@ -72,7 +72,8 @@ then
     log_progress "Installing new packages"
     pkg install termux-api openssh curl wget git which \
         python rust clang cmake build-essential golang \
-        binutils postgresql sqlite
+        binutils ninja patchelf libxml libxslt \
+        postgresql sqlite
 
     log_progress "Creating local venv"
     python -m venv $HOME/.local-venv
