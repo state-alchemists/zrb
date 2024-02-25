@@ -131,3 +131,8 @@ KUBE_PS1_CTX_COLOR=cyan
 PROMPT='$(kube_ps1)'$PROMPT
 
 export COLORTERM=truecolor
+
+if [ -f "${HOME}/.local/bin/activate" ]
+then
+    source "${HOME}/.local/bin/activate"
+fi

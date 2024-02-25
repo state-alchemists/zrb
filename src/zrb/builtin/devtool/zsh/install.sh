@@ -48,7 +48,7 @@ fi
 if command_exists chsh
 then
     echo "Changing default shell to zsh..."
-     try_sudo chsh -s "$(command -v zsh)"
+     try_sudo chsh -s zsh
 else
     echo "chsh command not found. Please change the default shell manually."
 fi
