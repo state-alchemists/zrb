@@ -46,13 +46,3 @@ else
         exit 1
     fi
 fi
-
-if command_exists hx
-then
-    hx --grammar fetch
-    hx --grammar build
-elif command_exists helix
-then
-    helix --grammar fetch
-    helix --grammar build
-fi
