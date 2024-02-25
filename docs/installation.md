@@ -50,7 +50,7 @@ If you are on a new computer or are new to Python, we have an [installation scri
 To run the installation script, you should open your terminal and type the following command:
 
 ```bash
-curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
+source <(curl -s https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)
 ```
 
 We recommend this installation method if you work on a new computer/VM.
