@@ -35,29 +35,21 @@ register_pyenv() {
 
 register_local_venv() {
     log_progress "Registering .local venv to $1"
-    echo '' >> $1
-    # echo 'export CFLAGS="-Wno-incompatible-function-pointer-types"' >> $1
-    # echo 'export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1' >> $1
-    # echo 'export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 ' >> $1
-    # echo 'export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 ' >> $1
-    # echo 'export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 ' >> $1
-    # echo 'export CFLAGS="$CFLAGS -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"' >> $1
-    # echo 'export LDFLAGS="$LDFLAGS -llog"' >> $1
-    # echo 'export MATHLIB="m"' >> $1
     echo 'source $HOME/.local/bin/activate' >> $1
 }
 
 if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local" ]
 then
 
-    # log_progress "Setting environment variables"
-    export CFLAGS="-Wno-incompatible-function-pointer-types -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
-    export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
-    export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
-    export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
-    export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
-    export LDFLAGS="-llog"
-    export MATHLIB="m"
+    log_progress "Setting environment variables"
+    export CFLAGS="-Wno-incompatible-function-pointer-types"
+    # export CFLAGS="-Wno-incompatible-function-pointer-types -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
+    # export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
+    # export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
+    # export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
+    # export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
+    # export LDFLAGS="-llog"
+    # export MATHLIB="m"
 
     log_progress "Change repo"
     termux-change-repo
@@ -73,7 +65,13 @@ then
     fi
 
     log_progress "Installing new packages"
+<<<<<<< HEAD
+    pkg install openssh curl wget git which \
+        python rust clang cmake build-essential golang \
+        binutils postgresql sqlite
+=======
     pkg install python rust clang cmake build-essential golang git openssh curl wget binutils postgresql sqlite
+>>>>>>> main
 
     log_progress "Creating local venv"
     python -m venv $HOME/.local
