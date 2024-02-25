@@ -67,11 +67,14 @@ then
     pkg update
     pkg upgrade -y
 
-    log_progress "Setup storage"
-    termux-setup-storage
+    if [ ! -d "${HOME}/storage" ]
+    then
+        log_progress "Setup storage"
+        termux-setup-storage
+    fi
 
     log_progress "Installing new packages"
-    pkg install python rust clang cmake build-essential golang git openssh curl wget binutils-is-llvm postgresql sqlite
+    pkg install python rust clang cmake build-essential golang git openssh curl wget binutils postgresql sqlite
 
     log_progress "Creating local venv"
     python -m venv $HOME/.local
