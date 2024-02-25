@@ -27,10 +27,10 @@ You can install Zrb as a pip package by invoking the following command:
 pip install zrb
 ```
 
-Alternatively, you can also use our installation script to install Zrb along with `pyenv`:
+Alternatively, you can also use our installation script to install Zrb along with some prerequisites:
 
 ```bash
-curl https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh | bash
+source <(curl -s https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)
 ```
 
 Check our [installation guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md) for more information about the installation methods, including installation as a docker container.
