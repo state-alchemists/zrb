@@ -51,14 +51,13 @@ if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local" ]
 then
 
     # log_progress "Setting environment variables"
-    # export CFLAGS="-Wno-incompatible-function-pointer-types"
-    # export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
-    # export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
-    # export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
-    # export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
-    # export CFLAGS="$CFLAGS -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
-    # export LDFLAGS="$LDFLAGS -llog"
-    # export MATHLIB="m"
+    export CFLAGS="-Wno-incompatible-function-pointer-types -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
+    export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
+    export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
+    export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
+    export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
+    export LDFLAGS="-llog"
+    export MATHLIB="m"
 
     log_progress "Change repo"
     termux-change-repo
