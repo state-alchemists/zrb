@@ -17,7 +17,7 @@ init() {
     then
         log_progress 'Install poetry'
         pip install --upgrade pip setuptools
-        pip install "poetry==1.7.1"
+        pip install "poetry"
     fi
     if [ ! -d "${PROJECT_DIR}/.venv" ]
     then
