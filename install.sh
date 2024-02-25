@@ -36,18 +36,18 @@ register_pyenv() {
 }
 
 register_local_venv() {
-    log_progress "Registering .local venv to $1"
-    echo 'if [ -f "${HOME}/.local/bin/activate" ]' >> $1
+    log_progress "Registering .local-venv to $1"
+    echo 'if [ -f "${HOME}/.local-venv/bin/activate" ]' >> $1
     echo 'then' >> $1
-    echo '    source "${HOME}/.local/bin/activate"' >> $1
+    echo '    source "${HOME}/.local-venv/bin/activate"' >> $1
     echo 'fi' >> $1
 }
 
-if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local" ]
+if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ]
 then
 
     log_progress "Setting environment variables"
-    export CFLAGS="-Wno-incompatible-function-pointer-types"
+    export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
     # export CFLAGS="-Wno-incompatible-function-pointer-types -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
     # export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
     # export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
@@ -75,8 +75,8 @@ then
         binutils postgresql sqlite
 
     log_progress "Creating local venv"
-    python -m venv $HOME/.local
-    source $HOME/.local/bin/activate
+    python -m venv $HOME/.local-venv
+    source $HOME/.local-venv/bin/activate
 
     
     # register local venv to .zshrc

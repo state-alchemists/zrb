@@ -141,7 +141,7 @@ then
 fi
 
 # Activate local venv if exists
-if [ -f "${HOME}/.local/bin/activate" ]
+if [ -f "${HOME}/.local-venv/bin/activate" ]
 then
-    source "${HOME}/.local/bin/activate"
+    source "${HOME}/.local-venv/bin/activate"
 fi
