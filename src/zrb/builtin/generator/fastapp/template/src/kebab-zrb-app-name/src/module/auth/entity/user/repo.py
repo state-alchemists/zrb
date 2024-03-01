@@ -2,12 +2,12 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, List, Mapping
 
-from core.repo import DBEntityMixin, DBRepo, Repo
-from module.auth.component import Base
-from module.auth.core import PasswordHasher
+from component.repo import DBEntityMixin, DBRepo, Repo
+from module.auth.component import PasswordHasher
 from module.auth.entity.group.repo import DBEntityGroup
 from module.auth.entity.permission.repo import DBEntityPermission
 from module.auth.entity.table import user_group, user_permission
+from module.auth.integration import Base
 from module.auth.schema.user import User, UserData, UserLogin
 from sqlalchemy import Column, String, or_
 from sqlalchemy.engine import Engine

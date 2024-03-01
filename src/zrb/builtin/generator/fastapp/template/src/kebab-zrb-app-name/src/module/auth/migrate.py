@@ -1,8 +1,8 @@
-from component.db_connection import engine
-from component.log import logger
 from config import app_enable_auth_module
 from helper.migration import migrate
-from module.auth.component import Base
+from integration.db_connection import engine
+from integration.log import logger
+from module.auth.integration import Base
 from module.auth.register_permission import register_permission
 
 

@@ -1,4 +1,4 @@
-from component.app import app
+from integration.app import app
 from module.auth.register_module import register_auth
 from module.log.register_module import register_log
 

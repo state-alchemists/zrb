@@ -1,7 +1,7 @@
 from logging import Logger
 
-from core.messagebus import Consumer, Publisher
-from core.rpc import Caller
+from component.messagebus import Consumer, Publisher
+from component.rpc import Caller
 
 
 def register_event(

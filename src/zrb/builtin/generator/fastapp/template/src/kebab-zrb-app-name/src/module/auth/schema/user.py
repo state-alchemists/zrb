@@ -1,6 +1,6 @@
 from typing import List
 
-from core.schema import BaseCountSchema, BaseDateTimeSchema
+from component.schema import BaseCountSchema, BaseDateTimeSchema
 from module.auth.schema.group import Group
 from module.auth.schema.permission import Permission
 from pydantic import BaseModel

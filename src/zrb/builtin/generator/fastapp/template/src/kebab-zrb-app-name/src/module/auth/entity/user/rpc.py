@@ -1,10 +1,10 @@
 from logging import Logger
 from typing import Any, List, Mapping, Union
 
-from core.messagebus import Publisher
-from core.repo import SearchFilter
-from core.rpc import Caller, Server
-from module.auth.component.model.user_model import user_model
+from component.messagebus import Publisher
+from component.repo import SearchFilter
+from component.rpc import Caller, Server
+from module.auth.integration.model.user_model import user_model
 from module.auth.schema.token import AccessTokenData
 from module.auth.schema.user import UserData, UserLogin
 

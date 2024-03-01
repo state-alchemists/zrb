@@ -1,8 +1,8 @@
-from component.db_connection import engine
-from component.log import logger
 from config import app_enable_log_module
 from helper.migration import migrate
-from module.log.component import Base
+from integration.db_connection import engine
+from integration.log import logger
+from module.log.integration import Base
 
 
 async def migrate_log():

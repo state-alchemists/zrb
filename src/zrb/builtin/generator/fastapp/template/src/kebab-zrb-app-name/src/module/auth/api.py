@@ -1,9 +1,9 @@
 from logging import Logger
 
-from core.messagebus import Publisher
-from core.rpc import Caller
+from component.messagebus import Publisher
+from component.rpc import Caller
 from fastapi import FastAPI
-from module.auth.core import Authorizer
+from module.auth.component import Authorizer
 from module.auth.entity.group.api import register_api as register_group_api
 from module.auth.entity.permission.api import register_api as register_permission_api
 from module.auth.entity.user.api import register_api as register_user_api

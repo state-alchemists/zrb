@@ -1,13 +1,13 @@
 from logging import Logger
 from typing import Annotated, List, Mapping
 
-from core.error import HTTPAPIException
-from core.messagebus import Publisher
-from core.rpc import Caller
+from component.error import HTTPAPIException
+from component.messagebus import Publisher
+from component.rpc import Caller
 from fastapi import Depends, FastAPI
 from fastapi.security import OAuth2PasswordRequestForm
-from module.auth.component import access_token_scheme, bearer_token_scheme
-from module.auth.core import Authorizer
+from module.auth.component import Authorizer
+from module.auth.integration import access_token_scheme, bearer_token_scheme
 from module.auth.schema.request import IsAuthorizedRequest, RefreshTokenRequest
 from module.auth.schema.token import AccessTokenData, TokenResponse
 from module.auth.schema.user import User, UserData, UserLogin, UserResult

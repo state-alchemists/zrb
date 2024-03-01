@@ -33,7 +33,7 @@ def test_add_fastapp_module():
     )
     with open(main_py_path) as f:
         content = f.read()
-    assert 'from component.app import app' in content
+    assert 'from integration.app import app' in content
     assert 'from module.library.register_module import register_library' in content  # noqa
     assert 'register_library()' in content
 

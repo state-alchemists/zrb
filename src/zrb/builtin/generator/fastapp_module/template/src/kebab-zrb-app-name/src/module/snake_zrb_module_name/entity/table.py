@@ -1,4 +1,4 @@
-from module.snake_zrb_module_name.component.base import Base
+from module.snake_zrb_module_name.integration.base import Base
 from sqlalchemy import Column, ForeignKey, Integer, Table
 
 """

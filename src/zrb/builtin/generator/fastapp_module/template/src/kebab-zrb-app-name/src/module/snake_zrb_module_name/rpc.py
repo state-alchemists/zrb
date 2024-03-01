@@ -1,8 +1,8 @@
 from logging import Logger
 from typing import Any
 
-from core.messagebus import Publisher
-from core.rpc import Caller, Server
+from component.messagebus import Publisher
+from component.rpc import Caller, Server
 
 
 def register_rpc(
