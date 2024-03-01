@@ -122,7 +122,7 @@ For simple CRUD, you won't need to code at all. Please see [Zrb tutorial](https:
 
 Main prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Pip
 - Venv
 - Node version 18 or higher
@@ -148,8 +148,8 @@ You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kub
     - `main.py`: PascalZrbAppName's application entry point. This module exposes an `app` object that will be picked up by Uvicorn.
     - `config.py`: PascalZrbAppName's configuration loader.
     - `migrate.py`: A script to perform database migration.
-    - `component/`: Definition of components you want to use in your application. Typically containing scripts to instantiate `app` objects, DB connections, Message bus connections, etc. This is where you create and connect components.
-    - `core/`: Interface and component class definitions.
+    - `integration/`: Initialization of components you want to use in your application. Typically containing scripts to instantiate `app` objects, DB connections, Message bus connections, etc. This is where you create and connect components.
+    - `component/`: Interface and component class definitions.
     - `frontend/`: Frontend source code
         - `package.json`: NPM configuration for PascalZrbAppName frontend.
         - `svelte.config.json`: Svelte configuration.
@@ -161,7 +161,7 @@ You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kub
         - `build/`: Frontend build result.
         - `static/`: Static files like images, favicon, etc.
     - `helper/`: Common helper scripts. Typically stateless.
-    - `schema/`: Common Pydantic schemas. 
+    - `schema/`: Common Pydantic schemas.
     - `module/`: Module definition. Each module can be deployed as a microservice. Thus, modules should be isolated from each other.
         - `<module_name>/`: Module resources.
             - `api.py`: HTTP request handler for the current module.
@@ -169,10 +169,10 @@ You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kub
             - `rpc.py`: RPC handler for the current module.
             - `register_module.py`: A script to register the module to the main application.
             - `migrate.py`: A script to perform migration for the current module.
-            - `component/`: Component objects for the current module.
+            - `integration/`: Initialization of components for the current module.
                 - `model/`
                 - `repo/`
-            - `core/`: Interface and component class definition for the current module.
+            - `component/`: Interface and component class definition for the current module.
             - `entity/`: Entity related resources.
                 - `<entity_name>/`: Resources for current entity.
                     - `api.py`
