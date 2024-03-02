@@ -150,7 +150,7 @@ services:
 
 
   clickhouse:
-    image: clickhouse/clickhouse-server:22.8.8-alpine
+    image: clickhouse/clickhouse-server:24.1.2-alpine
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-clickhouse
     hostname: clickhouse
@@ -187,7 +187,7 @@ services:
 
 
   alertmanager:
-    image: signoz/alertmanager:0.23.1
+    image: signoz/alertmanager:0.23.5
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-alertmanager
     hostname: alertmanager
@@ -207,7 +207,7 @@ services:
 
 
   query-service:
-    image: signoz/query-service:0.23.0
+    image: signoz/query-service:0.39.0
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-query-service
     hostname: query-service
@@ -244,7 +244,7 @@ services:
 
 
   frontend:
-    image: signoz/frontend:0.23.0
+    image: signoz/frontend:0.39.0
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-frontend
     hostname: frontend
@@ -262,8 +262,20 @@ services:
     - zrb
 
 
+  otel-collector-migrator:
+    image: signoz/signoz-schema-migrator:0.88.12
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-migrator
+    command:
+      - "--dsn=tcp://clickhouse:9000"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+    - zrb
+
+
   otel-collector:
-    image: signoz/signoz-otel-collector:0.79.2
+    image: signoz/signoz-otel-collector:0.88.12
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-collector
     hostname: otel-collector
@@ -294,12 +306,16 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+      otel-collector-migrator:
+        condition: service_completed_successfully
+      query-service:
+        condition: service_healthy
     networks:
     - zrb
 
 
   otel-collector-metrics:
-    image: signoz/signoz-otel-collector:0.79.2
+    image: signoz/signoz-otel-collector:0.88.12
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-collector-metrics
     hostname: otel_collector_metrics
