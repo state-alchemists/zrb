@@ -1,5 +1,5 @@
-from core.repo import DBEntityMixin, DBRepo, Repo
-from module.log.component import Base
+from component.repo import DBEntityMixin, DBRepo, Repo
+from module.log.integration import Base
 from module.log.schema.activity import Activity, ActivityData
 from sqlalchemy import Column, String, Text
 

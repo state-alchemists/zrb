@@ -46,7 +46,7 @@ def test_add_fastapp_task():
     )
     with open(main_py_path) as f:
         content = f.read()
-    assert 'from component.app import app' in content
+    assert 'from integration.app import app' in content
     assert 'assert app' in content
 
     # second attempt should fail

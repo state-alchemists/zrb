@@ -18,4 +18,3 @@ prune = CmdTask(
     ],
 )
 runner.register(prune)
-

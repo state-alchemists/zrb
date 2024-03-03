@@ -1,10 +1,10 @@
 from abc import ABC
 from typing import Any, Mapping
 
-from core.repo import DBEntityMixin, DBRepo, Repo
-from module.auth.component import Base
+from component.repo import DBEntityMixin, DBRepo, Repo
 from module.auth.entity.permission.repo import DBEntityPermission
 from module.auth.entity.table import group_permission
+from module.auth.integration import Base
 from module.auth.schema.group import Group, GroupData
 from sqlalchemy import Column, String
 from sqlalchemy.orm import Session, relationship

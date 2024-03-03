@@ -1,4 +1,4 @@
-from core.model import RepoModel
+from component.model import RepoModel
 from module.log.schema.activity import Activity, ActivityData, ActivityResult
 
 

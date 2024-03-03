@@ -1,4 +1,4 @@
-from module.auth.component import Base
+from module.auth.integration import Base
 from sqlalchemy import Column, ForeignKey, String, Table
 
 user_group = Table(

@@ -1,11 +1,11 @@
 from logging import Logger
 from typing import Any, Mapping
 
-from core.messagebus import Publisher
-from core.repo import SearchFilter
-from core.rpc import Caller, Server
+from component.messagebus import Publisher
+from component.repo import SearchFilter
+from component.rpc import Caller, Server
 from module.auth.schema.token import AccessTokenData
-from module.log.component.model.activity_model import activity_model
+from module.log.integration.model.activity_model import activity_model
 from module.log.schema.activity import ActivityData
 
 

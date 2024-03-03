@@ -1,14 +1,14 @@
-from component.app import app
-from component.log import logger
-from component.messagebus import consumer, publisher
-from component.rpc import rpc_caller, rpc_server
 from config import (
     app_enable_api,
     app_enable_event_handler,
     app_enable_log_module,
     app_enable_rpc_server,
 )
-from module.auth.component import authorizer
+from integration.app import app
+from integration.log import logger
+from integration.messagebus import consumer, publisher
+from integration.rpc import rpc_caller, rpc_server
+from module.auth.integration import authorizer
 from module.log.api import register_api
 from module.log.event import register_event
 from module.log.rpc import register_rpc

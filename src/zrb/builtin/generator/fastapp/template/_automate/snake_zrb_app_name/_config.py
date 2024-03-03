@@ -28,12 +28,10 @@ MODULES = jsons.loads(MODULE_JSON_STR)
 # Service Configs
 ###############################################################################
 
-_OTEL_EXPORTER_ENDPOINT_ENV_NAME = "APP_OTEL_EXPORTER_OTLP_ENDPOINT"
-_OTEL_EXPORTER_ENDPOINT = "http://otel-collector:4317"
 _OTEL_EXPORTER_ENDPOINT_ENV = Env(
-    name=_OTEL_EXPORTER_ENDPOINT_ENV_NAME,
+    name="APP_OTEL_EXPORTER_OTLP_ENDPOINT",
     os_name="",
-    default=_OTEL_EXPORTER_ENDPOINT,
+    default="http://otel-collector:4317",
 )
 
 _CONTAINER_ENV_PREFIX = "CONTAINER_ZRB_ENV_PREFIX"

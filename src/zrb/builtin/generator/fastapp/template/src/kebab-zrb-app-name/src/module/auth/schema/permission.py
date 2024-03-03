@@ -1,6 +1,6 @@
 from typing import List
 
-from core.schema import BaseCountSchema, BaseDateTimeSchema
+from component.schema import BaseCountSchema, BaseDateTimeSchema
 
 
 class PermissionData(BaseDateTimeSchema):

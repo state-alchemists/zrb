@@ -1,8 +1,8 @@
-from component.db_connection import engine
-from component.log import logger
 from config import app_enable_snake_zrb_module_name_module
 from helper.migration import migrate
-from module.snake_zrb_module_name.component import Base
+from integration.db_connection import engine
+from integration.log import logger
+from module.snake_zrb_module_name.integration import Base
 
 
 async def migrate_snake_zrb_module_name():

@@ -115,6 +115,7 @@ def _get_new_docker_compose_service_definition(
                 + kebab_app_name
                 + "}-"
                 + f"{kebab_module_name}-service",  # noqa
+                "APP_ENABLE_OTEL": "${APP_ENABLE_OTEL:-0}",
                 "APP_PORT": app_container_port_env,
                 "APP_ENABLE_EVENT_HANDLER": "true",
                 "APP_ENABLE_RPC_SERVER": "true",

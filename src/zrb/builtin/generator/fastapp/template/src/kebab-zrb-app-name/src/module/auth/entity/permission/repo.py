@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-from core.repo import DBEntityMixin, DBRepo, Repo
-from module.auth.component import Base
+from component.repo import DBEntityMixin, DBRepo, Repo
+from module.auth.integration import Base
 from module.auth.schema.permission import Permission, PermissionData
 from sqlalchemy import Column, String
 
