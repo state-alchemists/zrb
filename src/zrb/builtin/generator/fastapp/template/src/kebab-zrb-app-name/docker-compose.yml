@@ -354,6 +354,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-kebab-zrb-app-name}
       APP_PORT: ${APP_PORT:-8080}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
     ports:
     - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
     restart: unless-stopped
@@ -387,6 +388,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-kebab-zrb-app-name}-gateway
       APP_PORT: ${APP_GATEWAY_PORT:-8080}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
       APP_ENABLE_EVENT_HANDLER: false
       APP_ENABLE_RPC_SERVER: false
       APP_ENABLE_API: true
@@ -421,6 +423,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-fastapp}-auth-service
       APP_PORT: ${APP_AUTH_MODULE_PORT:-8081}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
       APP_ENABLE_EVENT_HANDLER: true
       APP_ENABLE_RPC_SERVER: true
       APP_ENABLE_API: false
@@ -455,6 +458,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-fastapp}-log-service
       APP_PORT: ${APP_LOG_MODULE_PORT:-8082}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
       APP_ENABLE_EVENT_HANDLER: 'true'
       APP_ENABLE_RPC_SERVER: 'true'
       APP_ENABLE_API: 'false'
