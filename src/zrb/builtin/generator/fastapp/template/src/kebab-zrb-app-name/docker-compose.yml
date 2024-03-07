@@ -15,10 +15,11 @@ services:
 
   #############################################################################
   # Message bus
+  # Redpanda: https://docs.redpanda.com/redpanda-labs/docker-compose/single-broker/
   #############################################################################
 
   redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v22.3.11
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.6
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-redpanda
     hostname: redpanda
@@ -62,7 +63,7 @@ services:
 
 
   redpanda-console:
-    image: docker.redpanda.com/redpandadata/console:v2.2.2
+    image: docker.redpanda.com/redpandadata/console:v2.4.5
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-redpanda-console
     hostname: redpanda-console
@@ -106,7 +107,7 @@ services:
   #############################################################################
 
   postgresql:
-    image: postgres:15.2
+    image: postgres:16.2
     logging: *default-logging
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-postgresql
     hostname: postgresql

@@ -1,3 +1,4 @@
+{{- if .Values.tests.enabled }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -7,9 +8,14 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
+{{- with .Values.imagePullSecrets }}
+  imagePullSecrets: {{- toYaml . | nindent 4 }}
+{{- end }}
   containers:
     - name: wget
       image: busybox
       command: ['wget']
       args: ['{{ include "console.fullname" . }}:{{ .Values.service.port }}']
   restartPolicy: Never
+  priorityClassName: {{ .Values.priorityClassName }}
+{{- end }}

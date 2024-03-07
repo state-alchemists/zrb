@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, relationship
 
 class DBEntityGroup(Base, DBEntityMixin):
     class Config:
-        orm_mode = True
         from_attributes = True
 
     __tablename__ = "groups"

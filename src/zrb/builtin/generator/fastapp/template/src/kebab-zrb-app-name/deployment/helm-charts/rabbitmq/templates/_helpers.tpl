@@ -1,3 +1,8 @@
+{{/*
+Copyright VMware, Inc.
+SPDX-License-Identifier: APACHE-2.0
+*/}}
+
 {{/* vim: set filetype=mustache: */}}
 
 {{/*
@@ -18,7 +23,7 @@ Return the proper image name (for the init container volume-permissions image)
 Return the proper Docker Image Registry Secret Names
 */}}
 {{- define "rabbitmq.imagePullSecrets" -}}
-{{ include "common.images.pullSecrets" (dict "images" (list .Values.image .Values.volumePermissions.image) "global" .Values.global) }}
+{{ include "common.images.renderPullSecrets" (dict "images" (list .Values.image .Values.volumePermissions.image) "context" $) }}
 {{- end -}}
 
 {{/*
@@ -33,7 +38,7 @@ Return the proper Docker Image Registry Secret Names
 {{- end -}}
 
 {{/*
-Get the password secret.
+Get RabbitMQ password secret name.
 */}}
 {{- define "rabbitmq.secretPasswordName" -}}
     {{- if .Values.auth.existingPasswordSecret -}}
@@ -42,6 +47,28 @@ Get the password secret.
         {{- printf "%s" (include "common.names.fullname" .) -}}
     {{- end -}}
 {{- end -}}
+
+{{/*
+Get the password key to be retrieved from RabbitMQ secret.
+*/}}
+{{- define "rabbitmq.secretPasswordKey" -}}
+    {{- if and .Values.auth.existingPasswordSecret .Values.auth.existingSecretPasswordKey -}}
+        {{- printf "%s" (tpl .Values.auth.existingSecretPasswordKey $) -}}
+    {{- else -}}
+        {{- printf "rabbitmq-password" -}}
+    {{- end -}}
+{{- end -}}
+
+{{/*
+Return RabbitMQ password
+*/}}
+{{- define "rabbitmq.password" -}}
+    {{- if not (empty .Values.auth.password) -}}
+        {{- .Values.auth.password -}}
+    {{- else -}}
+        {{- include "getValueFromSecret" (dict "Namespace" (include "common.names.namespace" .) "Name" (include "rabbitmq.secretPasswordName" .) "Length" 16 "Key" (include "rabbitmq.secretPasswordKey" .))  -}}
+    {{- end -}}
+{{- end }}
 
 {{/*
 Get the erlang secret.
@@ -53,6 +80,28 @@ Get the erlang secret.
         {{- printf "%s" (include "common.names.fullname" .) -}}
     {{- end -}}
 {{- end -}}
+
+{{/*
+Get the erlang cookie key to be retrieved from RabbitMQ secret.
+*/}}
+{{- define "rabbitmq.secretErlangKey" -}}
+    {{- if and .Values.auth.existingErlangSecret .Values.auth.existingSecretErlangKey -}}
+        {{- printf "%s" (tpl .Values.auth.existingSecretErlangKey $) -}}
+    {{- else -}}
+        {{- printf "rabbitmq-erlang-cookie" -}}
+    {{- end -}}
+{{- end -}}
+
+{{/*
+Return RabbitMQ erlang cookie secret
+*/}}
+{{- define "rabbitmq.erlangCookie" -}}
+    {{- if not (empty .Values.auth.erlangCookie) -}}
+        {{- .Values.auth.erlangCookie -}}
+    {{- else -}}
+        {{- include "getValueFromSecret" (dict "Namespace" (include "common.names.namespace" .) "Name" (include "rabbitmq.secretErlangName" .) "Length" 32 "Key" (include "rabbitmq.secretErlangKey" .))  -}}
+    {{- end -}}
+{{- end }}
 
 {{/*
 Get the TLS secret.
@@ -90,38 +139,44 @@ Return the proper RabbitMQ plugin list
 
 {{/*
 Return the number of bytes given a value
-following a base 2 o base 10 number system.
+following a base 2 or base 10 number system.
+Input can be: b | B | k | K | m | M | g | G | Ki | Mi | Gi
+Or number without suffix
 Usage:
 {{ include "rabbitmq.toBytes" .Values.path.to.the.Value }}
 */}}
 {{- define "rabbitmq.toBytes" -}}
-{{- $value := int (regexReplaceAll "([0-9]+).*" . "${1}") }}
-{{- $unit := regexReplaceAll "[0-9]+(.*)" . "${1}" }}
-{{- if eq $unit "Ki" }}
-    {{- mul $value 1024 }}
-{{- else if eq $unit "Mi" }}
-    {{- mul $value 1024 1024 }}
-{{- else if eq $unit "Gi" }}
-    {{- mul $value 1024 1024 1024 }}
-{{- else if eq $unit "Ti" }}
-    {{- mul $value 1024 1024 1024 1024 }}
-{{- else if eq $unit "Pi" }}
-    {{- mul $value 1024 1024 1024 1024 1024 }}
-{{- else if eq $unit "Ei" }}
-    {{- mul $value 1024 1024 1024 1024 1024 1024 }}
-{{- else if eq $unit "K" }}
-    {{- mul $value 1000 }}
-{{- else if eq $unit "M" }}
-    {{- mul $value 1000 1000 }}
-{{- else if eq $unit "G" }}
-    {{- mul $value 1000 1000 1000 }}
-{{- else if eq $unit "T" }}
-    {{- mul $value 1000 1000 1000 1000 }}
-{{- else if eq $unit "P" }}
-    {{- mul $value 1000 1000 1000 1000 1000 }}
-{{- else if eq $unit "E" }}
-    {{- mul $value 1000 1000 1000 1000 1000 1000 }}
-{{- end }}
+    {{- $si := . -}}
+    {{- if not (typeIs "string" . ) -}}
+        {{- $si = int64 $si | toString -}}
+    {{- end -}}
+    {{- $bytes := 0 -}}
+    {{- if or (hasSuffix "B" $si) (hasSuffix "b" $si) -}}
+        {{- $bytes = $si | trimSuffix "B" | trimSuffix "b" | float64 | floor -}}
+    {{- else if or (hasSuffix "K" $si) (hasSuffix "k" $si) -}}
+        {{- $raw := $si | trimSuffix "K" | trimSuffix "k" | float64 -}}
+        {{- $bytes = mulf $raw (mul 1000) | floor -}}
+    {{- else if or (hasSuffix "M" $si) (hasSuffix "m" $si) -}}
+        {{- $raw := $si | trimSuffix "M" | trimSuffix "m" | float64 -}}
+        {{- $bytes = mulf $raw (mul 1000 1000) | floor -}}
+    {{- else if or (hasSuffix "G" $si) (hasSuffix "g" $si) -}}
+        {{- $raw := $si | trimSuffix "G" | trimSuffix "g" | float64 -}}
+        {{- $bytes = mulf $raw (mul 1000 1000 1000) | floor -}}
+    {{- else if hasSuffix "Ki" $si -}}
+        {{- $raw := $si | trimSuffix "Ki" | float64 -}}
+        {{- $bytes = mulf $raw (mul 1024) | floor -}}
+    {{- else if hasSuffix "Mi" $si -}}
+        {{- $raw := $si | trimSuffix "Mi" | float64 -}}
+        {{- $bytes = mulf $raw (mul 1024 1024) | floor -}}
+    {{- else if hasSuffix "Gi" $si -}}
+        {{- $raw := $si | trimSuffix "Gi" | float64 -}}
+        {{- $bytes = mulf $raw (mul 1024 1024 1024) | floor -}}
+    {{- else if (mustRegexMatch "^[0-9]+$" $si) -}}
+        {{- $bytes = $si -}}
+    {{- else -}}
+        {{- printf "\n%s is invalid SI quantity\nSuffixes can be: b | B | k | K | m | M | g | G | Ki | Mi | Gi or without any Suffixes" $si | fail -}}
+    {{- end -}}
+    {{- $bytes | int64 -}}
 {{- end -}}
 
 {{/*
@@ -152,7 +207,7 @@ Validate values of rabbitmq - LDAP support
 rabbitmq: LDAP
     Invalid LDAP configuration. When enabling LDAP support, the parameters "ldap.servers" or "ldap.uri" are mandatory
     to configure the connection and "ldap.userDnPattern" or "ldap.basedn" are necessary to lookup the users. Please provide them:
-    $ helm install {{ .Release.Name }} my-repo/rabbitmq \
+    $ helm install {{ .Release.Name }} oci://registry-1.docker.io/bitnamicharts/rabbitmq \
       --set ldap.enabled=true \
       --set ldap.servers[0]=my-ldap-server" \
       --set ldap.port="389" \
@@ -169,12 +224,12 @@ Validate values of rabbitmq - Memory high watermark
 rabbitmq: memoryHighWatermark.type
     Invalid Memory high watermark type. Valid values are "absolute" and
     "relative". Please set a valid mode (--set memoryHighWatermark.type="xxxx")
-{{- else if and .Values.memoryHighWatermark.enabled (not .Values.resources.limits.memory) (eq .Values.memoryHighWatermark.type "relative") }}
+{{- else if and .Values.memoryHighWatermark.enabled (not (dig "limits" "memory" "" .Values.resources)) (eq .Values.memoryHighWatermark.type "relative") }}
 rabbitmq: memoryHighWatermark
     You enabled configuring memory high watermark using a relative limit. However,
     no memory limits were defined at POD level. Define your POD limits as shown below:
 
-    $ helm install {{ .Release.Name }} my-repo/rabbitmq \
+    $ helm install {{ .Release.Name }} oci://registry-1.docker.io/bitnamicharts/rabbitmq \
       --set memoryHighWatermark.enabled=true \
       --set memoryHighWatermark.type="relative" \
       --set memoryHighWatermark.value="0.4" \
@@ -182,7 +237,7 @@ rabbitmq: memoryHighWatermark
 
     Altenatively, user an absolute value for the memory memory high watermark :
 
-    $ helm install {{ .Release.Name }} my-repo/rabbitmq \
+    $ helm install {{ .Release.Name }} oci://registry-1.docker.io/bitnamicharts/rabbitmq \
       --set memoryHighWatermark.enabled=true \
       --set memoryHighWatermark.type="absolute" \
       --set memoryHighWatermark.value="512MB"
@@ -193,13 +248,14 @@ rabbitmq: memoryHighWatermark
 Validate values of rabbitmq - TLS configuration for Ingress
 */}}
 {{- define "rabbitmq.validateValues.ingress.tls" -}}
-{{- if and .Values.ingress.enabled .Values.ingress.tls (not (include "common.ingress.certManagerRequest" ( dict "annotations" .Values.ingress.annotations ))) (not .Values.ingress.selfSigned) (empty .Values.ingress.extraTls) }}
+{{- if and .Values.ingress.enabled .Values.ingress.tls (not (include "common.ingress.certManagerRequest" ( dict "annotations" .Values.ingress.annotations ))) (not .Values.ingress.selfSigned) (not .Values.ingress.existingSecret) (empty .Values.ingress.extraTls) }}
 rabbitmq: ingress.tls
     You enabled the TLS configuration for the default ingress hostname but
     you did not enable any of the available mechanisms to create the TLS secret
     to be used by the Ingress Controller.
     Please use any of these alternatives:
       - Use the `ingress.extraTls` and `ingress.secrets` parameters to provide your custom TLS certificates.
+      - Use the `ingress.existingSecret` to provide your custom TLS certificates.
       - Rely on cert-manager to create it by setting the corresponding annotations
       - Rely on Helm to create self-signed certificates by setting `ingress.selfSigned=true`
 {{- end -}}
@@ -234,7 +290,7 @@ otherwise it generates a random value.
     {{- $len := (default 16 .Length) | int -}}
     {{- $obj := (lookup "v1" "Secret" .Namespace .Name).data -}}
     {{- if $obj }}
-        {{- index $obj .Key | b64dec -}}
+        {{- index $obj .Key | trimAll "\"" | b64dec -}}
     {{- else -}}
         {{- randAlphaNum $len -}}
     {{- end -}}
@@ -247,7 +303,7 @@ Get the extraConfigurationExistingSecret secret.
 {{- if not (empty .Values.extraConfigurationExistingSecret) -}}
     {{- include "getValueFromSecret" (dict "Namespace" .Release.Namespace "Name" .Values.extraConfigurationExistingSecret "Length" 10 "Key" "extraConfiguration")  -}}
 {{- else -}}
-    {{- tpl .Values.extraConfiguration . -}} 
+    {{- tpl .Values.extraConfiguration . -}}
 {{- end -}}
 {{- end -}}
 

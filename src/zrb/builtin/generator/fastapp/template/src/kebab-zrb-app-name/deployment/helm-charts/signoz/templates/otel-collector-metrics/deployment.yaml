@@ -1,3 +1,4 @@
+{{- if .Values.otelCollectorMetrics.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,6 +52,18 @@ spec:
       securityContext:
         {{- toYaml .Values.otelCollectorMetrics.podSecurityContext | nindent 8 }}
       initContainers:
+        {{- if .Values.schemaMigrator.enabled }}
+        - name: "{{ include "otelCollectorMetrics.fullname" . }}-migrate-init"
+          image: {{ include "schemaMigrator.initContainers.wait.image" . }}
+          imagePullPolicy: {{ .Values.schemaMigrator.initContainers.wait.image.pullPolicy }}
+          args:
+          - "job"
+          {{- if .Release.IsInstall }}
+          - "{{ include "schemaMigrator.fullname" . }}-init"
+          {{- else }}
+          - "{{ include "schemaMigrator.fullname" . }}-upgrade"
+          {{- end }}
+        {{- end }}
         {{- if .Values.otelCollectorMetrics.initContainers.init.enabled }}
         - name: {{ include "otelCollectorMetrics.fullname" . }}-init
           image: {{ include "otelCollectorMetrics.initContainers.init.image" . }}
@@ -111,6 +124,9 @@ spec:
           volumeMounts:
             - name: otel-collector-metrics-config-vol
               mountPath: /conf
+            {{- if .Values.otelCollectorMetrics.extraVolumeMounts }}
+              {{- toYaml .Values.otelCollectorMetrics.extraVolumeMounts | nindent 12 }}
+            {{- end }}
             # - name: otel-collector-secrets
             #   mountPath: /secrets
           {{- if .Values.otelCollectorMetrics.livenessProbe.enabled }}
@@ -147,6 +163,9 @@ spec:
         - name: otel-collector-metrics-config-vol
           configMap:
             name: {{ include "otelCollectorMetrics.fullname" . }}
+        {{- if .Values.otelCollectorMetrics.extraVolumes }}
+          {{ toYaml .Values.otelCollectorMetrics.extraVolumes | nindent 8 }}
+        {{- end }}
 #        - secret:
 #            name: otel-collector-secrets
 #            items:
@@ -154,3 +173,4 @@ spec:
 #                path: cert.pem
 #              - key: key.pem
 #                path: key.pem
+{{- end }}

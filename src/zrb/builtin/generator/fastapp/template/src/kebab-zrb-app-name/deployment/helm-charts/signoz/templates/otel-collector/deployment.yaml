@@ -55,7 +55,21 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.otelCollector.podSecurityContext | nindent 8 }}
+      # todo: add k8s-wait-for initContainer here
+      # this initContainer waits for the schema migrator job to finish
       initContainers:
+        {{- if .Values.schemaMigrator.enabled }}
+        - name: "{{ include "otelCollector.fullname" . }}-migrate-init"
+          image: {{ include "schemaMigrator.initContainers.wait.image" . }}
+          imagePullPolicy: {{ .Values.schemaMigrator.initContainers.wait.image.pullPolicy }}
+          args:
+          - "job"
+          {{- if .Release.IsInstall }}
+          - "{{ include "schemaMigrator.fullname" . }}-init"
+          {{- else }}
+          - "{{ include "schemaMigrator.fullname" . }}-upgrade"
+          {{- end }}
+        {{- end }}
         {{- if .Values.otelCollector.initContainers.init.enabled }}
         - name: {{ include "otelCollector.fullname" . }}-init
           image: {{ include "otelCollector.initContainers.init.image" . }}
@@ -90,6 +104,8 @@ spec:
           args:
             {{- if .Values.otelCollector.configMap.create }}
             - "--config=/conf/otel-collector-config.yaml"
+            - "--manager-config=/conf/otel-collector-opamp-config.yaml"
+            - "--copy-path=/var/tmp/collector-config.yaml"
             {{- end }}
             {{- range .Values.otelCollector.command.extraArgs }}
             - {{ . | quote }}
@@ -116,6 +132,9 @@ spec:
           volumeMounts:
             - name: otel-collector-config-vol
               mountPath: /conf
+            {{- if .Values.otelCollector.extraVolumeMounts }}
+              {{ toYaml .Values.otelCollector.extraVolumeMounts | nindent 12 }}
+            {{- end }}
             # - name: otel-collector-secrets
             #   mountPath: /secrets
           {{- if .Values.otelCollector.livenessProbe.enabled }}
@@ -150,6 +169,9 @@ spec:
         - name: otel-collector-config-vol
           configMap:
             name: {{ include "otelCollector.fullname" . }}
+        {{- if .Values.otelCollector.extraVolumes }}
+          {{ toYaml .Values.otelCollector.extraVolumes | nindent 8 }}
+        {{- end }}
 #        - secret:
 #            name: otel-collector-secrets
 #            items:

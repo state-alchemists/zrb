@@ -15,12 +15,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 {{- $values := .Values }}
-{{- if (include "external-nodeport-enabled" . | fromJson).bool }}
+{{- if and (include "external-nodeport-enabled" . | fromJson).bool (dig "service" "enabled" true $values.external) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "redpanda.fullname" . }}-external
+  name: {{ include "redpanda.servicename" . }}-external
   namespace: {{ .Release.Namespace | quote }}
   labels:
 {{- with include "full.labels" . }}
@@ -32,6 +32,7 @@ metadata:
 {{- end }}
 spec:
   type: NodePort
+  publishNotReadyAddresses: true
   externalTrafficPolicy: Local
   sessionAffinity: None
   ports:
@@ -40,8 +41,8 @@ spec:
   {{- if $enabled }}
     - name: admin-{{ $name }}
       protocol: TCP
-      port: {{ $values.listeners.admin.port }}
-      nodePort: {{ dig "nodePort" (first (dig "advertisedPorts" (list $values.listeners.admin.port) $listener)) $listener }}
+      port: {{ $listener.port }}
+      nodePort: {{ first (dig "advertisedPorts" (list $listener.port) $listener) }}
   {{- end }}
 {{- end }}
 {{- range $name, $listener := $values.listeners.kafka.external }}
@@ -50,7 +51,7 @@ spec:
     - name: kafka-{{ $name }}
       protocol: TCP
       port: {{ $listener.port }}
-      nodePort: {{ dig "nodePort" (first (dig "advertisedPorts" (list $values.listeners.kafka.port) $listener)) $listener }}
+      nodePort: {{ first (dig "advertisedPorts" (list $listener.port) $listener) }}
   {{- end }}
 {{- end }}
 {{- range $name, $listener := $values.listeners.http.external }}
@@ -59,7 +60,7 @@ spec:
     - name: http-{{ $name }}
       protocol: TCP
       port: {{ $listener.port }}
-      nodePort: {{ dig "nodePort" (first (dig "advertisedPorts" (list $values.listeners.http.port) $listener)) $listener }}
+      nodePort: {{ first (dig "advertisedPorts" (list $listener.port) $listener) }}
   {{- end }}
 {{- end }}
 {{- range $name, $listener := $values.listeners.schemaRegistry.external }}
@@ -68,10 +69,8 @@ spec:
     - name: schema-{{ $name }}
       protocol: TCP
       port: {{ dig "port" $values.listeners.schemaRegistry.port $listener }}
-      nodePort: {{ dig "nodePort" (first (dig "advertisedPorts" (list $values.listeners.schemaRegistry.port) $listener)) $listener }}
+      nodePort: {{ first (dig "advertisedPorts" (list $listener.port) $listener) }}
   {{- end }}
 {{- end }}
-  selector:
-    app.kubernetes.io/name: {{ template "redpanda.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  selector: {{ (include "statefulset-pod-labels" .) | nindent 4 }}
 {{- end }}

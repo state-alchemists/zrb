@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session, relationship
 
 class DBEntityUser(Base, DBEntityMixin):
     class Config:
-        orm_mode = True
         from_attributes = True
 
     __tablename__ = "users"

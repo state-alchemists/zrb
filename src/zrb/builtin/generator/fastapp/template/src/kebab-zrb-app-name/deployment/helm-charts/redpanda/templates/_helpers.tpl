@@ -34,6 +34,17 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 
 {{/*
+Create a default service name
+*/}}
+{{- define "redpanda.servicename" -}}
+{{- if dig "service" "name" false .Values.AsMap -}}
+{{- .Values.service.name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{ include "redpanda.fullname" . | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 full helm labels + common labels
 */}}
 {{- define "full.labels" -}}
@@ -88,12 +99,9 @@ Use AppVersion if image.tag is not set
 {{- $tag -}}
 {{- end -}}
 
-{{/*
-Generate configuration needed for rpk
-*/}}
-
+{{/* Generate internal fqdn */}}
 {{- define "redpanda.internal.domain" -}}
-{{- $service := include "redpanda.fullname" . -}}
+{{- $service := include "redpanda.servicename" . -}}
 {{- $ns := .Release.Namespace -}}
 {{- $domain := .Values.clusterDomain | trimSuffix "." -}}
 {{- printf "%s.%s.svc.%s." $service $ns $domain -}}
@@ -103,6 +111,14 @@ Generate configuration needed for rpk
 {{- define "admin-internal-tls-enabled" -}}
 {{- $listener := .Values.listeners.admin -}}
 {{- toJson (dict "bool" (and (dig "tls" "enabled" .Values.tls.enabled $listener) (not (empty (dig "tls" "cert" "" $listener))))) -}}
+{{- end -}}
+
+{{- define "admin-external-tls-enabled" -}}
+{{- toJson (dict "bool" (and (dig "tls" "enabled" (include "admin-internal-tls-enabled" . | fromJson).bool .listener) (not (empty (include "admin-external-tls-cert" .))))) -}}
+{{- end -}}
+
+{{- define "admin-external-tls-cert" -}}
+{{- dig "tls" "cert" .Values.listeners.admin.tls.cert .listener -}}
 {{- end -}}
 
 {{- define "kafka-internal-tls-enabled" -}}
@@ -184,8 +200,12 @@ Generate configuration needed for rpk
   {{/*
   This template converts the incoming SI value to whole number bytes.
   Input can be: b | B | k | K | m | M | g | G | Ki | Mi | Gi
+  Or number without suffix
   */}}
   {{- $si := . -}}
+  {{- if not (typeIs "string" . ) -}}
+    {{- $si = int64 $si | toString -}}
+  {{- end -}}
   {{- $bytes := 0 -}}
   {{- if or (hasSuffix "B" $si) (hasSuffix "b" $si) -}}
     {{- $bytes = $si | trimSuffix "B" | trimSuffix "b" | float64 | floor -}}
@@ -207,8 +227,10 @@ Generate configuration needed for rpk
   {{- else if hasSuffix "Gi" $si -}}
     {{- $raw := $si | trimSuffix "Gi" | float64 -}}
     {{- $bytes = mulf $raw (mul 1024 1024 1024) | floor -}}
+  {{- else if (mustRegexMatch "^[0-9]+$" $si) -}}
+    {{- $bytes = $si -}}
   {{- else -}}
-    {{- printf "\n%s is invalid SI quantity\nSuffixes can be: b | B | k | K | m | M | g | G | Ki | Mi | Gi" $si | fail -}}
+    {{- printf "\n%s is invalid SI quantity\nSuffixes can be: b | B | k | K | m | M | g | G | Ki | Mi | Gi or without any Suffixes" $si | fail -}}
   {{- end -}}
   {{- $bytes | int64 -}}
 {{- end -}}
@@ -229,7 +251,7 @@ Generate configuration needed for rpk
     {{- $result = .Values.resources.memory.container.max | include "redpanda-memoryToMi" -}}
   {{- end -}}
   {{- if eq $result "" -}}
-    {{- "unable to get memory value" | fail -}}
+    {{- "unable to get memory value from container" | fail -}}
   {{- end -}}
   {{- $result -}}
 {{- end -}}
@@ -284,9 +306,6 @@ Generate configuration needed for rpk
       {{- $result = 1000 -}}
     {{- end -}}
   {{- end -}}
-  {{- if eq $result 0 -}}
-    {{- "unable to get memory value" | fail -}}
-  {{- end -}}
   {{- $result -}}
 {{- end -}}
 
@@ -307,13 +326,15 @@ Generate configuration needed for rpk
     {{- $result = mulf (include "container-memory" .) 0.8 | int64 -}}
   {{- end -}}
   {{- if eq $result 0 -}}
-    {{- "unable to get memory value" | fail -}}
+    {{- "unable to get memory value redpanda-memory" | fail -}}
   {{- end -}}
   {{- if lt $result 256 -}}
     {{- printf "\n%d is below the minimum value for Redpanda" $result | fail -}}
   {{- end -}}
+  {{- if not .Values.config.node.developer_mode }}
   {{- if gt (add $result (include "redpanda-reserve-memory" .)) (include "container-memory" . | int64) -}}
     {{- printf "\nNot enough container memory for Redpanda memory values\nredpanda: %d, reserve: %d, container: %d" $result (include "redpanda-reserve-memory" . | int64) (include "container-memory" . | int64) | fail -}}
+  {{- end -}}
   {{- end -}}
   {{- $result -}}
 {{- end -}}
@@ -351,90 +372,16 @@ than 1 core.
   {{- end -}}
 {{- end -}}
 
-{{- define "api-urls" -}}
-{{ template "redpanda.fullname" . }}-0.{{ include "redpanda.internal.domain" .}}:{{ .Values.listeners.admin.port }}
+{{- define "admin-api-urls" -}}
+{{ printf "${SERVICE_NAME}.%s" (include "redpanda.internal.domain" .) }}:{{.Values.listeners.admin.port }}
+{{- end -}}
+
+{{- define "admin-api-service-url" -}}
+{{ include "redpanda.internal.domain" .}}:{{.Values.listeners.admin.port }}
 {{- end -}}
 
 {{- define "sasl-mechanism" -}}
 {{- dig "sasl" "mechanism" "SCRAM-SHA-512" .Values.auth -}}
-{{- end -}}
-
-{{- define "rpk-flags" -}}
-  {{- $root := . -}}
-  {{- $admin := list -}}
-  {{- $admin = concat $admin (list "--api-urls" (include "api-urls" . )) -}}
-  {{- if (include "admin-internal-tls-enabled" . | fromJson).bool -}}
-    {{- $admin = concat $admin (list
-      "--admin-api-tls-enabled"
-      "--admin-api-tls-truststore"
-      (printf "/etc/tls/certs/%s/ca.crt" .Values.listeners.admin.tls.cert))
-    -}}
-  {{- end -}}
-  {{- $kafka := list -}}
-  {{- if (include "kafka-internal-tls-enabled" . | fromJson).bool -}}
-    {{- $kafka = concat $kafka (list
-      "--tls-enabled"
-      "--tls-truststore"
-      (printf "/etc/tls/certs/%s/ca.crt" .Values.listeners.kafka.tls.cert))
-    -}}
-  {{- end -}}
-  {{- $sasl := list -}}
-  {{- if (include "sasl-enabled" . | fromJson).bool -}}
-    {{- $sasl = concat $sasl (list
-      "--user" ( print "$(find /etc/secrets/users/* -print | sed -n 1p | xargs cat | sed -n 1p | tr ':' '\n' | sed -n 1p )" | quote )
-      "--password" ( print "$(find /etc/secrets/users/* -print | sed -n 1p | xargs cat | sed -n 1p | tr ':' '\n' | sed -n 2p )" | quote )
-      "--sasl-mechanism" ( printf "$(find /etc/secrets/users/* -print | sed -n 1p | xargs cat | sed -n 1p | tr ':' '\n' | sed -n 3p | grep . || echo %s )" (include "sasl-mechanism" .) | quote )
-    )
-    -}}
-  {{- end -}}
-  {{- $brokers := list -}}
-  {{- range $i := untilStep 0 (.Values.statefulset.replicas|int) 1 -}}
-    {{- $brokers = concat $brokers (list (printf "%s-%d.%s:%d"
-      (include "redpanda.fullname" $root)
-      $i
-      (include "redpanda.internal.domain" $root)
-      (int $root.Values.listeners.kafka.port)))
-    -}}
-  {{- end -}}
-  {{- $brokersFlag := printf "--brokers %s" (join "," $brokers) -}}
-{{- toJson (dict "admin" (join " " $admin) "kafka" (join " " $kafka) "sasl" (join " " $sasl) "brokers" $brokersFlag) -}}
-{{- end -}}
-
-{{- define "rpk-common-flags" -}}
-{{- $flags := fromJson (include "rpk-flags" .) -}}
-{{ join " " (list $flags.brokers $flags.admin $flags.sasl $flags.kafka)}}
-{{- end -}}
-
-{{- define "rpk-flags-no-admin" -}}
-{{- $flags := fromJson (include "rpk-flags" .) -}}
-{{ join " " (list $flags.brokers $flags.kafka $flags.sasl)}}
-{{- end -}}
-
-{{- define "rpk-flags-no-sasl" -}}
-{{- $flags := fromJson (include "rpk-flags" .) -}}
-{{ join " " (list $flags.brokers $flags.admin $flags.kafka)}}
-{{- end -}}
-
-{{- define "rpk-flags-no-admin-no-sasl" -}}
-{{- $flags := fromJson (include "rpk-flags" .) -}}
-{{ join " " (list $flags.brokers $flags.kafka)}}
-{{- end -}}
-
-{{- define "rpk-dummy-sasl" -}}
-{{- if (include "sasl-enabled" . | fromJson).bool -}}
-{{ "--user <admin-user-in-secret> --password <admin-password-in-secret> --sasl-mechanism <mechanism-in-secret>" -}}
-{{- else -}}
-{{ "" }}
-{{- end -}}
-{{- end -}}
-
-{{- define "rpk-topic-flags" -}}
-{{- $flags := fromJson (include "rpk-flags" .) -}}
-    {{- if (include "sasl-enabled" . | fromJson).bool -}}
-        {{- join " " (list $flags.brokers $flags.kafka $flags.sasl) -}}
-    {{- else -}}
-        {{- join " " (list $flags.brokers $flags.kafka) -}}
-    {{- end -}}
 {{- end -}}
 
 {{- define "storage-min-free-bytes" -}}
@@ -447,33 +394,76 @@ than 1 core.
 {{- end -}}
 
 {{- define "tunable" -}}
-{{- $tunable := dig "tunable" dict .Values.config -}}
-{{- if (include "redpanda-atleast-22-3-0" . | fromJson).bool -}}
-{{- toYaml $tunable | nindent 4 -}}
-{{- else if (include "redpanda-atleast-22-2-0" . | fromJson).bool -}}
-{{- $tunable = unset $tunable "log_segment_size_min" -}}
-{{- $tunable = unset $tunable "log_segment_size_max" -}}
-{{- $tunable = unset $tunable "kafka_batch_max_bytes" -}}
-{{- toYaml $tunable | nindent 4 -}}
-{{- else if (include "redpanda-atleast-22-1-1" . | fromJson).bool -}}
-{{- $tunable = unset $tunable "log_segment_size_min" -}}
-{{- $tunable = unset $tunable "log_segment_size_max" -}}
-{{- $tunable = unset $tunable "kafka_batch_max_bytes" -}}
-{{- $tunable = unset $tunable "topic_partitions_per_shard" -}}
-{{- toYaml $tunable | nindent 4 -}}
+  {{- $tunable := dig "tunable" dict .Values.config -}}
+  {{- if (include "redpanda-atleast-22-3-0" . | fromJson).bool -}}
+  {{- range $key, $element := $tunable }}
+    {{- if or (eq (typeOf $element) "bool") $element }}
+{{ $key }}: {{ $element | toYaml }}
+    {{- end }}
+  {{- end }}
+  {{- else if (include "redpanda-atleast-22-2-0" . | fromJson).bool -}}
+  {{- $tunable = unset $tunable "log_segment_size_min" -}}
+  {{- $tunable = unset $tunable "log_segment_size_max" -}}
+  {{- $tunable = unset $tunable "kafka_batch_max_bytes" -}}
+  {{- range $key, $element := $tunable }}
+    {{- if or (eq (typeOf $element) "bool") $element }}
+{{ $key }}: {{ $element | toYaml }}
+    {{- end }}
+  {{- end }}
+  {{- end -}}
+{{- end -}}
+
+{{- define "fail-on-insecure-sasl-logging" -}}
+{{- if (include "sasl-enabled" .|fromJson).bool -}}
+  {{- $check := list
+      (include "redpanda-atleast-23-1-1" .|fromJson).bool
+      (include "redpanda-22-3-atleast-22-3-13" .|fromJson).bool
+      (include "redpanda-22-2-atleast-22-2-10" .|fromJson).bool
+  -}}
+  {{- if not (mustHas true $check) -}}
+    {{- fail "SASL is enabled and the redpanda version specified leaks secrets to the logs. Please choose a newer version of redpanda." -}}
+  {{- end -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "redpanda-atleast-22-1-1" -}}
-{{- toJson (dict "bool" (or (not (eq .Values.image.repository "vectorized/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.1.1"))) -}}
+{{- define "fail-on-unsupported-helm-version" -}}
+  {{- $helmVer := (fromYaml (toYaml .Capabilities.HelmVersion)).version -}}
+  {{- if semverCompare "<3.8.0-0" $helmVer -}}
+    {{- fail (printf "helm version %s is not supported. Please use helm version v3.8.0 or newer." $helmVer) -}}
+  {{- end -}}
 {{- end -}}
 
 {{- define "redpanda-atleast-22-2-0" -}}
-{{- toJson (dict "bool" (or (not (eq .Values.image.repository "vectorized/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.2.0"))) -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.2.0-0 || <0.0.1-0"))) -}}
+{{- end -}}
+{{- define "redpanda-atleast-22-3-0" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.3.0-0 || <0.0.1-0"))) -}}
+{{- end -}}
+{{- define "redpanda-atleast-23-1-1" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=23.1.1-0 || <0.0.1-0"))) -}}
+{{- end -}}
+{{- define "redpanda-atleast-23-1-2" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=23.1.2-0 || <0.0.1-0"))) -}}
+{{- end -}}
+{{- define "redpanda-22-3-atleast-22-3-13" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.3.13-0,<22.4"))) -}}
+{{- end -}}
+{{- define "redpanda-22-2-atleast-22-2-10" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.2.10-0,<22.3"))) -}}
+{{- end -}}
+{{- define "redpanda-atleast-23-2-1" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=23.2.1-0 || <0.0.1-0"))) -}}
+{{- end -}}
+{{- define "redpanda-atleast-23-3-0" -}}
+{{- toJson (dict "bool" (or (not (eq .Values.image.repository "docker.redpanda.com/redpandadata/redpanda")) (include "redpanda.semver" . | semverCompare ">=23.3.0-0 || <0.0.1-0"))) -}}
 {{- end -}}
 
-{{- define "redpanda-atleast-22-3-0" -}}
-{{- toJson (dict "bool" (or (not (eq .Values.image.repository "vectorized/redpanda")) (include "redpanda.semver" . | semverCompare ">=22.3.0"))) -}}
+{{- define "redpanda-22-2-x-without-sasl" -}}
+{{- $result :=  (include "redpanda-atleast-22-3-0" . | fromJson).bool -}}
+{{- if or (include "sasl-enabled" . | fromJson).bool .Values.listeners.kafka.authenticationMethod -}}
+{{-   $result := false -}}
+{{- end -}}
+{{- toJson (dict "bool" $result) -}}
 {{- end -}}
 
 # manage backward compatibility with renaming podSecurityContext to securityContext
@@ -529,22 +519,28 @@ but not enough ports for the number of replicas requested.
 {{- end -}}
 
 {{- /*
-advertised-host returns a json sring with the data neded for configuring the advertised listener
+advertised-host returns a json string with the data needed for configuring the advertised listener
 */ -}}
 {{- define "advertised-host" -}}
   {{- $host := dict "name" .externalName "address" .externalAdvertiseAddress "port" .port -}}
   {{- if .values.external.addresses -}}
-    {{- if (tpl (.values.external.domain | default "") $) }}
-      {{- $host = dict "name" .externalName "address" (printf "%s.%s" (index .values.external.addresses .replicaIndex) (tpl .values.external.domain $)) "port" .port -}}
+    {{- $address := "" -}}
+    {{- if gt (len .values.external.addresses) 1 -}}
+      {{- $address = (index .values.external.addresses .replicaIndex) -}}
     {{- else -}}
-      {{- $host = dict "name" .externalName  "address" (index .values.external.addresses .replicaIndex) "port" .port -}}
+      {{- $address = (index .values.external.addresses 0) -}}
+    {{- end -}}
+    {{- if ( .values.external.domain | default "" ) }}
+      {{- $host = dict "name" .externalName "address" (printf "%s.%s" $address .values.external.domain) "port" .port -}}
+    {{- else -}}
+      {{- $host = dict "name" .externalName  "address" $address "port" .port -}}
     {{- end -}}
   {{- end -}}
   {{- toJson $host -}}
 {{- end -}}
 
 {{- define "is-licensed" -}}
-{{- toJson (dict "bool" (or (not (empty .Values.license_key)) (not (empty .Values.license_secret_ref)))) -}}
+{{- toJson (dict "bool" (or (not (empty (include "enterprise-license" . ))) (not (empty (include "enterprise-secret" . ))))) -}}
 {{- end -}}
 
 {{/*
@@ -593,4 +589,359 @@ return a warning if the chart is configured with insufficient CPU
     -}}
   {{- end -}}
   {{- toJson $brokers -}}
+{{- end -}}
+
+{{- define "kafka-brokers-sasl-enabled" -}}
+  {{- $root := . -}}
+  {{- $kafkaService := .Values.listeners.kafka }}
+  {{- $auditLogging := .Values.auditLogging }}
+  {{- $brokers := list -}}
+  {{- $broker_tls := dict -}}
+  {{- $result := dict -}}
+  {{- $tlsEnabled := .Values.tls.enabled -}}
+  {{- $tlsCerts := .Values.tls.certs -}}
+  {{- $trustStoreFile := "" -}}
+  {{- $requireClientAuth := dig "tls" "requireClientAuth" false $kafkaService -}}
+  {{- if and ( eq "internal" $auditLogging.listener ) ( eq (default "sasl" $kafkaService.authenticationMethod) "sasl" ) -}}
+    {{- range $id, $item := $root.tempConfigMapServerList }}
+      {{- $brokerItem := ( dict
+        "address" $item.host.address
+        "port" $kafkaService.port
+        )
+      -}}
+    {{- $brokers = append $brokers $brokerItem -}}
+    {{- end }}
+    {{- if $brokers -}}
+      {{- $result = set $result "brokers" $brokers -}}
+    {{- end -}}
+    {{- if dig "tls" "enabled" $tlsEnabled $kafkaService -}}
+      {{- $cert := get $tlsCerts $kafkaService.tls.cert -}}
+      {{- if empty $cert -}}
+        {{- fail (printf "Certificate used but not defined") -}}
+      {{- end -}}
+      {{- if $cert.caEnabled -}}
+        {{- $trustStoreFile =  ( printf "/etc/tls/certs/%s/ca.crt" $kafkaService.tls.cert ) -}}
+      {{- else -}}
+        {{- $trustStoreFile = "/etc/ssl/certs/ca-certificates.crt" -}}
+      {{- end -}}
+      {{- $broker_tls = ( dict
+        "enabled" true
+        "cert_file" ( printf "/etc/tls/certs/%s/tls.crt" $kafkaService.tls.cert )
+        "key_file" ( printf "/etc/tls/certs/%s/tls.key" $kafkaService.tls.cert )
+        "require_client_auth" $requireClientAuth
+        )
+      -}}
+      {{- if $trustStoreFile -}}
+        {{- $broker_tls = set $broker_tls "truststore_file" $trustStoreFile -}}
+      {{- end -}}
+      {{- if $broker_tls -}}
+        {{- $result = set $result "broker_tls" $broker_tls -}}
+      {{- end -}}
+    {{- end -}}
+  {{- else -}}
+    {{- range $name, $listener := $kafkaService.external -}}
+      {{- if and $listener.port $name (dig "enabled" true $listener) ( eq (default "sasl" $listener.authenticationMethod) "sasl" ) ( eq $name $auditLogging.listener ) -}}
+        {{- range $id, $item := $root.tempConfigMapServerList }}
+          {{- $brokerItem := ( dict
+            "address" $item.host.address
+            "port" $listener.port
+            )
+          -}}
+        {{- $brokers = append $brokers $brokerItem -}}
+        {{- end }}
+        {{- if $brokers -}}
+          {{- $result = set $result "brokers" $brokers -}}
+        {{- end -}}
+        {{- if dig "tls" "enabled" $tlsEnabled $listener -}}
+          {{- $cert := get $tlsCerts $listener.tls.cert -}}
+          {{- if empty $cert -}}
+            {{- fail (printf "Certificate used but not defined") -}}
+          {{- end -}}
+          {{- if $cert.caEnabled -}}
+            {{- $trustStoreFile =  ( printf "/etc/tls/certs/%s/ca.crt" $listener.tls.cert ) -}}
+          {{- else -}}
+            {{- $trustStoreFile = "/etc/ssl/certs/ca-certificates.crt" -}}
+          {{- end -}}
+          {{- $broker_tls = ( dict
+            "enabled" true
+            "cert_file" ( printf "/etc/tls/certs/%s/tls.crt" $listener.tls.cert )
+            "key_file" ( printf "/etc/tls/certs/%s/tls.key" $listener.tls.cert )
+            "require_client_auth" $requireClientAuth
+            )
+          -}}
+          {{- if $trustStoreFile -}}
+            {{- $broker_tls = set $broker_tls "truststore_file" $trustStoreFile -}}
+          {{- end -}}
+          {{- if $broker_tls -}}
+            {{- $result = set $result "broker_tls" $broker_tls -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- toYaml $result  -}}
+{{- end -}}
+
+{{/*
+return correct secretName to use based if secretRef exists
+*/}}
+{{- define "cert-secret-name" -}}
+  {{- if .tempCert.cert.secretRef -}}
+    {{- .tempCert.cert.secretRef.name -}}
+  {{- else -}}
+    {{- include "redpanda.fullname" . }}-{{ .tempCert.name }}-cert
+  {{- end -}}
+{{- end -}}
+
+{{/*
+return license checks deprecated values if current values is empty
+*/}}
+{{- define "enterprise-license" -}}
+{{- if dig "license" dict .Values.enterprise -}}
+  {{- .Values.enterprise.license -}}
+{{- else -}}
+  {{- .Values.license_key -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+return licenseSecretRef checks deprecated values entry if current values empty
+*/}}
+{{- define "enterprise-secret" -}}
+{{- if ( dig "licenseSecretRef" dict .Values.enterprise ) -}}
+  {{- .Values.enterprise.licenseSecretRef -}}
+{{- else if not (empty .Values.license_secret_ref ) -}}
+  {{- .Values.license_secret_ref -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+return licenseSecretRef.name checks deprecated values entry if current values empty
+*/}}
+{{- define "enterprise-secret-name" -}}
+{{- if ( dig "licenseSecretRef" dict .Values.enterprise ) -}}
+  {{- dig "name" "" .Values.enterprise.licenseSecretRef -}}
+{{- else if not (empty .Values.license_secret_ref ) -}}
+  {{- dig "secret_name" "" .Values.license_secret_ref -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+return licenseSecretRef.key checks deprecated values entry if current values empty
+*/}}
+{{- define "enterprise-secret-key" -}}
+{{- if ( dig "licenseSecretRef" dict .Values.enterprise ) -}}
+  {{- dig "key" "" .Values.enterprise.licenseSecretRef -}}
+{{- else if not (empty .Values.license_secret_ref ) -}}
+  {{- dig "secret_key" "" .Values.license_secret_ref -}}
+{{- end -}}
+{{- end -}}
+
+{{/* mounts that are common to all containers */}}
+{{- define "common-mounts" -}}
+  {{- if and .Values.auth.sasl.enabled (not (empty .Values.auth.sasl.secretRef )) }}
+- name: users
+  mountPath: /etc/secrets/users
+  readOnly: true
+  {{- end }}
+  {{- if (include "tls-enabled" . | fromJson).bool }}
+    {{- range $name, $cert := .Values.tls.certs }}
+- name: redpanda-{{ $name }}-cert
+  mountPath: {{ printf "/etc/tls/certs/%s" $name }}
+    {{- end }}
+    {{- if (include "client-auth-required" . | fromJson).bool }}
+- name: mtls-client
+  mountPath: /etc/tls/certs/{{ template "redpanda.fullname" $ }}-client
+    {{- end }}
+  {{- end }}
+{{- end -}}
+
+{{/* mounts that are common to most containers */}}
+{{- define "default-mounts" -}}
+- name: config
+  mountPath: /etc/redpanda
+{{- include "common-mounts" . }}
+{{- end -}}
+
+{{/* volumes that are common to all pods */}}
+{{- define "common-volumes" -}}
+  {{- if (include "tls-enabled" . | fromJson).bool -}}
+    {{- range $name, $cert := .Values.tls.certs }}
+      {{- $r :=  set $ "tempCert" ( dict "name" $name "cert" $cert ) }}
+- name: redpanda-{{ $name }}-cert
+  secret:
+    secretName: {{ template "cert-secret-name" $r }}
+    defaultMode: 0o440
+    {{- end }}
+    {{- if (include "client-auth-required" . | fromJson).bool }}
+- name: mtls-client
+  secret:
+    secretName: {{ template "redpanda.fullname" $ }}-client
+    defaultMode: 0o440
+    {{- end }}
+  {{- end -}}
+  {{- if and .Values.auth.sasl.enabled (not (empty .Values.auth.sasl.secretRef )) }}
+- name: users
+  secret:
+    secretName: {{ .Values.auth.sasl.secretRef }}
+  {{- end }}
+{{- end -}}
+
+{{/* the default set of volumes for most pods, except the sts pod */}}
+{{- define "default-volumes" -}}
+- name: config
+  configMap:
+    name: {{ include "redpanda.fullname" . }}
+{{- include "common-volumes" . }}
+{{- end -}}
+
+{{/* support legacy tiered storage type selection */}}
+{{- define "storage-tiered-mountType" -}}
+  {{- $mountType := .Values.storage.tiered.mountType -}}
+  {{- if dig "tieredStoragePersistentVolume" "enabled" false .Values.storage -}}
+    {{- $mountType = "persistentVolume" -}}
+  {{- else if dig "tieredStorageHostPath" false .Values.storage -}}
+    {{- $mountType = "hostPath" -}}
+  {{- end -}}
+  {{- $mountType -}}
+{{- end -}}
+
+{{/* support legacy storage.tieredStoragePersistentVolume */}}
+{{- define "storage-tiered-persistentvolume" -}}
+  {{- $pv := dig "tieredStoragePersistentVolume" .Values.storage.tiered.persistentVolume .Values.storage | toJson -}}
+  {{- if empty $pv -}}
+    {{- fail "storage.tiered.mountType is \"persistentVolume\" but storage.tiered.persistentVolume is not configured" -}}
+  {{- end -}}
+  {{- $pv -}}
+{{- end -}}
+
+{{/* support legacy storage.tieredStorageHostPath */}}
+{{- define "storage-tiered-hostpath" -}}
+  {{- $hp := dig "tieredStorageHostPath" .Values.storage.tiered.hostPath .Values.storage -}}
+  {{- if empty $hp -}}
+    {{- fail "storage.tiered.mountType is \"hostPath\" but storage.tiered.hostPath is empty" -}}
+  {{- end -}}
+  {{- $hp -}}
+{{- end -}}
+
+{{/* support legacy storage.tieredConfig */}}
+{{- define "storage-tiered-config" -}}
+  {{- dig "tieredConfig" .Values.storage.tiered.config .Values.storage | toJson -}}
+{{- end -}}
+
+{{/*
+  rpk sasl environment variables
+
+  this will return a string with the correct environment variables to use for SASL based on the
+  version of the redpada container being used
+*/}}
+{{- define "rpk-sasl-environment-variables" -}}
+{{- if (include "redpanda-atleast-23-2-1" . | fromJson).bool -}}
+RPK_USER RPK_PASS RPK_SASL_MECHANISM
+{{- else -}}
+REDPANDA_SASL_USERNAME REDPANDA_SASL_PASSWORD REDPANDA_SASL_MECHANISM
+{{- end -}}
+{{- end -}}
+
+{{- define "curl-options" -}}
+{{- print " -svm3 --fail --retry \"120\" --retry-max-time \"120\" --retry-all-errors -o - -w \"\\nstatus=%{http_code} %{redirect_url} size=%{size_download} time=%{time_total} content-type=\\\"%{content_type}\\\"\\n\" "}}
+{{- end -}}
+
+{{- define "advertised-address-template" -}}
+  {{- $prefixTemplate := dig "prefixTemplate" "" .externalListener -}}
+  {{- if empty $prefixTemplate -}}
+    {{- $prefixTemplate = dig "prefixTemplate" "" .externalVals -}}
+  {{- end -}}
+  {{ quote $prefixTemplate }}
+{{- end -}}
+
+{{/* check if client auth is enabled for any of the listeners */}}
+{{- define "client-auth-required" -}}
+  {{- with .Values.listeners -}}
+    {{- $requireClientAuth := or
+        .kafka.tls.requireClientAuth
+        .admin.tls.requireClientAuth
+        .schemaRegistry.tls.requireClientAuth
+        .rpc.tls.requireClientAuth
+        .http.tls.requireClientAuth
+    -}}
+    {{- toJson (dict "bool" $requireClientAuth) -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* secret-ref-or-value
+        in: {Value: string?, SecretKey: string?, SecretName: string?}
+        out: corev1.Envvar | nil
+    secret-ref-or-value converts a set of values into a structure suitable for
+    use as an environment variable or nil.
+*/}}
+{{- define "secret-ref-or-value" -}}
+    {{- if and (empty .Value) (or (empty .SecretName) (empty .SecretKey)) -}}
+        {{- mustToJson nil -}}
+    {{- else -}}
+        {{- $out := (dict
+            "name" .Name
+            "value" .Value
+            "valueFrom" (dict
+                "secretKeyRef" (dict
+                    "name" .SecretName
+                    "key" .SecretKey
+                )
+            )
+        ) -}}
+        {{- if empty .Value -}}
+            {{- $_ := unset $out "value" -}}
+        {{- else -}}
+            {{- $_ := unset $out "valueFrom" -}}
+        {{- end -}}
+        {{- mustToJson $out -}}
+    {{- end -}}
+{{- end -}}
+
+{{- define "tiered-storage-env-vars" -}}
+    {{- $config := (include "storage-tiered-config" . | fromJson) -}}
+    [
+        {{- if and (include "is-licensed" . | fromJson).bool (dig "cloud_storage_enabled" false $config) -}}
+            {{include "secret-ref-or-value" (dict
+                "Name" "RPK_CLOUD_STORAGE_SECRET_KEY"
+                "Value" (dig "cloud_storage_secret_key" nil $config)
+                "SecretName" (dig "tiered" "credentialsSecretRef" "secretKey" "name" nil .Values.storage)
+                "SecretKey" (dig "tiered" "credentialsSecretRef" "secretKey" "key" nil .Values.storage)
+            )}}
+            ,
+            {{include "secret-ref-or-value" (dict
+                "Name" "RPK_CLOUD_STORAGE_ACCESS_KEY"
+                "Value" (dig "cloud_storage_access_key" nil $config)
+                "SecretName" (dig "tiered" "credentialsSecretRef" "accessKey" "name" nil .Values.storage)
+                "SecretKey" (dig "tiered" "credentialsSecretRef" "accessKey" "key" nil .Values.storage)
+            )}}
+
+            {{/* Because these keys can be set via secrets, they're special
+            cased above. Remove them so they don't get duplicated. */}}
+            {{- $_ := unset $config "cloud_storage_access_key" -}}
+            {{- $_ := unset $config "cloud_storage_secret_key" -}}
+
+            {{/* iterate over the sorted keys of $config for deterministic output */}}
+            {{- range $i, $key := ($config | keys | sortAlpha) -}}
+                {{- $value := (get $config $key) -}}
+
+                {{/* Special case for cache size */}}
+                {{- if eq $key "cloud_storage_cache_size" -}}
+                    {{- $value = (include "SI-to-bytes" $value | int64) -}}
+                {{- end -}}
+
+                ,
+
+                {{/* Only include values that are truthy OR that are booleans */}}
+                {{- if or (eq (typeOf $value) "bool") $value -}}
+                    {{include "secret-ref-or-value" (dict
+                        "Name" (printf "RPK_%s" ($key | upper))
+                        "Value" ($value | toJson)
+                    )}}
+                {{- else -}}
+                    null
+                {{- end -}}
+            {{- end -}}
+        {{- end -}}
+    ]
 {{- end -}}

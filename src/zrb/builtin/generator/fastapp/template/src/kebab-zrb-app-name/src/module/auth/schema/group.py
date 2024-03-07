@@ -15,7 +15,6 @@ class GroupData(GroupBase):
 
 class Group(GroupBase):
     class Config:
-        orm_mode = True
         from_attributes = True
 
     id: str
