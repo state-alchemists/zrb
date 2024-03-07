@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session, relationship
 
 class DBEntityUser(Base, DBEntityMixin):
     class Config:
-        orm_mode = True
         from_attributes = True
 
     __tablename__ = "users"
@@ -83,9 +82,7 @@ class UserDBRepo(DBRepo[User, UserData], UserRepo):
         )
         # add hashed password if necessary
         if user_data.password != "":
-            db_entity_map[
-                "hashed_password"
-            ] = self.password_hasher.hash_password(  # noqa
+            db_entity_map["hashed_password"] = self.password_hasher.hash_password(
                 user_data.password
-            )
+            )  # noqa
         return db_entity_map

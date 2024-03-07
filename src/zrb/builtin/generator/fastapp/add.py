@@ -89,6 +89,7 @@ copy_resource = ResourceMaker(
         "*/src/kebab-app-name/src/frontend/node_modules",
         "*/src/kebab-app-name/src/frontend/build",
         "*/src/kebab-app-name/src/frontend/.svelte-kit",
+        "*/src/kebab-app-name/monitoring/clickhouse",
     ],
 )
 

@@ -19,11 +19,14 @@ limitations under the License.
   {{- $release := .Release }}
   {{- $values := .Values }}
   {{- range $name, $data := $values.tls.certs }}
-    {{/* If issuerRef is defined, use the specified issuer for the certs
-         If it's not defined, create and use our own issuer. */}}
-    {{- $r := $data.issuerRef }}
-    {{- if not $r }}
+    {{/* If secretRef is defined, do not create any of these certificates. */}}
+    {{- if not (hasKey $data "secretRef") }}
+      {{- $d := $data.duration }}
+
 ---
+{{/* If issuerRef is defined, use the specified issuer for the certs
+  If it's not defined, create and use our own issuer. */}}
+{{- if not (hasKey $data "issuerRef") }}
 # The self-signed issuer is used to create the self-signed CA
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -36,7 +39,7 @@ metadata:
 {{- end }}
 spec:
   selfSigned: {}
-    {{- end }}
+{{- end }}
 ---
 # This is the self-signed CA used to issue certs
 apiVersion: cert-manager.io/v1
@@ -63,6 +66,7 @@ metadata:
   {{- . | nindent 4 }}
 {{- end }}
 spec:
+  duration: {{ $d | default "43800h" }}
   isCA: true
   commonName: {{ template "redpanda.fullname" $ }}-{{ $name }}-root-certificate
   secretName: {{ template "redpanda.fullname" $ }}-{{ $name }}-root-certificate
@@ -73,5 +77,6 @@ spec:
     name: {{ template "redpanda.fullname" $ }}-{{ $name }}-selfsigned-issuer
     kind: Issuer
     group: cert-manager.io
+      {{- end }}
   {{- end }}
 {{- end }}

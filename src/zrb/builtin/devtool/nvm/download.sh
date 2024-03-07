@@ -1,8 +1,8 @@
 set -e
 if [ ! -d "${HOME}/.nvm" ]
 then
-    echo "Download nvm"
+    log_info "Download nvm"
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
 else
-    echo "Nvm already exists"
+    log_info "Nvm already exists"
 fi

@@ -8,8 +8,8 @@ then
     then
         try_sudo apt install -y bison
     fi
-    echo "Download GVM"
+    log_info "Download GVM"
     curl -o- https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
 else
-    echo "GVM already exists under ${HOME}/.gvm"
+    log_info "GVM already exists under ${HOME}/.gvm"
 fi

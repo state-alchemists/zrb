@@ -1,23 +1,23 @@
 if [ ! -f "./awscliv2.zip" ]
 then
-    echo "Download AWS CLI"
+    log_info "Download AWS CLI"
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 else
-    echo "AWS CLI already downloaded"
+    log_info "AWS CLI already downloaded"
 fi
 
 if command_exists unzip
 then
-    echo "unzip is already installed."
+    log_info "unzip is already installed."
 else
-    echo "Installing unzip..."
+    log_info "Installing unzip..."
     if [ "$OS_TYPE" = "Darwin" ]
     then
         if command_exists brew
         then
             brew install unzip
         else
-            echo "Homebrew not found. Please install Homebrew and try again."
+            log_info "Homebrew not found. Please install Homebrew and try again."
             exit 1
         fi
     elif [ "$OS_TYPE" = "Linux" ]
@@ -45,16 +45,16 @@ else
         then
             try_sudo snap install unzip
         else
-            echo "No known package manager found. Please install unzip manually."
+            log_info "No known package manager found. Please install unzip manually."
             exit 1
         fi
     else
-        echo "Unsupported OS type. Please install unzip manually."
+        log_info "Unsupported OS type. Please install unzip manually."
         exit 1
     fi
 fi
 
-echo "Unzip AWS CLI"
+log_info "Unzip AWS CLI"
 unzip awscliv2.zip
-echo "Install AWS CLI"
+log_info "Install AWS CLI"
 sudo ./aws/install --update

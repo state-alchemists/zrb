@@ -59,16 +59,16 @@ def get_app_monolith_env_map(
     template_env_map: Mapping[str, str], modules: List[str]
 ) -> Mapping[str, str]:
     env_map = copy.deepcopy(template_env_map)
-    env_map[
-        "APP_RMQ_CONNECTION"
-    ] = f"amqp://{RABBITMQ_AUTH_USERNAME}:{RABBITMQ_AUTH_PASSWORD}@rabbitmq"  # noqa
+    env_map["APP_RMQ_CONNECTION"] = (
+        f"amqp://{RABBITMQ_AUTH_USERNAME}:{RABBITMQ_AUTH_PASSWORD}@rabbitmq"  # noqa
+    )
     env_map["APP_KAFKA_BOOTSTRAP_SERVERS"] = "redpanda:9092"
     env_map["APP_KAFKA_SASL_MECHANISM"] = REDPANDA_AUTH_MECHANISM
     env_map["APP_KAFKA_SASL_USER"] = REDPANDA_AUTH_USER_NAME
     env_map["APP_KAFKA_SASL_PASSWORD"] = REDPANDA_AUTH_USER_PASSWORD
-    env_map[
-        "APP_DB_CONNECTION"
-    ] = f"postgresql+psycopg2://{POSTGRESQL_AUTH_USERNAME}:{POSTGRESQL_AUTH_PASSWORD}@postgresql:5432/{POSTGRESQL_DB}"  # noqa
+    env_map["APP_DB_CONNECTION"] = (
+        f"postgresql+psycopg2://{POSTGRESQL_AUTH_USERNAME}:{POSTGRESQL_AUTH_PASSWORD}@postgresql:5432/{POSTGRESQL_DB}"  # noqa
+    )
     for module_name in modules:
         env_name = get_module_flag_env_name(module_name)
         env_map[env_name] = "true"
@@ -77,9 +77,9 @@ def get_app_monolith_env_map(
     env_map["APP_ENABLE_FRONTEND"] = "true"
     env_map["APP_ENABLE_API"] = "true"
     env_map["APP_ENABLE_OTEL"] = "true" if ENABLE_MONITORING else "false"
-    env_map[
-        "APP_OTEL_EXPORTER_OTLP_ENDPOINT"
-    ] = "http://signoz-otel-collector:4317"  # noqa
+    env_map["APP_OTEL_EXPORTER_OTLP_ENDPOINT"] = (
+        "http://signoz-otel-collector:4317"  # noqa
+    )
     return env_map
 
 

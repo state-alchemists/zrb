@@ -9,7 +9,6 @@ from sqlalchemy import Column, String
 
 class DBEntityPascalZrbEntityName(Base, DBEntityMixin):
     class Config:
-        orm_mode = True
         from_attributes = True
 
     __tablename__ = "snake_zrb_plural_entity_name"

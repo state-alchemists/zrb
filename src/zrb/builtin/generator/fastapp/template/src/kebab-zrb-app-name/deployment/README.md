@@ -18,8 +18,10 @@ YOu can do so by invoking the following command:
 helm repo add redpanda https://charts.redpanda.com
 helm repo add jetstack https://charts.jetstack.io
 
+# Adding Signoz https://github.com/SigNoz/charts
+helm repo add signoz https://charts.signoz.io
+
 # Adding bitnami
-helm repo add 
 helm repo add bitnami https://charts.bitnami.com/bitnami
 
 helm repo update
@@ -31,4 +33,5 @@ Once the repo has been updated, you can fetch the repository to `helm-charts` di
 helm fetch redpanda/redpanda --untar --untardir helm-charts
 helm fetch bitnami/rabbitmq --untar --untardir helm-charts
 helm fetch bitnami/postgresql --untar --untardir helm-charts
+helm fetch signoz/signoz --untar --untardir helm-charts
 ```

@@ -12,15 +12,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+---
 statefulset:
   replicas: 1
+
 tls:
   enabled: true
+
 auth:
   sasl:
     enabled: true
     secretRef: "redpanda-users"
+    users:
+      - name: admins
+        password: change-me
+        mechanism: SCRAM-SHA-256
+
+config:
+  cluster:
+    default_topic_replications: 3
+    kafka_nodelete_topics: ['audit', 'consumer_offsets', '_schemas', 'my_sample_topic']
 
 storage:
   persistentVolume:
     size: 3Gi
+# Removed until tests are working reliably
+# connectors:
+#  enabled: true
+#  logging:
+#    level: debug

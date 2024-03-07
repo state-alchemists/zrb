@@ -8,37 +8,42 @@ then
     then
         try_sudo apt install -y unzip wget
     else
-        echo "apt does not exists"
+        log_info "apt does not exists"
         exit 1
     fi 
 
     if command_exists dpkg
     then
+        set +e
         wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
         try_sudo dpkg -i google-chrome-stable_current_amd64.deb
+        set -e
     else
-        echo "dpkg does not exists"
+        log_info "dpkg does not exists"
         exit 1
     fi
 
-    try_sudo apt --fix-broken install
+    if command_exists apt
+    then
+        try_sudo apt --fix-broken install -y
+    fi
 else
-    echo "Unsupported OS type. Please install zsh manually."
+    log_info "Unsupported OS type. Please install zsh manually."
     exit 1
 fi
 
-echo "Get latest chrome driver version"
+log_info "Get latest chrome driver version"
 chrome_driver=$(curl "https://chromedriver.storage.googleapis.com/LATEST_RELEASE")
-echo "$chrome_driver"
+log_info "$chrome_driver"
 
-echo "Download chrome driver"
+log_info "Download chrome driver"
 curl -Lo chromedriver_linux64.zip "https://chromedriver.storage.googleapis.com/${chrome_driver}/chromedriver_linux64.zip"
 
-echo "Install chrome driver"
+log_info "Install chrome driver"
 rm -Rf "${HOME}/chromedriver/stable"
 mkdir -p "${HOME}/chromedriver/stable"
 unzip -q "chromedriver_linux64.zip" -d "${HOME}/chromedriver/stable"
 chmod +x "${HOME}/chromedriver/stable/chromedriver"
 
-echo "Install selenium"
+log_info "Install selenium"
 pip install selenium

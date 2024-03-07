@@ -1,16 +1,16 @@
 set -e
 if command_exists rsync
 then
-    echo "Rsync is already installed."
+    log_info "Rsync is already installed."
 else
-    echo "Installing Rsync..."
+    log_info "Installing Rsync..."
     if [ "$OS_TYPE" = "Darwin" ]
     then
         if command_exists brew
         then
             brew install rsync
         else
-            echo "Homebrew not found. Please install Homebrew and try again."
+            log_info "Homebrew not found. Please install Homebrew and try again."
             exit 1
         fi
     elif [ "$OS_TYPE" = "Linux" ]
@@ -33,11 +33,11 @@ else
         then
             try_sudo pacman -Syu --noconfirm rsync
         else
-            echo "No known package manager found. Please install Rsync manually."
+            log_info "No known package manager found. Please install Rsync manually."
             exit 1
         fi
     else
-        echo "Unsupported OS type. Please install Rsync manually."
+        log_info "Unsupported OS type. Please install Rsync manually."
         exit 1
     fi
 fi
