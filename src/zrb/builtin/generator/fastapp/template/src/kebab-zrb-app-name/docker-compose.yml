@@ -267,7 +267,9 @@ services:
     image: signoz/signoz-schema-migrator:0.88.12
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-migrator
     command:
-      - "--dsn=tcp://clickhouse:9000"
+    - "--dsn=tcp://clickhouse:9000"
+    profiles:
+    - monitoring
     depends_on:
       clickhouse:
         condition: service_healthy
