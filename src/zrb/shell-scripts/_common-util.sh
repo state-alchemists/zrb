@@ -14,6 +14,6 @@ try_sudo() {
     fi
 }
 
-log_progress() {
+log_info() {
     echo -e "🤖 \e[0;33m${1}\e[0;0m"
 }

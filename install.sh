@@ -8,7 +8,7 @@ else
     IS_TERMUX=0
 fi
 
-log_progress() {
+log_info() {
     echo -e "🤖 \e[0;33m${1}\e[0;0m"
 }
 
@@ -26,7 +26,7 @@ try_sudo() {
 }
 
 register_pyenv() {
-    log_progress "Registering Pyenv to $1"
+    log_info "Registering Pyenv to $1"
     echo 'if [ -d "${HOME}/.pyenv" ]' >> $1
     echo 'then' >> $1
     echo '    export PYENV_ROOT="$HOME/.pyenv"' >> $1
@@ -36,7 +36,7 @@ register_pyenv() {
 }
 
 register_local_venv() {
-    log_progress "Registering .local-venv to $1"
+    log_info "Registering .local-venv to $1"
     echo 'if [ -f "${HOME}/.local-venv/bin/activate" ]' >> $1
     echo 'then' >> $1
     echo '    source "${HOME}/.local-venv/bin/activate"' >> $1
@@ -46,7 +46,7 @@ register_local_venv() {
 if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ]
 then
 
-    log_progress "Setting environment variables"
+    log_info "Setting environment variables"
     export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
     # export CFLAGS="-Wno-incompatible-function-pointer-types -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
     # export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
@@ -56,26 +56,26 @@ then
     # export LDFLAGS="-llog"
     # export MATHLIB="m"
 
-    log_progress "Change repo"
+    log_info "Change repo"
     termux-change-repo
 
-    log_progress "Update existing packages"
+    log_info "Update existing packages"
     pkg update
     pkg upgrade -y
 
     if [ ! -d "${HOME}/storage" ]
     then
-        log_progress "Setup storage"
+        log_info "Setup storage"
         termux-setup-storage
     fi
 
-    log_progress "Installing new packages"
+    log_info "Installing new packages"
     pkg install termux-api openssh curl wget git which \
         python rust clang cmake build-essential golang swig \
         binutils ninja patchelf libxml2 libxslt \
         postgresql sqlite
 
-    log_progress "Creating local venv"
+    log_info "Creating local venv"
     python -m venv $HOME/.local-venv
     source $HOME/.local-venv/bin/activate
 
@@ -99,14 +99,14 @@ then
     if [ ! -d "$HOME/.pyenv" ]
     then
 
-        log_progress "Installing pyenv prerequisites"
+        log_info "Installing pyenv prerequisites"
         if [ "$os_type" = "darwin" ]
         then
             if command_exists brew
             then
                 brew install openssl readline sqlite3 xz zlib tcl-tk
             else
-                log_progress "Brew not found, continuing anyway"
+                log_info "Brew not found, continuing anyway"
             fi
         elif [ "$os_type" = "linux" ]
         then
@@ -133,13 +133,13 @@ then
             then
                 try_sudo apk add --no-cache git bash build-base libffi-dev openssl-dev bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev
             else
-                log_progress "No known package manager found, continuing anyway"
+                log_info "No known package manager found, continuing anyway"
             fi
         else
-            log_progress "Unsupported OS, cannot install pyenv pre-requisites, continuing anyway"
+            log_info "Unsupported OS, cannot install pyenv pre-requisites, continuing anyway"
         fi
 
-        log_progress "Installing pyenv"
+        log_info "Installing pyenv"
         curl https://pyenv.run | bash
 
         # register .pyenv to .zshrc
@@ -155,31 +155,31 @@ then
         fi
 
         # activate pyenv
-        log_progress "Activating pyenv"
+        log_info "Activating pyenv"
         export pyenv_root="$HOME/.pyenv"
         command -v pyenv >/dev/null || (export path="$pyenv_root/bin:$path" && eval "$(pyenv init -)")
 
         # install python 3.10.0
-        log_progress "Installing python 3.10.0"
+        log_info "Installing python 3.10.0"
         pyenv install 3.10.0
 
         # set global python to 3.10.0
-        log_progress "Setting python 3.10.0 as global"
+        log_info "Setting python 3.10.0 as global"
         pyenv global 3.10.0
     fi
 else
-    log_progress "Assuming Python is installed"
+    log_info "Assuming Python is installed"
 fi
 
 if ! command_exists poetry
 then
-    log_progress "Installing Poetry"
+    log_info "Installing Poetry"
     pip install --upgrade pip setuptools
     pip install "poetry"
 fi
 
 if ! command_exists zrb
 then
-    log_progress "Installing Zrb"
+    log_info "Installing Zrb"
     pip install zrb
 fi
