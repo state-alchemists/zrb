@@ -1,16 +1,16 @@
 # Install Zsh
 if command_exists zsh
 then
-    echo "zsh is already installed."
+    log_info "zsh is already installed."
 else
-    echo "Installing zsh..."
+    log_info "Installing zsh..."
     if [ "$OS_TYPE" = "Darwin" ]
     then
         if command_exists brew
         then
             brew install zsh
         else
-            echo "Homebrew not found. Please install Homebrew and try again."
+            log_info "Homebrew not found. Please install Homebrew and try again."
             exit 1
         fi
     elif [ "$OS_TYPE" = "Linux" ]
@@ -36,30 +36,30 @@ else
         then
             try_sudo snap install zsh
         else
-            echo "No known package manager found. Please install zsh manually."
+            log_info "No known package manager found. Please install zsh manually."
             exit 1
         fi
     else
-        echo "Unsupported OS type. Please install zsh manually."
+        log_info "Unsupported OS type. Please install zsh manually."
         exit 1
     fi
 fi
 
 if command_exists chsh
 then
-    echo "Changing default shell to zsh..."
+    log_info "Changing default shell to zsh..."
      try_sudo chsh -s zsh
 else
-    echo "chsh command not found. Please change the default shell manually."
+    log_info "chsh command not found. Please change the default shell manually."
 fi
 
 if [ -d "$HOME/.oh-my-zsh" ]
 then
-    echo "oh-my-zsh is already installed"
+    log_info "oh-my-zsh is already installed"
 else
-    echo "Installing oh-my-zsh"
+    log_info "Installing oh-my-zsh"
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
 
-echo "Installing zinit"
+log_info "Installing zinit"
 bash -c "$(curl -fsSL https://git.io/zinit-install)"

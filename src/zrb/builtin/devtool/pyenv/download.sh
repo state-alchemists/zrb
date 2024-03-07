@@ -6,7 +6,7 @@ then
         then
             brew install openssl readline sqlite3 xz zlib tcl-tk
         else
-            echo "Brew not found, continuing anyway"
+            log_info "Brew not found, continuing anyway"
         fi
     elif [ "$OS_TYPE" = "Linux" ]
     then
@@ -33,13 +33,13 @@ then
         then
             try_sudo apk add --no-cache git bash build-base libffi-dev openssl-dev bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev
         else
-            try_sudo echo "No known package manager found, continuing anyway"
+            try_sudo log_info "No known package manager found, continuing anyway"
         fi
     else
-        echo "Unknown OS, cannot install pre-requisites, continuing anyway"
+        log_info "Unknown OS, cannot install pre-requisites, continuing anyway"
     fi
-    echo "Download Pyenv"
+    log_info "Download Pyenv"
     curl https://pyenv.run | bash
 else
-    echo "Pyenv already exists"
+    log_info "Pyenv already exists"
 fi

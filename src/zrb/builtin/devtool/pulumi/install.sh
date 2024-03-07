@@ -1,8 +1,8 @@
 set -e
 if [ ! -d "${HOME}/.pulumi" ]
 then
-    echo "Download Pulumi"
+    log_info "Download Pulumi"
     curl -fsSL https://get.pulumi.com | bash
 else
-    echo "Pulumi already exists"
+    log_info "Pulumi already exists"
 fi
