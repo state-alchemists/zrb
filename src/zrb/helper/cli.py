@@ -1,5 +1,4 @@
 import os
-import sys
 from functools import lru_cache
 
 import click
@@ -49,31 +48,9 @@ def create_cli() -> click.Group:
         assert builtin
     # Load zrb_init.py
     project_dir = os.getenv("ZRB_PROJECT_DIR", os.getcwd())
-    _load_zrb_init(project_dir)
+    project_script = os.path.join(project_dir, "zrb_init.py")
+    load_module(script_path=project_script, add_to_system=True)
     # Serve all tasks registered to runner
     logger.info(colored("Serve CLI", attrs=["dark"]))
     cli = runner.serve(zrb_cli_group)
     return cli
-
-
-@lru_cache
-@typechecked
-def _load_zrb_init(project_dir: str):
-    project_script = os.path.join(project_dir, "zrb_init.py")
-    if not os.path.isfile(project_script):
-        return
-    sys.path.append(project_dir)
-    logger.info(colored(f"Set sys.path to {sys.path}", attrs=["dark"]))
-    python_path = _get_new_python_path(project_dir)
-    logger.info(colored(f"Set PYTHONPATH to {python_path}", attrs=["dark"]))
-    os.environ["PYTHONPATH"] = python_path
-    logger.info(colored(f"Load modules from {project_script}", attrs=["dark"]))
-    load_module(script_path=project_script)
-
-
-@typechecked
-def _get_new_python_path(project_dir: str) -> str:
-    current_python_path = os.getenv("PYTHONPATH")
-    if current_python_path is None or current_python_path == "":
-        return project_dir
-    return ":".join([current_python_path, project_dir])
