@@ -1,11 +1,10 @@
-import logging
 import os
 import sys
 from functools import lru_cache
 
 import click
 
-from zrb.config.config import init_scripts, logging_level, should_load_builtin, version
+from zrb.config.config import init_scripts, should_load_builtin, version
 from zrb.helper.accessories.color import colored
 from zrb.helper.loader.load_module import load_module
 from zrb.helper.log import logger
@@ -36,18 +35,15 @@ class MultilineHelpClickGroup(click.Group):
 @lru_cache
 @typechecked
 def create_cli() -> click.Group:
-    if logging_level <= logging.INFO:
-        logger.info(colored("Prepare CLI", attrs=["dark"]))
+    logger.info(colored("Prepare CLI", attrs=["dark"]))
     zrb_cli_group = MultilineHelpClickGroup(name="zrb", help=HELP)
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:
-        if logging_level <= logging.INFO:
-            logger.info(colored(f"Load modules from {init_script}", attrs=["dark"]))
+        logger.info(colored(f"Load modules from {init_script}", attrs=["dark"]))
         load_module(script_path=init_script)
     # Load default tasks
     if should_load_builtin:
-        if logging_level <= logging.INFO:
-            logger.info(colored("Load builtins", attrs=["dark"]))
+        logger.info(colored("Load builtins", attrs=["dark"]))
         from zrb import builtin
 
         assert builtin
@@ -55,8 +51,7 @@ def create_cli() -> click.Group:
     project_dir = os.getenv("ZRB_PROJECT_DIR", os.getcwd())
     _load_zrb_init(project_dir)
     # Serve all tasks registered to runner
-    if logging_level <= logging.INFO:
-        logger.info(colored("Serve CLI", attrs=["dark"]))
+    logger.info(colored("Serve CLI", attrs=["dark"]))
     cli = runner.serve(zrb_cli_group)
     return cli
 
@@ -68,14 +63,11 @@ def _load_zrb_init(project_dir: str):
     if not os.path.isfile(project_script):
         return
     sys.path.append(project_dir)
-    if logging_level <= logging.INFO:
-        logger.info(colored(f"Set sys.path to {sys.path}", attrs=["dark"]))
+    logger.info(colored(f"Set sys.path to {sys.path}", attrs=["dark"]))
     python_path = _get_new_python_path(project_dir)
-    if logging_level <= logging.INFO:
-        logger.info(colored(f"Set PYTHONPATH to {python_path}", attrs=["dark"]))
+    logger.info(colored(f"Set PYTHONPATH to {python_path}", attrs=["dark"]))
     os.environ["PYTHONPATH"] = python_path
-    if logging_level <= logging.INFO:
-        logger.info(colored(f"Load modules from {project_script}", attrs=["dark"]))
+    logger.info(colored(f"Load modules from {project_script}", attrs=["dark"]))
     load_module(script_path=project_script)
 
 

@@ -1,9 +1,7 @@
-import logging
 import sys
 
 import click
 
-from zrb.config.config import logging_level
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
@@ -22,16 +20,14 @@ class Runner:
     """
 
     def __init__(self, env_prefix: str = ""):
-        if logging_level <= logging.INFO:
-            logger.info(colored("Create runner", attrs=["dark"]))
+        logger.info(colored("Create runner", attrs=["dark"]))
         self.__env_prefix = env_prefix
         self.__tasks: List[AnyTask] = []
         self.__registered_groups: Mapping[str, click.Group] = {}
         self.__top_levels: List[CliSubcommand] = []
         self.__subcommands: Mapping[str, List[click.Group]] = {}
         self.__registered_task_cli_name: List[str] = []
-        if logging_level <= logging.INFO:
-            logger.info(colored("Runner created", attrs=["dark"]))
+        logger.info(colored("Runner created", attrs=["dark"]))
 
     def register(self, *tasks: AnyTask):
         for task in tasks:
@@ -39,12 +35,10 @@ class Runner:
             cli_name = task._get_full_cli_name()
             if cli_name in self.__registered_task_cli_name:
                 raise RuntimeError(f'Task "{cli_name}" has already been registered')
-            if logging_level <= logging.DEBUG:
-                logger.debug(colored(f'Register task: "{cli_name}"', attrs=["dark"]))
+            logger.debug(colored(f'Register task: "{cli_name}"', attrs=["dark"]))
             self.__tasks.append(task)
             self.__registered_task_cli_name.append(cli_name)
-            if logging_level <= logging.DEBUG:
-                logger.debug(colored(f'Task registered: "{cli_name}"', attrs=["dark"]))
+            logger.debug(colored(f'Task registered: "{cli_name}"', attrs=["dark"]))
 
     def serve(self, cli: click.Group) -> click.Group:
         for task in self.__tasks:
