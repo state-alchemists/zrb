@@ -1,8 +1,6 @@
-import logging
 import os
 from functools import lru_cache
 
-from zrb.config.config import logging_level
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
@@ -14,38 +12,33 @@ _PROJECT_DIR_MAP: Mapping[str, str] = {}
 def inject_default_env():
     # Inject PYTHONUNBUFFERED
     if "PYTHONUNBUFFERED" not in os.environ:
-        if logging_level <= logging.INFO:
-            logger.info(colored("Set PYTHONUNBUFFERED to 1", attrs=["dark"]))
+        logger.info(colored("Set PYTHONUNBUFFERED to 1", attrs=["dark"]))
         os.environ["PYTHONUNBUFFERED"] = "1"
     # Inject ZRB_HOME_DIR
     if "ZRB_HOME_DIR" not in os.environ:
         default_home_dir = os.path.dirname(os.path.dirname(__file__))
-        if logging_level <= logging.INFO:
-            logger.info(
-                colored(f"Set ZRB_HOME_DIR to {default_home_dir}", attrs=["dark"])
-            )
+        logger.info(
+            colored(f"Set ZRB_HOME_DIR to {default_home_dir}", attrs=["dark"])
+        )
         os.environ["ZRB_HOME_DIR"] = default_home_dir
     # Inject ZRB_PROJECT_DIR
     current_dir = os.getcwd()
     if current_dir not in _PROJECT_DIR_MAP:
-        if logging_level <= logging.INFO:
-            logger.info(colored("Getting project directory", attrs=["dark"]))
+        logger.info(colored("Getting project directory", attrs=["dark"]))
         zrb_project_dir = _get_project_dir(current_dir)
         if zrb_project_dir is None:
             zrb_project_dir = current_dir
         _PROJECT_DIR_MAP[current_dir] = zrb_project_dir
-        if logging_level <= logging.INFO:
-            logger.info(
-                colored(f"Set ZRB_PROJECT_DIR to {zrb_project_dir}", attrs=["dark"])
-            )
+        logger.info(
+            colored(f"Set ZRB_PROJECT_DIR to {zrb_project_dir}", attrs=["dark"])
+        )
         os.environ["ZRB_PROJECT_DIR"] = zrb_project_dir
     # Inject ZRB_PROJECT_NAME
     if "ZRB_PROJECT_NAME" not in os.environ:
         zrb_project_name = os.path.basename(zrb_project_dir)
-        if logging_level <= logging.INFO:
-            logger.info(
-                colored(f"Set ZRB_PROJECT_NAME to {zrb_project_name}", attrs=["dark"])
-            )
+        logger.info(
+            colored(f"Set ZRB_PROJECT_NAME to {zrb_project_name}", attrs=["dark"])
+        )
         os.environ["ZRB_PROJECT_NAME"] = zrb_project_name
 
 
