@@ -36,10 +36,6 @@ class MultilineHelpClickGroup(click.Group):
 def create_cli() -> click.Group:
     logger.info(colored("Prepare CLI", attrs=["dark"]))
     zrb_cli_group = MultilineHelpClickGroup(name="zrb", help=HELP)
-    # load from ZRB_INIT_SCRIPTS environment
-    for init_script in init_scripts:
-        logger.info(colored(f"Load modules from {init_script}", attrs=["dark"]))
-        load_module(script_path=init_script)
     # Load default tasks
     if should_load_builtin:
         logger.info(colored("Load builtins", attrs=["dark"]))
@@ -49,7 +45,11 @@ def create_cli() -> click.Group:
     # Load zrb_init.py
     project_dir = os.getenv("ZRB_PROJECT_DIR", os.getcwd())
     project_script = os.path.join(project_dir, "zrb_init.py")
-    load_module(script_path=project_script, add_to_system=True)
+    load_module(script_path=project_script)
+    # load from ZRB_INIT_SCRIPTS environment
+    for init_script in init_scripts:
+        logger.info(colored(f"Load modules from {init_script}", attrs=["dark"]))
+        load_module(script_path=init_script)
     # Serve all tasks registered to runner
     logger.info(colored("Serve CLI", attrs=["dark"]))
     cli = runner.serve(zrb_cli_group)

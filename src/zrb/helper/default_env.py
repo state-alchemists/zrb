@@ -17,9 +17,7 @@ def inject_default_env():
     # Inject ZRB_HOME_DIR
     if "ZRB_HOME_DIR" not in os.environ:
         default_home_dir = os.path.dirname(os.path.dirname(__file__))
-        logger.info(
-            colored(f"Set ZRB_HOME_DIR to {default_home_dir}", attrs=["dark"])
-        )
+        logger.info(colored(f"Set ZRB_HOME_DIR to {default_home_dir}", attrs=["dark"]))
         os.environ["ZRB_HOME_DIR"] = default_home_dir
     # Inject ZRB_PROJECT_DIR
     current_dir = os.getcwd()
