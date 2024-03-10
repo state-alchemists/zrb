@@ -1,4 +1,5 @@
 import os
+import traceback
 from functools import lru_cache
 
 import click
@@ -48,8 +49,14 @@ def create_cli() -> click.Group:
     load_module(script_path=project_script)
     # load from ZRB_INIT_SCRIPTS environment
     for init_script in init_scripts:
-        logger.info(colored(f"Load modules from {init_script}", attrs=["dark"]))
-        load_module(script_path=init_script)
+        logger.info(colored(f"Load module from {init_script}", attrs=["dark"]))
+        try:
+            load_module(script_path=init_script)
+        except Exception:
+            logger.error(
+                colored(f"Failed to load module from {init_script}", color="red", attrs=["bold"])
+            )
+            traceback.print_exc()
     # Serve all tasks registered to runner
     logger.info(colored("Serve CLI", attrs=["dark"]))
     cli = runner.serve(zrb_cli_group)
