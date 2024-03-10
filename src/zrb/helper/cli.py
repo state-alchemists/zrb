@@ -53,9 +53,9 @@ def create_cli() -> click.Group:
         try:
             load_module(script_path=init_script)
         except Exception:
-            logger.error(
-                colored(f"Failed to load module from {init_script}", color="red", attrs=["bold"])
-            )
+            logger.error(colored(
+                f"Failed to load module from {init_script}", color="red", attrs=["bold"]
+            ))
             traceback.print_exc()
     # Serve all tasks registered to runner
     logger.info(colored("Serve CLI", attrs=["dark"]))

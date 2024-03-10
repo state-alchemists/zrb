@@ -13,7 +13,7 @@ pattern = re.compile("[^a-zA-Z0-9]")
 
 @lru_cache
 @typechecked
-def load_module(script_path: str):
+def load_module(script_path: str, add_to_system: bool = False):
     if not os.path.isfile(script_path):
         return
     script_dir_path = os.path.dirname(script_path)
