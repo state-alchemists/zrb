@@ -1,7 +1,7 @@
+import importlib.util
 import os
 import re
 import sys
-import importlib.util
 from functools import lru_cache
 
 from zrb.helper.accessories.color import colored
@@ -16,10 +16,9 @@ pattern = re.compile("[^a-zA-Z0-9]")
 def load_module(script_path: str, add_to_system: bool = False):
     if not os.path.isfile(script_path):
         return
-    if add_to_system:
-        script_dir_path = os.path.dirname(script_path)
-        _append_dir_to_sys_path(script_dir_path)
-        _append_dir_to_python_path(script_dir_path)
+    script_dir_path = os.path.dirname(script_path)
+    _append_dir_to_sys_path(script_dir_path)
+    _append_dir_to_python_path(script_dir_path)
     _exec_script_as_module(script_path)
 
 
