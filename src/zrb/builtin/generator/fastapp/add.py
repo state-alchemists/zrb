@@ -85,11 +85,23 @@ copy_resource = ResourceMaker(
     excludes=[
         "*/__pycache__",
         "*/deployment/venv",
-        "*/src/kebab-app-name/.venv",
-        "*/src/kebab-app-name/src/frontend/node_modules",
-        "*/src/kebab-app-name/src/frontend/build",
-        "*/src/kebab-app-name/src/frontend/.svelte-kit",
-        "*/src/kebab-app-name/monitoring/clickhouse",
+        "*/src/kebab-zrb-app-name/.venv",
+        "*/src/kebab-zrb-app-name/src/frontend/node_modules",
+        "*/src/kebab-zrb-app-name/src/frontend/build",
+        "*/src/kebab-zrb-app-name/src/frontend/.svelte-kit",
+    ],
+    skip_parsing=[
+        "*.mp3",
+        "*.pdf",
+        "*.exe",
+        "*.dll",
+        "*.bin",
+        "*.iso",
+        "*.png",
+        "*.jpg",
+        "*.gif",
+        "*.ico",
+        "*/monitoring/clickhouse/user_scripts/histogramQuantile",
     ],
 )
 

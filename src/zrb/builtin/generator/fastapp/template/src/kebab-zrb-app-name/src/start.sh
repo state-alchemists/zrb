@@ -39,20 +39,25 @@ fi
 # Start kebab-zrb-app-name
 ##############################################################################
 
+# Reload option can only be used when APP_ENABLE_OTEL is false
+_RELOAD=""
+if [ $(_to_boolean "$APP_ENABLE_OTEL") = "false" ] && [ $(_to_boolean "$APP_RELOAD") = "true" ]
+then
+    _RELOAD="--reload"
+fi
+
+# Constructing otel command
+# See: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html#installation
+_OTEL_COMMAND=""
 if [ $(_to_boolean "$APP_ENABLE_OTEL") = "true" ]
 then
-    echo "Start uvicorn with instrumentation, service name: ${APP_NAME}"
-    OTEL_RESOURCE_ATTRIBUTES="service.name=${APP_NAME}" \
-        OTEL_EXPORTER_OTLP_ENDPOINT="$APP_OTEL_EXPORTER_OTLP_ENDPOINT" \
-        poetry run opentelemetry-instrument uvicorn main:app --host "$APP_HOST" --port "$APP_PORT"
-else
-    # reload should only performed if otel is disabled
-    _RELOAD=""
-    if [ $(_to_boolean "$APP_RELOAD") = "true" ]
-    then
-        _RELOAD="--reload"
-    fi
-    # Run uvicorn
-    echo "Start uvicorn"
-    poetry run uvicorn main:app --host "$APP_HOST" --port "$APP_PORT" $_RELOAD
+    export OTEL_RESOURCE_ATTRIBUTES="service.name=${APP_NAME}"
+    export OTEL_EXPORTER_OTLP_ENDPOINT="$APP_OTEL_EXPORTER_OTLP_ENDPOINT"
+    export OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST=".*"
+    export OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_RESPONSE=".*"
+    _OTEL_COMMAND="opentelemetry-instrument"
 fi
+
+# Run uvicorn
+echo "Start uvicorn"
+poetry run $_OTEL_COMMAND uvicorn main:app --host "$APP_HOST" --port "$APP_PORT" $_RELOAD

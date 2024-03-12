@@ -14,7 +14,9 @@ app_reload = str_to_boolean(os.getenv("APP_RELOAD", "true"))
 app_max_not_ready = int(os.getenv("APP_MAX_NOT_READY", "10"))
 
 app_enable_otel = str_to_boolean(os.getenv("APP_ENABLE_OTEL", "false"))
-app_otel_exporter_otlp_endpoint = os.getenv("APP_OTEL_EXPORTER_OTLP_ENDPOINT", "false")
+app_otel_exporter_otlp_endpoint = os.getenv(
+    "APP_OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
+)
 
 app_auth_access_token_cookie_key = os.getenv(
     "PUBLIC_AUTH_ACCESS_TOKEN_COOKIE_KEY", "access_token"

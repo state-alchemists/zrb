@@ -8,6 +8,9 @@ from module.auth.component import Authorizer
 from module.auth.integration import access_token_scheme
 from module.auth.schema.permission import Permission, PermissionData, PermissionResult
 from module.auth.schema.token import AccessTokenData
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
 
 
 def register_api(
@@ -26,20 +29,22 @@ def register_api(
         offset: int = 0,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id, "auth:permission:get"
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id, "auth:permission:get"
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "auth_get_permission",
-                keyword=keyword,
-                criterion={},
-                limit=limit,
-                offset=offset,
-                user_token_data=user_token_data.model_dump(),
-            )
-            return PermissionResult(**result_dict)
+            with tracer.start_as_current_span("auth.rpc.auth_get_permission"):
+                result_dict = await rpc_caller.call(
+                    "auth_get_permission",
+                    keyword=keyword,
+                    criterion={},
+                    limit=limit,
+                    offset=offset,
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return PermissionResult(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -47,17 +52,19 @@ def register_api(
     async def get_permission_by_id(
         id: str, user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id, "auth:permission:get_by_id"
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id, "auth:permission:get_by_id"
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "auth_get_permission_by_id",
-                id=id,
-                user_token_data=user_token_data.model_dump(),
-            )
-            return Permission(**result_dict)
+            with tracer.start_as_current_span("auth.rpc.auth_get_permission_by_id"):
+                result_dict = await rpc_caller.call(
+                    "auth_get_permission_by_id",
+                    id=id,
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return Permission(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -66,17 +73,19 @@ def register_api(
         data: PermissionData,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id, "auth:permission:insert"
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id, "auth:permission:insert"
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "auth_insert_permission",
-                data=data.model_dump(),
-                user_token_data=user_token_data.model_dump(),
-            )
-            return Permission(**result_dict)
+            with tracer.start_as_current_span("auth.rpc.auth_insert_permission"):
+                result_dict = await rpc_caller.call(
+                    "auth_insert_permission",
+                    data=data.model_dump(),
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return Permission(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -86,18 +95,20 @@ def register_api(
         data: PermissionData,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id, "auth:permission:update"
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id, "auth:permission:update"
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "auth_update_permission",
-                id=id,
-                data=data.model_dump(),
-                user_token_data=user_token_data.model_dump(),
-            )
-            return Permission(**result_dict)
+            with tracer.start_as_current_span("auth.rpc.auth_update_permission"):
+                result_dict = await rpc_caller.call(
+                    "auth_update_permission",
+                    id=id,
+                    data=data.model_dump(),
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return Permission(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -105,16 +116,18 @@ def register_api(
     async def delete_permission(
         id: str, user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id, "auth:permission:delete"
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id, "auth:permission:delete"
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "auth_delete_permission",
-                id=id,
-                user_token_data=user_token_data.model_dump(),
-            )
-            return Permission(**result_dict)
+            with tracer.start_as_current_span("auth.rpc.auth_delete_permission"):
+                result_dict = await rpc_caller.call(
+                    "auth_delete_permission",
+                    id=id,
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return Permission(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
