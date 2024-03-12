@@ -300,7 +300,7 @@ async def add_column_to_schema(
         code=code,
         class_name=f"{pascal_entity_name}Data",
         property_name=snake_column_name,
-        property_type="str",
+        property_type="Optional[str]",
     )
     task.print_out(f"Write modified code to: {schema_file_path}")
     await write_text_file_async(schema_file_path, code)

@@ -65,7 +65,7 @@ def add_property_to_class(
 ) -> str:
     module = cst.parse_module(code)
     property_name_node = cst.Name(value=property_name)
-    property_type_node = cst.Annotation(cst.Name(value=property_type))
+    property_type_node = _get_property_type_node(property_type)
     property_value_node = _get_property_value_node(property_value)
     transformed_module = module.visit(
         AddPropertyTransformer(
@@ -76,6 +76,23 @@ def add_property_to_class(
         )
     )
     return transformed_module.code
+
+
+def _get_property_type_node(property_type: str) -> cst.Annotation:
+    if property_type.startswith("Optional[") and property_type.endswith("]"):
+        inner_type = property_type[len("Optional[") : -1]
+        return cst.Annotation(
+            annotation=cst.Subscript(
+                value=cst.Name("Optional"),
+                slice=[
+                    cst.SubscriptElement(
+                        slice=cst.Index(value=cst.Name(value=inner_type))
+                    )
+                ],
+            )
+        )
+    else:
+        return cst.Annotation(cst.Name(value=property_type))
 
 
 def _get_property_value_node(
