@@ -91,7 +91,17 @@ copy_resource = ResourceMaker(
         "*/src/kebab-zrb-app-name/src/frontend/.svelte-kit",
     ],
     skip_parsing=[
-        "*/src/kebab-zrb-app-name/monitoring/clickhouse",
+        "*.mp3",
+        "*.pdf",
+        "*.exe",
+        "*.dll",
+        "*.bin",
+        "*.iso",
+        "*.png",
+        "*.jpg",
+        "*.gif",
+        "*.ico",
+        "*/monitoring/clickhouse/user_scripts/histogramQuantile",
     ],
 )
 

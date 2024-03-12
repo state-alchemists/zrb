@@ -12,6 +12,9 @@ from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
     PascalZrbEntityNameData,
     PascalZrbEntityNameResult,
 )
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
 
 
 def register_api(
@@ -33,20 +36,25 @@ def register_api(
         offset: int = 0,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id, "snake_zrb_module_name:snake_zrb_entity_name:get"
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id,
+                "snake_zrb_module_name:snake_zrb_entity_name:get",
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "snake_zrb_module_name_get_snake_zrb_entity_name",
-                keyword=keyword,
-                criterion={},
-                limit=limit,
-                offset=offset,
-                user_token_data=user_token_data.model_dump(),
-            )
-            return PascalZrbEntityNameResult(**result_dict)
+            with tracer.start_as_current_span(
+                "snake_zrb_module_name.rpc.snake_zrb_module_name_get_snake_zrb_entity_name"  # noqa
+            ):
+                result_dict = await rpc_caller.call(
+                    "snake_zrb_module_name_get_snake_zrb_entity_name",
+                    keyword=keyword,
+                    criterion={},
+                    limit=limit,
+                    offset=offset,
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return PascalZrbEntityNameResult(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -57,18 +65,22 @@ def register_api(
     async def get_snake_zrb_entity_name_by_id(
         id: str, user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id,
-            "snake_zrb_module_name:snake_zrb_entity_name:get_by_id",
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id,
+                "snake_zrb_module_name:snake_zrb_entity_name:get_by_id",
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "snake_zrb_module_name_get_snake_zrb_entity_name_by_id",
-                id=id,
-                user_token_data=user_token_data.model_dump(),
-            )
-            return PascalZrbEntityName(**result_dict)
+            with tracer.start_as_current_span(
+                "snake_zrb_module_name.rpc.snake_zrb_module_name_get_snake_zrb_entity_name_by_id"  # noqa
+            ):
+                result_dict = await rpc_caller.call(
+                    "snake_zrb_module_name_get_snake_zrb_entity_name_by_id",
+                    id=id,
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return PascalZrbEntityName(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -80,18 +92,22 @@ def register_api(
         data: PascalZrbEntityNameData,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id,
-            "snake_zrb_module_name:snake_zrb_entity_name:insert",
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id,
+                "snake_zrb_module_name:snake_zrb_entity_name:insert",
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "snake_zrb_module_name_insert_snake_zrb_entity_name",
-                data=data.model_dump(),
-                user_token_data=user_token_data.model_dump(),
-            )
-            return PascalZrbEntityName(**result_dict)
+            with tracer.start_as_current_span(
+                "snake_zrb_module_name.rpc.snake_zrb_module_name_insert_snake_zrb_entity_name"  # noqa
+            ):
+                result_dict = await rpc_caller.call(
+                    "snake_zrb_module_name_insert_snake_zrb_entity_name",
+                    data=data.model_dump(),
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return PascalZrbEntityName(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -104,19 +120,23 @@ def register_api(
         data: PascalZrbEntityNameData,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id,
-            "snake_zrb_module_name:snake_zrb_entity_name:update",
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id,
+                "snake_zrb_module_name:snake_zrb_entity_name:update",
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "snake_zrb_module_name_update_snake_zrb_entity_name",
-                id=id,
-                data=data.model_dump(),
-                user_token_data=user_token_data.model_dump(),
-            )
-            return PascalZrbEntityName(**result_dict)
+            with tracer.start_as_current_span(
+                "snake_zrb_module_name.rpc.snake_zrb_module_name_update_snake_zrb_entity_name"  # noqa
+            ):
+                result_dict = await rpc_caller.call(
+                    "snake_zrb_module_name_update_snake_zrb_entity_name",
+                    id=id,
+                    data=data.model_dump(),
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return PascalZrbEntityName(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)
 
@@ -127,17 +147,21 @@ def register_api(
     async def delete_snake_zrb_entity_name(
         id: str, user_token_data: AccessTokenData = Depends(access_token_scheme)
     ):
-        if not await authorizer.is_having_permission(
-            user_token_data.user_id,
-            "snake_zrb_module_name:snake_zrb_entity_name:delete",
-        ):
-            raise HTTPAPIException(403, "Unauthorized")
+        with tracer.start_as_current_span("authorizer.is_having_permission"):
+            if not await authorizer.is_having_permission(
+                user_token_data.user_id,
+                "snake_zrb_module_name:snake_zrb_entity_name:delete",
+            ):
+                raise HTTPAPIException(403, "Unauthorized")
         try:
-            result_dict = await rpc_caller.call(
-                "snake_zrb_module_name_delete_snake_zrb_entity_name",
-                id=id,
-                user_token_data=user_token_data.model_dump(),
-            )
-            return PascalZrbEntityName(**result_dict)
+            with tracer.start_as_current_span(
+                "snake_zrb_module_name.rpc.snake_zrb_module_name_delete_snake_zrb_entity_name"  # noqa
+            ):
+                result_dict = await rpc_caller.call(
+                    "snake_zrb_module_name_delete_snake_zrb_entity_name",
+                    id=id,
+                    user_token_data=user_token_data.model_dump(),
+                )
+                return PascalZrbEntityName(**result_dict)
         except Exception as e:
             raise HTTPAPIException(error=e)

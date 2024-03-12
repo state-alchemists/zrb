@@ -13,7 +13,5 @@ def register_event(
     logger.info('🥪 Register event handlers for "log.activity"')
 
     @consumer.register("log_new_activity")
-    async def insert(
-        data: Mapping[str, Any],
-    ):
+    async def insert(data: Mapping[str, Any]):
         await activity_model.insert(data=ActivityData(**data))
