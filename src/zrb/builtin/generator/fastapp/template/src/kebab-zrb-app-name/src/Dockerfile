@@ -8,6 +8,7 @@ RUN npm install --save-dev && npm run build
 FROM python:3.10-slim
 ENV APP_HOST 0.0.0.0
 ENV APP_PORT 8080
+ENV POETRY_VIRTUAL_ENVS_CREATE=false
 WORKDIR /home
 RUN apt update && apt install curl psmisc -y
 RUN pip install -U pip
