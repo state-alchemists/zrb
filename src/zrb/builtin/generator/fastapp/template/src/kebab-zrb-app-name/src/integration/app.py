@@ -7,6 +7,7 @@ from config import (
     app_cors_expose_headers,
     app_cors_max_age,
     app_enable_frontend,
+    app_enable_otel,
     public_auth_access_token_cookie_key,
     public_auth_refresh_token_cookie_key,
     public_brand,
