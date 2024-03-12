@@ -9,7 +9,7 @@ else
 fi
 
 log_info() {
-    log_info -e "🤖 \e[0;33m${1}\e[0;0m"
+    echo -e "🤖 \e[0;33m${1}\e[0;0m"
 }
 
 command_exists() {
