@@ -5,7 +5,6 @@ from component.messagebus import Consumer, Publisher
 from component.rpc import Caller
 from module.log.integration.model.activity_model import activity_model
 from module.log.schema.activity import ActivityData
-from opentelemetry import trace
 
 
 def register_event(
@@ -17,9 +16,4 @@ def register_event(
     async def insert(
         data: Mapping[str, Any],
     ):
-        span = trace.get_current_span()
-        try:
-            await activity_model.insert(data=ActivityData(**data))
-            span.set_attribute({"est": True})
-        except Exception as e:
-            span.record_exception(e)
+        await activity_model.insert(data=ActivityData(**data))

@@ -8,6 +8,7 @@ from config import (
     app_cors_max_age,
     app_enable_frontend,
     app_enable_otel,
+    app_otel_exporter_otlp_endpoint,
     public_auth_access_token_cookie_key,
     public_auth_refresh_token_cookie_key,
     public_brand,
@@ -19,6 +20,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from integration.app_lifespan import app_lifespan, app_state
 from integration.frontend_index import frontend_index_response
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from schema.frontend_config import FrontendConfig
 
 app = FastAPI(title=zrb_app_name, lifespan=app_lifespan)
@@ -98,3 +104,12 @@ def get_configs() -> FrontendConfig:
         access_token_cookie_key=public_auth_access_token_cookie_key,
         refresh_token_cookie_key=public_auth_refresh_token_cookie_key,
     )
+
+
+if app_enable_otel:
+    trace.set_tracer_provider(TracerProvider())
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=app_otel_exporter_otlp_endpoint, insecure=True
+    )
+    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
+    FastAPIInstrumentor.instrument_app(app)
