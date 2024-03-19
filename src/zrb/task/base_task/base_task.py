@@ -39,6 +39,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     """
 
     __xcom: Mapping[str, Mapping[str, str]] = {}
+    __running_tasks: List[AnyTask] = []
 
     def __init__(
         self,
@@ -259,7 +260,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         except Exception as e:
             self.log_error(f"{e}")
             if raise_error:
-                raise
+                raise e
         finally:
             if show_done_info:
                 self._show_env_prefix()
@@ -305,7 +306,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         self.log_debug("Waiting execution to be started")
         while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self._get_checkers():
             checker_task._set_execution_id(self.get_execution_id())
@@ -355,26 +356,45 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             return None
         # start running task
         result: Any = None
+        is_failed: bool = False
         while self._should_attempt():
             try:
                 self.log_debug(f"Started with args: {args} and kwargs: {local_kwargs}")
                 await self.on_started()
+                self.__running_tasks.append(self)
                 result = await run_async(self.run, *args, **local_kwargs)
+                self.__running_tasks.remove(self)
                 break
             except Exception as e:
-                is_last_attempt = self._is_last_attempt()
-                await self.on_failed(is_last_attempt, e)
-                if is_last_attempt:
-                    raise e
                 attempt = self._get_attempt()
                 self.log_error(f"Encounter error on attempt {attempt}")
+                is_last_attempt = self._is_last_attempt()
+                if is_last_attempt:
+                    is_failed = True
+                    raise e
+                self.__running_tasks.remove(self)
+                await self.on_failed(is_last_attempt=False, exception=e)
                 self._increase_attempt()
                 await asyncio.sleep(self._retry_interval)
                 await self.on_retry()
+            finally:
+                if is_failed:
+                    running_tasks = self.__running_tasks
+                    self.__running_tasks = []
+                    await self.__trigger_failure(running_tasks)
         self.set_xcom(self.get_name(), f"{result}")
         self.log_debug(f"XCom: {self.__xcom}")
         await self._mark_done()
         return result
+
+    async def __trigger_failure(self, tasks: List[AnyTask]):
+        coroutines = [
+            task.on_failed(
+                is_last_attempt=True, exception=Exception("canceled")
+            )
+            for task in tasks
+        ]
+        await asyncio.gather(*coroutines)
 
     async def _check_should_execute(self, *args: Any, **kwargs: Any) -> bool:
         if callable(self._should_execute):
