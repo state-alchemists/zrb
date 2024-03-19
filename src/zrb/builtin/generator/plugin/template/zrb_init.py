@@ -1,6 +1,6 @@
 import os
 
-from zrb import CmdTask, StrInput, runner
+from zrb import CmdTask, runner
 from zrb.builtin.group import plugin_group
 
 PROJECT_DIR = os.path.dirname(__file__)
@@ -46,14 +46,6 @@ publish_plugin = CmdTask(
     name="publish",
     group=plugin_group,
     description="Publish plugin",
-    inputs=[
-        StrInput(
-            name="plugin-repo",
-            prompt="Pypi repository for plugin",
-            description="Pypi repository for human readalbe zrb package name",
-            default="pypi",
-        )
-    ],
     upstreams=[build_plugin],
     cwd=PROJECT_DIR,
     cmd_path=[

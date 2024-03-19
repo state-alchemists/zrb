@@ -1,6 +1,6 @@
 import os
 
-from zrb import CmdTask, StrInput, runner
+from zrb import CmdTask, runner
 from zrb.builtin.group import project_group
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -49,14 +49,6 @@ publish_snake_zrb_package_name = CmdTask(
     name="publish-kebab-zrb-package-name",
     description="Publish human readable zrb package name",
     group=project_group,
-    inputs=[
-        StrInput(
-            name="kebab-zrb-package-name-repo",
-            prompt="Pypi repository for human readable zrb package name",
-            description="Pypi repository for human readalbe zrb package name",
-            default="pypi",
-        )
-    ],
     upstreams=[build_snake_zrb_package_name],
     cwd=RESOURCE_DIR,
     cmd_path=[
