@@ -131,6 +131,18 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
+### `ResourceMaker._get_fallbacks`
+
+Retrieves the fallback tasks of the current task.
+
+An internal method to get the list of fallback tasks that have been set for the
+task, either statically or through `inject_fallbacks`. This is essential for task
+fallback scenario.
+
+__Returns:__
+
+`Iterable[TAnyTask]`: An iterable of fallback tasks.
+
 ### `ResourceMaker._get_inputs`
 
 Retrieves the list of inputs associated with the task.
@@ -378,6 +390,26 @@ from zrb import Task, EnvFile
 task = Task()
 env_file = EnvFile(path='config.env')
 task.add_env_file(env_file)
+```
+
+
+### `ResourceMaker.add_fallback`
+
+Adds one or more `AnyTask` instances to the end of the current task's fallback list.
+
+This method appends tasks to the fallback list, indicating that these tasks should be executed when the task is failed.
+
+__Arguments:__
+
+- `fallbacks` (`TAnyTask`): One or more task instances to be added to the fallback list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+fallback_task = Task(name='fallback-task')
+task.add_fallback(fallback_task)
 ```
 
 
@@ -644,6 +676,24 @@ class MyTask(Task):
 ```
 
 
+### `ResourceMaker.inject_fallbacks`
+
+Injects fallback tasks into the current task.
+
+This method is used for programmatically adding fallback to the task.
+fallback tasks are those that must be completed when the task is failed.
+Override this method in subclasses to specify such dependencies.
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_fallbacks(self):
+        self.add_fallback(another_task)
+```
+
+
 ### `ResourceMaker.inject_inputs`
 
 Injects custom inputs into the task.
@@ -742,6 +792,28 @@ from zrb import Task, EnvFile
 task = Task()
 env_file = EnvFile(path='config.env')
 task.insert_env_file(env_file)
+```
+
+
+### `ResourceMaker.insert_fallback`
+
+Inserts one or more `AnyTask` instances at the beginning of the current task's fallback list.
+
+This method is used to define dependencies for the current task. Tasks in the fallback list are executed when the task is failed.
+Adding a task to the beginning of the list means it will be
+executed earlier than those already in the list.
+
+__Arguments:__
+
+- `fallbacks` (`TAnyTask`): One or more task instances to be added to the fallback list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+fallback_task = Task(name='fallback-task')
+task.insert_fallback(fallback_task)
 ```
 
 
