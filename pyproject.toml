@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "0.9.3"
+version = "0.9.4"
 description = "A Framework to Enhance Your Workflow"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -27,7 +27,7 @@ croniter = "~2.0.2"
 
 [tool.poetry.dev-dependencies]
 flake8 = "~7.0.0"
-black = "~24.2.0"
+black = "~24.3.0"
 isort = "~5.13.2"
 tomli = "~2.0.1"
 pytest = "~7.4.0"
