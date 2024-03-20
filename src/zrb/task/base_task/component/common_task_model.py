@@ -98,6 +98,7 @@ class CommonTaskModel:
         self.__has_already_inject_envs: bool = False
         self.__has_already_inject_inputs: bool = False
         self.__has_already_inject_upstreams: bool = False
+        self.__has_already_inject_fallbacks: bool = False
         self.__all_inputs: Optional[List[AnyInput]] = None
 
     def _lock_upstreams(self):

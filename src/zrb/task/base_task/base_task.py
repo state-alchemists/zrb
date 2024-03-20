@@ -409,7 +409,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             task._lock_fallbacks()
             for fallback in task._get_fallbacks():
                 if fallback not in all_fallbacks:
-                    all_fallbacks.append[fallback]
+                    all_fallbacks.append(fallback)
         return all_fallbacks
 
     async def _check_should_execute(self, *args: Any, **kwargs: Any) -> bool:
