@@ -27,20 +27,20 @@ try_sudo() {
 
 register_pyenv() {
     log_info "Registering Pyenv to $1"
-    log_info 'if [ -d "${HOME}/.pyenv" ]' >> $1
-    log_info 'then' >> $1
-    log_info '    export PYENV_ROOT="$HOME/.pyenv"' >> $1
-    log_info '    export PATH="$PYENV_ROOT/bin:$PATH"' >> $1
-    log_info '    eval "$(pyenv init --path)"' >> $1
-    log_info 'fi' >> $1
+    echo 'if [ -d "${HOME}/.pyenv" ]' >> $1
+    echo 'then' >> $1
+    echo '    export PYENV_ROOT="$HOME/.pyenv"' >> $1
+    echo '    export PATH="$PYENV_ROOT/bin:$PATH"' >> $1
+    echo '    eval "$(pyenv init --path)"' >> $1
+    echo 'fi' >> $1
 }
 
 register_local_venv() {
     log_info "Registering .local-venv to $1"
-    log_info 'if [ -f "${HOME}/.local-venv/bin/activate" ]' >> $1
-    log_info 'then' >> $1
-    log_info '    source "${HOME}/.local-venv/bin/activate"' >> $1
-    log_info 'fi' >> $1
+    echo 'if [ -f "${HOME}/.local-venv/bin/activate" ]' >> $1
+    echo 'then' >> $1
+    echo '    source "${HOME}/.local-venv/bin/activate"' >> $1
+    echo 'fi' >> $1
 }
 
 if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ]
