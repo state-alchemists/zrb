@@ -385,6 +385,44 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def insert_fallback(self, *fallbacks: TAnyTask):
+        """
+        Inserts one or more `AnyTask` instances at the beginning of the current task's fallback list.
+
+        This method is used to define dependencies for the current task. Tasks in the fallback list are executed when the task is failed.
+        Adding a task to the beginning of the list means it will be
+        executed earlier than those already in the list.
+
+        Args:
+            fallbacks (TAnyTask): One or more task instances to be added to the fallback list.
+
+        Examples:
+            >>> from zrb import Task
+            >>> task = Task(name='task')
+            >>> fallback_task = Task(name='fallback-task')
+            >>> task.insert_fallback(fallback_task)
+        """
+        pass
+
+    @abstractmethod
+    def add_fallback(self, *fallbacks: TAnyTask):
+        """
+        Adds one or more `AnyTask` instances to the end of the current task's fallback list.
+
+        This method appends tasks to the fallback list, indicating that these tasks should be executed when the task is failed.
+
+        Args:
+            fallbacks (TAnyTask): One or more task instances to be added to the fallback list.
+
+        Examples:
+            >>> from zrb import Task
+            >>> task = Task(name='task')
+            >>> fallback_task = Task(name='fallback-task')
+            >>> task.add_fallback(fallback_task)
+        """
+        pass
+
+    @abstractmethod
     def add_upstream(self, *upstreams: TAnyTask):
         """
         Adds one or more `AnyTask` instances to the end of the current task's upstream list.
@@ -516,6 +554,20 @@ class AnyTask(ABC):
             >>> task = Task()
             >>> env_file = EnvFile(path='config.env')
             >>> task.add_env_file(env_file)
+        """
+        pass
+
+    @abstractmethod
+    def _lock_upstreams(self):
+        """
+        Lock upstreams so that it cannot be altered anymore
+        """
+        pass
+
+    @abstractmethod
+    def _lock_fallbacks(self):
+        """
+        Lock fallbacks so that it cannot be altered anymore
         """
         pass
 
@@ -882,6 +934,37 @@ class AnyTask(ABC):
 
         Returns:
             Iterable[TAnyTask]: An iterable of upstream tasks.
+        """
+        pass
+
+    @abstractmethod
+    def inject_fallbacks(self):
+        """
+        Injects fallback tasks into the current task.
+
+        This method is used for programmatically adding fallback to the task.
+        fallback tasks are those that must be completed when the task is failed.
+        Override this method in subclasses to specify such dependencies.
+
+        Examples:
+            >>> from zrb import Task
+            >>> class MyTask(Task):
+            >>>     def inject_fallbacks(self):
+            >>>         self.add_fallback(another_task)
+        """
+        pass
+
+    @abstractmethod
+    def _get_fallbacks(self) -> Iterable[TAnyTask]:
+        """
+        Retrieves the fallback tasks of the current task.
+
+        An internal method to get the list of fallback tasks that have been set for the
+        task, either statically or through `inject_fallbacks`. This is essential for task
+        fallback scenario.
+
+        Returns:
+            Iterable[TAnyTask]: An iterable of fallback tasks.
         """
         pass
 

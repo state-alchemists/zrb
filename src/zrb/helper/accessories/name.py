@@ -71,7 +71,7 @@ def get_random_name(
         "hand",
         "horn",
         "leaf",
-    ] 
+    ]
     prefix = random.choice(prefixes)
     suffix = random.choice(suffixes)
     parts = [prefix, suffix]

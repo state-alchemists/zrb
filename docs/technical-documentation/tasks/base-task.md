@@ -35,6 +35,26 @@ No documentation available.
 No documentation available.
 
 
+### `BaseTask._BaseTask__check_upstreams`
+
+No documentation available.
+
+
+### `BaseTask._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `BaseTask._BaseTask__trigger_failure`
+
+No documentation available.
+
+
+### `BaseTask._BaseTask__trigger_fallbacks`
+
+No documentation available.
+
+
 ### `BaseTask._Renderer__ensure_cached_render_data`
 
 No documentation available.
@@ -126,6 +146,18 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
+### `BaseTask._get_fallbacks`
+
+Retrieves the fallback tasks of the current task.
+
+An internal method to get the list of fallback tasks that have been set for the
+task, either statically or through `inject_fallbacks`. This is essential for task
+fallback scenario.
+
+__Returns:__
+
+`Iterable[TAnyTask]`: An iterable of fallback tasks.
+
 ### `BaseTask._get_inputs`
 
 Retrieves the list of inputs associated with the task.
@@ -175,10 +207,13 @@ No documentation available.
 No documentation available.
 
 
+### `BaseTask._lock_fallbacks`
+
+Lock fallbacks so that it cannot be altered anymore
+
 ### `BaseTask._lock_upstreams`
 
-No documentation available.
-
+Lock upstreams so that it cannot be altered anymore
 
 ### `BaseTask._loop_check`
 
@@ -368,6 +403,26 @@ from zrb import Task, EnvFile
 task = Task()
 env_file = EnvFile(path='config.env')
 task.add_env_file(env_file)
+```
+
+
+### `BaseTask.add_fallback`
+
+Adds one or more `AnyTask` instances to the end of the current task's fallback list.
+
+This method appends tasks to the fallback list, indicating that these tasks should be executed when the task is failed.
+
+__Arguments:__
+
+- `fallbacks` (`TAnyTask`): One or more task instances to be added to the fallback list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+fallback_task = Task(name='fallback-task')
+task.add_fallback(fallback_task)
 ```
 
 
@@ -634,6 +689,24 @@ class MyTask(Task):
 ```
 
 
+### `BaseTask.inject_fallbacks`
+
+Injects fallback tasks into the current task.
+
+This method is used for programmatically adding fallback to the task.
+fallback tasks are those that must be completed when the task is failed.
+Override this method in subclasses to specify such dependencies.
+
+__Examples:__
+
+```python
+from zrb import Task
+class MyTask(Task):
+    def inject_fallbacks(self):
+        self.add_fallback(another_task)
+```
+
+
 ### `BaseTask.inject_inputs`
 
 Injects custom inputs into the task.
@@ -732,6 +805,28 @@ from zrb import Task, EnvFile
 task = Task()
 env_file = EnvFile(path='config.env')
 task.insert_env_file(env_file)
+```
+
+
+### `BaseTask.insert_fallback`
+
+Inserts one or more `AnyTask` instances at the beginning of the current task's fallback list.
+
+This method is used to define dependencies for the current task. Tasks in the fallback list are executed when the task is failed.
+Adding a task to the beginning of the list means it will be
+executed earlier than those already in the list.
+
+__Arguments:__
+
+- `fallbacks` (`TAnyTask`): One or more task instances to be added to the fallback list.
+
+__Examples:__
+
+```python
+from zrb import Task
+task = Task(name='task')
+fallback_task = Task(name='fallback-task')
+task.insert_fallback(fallback_task)
 ```
 
 

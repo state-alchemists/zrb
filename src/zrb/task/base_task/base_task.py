@@ -39,6 +39,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     """
 
     __xcom: Mapping[str, Mapping[str, str]] = {}
+    __running_tasks: List[AnyTask] = []
 
     def __init__(
         self,
@@ -53,6 +54,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         retry: int = 2,
         retry_interval: Union[float, int] = 1,
         upstreams: Iterable[AnyTask] = [],
+        fallbacks: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
@@ -87,6 +89,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             retry=retry,
             retry_interval=retry_interval,
             upstreams=upstreams,
+            fallbacks=fallbacks,
             checkers=checkers,
             checking_interval=checking_interval,
             run=run,
@@ -257,7 +260,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         except Exception as e:
             self.log_error(f"{e}")
             if raise_error:
-                raise
+                raise e
         finally:
             if show_done_info:
                 self._show_env_prefix()
@@ -303,7 +306,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         self.log_debug("Waiting execution to be started")
         while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self._get_checkers():
             checker_task._set_execution_id(self.get_execution_id())
@@ -334,15 +337,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         await self.on_triggered()
         self.__is_execution_triggered = True
         await self.on_waiting()
-        # get upstream checker
-        upstream_check_processes: Iterable[asyncio.Task] = []
-        self._lock_upstreams()
-        for upstream_task in self._get_upstreams():
-            upstream_check_processes.append(
-                asyncio.create_task(upstream_task._loop_check())
-            )
-        # wait all upstream checkers to complete
-        await asyncio.gather(*upstream_check_processes)
+        await self.__check_upstreams()
         # mark execution as started, so that checkers can start checking
         self.__is_execution_started = True
         local_kwargs = dict(kwargs)
@@ -353,26 +348,69 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             return None
         # start running task
         result: Any = None
+        is_failed: bool = False
         while self._should_attempt():
             try:
                 self.log_debug(f"Started with args: {args} and kwargs: {local_kwargs}")
                 await self.on_started()
+                self.__running_tasks.append(self)
                 result = await run_async(self.run, *args, **local_kwargs)
+                self.__running_tasks.remove(self)
                 break
             except Exception as e:
-                is_last_attempt = self._is_last_attempt()
-                await self.on_failed(is_last_attempt, e)
-                if is_last_attempt:
-                    raise e
                 attempt = self._get_attempt()
                 self.log_error(f"Encounter error on attempt {attempt}")
+                if self._is_last_attempt():
+                    is_failed = True
+                    raise e
+                self.__running_tasks.remove(self)
+                await self.on_failed(is_last_attempt=False, exception=e)
                 self._increase_attempt()
                 await asyncio.sleep(self._retry_interval)
                 await self.on_retry()
+            finally:
+                if is_failed:
+                    running_tasks = self.__running_tasks
+                    self.__running_tasks = []
+                    await self.__trigger_failure(running_tasks)
+                    await self.__trigger_fallbacks(running_tasks, kwargs)
         self.set_xcom(self.get_name(), f"{result}")
         self.log_debug(f"XCom: {self.__xcom}")
         await self._mark_done()
         return result
+
+    async def __check_upstreams(self):
+        coroutines: Iterable[asyncio.Task] = []
+        self._lock_upstreams()
+        for upstream_task in self._get_upstreams():
+            coroutines.append(asyncio.create_task(upstream_task._loop_check()))
+        # wait all upstream checkers to complete
+        await asyncio.gather(*coroutines)
+
+    async def __trigger_failure(self, tasks: List[AnyTask]):
+        coroutines = [
+            task.on_failed(is_last_attempt=True, exception=Exception("canceled"))
+            for task in tasks
+        ]
+        await asyncio.gather(*coroutines)
+
+    async def __trigger_fallbacks(
+        self, tasks: List[AnyTask], kwargs: Mapping[str, Any]
+    ):
+        coroutines: Iterable[asyncio.Task] = []
+        for fallback in self.__get_all_fallbacks(tasks):
+            fallback._set_execution_id(self.get_execution_id())
+            coroutines.append(asyncio.create_task(fallback._run_all(**kwargs)))
+        await asyncio.gather(*coroutines)
+
+    def __get_all_fallbacks(self, tasks: List[AnyTask]) -> List[AnyTask]:
+        all_fallbacks: List[AnyTask] = []
+        for task in tasks:
+            task._lock_fallbacks()
+            for fallback in task._get_fallbacks():
+                if fallback not in all_fallbacks:
+                    all_fallbacks.append(fallback)
+        return all_fallbacks
 
     async def _check_should_execute(self, *args: Any, **kwargs: Any) -> bool:
         if callable(self._should_execute):

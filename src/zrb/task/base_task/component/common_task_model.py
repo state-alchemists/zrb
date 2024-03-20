@@ -47,6 +47,7 @@ class CommonTaskModel:
         retry: int = 2,
         retry_interval: Union[float, int] = 1,
         upstreams: Iterable[AnyTask] = [],
+        fallbacks: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
         checking_interval: Union[float, int] = 0,
         run: Optional[Callable[..., Any]] = None,
@@ -73,6 +74,7 @@ class CommonTaskModel:
         self._retry = retry
         self._retry_interval = retry_interval
         self._upstreams = upstreams
+        self._fallbacks = fallbacks
         self._checkers = [checker.copy() for checker in checkers]
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
@@ -90,15 +92,20 @@ class CommonTaskModel:
         self.__allow_add_env_files = True
         self.__allow_add_inputs = True
         self.__allow_add_upstreams: bool = True
+        self.__allow_add_fallbacks: bool = True
         self.__allow_add_checkers: bool = True
         self.__has_already_inject_env_files: bool = False
         self.__has_already_inject_envs: bool = False
         self.__has_already_inject_inputs: bool = False
         self.__has_already_inject_upstreams: bool = False
+        self.__has_already_inject_fallbacks: bool = False
         self.__all_inputs: Optional[List[AnyInput]] = None
 
     def _lock_upstreams(self):
         self.__allow_add_upstreams = False
+
+    def _lock_fallbacks(self):
+        self.__allow_add_fallbacks = False
 
     def _set_execution_id(self, execution_id: str):
         if self.__execution_id == "":
@@ -275,6 +282,25 @@ class CommonTaskModel:
             self.inject_upstreams()
             self.__has_already_inject_upstreams = True
         return list(self._upstreams)
+
+    def insert_fallback(self, *fallbacks: AnyTask):
+        if not self.__allow_add_fallbacks:
+            raise Exception(f"Cannot insert fallbacks to `{self.get_name()}`")
+        self._fallbacks = list(fallbacks) + list(self._fallbacks)
+
+    def add_fallback(self, *fallbacks: AnyTask):
+        if not self.__allow_add_fallbacks:
+            raise Exception(f"Cannot add fallbacks to `{self.get_name()}`")
+        self._fallbacks = list(self._fallbacks) + list(fallbacks)
+
+    def inject_fallbacks(self):
+        pass
+
+    def _get_fallbacks(self) -> List[AnyTask]:
+        if not self.__has_already_inject_fallbacks:
+            self.inject_fallbacks()
+            self.__has_already_inject_fallbacks = True
+        return list(self._fallbacks)
 
     def get_icon(self) -> str:
         return self._icon
