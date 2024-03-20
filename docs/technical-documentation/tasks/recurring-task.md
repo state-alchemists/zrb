@@ -43,6 +43,26 @@ No documentation available.
 No documentation available.
 
 
+### `RecurringTask._BaseTask__check_upstreams`
+
+No documentation available.
+
+
+### `RecurringTask._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `RecurringTask._BaseTask__trigger_failure`
+
+No documentation available.
+
+
+### `RecurringTask._BaseTask__trigger_fallbacks`
+
+No documentation available.
+
+
 ### `RecurringTask._RecurringTask__check_trigger`
 
 No documentation available.
@@ -205,10 +225,13 @@ No documentation available.
 No documentation available.
 
 
+### `RecurringTask._lock_fallbacks`
+
+Lock fallbacks so that it cannot be altered anymore
+
 ### `RecurringTask._lock_upstreams`
 
-No documentation available.
-
+Lock upstreams so that it cannot be altered anymore
 
 ### `RecurringTask._loop_check`
 

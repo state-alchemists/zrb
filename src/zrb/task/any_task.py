@@ -558,6 +558,20 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def _lock_upstreams(self):
+        """
+        Lock upstreams so that it cannot be altered anymore
+        """
+        pass
+
+    @abstractmethod
+    def _lock_fallbacks(self):
+        """
+        Lock fallbacks so that it cannot be altered anymore
+        """
+        pass
+
+    @abstractmethod
     def _set_execution_id(self, execution_id: str):
         """
         Sets the execution ID for the current task.

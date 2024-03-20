@@ -52,6 +52,26 @@ No documentation available.
 No documentation available.
 
 
+### `DockerComposeTask._BaseTask__check_upstreams`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseTask__trigger_failure`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseTask__trigger_fallbacks`
+
+No documentation available.
+
+
 ### `DockerComposeTask._CmdTask__add_to_buffer`
 
 No documentation available.
@@ -303,10 +323,13 @@ No documentation available.
 No documentation available.
 
 
+### `DockerComposeTask._lock_fallbacks`
+
+Lock fallbacks so that it cannot be altered anymore
+
 ### `DockerComposeTask._lock_upstreams`
 
-No documentation available.
-
+Lock upstreams so that it cannot be altered anymore
 
 ### `DockerComposeTask._loop_check`
 

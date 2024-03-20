@@ -52,6 +52,26 @@ No documentation available.
 No documentation available.
 
 
+### `CmdTask._BaseTask__check_upstreams`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__trigger_failure`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__trigger_fallbacks`
+
+No documentation available.
+
+
 ### `CmdTask._CmdTask__add_to_buffer`
 
 No documentation available.
@@ -268,10 +288,13 @@ No documentation available.
 No documentation available.
 
 
+### `CmdTask._lock_fallbacks`
+
+Lock fallbacks so that it cannot be altered anymore
+
 ### `CmdTask._lock_upstreams`
 
-No documentation available.
-
+Lock upstreams so that it cannot be altered anymore
 
 ### `CmdTask._loop_check`
 

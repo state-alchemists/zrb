@@ -41,6 +41,26 @@ No documentation available.
 No documentation available.
 
 
+### `PathWatcher._BaseTask__check_upstreams`
+
+No documentation available.
+
+
+### `PathWatcher._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `PathWatcher._BaseTask__trigger_failure`
+
+No documentation available.
+
+
+### `PathWatcher._BaseTask__trigger_fallbacks`
+
+No documentation available.
+
+
 ### `PathWatcher._Renderer__ensure_cached_render_data`
 
 No documentation available.
@@ -203,10 +223,13 @@ No documentation available.
 No documentation available.
 
 
+### `PathWatcher._lock_fallbacks`
+
+Lock fallbacks so that it cannot be altered anymore
+
 ### `PathWatcher._lock_upstreams`
 
-No documentation available.
-
+Lock upstreams so that it cannot be altered anymore
 
 ### `PathWatcher._loop_check`
 

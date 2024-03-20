@@ -103,6 +103,9 @@ class CommonTaskModel:
     def _lock_upstreams(self):
         self.__allow_add_upstreams = False
 
+    def _lock_fallbacks(self):
+        self.__allow_add_fallbacks = False
+
     def _set_execution_id(self, execution_id: str):
         if self.__execution_id == "":
             self.__execution_id = execution_id
