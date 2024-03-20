@@ -138,31 +138,33 @@ then
         else
             log_info "Unsupported OS, cannot install pyenv pre-requisites, continuing anyway"
         fi
-
         log_info "Installing pyenv"
         curl https://pyenv.run | bash
+    fi
 
+    if ! command_exists pyenv
+    then
         # register .pyenv to .zshrc
         if [ -f "$HOME/.zshrc" ]
         then
             register_pyenv "$HOME/.zshrc"
         fi
-
         # register .pyenv to .bashrc
         if [ -f "$HOME/.bashrc" ]
         then
             register_pyenv "$HOME/.bashrc"
         fi
-
         # activate pyenv
         log_info "Activating pyenv"
         export pyenv_root="$HOME/.pyenv"
         command -v pyenv >/dev/null || (export path="$pyenv_root/bin:$path" && eval "$(pyenv init -)")
+    fi
 
+    if ! command_exists python
+    then
         # install python 3.10.0
         log_info "Installing python 3.10.0"
         pyenv install 3.10.0
-
         # set global python to 3.10.0
         log_info "Setting python 3.10.0 as global"
         pyenv global 3.10.0
