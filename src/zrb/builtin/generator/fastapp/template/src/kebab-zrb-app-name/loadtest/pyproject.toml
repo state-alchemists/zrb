@@ -13,7 +13,7 @@ locust = "==2.16.1"
 
 [tool.poetry.dev-dependencies]
 flake8 = "~6.0.0"
-black = "~23.12.1"
+black = "~24.3.0"
 isort = "~5.13.2"
 
 [build-system]
