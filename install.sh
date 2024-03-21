@@ -157,17 +157,19 @@ then
         # activate pyenv
         log_info "Activating pyenv"
         export PYENV_ROOT="$HOME/.pyenv"
-        command -v pyenv >/dev/null || (export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)")
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init -)"
+        eval "$(pyenv virtualenv-init -)"
     fi
 
     if ! command_exists python
     then
         # install python 3.10.0
         log_info "Installing python 3.10.0"
-        pyenv install 3.10.0
+        eval "$(pyenv install 3.10.0)"
         # set global python to 3.10.0
         log_info "Setting python 3.10.0 as global"
-        pyenv global 3.10.0
+        eval "$(pyenv global 3.10.0)"
     fi
 else
     log_info "Assuming Python is installed"
@@ -176,12 +178,12 @@ fi
 if ! command_exists poetry
 then
     log_info "Installing Poetry"
-    pip install --upgrade pip setuptools
-    pip install "poetry"
+    eval "$(pip install --upgrade pip setuptools)"
+    eval "$(pip install "poetry)"
 fi
 
 if ! command_exists zrb
 then
     log_info "Installing Zrb"
-    pip install zrb
+    eval "$(pip install zrb)"
 fi
