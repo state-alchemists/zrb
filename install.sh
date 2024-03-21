@@ -179,7 +179,7 @@ if ! command_exists poetry
 then
     log_info "Installing Poetry"
     eval "$(pip install --upgrade pip setuptools)"
-    eval "$(pip install "poetry)"
+    eval "$(pip install poetry)"
 fi
 
 if ! command_exists zrb
