@@ -166,10 +166,10 @@ then
     then
         # install python 3.10.0
         log_info "Installing python 3.10.0"
-        eval "$(pyenv install 3.10.0)"
+        pyenv install 3.10.0
         # set global python to 3.10.0
         log_info "Setting python 3.10.0 as global"
-        eval "$(pyenv global 3.10.0)"
+        pyenv global 3.10.0
     fi
 else
     log_info "Assuming Python is installed"
@@ -178,12 +178,12 @@ fi
 if ! command_exists poetry
 then
     log_info "Installing Poetry"
-    eval "$(pip install --upgrade pip setuptools)"
-    eval "$(pip install poetry)"
+    pip install --upgrade pip setuptools
+    pip install poetry
 fi
 
 if ! command_exists zrb
 then
     log_info "Installing Zrb"
-    eval "$(pip install zrb)"
+    eval pip install zrb
 fi
