@@ -156,8 +156,8 @@ then
         fi
         # activate pyenv
         log_info "Activating pyenv"
-        export pyenv_root="$HOME/.pyenv"
-        command -v pyenv >/dev/null || (export path="$pyenv_root/bin:$path" && eval "$(pyenv init -)")
+        export PYENV_ROOT="$HOME/.pyenv"
+        command -v pyenv >/dev/null || (export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)")
     fi
 
     if ! command_exists python
