@@ -1,6 +1,7 @@
 import os
 import pathlib
 
+from zrb.config.config import container_backend
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
 from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
@@ -36,27 +37,30 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
+
+def _get_ensure_zrb_network_task(backend: str):
+    CURRENT_DIR = os.path.dirname(__file__)
+    SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
+    ensure_container_backend = CmdTask(
+        name="ensure-container_backend",
+        cmd_path=[
+            os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+            os.path.join(SHELL_SCRIPT_DIR, f"ensure-{backend}-is-installed.sh"),
+        ],
+        preexec_fn=None,
+    )
+    return CmdTask(
+        name="ensure-zrb-network",
+        cmd=[
+            f"{backend} network inspect zrb >/dev/null 2>&1 || \\",
+            f"{backend} network create -d bridge zrb",
+        ],
+        upstreams=[ensure_container_backend],
+    )
+
+
 TDockerComposeTask = TypeVar("TDockerComposeTask", bound="DockerComposeTask")
-
-ensure_docker_is_installed = CmdTask(
-    name="ensure-docker-is-installed",
-    cmd_path=[
-        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-        os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
-    ],
-    preexec_fn=None,
-)
-
-ensure_zrb_network_exists = CmdTask(
-    name="ensure-zrb-network-exists",
-    cmd=[
-        "docker network inspect zrb >/dev/null 2>&1 || \\",
-        "docker network create -d bridge zrb",
-    ],
-    upstreams=[ensure_docker_is_installed],
-)
+ensure_zrb_network_task = _get_ensure_zrb_network_task(container_backend)
 
 
 @typechecked
@@ -127,7 +131,7 @@ class DockerComposeTask(CmdTask):
             description=description,
             executable=executable,
             cwd=cwd,
-            upstreams=[ensure_zrb_network_exists] + upstreams,
+            upstreams=[ensure_zrb_network_task] + upstreams,
             fallbacks=fallbacks,
             on_triggered=on_triggered,
             on_waiting=on_waiting,
@@ -352,7 +356,7 @@ class DockerComposeTask(CmdTask):
         cmd_str = "\n".join(
             [
                 setup_cmd_str,
-                f"docker compose {options} {self._compose_cmd} {flags} {args}",
+                f"{container_backend} compose {options} {self._compose_cmd} {flags} {args}",
             ]
         )
         self.log_info(f"Command: {cmd_str}")
