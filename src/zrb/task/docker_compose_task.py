@@ -356,7 +356,7 @@ class DockerComposeTask(CmdTask):
         cmd_str = "\n".join(
             [
                 setup_cmd_str,
-                f"{container_backend} compose {options} {self._compose_cmd} {flags} {args}",
+                f"{container_backend} compose {options} {self._compose_cmd} {flags} {args}",  # noqa
             ]
         )
         self.log_info(f"Command: {cmd_str}")
