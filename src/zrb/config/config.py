@@ -7,13 +7,7 @@ from zrb.helper.typecheck import typechecked
 
 @typechecked
 def get_version() -> str:
-    try:
-        return metadata.version("zrb")
-    except metadata.PackageNotFoundError:
-        import flit
-
-        meta = flit.read_module_metadata("zrb")
-        return str(meta["module"]["version"])
+    return metadata.version("zrb")
 
 
 @typechecked
@@ -22,6 +16,12 @@ def get_current_shell() -> str:
     if current_shell.endswith("zsh"):
         return "zsh"
     return "bash"
+
+
+def _get_valid_container_backend(container_backend: str) -> str:
+    if container_backend.lower().strip() == "podman":
+        return "podman"
+    return "docker"
 
 
 default_shell = os.getenv("ZRB_SHELL", get_current_shell())
@@ -34,3 +34,6 @@ show_advertisement = to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
 show_prompt = to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
 show_time = to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
 version = get_version()
+container_backend = _get_valid_container_backend(
+    os.getenv("ZRB_CONTAINER_BACKEND", "docker")
+)

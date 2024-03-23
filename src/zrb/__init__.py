@@ -28,6 +28,7 @@ from zrb.task.resource_maker import Replacement, ReplacementMutator, ResourceMak
 from zrb.task.rsync_task import RsyncTask
 from zrb.task.task import Task
 from zrb.task.time_watcher import TimeWatcher
+from zrb.task.wiki_task import create_wiki_tasks
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -40,6 +41,7 @@ from zrb.task_input.password_input import PasswordInput
 from zrb.task_input.str_input import StrInput
 from zrb.task_input.task_input import Input
 
+assert create_wiki_tasks
 assert runner
 assert AnyTask
 assert OnTriggered

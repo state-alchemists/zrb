@@ -100,7 +100,7 @@ then
     then
 
         log_info "Installing pyenv prerequisites"
-        if [ "$os_type" = "darwin" ]
+        if [ "$OS_TYPE" = "darwin" ]
         then
             if command_exists brew
             then
@@ -108,7 +108,7 @@ then
             else
                 log_info "Brew not found, continuing anyway"
             fi
-        elif [ "$os_type" = "linux" ]
+        elif [ "$OS_TYPE" = "linux" ]
         then
             if command_exists pkg
             then
@@ -118,8 +118,8 @@ then
             then
                 try_sudo apt update
                 try_sudo apt install -y build-essential libssl-dev zlib1g-dev \
-        libbz2-dev libreadline-dev libsqlite3-dev curl \
-        libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+                    libbz2-dev libreadline-dev libsqlite3-dev curl \
+                    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
             elif command_exists yum
             then
                 try_sudo yum install -y gcc make patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
