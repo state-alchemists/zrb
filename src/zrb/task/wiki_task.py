@@ -67,7 +67,7 @@ def create_wiki_tasks(
             on_retry=on_retry,
             on_failed=on_failed,
             should_execute=should_execute,
-            run=_create_function(directory=directory, file_name=file_name)
+            run=_create_function(directory=directory, file_name=file_name),
         )
         if runner is not None:
             runner.register(task)
@@ -92,7 +92,7 @@ def create_wiki_tasks(
             on_retry=on_retry,
             on_failed=on_failed,
             should_execute=should_execute,
-            runner=runner
+            runner=runner,
         )
         tasks = tasks + sub_tasks
     return tasks
@@ -104,15 +104,16 @@ def _create_function(directory: str, file_name: str) -> Callable[..., Any]:
             content = f.read()
             lines = content.split("\n")
             show_lines(kwargs["_task"], *lines)
+
     return fn
 
 
 def _get_directory_structure(path) -> Mapping[str, List[str]]:
-    contents = {'files': [], 'dirs': []}
+    contents = {"files": [], "dirs": []}
     for item in os.listdir(path):
         full_path = os.path.join(path, item)
         if os.path.isdir(full_path):
-            contents['dirs'].append(item)
+            contents["dirs"].append(item)
         elif os.path.isfile(full_path):
-            contents['files'].append(item)
+            contents["files"].append(item)
     return contents
