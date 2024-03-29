@@ -1,4 +1,4 @@
-from zrb.builtin.group import docker_group
+from zrb.builtin.docker._group import docker_group
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 
