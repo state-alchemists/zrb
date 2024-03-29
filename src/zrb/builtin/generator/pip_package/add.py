@@ -15,7 +15,7 @@ from zrb.builtin.generator.common.task_input import (
     package_repository_input,
     project_dir_input,
 )
-from zrb.builtin.group import project_add_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.config.config import version
 from zrb.helper.typing import Any
 from zrb.runner import runner

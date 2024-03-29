@@ -20,7 +20,7 @@ from zrb.builtin.generator.fastapp_field.helper import (
     add_column_to_test,
     add_column_to_update_page,
 )
-from zrb.builtin.group import project_add_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any
 from zrb.runner import runner

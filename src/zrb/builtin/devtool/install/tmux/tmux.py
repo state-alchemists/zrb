@@ -35,9 +35,7 @@ install_tmux = FlowTask(
         Task(
             name="configure-tmux",
             run=write_config(
-                template_file=os.path.join(
-                    CURRENT_DIR, "resource", "config.sh"
-                ),
+                template_file=os.path.join(CURRENT_DIR, "resource", "config.sh"),
                 config_file="{{input.tmux_config_file}}",
             ),
         ),

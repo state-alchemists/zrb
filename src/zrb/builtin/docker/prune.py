@@ -6,7 +6,7 @@ from zrb.task.cmd_task import CmdTask
 # Task Definitions
 ###############################################################################
 
-prune = CmdTask(
+prune_docker = CmdTask(
     name="prune",
     group=docker_group,
     description="Prune unused images and volumes",
@@ -17,4 +17,4 @@ prune = CmdTask(
         "docker system df",
     ],
 )
-runner.register(prune)
+runner.register(prune_docker)

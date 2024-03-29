@@ -13,7 +13,7 @@ from zrb.task.task import Task
 @python_task(
     name="get", group=env_group, description="Get environment values", runner=runner
 )
-async def get(*args: Any, **kwargs: Any):
+async def get_env(*args: Any, **kwargs: Any):
     task: Task = kwargs["_task"]
     env_map = task.get_env_map()
     names = list(env_map.keys())

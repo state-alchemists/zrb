@@ -1,2 +1,3 @@
-from zrb.builtin.env import get
-assert get
+from zrb.builtin.env.get import get_env
+
+assert get_env

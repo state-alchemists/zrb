@@ -9,7 +9,7 @@ from zrb.builtin.generator.common.task_input import (
     package_repository_input,
     project_dir_input,
 )
-from zrb.builtin.group import plugin_group
+from zrb.builtin.project.add.plugin._group import project_add_plugin_group
 from zrb.config.config import version
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
@@ -63,7 +63,7 @@ copy_resource = ResourceMaker(
 create = CmdTask(
     name="create",
     description="Create plugin",
-    group=plugin_group,
+    group=project_add_plugin_group,
     upstreams=[copy_resource],
     inputs=[project_dir_input],
     cmd=[

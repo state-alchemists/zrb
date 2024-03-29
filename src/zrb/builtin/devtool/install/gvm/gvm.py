@@ -1,8 +1,8 @@
 import os
 
 from zrb.builtin.devtool.install._group import dev_tool_install_group
-from zrb.builtin.devtool.install._input import terminal_config_file_input
 from zrb.builtin.devtool.install._helper import write_config
+from zrb.builtin.devtool.install._input import terminal_config_file_input
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.flow_task import FlowTask

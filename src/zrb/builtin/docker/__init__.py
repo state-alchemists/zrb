@@ -1,3 +1,3 @@
-from zrb.builtin.docker import prune
+from zrb.builtin.docker.prune import prune_docker
 
-assert prune
+assert prune_docker

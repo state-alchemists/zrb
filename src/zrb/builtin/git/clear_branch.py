@@ -2,7 +2,7 @@ from zrb.builtin.git._group import git_group
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 
-clear_branch = CmdTask(
+clear_git_branch = CmdTask(
     name="clear-branch",
     group=git_group,
     description="Clear branches",
@@ -16,4 +16,4 @@ clear_branch = CmdTask(
         "done",
     ],
 )
-runner.register(clear_branch)
+runner.register(clear_git_branch)

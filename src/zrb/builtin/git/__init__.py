@@ -1,5 +1,5 @@
-from zrb.builtin.git import clear_branch
-from zrb.builtin.git import get_file_changes
+from zrb.builtin.git.clear_branch import clear_git_branch
+from zrb.builtin.git.get_file_changes import get_git_file_changes
 
-assert clear_branch
-assert get_file_changes
+assert clear_git_branch
+assert get_git_file_changes

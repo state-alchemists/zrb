@@ -15,7 +15,7 @@ from zrb.task.decorator import python_task
     retry=0,
     runner=runner,
 )
-async def encode(*args: str, **kwargs: Any):
+async def encode_base64(*args: str, **kwargs: Any):
     text: str = kwargs.get("text", "")
     encoded_text = base64.b64encode(text.encode())
     return encoded_text.decode()

@@ -17,7 +17,7 @@ from zrb.builtin.generator.fastapp_module.helper import (
     register_migration,
     register_module,
 )
-from zrb.builtin.group import project_add_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any
 from zrb.runner import runner

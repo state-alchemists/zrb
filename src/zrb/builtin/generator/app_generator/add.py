@@ -6,7 +6,7 @@ from zrb.builtin.generator.common.helper import (
 )
 from zrb.builtin.generator.common.task_factory import create_register_module
 from zrb.builtin.generator.common.task_input import project_dir_input
-from zrb.builtin.group import project_add_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.typing import Any
 from zrb.runner import runner

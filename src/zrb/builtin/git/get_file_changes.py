@@ -42,7 +42,7 @@ from zrb.task_input.str_input import StrInput
     ],
     runner=runner,
 )
-async def get_file_changes(*args: Any, **kwargs: Any):
+async def get_git_file_changes(*args: Any, **kwargs: Any):
     commit = kwargs.get("commit", "HEAD")
     include_new = kwargs.get("include_new", True)
     include_removed = kwargs.get("include_removed", True)

@@ -16,7 +16,7 @@ from zrb.builtin.generator.fastapp_crud.helper import (
     register_rpc,
 )
 from zrb.builtin.generator.fastapp_crud.task_factory import create_add_navigation_task
-from zrb.builtin.group import project_add_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any
 from zrb.runner import runner

@@ -26,7 +26,7 @@ from zrb.builtin.generator.project_task.task_factory import (
     create_add_stop_containers_upstream,
     create_ensure_project_tasks,
 )
-from zrb.builtin.group import project_add_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.helper import util
 from zrb.helper.typing import Any
 from zrb.runner import runner

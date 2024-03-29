@@ -9,4 +9,3 @@ terminal_config_file_input = StrInput(
     prompt="Config file",
     default="~/.zshrc" if current_shell == "zsh" else "~/.bashrc",
 )
-
