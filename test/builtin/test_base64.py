@@ -1,4 +1,4 @@
-from zrb.builtin.base64 import encode, decode
+from zrb.builtin.base64.encode import encode, decode
 
 
 def test_encode():
