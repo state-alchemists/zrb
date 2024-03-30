@@ -1,14 +1,14 @@
 import os
 
-from zrb.builtin.generator.common.task_input import (
+from zrb.builtin.project._input import project_dir_input
+from zrb.builtin.project._group import project_group
+from zrb.builtin.project.create._input import (
     project_author_email_input,
     project_author_name_input,
     project_description_input,
-    project_dir_input,
     project_name_input,
 )
-from zrb.builtin.project.create.ensure_task.task_factory import create_ensure_project_tasks
-from zrb.builtin.project._group import project_group
+from zrb.builtin.project.ensure import ensure_common_project_tasks
 from zrb.config.config import version
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Mapping
@@ -83,12 +83,13 @@ copy_resource = ResourceMaker(
     ],
 )
 
-ensure_project_tasks = create_ensure_project_tasks(upstreams=[copy_resource])
+_ensure_common_project_tasks = ensure_common_project_tasks.copy()
+_ensure_common_project_tasks.add_upstream(copy_resource)
 
 create_project = CmdTask(
     name="create",
     group=project_group,
-    upstreams=[ensure_project_tasks],
+    upstreams=[_ensure_common_project_tasks],
     inputs=[project_dir_input],
     cmd=[
         "set -e",

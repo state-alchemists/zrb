@@ -11,4 +11,3 @@ project_dir_input = StrInput(
     prompt="Project directory",
     default=".",
 )
-

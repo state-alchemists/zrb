@@ -1,0 +1,3 @@
+from zrb.builtin.project.ensure.ensure import ensure_common_project_tasks
+
+assert ensure_common_project_tasks
