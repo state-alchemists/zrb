@@ -2,47 +2,31 @@ import os
 
 from zrb.builtin.project._input import project_dir_input
 from zrb.builtin.project._group import project_group
+from zrb.builtin.project.create._helper import copy_resource_replacement_mutator
 from zrb.builtin.project.create._input import (
     project_author_email_input,
     project_author_name_input,
     project_description_input,
     project_name_input,
 )
-from zrb.builtin.project.ensure import ensure_common_project_tasks
+from zrb.builtin.project.add.project_task import add_project_tasks
 from zrb.config.config import version
-from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Mapping
+from zrb.helper.typing import Any
+from zrb.helper.accessories.color import colored
 from zrb.runner import runner
+from zrb.task.task import Task
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
 
 CURRENT_DIR = os.path.dirname(__file__)
+SHELL_SCRIPTS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR))), "shell-scripts"
+)
 SYSTEM_USER = os.getenv("USER", "incognito")
 IMAGE_DEFAULT_NAMESPACE = os.getenv(
     "PROJECT_IMAGE_DEFAULT_NAMESPACE", "docker.io/" + SYSTEM_USER
 )
-
-###############################################################################
-# Replacement Mutator Definitions
-###############################################################################
-
-
-@typechecked
-def copy_resource_replacement_mutator(
-    task: ResourceMaker, replacements: Mapping[str, str]
-) -> Mapping[str, str]:
-    replacements["zrbBaseProjectDir"] = os.path.basename(
-        replacements.get("zrbProjectDir", "")
-    )
-    if replacements.get("zrbProjectName", "") == "":
-        replacements["zrbProjectName"] = replacements.get("zrbBaseProjectDir", "")
-    return replacements
-
-
-###############################################################################
-# Task Definitions
-###############################################################################
 
 
 @python_task(
@@ -83,23 +67,40 @@ copy_resource = ResourceMaker(
     ],
 )
 
-_ensure_common_project_tasks = ensure_common_project_tasks.copy()
-_ensure_common_project_tasks.add_upstream(copy_resource)
+_add_project_tasks = add_project_tasks.copy()
+_add_project_tasks.add_upstream(copy_resource)
 
-create_project = CmdTask(
-    name="create",
-    group=project_group,
-    upstreams=[_ensure_common_project_tasks],
+init_git = CmdTask(
+    name="init-git",
+    upstreams=[copy_resource],
     inputs=[project_dir_input],
-    cmd=[
-        "set -e",
-        'cd "{{input.project_dir}}"',
-        "if [ ! -d .git ]",
-        "then",
-        "  echo Initialize project git repository",
-        "  git init",
-        "fi",
-        'echo "Happy coding :)"',
+    cmd_path=[
+        os.path.join(SHELL_SCRIPTS_DIR, "_common-util.sh"),
+        os.path.join(CURRENT_DIR, "init-git.sh")
+    ]
+)
+
+
+@python_task(
+    name="create",
+    description="Create a new project",
+    inputs=[
+        project_dir_input,
+        project_name_input,
+        project_description_input,
+        project_author_name_input,
+        project_author_email_input,
+    ],
+    group=project_group,
+    upstreams=[
+        _add_project_tasks,
+        init_git
     ],
 )
+def create_project(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get("_task")
+    task.print_out(colored("Project created", color="yellow"))
+    task.print_out(colored("Happy coding :)", color="yellow"))
+
+
 runner.register(create_project)

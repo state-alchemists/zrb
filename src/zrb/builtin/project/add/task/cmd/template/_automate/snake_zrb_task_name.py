@@ -1,9 +1,5 @@
 from zrb import CmdTask, runner
-from zrb.builtin.group import project_group
-
-###############################################################################
-# ⚙️ kebab-zrb-task-name
-###############################################################################
+from zrb.builtin import project_group
 
 snake_zrb_task_name = CmdTask(
     name="kebab-zrb-task-name",

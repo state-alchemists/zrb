@@ -1,6 +1,6 @@
 import os
 
-from zrb.builtin.devtool.install._group import dev_tool_install_group
+from zrb.builtin.devtool.install._group import devtool_install_group
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.flow_task import FlowTask
@@ -10,7 +10,7 @@ SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scri
 
 install_gcloud = FlowTask(
     name="gcloud",
-    group=dev_tool_install_group,
+    group=devtool_install_group,
     description="Gcloud CLI",
     steps=[
         CmdTask(

@@ -16,10 +16,6 @@ from zrb.task.task import Task
 
 CURRENT_DIR = os.path.dirname(__file__)
 
-###############################################################################
-# Task Definitions
-###############################################################################
-
 
 @python_task(
     name="validate",

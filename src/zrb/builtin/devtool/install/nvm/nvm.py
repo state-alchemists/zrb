@@ -1,6 +1,6 @@
 import os
 
-from zrb.builtin.devtool.install._group import dev_tool_install_group
+from zrb.builtin.devtool.install._group import devtool_install_group
 from zrb.builtin.devtool.install._helper import write_config
 from zrb.builtin.devtool.install._input import terminal_config_file_input
 from zrb.runner import runner
@@ -14,7 +14,7 @@ SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scri
 
 install_nvm = FlowTask(
     name="nvm",
-    group=dev_tool_install_group,
+    group=devtool_install_group,
     description="NVM allows you to quickly install and use different versions of node via the command line",  # noqa
     inputs=[
         StrInput(

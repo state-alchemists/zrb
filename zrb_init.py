@@ -38,7 +38,7 @@ import re
 import subprocess
 import sys
 import time
-import tomli
+import tomlkit
 
 CURRENT_DIR = os.path.dirname(__file__)
 PLAYGROUND_DIR = os.path.join(CURRENT_DIR, "playground")
@@ -52,7 +52,7 @@ if IS_PLAYGROUND_EXIST:
 
 
 with open(os.path.join(CURRENT_DIR, "pyproject.toml"), "rb") as f:
-    toml_dict = tomli.load(f)
+    toml_dict = tomlkit.parse(f.read())
     VERSION = toml_dict["tool"]["poetry"]["version"]
 
 

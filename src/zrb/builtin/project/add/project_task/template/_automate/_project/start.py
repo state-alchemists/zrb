@@ -1,0 +1,15 @@
+from zrb import python_task, Task, runner
+from zrb.builtin import project_group
+from zrb.helper.typing import Any
+from zrb.helper.accessories.color import colored
+
+
+@python_task(
+    name="start",
+    group=project_group,
+    description="Start project",
+    runner=runner
+)
+def start_project(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get("_task")
+    task.print_out(colored("Project started", color="yellow"))

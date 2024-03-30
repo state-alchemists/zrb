@@ -1,6 +1,6 @@
 import os
 
-from zrb.builtin.devtool.install._group import dev_tool_install_group
+from zrb.builtin.devtool.install._group import devtool_install_group
 from zrb.builtin.devtool.install._helper import write_config
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
@@ -12,7 +12,7 @@ SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scri
 
 install_helix = FlowTask(
     name="helix",
-    group=dev_tool_install_group,
+    group=devtool_install_group,
     description="Post modern text editor",
     steps=[
         CmdTask(

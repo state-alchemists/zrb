@@ -1,3 +1,4 @@
+from zrb.builtin.devtool.install._group import devtool_install_group
 from zrb.builtin.devtool.install.aws.aws import install_aws
 from zrb.builtin.devtool.install.docker.docker import install_docker
 from zrb.builtin.devtool.install.gcloud.gcloud import install_gcloud
@@ -14,6 +15,7 @@ from zrb.builtin.devtool.install.terraform.terraform import install_terraform
 from zrb.builtin.devtool.install.tmux.tmux import install_tmux
 from zrb.builtin.devtool.install.zsh.zsh import install_zsh
 
+assert devtool_install_group
 assert install_aws
 assert install_docker
 assert install_gcloud

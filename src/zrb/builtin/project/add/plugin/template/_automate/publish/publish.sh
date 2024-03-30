@@ -1,0 +1,2 @@
+echo "Publish"
+poetry publish

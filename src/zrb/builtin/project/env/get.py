@@ -21,7 +21,7 @@ from zrb.task_input.bool_input import BoolInput
     group=project_env_group,
     runner=runner,
 )
-async def get_default_env(*args: Any, **kwargs: Any) -> str:
+async def get_project_default_env(*args: Any, **kwargs: Any) -> str:
     env_map: Mapping[str, str] = {}
     env_map = fetch_env_map_from_group(env_map, project_group)
     env_keys = list(env_map.keys())

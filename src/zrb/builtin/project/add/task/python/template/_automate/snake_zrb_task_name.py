@@ -1,11 +1,6 @@
 from typing import Any, Mapping
-
 from zrb import Task, python_task, runner
-from zrb.builtin.group import project_group
-
-###############################################################################
-# ⚙️ kebab-zrb-task-name
-###############################################################################
+from zrb.builtin import project_group
 
 
 @python_task(
