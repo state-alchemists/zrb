@@ -1,0 +1,31 @@
+version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
+networks:
+  zrb:
+    name: zrb
+    external: true
+
+services:
+
+  kebab-zrb-app-name:
+    build: src
+    image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name
+    hostname: kebab-zrb-app-name
+    ports:
+    - "${HOST_PORT:-8080}:${APP_PORT:-8080}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:${APP_PORT:-8080}/ || exit 1"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
+    networks:
+      - zrb

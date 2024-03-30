@@ -29,6 +29,8 @@ from zrb.builtin.process import (
 from zrb.builtin.project import (
     project_group,
     project_add_group,
+    project_add_app_group,
+    project_add_fastapp_group,
     project_add_task_group,
     project_env_group,
     create_project,
@@ -37,7 +39,12 @@ from zrb.builtin.project import (
     add_project_tasks,
     add_cmd_task,
     add_docker_compose_task,
-    add_python_task
+    add_fastapp_application,
+    add_fastapp_crud,
+    add_fastapp_module,
+    add_fastapp_field,
+    add_python_task,
+    add_python_app
 )
 from zrb.builtin.ubuntu import (
     ubuntu_group,
@@ -91,11 +98,18 @@ assert get_process_pid_by_name
 assert get_process_pid_by_port
 assert project_group
 assert project_add_group
+assert project_add_app_group
+assert project_add_fastapp_group
 assert project_add_task_group
 assert project_env_group
 assert create_project
 assert get_project_default_env
 assert add_plugin
+assert add_fastapp_application
+assert add_fastapp_crud
+assert add_fastapp_module
+assert add_fastapp_field
+assert add_python_app
 assert add_project_tasks
 assert add_cmd_task
 assert add_docker_compose_task

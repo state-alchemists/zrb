@@ -1,4 +1,14 @@
 from zrb.builtin.project.add._group import project_add_group
+from zrb.builtin.project.add.app import (
+    project_add_app_group, add_app_generator, add_python_app
+)
+from zrb.builtin.project.add.fastapp import (
+    project_add_fastapp_group,
+    add_fastapp_application,
+    add_fastapp_crud,
+    add_fastapp_field,
+    add_fastapp_module
+)
 from zrb.builtin.project.add.plugin import add_plugin
 from zrb.builtin.project.add.project_task import add_project_tasks
 from zrb.builtin.project.add.task import (
@@ -6,7 +16,15 @@ from zrb.builtin.project.add.task import (
 )
 
 assert project_add_group
+assert project_add_app_group
+assert project_add_fastapp_group
 assert project_add_task_group
+assert add_app_generator
+assert add_python_app
+assert add_fastapp_application
+assert add_fastapp_crud
+assert add_fastapp_field
+assert add_fastapp_module
 assert add_plugin
 assert add_project_tasks
 assert add_cmd_task
