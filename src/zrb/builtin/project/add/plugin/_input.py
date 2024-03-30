@@ -37,7 +37,7 @@ package_homepage_input = StrInput(
 package_repository_input = StrInput(
     name="package-repository",
     description="Package repository",
-    prompt="Package homepage",
+    prompt="Package repository",
     default="".join(
         [
             "https://github.com/",
@@ -50,7 +50,7 @@ package_repository_input = StrInput(
 package_documentation_input = StrInput(
     name="package-documentation",
     description="Package documentation",
-    prompt="Package homepage",
+    prompt="Package documentation",
     default="".join(
         [
             "https://github.com/",
@@ -73,4 +73,3 @@ package_author_email_input = StrInput(
     description="Package author email",
     default=f"{SYSTEM_USER}@gmail.com",
 )
-

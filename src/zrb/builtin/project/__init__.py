@@ -1,7 +1,6 @@
 from zrb.builtin.project._group import project_group
 from zrb.builtin.project.add import (
     project_add_group,
-    project_add_plugin_group,
     project_add_task_group,
     add_plugin,
     add_project_tasks,
@@ -14,7 +13,6 @@ from zrb.builtin.project.env import project_env_group, get_project_default_env
 
 assert project_group
 assert project_add_group
-assert project_add_plugin_group
 assert project_add_task_group
 assert project_env_group
 assert create_project

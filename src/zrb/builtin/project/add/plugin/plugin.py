@@ -7,7 +7,7 @@ from zrb.builtin.project._helper import (
     validate_inexisting_automation
 )
 from zrb.builtin.project._input import project_dir_input
-from zrb.builtin.project.add.plugin._group import project_add_plugin_group
+from zrb.builtin.project.add._group import project_add_group
 from zrb.builtin.project.add.plugin._input import (
     package_author_email_input,
     package_author_name_input,
@@ -85,7 +85,7 @@ def update_pyproject(*args: Any, **kwargs: Any):
     package_name = kwargs.get("package_name")
     kebab_package_name = to_kebab_case(package_name)
     with open(os.path.join(project_dir, "pyproject.toml"), "rb") as f:
-        toml_dict = tomlkit.load(f.read())
+        toml_dict = tomlkit.loads(f.read())
     toml_dict["tool"]["poetry"]["dependencies"][kebab_package_name] = {
         "path": f"./src/{kebab_package_name}"
     }
@@ -94,8 +94,9 @@ def update_pyproject(*args: Any, **kwargs: Any):
 
 
 @python_task(
-    name="add",
-    group=project_add_plugin_group,
+    name="plugin",
+    group=project_add_group,
+    description="Add plugin to project",
     upstreams=[register_module, update_pyproject],
     inputs=[
         project_dir_input,

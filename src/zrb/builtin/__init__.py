@@ -29,7 +29,6 @@ from zrb.builtin.process import (
 from zrb.builtin.project import (
     project_group,
     project_add_group,
-    project_add_plugin_group,
     project_add_task_group,
     project_env_group,
     create_project,
@@ -92,7 +91,6 @@ assert get_process_pid_by_name
 assert get_process_pid_by_port
 assert project_group
 assert project_add_group
-assert project_add_plugin_group
 assert project_add_task_group
 assert project_env_group
 assert create_project

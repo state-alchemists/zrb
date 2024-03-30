@@ -1,8 +1,8 @@
 from .container import (
     project_container_group,
-    remove_project_container,
-    start_project_container,
-    stop_project_container
+    remove_project_containers,
+    start_project_containers,
+    stop_project_containers
 )
 from .build import build_project
 from .deploy import deploy_project
@@ -17,9 +17,9 @@ from .start import start_project
 
 assert project_container_group
 assert project_image_group
-assert remove_project_container
-assert start_project_container
-assert stop_project_container
+assert remove_project_containers
+assert start_project_containers
+assert stop_project_containers
 assert build_project_images
 assert push_project_images
 assert build_project

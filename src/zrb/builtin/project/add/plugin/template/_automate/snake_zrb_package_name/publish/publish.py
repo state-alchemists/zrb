@@ -11,7 +11,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(AUTOMATE_DIR))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, "src", "kebab-zrb-package-name")
 
 publish_snake_zrb_package_name = CmdTask(
-    name="build",
+    name="publish",
     description="Publish human readable zrb package name",
     group=kebab_zrb_package_name_group,
     upstreams=[build_snake_zrb_package_name],
