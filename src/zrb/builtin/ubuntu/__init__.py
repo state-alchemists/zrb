@@ -1,5 +1,4 @@
 from zrb.builtin.ubuntu._group import ubuntu_group
-from zrb.builtin.ubuntu.update import update_ubuntu
 from zrb.builtin.ubuntu.install import (
     install_ubuntu_all,
     install_ubuntu_essentials,
@@ -7,6 +6,7 @@ from zrb.builtin.ubuntu.install import (
     install_ubuntu_toys,
     ubuntu_install_group,
 )
+from zrb.builtin.ubuntu.update import update_ubuntu
 
 assert ubuntu_group
 assert ubuntu_install_group

@@ -16,48 +16,51 @@ from zrb.builtin.devtool import (
     install_selenium,
     install_terraform,
     install_tmux,
-    install_zsh
+    install_zsh,
 )
 from zrb.builtin.docker import docker_group, prune_docker
 from zrb.builtin.env import env_group, get_env
+from zrb.builtin.eval import evaluate
 from zrb.builtin.explain import explain_group, explain_tasks
-from zrb.builtin.git import git_group, get_git_file_changes, clear_git_branch
-from zrb.builtin.md5 import md5_group, hash_text_md5, sum_file_md5
+from zrb.builtin.git import clear_git_branch, get_git_file_changes, git_group
+from zrb.builtin.md5 import hash_text_md5, md5_group, sum_file_md5
 from zrb.builtin.process import (
-    process_group, process_pid_group, get_process_pid_by_name, get_process_pid_by_port
+    get_process_pid_by_name,
+    get_process_pid_by_port,
+    process_group,
+    process_pid_group,
 )
 from zrb.builtin.project import (
-    project_group,
-    project_add_group,
-    project_add_app_group,
-    project_add_fastapp_group,
-    project_add_task_group,
-    project_env_group,
-    create_project,
-    get_project_default_env,
-    add_plugin,
-    add_project_tasks,
     add_cmd_task,
     add_docker_compose_task,
     add_fastapp_application,
     add_fastapp_crud,
-    add_fastapp_module,
     add_fastapp_field,
+    add_fastapp_module,
+    add_plugin,
+    add_project_tasks,
+    add_python_app,
     add_python_task,
-    add_python_app
+    create_project,
+    get_project_default_env,
+    project_add_app_group,
+    project_add_fastapp_group,
+    project_add_group,
+    project_add_task_group,
+    project_env_group,
+    project_group,
 )
+from zrb.builtin.say import say
+from zrb.builtin.schedule import schedule
 from zrb.builtin.ubuntu import (
-    ubuntu_group,
-    ubuntu_install_group,
-    update_ubuntu,
     install_ubuntu_all,
     install_ubuntu_essentials,
     install_ubuntu_tex,
-    install_ubuntu_toys
+    install_ubuntu_toys,
+    ubuntu_group,
+    ubuntu_install_group,
+    update_ubuntu,
 )
-from zrb.builtin.eval import evaluate
-from zrb.builtin.say import say
-from zrb.builtin.schedule import schedule
 from zrb.builtin.update import update_zrb
 from zrb.builtin.version import get_version
 from zrb.builtin.watch_changes import watch_changes

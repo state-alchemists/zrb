@@ -1,18 +1,23 @@
 from zrb.builtin.project.add._group import project_add_group
 from zrb.builtin.project.add.app import (
-    project_add_app_group, add_app_generator, add_python_app
+    add_app_generator,
+    add_python_app,
+    project_add_app_group,
 )
 from zrb.builtin.project.add.fastapp import (
-    project_add_fastapp_group,
     add_fastapp_application,
     add_fastapp_crud,
     add_fastapp_field,
-    add_fastapp_module
+    add_fastapp_module,
+    project_add_fastapp_group,
 )
 from zrb.builtin.project.add.plugin import add_plugin
 from zrb.builtin.project.add.project_task import add_project_tasks
 from zrb.builtin.project.add.task import (
-    project_add_task_group, add_cmd_task, add_docker_compose_task, add_python_task
+    add_cmd_task,
+    add_docker_compose_task,
+    add_python_task,
+    project_add_task_group,
 )
 
 assert project_add_group

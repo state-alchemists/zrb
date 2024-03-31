@@ -1,6 +1,8 @@
 import os
 
 from zrb import CmdTask, Env, EnvFile, HTTPChecker, runner
+
+from .._project import start_project
 from ._constant import APP_DIR, APP_TEMPLATE_ENV_FILE_NAME
 from ._group import snake_zrb_app_name_group
 from ._input import host_input, https_input, local_input
@@ -35,4 +37,7 @@ start_snake_zrb_app_name = CmdTask(
         )
     ],
 )
+
+start_snake_zrb_app_name >> start_project
+
 runner.register(start_snake_zrb_app_name)

@@ -3,11 +3,11 @@ import os
 from zrb.builtin.project._helper import (
     create_register_module,
     validate_existing_project_dir,
-    validate_inexisting_automation
+    validate_inexisting_automation,
 )
 from zrb.builtin.project._input import project_dir_input
-from zrb.builtin.project.add.task._input import task_name_input
 from zrb.builtin.project.add.task._group import project_add_task_group
+from zrb.builtin.project.add.task._input import task_name_input
 from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
@@ -60,10 +60,7 @@ register_module = create_register_module(
 
 
 @python_task(
-    name="cmd",
-    group=project_add_task_group,
-    upstreams=[register_module],
-    runner=runner
+    name="cmd", group=project_add_task_group, upstreams=[register_module], runner=runner
 )
 async def add_cmd_task(*args: Any, **kwargs: Any):
     task: Task = kwargs.get("_task")

@@ -1,11 +1,12 @@
 import os
 
 from zrb.builtin.project._helper import (
+    create_register_module,
     validate_existing_project_dir,
     validate_inexisting_automation,
-    create_register_module,
 )
 from zrb.builtin.project._input import project_dir_input
+from zrb.builtin.project.add.app._group import project_add_app_group
 from zrb.builtin.project.add.app.python._input import (
     app_author_email_input,
     app_author_name_input,
@@ -15,7 +16,6 @@ from zrb.builtin.project.add.app.python._input import (
     env_prefix_input,
     http_port_input,
 )
-from zrb.builtin.project.add.app._group import project_add_app_group
 from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case
@@ -80,8 +80,9 @@ register_module = create_register_module(
 
 
 @python_task(
-    name="simple-python-app",
+    name="python",
     group=project_add_app_group,
+    description="Add simple Python app",
     upstreams=[
         register_module,
     ],

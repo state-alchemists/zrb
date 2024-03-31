@@ -1,10 +1,11 @@
 import os
+
 import tomlkit
 
 from zrb.builtin.project._helper import (
     create_register_module,
     validate_existing_project_dir,
-    validate_inexisting_automation
+    validate_inexisting_automation,
 )
 from zrb.builtin.project._input import project_dir_input
 from zrb.builtin.project.add._group import project_add_group
@@ -78,7 +79,7 @@ register_module = create_register_module(
 @python_task(
     name="update-pyproject",
     upstreams=[copy_resource],
-    inputs=[project_dir_input, package_name_input]
+    inputs=[project_dir_input, package_name_input],
 )
 def update_pyproject(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")

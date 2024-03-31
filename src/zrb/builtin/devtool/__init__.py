@@ -15,7 +15,7 @@ from zrb.builtin.devtool.install import (
     install_selenium,
     install_terraform,
     install_tmux,
-    install_zsh
+    install_zsh,
 )
 
 assert devtool_group

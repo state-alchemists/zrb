@@ -1,9 +1,9 @@
-from ._group import kebab_zrb_package_name_group
+from ._group import snake_zrb_package_name_group
 from .build import build_snake_zrb_package_name
 from .prepare_venv.prepare_venv import prepare_snake_zrb_package_name_venv
 from .publish.publish import publish_snake_zrb_package_name
 
-assert kebab_zrb_package_name_group
+assert snake_zrb_package_name_group
 assert build_snake_zrb_package_name
 assert prepare_snake_zrb_package_name_venv
 assert publish_snake_zrb_package_name
