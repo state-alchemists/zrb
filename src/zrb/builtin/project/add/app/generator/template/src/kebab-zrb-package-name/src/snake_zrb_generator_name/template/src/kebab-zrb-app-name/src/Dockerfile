@@ -1,6 +1,6 @@
-FROM python:3.10-slim
+FROM zrbGeneratorBaseImage
 ENV APP_MESSAGE "Hello, world!"
-ENV APP_PORT 8080
+ENV APP_PORT zrbAppHttpPort
 ENV POETRY_VIRTUAL_ENVS_CREATE=false
 WORKDIR /home
 COPY ./pyproject.toml ./pyproject.toml

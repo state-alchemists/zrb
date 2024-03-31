@@ -8,6 +8,10 @@ from zrb.builtin.project._helper import (
 from zrb.builtin.project._input import project_dir_input
 from zrb.builtin.project.add.task._group import project_add_task_group
 from zrb.builtin.project.add.task._input import task_name_input
+from zrb.builtin.project.add.task.docker_compose._input import (
+    compose_command_input,
+    http_port_input
+)
 from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
@@ -40,10 +44,14 @@ copy_resource = ResourceMaker(
     inputs=[
         project_dir_input,
         task_name_input,
+        compose_command_input,
+        http_port_input,
     ],
     upstreams=[validate],
     replacements={
         "zrbTaskName": "{{input.task_name}}",
+        "zrbHttpPort": "{{input.http_port}}",
+        "zrbComposeCommand": "{{input.compose_command}}",
     },
     template_path=os.path.join(CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
@@ -62,6 +70,12 @@ register_module = create_register_module(
 @python_task(
     name="docker-compose",
     group=project_add_task_group,
+    inputs=[
+        project_dir_input,
+        task_name_input,
+        compose_command_input,
+        http_port_input,
+    ],
     upstreams=[register_module],
     runner=runner,
 )

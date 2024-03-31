@@ -5,7 +5,6 @@ from zrb.task_input.str_input import StrInput
 
 SYSTEM_USER = os.getenv("USER", "incognito")
 
-
 package_name_input = StrInput(
     name="package-name",
     shortcut="p",
