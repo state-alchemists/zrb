@@ -17,6 +17,7 @@ from zrb.builtin.project.add.fastapp.module._helper import (
 )
 from zrb.builtin.project.add.fastapp.module._input import module_name_input
 from zrb.helper import util
+from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
@@ -140,4 +141,4 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
             )
         ),
     )
-    task.print_out("Success")
+    task.print_out(colored("Fastapp crud added", color="yellow"))
