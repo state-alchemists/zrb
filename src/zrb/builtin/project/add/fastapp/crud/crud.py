@@ -28,8 +28,8 @@ from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-CODEMOD_DIR = os.path.join(CURRENT_DIR, "nodejs", "codemod")
+_CURRENT_DIR = os.path.dirname(__file__)
+_CODEMOD_DIR = os.path.join(_CURRENT_DIR, "nodejs", "codemod")
 
 
 @python_task(
@@ -78,7 +78,7 @@ copy_resource = ResourceMaker(
         "zrbPluralEntityName": "{{input.plural_entity_name}}",
         "zrbColumnName": "{{input.column_name}}",
     },
-    template_path=os.path.join(CURRENT_DIR, "template"),
+    template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
     excludes=[
         "*/__pycache__",
@@ -130,7 +130,7 @@ async def register_crud(*args: Any, **kwargs: Any):
 
 prepare_codemod = CmdTask(
     name="prepare-codemod",
-    cwd=CODEMOD_DIR,
+    cwd=_CODEMOD_DIR,
     cmd=["npm install --save-dev", "node_modules/.bin/tsc"],
 )
 
@@ -145,6 +145,15 @@ add_navigation = create_add_navigation_task(
 @python_task(
     name="crud",
     group=project_add_fastapp_group,
+    description="Add Fastapp CRUD",
+    inputs=[
+        project_dir_input,
+        app_name_input,
+        module_name_input,
+        entity_name_input,
+        plural_entity_name_input,
+        main_column_name_input,
+    ],
     upstreams=[register_crud, add_navigation],
     runner=runner,
 )
