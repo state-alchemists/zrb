@@ -9,7 +9,7 @@ from ._input import image_input
 
 build_snake_zrb_app_name_image = DockerComposeTask(
     icon="🏭",
-    name="build",
+    name="build-kebab-zrb-app-name-image",
     description="Build human readable zrb app name image",
     group=snake_zrb_app_name_image_group,
     inputs=[

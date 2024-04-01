@@ -10,7 +10,7 @@ from .build import build_snake_zrb_app_name_image
 
 push_snake_zrb_app_name_image = DockerComposeTask(
     icon="📰",
-    name="push",
+    name="push-kebab-zrb-app-name-image",
     description="Push human readable zrb app name image",
     group=snake_zrb_app_name_image_group,
     inputs=[
