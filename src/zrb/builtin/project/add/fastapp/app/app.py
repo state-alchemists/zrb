@@ -6,16 +6,8 @@ from zrb.builtin.project._helper import (
     validate_inexisting_automation,
 )
 from zrb.builtin.project._input import project_dir_input
-from zrb.builtin.project.add.app._group import project_add_app_group
-from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
-from zrb.helper.util import to_kebab_case
-from zrb.runner import runner
-from zrb.task.decorator import python_task
-from zrb.task.resource_maker import ResourceMaker
-from zrb.task.task import Task
-
-from ._input import (
+from zrb.builtin.project.add.fastapp._group import project_add_fastapp_group
+from zrb.builtin.project.add.fastapp.app._input import (
     app_author_email_input,
     app_author_name_input,
     app_description_input,
@@ -24,6 +16,13 @@ from ._input import (
     env_prefix_input,
     http_port_input,
 )
+from zrb.helper.accessories.color import colored
+from zrb.helper.typing import Any
+from zrb.helper.util import to_kebab_case
+from zrb.runner import runner
+from zrb.task.decorator import python_task
+from zrb.task.resource_maker import ResourceMaker
+from zrb.task.task import Task
 
 CURRENT_DIR = os.path.dirname(__file__)
 SNAKE_APP_NAME_TPL = "{{util.to_snake_case(input.app_name)}}"
@@ -64,12 +63,31 @@ copy_resource = ResourceMaker(
         "zrbAppHttpPort": '{{util.coalesce(input.http_port, "3000")}}',
         "ZRB_ENV_PREFIX": '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         "zrb-app-image-name": "{{input.app_image_name}}",
+        "zrbAppHttpAuthPort": '{{util.coalesce(input.http_port, "3001") + 1}}',
+        "zrbAppHttpLogPort": '{{util.coalesce(input.http_port, "3001") + 2}}',
     },
     template_path=os.path.join(CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
     excludes=[
         "*/deployment/venv",
         "*/__pycache__",
+        "*/src/kebab-zrb-app-name/.venv",
+        "*/src/kebab-zrb-app-name/src/frontend/node_modules",
+        "*/src/kebab-zrb-app-name/src/frontend/build",
+        "*/src/kebab-zrb-app-name/src/frontend/.svelte-kit",
+    ],
+    skip_parsing=[
+        "*.mp3",
+        "*.pdf",
+        "*.exe",
+        "*.dll",
+        "*.bin",
+        "*.iso",
+        "*.png",
+        "*.jpg",
+        "*.gif",
+        "*.ico",
+        "*/monitoring/clickhouse/user_scripts/histogramQuantile",
     ],
 )
 
@@ -81,9 +99,9 @@ register_module = create_register_module(
 
 
 @python_task(
-    name="snake_zrb_generator_name",
-    group=project_add_app_group,
-    description="Add human readable zrb generator name",
+    name="app",
+    group=project_add_fastapp_group,
+    description="Add Fastapp application",
     inputs=[
         project_dir_input,
         app_name_input,
@@ -99,6 +117,6 @@ register_module = create_register_module(
     ],
     runner=runner,
 )
-async def add_snake_zrb_generator_name(*args: Any, **kwargs: Any):
+async def add_fastapp_application(*args: Any, **kwargs: Any):
     task: Task = kwargs.get("_task")
-    task.print_out(colored("Human readable zrb generator name added", color="yellow"))
+    task.print_out(colored("Fastapp application added", color="yellow"))

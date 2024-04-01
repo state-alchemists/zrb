@@ -1,5 +1,5 @@
 from zrb.builtin.project.add.fastapp._group import project_add_fastapp_group
-from zrb.builtin.project.add.fastapp.application import add_fastapp_application
+from zrb.builtin.project.add.fastapp.app import add_fastapp_application
 from zrb.builtin.project.add.fastapp.crud import add_fastapp_crud
 from zrb.builtin.project.add.fastapp.field import add_fastapp_field
 from zrb.builtin.project.add.fastapp.module import add_fastapp_module

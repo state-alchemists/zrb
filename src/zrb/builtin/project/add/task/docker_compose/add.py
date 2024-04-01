@@ -10,7 +10,7 @@ from zrb.builtin.project.add.task._group import project_add_task_group
 from zrb.builtin.project.add.task._input import task_name_input
 from zrb.builtin.project.add.task.docker_compose._input import (
     compose_command_input,
-    http_port_input
+    http_port_input,
 )
 from zrb.helper.typing import Any
 from zrb.runner import runner

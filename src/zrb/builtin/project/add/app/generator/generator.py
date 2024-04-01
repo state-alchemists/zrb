@@ -5,14 +5,14 @@ from zrb.builtin.project._input import project_dir_input
 from zrb.builtin.project.add.app._group import project_add_app_group
 from zrb.builtin.project.add.app.generator._helper import validate_existing_package
 from zrb.builtin.project.add.app.generator._input import (
-    package_name_input,
-    generator_name_input,
+    generator_app_port_input,
     generator_base_image_input,
-    generator_app_port_input
+    generator_name_input,
+    package_name_input,
 )
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
 from zrb.helper.codemod.add_import_module import add_import_module
+from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case, to_snake_case
 from zrb.runner import runner
 from zrb.task.decorator import python_task
@@ -66,7 +66,7 @@ copy_resource = ResourceMaker(
         package_name_input,
         generator_name_input,
     ],
-    upstreams=[copy_resource]
+    upstreams=[copy_resource],
 )
 def register_generator(*args: Any, **kwargs: Any):
     task = kwargs.get("_task")
@@ -82,8 +82,7 @@ def register_generator(*args: Any, **kwargs: Any):
     with open(package_init_path, "r") as f:
         code = f.read()
     new_code = add_import_module(
-        code=code,
-        module_path=f"{snake_package_name}.{snake_generator_name}"
+        code=code, module_path=f"{snake_package_name}.{snake_generator_name}"
     )
     with open(package_init_path, "w") as f:
         f.write(new_code)

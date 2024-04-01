@@ -1,7 +1,7 @@
 import os
 
-from zrb.helper.util import to_kebab_case, to_snake_case
 from zrb.helper.typecheck import typechecked
+from zrb.helper.util import to_kebab_case, to_snake_case
 
 
 @typechecked

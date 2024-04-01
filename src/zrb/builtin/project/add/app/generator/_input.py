@@ -1,6 +1,6 @@
 from zrb.helper.accessories.name import get_random_name
-from zrb.task_input.str_input import StrInput
 from zrb.task_input.int_input import IntInput
+from zrb.task_input.str_input import StrInput
 
 package_name_input = StrInput(
     name="package-name",

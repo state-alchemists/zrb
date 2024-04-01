@@ -14,5 +14,5 @@ compose_command_input = StrInput(
     shortcut="c",
     description="Compose command",
     prompt="Compose command",
-    default="up"
+    default="up",
 )
