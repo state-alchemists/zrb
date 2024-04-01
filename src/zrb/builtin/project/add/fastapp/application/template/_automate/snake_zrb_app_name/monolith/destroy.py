@@ -3,7 +3,7 @@ import os
 from zrb import CmdTask, runner
 
 from ..._project import destroy_project
-from .._constant import DEPLOYMENT_DIR, PREFER_MICROSERVICES
+from .._constant import AUTOMATE_DIR, DEPLOYMENT_DIR, PREFER_MICROSERVICES
 from .._env import (
     deployment_app_env_file,
     deployment_config_env_file,
@@ -15,7 +15,7 @@ from ._group import snake_zrb_app_name_monolith_group
 from .._input import pulumi_stack_input
 from ..image._env import image_env
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 destroy_snake_zrb_app_name_monolith = CmdTask(
     icon="💨",
@@ -37,8 +37,8 @@ destroy_snake_zrb_app_name_monolith = CmdTask(
         deployment_replica_env,
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, "init-pulumi-stack.sh"),
-        os.path.join(CURRENT_DIR, "destroy.sh"),
+        os.path.join(AUTOMATE_DIR, "init-pulumi-stack.sh"),
+        os.path.join(_CURRENT_DIR, "destroy.sh"),
     ],
 )
 

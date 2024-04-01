@@ -3,7 +3,7 @@ import os
 from zrb import CmdTask, runner
 
 from ..._project import deploy_project
-from .._constant import DEPLOYMENT_DIR, PREFER_MICROSERVICES
+from .._constant import AUTOMATE_DIR, DEPLOYMENT_DIR, PREFER_MICROSERVICES
 from .._env import (
     deployment_app_env_file,
     deployment_config_env_file,
@@ -17,7 +17,7 @@ from ..image import push_snake_zrb_app_name_image
 from ..image._env import image_env
 from ..image._input import image_input
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 deploy_snake_zrb_app_name_microservices = CmdTask(
     icon="🚧",
@@ -42,8 +42,8 @@ deploy_snake_zrb_app_name_microservices = CmdTask(
         deployment_replica_env,
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, "init-pulumi-stack.sh"),
-        os.path.join(CURRENT_DIR, "deploy.sh"),
+        os.path.join(AUTOMATE_DIR, "init-pulumi-stack.sh"),
+        os.path.join(_CURRENT_DIR, "deploy.sh"),
     ],
 )
 

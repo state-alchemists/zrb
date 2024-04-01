@@ -1,4 +1,8 @@
 from ._group import snake_zrb_app_name_group
+from .backend import (
+    snake_zrb_app_name_backend_group,
+    prepare_snake_zrb_app_name_backend,
+)
 from .container import (
     remove_snake_zrb_app_name_container,
     snake_zrb_app_name_container_group,
@@ -9,6 +13,11 @@ from .container import (
     start_snake_zrb_app_name_monolith_container,
     start_snake_zrb_app_name_support_container,
     stop_snake_zrb_app_name_container,
+)
+from .frontend import (
+    snake_zrb_app_name_frontend_group,
+    build_snake_zrb_app_name_frontend_once,
+    build_snake_zrb_app_name_frontend,
 )
 from .image import (
     build_snake_zrb_app_name_image,
@@ -29,6 +38,8 @@ from .monolith import (
 )
 
 assert snake_zrb_app_name_group
+assert snake_zrb_app_name_backend_group
+assert snake_zrb_app_name_frontend_group
 assert snake_zrb_app_name_microservices_group
 assert snake_zrb_app_name_monolith_group
 assert snake_zrb_app_name_image_group
@@ -49,3 +60,6 @@ assert start_snake_zrb_app_name_monolith_container
 assert start_snake_zrb_app_name_support_container
 assert build_snake_zrb_app_name_image
 assert push_snake_zrb_app_name_image
+assert build_snake_zrb_app_name_frontend_once
+assert build_snake_zrb_app_name_frontend
+assert prepare_snake_zrb_app_name_backend
