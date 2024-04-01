@@ -24,7 +24,7 @@ for _module_index, _module_name in enumerate(MODULES):
     _kebab_module_name = to_kebab_case(_module_name)
     # Define start service task
     _start_service = CmdTask(
-        name=f"start-kebab-zrb-app-name-{_kebab_module_name}-service",
+        name=f"{_kebab_module_name}-service",
         group=snake_zrb_app_name_microservices_group,
         inputs=[
             local_input,

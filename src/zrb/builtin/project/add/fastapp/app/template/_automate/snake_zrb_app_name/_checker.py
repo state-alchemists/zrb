@@ -58,7 +58,7 @@ app_local_checker = HTTPChecker(
     name="check-kebab-zrb-app-name",
     host="{{input.snake_zrb_app_name_host}}",
     url="/readiness",
-    port="{{env.APP_PORT}}",
+    port='{{env.get("APP_PORT", "zrbAppHttpPort")}}',
     is_https="{{input.snake_zrb_app_name_https}}",
     should_execute="{{ input.local_snake_zrb_app_name}}",
 )

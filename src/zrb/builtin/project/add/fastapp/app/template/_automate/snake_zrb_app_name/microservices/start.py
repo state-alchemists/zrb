@@ -29,7 +29,7 @@ CURRENT_DIR = os.path.dirname(__file__)
     upstreams=[
         start_snake_zrb_app_name_gateway,
         *start_snake_zrb_app_name_microservices,
-    ],
+    ]
 )
 def start_snake_zrb_app_name_microservices(*args: Any, **kwargs: Any):
     task: Task = kwargs.get("_task")

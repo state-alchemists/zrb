@@ -38,7 +38,7 @@ start_snake_zrb_app_name_support_container = DockerComposeTask(
     compose_cmd="logs",
     compose_flags=["-f"],
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
-    compose_service_configs={"snake_zrb_app_name": snake_zrb_app_name_service_configs},
+    compose_service_configs=snake_zrb_app_name_service_configs,
     env_files=[compose_env_file],
     checkers=[
         rabbitmq_checker,

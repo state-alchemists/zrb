@@ -19,7 +19,7 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     cwd=RESOURCE_DIR,
     compose_cmd="stop",
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
-    compose_service_configs={"snake_zrb_app_name": snake_zrb_app_name_service_configs},
+    compose_service_configs=snake_zrb_app_name_service_configs,
     env_files=[compose_env_file],
     envs=[
         image_env,

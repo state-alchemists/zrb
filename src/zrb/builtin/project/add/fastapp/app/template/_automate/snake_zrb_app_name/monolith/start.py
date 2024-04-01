@@ -26,7 +26,6 @@ start_snake_zrb_app_name_monolith = CmdTask(
     ],
     description="Start human readable zrb app name as a monolith",
     group=snake_zrb_app_name_monolith_group,
-    inputs=[local_input, host_input, https_input],
     should_execute="{{ input.local_snake_zrb_app_name}}",
     upstreams=[
         start_snake_zrb_app_name_support_container,

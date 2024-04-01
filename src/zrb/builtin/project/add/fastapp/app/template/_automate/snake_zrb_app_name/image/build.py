@@ -25,6 +25,7 @@ build_snake_zrb_app_name_image = DockerComposeTask(
     should_execute="{{ input.local_snake_zrb_app_name}}",
     cwd=RESOURCE_DIR,
     compose_cmd="build",
+    compose_args=["kebab-zrb-app-name"],
     compose_flags=[
         "{{ '--no-cache' if not input.build_snake_zrb_app_name_with_cache else '' }}"
     ],
