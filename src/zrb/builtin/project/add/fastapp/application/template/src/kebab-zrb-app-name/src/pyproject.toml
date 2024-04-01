@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "kebab-zrb-app-name"
+version = "0.0.1"
+description = "zrbAppDescription"
+authors = ["zrbAppAuthorName <zrbAppAuthorEmail>"]
+packages = [
+  {include = "kebab-zrb-app-name", from = "../.."},
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10.0,<4.0.0"
+SQLAlchemy= "==2.0.25"
+aiormq= "==6.8.0"
+aiokafka= "==0.10.0"
+alembic= "==1.13.1"
+bcrypt= "==4.1.2"
+fastapi= "==0.110.0"
+jsons= "==1.6.3"
+pydantic= "==2.5.3"
+psycopg2-binary= "==2.9.9"
+python-jose= "==3.3.0"
+uvicorn= "==0.27.0"
+watchfiles= "==0.21.0"
+python-multipart= "==0.0.6"
+python-ulid= "==2.2.0"
+opentelemetry-distro= "==0.44b0"
+opentelemetry-exporter-otlp= "==1.23.0"
+opentelemetry-instrumentation-fastapi= "==0.44b0"
+
+
+[tool.poetry.dev-dependencies]
+flake8 = "~7.0.0"
+black = "~24.3.0"
+isort = "~5.13.2"
+pytest = "~7.4.0"
+pytest-cov = "~4.1.0"
+pytest-asyncio = "~0.21.0"
+httpx = "~0.24.1"
+asgi-lifespan = "~2.1.0"
+flameprof = "~0.4"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

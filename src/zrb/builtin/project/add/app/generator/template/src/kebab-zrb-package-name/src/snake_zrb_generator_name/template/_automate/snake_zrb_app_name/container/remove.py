@@ -9,7 +9,7 @@ from ._service_config import snake_zrb_app_name_service_config
 
 remove_snake_zrb_app_name_container = DockerComposeTask(
     icon="💨",
-    name="remove-kebab-zrb-app-name-container",
+    name="remove",
     description="Remove human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,

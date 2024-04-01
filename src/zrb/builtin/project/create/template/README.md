@@ -40,13 +40,13 @@ zrb version
 You can add a new application to PascalZrbProjectName by invoking the following command:
 
 ```bash
-zrb project add fastapp
+zrb project add fastapp application
 ```
 
 Once the application is created, you can start it by invoking the following command:
 
 ```bash
-zrb project start-<app-name>
+zrb project <app-name> monolith start
 ```
 
 You will be able to find the application under PascalZrbProjectName's `src` directory.

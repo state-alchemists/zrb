@@ -1,0 +1,12 @@
+{{- if .Values.otelDeployment.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "otelDeployment.fullname" . }}
+  namespace: {{ include "k8s-infra.namespace" . }}
+  labels:
+    {{- include "otelDeployment.labels" . | nindent 4 }}
+data:
+  otel-deployment-config.yaml: |-
+    {{- include "otelDeployment.config" . | nindent 4 }}
+{{- end }}

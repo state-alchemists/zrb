@@ -1,0 +1,9 @@
+dependencies:
+- name: console
+  repository: https://charts.redpanda.com
+  version: 0.7.21
+- name: connectors
+  repository: https://charts.redpanda.com
+  version: 0.1.10
+digest: sha256:930f5735f5bc14416acaf92c102486971c49d87e9436709cf664a8c4a0179753
+generated: "2024-03-03T18:15:24.639634733Z"

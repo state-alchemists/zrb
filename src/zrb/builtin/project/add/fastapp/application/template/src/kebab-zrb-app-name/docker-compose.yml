@@ -1,0 +1,482 @@
+version: '3'
+
+x-logging: &default-logging
+  options:
+    max-size: "100m"
+    max-file: "5"
+  driver: json-file
+
+networks:
+  zrb:
+    name: zrb
+    external: true
+
+services:
+
+  #############################################################################
+  # Message bus
+  # Redpanda: https://docs.redpanda.com/redpanda-labs/docker-compose/single-broker/
+  #############################################################################
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.6
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-redpanda
+    hostname: redpanda
+    # Redpanda docker configuration: https://docs.redpanda.com/docs/reference/docker-compose/#configure-redpanda-in-docker
+    # Redpanda node configuration example: https://docs.redpanda.com/docs/reference/node-configuration-sample/
+    command:
+    - redpanda
+    - start
+    - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+    - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    - --pandaproxy-addr PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+    - --advertise-pandaproxy-addr PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
+    - --rpc-addr 0.0.0.0:33145
+    - --advertise-rpc-addr redpanda:33145
+    - --smp 1
+    - --memory 1G
+    - --mode dev-container
+    - --default-log-level=warn
+    - --set sasl_mechanism=${KAFKA_SASL_MECHANISM}
+    - --set sasl_username=${KAFKA_SASL_USER}
+    - --set sasl_password=${KAFKA_SASL_PASS}
+    ports:
+    - ${KAFKA_EXTERNAL_HOST_PORT:-9092}:9092
+    - ${KAFKA_INTERNAL_HOST_PORT:-29092}:29092
+    - ${PANDAPROXY_EXTERNAL_HOST_PORT:-8082}:8082
+    - ${PANDAPROXY_INTERNAL_HOST_PORT:-28082}:28082
+    environment:
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
+      KAFKA_SASL_USER: ${KAFKA_SASL_USER:-admin}
+      KAFKA_SASL_PASS: ${KAFKA_SASL_PASS:-admin}
+    restart: unless-stopped
+    profiles:
+    - kafka
+    healthcheck:
+      test: ["CMD", "redpanda", "admin", "check"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
+    networks:
+    - zrb
+
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.4.5
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-redpanda-console
+    hostname: redpanda-console
+    ports:
+    - ${REDPANDA_CONSOLE_HOST_PORT:-9000}:8080
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+    profiles:
+    - kafka
+    depends_on:
+    - redpanda
+    restart: unless-stopped
+    networks:
+    - zrb
+
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-rabbitmq
+    hostname: rabbitmq
+    ports:
+    - "${RABBITMQ_HOST_PORT:-5672}:5672"
+    - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    restart: unless-stopped
+    profiles:
+    - rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      timeout: 1s
+      retries: 30
+    networks:
+    - zrb
+
+  #############################################################################
+  # Database
+  #############################################################################
+
+  postgresql:
+    image: postgres:16.2
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-postgresql
+    hostname: postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-snake_zrb_app_name}
+    volumes:
+    - ./postgres-data:/var/lib/postgresql/data
+    ports:
+    - ${POSTGRES_HOST_PORT:-5432}:5432
+    networks:
+    - zrb
+
+
+  #############################################################################
+  # Monitoring 
+  # https://github.com/SigNoz/signoz/blob/develop/deploy/docker/clickhouse-setup
+  #############################################################################
+
+  zookeeper:
+    image: bitnami/zookeeper:3.7.1
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-zookeeper
+    hostname: zookeeper
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    user: root
+    ports:
+    - "${ZOOKEEPER_EXTERNAL_HOST_PORT:-2181}:2181"
+    - "${ZOOKEEPER_INTERNAL_HOST_PORT:-2888}:2888"
+    - "${ZOOKEEPER_ELECTION_HOST_PORT:-3888}:3888"
+    environment:
+    - ZOO_SERVER_ID=1
+    - ALLOW_ANONYMOUS_LOGIN=yes
+    - ZOO_AUTOPURGE_INTERVAL=1
+    networks:
+    - zrb
+
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-clickhouse
+    hostname: clickhouse
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    tty: true
+    depends_on:
+    - zookeeper
+    healthcheck:
+      # "clickhouse", "client", "-u ${CLICKHOUSE_USER}", "--password ${CLICKHOUSE_PASSWORD}", "-q 'SELECT 1'"
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+    - "${CLICKHOUSE_TCP_HOST_PORT:-9000}:9000"
+    - "${CLICKHOUSE_HTTP_HOST_PORT:-8123}:8123"
+    - "${CLICKHOUSE_KEEPER_HOST_PORT:-9181}:9181"
+    volumes:
+    - ./monitoring/clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.xml
+    - ./monitoring/clickhouse/clickhouse-users.xml:/etc/clickhouse-server/users.xml
+    - ./monitoring/clickhouse/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+    - ./monitoring/clickhouse/clickhouse-cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+    - ./monitoring/clickhouse/user_scripts:/var/lib/clickhouse/user_scripts/
+    # - ./monitoring/clickhouse/data/clickhouse/:/var/lib/clickhouse/
+    networks:
+    - zrb
+
+
+  alertmanager:
+    image: signoz/alertmanager:0.23.5
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-alertmanager
+    hostname: alertmanager
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    # volumes:
+    # - ./monitoring/alertmanager/data/alertmanager:/data
+    depends_on:
+      query-service:
+        condition: service_healthy
+    command:
+    - --queryService.url=http://query-service:8085
+    - --storage.path=/data
+    networks:
+    - zrb
+
+
+  query-service:
+    image: signoz/query-service:0.39.0
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-query-service
+    hostname: query-service
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    command: ["-config=/root/config/prometheus.yml"]
+    ports:
+      - "0:6060"     # pprof port
+      - "0:8080"     # query-service port
+    volumes:
+    - ./monitoring/query-service/prometheus.yml:/root/config/prometheus.yml
+    - ./monitoring/query-service/dashboards:/root/config/dashboards
+    - ./monitoring/query-service/data/signoz/:/var/lib/signoz/
+    environment:
+    - ClickHouseUrl=tcp://clickhouse:9000/?database=signoz_traces
+    - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
+    - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+    - DASHBOARDS_PATH=/root/config/dashboards
+    - STORAGE=clickhouse
+    - GODEBUG=netdns=go
+    - TELEMETRY_ENABLED=true
+    - DEPLOYMENT_TYPE=docker-standalone-amd
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+    - zrb
+
+
+  frontend:
+    image: signoz/frontend:0.39.0
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-frontend
+    hostname: frontend
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    depends_on:
+    - alertmanager
+    - query-service
+    ports:
+    - "${SIGNOZ_FRONTEND_HOST_PORT:-3301}:3301"
+    volumes:
+    - ./monitoring/frontend/nginx-config.conf:/etc/nginx/conf.d/default.conf
+    networks:
+    - zrb
+
+
+  otel-collector-migrator:
+    image: signoz/signoz-schema-migrator:0.88.12
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-migrator
+    command:
+    - "--dsn=tcp://clickhouse:9000"
+    profiles:
+    - monitoring
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+    - zrb
+
+
+  otel-collector:
+    image: signoz/signoz-otel-collector:0.88.12
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-collector
+    hostname: otel-collector
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    command: ["--config=/etc/otel-collector-config.yaml", "--feature-gates=-pkg.translator.prometheus.NormalizeName"]
+    user: root # required for reading docker container logs
+    volumes:
+    - ./monitoring/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    environment:
+    - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host,os.type=linux
+    - DOCKER_MULTI_NODE_CLUSTER=false
+    - LOW_CARDINAL_EXCEPTION_GROUPING=false
+    ports:
+    - "1777:1777"     # pprof extension
+    - "${OTEL_COLLECTOR_GRPC_HOST_PORT:-4317}:4317"     # OTLP gRPC receiver
+    - "${OTEL_COLLECTOR_HTTP_HOST_PORT:-4318}:4318"     # OTLP HTTP receiver
+    - "0:8888"     # OtelCollector internal metrics
+    - "0:8889"     # signoz spanmetrics exposed by the agent
+    - "0:9411"     # Zipkin port
+    - "0:13133"   # health check extension
+    - "0:14250"   # Jaeger gRPC
+    - "0:14268"   # Jaeger thrift HTTP
+    - "0:55678"   # OpenCensus receiver
+    - "0:55679"   # zPages extension
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      otel-collector-migrator:
+        condition: service_completed_successfully
+      query-service:
+        condition: service_healthy
+    networks:
+    - zrb
+
+
+  otel-collector-metrics:
+    image: signoz/signoz-otel-collector:0.88.12
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-monitoring-otel-collector-metrics
+    hostname: otel_collector_metrics
+    restart: unless-stopped
+    profiles:
+    - monitoring
+    command: ["--config=/etc/otel-collector-metrics-config.yaml", "--feature-gates=-pkg.translator.prometheus.NormalizeName"]
+    volumes:
+    - ./monitoring/otel-collector-metrics/otel-collector-metrics-config.yaml:/etc/otel-collector-metrics-config.yaml
+    ports:
+    - "0:1777"     # pprof extension
+    - "0:8888"     # OtelCollector internal metrics
+    - "0:13133"   # Health check extension
+    - "0:55679"   # zPages extension
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+    - zrb
+
+
+  #############################################################################
+  # PascalZrbAppName Monolith
+  #############################################################################
+
+  kebab-zrb-app-name:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
+    image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name
+    hostname: kebab-zrb-app-name
+    env_file:
+    - 'src/template.env'
+    environment:
+      APP_NAME: ${APP_NAME:-kebab-zrb-app-name}
+      APP_PORT: ${APP_PORT:-8080}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
+    ports:
+    - "${APP_HOST_PORT:-8080}:${APP_PORT:-8080}"
+    restart: unless-stopped
+    profiles:
+    - monolith
+    healthcheck:
+      test: curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/readiness || killall uvicorn
+      interval: 20s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+    - zrb
+
+
+  #############################################################################
+  # PascalZrbAppName Microservices
+  #############################################################################
+
+  kebab-zrb-app-name-gateway:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
+    image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-gateway
+    hostname: kebab-zrb-app-name-gateway
+    env_file:
+    - 'src/template.env'
+    - 'all-module-enabled.env'
+    environment:
+      APP_NAME: ${APP_NAME:-kebab-zrb-app-name}-gateway
+      APP_PORT: ${APP_GATEWAY_PORT:-8080}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
+      APP_ENABLE_EVENT_HANDLER: false
+      APP_ENABLE_RPC_SERVER: false
+      APP_ENABLE_API: true
+      APP_ENABLE_FRONTEND: true
+      APP_DB_AUTO_MIGRATE: false
+    ports:
+    - "${APP_GATEWAY_HOST_PORT:-8080}:${APP_GATEWAY_PORT:-8080}"
+    restart: unless-stopped
+    profiles:
+    - microservices
+    healthcheck:
+      test:  curl --fail http://localhost:${APP_GATEWAY_PORT:-8080}/readiness || killall uvicorn
+      interval: 20s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+    - zrb
+
+
+  kebab-zrb-app-name-auth-service:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
+    image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-auth-service
+    hostname: kebab-zrb-app-name-auth-service
+    env_file:
+    - src/template.env
+    - all-module-disabled.env
+    environment:
+      APP_NAME: ${APP_NAME:-fastapp}-auth-service
+      APP_PORT: ${APP_AUTH_MODULE_PORT:-8081}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
+      APP_ENABLE_EVENT_HANDLER: true
+      APP_ENABLE_RPC_SERVER: true
+      APP_ENABLE_API: false
+      APP_ENABLE_FRONTEND: false
+      APP_ENABLE_AUTH_MODULE: true
+    ports:
+    - ${APP_AUTH_HOST_MODULE_PORT:-8081}:${APP_AUTH_MODULE_PORT:-8081}
+    restart: unless-stopped
+    profiles:
+    - microservices
+    healthcheck:
+      test: curl --fail http://localhost:${APP_AUTH_MODULE_PORT:-8081}/readiness || killall uvicorn
+      interval: 20s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+    - zrb
+
+
+  kebab-zrb-app-name-log-service:
+    build:
+      dockerfile: Dockerfile
+      context: ./src
+    image: ${IMAGE:-kebab-zrb-app-name}
+    logging: *default-logging
+    container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-log-service
+    hostname: kebab-zrb-app-name-log-service
+    env_file:
+    - src/template.env
+    - all-module-disabled.env
+    environment:
+      APP_NAME: ${APP_NAME:-fastapp}-log-service
+      APP_PORT: ${APP_LOG_MODULE_PORT:-8082}
+      APP_ENABLE_OTEL: ${APP_ENABLE_OTEL:-0}
+      APP_ENABLE_EVENT_HANDLER: 'true'
+      APP_ENABLE_RPC_SERVER: 'true'
+      APP_ENABLE_API: 'false'
+      APP_ENABLE_FRONTEND: 'false'
+      APP_ENABLE_LOG_MODULE: 'true'
+    ports:
+    - ${APP_LOG_HOST_MODULE_PORT:-8082}:${APP_LOG_MODULE_PORT:-8082}
+    restart: unless-stopped
+    profiles:
+    - microservices
+    healthcheck:
+      test: curl --fail http://localhost:${APP_LOG_MODULE_PORT:-8082}/readiness || killall uvicorn
+      interval: 20s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+    - zrb

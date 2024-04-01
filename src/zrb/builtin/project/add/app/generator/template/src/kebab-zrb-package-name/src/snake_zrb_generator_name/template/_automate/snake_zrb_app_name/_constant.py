@@ -1,5 +1,8 @@
 import os
 
+from zrb.helper.string.conversion import to_boolean
+
+PREFER_MICROSERVICES = to_boolean(os.getenv("PROJECT_PREFER_MICROSERVICES", "0"))
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 RESOURCE_DIR = os.path.join(PROJECT_DIR, "src", "kebab-zrb-app-name")
 DEPLOYMENT_DIR = os.path.join(RESOURCE_DIR, "deployment")

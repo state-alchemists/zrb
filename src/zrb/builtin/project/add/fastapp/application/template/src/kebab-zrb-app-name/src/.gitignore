@@ -1,0 +1,5 @@
+.env
+.venv
+frontend/build
+frontend/build
+__pycache__

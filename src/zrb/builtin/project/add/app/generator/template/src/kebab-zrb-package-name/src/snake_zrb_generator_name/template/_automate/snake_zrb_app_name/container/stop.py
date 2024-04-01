@@ -13,7 +13,7 @@ from ._service_config import snake_zrb_app_name_service_config
 
 stop_snake_zrb_app_name_container = DockerComposeTask(
     icon="⛔",
-    name="stop-kebab-zrb-app-name-container",
+    name="stop",
     description="Stop human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,

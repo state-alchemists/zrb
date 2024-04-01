@@ -1,0 +1,16 @@
+{{- if .Values.otelAgent.enabled -}}
+{{- $healthCheckPort := index .Values.otelAgent.ports "health-check" -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "otelAgent.fullname" . }}-test-connection"
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: {{ default "docker.io" .Values.global.imageRegistry }}/busybox:1.35
+      command: ['wget']
+      args: ['{{ include "otelAgent.fullname" . }}:{{ $healthCheckPort.servicePort }}']
+  restartPolicy: Never
+{{- end -}}

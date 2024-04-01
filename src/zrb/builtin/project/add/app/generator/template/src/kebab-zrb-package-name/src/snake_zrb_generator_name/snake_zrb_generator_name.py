@@ -83,6 +83,16 @@ register_module = create_register_module(
     name="snake_zrb_generator_name",
     group=project_add_app_group,
     description="Add human readable zrb generator name",
+    inputs=[
+        project_dir_input,
+        app_name_input,
+        app_description_input,
+        app_author_name_input,
+        app_author_email_input,
+        app_image_name_input,
+        http_port_input,
+        env_prefix_input,
+    ],
     upstreams=[
         register_module,
     ],

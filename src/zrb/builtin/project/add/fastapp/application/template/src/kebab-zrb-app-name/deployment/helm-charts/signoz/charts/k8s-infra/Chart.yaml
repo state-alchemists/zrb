@@ -1,0 +1,24 @@
+apiVersion: v2
+appVersion: 0.88.0
+description: Helm chart for collecting metrics and logs in K8s
+home: https://signoz.io
+icon: https://signoz.io/img/SigNozLogo-orange.svg
+keywords:
+- SigNoz
+- OpenTelemetry
+- apm
+- monitoring
+- logs
+maintainers:
+- email: hello@signoz.io
+  name: SigNoz
+  url: https://signoz.io
+- email: prashant@signoz.io
+  name: prashant-shahi
+  url: https://prashantshahi.dev
+name: k8s-infra
+sources:
+- https://github.com/signoz/charts
+- https://github.com/open-telemetry/opentelemetry-collector-contrib
+type: application
+version: 0.11.4
