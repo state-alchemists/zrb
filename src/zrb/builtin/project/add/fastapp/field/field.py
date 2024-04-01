@@ -6,10 +6,6 @@ from zrb.builtin.project._input import project_dir_input
 from zrb.builtin.project.add.fastapp._group import project_add_fastapp_group
 from zrb.builtin.project.add.fastapp.app._input import app_name_input
 from zrb.builtin.project.add.fastapp.crud._input import entity_name_input
-from zrb.builtin.project.add.fastapp.module._input import module_name_input
-from zrb.builtin.project.add.fastapp.field._input import (
-    column_name_input, column_type_input
-)
 from zrb.builtin.project.add.fastapp.field._helper import (
     add_column_to_delete_page,
     add_column_to_detail_page,
@@ -20,8 +16,13 @@ from zrb.builtin.project.add.fastapp.field._helper import (
     add_column_to_test,
     add_column_to_update_page,
 )
-from zrb.helper.accessories.color import colored
+from zrb.builtin.project.add.fastapp.field._input import (
+    column_name_input,
+    column_type_input,
+)
+from zrb.builtin.project.add.fastapp.module._input import module_name_input
 from zrb.helper import util
+from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
