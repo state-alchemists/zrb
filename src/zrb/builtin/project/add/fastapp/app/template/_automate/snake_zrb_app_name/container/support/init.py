@@ -10,7 +10,6 @@ from ._helper import activate_support_compose_profile, should_start_support_cont
 init_snake_zrb_app_name_support_container = DockerComposeTask(
     icon="🔥",
     name="init-kebab-zrb-app-name-support-container",
-    name="init",
     inputs=[
         local_input,
         host_input,
