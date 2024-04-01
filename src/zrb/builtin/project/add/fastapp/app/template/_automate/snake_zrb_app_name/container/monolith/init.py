@@ -9,13 +9,11 @@ from .._env import compose_env_file, host_port_env
 from .._input import enable_monitoring_input
 from .._service_config import snake_zrb_app_name_service_configs
 from ..remove import remove_snake_zrb_app_name_container
-from ._group import snake_zrb_app_name_monolith_container_group
 from ._helper import activate_monolith_compose_profile
 
 init_snake_zrb_app_name_monolith_container = DockerComposeTask(
     icon="🔥",
-    name="init",
-    group=snake_zrb_app_name_monolith_container_group,
+    name="init-kebab-zrb-app-name-monolith-container",
     inputs=[
         local_input,
         enable_monitoring_input,

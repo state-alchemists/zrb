@@ -1,11 +1,11 @@
 import os
 
 from zrb import CmdTask, Env, EnvFile, StrInput, python_task, runner
-from ._group import snake_zrb_app_name_group
 
 from ._constant import APP_TEMPLATE_ENV_FILE_NAME, RESOURCE_DIR
-from .frontend import build_snake_zrb_app_name_frontend_once
+from ._group import snake_zrb_app_name_group
 from .backend import prepare_snake_zrb_app_name_backend
+from .frontend import build_snake_zrb_app_name_frontend_once
 
 CURRENT_DIR = os.path.dirname(__file__)
 

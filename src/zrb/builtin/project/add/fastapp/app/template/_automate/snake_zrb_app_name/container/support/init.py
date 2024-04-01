@@ -5,13 +5,12 @@ from ..._input import host_input, local_input
 from ...image._input import image_input
 from .._env import compose_env_file
 from ..remove import remove_snake_zrb_app_name_container
-from ._group import snake_zrb_app_name_support_container_group
 from ._helper import activate_support_compose_profile, should_start_support_container
 
 init_snake_zrb_app_name_support_container = DockerComposeTask(
     icon="🔥",
+    name="init-kebab-zrb-app-name-support-container",
     name="init",
-    group=snake_zrb_app_name_support_container_group,
     inputs=[
         local_input,
         host_input,

@@ -1,10 +1,9 @@
 import os
 
 from zrb import BoolInput, CmdTask, EnvFile, IntInput, StrInput, runner
-from ._group import snake_zrb_app_name_group
 
 from ._constant import LOAD_TEST_DIR, LOAD_TEST_TEMPLATE_ENV_FILE_NAME
-
+from ._group import snake_zrb_app_name_group
 
 CURRENT_DIR = os.path.dirname(__file__)
 

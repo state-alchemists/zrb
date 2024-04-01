@@ -10,14 +10,12 @@ from ..backend import prepare_snake_zrb_app_name_backend
 from ..container._input import enable_monitoring_input
 from ..container.support import start_snake_zrb_app_name_support_container
 from ..frontend import build_snake_zrb_app_name_frontend
-from ._group import snake_zrb_app_name_microservices_group
 
 _CURRENT_DIR = os.path.dirname(__file__)
 
 start_snake_zrb_app_name_gateway = CmdTask(
     icon="🚪",
-    name="start-gateway",
-    group=snake_zrb_app_name_microservices_group,
+    name="start-kebab-zrb-app-name-gateway",
     inputs=[
         local_input,
         enable_monitoring_input,

@@ -10,7 +10,6 @@ from ..backend import prepare_snake_zrb_app_name_backend
 from ..container._input import enable_monitoring_input
 from ..container.support import start_snake_zrb_app_name_support_container
 from ..frontend import build_snake_zrb_app_name_frontend
-from ._group import snake_zrb_app_name_microservices_group
 from ._helper import get_disable_all_module_envs, get_service_env_file, get_service_envs
 
 _CURRENT_DIR = os.path.dirname(__file__)
@@ -25,7 +24,6 @@ for _module_index, _module_name in enumerate(MODULES):
     # Define start service task
     _start_service = CmdTask(
         name=f"start-{_kebab_module_name}-service",
-        group=snake_zrb_app_name_microservices_group,
         inputs=[
             local_input,
             host_input,
