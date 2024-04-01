@@ -1,19 +1,19 @@
 from zrb import DockerComposeTask
 
-from .._constant import RESOURCE_DIR
-from .._input import host_input, local_input
-from ..image import build_snake_zrb_app_name_image
-from ..image._env import image_env
-from ..image._input import image_input
-from ._env import compose_env_file, host_port_env
-from ._group import snake_zrb_app_name_container_group
-from ._service_config import snake_zrb_app_name_service_config
-from .remove import remove_snake_zrb_app_name_container
+from ..._constant import RESOURCE_DIR
+from ..._input import host_input, local_input
+from ...image import build_snake_zrb_app_name_image
+from ...image._env import image_env
+from ...image._input import image_input
+from .._env import compose_env_file, host_port_env
+from .._service_config import snake_zrb_app_name_service_config
+from ..remove import remove_snake_zrb_app_name_container
+from ._group import snake_zrb_app_name_monolith_container_group
 
-init_snake_zrb_app_name_container = DockerComposeTask(
+init_snake_zrb_app_name_monolith_container = DockerComposeTask(
     icon="🔥",
     name="init",
-    group=snake_zrb_app_name_container_group,
+    group=snake_zrb_app_name_monolith_container_group,
     inputs=[
         local_input,
         host_input,

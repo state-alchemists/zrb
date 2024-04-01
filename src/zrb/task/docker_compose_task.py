@@ -42,7 +42,7 @@ def _get_ensure_zrb_network_task(backend: str):
     CURRENT_DIR = os.path.dirname(__file__)
     SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
     ensure_container_backend = CmdTask(
-        name="ensure-container_backend",
+        name="ensure-compose-backend",
         cmd_path=[
             os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
             os.path.join(SHELL_SCRIPT_DIR, f"ensure-{backend}-is-installed.sh"),

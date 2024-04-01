@@ -7,7 +7,7 @@ from ...image._input import image_input
 from .._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_support_container_group
 from .._service_config import snake_zrb_app_name_service_config
-from ..init import init_snake_zrb_app_name_container
+from .init import init_snake_zrb_app_name_support_container
 
 start_snake_zrb_app_name_support_container = DockerComposeTask(
     icon="🐳",
@@ -21,7 +21,7 @@ start_snake_zrb_app_name_support_container = DockerComposeTask(
         image_input,
     ],
     should_execute="{{ input.local_snake_zrb_app_name}}",
-    upstreams=[init_snake_zrb_app_name_container],
+    upstreams=[init_snake_zrb_app_name_support_container],
     cwd=RESOURCE_DIR,
     compose_cmd="logs",
     compose_flags=["-f"],
