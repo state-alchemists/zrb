@@ -1,6 +1,6 @@
-from zrb.builtin.generator.project.create import create_project
-from zrb.builtin.generator.fastapp.add import add_fastapp
-from zrb.builtin.generator.fastapp_module.add import add_fastapp_module
+from zrb.builtin.project.create import create_project
+from zrb.builtin.project.add.fastapp.app import add_fastapp_application
+from zrb.builtin.project.add.fastapp.module import add_fastapp_module
 import os
 import pathlib
 import shutil
@@ -16,7 +16,7 @@ def test_add_fastapp_module():
 
     create_project_fn = create_project.to_function()
     create_project_fn(project_dir=project_path)
-    add_fastapp_fn = add_fastapp.to_function()
+    add_fastapp_fn = add_fastapp_application.to_function()
     add_fastapp_fn(
         project_dir=project_path, app_name='fastapp', http_port=3000
     )

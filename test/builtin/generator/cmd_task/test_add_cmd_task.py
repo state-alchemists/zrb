@@ -1,5 +1,5 @@
-from zrb.builtin.generator.project.create import create_project
-from zrb.builtin.generator.cmd_task.add import add_cmd_task
+from zrb.builtin.project.create import create_project
+from zrb.builtin.project.add.task.cmd import add_cmd_task
 import os
 import pathlib
 import shutil

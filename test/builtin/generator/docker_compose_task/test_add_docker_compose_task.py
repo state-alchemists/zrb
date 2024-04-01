@@ -1,7 +1,5 @@
-from zrb.builtin.generator.project.create import create_project
-from zrb.builtin.generator.docker_compose_task.add import (
-    add_docker_compose_task
-)
+from zrb.builtin.project.create import create_project
+from zrb.builtin.project.add.task.docker_compose import add_docker_compose_task
 import os
 import pathlib
 import shutil

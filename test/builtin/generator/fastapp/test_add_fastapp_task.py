@@ -1,5 +1,5 @@
-from zrb.builtin.generator.project.create import create_project
-from zrb.builtin.generator.fastapp.add import add_fastapp
+from zrb.builtin.project.create import create_project
+from zrb.builtin.project.add.fastapp.app import add_fastapp_application
 import os
 import pathlib
 import shutil
@@ -52,7 +52,7 @@ def test_add_fastapp_task():
     # second attempt should fail
     is_error = False
     try:
-        second_attempt_fn = add_fastapp.to_function()
+        second_attempt_fn = add_fastapp_application.to_function()
         second_attempt_fn(
             project_dir=project_path, app_name='fastapp', http_port=3000
         )

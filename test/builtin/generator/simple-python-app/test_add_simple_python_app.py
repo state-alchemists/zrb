@@ -1,7 +1,5 @@
-from zrb.builtin.generator.project.create import create_project
-from zrb.builtin.generator.simple_python_app.add import (
-    add_simple_python_app
-)
+from zrb.builtin.project.create import create_project
+from zrb.builtin.project.add.app.python import add_python_app
 import os
 import pathlib
 import shutil
@@ -22,7 +20,7 @@ def test_add_simple_python_app():
     src_path = os.path.join(project_path, 'src')
 
     # first attempt should success
-    first_attempt_fn = add_simple_python_app.to_function()
+    first_attempt_fn = add_python_app.to_function()
     first_attempt_fn(
         project_dir=project_path, app_name='simpleApp'
     )
@@ -64,7 +62,7 @@ def test_add_simple_python_app():
     # second attempt should fail
     is_error = False
     try:
-        second_attempt_fn = add_simple_python_app.to_function()
+        second_attempt_fn = add_python_app.to_function()
         second_attempt_fn(
             project_dir=project_path, app_name='simpleApp'
         )

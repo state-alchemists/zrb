@@ -1,4 +1,4 @@
-from zrb.builtin.generator.project.create import create_project
+from zrb.builtin.project.create import create_project
 from zrb.config.config import version
 import os
 import pathlib
