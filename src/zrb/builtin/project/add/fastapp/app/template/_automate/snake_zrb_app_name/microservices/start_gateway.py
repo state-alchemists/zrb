@@ -16,7 +16,7 @@ _CURRENT_DIR = os.path.dirname(__file__)
 
 start_snake_zrb_app_name_gateway = CmdTask(
     icon="🚪",
-    name="gateway",
+    name="start-gateway",
     group=snake_zrb_app_name_microservices_group,
     inputs=[
         local_input,

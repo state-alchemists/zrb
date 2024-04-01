@@ -35,6 +35,8 @@ from .monolith import (
     snake_zrb_app_name_monolith_group,
     start_snake_zrb_app_name_monolith,
 )
+from .load_test import load_test_snake_zrb_app_name
+from .test import test_snake_zrb_app_name
 
 assert snake_zrb_app_name_group
 assert snake_zrb_app_name_backend_group
@@ -61,3 +63,6 @@ assert push_snake_zrb_app_name_image
 assert build_snake_zrb_app_name_frontend_once
 assert build_snake_zrb_app_name_frontend
 assert prepare_snake_zrb_app_name_backend
+assert load_test_snake_zrb_app_name
+assert test_snake_zrb_app_name
+
