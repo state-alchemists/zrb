@@ -1,9 +1,11 @@
+import jsons
 from zrb import Env, EnvFile
 
 from ._constant import (
     APP_TEMPLATE_ENV_FILE_NAME,
     DEPLOYMENT_DIR,
     DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
+    MODULES
 )
 
 app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX")
@@ -11,12 +13,6 @@ app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX")
 app_enable_otel_env = Env(
     name="APP_ENABLE_OTEL",
     default='{{ "1" if input.enable_snake_zrb_app_name_monitoring else "0" }}',
-)
-
-image_env = Env(
-    name="IMAGE",
-    os_name="CONTAINER_ZRB_ENV_PREFIX_IMAGE",
-    default="{{input.snake_zrb_app_name_image}}",
 )
 
 deployment_app_env_file = EnvFile(
@@ -45,8 +41,14 @@ pulumi_config_passphrase_env = Env(
     default="secret",
 )
 
-deployment_replica_env = Env(
-    name="REPLICA",
-    os_name="DEPLOYMENT_ZRB_ENV_PREFIX",
-    default="{{input.snake_zrb_app_name_replica}}",
+deployment_modules_env = Env(
+    name="MODULES",
+    os_name="DEPLOYMENT_CONFIG_ZRB_ENV_PREFIX_MODULES",
+    default=jsons.dumps(MODULES),
+)
+
+deployment_modules_env = Env(
+    name="MODULES",
+    os_name="DEPLOYMENT_CONFIG_ZRB_ENV_PREFIX_MODULES",
+    default=jsons.dumps(MODULES),
 )

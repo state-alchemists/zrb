@@ -5,7 +5,8 @@ from .._constant import RESOURCE_DIR
 from ..image._env import image_env
 from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
-from ._service_config import snake_zrb_app_name_service_config
+from ._helper import activate_all_compose_profile, should_start_container
+from ._service_config import snake_zrb_app_name_service_configs
 
 remove_snake_zrb_app_name_container = DockerComposeTask(
     icon="💨",
@@ -13,14 +14,12 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
     description="Remove human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,
+    setup_cmd=activate_all_compose_profile,
     compose_cmd="down",
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
-    compose_service_configs={"snake_zrb_app_name": snake_zrb_app_name_service_config},
+    compose_service_configs={"snake_zrb_app_name": snake_zrb_app_name_service_configs},
     env_files=[compose_env_file],
-    envs=[
-        image_env,
-        host_port_env,
-    ],
+    envs=[image_env],
 )
 
 remove_snake_zrb_app_name_container >> remove_project_containers

@@ -32,7 +32,7 @@ _enable_all_module_env_file = EnvFile(
     path=_enable_all_module_env_file_name, prefix=_container_env_prefix
 )
 
-SERVICE_CONFIGS: Mapping[str, ServiceConfig] = {
+snake_zrb_app_name_service_configs: Mapping[str, ServiceConfig] = {
     "kebab-zrb-app-name": ServiceConfig(
         env_files=[
             _app_template_env_file,
@@ -52,7 +52,7 @@ SERVICE_CONFIGS: Mapping[str, ServiceConfig] = {
 }
 for module in MODULES:
     service_name = f"kebab-zrb-app-name-{to_kebab_case(module)}-service"
-    SERVICE_CONFIGS[service_name] = ServiceConfig(
+    snake_zrb_app_name_service_configs[service_name] = ServiceConfig(
         env_files=[
             _app_template_env_file,
             _docker_compose_app_env_file,

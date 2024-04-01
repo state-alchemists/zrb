@@ -14,6 +14,7 @@ from .container import (
     start_snake_zrb_app_name_support_container,
     stop_snake_zrb_app_name_container,
 )
+from .destroy import destroy_snake_zrb_app_name
 from .frontend import (
     snake_zrb_app_name_frontend_group,
     build_snake_zrb_app_name_frontend_once,
@@ -26,13 +27,11 @@ from .image import (
 )
 from .microservices import (
     deploy_snake_zrb_app_name_microservices,
-    destroy_snake_zrb_app_name_microservices,
     start_snake_zrb_app_name_microservices,
     snake_zrb_app_name_microservices_group
 )
 from .monolith import (
     deploy_snake_zrb_app_name_monolith,
-    destroy_snake_zrb_app_name_monolith,
     start_snake_zrb_app_name_monolith,
     snake_zrb_app_name_monolith_group
 )
@@ -47,12 +46,11 @@ assert snake_zrb_app_name_container_group
 assert snake_zrb_app_name_microservices_container_group
 assert snake_zrb_app_name_monolith_container_group
 assert snake_zrb_app_name_support_container_group
+assert destroy_snake_zrb_app_name
 assert start_snake_zrb_app_name_microservices
 assert deploy_snake_zrb_app_name_microservices
-assert destroy_snake_zrb_app_name_microservices
 assert start_snake_zrb_app_name_monolith
 assert deploy_snake_zrb_app_name_monolith
-assert destroy_snake_zrb_app_name_monolith
 assert remove_snake_zrb_app_name_container
 assert stop_snake_zrb_app_name_container
 assert start_snake_zrb_app_name_microservices_container

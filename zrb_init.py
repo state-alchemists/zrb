@@ -42,7 +42,7 @@ import tomlkit
 
 CURRENT_DIR = os.path.dirname(__file__)
 PLAYGROUND_DIR = os.path.join(CURRENT_DIR, "playground")
-IS_PLAYGROUND_EXIST = os.path.isdir(PLAYGROUND_DIR)
+IS_PLAYGROUND_EXIST = os.path.isfile(os.path.join(PLAYGROUND_DIR, "zrb_init.py"))
 
 if IS_PLAYGROUND_EXIST:
     sys.path.append(PLAYGROUND_DIR)
