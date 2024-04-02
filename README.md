@@ -211,21 +211,21 @@ zrb project create --project-dir my-project --project-name "My Project"
 cd my-project
 
 # Create a Fastapp
-zrb project add fastapp --project-dir . --app-name "fastapp" --http-port 3000
+zrb project add fastapp app --project-dir . --app-name "fastapp" --http-port 3000
 
 # Add library module to fastapp
-zrb project add fastapp-module --project-dir . --app-name "fastapp" --module-name "library"
+zrb project add fastapp module --project-dir . --app-name "fastapp" --module-name "library"
 
 # Add entity named "books"
-zrb project add fastapp-crud --project-dir . --app-name "fastapp" --module-name "library" \
+zrb project add fastapp crud --project-dir . --app-name "fastapp" --module-name "library" \
     --entity-name "book" --plural-entity-name "books" --column-name "code"
 
 # Add column to the entity
-zrb project add fastapp-field --project-dir . --app-name "fastapp" --module-name "library" \
+zrb project add fastapp field --project-dir . --app-name "fastapp" --module-name "library" \
     --entity-name "book" --column-name "title" --column-type "str"
 
 # Run Fastapp as monolith
-zrb project start-fastapp --fastapp-run-mode "monolith"
+zrb project fastapp monolith start
 ```
 
 Once you invoke the commands, you will be able to access the CRUD application by pointing your browser to [http://localhost:3000](http://localhost:3000)
@@ -236,15 +236,15 @@ Furthermore, you can also split your application into `microservices`, run them 
 
 ```bash
 # Run Fastapp as microservices
-zrb project start-fastapp --fastapp-run-mode "microservices"
+zrb project fastapp microservices start
 
 # Run Fastapp as container
-zrb project start-fastapp-container --fastapp-run-mode "microservices"
-zrb project stop-fastapp-container
+zrb project fastapp container microservices start
+zrb project fastapp container stop
 
 # Deploy fastapp and all it's dependencies to kubernetes
 docker login
-zrb project deploy-fastapp --fastapp-deploy-mode "microservices"
+zrb project fastapp microservices deploy
 ```
 
 Visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tutorials/README.md) to see more cool tricks.
