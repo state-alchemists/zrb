@@ -16,16 +16,13 @@ from zrb.builtin.project.add import (
     project_add_task_group,
 )
 from zrb.builtin.project.create import create_project
-from zrb.builtin.project.env import get_project_default_env, project_env_group
 
 assert project_group
 assert project_add_group
 assert project_add_app_group
 assert project_add_fastapp_group
 assert project_add_task_group
-assert project_env_group
 assert create_project
-assert get_project_default_env
 assert add_plugin
 assert add_project_tasks
 assert add_cmd_task

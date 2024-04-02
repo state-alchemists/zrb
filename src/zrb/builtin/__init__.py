@@ -42,12 +42,10 @@ from zrb.builtin.project import (
     add_python_app,
     add_python_task,
     create_project,
-    get_project_default_env,
     project_add_app_group,
     project_add_fastapp_group,
     project_add_group,
     project_add_task_group,
-    project_env_group,
     project_group,
 )
 from zrb.builtin.say import say
@@ -104,9 +102,7 @@ assert project_add_group
 assert project_add_app_group
 assert project_add_fastapp_group
 assert project_add_task_group
-assert project_env_group
 assert create_project
-assert get_project_default_env
 assert add_plugin
 assert add_fastapp_application
 assert add_fastapp_crud

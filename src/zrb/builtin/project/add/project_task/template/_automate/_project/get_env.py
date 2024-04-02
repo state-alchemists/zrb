@@ -1,14 +1,11 @@
-from zrb.builtin.project._group import project_group
-from zrb.builtin.project.env._group import project_env_group
+from zrb import python_task, BoolInput, runner
+from zrb.builtin import project_group
 from zrb.helper.env_map.fetch import fetch_env_map_from_group
 from zrb.helper.typing import Any, Mapping
-from zrb.runner import runner
-from zrb.task.decorator import python_task
-from zrb.task_input.bool_input import BoolInput
 
 
 @python_task(
-    name="get",
+    name="get-env",
     description="Get default values for project environments",
     inputs=[
         BoolInput(
@@ -18,10 +15,10 @@ from zrb.task_input.bool_input import BoolInput
             default=True,
         )
     ],
-    group=project_env_group,
+    group=project_group,
     runner=runner,
 )
-async def get_project_default_env(*args: Any, **kwargs: Any) -> str:
+async def get_project_env(*args: Any, **kwargs: Any) -> str:
     env_map: Mapping[str, str] = {}
     env_map = fetch_env_map_from_group(env_map, project_group)
     env_keys = list(env_map.keys())
