@@ -30,42 +30,42 @@ cd playground
 
 
 log_info 'Add cmd-task'
-zrb project add cmd-task \
+zrb project add task cmd \
     --project-dir . \
     --task-name "run-cmd"
 
 log_info 'Add docker-compose-task'
-zrb project add docker-compose-task \
+zrb project add task docker-compose \
     --project-dir . \
     --task-name "run-container" \
     --compose-command "up" \
     --http-port 3001
 
 log_info 'Add python-task'
-zrb project add python-task \
+zrb project add task python \
     --project-dir . \
     --task-name "run-python"
 
-log_info 'Add simple-python-app'
-zrb project add simple-python-app \
+log_info 'Add python-app'
+zrb project add app python \
     --project-dir . \
-    --app-name "simple" \
+    --app-name "python-app" \
     --http-port 3002
 
 log_info 'Add fastapp'
-zrb project add fastapp \
+zrb project add fastapp app \
     --project-dir . \
     --app-name "fastapp" \
     --http-port 3003
 
 log_info 'Add fastapp module'
-zrb project add fastapp-module \
+zrb project add fastapp module \
     --project-dir . \
     --app-name "fastapp" \
     --module-name "library"
 
 log_info 'Add fastapp crud'
-zrb project add fastapp-crud \
+zrb project add fastapp crud \
     --project-dir . \
     --app-name "fastapp" \
     --module-name "library" \
@@ -74,7 +74,7 @@ zrb project add fastapp-crud \
     --column-name "code"
 
 log_info 'Add fastapp field'
-zrb project add fastapp-field \
+zrb project add fastapp field \
     --project-dir . \
     --app-name "fastapp" \
     --module-name "library" \
@@ -82,10 +82,10 @@ zrb project add fastapp-field \
     --column-name "title" \
     --column-type "str"
 
-log_info 'Add python package'
-zrb project add pip-package \
+log_info 'Add plugin'
+zrb project add plugin \
     --project-dir . \
-    --package-name "zrb-pkg" \
+    --package-name "my-plugin" \
     --package-description "A test package" \
     --package-homepage "https://github.com/state-alchemists/zrb" \
     --package-repository "https://github.com/state-alchemists/zrb" \
@@ -93,44 +93,15 @@ zrb project add pip-package \
     --package-author-name "Go Frendi" \
     --package-author-email "gofrendiasgard@gmail.com" \
 
-log_info 'Add generator'
-zrb project add app-generator \
-    --template-name "app"
+log_info 'Add super-app generator'
+zrb project add app generator \
+    --project-dir "." \
+    --package-name "my-plugin" \
+    --generator-name "superapp" \
+    --generator-app-port "8000"
 
-log_info 'Add generator (maximum feature)'
-zrb project add app-generator \
-    --template-name "app-max" \
-    --build-custom-image true \
-    --is-container-only true \
-    --is-http-port true \
-    --use-helm true \
-
-log_info 'Add generator (No custom image)'
-zrb project add app-generator \
-    --template-name "app-no-custom-image" \
-    --build-custom-image false \
-    --is-container-only true
-
-log_info 'Run generator'
-zrb project add app \
+log_info 'Add superapp'
+zrb project add superapp \
     --project-dir . \
-    --app-name "app" \
-    --app-image-name "docker.io/gofrendi/coba" \
-    --app-port "8080" \
-    --env-prefix "APP"
-
-log_info 'Run generator (maximum feature)'
-zrb project add app-max \
-    --project-dir . \
-    --app-name "app-max" \
-    --app-image-name "docker.io/gofrendi/coba" \
-    --app-port "8081" \
-    --env-prefix "APP"
-
-log_info 'Run generator (no custom image)'
-zrb project add app-no-custom-image \
-    --project-dir . \
-    --app-name "app-no-custom-image" \
-    --app-image-name "docker.io/gofrendi/coba" \
-    --app-port "8082" \
-    --env-prefix "APP"
+    --app-name "super-app" \
+    --http-port 3000
