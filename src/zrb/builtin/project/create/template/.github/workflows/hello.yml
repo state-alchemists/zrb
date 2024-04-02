@@ -8,4 +8,4 @@ jobs:
     with:
       environment: DEV
       command: |
-        zrb explain solid-principle
+        zrb explain solid
