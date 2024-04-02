@@ -1,0 +1,7 @@
+from ._group import snake_zrb_app_name_image_group
+from .build import build_snake_zrb_app_name_image
+from .push import push_snake_zrb_app_name_image
+
+assert snake_zrb_app_name_image_group
+assert build_snake_zrb_app_name_image
+assert push_snake_zrb_app_name_image

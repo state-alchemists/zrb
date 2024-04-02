@@ -1,7 +1,7 @@
 import datetime
 import random
 
-from zrb.helper.python_task import show_lines
+from zrb.helper.task import show_lines
 from zrb.helper.typing import Any, List
 from zrb.runner import runner
 from zrb.task.decorator import python_task

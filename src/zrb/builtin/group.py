@@ -1,22 +1,48 @@
-from zrb.task_group.group import Group
+import sys
 
-project_group = Group(name="project", description="Project management")
-project_add_group = Group(
-    name="add", description="Add resources to project", parent=project_group
+from zrb.builtin.base64 import base64_group
+from zrb.builtin.devtool import devtool_group, devtool_install_group
+from zrb.builtin.docker import docker_group
+from zrb.builtin.env import env_group
+from zrb.builtin.explain import explain_group
+from zrb.builtin.git import git_group
+from zrb.builtin.md5 import md5_group
+from zrb.builtin.process import process_group, process_pid_group
+from zrb.builtin.project import (
+    project_add_app_group,
+    project_add_fastapp_group,
+    project_add_group,
+    project_add_task_group,
+    project_group,
 )
-env_group = Group(name="env", description="Environment variable management")
-ubuntu_group = Group(name="ubuntu", description="Ubuntu related commands")
-ubuntu_install_group = Group(
-    name="install", description="Install things on ubuntu", parent=ubuntu_group
-)
-explain_group = Group(name="explain", description="Explain things")
-base64_group = Group(name="base64", description="Base64 operations")
-md5_group = Group(name="md5", description="MD5 operations")
-dev_tool_group = Group(name="devtool", description="Developer tools management")
-dev_tool_install_group = Group(
-    name="install", description="Install developer tools", parent=dev_tool_group
-)
-git_group = Group(name="git", description="Git related commands")
-docker_group = Group(name="docker", description="Docker related commands")
-process_group = Group(name="process", description="Process related commands")
-plugin_group = Group(name="plugin", description="Plugin related command")
+from zrb.builtin.ubuntu import ubuntu_group, ubuntu_install_group
+from zrb.helper.accessories.color import colored
+
+_DEPRECATION_WARNING = """
+DEPRECATED: zrb.builtin.group
+User zrb.builtin instead
+
+```python
+from zrb.builtin import project_group
+```
+"""
+
+print(colored(_DEPRECATION_WARNING, color="red", attrs=["bold"]), file=sys.stderr)
+
+assert base64_group
+assert devtool_group
+assert devtool_install_group
+assert docker_group
+assert env_group
+assert explain_group
+assert git_group
+assert md5_group
+assert process_group
+assert process_pid_group
+assert project_group
+assert project_add_group
+assert project_add_app_group
+assert project_add_fastapp_group
+assert project_add_task_group
+assert ubuntu_group
+assert ubuntu_install_group

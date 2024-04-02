@@ -38,21 +38,25 @@ import re
 import subprocess
 import sys
 import time
-import tomli
+import tomlkit
 
-CURRENT_DIR = os.path.dirname(__file__)
-PLAYGROUND_DIR = os.path.join(CURRENT_DIR, "playground")
-IS_PLAYGROUND_EXIST = os.path.isdir(PLAYGROUND_DIR)
+_CURRENT_DIR = os.path.dirname(__file__)
+_PLAYGROUND_DIR = os.path.join(_CURRENT_DIR, "playground")
+_IS_PLAYGROUND_EXIST = os.path.isfile(os.path.join(_PLAYGROUND_DIR, "zrb_init.py"))
 
-if IS_PLAYGROUND_EXIST:
-    sys.path.append(PLAYGROUND_DIR)
+if _IS_PLAYGROUND_EXIST:
+    sys.path.append(_PLAYGROUND_DIR)
     from playground import zrb_init as playground_init
-
     assert playground_init
+    playground_plugin_dir = os.path.join(_PLAYGROUND_DIR, "src", "my-plugin", "src")
+    if os.path.isdir(playground_plugin_dir):
+        sys.path.append(playground_plugin_dir)
+        import my_plugin
+        assert my_plugin
 
 
-with open(os.path.join(CURRENT_DIR, "pyproject.toml"), "rb") as f:
-    toml_dict = tomli.load(f)
+with open(os.path.join(_CURRENT_DIR, "pyproject.toml"), "rb") as f:
+    toml_dict = tomlkit.parse(f.read())
     VERSION = toml_dict["tool"]["poetry"]["version"]
 
 
@@ -104,7 +108,7 @@ zrb_latest_image_name_input = StrInput(
 build_zrb_input = BoolInput(name="build-zrb", default=True)
 install_symlink_input = BoolInput(name="install-symlink", default=True)
 create_playground_input = BoolInput(
-    name="create-playground", default=not IS_PLAYGROUND_EXIST
+    name="create-playground", default=not _IS_PLAYGROUND_EXIST
 )
 
 ###############################################################################
@@ -127,7 +131,7 @@ zrb_latest_image_env = Env(
 format_code = CmdTask(
     name="format-code",
     description="Format code",
-    cwd=CURRENT_DIR,
+    cwd=_CURRENT_DIR,
     cmd=[
         "isort src",
         "black src",
@@ -149,7 +153,7 @@ runner.register(format_code)
 )
 def make_docs(*args: Any, **kwargs: Any):
     task: Task = kwargs.get("_task")
-    dir = os.path.join(CURRENT_DIR, "docs", "technical-documentation")
+    dir = os.path.join(_CURRENT_DIR, "docs", "technical-documentation")
     configs: Mapping[str, Any] = {
         os.path.join(dir, "task-group.md"): Group,
         os.path.join(dir, "task-envs", "env.md"): Env,
@@ -207,7 +211,7 @@ def show_trigger_info(*args: Any, **kwargs: Any):
 
 remake_docs = CmdTask(
     name="remake-docs",
-    cwd=CURRENT_DIR,
+    cwd=_CURRENT_DIR,
     envs=[Env("ZRB_SHOW_TIME", os_name="", default="0")],
     upstreams=[show_trigger_info],
     cmd="zrb make-docs",
@@ -222,7 +226,7 @@ auto_make_docs = RecurringTask(
     description="Make documentation whenever there is any changes in the code",
     triggers=[
         PathWatcher(
-            path=os.path.join(CURRENT_DIR, "src", "zrb", "**", "*.py"),
+            path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
         )
     ],
     task=remake_docs,
@@ -238,11 +242,11 @@ build = CmdTask(
     name="build",
     description="Build Zrb",
     upstreams=[make_docs],
-    cwd=CURRENT_DIR,
+    cwd=_CURRENT_DIR,
     cmd=[
         "set -e",
         'echo "🤖 Build zrb distribution"',
-        f"rm -Rf {CURRENT_DIR}/dist",
+        f"rm -Rf {_CURRENT_DIR}/dist",
         "git add . -A",
         "poetry build",
     ],
@@ -260,7 +264,7 @@ publish_pip = CmdTask(
     name="publish-pip",
     description="Publish zrb to pypi",
     upstreams=[build],
-    cwd=CURRENT_DIR,
+    cwd=_CURRENT_DIR,
     cmd=[
         "set -e",
         'echo "🤖 Publish zrb to pypi"',
@@ -298,7 +302,7 @@ build_image = DockerComposeTask(
         zrb_version_env,
         zrb_image_env,
     ],
-    cwd=f"{CURRENT_DIR}/docker",
+    cwd=f"{_CURRENT_DIR}/docker",
     compose_cmd="build",
     compose_args=["zrb"],
 )
@@ -323,7 +327,7 @@ build_latest_image = DockerComposeTask(
         zrb_version_env,
         zrb_latest_image_env,
     ],
-    cwd=f"{CURRENT_DIR}/docker",
+    cwd=f"{_CURRENT_DIR}/docker",
     compose_cmd="build",
     compose_args=["zrb"],
 )
@@ -338,7 +342,7 @@ stop_container = DockerComposeTask(
     description="remove docker container",
     inputs=[zrb_image_name_input],
     envs=[zrb_image_env],
-    cwd=f"{CURRENT_DIR}/docker",
+    cwd=f"{_CURRENT_DIR}/docker",
     compose_cmd="down",
 )
 runner.register(stop_container)
@@ -359,7 +363,7 @@ start_container = DockerComposeTask(
         zrb_version_env,
         zrb_image_env,
     ],
-    cwd=f"{CURRENT_DIR}/docker",
+    cwd=f"{_CURRENT_DIR}/docker",
     compose_cmd="up",
     compose_flags=["-d"],
 )
@@ -381,7 +385,7 @@ push_image = DockerComposeTask(
         zrb_version_env,
         zrb_image_env,
     ],
-    cwd=f"{CURRENT_DIR}/docker",
+    cwd=f"{_CURRENT_DIR}/docker",
     compose_cmd="push",
     compose_args=["zrb"],
 )
@@ -406,7 +410,7 @@ push_latest_image = DockerComposeTask(
         zrb_version_env,
         zrb_latest_image_env,
     ],
-    cwd=f"{CURRENT_DIR}/docker",
+    cwd=f"{_CURRENT_DIR}/docker",
     compose_cmd="push",
     compose_args=["zrb"],
 )
@@ -436,7 +440,7 @@ install_symlink = CmdTask(
     upstreams=[skippable_build],
     cmd=[
         "set -e",
-        f"cd {CURRENT_DIR}",
+        f"cd {_CURRENT_DIR}",
         'echo "🤖 Install zrb"',
         "poetry install",
     ],
@@ -500,10 +504,10 @@ auto_test = RecurringTask(
     task=retest,
     triggers=[
         PathWatcher(
-            path=os.path.join(CURRENT_DIR, "src", "zrb", "**", "*.py"),
+            path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
         ),
         PathWatcher(
-            path=os.path.join(CURRENT_DIR, "test", "**", "*.py"),
+            path=os.path.join(_CURRENT_DIR, "test", "**", "*.py"),
             ignored_path=[
                 os.path.join("**", "template", "**", "test"),
                 os.path.join("**", "generator", "**", "app"),
@@ -536,7 +540,7 @@ serve_test = CmdTask(
         "set -e",
         'echo "🤖 Serve coverage report"',
         "python -m http.server {{input.port}} \\",
-        f'  --directory "{CURRENT_DIR}/htmlcov"',
+        f'  --directory "{_CURRENT_DIR}/htmlcov"',
     ],
     checkers=[HTTPChecker(port="{{input.port}}")],
     retry=0,
@@ -564,30 +568,12 @@ create_playground = CmdTask(
     description="Create playground",
     group=playground_group,
     upstreams=[skippable_install_symlink],
-    cwd=CURRENT_DIR,
-    cmd_path=os.path.join(CURRENT_DIR, "playground-create.sh"),
+    cwd=_CURRENT_DIR,
+    cmd_path=os.path.join(_CURRENT_DIR, "playground-create.sh"),
     retry=0,
     preexec_fn=None,
 )
 runner.register(create_playground)
-
-###############################################################################
-# ⚙️ playground test
-###############################################################################
-
-if IS_PLAYGROUND_EXIST:
-    test_playground = CmdTask(
-        name="test",
-        description="Test playground",
-        group=playground_group,
-        upstreams=[
-            playground_init.fastapp_test.test_fastapp,
-            playground_init.zrb_pkg_local.install_zrb_pkg_symlink,
-        ],
-        cmd="echo Test performed",
-        retry=0,
-    )
-    runner.register(test_playground)
 
 ###############################################################################
 # ⚙️ prepare-profile

@@ -1,0 +1,5 @@
+from ._group import snake_zrb_app_name_microservices_container_group
+from .start import start_snake_zrb_app_name_microservices_container
+
+assert snake_zrb_app_name_microservices_container_group
+assert start_snake_zrb_app_name_microservices_container

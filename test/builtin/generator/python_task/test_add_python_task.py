@@ -1,5 +1,6 @@
-from zrb.builtin.generator.project.create import create_project
-from zrb.builtin.generator.python_task.add import add_python_task
+from zrb.builtin.project.create import create_project
+from zrb.builtin.project.add.task.python import add_python_task
+
 import os
 import pathlib
 import shutil
