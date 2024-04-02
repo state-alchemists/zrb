@@ -9,4 +9,4 @@ jobs:
       environment: DEV
       command: |
         docker ps
-        zrb explain solid-principle
+        zrb explain solid

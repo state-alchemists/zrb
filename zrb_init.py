@@ -45,14 +45,14 @@ _PLAYGROUND_DIR = os.path.join(_CURRENT_DIR, "playground")
 _IS_PLAYGROUND_EXIST = os.path.isfile(os.path.join(_PLAYGROUND_DIR, "zrb_init.py"))
 
 if _IS_PLAYGROUND_EXIST:
-    sys.path.append(_PLAYGROUND_DIR)
-    from playground import zrb_init as playground_init
-    assert playground_init
     playground_plugin_dir = os.path.join(_PLAYGROUND_DIR, "src", "my-plugin", "src")
     if os.path.isdir(playground_plugin_dir):
         sys.path.append(playground_plugin_dir)
         import my_plugin
         assert my_plugin
+    sys.path.append(_PLAYGROUND_DIR)
+    from playground import zrb_init as playground_init
+    assert playground_init
 
 
 with open(os.path.join(_CURRENT_DIR, "pyproject.toml"), "rb") as f:
