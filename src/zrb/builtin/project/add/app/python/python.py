@@ -24,8 +24,8 @@ from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-SNAKE_APP_NAME_TPL = "{{util.to_snake_case(input.app_name)}}"
+_CURRENT_DIR = os.path.dirname(__file__)
+_snake_app_name_tpl = "{{util.to_snake_case(input.app_name)}}"
 
 
 @python_task(
@@ -64,7 +64,7 @@ copy_resource = ResourceMaker(
         "ZRB_ENV_PREFIX": '{{util.coalesce(input.env_prefix, "MY").upper()}}',
         "zrb-app-image-name": "{{input.app_image_name}}",
     },
-    template_path=os.path.join(CURRENT_DIR, "template"),
+    template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
     excludes=[
         "*/deployment/venv",
@@ -73,7 +73,8 @@ copy_resource = ResourceMaker(
 )
 
 register_module = create_register_module(
-    module_path=f"_automate.{SNAKE_APP_NAME_TPL}",
+    module_path=f"_automate.{_snake_app_name_tpl}",
+    alias=f"_automate_{_snake_app_name_tpl}",
     inputs=[app_name_input],
     upstreams=[copy_resource],
 )

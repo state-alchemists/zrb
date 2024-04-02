@@ -14,11 +14,7 @@ from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-
-###############################################################################
-# Task Definitions
-###############################################################################
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 @python_task(
@@ -45,7 +41,7 @@ copy_resource = ResourceMaker(
     replacements={
         "zrbTaskName": "{{input.task_name}}",
     },
-    template_path=os.path.join(CURRENT_DIR, "template"),
+    template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
     excludes=[
         "*/__pycache__",
@@ -54,6 +50,7 @@ copy_resource = ResourceMaker(
 
 register_module = create_register_module(
     module_path="_automate.{{util.to_snake_case(input.task_name)}}",
+    alias="_automate_{{util.to_snake_case(input.task_name)}}",
     inputs=[task_name_input],
     upstreams=[copy_resource],
 )

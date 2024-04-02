@@ -101,7 +101,7 @@ zrb project add app generator \
     --generator-app-port "8000"
 
 log_info 'Add superapp'
-zrb project add superapp \
+zrb project add app superapp \
     --project-dir . \
     --app-name "super-app" \
     --http-port 3000

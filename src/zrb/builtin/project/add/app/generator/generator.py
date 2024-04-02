@@ -11,6 +11,7 @@ from zrb.builtin.project.add.app.generator._input import (
     package_name_input,
 )
 from zrb.helper.accessories.color import colored
+from zrb.helper.codemod.add_assert_resource import add_assert_resource
 from zrb.helper.codemod.add_import_module import add_import_module
 from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case, to_snake_case
@@ -19,8 +20,7 @@ from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-SNAKE_APP_NAME_TPL = "{{util.to_snake_case(input.app_name)}}"
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 @python_task(
@@ -50,7 +50,7 @@ copy_resource = ResourceMaker(
         "zrbGeneratorBaseImage": "{{input.generator_base_image}}",
         "zrbGeneratorAppPort": "{{input.generator_app_port}}",
     },
-    template_path=os.path.join(CURRENT_DIR, "template"),
+    template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",
     excludes=[
         "*/deployment/venv",
@@ -82,8 +82,11 @@ def register_generator(*args: Any, **kwargs: Any):
     with open(package_init_path, "r") as f:
         code = f.read()
     new_code = add_import_module(
-        code=code, module_path=f"{snake_package_name}.{snake_generator_name}"
+        code=code,
+        module_path=f"{snake_package_name}.{snake_generator_name}",
+        alias=snake_generator_name,
     )
+    new_code = add_assert_resource(code=new_code, resource=snake_generator_name)
     with open(package_init_path, "w") as f:
         f.write(new_code)
     task.print_out(colored("Register generator", color="yellow"))

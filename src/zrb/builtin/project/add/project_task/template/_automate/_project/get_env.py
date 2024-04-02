@@ -1,4 +1,4 @@
-from zrb import python_task, BoolInput, runner
+from zrb import BoolInput, python_task, runner
 from zrb.builtin import project_group
 from zrb.helper.env_map.fetch import fetch_env_map_from_group
 from zrb.helper.typing import Any, Mapping

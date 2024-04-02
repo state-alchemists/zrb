@@ -2,6 +2,7 @@ import os
 
 from zrb.builtin.project._input import project_dir_input
 from zrb.helper import util
+from zrb.helper.accessories.color import colored
 from zrb.helper.codemod.add_assert_resource import add_assert_resource
 from zrb.helper.codemod.add_import_module import add_import_module
 from zrb.helper.file.text import read_text_file_async, write_text_file_async
@@ -63,9 +64,10 @@ def create_register_module(
     inputs: Optional[List[AnyInput]] = None,
     upstreams: Optional[List[AnyTask]] = None,
     alias: Optional[str] = None,
+    task_name: str = "register-module",
 ) -> Task:
     @python_task(
-        name="register-module",
+        name=task_name,
         inputs=[project_dir_input] + inputs if inputs is not None else [],
         upstreams=upstreams if upstreams is not None else [],
     )
@@ -77,11 +79,10 @@ def create_register_module(
         rendered_alias: Optional[str] = None
         if alias is not None:
             rendered_alias = task.render_str(alias)
-        task.print_out(
-            f"Register module: {rendered_module_path}" + f" as {rendered_alias}"
-            if rendered_alias is not None
-            else ""
+        module_import_label = _get_module_import_label(
+            module_path=rendered_module_path, alias=rendered_alias
         )
+        task.print_out(colored(module_import_label, color="yellow"))
         await register_module_to_project(
             project_dir=project_dir,
             module_path=rendered_module_path,
@@ -89,3 +90,9 @@ def create_register_module(
         )
 
     return register_module
+
+
+def _get_module_import_label(module_path: str, alias: Optional[str]):
+    if alias == "" or alias is None:
+        return module_path
+    return f"{module_path} as {alias}"
