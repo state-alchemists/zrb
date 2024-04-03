@@ -472,6 +472,7 @@ test_only = CmdTask(
         "pytest -vv \\",
         '  --ignore-glob="**/template/**/test" \\',
         '  --ignore-glob="**/generator/**/app"  \\',
+        '  --ignore-glob="**/builtin/project/**/template"  \\',
         "  --ignore=playground \\",
         "  --cov=zrb \\",
         '  --cov-config=".coveragerc" \\',

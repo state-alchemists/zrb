@@ -19,13 +19,13 @@ You can learn more about PascalZrbAppName's modular monolith concept in our [doc
 To run PascalZrbAppName as a monolith, you can invoke the following command:
 
 ```bash
-zrb project start-kebab-zrb-app-name --kebab-zrb-app-name-run-mode monolith
+zrb project kebab-zrb-app-name monolith start
 ```
 
 You can also run PascalZrbAppName as a docker container by invoking the following command:
 
 ```bash
-zrb project start-kebab-zrb-app-name-container --kebab-zrb-app-name-run-mode monolith
+zrb project kebab-zrb-app-name-container container monolith start
 ```
 
 # Run PascalZrbAppName as a microservices
@@ -33,13 +33,13 @@ zrb project start-kebab-zrb-app-name-container --kebab-zrb-app-name-run-mode mon
 To run PascalZrbAppName as a microservices, you can invoke the following command:
 
 ```bash
-zrb project start-kebab-zrb-app-name --kebab-zrb-app-name-run-mode microservices
+zrb project kebab-zrb-app-name microservices start
 ```
 
 You can also run PascalZrbAppName as a docker container by invoking the following command:
 
 ```bash
-zrb project start-kebab-zrb-app-name-container --kebab-zrb-app-name-run-mode microservices
+zrb project kebab-zrb-app-name-container microservices start
 ```
 
 # Accessing the web interface
@@ -65,10 +65,10 @@ Finally, you can invoke the following command:
 
 ```bash
 # Deploy PascalZrbAppName to Kubernetes as a monolith
-zrb project deploy-kebab-zrb-app-name --kebab-zrb-app-name monolith
+zrb project kebab-zrb-app-name monolith deploy
 
 # Deploy PascalZrbAppName to Kubernetes as a microservices
-zrb project deploy-kebab-zrb-app-name --kebab-zrb-app-name microservices
+zrb project kebab-zrb-app-name microservices deploy
 ```
 
 # Configuration

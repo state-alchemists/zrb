@@ -36,8 +36,8 @@ def test_add_docker_compose_task():
     # compose_task should be imported
     with open(os.path.join(project_path, 'zrb_init.py')) as f:
         content = f.read()
-    assert 'assert compose_task' in content
-    assert 'import _automate.compose_task as compose_task' in content
+    assert 'assert _automate_compose_task' in content
+    assert 'import _automate.compose_task as _automate_compose_task' in content
 
     # second attempt should fail
     is_error = False

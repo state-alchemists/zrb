@@ -94,22 +94,22 @@ By using [Zrb](https://pypi.org/project/zrb), you will be able to run PascalZrbA
 
 ```bash
 # Run PascalZrbAppName as a monolith
-zrb project start-kebab-zrb-app-name --kebab-zrb-app-name-run-mode monolith
+zrb project kebab-zrb-app-name monolith start
 
 # Run PascalZrbAppName as a monolith inside a container
-zrb project start-kebab-zrb-app-name-container --kebab-zrb-app-name-run-mode monolith
+zrb project kebab-zrb-app-name container monolith start
 
 # Run PascalZrbAppName as microservices
-zrb project start-kebab-zrb-app-name --kebab-zrb-app-name-run-mode microservices
+zrb project kebab-zrb-app-name microservices start
 
 # Run PascalZrbAppName as microservices inside containers
-zrb project start-kebab-zrb-app-name-container --kebab-zrb-app-name-run-mode microservices
+zrb project kebab-zrb-app-name container microservices start
 
 # Deploy PascalZrbAppName to Kubernetes as a monolith
-zrb project deploy-kebab-zrb-app-name --kebab-zrb-app-name monolith
+zrb project kebab-zrb-app-name monolith deploy
 
 # Deploy PascalZrbAppName to Kubernetes as a microservices
-zrb project deploy-kebab-zrb-app-name --kebab-zrb-app-name microservices
+zrb project kebab-zrb-app-name microservices deploy
 ```
 
 Hopefully this will make your development/deployment process easier.

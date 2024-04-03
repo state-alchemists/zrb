@@ -15,8 +15,12 @@ def test_create_project():
 
     # first attempt should success
     first_attempt_fn = create_project.to_function()
-    result = first_attempt_fn(project_dir=destination_path)
-    assert result
+    is_error = False
+    try:
+        first_attempt_fn(project_dir=destination_path)
+    except Exception:
+        is_error = True
+    assert not is_error
 
     # .git directory should exists
     assert os.path.isdir(os.path.join(destination_path, '.git'))
@@ -39,7 +43,7 @@ def test_create_project():
     is_error = False
     try:
         second_attempt_fn = create_project.to_function()
-        result = second_attempt_fn(project_dir=destination_path)
+        second_attempt_fn(project_dir=destination_path)
     except Exception:
         is_error = True
     assert is_error

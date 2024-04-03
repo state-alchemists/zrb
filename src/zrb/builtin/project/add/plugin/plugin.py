@@ -88,10 +88,11 @@ register_plugin_automation = create_register_module(
 def update_pyproject(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")
     package_name = kwargs.get("package_name")
+    snake_package_name = to_snake_case(package_name)
     kebab_package_name = to_kebab_case(package_name)
     with open(os.path.join(project_dir, "pyproject.toml"), "rb") as f:
         toml_dict = tomlkit.loads(f.read())
-    toml_dict["tool"]["poetry"]["dependencies"][kebab_package_name] = {
+    toml_dict["tool"]["poetry"]["dependencies"][snake_package_name] = {
         "path": f"./src/{kebab_package_name}"
     }
     with open(os.path.join(project_dir, "pyproject.toml"), "w") as f:
