@@ -20,16 +20,16 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
-with open(os.path.join(SHELL_SCRIPT_DIR, "ssh-util.sh")) as file:
-    SSH_UTIL_SCRIPT = file.read()
+_CURRENT_DIR = os.path.dirname(__file__)
+_SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "shell-scripts")
+with open(os.path.join(_SHELL_SCRIPT_DIR, "ssh-util.sh")) as file:
+    _SSH_UTIL_SCRIPT = file.read()
 
 ensure_ssh_is_installed = CmdTask(
     name="ensure-ssh-is-installed",
     cmd_path=[
-        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-        os.path.join(SHELL_SCRIPT_DIR, "ensure-ssh-is-installed.sh"),
+        os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+        os.path.join(_SHELL_SCRIPT_DIR, "ensure-ssh-is-installed.sh"),
     ],
     preexec_fn=None,
 )
@@ -72,7 +72,7 @@ class RemoteCmdTask(BaseRemoteCmdTask):
     ):
         pre_cmd = "\n".join(
             [
-                SSH_UTIL_SCRIPT,
+                _SSH_UTIL_SCRIPT,
                 "_SCRIPT=\"$(cat <<'ENDSCRIPT'",
             ]
         )

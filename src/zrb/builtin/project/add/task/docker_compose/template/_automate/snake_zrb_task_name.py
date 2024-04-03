@@ -3,20 +3,20 @@ import os
 from zrb import DockerComposeTask, Env, EnvFile, HTTPChecker, runner
 from zrb.builtin import project_group
 
-CURRENT_DIR = os.path.dirname(__file__)
-PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
-RESOURCE_DIR = os.path.join(PROJECT_DIR, "src", "kebab-zrb-task-name")
+_CURRENT_DIR = os.path.dirname(__file__)
+_PROJECT_DIR = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
+_RESOURCE_DIR = os.path.join(_PROJECT_DIR, "src", "kebab-zrb-task-name")
 
 snake_zrb_task_name = DockerComposeTask(
     name="kebab-zrb-task-name",
     description="human readable zrb task name",
     group=project_group,
-    cwd=RESOURCE_DIR,
+    cwd=_RESOURCE_DIR,
     compose_cmd="zrbComposeCommand",
     compose_env_prefix="ZRB_ENV_PREFIX",
     env_files=[
         EnvFile(
-            path=os.path.join(RESOURCE_DIR, "docker-compose.env"),
+            path=os.path.join(_RESOURCE_DIR, "docker-compose.env"),
             prefix="ZRB_ENV_PREFIX",
         )
     ],

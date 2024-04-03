@@ -17,7 +17,7 @@ from .image import push_snake_zrb_app_name_image
 from .image._env import image_env
 from .image._input import image_input
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 deploy_snake_zrb_app_name = CmdTask(
     icon="🚧",
@@ -42,8 +42,8 @@ deploy_snake_zrb_app_name = CmdTask(
         deployment_replica_env,
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, "init-pulumi-stack.sh"),
-        os.path.join(CURRENT_DIR, "deploy.sh"),
+        os.path.join(_CURRENT_DIR, "init-pulumi-stack.sh"),
+        os.path.join(_CURRENT_DIR, "deploy.sh"),
     ],
 )
 

@@ -7,7 +7,7 @@ from ._group import snake_zrb_app_name_group
 from .backend import prepare_snake_zrb_app_name_backend
 from .frontend import build_snake_zrb_app_name_frontend_once
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 @python_task(
@@ -51,7 +51,7 @@ test_snake_zrb_app_name = CmdTask(
         Env(name="APP_AUTH_ADMIN_ACTIVE", os_name="", default="true"),
         Env(name="APP", os_name="APP_ENABLE_OTEL", default="false"),
     ],
-    cmd_path=os.path.join(CURRENT_DIR, "test.sh"),
+    cmd_path=os.path.join(_CURRENT_DIR, "test.sh"),
     retry=0,
 )
 runner.register(test_snake_zrb_app_name)

@@ -7,8 +7,8 @@ from zrb.task.cmd_task import CmdTask
 from zrb.task.flow_task import FlowTask
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
+_CURRENT_DIR = os.path.dirname(__file__)
+_SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
 
 install_helix = FlowTask(
     name="helix",
@@ -18,8 +18,8 @@ install_helix = FlowTask(
         CmdTask(
             name="install-helix",
             cmd_path=[
-                os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-                os.path.join(CURRENT_DIR, "install.sh"),
+                os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+                os.path.join(_CURRENT_DIR, "install.sh"),
             ],
             preexec_fn=None,
         ),
@@ -28,7 +28,7 @@ install_helix = FlowTask(
                 name="create-helix-theme",
                 run=write_config(
                     template_file=os.path.join(
-                        CURRENT_DIR,
+                        _CURRENT_DIR,
                         "helix",
                         "resource",
                         "themes",
@@ -42,7 +42,7 @@ install_helix = FlowTask(
                 name="configure-helix",
                 run=write_config(
                     template_file=os.path.join(
-                        CURRENT_DIR, "helix", "resource", "config.toml"
+                        _CURRENT_DIR, "helix", "resource", "config.toml"
                     ),
                     config_file="~/.config/helix/config.toml",
                     remove_old_config=True,
@@ -51,8 +51,8 @@ install_helix = FlowTask(
             CmdTask(
                 name="install-language-server",
                 cmd_path=[
-                    os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-                    os.path.join(CURRENT_DIR, "install-language-server.sh"),
+                    os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+                    os.path.join(_CURRENT_DIR, "install-language-server.sh"),
                 ],
                 preexec_fn=None,
             ),

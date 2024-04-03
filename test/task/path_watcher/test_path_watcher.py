@@ -2,17 +2,17 @@ from zrb.task.path_watcher import PathWatcher
 from zrb.task.cmd_task import CmdTask
 import os
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 def test_path_watcher():
     patch_watcher = PathWatcher(
-        path=os.path.join(CURRENT_DIR, 'resources', '**', "*.txt"),
-        ignored_path=os.path.join(CURRENT_DIR, 'resources', 'a'),
+        path=os.path.join(_CURRENT_DIR, 'resources', '**', "*.txt"),
+        ignored_path=os.path.join(_CURRENT_DIR, 'resources', 'a'),
     )
     toucher = CmdTask(
         name='toucher',
-        cwd=os.path.join(CURRENT_DIR, 'resources'),
+        cwd=os.path.join(_CURRENT_DIR, 'resources'),
         cmd=[
             'sleep 1',
             'touch a/a.txt',
@@ -30,4 +30,4 @@ def test_path_watcher():
     fn = task.to_function()
     result = fn()
     output = result.output
-    assert output == os.path.join(CURRENT_DIR, 'resources', 'b', 'b.txt')
+    assert output == os.path.join(_CURRENT_DIR, 'resources', 'b', 'b.txt')

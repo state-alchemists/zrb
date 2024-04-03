@@ -7,7 +7,7 @@ from ._constant import APP_DIR, APP_TEMPLATE_ENV_FILE_NAME
 from ._group import snake_zrb_app_name_group
 from ._input import host_input, https_input, local_input
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 start_snake_zrb_app_name = CmdTask(
@@ -25,8 +25,8 @@ start_snake_zrb_app_name = CmdTask(
         )
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, "activate-venv.sh"),
-        os.path.join(CURRENT_DIR, "start.sh"),
+        os.path.join(_CURRENT_DIR, "activate-venv.sh"),
+        os.path.join(_CURRENT_DIR, "start.sh"),
     ],
     checkers=[
         HTTPChecker(

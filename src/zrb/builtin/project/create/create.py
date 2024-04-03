@@ -19,13 +19,13 @@ from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR))), "shell-scripts"
+_CURRENT_DIR = os.path.dirname(__file__)
+_SHELL_SCRIPTS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(_CURRENT_DIR))), "shell-scripts"
 )
-SYSTEM_USER = os.getenv("USER", "incognito")
-IMAGE_DEFAULT_NAMESPACE = os.getenv(
-    "PROJECT_IMAGE_DEFAULT_NAMESPACE", "docker.io/" + SYSTEM_USER
+_SYSTEM_USER = os.getenv("USER", "incognito")
+_IMAGE_DEFAULT_NAMESPACE = os.getenv(
+    "PROJECT_IMAGE_DEFAULT_NAMESPACE", "docker.io/" + _SYSTEM_USER
 )
 
 
@@ -56,11 +56,11 @@ copy_resource = ResourceMaker(
         "zrbProjectDescription": "{{input.project_description}}",
         "zrbProjectAuthorName": "{{input.project_author_name}}",
         "zrbProjectAuthorEmail": "{{input.project_author_email}}",
-        "zrbImageDefaultNamespace": IMAGE_DEFAULT_NAMESPACE,
+        "zrbImageDefaultNamespace": _IMAGE_DEFAULT_NAMESPACE,
         "zrbVersion": version,
     },
     replacement_mutator=copy_resource_replacement_mutator,
-    template_path=os.path.join(CURRENT_DIR, "template"),
+    template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{input.project_dir}}",
     excludes=[
         "*/__pycache__",
@@ -75,8 +75,8 @@ init_git = CmdTask(
     upstreams=[copy_resource],
     inputs=[project_dir_input],
     cmd_path=[
-        os.path.join(SHELL_SCRIPTS_DIR, "_common-util.sh"),
-        os.path.join(CURRENT_DIR, "init-git.sh"),
+        os.path.join(_SHELL_SCRIPTS_DIR, "_common-util.sh"),
+        os.path.join(_CURRENT_DIR, "init-git.sh"),
     ],
 )
 

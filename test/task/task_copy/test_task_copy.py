@@ -7,7 +7,7 @@ from zrb.task_env.env_file import EnvFile
 
 import os
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 def test_task_copy():
@@ -27,7 +27,7 @@ def test_task_copy():
             Env(name='ENVIRONMENT', default='dev')
         ],
         env_files=[
-            EnvFile(path=os.path.join(CURRENT_DIR, 'env_file.env'))
+            EnvFile(path=os.path.join(_CURRENT_DIR, 'env_file.env'))
         ],
         run=_run,
         retry=0
@@ -52,7 +52,7 @@ def test_task_copy():
     new_task.add_input(StrInput(name='name', default='Dumbledore'))
     new_task.add_env(Env(name='ENVIRONMENT', default='prod'))
     new_task.add_env_file(
-        EnvFile(path=os.path.join(CURRENT_DIR, 'new_env_file.env'))
+        EnvFile(path=os.path.join(_CURRENT_DIR, 'new_env_file.env'))
     )
     function = new_task.to_function()
     result = function()
@@ -69,9 +69,9 @@ def test_cmd_task_copy():
             Env(name='ENVIRONMENT', default='dev')
         ],
         env_files=[
-            EnvFile(path=os.path.join(CURRENT_DIR, 'env_file.env'))
+            EnvFile(path=os.path.join(_CURRENT_DIR, 'env_file.env'))
         ],
-        cwd=CURRENT_DIR,
+        cwd=_CURRENT_DIR,
         cmd='echo hello $_INPUT_NAME on $ENVIRONMENT, host: $HOST',
         retry=0
     )
@@ -92,13 +92,13 @@ def test_cmd_task_copy():
     assert new_task.get_color() == 'green'
     new_task.set_retry(1)
     assert new_task._retry == 1
-    new_task.set_cwd(os.path.dirname(CURRENT_DIR))
-    assert task._cwd == CURRENT_DIR
-    assert new_task._cwd == os.path.dirname(CURRENT_DIR)
+    new_task.set_cwd(os.path.dirname(_CURRENT_DIR))
+    assert task._cwd == _CURRENT_DIR
+    assert new_task._cwd == os.path.dirname(_CURRENT_DIR)
     new_task.add_input(StrInput(name='name', default='Dumbledore'))
     new_task.add_env(Env(name='ENVIRONMENT', default='prod'))
     new_task.add_env_file(
-        EnvFile(path=os.path.join(CURRENT_DIR, 'new_env_file.env'))
+        EnvFile(path=os.path.join(_CURRENT_DIR, 'new_env_file.env'))
     )
     function = new_task.to_function()
     result = function()
