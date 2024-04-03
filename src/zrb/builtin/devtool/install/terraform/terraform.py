@@ -8,8 +8,8 @@ from zrb.task.cmd_task import CmdTask
 from zrb.task.flow_task import FlowTask
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
+_CURRENT_DIR = os.path.dirname(__file__)
+_SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
 
 install_terraform = FlowTask(
     name="terraform",
@@ -20,15 +20,15 @@ install_terraform = FlowTask(
         CmdTask(
             name="install-terraform",
             cmd_path=[
-                os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-                os.path.join(CURRENT_DIR, "install.sh"),
+                os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+                os.path.join(_CURRENT_DIR, "install.sh"),
             ],
             preexec_fn=None,
         ),
         Task(
             name="configure-terraform",
             run=write_config(
-                template_file=os.path.join(CURRENT_DIR, "resource", "config.sh"),
+                template_file=os.path.join(_CURRENT_DIR, "resource", "config.sh"),
                 config_file="{{input.config_file}}",
             ),
         ),

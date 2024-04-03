@@ -5,7 +5,7 @@ from zrb import BoolInput, CmdTask, EnvFile, IntInput, StrInput, runner
 from ._constant import LOAD_TEST_DIR, LOAD_TEST_TEMPLATE_ENV_FILE_NAME
 from ._group import snake_zrb_app_name_group
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 prepare_snake_zrb_app_name_load_test = CmdTask(
     icon="🚤",
@@ -14,8 +14,8 @@ prepare_snake_zrb_app_name_load_test = CmdTask(
     group=snake_zrb_app_name_group,
     cwd=LOAD_TEST_DIR,
     cmd_path=[
-        os.path.join(CURRENT_DIR, "cmd", "activate-venv.sh"),
-        os.path.join(CURRENT_DIR, "cmd", "app-prepare-load-test.sh"),
+        os.path.join(_CURRENT_DIR, "cmd", "activate-venv.sh"),
+        os.path.join(_CURRENT_DIR, "cmd", "app-prepare-load-test.sh"),
     ],
 )
 runner.register(prepare_snake_zrb_app_name_load_test)
@@ -66,8 +66,8 @@ load_test_snake_zrb_app_name = CmdTask(
         )
     ],
     cmd_path=[
-        os.path.join(CURRENT_DIR, "activate-venv.sh"),
-        os.path.join(CURRENT_DIR, "app-load-test.sh"),
+        os.path.join(_CURRENT_DIR, "activate-venv.sh"),
+        os.path.join(_CURRENT_DIR, "app-load-test.sh"),
     ],
 )
 runner.register(load_test_snake_zrb_app_name)

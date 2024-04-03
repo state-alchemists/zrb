@@ -9,8 +9,8 @@ from zrb.task.flow_task import FlowTask
 from zrb.task.task import Task
 from zrb.task_input.str_input import StrInput
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
+_CURRENT_DIR = os.path.dirname(__file__)
+_SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
 
 install_gvm = FlowTask(
     name="gvm",
@@ -28,23 +28,23 @@ install_gvm = FlowTask(
         CmdTask(
             name="download-gvm",
             cmd_path=[
-                os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-                os.path.join(CURRENT_DIR, "download.sh"),
+                os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+                os.path.join(_CURRENT_DIR, "download.sh"),
             ],
             preexec_fn=None,
         ),
         Task(
             name="configure-gvm",
             run=write_config(
-                template_file=os.path.join(CURRENT_DIR, "resource", "config.sh"),
+                template_file=os.path.join(_CURRENT_DIR, "resource", "config.sh"),
                 config_file="{{input.config_file}}",
             ),
         ),
         CmdTask(
             name="finalize-gvm-installation",
             cmd_path=[
-                os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-                os.path.join(CURRENT_DIR, "finalize.sh"),
+                os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+                os.path.join(_CURRENT_DIR, "finalize.sh"),
             ],
             preexec_fn=None,
         ),

@@ -5,8 +5,8 @@ from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.flow_task import FlowTask
 
-CURRENT_DIR = os.path.dirname(__file__)
-SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
+_CURRENT_DIR = os.path.dirname(__file__)
+_SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "..", "..", "..", "shell-scripts")
 
 install_selenium = FlowTask(
     name="selenium",
@@ -16,8 +16,8 @@ install_selenium = FlowTask(
         CmdTask(
             name="install-selenium",
             cmd_path=[
-                os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-                os.path.join(CURRENT_DIR, "install.sh"),
+                os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
+                os.path.join(_CURRENT_DIR, "install.sh"),
             ],
             preexec_fn=None,
         )

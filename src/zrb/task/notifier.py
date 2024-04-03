@@ -21,10 +21,10 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-CURRENT_DIR = os.path.dirname(__file__)
-NOTIFY_PS1_PATH = os.path.realpath(
+_CURRENT_DIR = os.path.dirname(__file__)
+_NOTIFY_PS1_PATH = os.path.realpath(
     os.path.abspath(
-        os.path.join(os.path.dirname(CURRENT_DIR), "shell-scripts", "notify.ps1")
+        os.path.join(os.path.dirname(_CURRENT_DIR), "shell-scripts", "notify.ps1")
     )
 )
 
@@ -108,7 +108,7 @@ class Notifier(BaseTask):
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                NOTIFY_PS1_PATH,
+                _NOTIFY_PS1_PATH,
                 "-Title",
                 title,
                 "-Message",

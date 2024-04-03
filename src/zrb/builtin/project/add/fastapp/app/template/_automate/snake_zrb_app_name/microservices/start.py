@@ -5,14 +5,14 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 
 from ..._project import start_project
-from .._constant import APP_DIR, APP_TEMPLATE_ENV_FILE_NAME, PREFER_MICROSERVICES
+from .._constant import PREFER_MICROSERVICES
 from .._input import host_input, https_input, local_input
 from ..container._input import enable_monitoring_input
 from ._group import snake_zrb_app_name_microservices_group
 from .start_gateway import start_snake_zrb_app_name_gateway
 from .start_microservices import start_snake_zrb_app_name_microservices
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 @python_task(

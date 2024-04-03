@@ -9,7 +9,7 @@ from zrb.helper.typing import Any
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
 
-CURRENT_DIR = os.path.dirname(__file__)
+_CURRENT_DIR = os.path.dirname(__file__)
 
 
 @python_task(
@@ -23,11 +23,10 @@ async def add_project_tasks(*args: Any, **kwargs: Any):
     if os.path.exists(os.path.join(project_dir, "_automate", "_project")):
         return
     await copy_tree(
-        src=os.path.join(CURRENT_DIR, "template"),
+        src=os.path.join(_CURRENT_DIR, "template"),
         dst=project_dir,
         excludes=["*/__pycache__"],
     )
-    project_task_module_path = "_automate._project"
     zrb_init_path = os.path.join(project_dir, "zrb_init.py")
     code = await read_text_file_async(zrb_init_path)
     import_alias = "_automate_project"
