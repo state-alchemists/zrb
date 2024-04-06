@@ -1,6 +1,7 @@
 import os
 
 from zrb.action.runner import Runner
+from zrb.helper.util import to_human_readable
 from zrb.helper.task import show_lines
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
@@ -49,9 +50,11 @@ def create_wiki_tasks(
         if not file_name.endswith(".md"):
             continue
         task_name = file_name[:-3]
+        task_description = f"Article about {to_human_readable(task_name)}"
         task = Task(
             name=task_name,
             group=group,
+            description=task_description,
             inputs=inputs,
             envs=envs,
             env_files=env_files,
@@ -73,7 +76,10 @@ def create_wiki_tasks(
             runner.register(task)
         tasks.append(task)
     for dir_name in directory_structure["dirs"]:
-        sub_group = Group(name=dir_name, parent=group)
+        sub_group_description = f"Articles related to {to_human_readable(dir_name)}"
+        sub_group = Group(
+            name=dir_name, parent=group, description=sub_group_description,
+        )
         sub_tasks = create_wiki_tasks(
             directory=os.path.join(abs_directory, dir_name),
             group=sub_group,
