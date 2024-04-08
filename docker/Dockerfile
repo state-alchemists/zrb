@@ -29,4 +29,5 @@ RUN apt autoremove -yqq --purge && \
     rm -rf /var/lib/apt/lists/*
 
 # Install zrb
+RUN pip install poetry
 RUN pip install zrb==${ZRB_VERSION}
