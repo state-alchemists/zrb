@@ -69,5 +69,6 @@ load_test_snake_zrb_app_name = CmdTask(
         os.path.join(_CURRENT_DIR, "activate-venv.sh"),
         os.path.join(_CURRENT_DIR, "app-load-test.sh"),
     ],
+    should_print_cmd_result=False,
 )
 runner.register(load_test_snake_zrb_app_name)

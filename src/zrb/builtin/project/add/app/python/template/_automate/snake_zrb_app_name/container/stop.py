@@ -7,10 +7,6 @@ from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
 from ._service_config import snake_zrb_app_name_service_config
 
-###############################################################################
-# ⚙️ kebab-zrb-task-name
-###############################################################################
-
 stop_snake_zrb_app_name_container = DockerComposeTask(
     icon="⛔",
     name="stop",

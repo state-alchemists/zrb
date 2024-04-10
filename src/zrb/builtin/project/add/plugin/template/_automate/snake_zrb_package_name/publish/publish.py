@@ -21,6 +21,7 @@ publish_snake_zrb_package_name = CmdTask(
         os.path.join(_PKG_AUTOMATE_DIR, "activate-venv.sh"),
         os.path.join(_CURRENT_DIR, "publish.sh"),
     ],
+    should_print_cmd_result=False,
 )
 
 publish_snake_zrb_package_name >> publish_project

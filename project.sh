@@ -20,6 +20,7 @@ command_exists() {
 
 init() {
     export PROJECT_DIR=$(pwd)
+    export ZRB_INIT_SCRIPTS=""
     log_info "Setting project directory to ${PROJECT_DIR}"
     if ! command_exists poetry
     then

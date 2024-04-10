@@ -52,6 +52,7 @@ test_snake_zrb_app_name = CmdTask(
         Env(name="APP", os_name="APP_ENABLE_OTEL", default="false"),
     ],
     cmd_path=os.path.join(_CURRENT_DIR, "test.sh"),
+    should_print_cmd_result=False,
     retry=0,
 )
 runner.register(test_snake_zrb_app_name)

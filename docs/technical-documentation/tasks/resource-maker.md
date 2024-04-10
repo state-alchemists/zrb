@@ -312,11 +312,6 @@ Set kwargs that will be shown at the end of the execution
 No documentation available.
 
 
-### `ResourceMaker._set_skip_parsing`
-
-No documentation available.
-
-
 ### `ResourceMaker._set_task`
 
 No documentation available.

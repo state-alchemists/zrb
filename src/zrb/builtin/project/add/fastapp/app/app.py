@@ -21,7 +21,11 @@ from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case
 from zrb.runner import runner
 from zrb.task.decorator import python_task
-from zrb.task.resource_maker import ResourceMaker
+from zrb.task.resource_maker import (
+    ResourceMaker,
+    get_default_resource_excludes,
+    get_default_resource_skip_parsing,
+)
 from zrb.task.task import Task
 
 _CURRENT_DIR = os.path.dirname(__file__)
@@ -70,24 +74,15 @@ copy_resource = ResourceMaker(
     destination_path="{{ input.project_dir }}",
     excludes=[
         "*/deployment/venv",
-        "*/__pycache__",
         "*/src/kebab-zrb-app-name/.venv",
         "*/src/kebab-zrb-app-name/src/frontend/node_modules",
         "*/src/kebab-zrb-app-name/src/frontend/build",
         "*/src/kebab-zrb-app-name/src/frontend/.svelte-kit",
+        *get_default_resource_excludes(),
     ],
     skip_parsing=[
-        "*.mp3",
-        "*.pdf",
-        "*.exe",
-        "*.dll",
-        "*.bin",
-        "*.iso",
-        "*.png",
-        "*.jpg",
-        "*.gif",
-        "*.ico",
         "*/monitoring/clickhouse/user_scripts/histogramQuantile",
+        *get_default_resource_skip_parsing(),
     ],
 )
 

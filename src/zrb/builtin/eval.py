@@ -3,10 +3,6 @@ from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task_input.str_input import StrInput
 
-###############################################################################
-# Task Definitions
-###############################################################################
-
 
 @python_task(
     name="eval",

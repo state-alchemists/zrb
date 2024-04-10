@@ -2,10 +2,6 @@ from zrb.builtin.docker._group import docker_group
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 
-###############################################################################
-# Task Definitions
-###############################################################################
-
 prune_docker = CmdTask(
     name="prune",
     group=docker_group,

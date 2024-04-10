@@ -5,6 +5,7 @@ from zrb.helper.typing import (
     Callable,
     Iterable,
     JinjaTemplate,
+    List,
     Mapping,
     Optional,
     TypeVar,
@@ -39,6 +40,36 @@ ReplacementMutator = Callable[[AnyTask, Replacement], Replacement]
 TResourceMaker = TypeVar("TResourceMaker", bound="ResourceMaker")
 
 
+def get_default_resource_skip_parsing() -> List[str]:
+    return [
+        "*.mp3",
+        "*.pdf",
+        "*.exe",
+        "*.dll",
+        "*.bin",
+        "*.iso",
+        "*.png",
+        "*.jpg",
+        "*.gif",
+        "*.ico",
+        "*.pyc",
+        "*.gz",
+        "*.whl",
+        "*.db",
+    ]
+
+
+def get_default_resource_excludes() -> List[str]:
+    return [
+        "*/.git",
+        "*/__pycache__",
+        "*/node_modules",
+        "*/.venv",
+        "*/poetry.lock",
+        "*/.env",
+    ]
+
+
 @typechecked
 class ResourceMaker(BaseTask):
     def __init__(
@@ -48,7 +79,7 @@ class ResourceMaker(BaseTask):
         destination_path: JinjaTemplate,
         replacements: Replacement = {},
         replacement_mutator: Optional[ReplacementMutator] = None,
-        excludes: Iterable[str] = [],
+        excludes: Iterable[str] = get_default_resource_excludes(),
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -66,7 +97,7 @@ class ResourceMaker(BaseTask):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
-        skip_parsing: Optional[Iterable[str]] = None,
+        skip_parsing: Iterable[str] = get_default_resource_skip_parsing(),
     ):
         BaseTask.__init__(
             self,
@@ -98,27 +129,10 @@ class ResourceMaker(BaseTask):
         self._excludes = excludes
         self._replacements = replacements
         self._replacement_mutator = replacement_mutator
-        self._set_skip_parsing(skip_parsing)
+        self._skip_parsing = skip_parsing
 
     def copy(self) -> TResourceMaker:
         return super().copy()
-
-    def _set_skip_parsing(self, skip_parsing: Optional[Iterable[str]]):
-        if skip_parsing is not None:
-            self._skip_parsing: Iterable[str] = skip_parsing
-            return
-        self._skip_parsing: Iterable[str] = [
-            "*.mp3",
-            "*.pdf",
-            "*.exe",
-            "*.dll",
-            "*.bin",
-            "*.iso",
-            "*.png",
-            "*.jpg",
-            "*.gif",
-            "*.ico",
-        ]
 
     def to_function(
         self,

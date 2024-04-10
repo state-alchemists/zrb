@@ -5,10 +5,6 @@ from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
 
-###############################################################################
-# Task Definitions
-###############################################################################
-
 
 @python_task(
     name="get", group=env_group, description="Get environment values", runner=runner

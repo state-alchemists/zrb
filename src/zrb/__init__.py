@@ -24,7 +24,13 @@ from zrb.task.path_watcher import PathWatcher
 from zrb.task.port_checker import PortChecker
 from zrb.task.recurring_task import RecurringTask
 from zrb.task.remote_cmd_task import RemoteCmdTask
-from zrb.task.resource_maker import Replacement, ReplacementMutator, ResourceMaker
+from zrb.task.resource_maker import (
+    Replacement,
+    ReplacementMutator,
+    ResourceMaker,
+    get_default_resource_excludes,
+    get_default_resource_skip_parsing,
+)
 from zrb.task.rsync_task import RsyncTask
 from zrb.task.task import Task
 from zrb.task.time_watcher import TimeWatcher
@@ -72,6 +78,8 @@ assert TimeWatcher
 assert ResourceMaker
 assert FlowTask
 assert RecurringTask
+assert get_default_resource_excludes
+assert get_default_resource_skip_parsing
 assert Replacement
 assert ReplacementMutator
 assert AnyInput
