@@ -131,6 +131,7 @@ format_code = CmdTask(
         "isort src",
         "black src",
     ],
+    should_print_cmd_result=False,
 )
 runner.register(format_code)
 
@@ -477,6 +478,7 @@ test_only = CmdTask(
     ],
     retry=0,
     checking_interval=1,
+    should_print_cmd_result=False,
 )
 
 test = test_only.copy()

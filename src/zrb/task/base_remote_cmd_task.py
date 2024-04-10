@@ -95,6 +95,9 @@ class SingleBaseRemoteCmdTask(CmdTask):
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
+        should_print_cmd_result: bool = True,
+        should_show_cmd: bool = True,
+        should_show_working_directory: bool = True,
     ):
         CmdTask.__init__(
             self,
@@ -128,6 +131,9 @@ class SingleBaseRemoteCmdTask(CmdTask):
             preexec_fn=preexec_fn,
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
+            should_print_cmd_result=should_print_cmd_result,
+            should_show_cmd=should_show_cmd,
+            should_show_working_directory=should_show_working_directory,
         )
         self._pre_cmd = pre_cmd
         self._pre_cmd_path = pre_cmd_path
@@ -233,6 +239,9 @@ class BaseRemoteCmdTask(BaseTask):
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
+        should_print_cmd_result: bool = True,
+        should_show_cmd: bool = True,
+        should_show_working_directory: bool = True,
     ):
         sub_tasks = [
             SingleBaseRemoteCmdTask(
@@ -267,6 +276,9 @@ class BaseRemoteCmdTask(BaseTask):
                 preexec_fn=preexec_fn,
                 should_execute=should_execute,
                 return_upstream_result=return_upstream_result,
+                should_print_cmd_result=should_print_cmd_result,
+                should_show_cmd=should_show_cmd,
+                should_show_working_directory=should_show_working_directory,
             )
             for remote_config in list(remote_configs)
         ]

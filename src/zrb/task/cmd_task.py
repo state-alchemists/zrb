@@ -130,6 +130,9 @@ class CmdTask(BaseTask):
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
+        should_print_cmd_result: bool = True,
+        should_show_cmd: bool = True,
+        should_show_working_directory: bool = True,
     ):
         BaseTask.__init__(
             self,
@@ -171,6 +174,9 @@ class CmdTask(BaseTask):
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn
+        self._should_print_cmd_result = should_print_cmd_result
+        self._should_show_working_directory = should_show_working_directory
+        self._should_show_cmd = should_show_cmd
 
     def copy(self) -> TCmdTask:
         return super().copy()
@@ -194,7 +200,7 @@ class CmdTask(BaseTask):
         return super().to_function(env_prefix, raise_error, is_async, show_done_info)
 
     def print_result(self, result: CmdResult):
-        if result.output == "":
+        if not self._should_print_cmd_result or result.output == "":
             return
         print(result.output)
 
@@ -217,8 +223,10 @@ class CmdTask(BaseTask):
 
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self.get_cmd_script(*args, **kwargs)
-        self.print_out_dark("Run script: " + self.__get_multiline_repr(cmd))
-        self.print_out_dark("Working directory: " + self._cwd)
+        if self._should_show_cmd:
+            self.print_out_dark("Run script: " + self.__get_multiline_repr(cmd))
+        if self._should_show_working_directory:
+            self.print_out_dark("Working directory: " + self._cwd)
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(

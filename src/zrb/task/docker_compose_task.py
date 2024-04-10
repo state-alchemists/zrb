@@ -48,6 +48,7 @@ def _get_ensure_zrb_network_task(backend: str):
             os.path.join(SHELL_SCRIPT_DIR, f"ensure-{backend}-is-installed.sh"),
         ],
         preexec_fn=None,
+        should_print_cmd_result=False,
     )
     return CmdTask(
         name="ensure-zrb-network",
@@ -56,6 +57,7 @@ def _get_ensure_zrb_network_task(backend: str):
             f"{backend} network create -d bridge zrb",
         ],
         upstreams=[ensure_container_backend],
+        should_print_cmd_result=False,
     )
 
 
@@ -117,6 +119,9 @@ class DockerComposeTask(CmdTask):
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
+        should_print_cmd_result: bool = True,
+        should_show_cmd: bool = True,
+        should_show_working_directory: bool = True,
     ):
         combined_env_files = list(env_files)
         CmdTask.__init__(
@@ -149,6 +154,9 @@ class DockerComposeTask(CmdTask):
             preexec_fn=preexec_fn,
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
+            should_print_cmd_result=should_print_cmd_result,
+            should_show_cmd=should_show_cmd,
+            should_show_working_directory=should_show_working_directory,
         )
         self._setup_cmd = setup_cmd
         self._setup_cmd_path = setup_cmd_path

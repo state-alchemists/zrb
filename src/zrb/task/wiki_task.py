@@ -1,10 +1,10 @@
 import os
 
 from zrb.action.runner import Runner
-from zrb.helper.util import to_human_readable
 from zrb.helper.task import show_lines
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.util import to_human_readable
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -78,7 +78,9 @@ def create_wiki_tasks(
     for dir_name in directory_structure["dirs"]:
         sub_group_description = f"Articles related to {to_human_readable(dir_name)}"
         sub_group = Group(
-            name=dir_name, parent=group, description=sub_group_description,
+            name=dir_name,
+            parent=group,
+            description=sub_group_description,
         )
         sub_tasks = create_wiki_tasks(
             directory=os.path.join(abs_directory, dir_name),
