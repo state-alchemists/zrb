@@ -184,11 +184,14 @@ class ResourceMaker(BaseTask):
     ) -> Mapping[str, str]:
         transformations: Mapping[str, Callable[[str], str]] = {
             "Pascal": to_pascal_case,
-            "kebab": to_kebab_case,
             "camel": to_camel_case,
+            "kebab": to_kebab_case,
+            "KEBAB": _to_upper(to_kebab_case),
             "snake": to_snake_case,
+            "SNAKE": _to_upper(to_snake_case),
             "human readable": to_human_readable,
             "Human readable": to_capitalized_human_readable,
+            "HUMAN READABLE": _to_upper(to_capitalized_human_readable),
         }
         keys = list(rendered_replacements.keys())
         for key in keys:
@@ -199,4 +202,13 @@ class ResourceMaker(BaseTask):
                     continue
                 transformed_value = transform(value)
                 rendered_replacements[prefixed_key] = transformed_value
+            if key != key.upper():
+                rendered_replacements[key.upper()] = value.upper()
         return rendered_replacements
+
+
+def _to_upper(fn: Callable[[str], str]) -> Callable[[str], str]:
+    def upperized_fn(text: str) -> str:
+        return fn(text).upper()
+
+    return upperized_fn
