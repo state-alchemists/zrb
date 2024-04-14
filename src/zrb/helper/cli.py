@@ -46,12 +46,12 @@ def create_cli() -> click.Group:
     # Load zrb_init.py
     project_dir = os.getenv("ZRB_PROJECT_DIR", os.getcwd())
     project_script = os.path.join(project_dir, "zrb_init.py")
-    load_module(script_path=project_script)
+    load_module(script_path=project_script, sys_path_index=0)
     # load from ZRB_INIT_SCRIPTS environment
-    for init_script in init_scripts:
+    for index, init_script in enumerate(init_scripts):
         logger.info(colored(f"Load module from {init_script}", attrs=["dark"]))
         try:
-            load_module(script_path=init_script)
+            load_module(script_path=init_script, sys_path_index=index + 1)
         except Exception:
             logger.error(
                 colored(

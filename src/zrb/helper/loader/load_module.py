@@ -13,11 +13,11 @@ pattern = re.compile("[^a-zA-Z0-9]")
 
 @lru_cache
 @typechecked
-def load_module(script_path: str):
+def load_module(script_path: str, sys_path_index: int = 0):
     if not os.path.isfile(script_path):
         return
     script_dir_path = os.path.dirname(script_path)
-    _append_dir_to_sys_path(script_dir_path)
+    _append_dir_to_sys_path(script_dir_path, sys_path_index)
     _append_dir_to_python_path(script_dir_path)
     _exec_script_as_module(script_path)
 
@@ -33,8 +33,10 @@ def _exec_script_as_module(script_path: str):
     logger.info(colored(f"Module executed: {script_path}", attrs=["dark"]))
 
 
-def _append_dir_to_sys_path(dir_path: str):
-    sys.path.append(dir_path)
+def _append_dir_to_sys_path(dir_path: str, index: int):
+    if dir_path in sys.path:
+        return
+    sys.path.insert(index, dir_path)
     logger.info(colored(f"Set sys.path to {sys.path}", attrs=["dark"]))
 
 
@@ -48,4 +50,6 @@ def _get_new_python_path(dir_path: str) -> str:
     current_python_path = os.getenv("PYTHONPATH")
     if current_python_path is None or current_python_path == "":
         return dir_path
+    if dir_path in current_python_path.split(":"):
+        return current_python_path
     return ":".join([current_python_path, dir_path])
