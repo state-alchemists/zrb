@@ -125,7 +125,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def set_task_xcom(self, key: str, value: Any) -> str:
+    def set_task_xcom(self, key: str, value: Any):
         """
         Set task xcom for cross task communication.
 

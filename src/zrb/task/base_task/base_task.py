@@ -132,7 +132,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         xcom_dir = self.__get_xcom_dir(execution_id=execution_id)
         os.makedirs(xcom_dir, exist_ok=True)
 
-    def set_task_xcom(self, key: str, value: Any) -> str:
+    def set_task_xcom(self, key: str, value: Any):
         return self.set_xcom(key=".".join([self.get_name(), key]), value=value)
 
     def set_xcom(self, key: str, value: Any):
