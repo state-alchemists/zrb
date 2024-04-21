@@ -128,7 +128,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             execution_id = self.get_execution_id()
         return os.path.join(tmp_dir, f"xcom.{execution_id}")
 
-    def __ensure_xcom_dir_exists(self, execution_id: Optional[str] = None) -> str:
+    def __ensure_xcom_dir_exists(self, execution_id: Optional[str] = None):
         xcom_dir = self.__get_xcom_dir(execution_id=execution_id)
         os.makedirs(xcom_dir, exist_ok=True)
 
