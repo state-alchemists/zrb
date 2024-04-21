@@ -40,7 +40,17 @@ No documentation available.
 No documentation available.
 
 
+### `ResourceMaker._BaseTask__ensure_xcom_dir_exists`
+
+No documentation available.
+
+
 ### `ResourceMaker._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `ResourceMaker._BaseTask__get_xcom_dir`
 
 No documentation available.
 
@@ -503,8 +513,7 @@ class MyTask(Task):
 
 ### `ResourceMaker.clear_xcom`
 
-No documentation available.
-
+Clear cross task communication.
 
 ### `ResourceMaker.copy`
 
@@ -631,8 +640,9 @@ __Returns:__
 
 Get xcom value for cross task communication.
 
-Argss:
-key (str): Xcom key
+__Arguments:__
+
+- `key` (`str`): Xcom key
 
 __Returns:__
 
@@ -1280,6 +1290,7 @@ __Arguments:__
 - `raise_error` (`bool`): Whether to raise an error if the task execution fails.
 - `is_async` (`bool`): Whether the resulting function should be asynchronous.
 - `show_done_info` (`bool`): Whether to show information upon task completion.
+- `should_clear_xcom` (`bool`): Whether should clear xcom or not.
 
 __Returns:__
 

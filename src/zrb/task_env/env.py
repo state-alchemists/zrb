@@ -132,3 +132,15 @@ class Env:
         os_name = "None" if self.__os_name is None else double_quote(self.__os_name)
         default = double_quote(self.__default)
         return f"<{cls_name} {name} os_name={os_name} default={default}>"
+
+
+class PrivateEnv(Env):
+    def __init__(
+        self,
+        name: str,
+        default: JinjaTemplate = "",
+        should_render: bool = True,
+    ):
+        return super().__init__(
+            name=name, os_name="", default=default, should_render=should_render
+        )

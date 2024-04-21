@@ -151,7 +151,7 @@ class AnyTask(ABC):
         """
         Get xcom value for cross task communication.
 
-        Argss:
+        Args:
             key (str): Xcom key
 
         Returns:
@@ -162,6 +162,13 @@ class AnyTask(ABC):
             >>> class MyTask(Task):
             >>>     async def run(self, *args: Any, **kwargs: Any) -> int:
             >>>         return self.get_xcom('magic_word')
+        """
+        pass
+
+    @abstractmethod
+    def clear_xcom(self):
+        """
+        Clear cross task communication.
         """
         pass
 
@@ -296,6 +303,7 @@ class AnyTask(ABC):
         raise_error: bool = True,
         is_async: bool = False,
         show_done_info: bool = True,
+        should_clear_xcom: bool = False,
     ) -> Callable[..., Any]:
         """
         Converts the current task into a callable function.
@@ -309,6 +317,7 @@ class AnyTask(ABC):
             raise_error (bool): Whether to raise an error if the task execution fails.
             is_async (bool): Whether the resulting function should be asynchronous.
             show_done_info (bool): Whether to show information upon task completion.
+            should_clear_xcom (bool): Whether should clear xcom or not.
 
         Returns:
             Callable[..., Any]: A callable representation of the task.

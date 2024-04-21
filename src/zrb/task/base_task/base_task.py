@@ -1,8 +1,10 @@
 import asyncio
 import copy
+import os
+import shutil
 
 from zrb.advertisement import advertisements
-from zrb.config.config import show_advertisement
+from zrb.config.config import show_advertisement, tmp_dir
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.advertisement import get_advertisement
 from zrb.helper.callable import run_async
@@ -25,7 +27,7 @@ from zrb.task.base_task.component.base_task_model import BaseTaskModel
 from zrb.task.base_task.component.renderer import Renderer
 from zrb.task.base_task.component.trackers import AttemptTracker, FinishTracker
 from zrb.task.parallel import AnyParallel
-from zrb.task_env.env import Env
+from zrb.task_env.env import Env, PrivateEnv
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
@@ -38,7 +40,6 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     Every task definition should be extended from this class.
     """
 
-    __xcom: Mapping[str, Mapping[str, str]] = {}
     __running_tasks: List[AnyTask] = []
 
     def __init__(
@@ -122,29 +123,36 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
                 other_task.add_upstream(self)
             return operand
 
+    def __get_xcom_dir(self, execution_id: Optional[str] = None) -> str:
+        if execution_id is None:
+            execution_id = self.get_execution_id()
+        return os.path.join(tmp_dir, f"xcom.{execution_id}")
+
+    def __ensure_xcom_dir_exists(self, execution_id: Optional[str] = None) -> str:
+        xcom_dir = self.__get_xcom_dir(execution_id=execution_id)
+        os.makedirs(xcom_dir, exist_ok=True)
+
     def set_task_xcom(self, key: str, value: Any) -> str:
         return self.set_xcom(key=".".join([self.get_name(), key]), value=value)
 
     def set_xcom(self, key: str, value: Any) -> str:
-        execution_id = self.get_execution_id()
-        if execution_id not in self.__xcom:
-            self.__xcom[execution_id] = {}
-        execution_id = self.get_execution_id()
-        self.__xcom[execution_id][key] = f"{value}"
-        return ""
+        self.__ensure_xcom_dir_exists()
+        xcom_dir = self.__get_xcom_dir()
+        xcom_file = os.path.join(xcom_dir, key)
+        with open(xcom_file, "w") as f:
+            f.write(value)
 
     def get_xcom(self, key: str) -> str:
-        execution_id = self.get_execution_id()
-        if execution_id not in self.__xcom:
-            return ""
-        return self.__xcom[execution_id].get(key, "")
+        self.__ensure_xcom_dir_exists()
+        xcom_dir = self.__get_xcom_dir()
+        xcom_file = os.path.join(xcom_dir, key)
+        with open(xcom_file, "r") as f:
+            return f.read()
 
-    def clear_xcom(self, execution_id: str = "") -> str:
-        if execution_id == "":
-            execution_id = self.get_execution_id()
-        if execution_id in self.__xcom:
-            del self.__xcom[execution_id]
-            return ""
+    def clear_xcom(self, execution_id: str = ""):
+        xcom_dir = self.__get_xcom_dir(execution_id=execution_id)
+        if os.path.isdir(xcom_dir):
+            shutil.rmtree(xcom_dir)
 
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
@@ -155,17 +163,21 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         raise_error: bool = True,
         is_async: bool = False,
         show_done_info: bool = True,
+        should_clear_xcom: bool = False,
     ) -> Callable[..., Any]:
         async def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info("Copy task")
-            self_cp = self.copy()
-            return await self_cp._run_and_check_all(
+            self_cp: AnyTask = self.copy()
+            result = await self_cp._run_and_check_all(
                 env_prefix=env_prefix,
                 raise_error=raise_error,
                 args=args,
                 kwargs=kwargs,
                 show_done_info=show_done_info,
             )
+            if should_clear_xcom:
+                self_cp.clear_xcom()
+            return result
 
         if is_async:
             return function
@@ -218,6 +230,20 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
 
     async def check(self) -> bool:
         return await self._is_done()
+
+    def inject_envs(self):
+        super().inject_envs()
+        input_map = self.get_input_map()
+        for task_input in self._get_combined_inputs():
+            input_key = to_variable_name(task_input.get_name())
+            input_value = input_map.get(input_key)
+            env_name = "_INPUT_" + input_key.upper()
+            should_render = task_input.should_render()
+            self.add_env(
+                PrivateEnv(
+                    name=env_name, default=str(input_value), should_render=should_render
+                )
+            )
 
     async def _run_and_check_all(
         self,
@@ -375,7 +401,6 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
                     await self.__trigger_failure(running_tasks)
                     await self.__trigger_fallbacks(running_tasks, kwargs)
         self.set_xcom(self.get_name(), f"{result}")
-        self.log_debug(f"XCom: {self.__xcom}")
         await self._mark_done()
         return result
 
@@ -476,7 +501,11 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             if env.should_render():
                 env_value = self.render_any(env_value)
             self._set_env_map(env_name, env_value)
-        self._set_env_map("_ZRB_EXECUTION_ID", self.get_execution_id())
+        # Add some default Env Map
+        execution_id = self.get_execution_id()
+        self._set_env_map("_ZRB_EXECUTION_ID", execution_id)
+        xcom_dir = self.__get_xcom_dir()
+        self._set_env_map("_ZRB_XCOM_DIR", xcom_dir)
         self.log_debug("Env map:\n" + map_to_str(self.get_env_map(), item_prefix="  "))
 
     def __repr__(self) -> str:

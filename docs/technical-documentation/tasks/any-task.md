@@ -315,6 +315,10 @@ class MyTask(Task):
 ```
 
 
+### `AnyTask.clear_xcom`
+
+Clear cross task communication.
+
 ### `AnyTask.copy`
 
 Creates and returns a copy of the current task.
@@ -440,8 +444,9 @@ __Returns:__
 
 Get xcom value for cross task communication.
 
-Argss:
-key (str): Xcom key
+__Arguments:__
+
+- `key` (`str`): Xcom key
 
 __Returns:__
 
@@ -1089,6 +1094,7 @@ __Arguments:__
 - `raise_error` (`bool`): Whether to raise an error if the task execution fails.
 - `is_async` (`bool`): Whether the resulting function should be asynchronous.
 - `show_done_info` (`bool`): Whether to show information upon task completion.
+- `should_clear_xcom` (`bool`): Whether should clear xcom or not.
 
 __Returns:__
 

@@ -69,6 +69,11 @@ Default shell to run Cmd Task (should be `bash` compatible).
 
 > __⚠️ WARNING:__ Stick with bash compatible shell. Most builtin tasks are written for bash scripts.
 
+## `ZRB_TMP_DIR`
+
+- __Default value:__ `/tmp`
+- __Possible value:__ Any existing directory path
+
 
 ## `ZRB_SHOULD_LOAD_BULTIN`
 

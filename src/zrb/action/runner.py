@@ -88,8 +88,7 @@ class Runner:
         task_inputs = task._get_combined_inputs()
         task_cli_name = task.get_cli_name()
         task_description = task.get_description()
-        task_function = task.to_function(env_prefix=self.__env_prefix, raise_error=True)
-        callback = self.__wrap_task_function(task_function)
+        callback = self.__wrap_task_function(task)
         command = click.Command(
             callback=callback, name=task_cli_name, help=task_description
         )
@@ -107,8 +106,9 @@ class Runner:
             command.params.append(click.Option(param_decl, **options))
         return command
 
-    def __wrap_task_function(self, function: Callable[..., Any]) -> Callable[..., Any]:
+    def __wrap_task_function(self, task: AnyTask) -> Callable[..., Any]:
         def wrapped_function(*args: Any, **kwargs: Any) -> Any:
+            function = task.to_function(env_prefix=self.__env_prefix, raise_error=True)
             try:
                 function(*args, **kwargs)
             except Exception:

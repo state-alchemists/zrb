@@ -24,6 +24,7 @@ def _get_valid_container_backend(container_backend: str) -> str:
     return "docker"
 
 
+tmp_dir = os.getenv("ZRB_TMP_DIR", "/tmp")
 default_shell = os.getenv("ZRB_SHELL", get_current_shell())
 init_script_str = os.getenv("ZRB_INIT_SCRIPTS", "")
 init_scripts = init_script_str.split(":") if init_script_str != "" else []

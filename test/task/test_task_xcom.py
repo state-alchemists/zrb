@@ -6,7 +6,7 @@ from zrb.task.task import Task
 def test_set_xcom():
     set_xcom_cmd = CmdTask(
         name='set-xcom-cmd',
-        cmd='echo "hi{{task.set_xcom("one", "ichi")}}"'
+        cmd='echo "ichi" > "${_ZRB_XCOM_DIR}/one"'
     )
 
     @python_task(name='set-xcom-py')
@@ -18,8 +18,8 @@ def test_set_xcom():
         name='get-xcom-cmd',
         upstreams=[set_xcom_cmd, set_xcom_py],
         cmd=[
-            'echo {{task.get_xcom("one")}}',
-            'echo {{task.get_xcom("two")}}',
+            'cat "${_ZRB_XCOM_DIR}/one"',
+            'cat "${_ZRB_XCOM_DIR}/two"',
         ]
     )
 
@@ -43,7 +43,7 @@ def test_set_xcom():
     result = fn()
     assert len(result) == 2
     assert result[0].output == 'ichi\nni'
-    assert result[1] == 'ichi\nni'
+    assert result[1] == 'ichi\n\nni'
 
 
 def test_get_return_value_as_xcom():

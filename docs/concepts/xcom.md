@@ -78,40 +78,67 @@ __xcom: Mapping[str, Mapping[str, str]] = {
 }
 ```
 
-To set and get value from XCom, you can use `set_xcom` and `get_xcom` method. Zrb automatically puts Tasks's return value into the XCom dictionary.
-
-```python
-from zrb import runner, Parallel, CmdTask, python_task, Task
-
-hello_cmd = CmdTask(
-    name='hello-cmd',
-    cmd='echo hello-cmd'
-)
-
-@python_task(
-    name='hello-py'
-)
-def hello_py(*args, **kwargs):
-    task: Task = kwargs.get('_task')
-    task.set_xcom('my-xcom', 'my-value')
-    return 'hello-py'
-
-hello = CmdTask(
-    name='hello',
-    cmd=[
-        'echo {{task.get_xcom("hello-cmd")}}', # hello-cmd
-        'echo {{task.get_xcom("hello-py")}}',  # hello-py
-        'echo {{task.get_xcom("my-xcom")}}',   # my-value
-    ],
-)
-
-Parallel(hello_cmd, hello_py) >> hello
-runner.register(hello)
-```
+## Using XCom
 
 Zrb automatically handles the `execution-id` part of your XCom dictionary so that you can focus on the XCom key and value.
 
-Furthermore, Zrb automatically put the return value of your Task into the XCom dictionary.
+Furthermore, Zrb automatically registers the return value of your Task into the XCom dictionary.
 
+### Using XCom on Python Task
+
+To set and get value from XCom, you can use `set_xcom` and `get_xcom` method. Zrb automatically puts Tasks's return value into the XCom dictionary.
+
+
+```python
+from zrb import runner, python_task, Task
+
+@python_task(
+    name="set"
+) 
+def set(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    task.set_xcom("sample", "sample value") # xcom["<execution-id>"]["sample"] = "sample value"
+    return "return value" # xcom["<execution-id>"]["set"] = "return value"
+  
+@python_task(
+    name="get"
+)
+def get(*args, **kwargs):
+    task: Task = kwargs.get('_task')
+    task.print_out(task.get_xcom("sample")) # sample value
+    task.print_out(task.get_xcom("set")) # return value
+
+
+set >> get
+runner.register("get")
+```
+
+### Using XCom on Cmd Task
+
+To set and get XCom value from CmdTask, you must rely on temporary files in `ZRB_TMP_DIR`. The names of those files will be `${_ZRB_XCOM_DIR}/<key>`
+
+
+```python
+from zrb import runner, Parallel, CmdTask, Task
+
+set = CmdTask(
+    name="set",
+    cmd=[
+      'echo "sample value" > "${_ZRB_XCOM_DIR}/sample"'  # xcom["<execution-id>"]["sample"] = "sample value"
+      'echo "return value"', # xcom["<execution-id>"]["set"] = "return value" 
+    ]
+)
+
+get = CmdTask(
+    name="get",
+    cmd=[
+        'cat "${_ZRB_XCOM_DIR}/sample"', # sample value
+        'cat "${_ZRB_XCOM_DIR}/set"', # return value
+    ]
+)
+
+set >> get
+runner.register("get")
+```
 
 🔖 [Table of Contents](../README.md) / [Concepts](README.md)
