@@ -56,6 +56,7 @@ reload() {
     fi
 
     log_info 'Install'
+    poetry lock --no-update
     poetry install
 
     if [ "$IS_TERMUX" = "1" ]
