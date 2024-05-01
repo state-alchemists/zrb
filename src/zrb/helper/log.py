@@ -1,7 +1,7 @@
 import logging
 
 from zrb.config.config import logging_level
-from zrb.helper.accessories.color import colored
+from zrb.helper.accessories.untyped_color import untyped_colored as colored
 
 # create logger
 logger = logging.getLogger("zrb")

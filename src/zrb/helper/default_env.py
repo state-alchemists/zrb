@@ -6,6 +6,7 @@ from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Mapping, Optional
 
+logger.info(colored("Loading zrb.helper.default_env", attrs=["dark"]))
 _PROJECT_DIR_MAP: Mapping[str, str] = {}
 
 

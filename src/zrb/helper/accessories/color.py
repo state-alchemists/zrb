@@ -1,7 +1,7 @@
 import random
 
 from termcolor import COLORS
-from termcolor import colored as term_colored
+from zrb.helper.accessories.untyped_color import untyped_colored
 
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Iterable, Optional
@@ -37,4 +37,4 @@ def colored(
     on_color: Optional[str] = None,
     attrs: Optional[Iterable[str]] = None,
 ) -> str:
-    return term_colored(text, color, on_color, attrs)
+    return untyped_colored(text, color, on_color, attrs)

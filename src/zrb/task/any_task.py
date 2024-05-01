@@ -14,6 +14,10 @@ from zrb.helper.typing import (
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
+
+logger.info(colored("Loading zrb.task.any_task", attrs=["dark"]))
 
 # flake8: noqa E501
 TAnyTask = TypeVar("TAnyTask", bound="AnyTask")
