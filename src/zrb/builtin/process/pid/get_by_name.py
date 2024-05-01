@@ -16,7 +16,7 @@ get_process_pid_by_name = CmdTask(
             prompt="Process name to be checked",
         )
     ],
-    cmd="pgrep {{ input.name }}",
+    cmd="pgrep \"{{ input.name }}\" || exit 0",
     checking_interval=3,
 )
 runner.register(get_process_pid_by_name)
