@@ -11,6 +11,8 @@ from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.runner import runner
 
+logger.debug(colored("Loading zrb.helper.cli", attrs=["dark"]))
+
 HELP = f"""
                 bb
    zzzzz rr rr  bb

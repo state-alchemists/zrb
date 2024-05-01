@@ -1,8 +1,12 @@
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import List, Optional, TypeVar
 from zrb.task.any_task import AnyTask
+
+logger.debug(colored("Loading zrb.task_group.group", attrs=["dark"]))
 
 # flake8: noqa E501
 TGroup = TypeVar("TGroup", bound="Group")

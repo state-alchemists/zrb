@@ -8,7 +8,8 @@ import sys
 import time
 
 from zrb.config.config import default_shell
-from zrb.helper.string.conversion import to_variable_name
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
     Any,
@@ -35,6 +36,8 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+
+logger.debug(colored("Loading zrb.task.cmd_task", attrs=["dark"]))
 
 _has_stty = True
 try:

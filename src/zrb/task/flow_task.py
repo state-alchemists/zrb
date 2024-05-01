@@ -1,3 +1,5 @@
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Callable, Iterable, List, Optional, TypeVar, Union
 from zrb.task.any_task import AnyTask
@@ -15,6 +17,8 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+
+logger.debug(colored("Loading zrb.task.flow_task", attrs=["dark"]))
 
 TFlowTask = TypeVar("TFlowTask", bound="FlowTask")
 

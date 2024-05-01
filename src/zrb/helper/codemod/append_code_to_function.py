@@ -1,6 +1,12 @@
 import libcst as cst
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
+
+logger.debug(
+    colored("Loading zrb.helper.codemod.append_code_to_function", attrs=["dark"])
+)
 
 
 @typechecked

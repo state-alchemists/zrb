@@ -1,7 +1,11 @@
 import libcst as cst
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Optional, Tuple, Union
+
+logger.debug(colored("Loading zrb.helper.codemod.add_import_module", attrs=["dark"]))
 
 
 @typechecked

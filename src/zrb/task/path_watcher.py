@@ -1,6 +1,8 @@
 import os
 
+from zrb.helper.accessories.color import colored
 from zrb.helper.file.match import get_file_names
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
     Any,
@@ -28,6 +30,8 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+
+logger.debug(colored("Loading zrb.task.path_watcher", attrs=["dark"]))
 
 TPathWatcher = TypeVar("TPathWatcher", bound="PathWatcher")
 

@@ -1,9 +1,12 @@
 import sys
 
 from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.task import show_lines as task_show_lines
 from zrb.helper.typecheck import typechecked
 from zrb.task.task import Task
+
+logger.debug(colored("Loading zrb.helper.python_task", attrs=["dark"]))
 
 _DEPRECATION_WARNING = """
 DEPRECATED: zrb.helper.python_task

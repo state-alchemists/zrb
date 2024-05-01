@@ -1,10 +1,14 @@
 from dotenv import dotenv_values
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import List, Optional
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
+
+logger.debug(colored("Loading zrb.task_env.env_file", attrs=["dark"]))
 
 # flake8: noqa E501
 

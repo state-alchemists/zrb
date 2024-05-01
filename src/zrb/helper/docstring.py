@@ -1,6 +1,11 @@
 import inspect
 import re
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
+
+logger.debug(colored("Loading zrb.helper.docstring", attrs=["dark"]))
+
 
 def get_markdown_from_docstring(cls) -> str:
     """

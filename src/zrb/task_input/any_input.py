@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typing import Any, List, Mapping
+
+logger.debug(colored("Loading zrb.task_input.any_input", attrs=["dark"]))
 
 # flake8: noqa E501
 
