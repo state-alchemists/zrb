@@ -1,7 +1,11 @@
 import subprocess
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Mapping
+
+logger.debug(colored("Loading zrb.helper.git.detect_changes", attrs=["dark"]))
 
 
 @typechecked

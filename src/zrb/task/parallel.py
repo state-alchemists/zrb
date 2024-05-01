@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import List, TypeVar, Union
 from zrb.task.any_task import AnyTask
+
+logger.debug(colored("Loading zrb.task.parallel", attrs=["dark"]))
 
 TParallel = TypeVar("TParallel", bound="Parallel")
 

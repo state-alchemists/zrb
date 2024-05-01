@@ -1,7 +1,9 @@
 import os
 import subprocess
 
+from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.icon import get_random_icon
+from zrb.helper.log import logger
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, JinjaTemplate, Optional, Union
@@ -20,6 +22,8 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+
+logger.debug(colored("Loading zrb.task.notifier", attrs=["dark"]))
 
 _CURRENT_DIR = os.path.dirname(__file__)
 _NOTIFY_PS1_PATH = os.path.realpath(

@@ -1,5 +1,9 @@
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any
+
+logger.debug(colored("Loading zrb.helper.string.jinja", attrs=["dark"]))
 
 
 @typechecked

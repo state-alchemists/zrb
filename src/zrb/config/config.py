@@ -1,7 +1,10 @@
 import importlib.metadata as metadata
 import os
 
-from zrb.helper.string.untyped_conversion import untyped_to_boolean, untyped_to_logging_level
+from zrb.helper.string.untyped_conversion import (
+    untyped_to_boolean,
+    untyped_to_logging_level,
+)
 
 
 def _get_version() -> str:
@@ -25,7 +28,7 @@ def _get_default_tmp_dir() -> str:
     if os.path.isdir("/tmp"):
         return "/tmp"
     return os.path.expanduser(os.path.join("~", ".tmp"))
-    
+
 
 tmp_dir = os.getenv("ZRB_TMP_DIR", _get_default_tmp_dir())
 default_shell = os.getenv("ZRB_SHELL", _get_current_shell())

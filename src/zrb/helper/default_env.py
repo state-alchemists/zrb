@@ -6,10 +6,11 @@ from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Mapping, Optional
 
-logger.info(colored("Loading zrb.helper.default_env", attrs=["dark"]))
+logger.debug(colored("Loading zrb.helper.default_env", attrs=["dark"]))
 _PROJECT_DIR_MAP: Mapping[str, str] = {}
 
 
+@lru_cache
 def inject_default_env():
     # Inject PYTHONUNBUFFERED
     if "PYTHONUNBUFFERED" not in os.environ:

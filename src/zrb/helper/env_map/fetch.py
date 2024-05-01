@@ -1,9 +1,13 @@
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.string.jinja import is_probably_jinja
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import List, Mapping
 from zrb.task.any_task import AnyTask
 from zrb.task_env.env import Env
 from zrb.task_group.group import Group
+
+logger.debug(colored("Loading zrb.helper.env_map.fetch", attrs=["dark"]))
 
 
 @typechecked

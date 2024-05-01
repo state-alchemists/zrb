@@ -3,6 +3,8 @@ import os
 import platform
 import time
 
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.util import (
     coalesce,
     coalesce_str,
@@ -13,6 +15,8 @@ from zrb.helper.util import (
     to_pascal_case,
     to_snake_case,
 )
+
+logger.debug(colored("Loading zrb.helper.render_data", attrs=["dark"]))
 
 DEFAULT_RENDER_DATA = {
     "datetime": datetime,

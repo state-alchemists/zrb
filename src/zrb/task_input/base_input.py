@@ -1,8 +1,12 @@
 from zrb.config.config import show_prompt
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, List, Mapping, Optional, Union
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
+
+logger.debug(colored("Loading zrb.task_input.base_input", attrs=["dark"]))
 
 # flake8: noqa E501
 

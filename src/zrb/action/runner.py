@@ -9,6 +9,8 @@ from zrb.helper.typing import Any, Callable, List, Mapping, Union
 from zrb.task.any_task import AnyTask
 from zrb.task_group.group import Group as TaskGroup
 
+logger.debug(colored("Loading zrb.action.runner", attrs=["dark"]))
+
 CliSubcommand = Union[click.Group, click.Command]
 
 
@@ -88,7 +90,7 @@ class Runner:
         task_inputs = task._get_combined_inputs()
         task_cli_name = task.get_cli_name()
         task_description = task.get_description()
-        callback = self.__wrap_task_function(task)
+        callback = self.__get_wrapped_task_function(task)
         command = click.Command(
             callback=callback, name=task_cli_name, help=task_description
         )
@@ -106,12 +108,14 @@ class Runner:
             command.params.append(click.Option(param_decl, **options))
         return command
 
-    def __wrap_task_function(self, task: AnyTask) -> Callable[..., Any]:
+    def __get_wrapped_task_function(self, task: AnyTask) -> Callable[..., Any]:
         def wrapped_function(*args: Any, **kwargs: Any) -> Any:
             function = task.to_function(env_prefix=self.__env_prefix, raise_error=True)
             try:
                 function(*args, **kwargs)
             except Exception:
                 sys.exit(1)
+            finally:
+                task.clear_xcom()
 
         return wrapped_function

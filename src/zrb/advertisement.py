@@ -1,5 +1,9 @@
+from zrb.helper.accessories.color import colored
 from zrb.helper.advertisement import Advertisement
+from zrb.helper.log import logger
 from zrb.helper.typing import List
+
+logger.debug(colored("Loading zrb.advertisement", attrs=["dark"]))
 
 # flake8: noqa E501
 

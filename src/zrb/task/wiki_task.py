@@ -1,6 +1,8 @@
 import os
 
 from zrb.action.runner import Runner
+from zrb.helper.accessories.color import colored
+from zrb.helper.log import logger
 from zrb.helper.task import show_lines
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
@@ -20,6 +22,8 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+
+logger.debug(colored("Loading zrb.task.wiki_task", attrs=["dark"]))
 
 
 @typechecked

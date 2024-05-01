@@ -2,9 +2,11 @@ import os
 import pathlib
 
 from zrb.config.config import container_backend
+from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
 from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
+from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
@@ -36,6 +38,8 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+
+logger.debug(colored("Loading zrb.task.docker_compose_task", attrs=["dark"]))
 
 
 def _get_ensure_zrb_network_task(backend: str):
