@@ -300,7 +300,7 @@ For a more sophisticated way to create a Project, please visit [the project sect
 
 Zrb Tasks are your most negligible unit of job definition.
 
-Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
+Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `Server`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
 
 Typically, a Zrb Task has multiple settings:
 
@@ -325,7 +325,7 @@ To learn more about Task, please visit [the concept section](concepts/README.md)
 
 There are two ways to create a Zrb Task:
 
-- __Using Task Class__ (e.g., `CmdTask`, `DockerComposeTask`, `FlowTask`, `RecurringTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc)
+- __Using Task Class__ (e.g., `CmdTask`, `DockerComposeTask`, `FlowTask`, `Server`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc)
 - __Using `@python_task` decorator__
 
 ### Using Task Class
@@ -351,7 +351,7 @@ Here is a quick list to see which class is better for what:
 - __RsyncTask__: Copy file from/to remote computers using `rsync` command.
 - __ResourceMaker__: Create resources (source code/documents) based on provided templates.
 - __FlowTask__: Combine unrelated tasks into a single Workflow.
-- __RecurringTask__: Create a long-running recurring task.
+- __Server__: Handle recurring tasks.
 
 
 ### Using `@python_task` decorator
@@ -696,8 +696,8 @@ Let's see how we build this:
 ```python
 from typing import Any
 from zrb import (
-    runner, Parallel, Task, CmdTask, python_task, ResourceMaker, RecurringTask,
-    PathWatcher, TimeWatcher, HTTPChecker, Env, EnvFile, IntInput
+    runner, Parallel, Task, CmdTask, python_task, ResourceMaker, Server,
+    Controller, PathWatcher, TimeWatcher, HTTPChecker, Env, EnvFile, IntInput
 )
 import os
 
@@ -765,14 +765,19 @@ build = ResourceMaker(
 )
 
 
-monitor = RecurringTask(
+monitor = Server(
     icon='🔍',
     name='monitor',
-    task=build,
-    triggers=[
-        PathWatcher(path=os.path.join(CURRENT_DIR, 'template', '*.*')),
-        PathWatcher(path=os.path.join(CURRENT_DIR, '.env')),
-        TimeWatcher(schedule='* * * * *')
+    controllers=[
+      Controller(
+        name="build-periodically",
+        action=build,
+        triggers=[
+            PathWatcher(path=os.path.join(CURRENT_DIR, 'template', '*.*')),
+            PathWatcher(path=os.path.join(CURRENT_DIR, '.env')),
+            TimeWatcher(schedule='* * * * *')
+        ]
+      )
     ]
 )
 

@@ -15,8 +15,8 @@ Aside from `Task` and `CmdTask`, Zrb has multiple specialized Tasks.
 - [Notifier](notifider.md): Use this Task to notify the user about anything locally.
 - [RemoteCmdTask](remote-cmd-task.md): Use this Task to run a CLI command on remote computers.
 - [RsyncTask](rsync-task.md): Use this Task to copy from/to remote computers.
-- [RecurringTask](recurring-task.md): Use this Task to run a specific Task whenever some conditions are met.
-- [Checker](checker.md): Use this Task to check other Task readiness or to trigger a `RecurringTask`.
+- [Server](server.md): Use this Task to run a specific Task whenever some conditions are met.
+- [Checker](checker.md): Use this Task to check other Task readiness or as `Server`'s trigger'.
 - [FlowTask](flow-task.md): Use this Task to combine several unrelated Tasks into a single workflow.
 
 🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)

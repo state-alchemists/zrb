@@ -1,6 +1,6 @@
 from zrb.builtin._helper.reccuring_action import create_recurring_action
 from zrb.runner import runner
-from zrb.task.server import Server, Controller
+from zrb.task.server import Controller, Server
 from zrb.task.time_watcher import TimeWatcher
 from zrb.task_input.str_input import StrInput
 
@@ -21,15 +21,17 @@ schedule = Server(
         Controller(
             name="periodic",
             trigger=TimeWatcher(
-                name="watch-time", color="cyan", icon="⏰", schedule="{{input.schedule}}"
+                name="watch-time",
+                color="cyan",
+                icon="⏰",
+                schedule="{{input.schedule}}",
             ),
             action=create_recurring_action(
                 notif_title="Schedule",
                 trigger_caption="Schedule",
                 trigger_xcom_key="watch-time.scheduled-time",
             ),
-
         )
-    ]
+    ],
 )
 runner.register(schedule)

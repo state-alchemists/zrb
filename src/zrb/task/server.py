@@ -1,13 +1,11 @@
 import asyncio
 
 from zrb.helper.accessories.color import colored
+from zrb.helper.accessories.name import get_random_name
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.helper.util import to_kebab_case
-from zrb.task_input.any_input import AnyInput
-from zrb.task_env.env import Env
-from zrb.task_env.env_file import EnvFile
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -32,11 +30,11 @@ logger.debug(colored("Loading zrb.task.server", attrs=["dark"]))
 class Controller:
     def __init__(
         self,
-        name: str,
         trigger: Union[AnyTask, List[AnyTask]],
         action: Union[AnyTask, List[AnyTask]],
+        name: Optional[str] = None,
     ):
-        self._name = name
+        self._name = get_random_name() if name is None else name
         self._triggers = [trigger] if isinstance(trigger, AnyTask) else trigger
         self._actions = [action] if isinstance(action, AnyTask) else action
         self._args: List[Any] = []
@@ -50,7 +48,7 @@ class Controller:
 
     def set_kwargs(self, kwargs: Mapping[str, Any]):
         self._kwargs = kwargs
-    
+
     def set_inputs(self, inputs: List[AnyInput]):
         self._inputs = inputs
 
@@ -102,7 +100,7 @@ class Controller:
             inputs=self._inputs,
             envs=self._envs,
             env_files=self._env_files,
-            steps=[self._triggers, actions]
+            steps=[self._triggers, actions],
         )
         return task
 

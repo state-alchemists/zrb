@@ -1,7 +1,7 @@
 from zrb.builtin._helper.reccuring_action import create_recurring_action
 from zrb.runner import runner
-from zrb.task.server import Server, Controller
 from zrb.task.path_watcher import PathWatcher
+from zrb.task.server import Controller, Server
 from zrb.task_input.str_input import StrInput
 
 watch_changes = Server(
@@ -38,8 +38,7 @@ watch_changes = Server(
                 trigger_caption="File changes",
                 trigger_xcom_key="watch-path.file",
             ),
-
         )
-    ]
+    ],
 )
 runner.register(watch_changes)

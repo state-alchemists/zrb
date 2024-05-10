@@ -216,7 +216,7 @@ There are many Task Classes you can use to create a Task.
 - [RsyncTask](specialized-tasks/rsync-task.md): Copy file from/to remote computers using `rsync` command.
 - [ResourceMaker](specialized-tasks/resource-maker.md): Create resources (source code/documents) based on provided templates.
 - [FlowTask](specialized-tasks/flow-task.md): Combine unrelated tasks into a single Workflow.
-- [RecurringTask](specialized-tasks/recurring-task.md): Create a long-running recurring task.
+- [Server](specialized-tasks/server.md): Create a long-running server.
 
 You can see the relation among Zrb Task Classes in the following diagram: 
 
