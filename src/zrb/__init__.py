@@ -32,6 +32,7 @@ from zrb.task.resource_maker import (
     get_default_resource_skip_parsing,
 )
 from zrb.task.rsync_task import RsyncTask
+from zrb.task.server import Server
 from zrb.task.task import Task
 from zrb.task.time_watcher import TimeWatcher
 from zrb.task.wiki_task import create_wiki_tasks
@@ -74,6 +75,7 @@ assert HTTPChecker
 assert PortChecker
 assert PathChecker
 assert PathWatcher
+assert Server
 assert TimeWatcher
 assert ResourceMaker
 assert FlowTask

@@ -115,6 +115,7 @@ class RecurringTask(BaseTask):
         self._triggers: List[AnyTask] = [trigger.copy() for trigger in triggers]
         self._run_configs: List[RunConfig] = []
         self._single_execution = single_execution
+        self.print_err("Deprecated, please use Server instead")
 
     async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
