@@ -1,8 +1,13 @@
-from typing import List, Union, Any, Callable
+import asyncio
+
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any, Callable, Iterable, List, Optional, Union
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from zrb.helper.util import to_kebab_case
+from zrb.task_input.any_input import AnyInput
+from zrb.task_env.env import Env
+from zrb.task_env.env_file import EnvFile
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -20,11 +25,6 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-
-from zrb.helper.util import to_kebab_case
-
-import asyncio
-
 logger.debug(colored("Loading zrb.task.server", attrs=["dark"]))
 
 
@@ -37,45 +37,72 @@ class Controller:
         action: Union[AnyTask, List[AnyTask]],
     ):
         self._name = name
-        self._trigger = trigger
-        self._action = action
+        self._triggers = [trigger] if isinstance(trigger, AnyTask) else trigger
+        self._actions = [action] if isinstance(action, AnyTask) else action
+        self._args: List[Any] = []
+        self._kwargs: Mapping[str, Any] = {}
+        self._inputs: List[AnyInput] = []
+        self._envs: List[Env] = []
+        self._env_files: List[EnvFile] = []
 
-    def get_env_files(self) -> Iterable[EnvFile]:
-        actions = [self._action] if isinstance(self._action, AnyTask) else self._action
+    def set_args(self, args: List[Any]):
+        self._args = args
+
+    def set_kwargs(self, kwargs: Mapping[str, Any]):
+        self._kwargs = kwargs
+    
+    def set_inputs(self, inputs: List[AnyInput]):
+        self._inputs = inputs
+
+    def set_envs(self, envs: List[Env]):
+        self._envs = envs
+
+    def set_env_files(self, env_files: List[EnvFile]):
+        self._env_files = env_files
+
+    def get_sub_env_files(self) -> Iterable[EnvFile]:
+        env_files = []
+        for trigger in self._triggers:
+            env_files += trigger.copy()._get_env_files()
+        for action in self._actions:
+            env_files += action.copy()._get_env_files()
+        return env_files
+
+    def get_sub_envs(self) -> Iterable[Env]:
         envs = []
-        for action in actions:
-            envs += action._get_env_files()
+        for trigger in self._triggers:
+            envs += trigger.copy()._get_envs()
+        for action in self._actions:
+            envs += action.copy()._get_envs()
         return envs
 
-    def get_envs(self) -> Iterable[Env]:
-        actions = [self._action] if isinstance(self._action, AnyTask) else self._action
-        envs = []
-        for action in actions:
-            envs += action._get_envs()
-        return envs
-
-    def get_inputs(self) -> Iterable[AnyInput]:
-        actions = [self._action] if isinstance(self._action, AnyTask) else self._action
+    def get_sub_inputs(self) -> Iterable[AnyInput]:
         inputs = []
-        for action in actions:
-            inputs += action._get_combined_inputs()
+        for trigger in self._triggers:
+            inputs += trigger.copy()._get_combined_inputs()
+        for action in self._actions:
+            inputs += action.copy()._get_combined_inputs()
         return inputs
 
     def to_function(self) -> Callable[..., Any]:
         task = self._get_task()
-        fn = task.to_function(is_async=True)
+
+        async def fn() -> Any:
+            task_fn = task.to_function(is_async=True)
+            return await task_fn(*self._args, **self._kwargs)
+
         return fn
 
     def _get_task(self) -> AnyTask:
         kebab_name = to_kebab_case(self._name)
-        actions = [self._action] if isinstance(self._action, AnyTask) else self._action
+        actions = self._actions
         actions.insert(0, self._get_reschedule_task())
         task: AnyTask = FlowTask(
             name=f"{kebab_name}-flow",
-            steps=[
-                self._trigger,
-                actions
-            ]
+            inputs=self._inputs,
+            envs=self._envs,
+            env_files=self._env_files,
+            steps=[self._triggers, actions]
         )
         return task
 
@@ -125,9 +152,9 @@ class Server(BaseTask):
     ):
         inputs, envs, env_files = list(inputs), list(envs), list(env_files)
         for controller in controllers:
-            inputs += controller.get_inputs()
-            envs += controller.get_envs()
-            env_files += controller.get_env_files()
+            inputs += controller.get_sub_inputs()
+            envs += controller.get_sub_envs()
+            env_files += controller.get_sub_env_files()
         BaseTask.__init__(
             self,
             name=name,
@@ -157,8 +184,11 @@ class Server(BaseTask):
         self._controllers = controllers
 
     async def run(self, *args: Any, **kwargs: Any):
-        functions = [
-            controller.to_function() for controller in self._controllers
-        ]
-        await asyncio.gather(*[fn(*args, **kwargs) for fn in functions])
-
+        for controller in self._controllers:
+            controller.set_envs(self._get_envs())
+            controller.set_env_files(self._get_env_files())
+            controller.set_inputs(self._get_inputs())
+            controller.set_args(args)
+            controller.set_kwargs(kwargs)
+        functions = [controller.to_function() for controller in self._controllers]
+        await asyncio.gather(*[fn() for fn in functions])

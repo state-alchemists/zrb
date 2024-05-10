@@ -1,10 +1,10 @@
 from zrb.builtin._helper.reccuring_action import create_recurring_action
 from zrb.runner import runner
+from zrb.task.server import Server, Controller
 from zrb.task.path_watcher import PathWatcher
-from zrb.task.recurring_task import RecurringTask
 from zrb.task_input.str_input import StrInput
 
-watch_changes = RecurringTask(
+watch_changes = Server(
     name="watch-changes",
     icon="🕵️",
     color="yellow",
@@ -23,19 +23,23 @@ watch_changes = RecurringTask(
             description="Ignored file pattern",
         ),
     ],
-    triggers=[
-        PathWatcher(
-            name="watch-path",
-            color="cyan",
-            icon="👀",
-            path="{{input.pattern}}",
-            ignored_path="{{input.ignored_pattern}}",
+    controllers=[
+        Controller(
+            name="watch",
+            trigger=PathWatcher(
+                name="watch-path",
+                color="cyan",
+                icon="👀",
+                path="{{input.pattern}}",
+                ignored_path="{{input.ignored_pattern}}",
+            ),
+            action=create_recurring_action(
+                notif_title="Watch",
+                trigger_caption="File changes",
+                trigger_xcom_key="watch-path.file",
+            ),
+
         )
-    ],
-    task=create_recurring_action(
-        notif_title="Watch",
-        trigger_caption="File changes",
-        trigger_xcom_key="watch-path.file",
-    ),
+    ]
 )
 runner.register(watch_changes)
