@@ -15,8 +15,9 @@ from zrb import (
     PathWatcher,
     TimeWatcher,
     PortChecker,
-    RecurringTask,
     HTTPChecker,
+    Server,
+    Controller,
     BaseRemoteCmdTask,
     Notifier,
     Env,
@@ -169,7 +170,7 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(dir, "tasks", "path-watcher.md"): PathWatcher,
         os.path.join(dir, "tasks", "port-checker.md"): PortChecker,
         os.path.join(dir, "tasks", "python-task.md"): python_task,
-        os.path.join(dir, "tasks", "recurring-task.md"): RecurringTask,
+        os.path.join(dir, "tasks", "server.md"): Server,
         os.path.join(dir, "tasks", "remote-cmd-task.md"): RemoteCmdTask,
         os.path.join(dir, "tasks", "resource-maker.md"): ResourceMaker,
         os.path.join(dir, "tasks", "rsync-task.md"): RsyncTask,
@@ -217,16 +218,18 @@ remake_docs = CmdTask(
 # ⚙️ auto-make-docs
 ###############################################################################
 
-auto_make_docs = RecurringTask(
+auto_make_docs = Server(
     name="auto-make-docs",
     description="Make documentation whenever there is any changes in the code",
-    triggers=[
-        PathWatcher(
-            path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
+    controllers=[
+        Controller(
+            name='watch',
+            trigger=PathWatcher(
+                path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
+            ),
+            action=remake_docs,
         )
-    ],
-    task=remake_docs,
-    single_execution=True,
+    ]
 )
 runner.register(auto_make_docs)
 
@@ -495,25 +498,29 @@ retest.add_upstream(show_trigger_info)
 # ⚙️ auto-test
 ###############################################################################
 
-auto_test = RecurringTask(
+auto_test = Server(
     name="auto-test",
     description="Run zrb test, automatically",
     upstreams=[test],
-    task=retest,
-    triggers=[
-        PathWatcher(
-            path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
-        ),
-        PathWatcher(
-            path=os.path.join(_CURRENT_DIR, "test", "**", "*.py"),
-            ignored_path=[
-                os.path.join("**", "template", "**", "test"),
-                os.path.join("**", "generator", "**", "app"),
-                os.path.join("**", "resource_maker", "app"),
+    controllers=[
+        Controller(
+            name="watch",
+            action=retest,
+            trigger=[
+                PathWatcher(
+                    path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
+                ),
+                PathWatcher(
+                    path=os.path.join(_CURRENT_DIR, "test", "**", "*.py"),
+                    ignored_path=[
+                        os.path.join("**", "template", "**", "test"),
+                        os.path.join("**", "generator", "**", "app"),
+                        os.path.join("**", "resource_maker", "app"),
+                    ],
+                ),
             ],
-        ),
-    ],
-    single_execution=True,
+        )
+    ]
 )
 runner.register(auto_test)
 

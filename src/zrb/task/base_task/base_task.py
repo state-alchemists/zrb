@@ -140,7 +140,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         xcom_dir = self.__get_xcom_dir()
         xcom_file = os.path.join(xcom_dir, key)
         with open(xcom_file, "w") as f:
-            f.write(value)
+            f.write(f"{value}")
 
     def get_xcom(self, key: str) -> str:
         self.__ensure_xcom_dir_exists()

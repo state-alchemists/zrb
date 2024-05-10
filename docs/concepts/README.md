@@ -26,7 +26,7 @@
   - [Notifier](specialized-tasks/notifider.md)
   - [RemoteCmdTask](specialized-tasks/remote-cmd-task.md)
   - [RsyncTask](specialized-tasks/rsync-task.md)
-  - [RecurringTask](specialized-tasks/recurring-task.md)
+  - [Server](specialized-tasks/server.md)
   - [Checker](specialized-tasks/checker.md)
   - [FlowTask](specialized-tasks/flow-task.md)
 - [Copying Task](copying-task.md)

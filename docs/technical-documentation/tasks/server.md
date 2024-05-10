@@ -1,131 +1,113 @@
 🔖 [Table of Contents](../../README.md) / [Technical Documentation](../README.md) / [Tasks](README.md)
 
-# RecurringTask
+# Server
 
 # Technical Specification
 
 <!--start-doc-->
-## `RecurringTask`
+## `Server`
 
-A class representing a recurring task that is triggered based on
-specified conditions.
+Base class for all tasks.
+Every task definition should be extended from this class.
 
-__Examples:__
-
-
-```python
-from zrb import RecurringTask
-```
-
-
-### `RecurringTask._BaseTaskModel__get_colored`
+### `Server._BaseTaskModel__get_colored`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTaskModel__get_colored_print_prefix`
+### `Server._BaseTaskModel__get_colored_print_prefix`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTaskModel__get_common_prefix`
+### `Server._BaseTaskModel__get_common_prefix`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTaskModel__get_log_prefix`
+### `Server._BaseTaskModel__get_log_prefix`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTaskModel__get_print_prefix`
+### `Server._BaseTaskModel__get_print_prefix`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTask__check_upstreams`
+### `Server._BaseTask__check_upstreams`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTask__ensure_xcom_dir_exists`
+### `Server._BaseTask__ensure_xcom_dir_exists`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTask__get_all_fallbacks`
+### `Server._BaseTask__get_all_fallbacks`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTask__get_xcom_dir`
+### `Server._BaseTask__get_xcom_dir`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTask__trigger_failure`
+### `Server._BaseTask__trigger_failure`
 
 No documentation available.
 
 
-### `RecurringTask._BaseTask__trigger_fallbacks`
+### `Server._BaseTask__trigger_fallbacks`
 
 No documentation available.
 
 
-### `RecurringTask._RecurringTask__check_trigger`
+### `Server._Renderer__ensure_cached_render_data`
 
 No documentation available.
 
 
-### `RecurringTask._RecurringTask__run_from_queue`
+### `Server._Renderer__get_render_data`
 
 No documentation available.
 
 
-### `RecurringTask._Renderer__ensure_cached_render_data`
+### `Server._cached_check`
 
 No documentation available.
 
 
-### `RecurringTask._Renderer__get_render_data`
+### `Server._cached_run`
 
 No documentation available.
 
 
-### `RecurringTask._cached_check`
-
-No documentation available.
-
-
-### `RecurringTask._cached_run`
-
-No documentation available.
-
-
-### `RecurringTask._check`
+### `Server._check`
 
 Check current task readiness.
 - If self.checkers is defined,
 this will return True once every self.checkers is completed
 - Otherwise, this will return check method's return value.
 
-### `RecurringTask._check_should_execute`
+### `Server._check_should_execute`
 
 No documentation available.
 
 
-### `RecurringTask._end_timer`
+### `Server._end_timer`
 
 No documentation available.
 
 
-### `RecurringTask._get_attempt`
+### `Server._get_attempt`
 
 No documentation available.
 
 
-### `RecurringTask._get_checkers`
+### `Server._get_checkers`
 
 Retrieves the checkers set for the task.
 
@@ -137,22 +119,22 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of checkers associated with the task.
 
-### `RecurringTask._get_combined_env`
+### `Server._get_combined_env`
 
 No documentation available.
 
 
-### `RecurringTask._get_combined_inputs`
+### `Server._get_combined_inputs`
 
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
-### `RecurringTask._get_elapsed_time`
+### `Server._get_elapsed_time`
 
 No documentation available.
 
 
-### `RecurringTask._get_env_files`
+### `Server._get_env_files`
 
 Retrieves the list of environment variable files associated with the task.
 
@@ -163,7 +145,7 @@ __Returns:__
 
 `List[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
-### `RecurringTask._get_envs`
+### `Server._get_envs`
 
 Retrieves the list of environment variables set for the task.
 
@@ -174,7 +156,7 @@ __Returns:__
 
 `List[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `RecurringTask._get_fallbacks`
+### `Server._get_fallbacks`
 
 Retrieves the fallback tasks of the current task.
 
@@ -186,7 +168,7 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of fallback tasks.
 
-### `RecurringTask._get_inputs`
+### `Server._get_inputs`
 
 Retrieves the list of inputs associated with the task.
 
@@ -198,17 +180,17 @@ __Returns:__
 
 `List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
-### `RecurringTask._get_max_attempt`
+### `Server._get_max_attempt`
 
 No documentation available.
 
 
-### `RecurringTask._get_task_pid`
+### `Server._get_task_pid`
 
 No documentation available.
 
 
-### `RecurringTask._get_upstreams`
+### `Server._get_upstreams`
 
 Retrieves the upstream tasks of the current task.
 
@@ -220,82 +202,82 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of upstream tasks.
 
-### `RecurringTask._increase_attempt`
+### `Server._increase_attempt`
 
 No documentation available.
 
 
-### `RecurringTask._is_done`
+### `Server._is_done`
 
 No documentation available.
 
 
-### `RecurringTask._is_last_attempt`
+### `Server._is_last_attempt`
 
 No documentation available.
 
 
-### `RecurringTask._lock_fallbacks`
+### `Server._lock_fallbacks`
 
 Lock fallbacks so that it cannot be altered anymore
 
-### `RecurringTask._lock_upstreams`
+### `Server._lock_upstreams`
 
 Lock upstreams so that it cannot be altered anymore
 
-### `RecurringTask._loop_check`
+### `Server._loop_check`
 
 For internal use.
 
 Regularly check whether the task is ready or not.
 
-### `RecurringTask._mark_awaited`
+### `Server._mark_awaited`
 
 No documentation available.
 
 
-### `RecurringTask._mark_done`
+### `Server._mark_done`
 
 No documentation available.
 
 
-### `RecurringTask._play_bell`
+### `Server._play_bell`
 
 No documentation available.
 
 
-### `RecurringTask._print_result`
+### `Server._print_result`
 
 For internal use.
 
 Call `print_result` or print values based on result type and other conditions.
 
-### `RecurringTask._propagate_execution_id`
+### `Server._propagate_execution_id`
 
 No documentation available.
 
 
-### `RecurringTask._run_all`
+### `Server._run_all`
 
 For internal use.
 
 Run this task and all its upstreams.
 
-### `RecurringTask._run_and_check_all`
+### `Server._run_and_check_all`
 
 No documentation available.
 
 
-### `RecurringTask._set_args`
+### `Server._set_args`
 
 Set args that will be shown at the end of the execution
 
-### `RecurringTask._set_env_map`
+### `Server._set_env_map`
 
 No documentation available.
 
 
-### `RecurringTask._set_execution_id`
+### `Server._set_execution_id`
 
 Sets the execution ID for the current task.
 
@@ -308,69 +290,69 @@ __Arguments:__
 
 - `execution_id` (`str`): A string representing the unique execution ID.
 
-### `RecurringTask._set_has_cli_interface`
+### `Server._set_has_cli_interface`
 
 Marks the task as having a CLI interface.
 
 This internal method is used to indicate that the task is accessible and executable through a CLI,
 enabling the task system to appropriately handle its CLI interactions.
 
-### `RecurringTask._set_input_map`
+### `Server._set_input_map`
 
 No documentation available.
 
 
-### `RecurringTask._set_keyval`
+### `Server._set_keyval`
 
 For internal use.
 
 Set current task's key values.
 
-### `RecurringTask._set_kwargs`
+### `Server._set_kwargs`
 
 Set kwargs that will be shown at the end of the execution
 
-### `RecurringTask._set_local_keyval`
+### `Server._set_local_keyval`
 
 No documentation available.
 
 
-### `RecurringTask._set_task`
+### `Server._set_task`
 
 No documentation available.
 
 
-### `RecurringTask._set_task_pid`
+### `Server._set_task_pid`
 
 No documentation available.
 
 
-### `RecurringTask._should_attempt`
+### `Server._should_attempt`
 
 No documentation available.
 
 
-### `RecurringTask._show_done_info`
+### `Server._show_done_info`
 
 No documentation available.
 
 
-### `RecurringTask._show_env_prefix`
+### `Server._show_env_prefix`
 
 No documentation available.
 
 
-### `RecurringTask._show_run_command`
+### `Server._show_run_command`
 
 No documentation available.
 
 
-### `RecurringTask._start_timer`
+### `Server._start_timer`
 
 No documentation available.
 
 
-### `RecurringTask.add_checker`
+### `Server.add_checker`
 
 Adds one or more `AnyTask` instances to the end of the current task's checker list.
 
@@ -391,7 +373,7 @@ task.add_checker(checker_task)
 ```
 
 
-### `RecurringTask.add_env`
+### `Server.add_env`
 
 Adds one or more `Env` instances to the end of the current task's environment variable list.
 
@@ -412,7 +394,7 @@ task.add_env(env_var)
 ```
 
 
-### `RecurringTask.add_env_file`
+### `Server.add_env_file`
 
 Adds one or more `EnvFile` instances to the end of the current task's environment file list.
 
@@ -434,7 +416,7 @@ task.add_env_file(env_file)
 ```
 
 
-### `RecurringTask.add_fallback`
+### `Server.add_fallback`
 
 Adds one or more `AnyTask` instances to the end of the current task's fallback list.
 
@@ -454,7 +436,7 @@ task.add_fallback(fallback_task)
 ```
 
 
-### `RecurringTask.add_input`
+### `Server.add_input`
 
 Adds one or more `AnyInput` instances to the end of the current task's input list.
 
@@ -475,7 +457,7 @@ task.add_input(email_input)
 ```
 
 
-### `RecurringTask.add_upstream`
+### `Server.add_upstream`
 
 Adds one or more `AnyTask` instances to the end of the current task's upstream list.
 
@@ -496,7 +478,7 @@ task.add_upstream(upstream_task)
 ```
 
 
-### `RecurringTask.check`
+### `Server.check`
 
 Checks if the current task is `ready`.
 
@@ -524,11 +506,11 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.clear_xcom`
+### `Server.clear_xcom`
 
 Clear cross task communication.
 
-### `RecurringTask.copy`
+### `Server.copy`
 
 Creates and returns a copy of the current task.
 
@@ -549,7 +531,7 @@ copied_task.set_name('new_name')
 ```
 
 
-### `RecurringTask.get_cli_name`
+### `Server.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
 
@@ -560,7 +542,7 @@ __Returns:__
 
 `str`: The CLI name of the task.
 
-### `RecurringTask.get_color`
+### `Server.get_color`
 
 Retrieves the color associated with the current task.
 
@@ -571,7 +553,7 @@ __Returns:__
 
 `str`: A string representing the color assigned to the task.
 
-### `RecurringTask.get_description`
+### `Server.get_description`
 
 Fetches the current description of the task.
 
@@ -582,7 +564,7 @@ __Returns:__
 
 `str`: The description of the task.
 
-### `RecurringTask.get_env_map`
+### `Server.get_env_map`
 
 Get a map representing task's Envs and EnvFiles
 
@@ -600,7 +582,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `RecurringTask.get_execution_id`
+### `Server.get_execution_id`
 
 Retrieves the execution ID of the task.
 
@@ -612,7 +594,7 @@ __Returns:__
 
 `str`: The unique execution ID of the task.
 
-### `RecurringTask.get_icon`
+### `Server.get_icon`
 
 Retrieves the icon identifier of the current task.
 
@@ -623,7 +605,7 @@ __Returns:__
 
 `str`: A string representing the icon identifier for the task
 
-### `RecurringTask.get_input_map`
+### `Server.get_input_map`
 
 Get a map representing task's Inputs.
 
@@ -641,7 +623,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `RecurringTask.get_name`
+### `Server.get_name`
 
 Get task name
 
@@ -649,7 +631,7 @@ __Returns:__
 
 `str`: name of the task
 
-### `RecurringTask.get_xcom`
+### `Server.get_xcom`
 
 Get xcom value for cross task communication.
 
@@ -671,7 +653,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.inject_checkers`
+### `Server.inject_checkers`
 
 Injects custom checkers into the task.
 
@@ -689,7 +671,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.inject_env_files`
+### `Server.inject_env_files`
 
 Injects additional `EnvFile` into the task.
 
@@ -703,7 +685,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.inject_envs`
+### `Server.inject_envs`
 
 Injects environment variables into the task.
 
@@ -717,7 +699,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.inject_fallbacks`
+### `Server.inject_fallbacks`
 
 Injects fallback tasks into the current task.
 
@@ -735,7 +717,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.inject_inputs`
+### `Server.inject_inputs`
 
 Injects custom inputs into the task.
 
@@ -753,7 +735,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.inject_upstreams`
+### `Server.inject_upstreams`
 
 Injects upstream tasks into the current task.
 
@@ -771,7 +753,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.insert_checker`
+### `Server.insert_checker`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's checker list.
 
@@ -793,7 +775,7 @@ task.insert_checker(checker_task)
 ```
 
 
-### `RecurringTask.insert_env`
+### `Server.insert_env`
 
 Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
 
@@ -814,7 +796,7 @@ task.insert_env(env_var)
 ```
 
 
-### `RecurringTask.insert_env_file`
+### `Server.insert_env_file`
 
 Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
 
@@ -836,7 +818,7 @@ task.insert_env_file(env_file)
 ```
 
 
-### `RecurringTask.insert_fallback`
+### `Server.insert_fallback`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's fallback list.
 
@@ -858,7 +840,7 @@ task.insert_fallback(fallback_task)
 ```
 
 
-### `RecurringTask.insert_input`
+### `Server.insert_input`
 
 Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
 
@@ -879,7 +861,7 @@ task.insert_input(email_input)
 ```
 
 
-### `RecurringTask.insert_upstream`
+### `Server.insert_upstream`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
 
@@ -901,37 +883,37 @@ task.insert_upstream(upstream_task)
 ```
 
 
-### `RecurringTask.log_critical`
+### `Server.log_critical`
 
 Log message with log level "CRITICAL"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RecurringTask.log_debug`
+### `Server.log_debug`
 
 Log message with log level "DEBUG"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RecurringTask.log_error`
+### `Server.log_error`
 
 Log message with log level "ERROR"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RecurringTask.log_info`
+### `Server.log_info`
 
 Log message with log level "INFO"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RecurringTask.log_warn`
+### `Server.log_warn`
 
 Log message with log level "WARNING"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RecurringTask.on_failed`
+### `Server.on_failed`
 
 Specifies the behavior when the task execution fails.
 
@@ -957,7 +939,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.on_ready`
+### `Server.on_ready`
 
 Defines actions to be performed when the task status is `ready`.
 
@@ -975,7 +957,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.on_retry`
+### `Server.on_retry`
 
 Defines actions to perform when the task is retried.
 
@@ -993,7 +975,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.on_skipped`
+### `Server.on_skipped`
 
 Defines actions to perform when the task status is set to `skipped`.
 
@@ -1010,7 +992,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.on_started`
+### `Server.on_started`
 
 Defines actions to perform when the task status is set to 'started'.
 
@@ -1027,7 +1009,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.on_triggered`
+### `Server.on_triggered`
 
 Defines actions to perform when the task status is set to `triggered`.
 
@@ -1045,7 +1027,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.on_waiting`
+### `Server.on_waiting`
 
 Defines actions to perform when the task status is set to `waiting`.
 
@@ -1063,19 +1045,19 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.print_err`
+### `Server.print_err`
 
 Print message to stderr and style it as error.
 
-### `RecurringTask.print_out`
+### `Server.print_out`
 
 Print message to stderr as normal text.
 
-### `RecurringTask.print_out_dark`
+### `Server.print_out_dark`
 
 Print message to stdout and style it as faint.
 
-### `RecurringTask.print_result`
+### `Server.print_result`
 
 Print the task result to stdout for further processing.
 
@@ -1098,32 +1080,32 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.render_any`
+### `Server.render_any`
 
 Render any value.
 
-### `RecurringTask.render_bool`
+### `Server.render_bool`
 
 Render int value.
 
-### `RecurringTask.render_file`
+### `Server.render_file`
 
 Render file content.
 
-### `RecurringTask.render_float`
+### `Server.render_float`
 
 Render float value.
 
-### `RecurringTask.render_int`
+### `Server.render_int`
 
 No documentation available.
 
 
-### `RecurringTask.render_str`
+### `Server.render_str`
 
 Render str value.
 
-### `RecurringTask.run`
+### `Server.run`
 
 Executes the main logic of the task.
 
@@ -1152,7 +1134,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.set_checking_interval`
+### `Server.set_checking_interval`
 
 Sets the interval for checking the task's readiness or completion status.
 
@@ -1163,7 +1145,7 @@ __Arguments:__
 
 - `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
-### `RecurringTask.set_color`
+### `Server.set_color`
 
 Defines a new color for the current task.
 
@@ -1174,7 +1156,7 @@ __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
 
-### `RecurringTask.set_description`
+### `Server.set_description`
 
 Sets a new description for the current task.
 
@@ -1185,7 +1167,7 @@ __Arguments:__
 
 - `new_description` (`str`): A string representing the new description of the task.
 
-### `RecurringTask.set_icon`
+### `Server.set_icon`
 
 Assigns a new icon to the current task.
 
@@ -1196,7 +1178,7 @@ __Arguments:__
 
 - `new_icon` (`str`): A string representing the icon identifier for the task.
 
-### `RecurringTask.set_name`
+### `Server.set_name`
 
 Sets a new name for the current task.
 
@@ -1207,7 +1189,7 @@ __Arguments:__
 
 - `new_name` (`str`): A string representing the new name to be assigned to the task.
 
-### `RecurringTask.set_retry`
+### `Server.set_retry`
 
 Sets the number of retry attempts for the task.
 
@@ -1218,7 +1200,7 @@ __Arguments:__
 
 - `new_retry` (`int`): An integer representing the number of retry attempts.
 
-### `RecurringTask.set_retry_interval`
+### `Server.set_retry_interval`
 
 Specifies the interval between retry attempts for the task.
 
@@ -1229,7 +1211,7 @@ __Arguments:__
 
 - `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
-### `RecurringTask.set_should_execute`
+### `Server.set_should_execute`
 
 Determines whether the task should execute.
 
@@ -1241,7 +1223,7 @@ __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
-### `RecurringTask.set_task_xcom`
+### `Server.set_task_xcom`
 
 Set task xcom for cross task communication.
 
@@ -1265,7 +1247,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.set_xcom`
+### `Server.set_xcom`
 
 Set xcom for cross task communication.
 
@@ -1289,7 +1271,7 @@ class MyTask(Task):
 ```
 
 
-### `RecurringTask.to_function`
+### `Server.to_function`
 
 Converts the current task into a callable function.
 
