@@ -92,28 +92,27 @@ class Controller:
         return fn
 
     def _get_task(self) -> AnyTask:
-        kebab_name = to_kebab_case(self._name)
         actions = self._actions
-        actions.insert(0, self._get_reschedule_task())
+        actions.insert(0, self._get_remonitor_task())
         task: AnyTask = FlowTask(
-            name=f"{kebab_name}-flow",
+            name=to_kebab_case(self._name),
             inputs=self._inputs,
             envs=self._envs,
             env_files=self._env_files,
             steps=[self._triggers, actions],
         )
+        sub_execution_id = get_random_name()
+        task._set_execution_id(f"{self._name}:{sub_execution_id}")
         return task
 
-    def _get_reschedule_task(self) -> AnyTask:
-        kebab_name = to_kebab_case(self._name)
-
+    def _get_remonitor_task(self) -> AnyTask:
         async def on_ready(task: AnyTask):
             task = self._get_task()
             fn = task.to_function(is_async=True)
             await fn()
 
         return BaseTask(
-            name=f"{kebab_name}-reschedule",
+            name=f"monitor-{to_kebab_case(self._name)}",
             on_ready=on_ready,
         )
 
