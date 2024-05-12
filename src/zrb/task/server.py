@@ -34,6 +34,7 @@ class Controller:
         action: Union[AnyTask, List[AnyTask]],
         name: Optional[str] = None,
     ):
+        self._id = get_random_name()
         self._name = get_random_name() if name is None else name
         self._triggers = [trigger] if isinstance(trigger, AnyTask) else trigger
         self._actions = [action] if isinstance(action, AnyTask) else action
@@ -102,7 +103,7 @@ class Controller:
             steps=[self._triggers, actions],
         )
         sub_execution_id = get_random_name()
-        task._set_execution_id(f"{self._name}:{sub_execution_id}")
+        task._set_execution_id(f"{self._id}:{sub_execution_id}")
         return task
 
     def _get_remonitor_task(self) -> AnyTask:

@@ -36,27 +36,119 @@ logger.debug(colored("Loading zrb.task.path_watcher", attrs=["dark"]))
 TPathWatcher = TypeVar("TPathWatcher", bound="PathWatcher")
 
 
-class PathLooper():
+class PathWatchParam():
+
+    def __init__(
+        self,
+        execution_group: str,
+        path: str,
+        ignored_paths: List[str],
+        watch_new_files: bool,
+        watch_deleted_files: bool,
+        watch_modified_files: bool
+    ):
+        self.execution_group = execution_group
+        self.path = path
+        self.ignored_paths = ignored_paths
+        self.watch_new_files = watch_new_files
+        self.watch_deleted_files = watch_deleted_files
+        self.watch_modified_files = watch_modified_files
+
+    def stringify(self) -> str:
+        return ":".join([
+            f"{self.execution_group}",
+            f"{self.path}",
+            f"{self.ignored_paths}",
+            f"{self.watch_new_files}",
+            f"{self.watch_deleted_files}",
+            f"{self.watch_modified_files}",
+        ])
+
+
+class PathWatchLooper():
 
     def __init__(self):
-        self._counter: Mapping[Any, int] = {}
-        self._queue: Mapping[Any, List[bool]] = {}
+        self._param: Mapping[str, PathWatchParam] = {}
+        self._listener_count: Mapping[str, int] = {}
+        self._queue: Mapping[str, List[bool]] = {}
+        self._last_mod_times: Mapping[str]
 
     def register(
         self,
         execution_group: str,
         path: str,
-        ignored_path: str,
-        new: bool,
-        deleted: bool,
-        modified: bool
+        ignored_paths: str,
+        watch_new_files: bool,
+        watch_deleted_files: bool,
+        watch_modified_files: bool
     ):
-        key = []
+        param = PathWatchParam(
+            execution_group=execution_group,
+            path=path,
+            ignored_paths=ignored_paths,
+            watch_new_files=watch_new_files,
+            watch_deleted_files=watch_deleted_files,
+            watch_modified_files=watch_modified_files
+        )
+        key = param.stringify()
+        if key not in self._param:
+            self._param[key] = param
+            self._listener_count[key] = 0
+            self._last_mod_times[key] = self._get_mod_times(
+                path=path, ignored_paths=ignored_paths
+            )
+            self._queue[key] = []
+        self._listener_count[key] += 1
+
+    def unregister(
+        self,
+        execution_group: str,
+        path: str,
+        ignored_paths: str,
+        watch_new_files: bool,
+        watch_deleted_files: bool,
+        watch_modified_files: bool
+    ):
+        param = PathWatchParam(
+            execution_group=execution_group,
+            path=path,
+            ignored_paths=ignored_paths,
+            watch_new_files=watch_new_files,
+            watch_deleted_files=watch_deleted_files,
+            watch_modified_files=watch_modified_files
+        )
+        key = param.stringify()
+        if key not in self._param:
+            return
+        if self._listener_count[key] <= 1:
+            del self._listener_count[key]
+            del self._param[key]
+            del self._queue[key]
+            del self._last_mod_times[key]
+            return
+        self._listener_count -= 1
 
     async def run(self):
         while True:
-            pass
+            for key, param in self._param.items():
+                pass
         pass
+
+    def _get_mod_times(
+        self, path: str, ignored_paths: str
+    ) -> Mapping[str, float]:
+        matches = get_file_names(
+            glob_path=path,
+            glob_ignored_paths=ignored_paths,
+        )
+        mod_times: Mapping[str, float] = {}
+        for file_name in matches:
+            try:
+                mod_time = os.stat(file_name).st_mtime
+                mod_times[file_name] = mod_time
+            except Exception as e:
+                self.print_err(e)
+        return mod_times
 
 
 @typechecked
