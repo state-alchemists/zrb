@@ -25,7 +25,7 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.checker import Checker
+from zrb.task.watcher import Watcher
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
@@ -36,8 +36,31 @@ logger.debug(colored("Loading zrb.task.path_watcher", attrs=["dark"]))
 TPathWatcher = TypeVar("TPathWatcher", bound="PathWatcher")
 
 
+class PathLooper():
+
+    def __init__(self):
+        self._counter: Mapping[Any, int] = {}
+        self._queue: Mapping[Any, List[bool]] = {}
+
+    def register(
+        self,
+        execution_group: str,
+        path: str,
+        ignored_path: str,
+        new: bool,
+        deleted: bool,
+        modified: bool
+    ):
+        key = []
+
+    async def run(self):
+        while True:
+            pass
+        pass
+
+
 @typechecked
-class PathWatcher(Checker):
+class PathWatcher(Watcher):
     """
     PathWatcher will wait for any changes specified on  path.
 
@@ -77,7 +100,7 @@ class PathWatcher(Checker):
         watch_deleted_files: bool = True,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
     ):
-        Checker.__init__(
+        Watcher.__init__(
             self,
             name=name,
             group=group,
