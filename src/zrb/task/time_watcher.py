@@ -10,6 +10,7 @@ from zrb.helper.typing import (
     Callable,
     Iterable,
     JinjaTemplate,
+    Mapping,
     Optional,
     TypeVar,
     Union,
@@ -29,6 +30,7 @@ from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
+from zrb.task.watcher import Watcher
 
 logger.debug(colored("Loading zrb.task.time_watcher", attrs=["dark"]))
 
@@ -36,13 +38,14 @@ TTimeWatcher = TypeVar("TTimeWatcher", bound="TimeWatcher")
 
 
 @typechecked
-class TimeWatcher(Checker):
+class TimeWatcher(Watcher):
     """
     TimeWatcher will wait for any changes specified on  path.
 
     Once the changes detected, TimeWatcher will be completed
     and <task-name>.scheduled-time xcom will be set.
     """
+    __scheduled_times: Mapping[str, Mapping[str, datetime.datetime]] = {}
 
     def __init__(
         self,
@@ -68,7 +71,7 @@ class TimeWatcher(Checker):
         progress_interval: Union[int, float] = 30,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
     ):
-        Checker.__init__(
+        Watcher.__init__(
             self,
             name=name,
             group=group,
@@ -92,7 +95,6 @@ class TimeWatcher(Checker):
             should_execute=should_execute,
         )
         self._schedule = schedule
-        self._scheduled_time: Optional[datetime.datetime] = None
         self._rendered_schedule: str = ""
 
     def copy(self) -> TTimeWatcher:
@@ -109,18 +111,34 @@ class TimeWatcher(Checker):
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self._rendered_schedule = self.render_str(self._schedule)
-        margin = datetime.timedelta(seconds=0.001)
-        slightly_before_check_time = datetime.datetime.now() - margin
-        cron = croniter.croniter(self._rendered_schedule, slightly_before_check_time)
-        self._scheduled_time = cron.get_next(datetime.datetime)
-        self.set_task_xcom(key="scheduled-time", value=self._scheduled_time)
+        identifier = self.get_identifier()
+        if identifier not in self.__scheduled_times:
+            self.__scheduled_times[identifier] = self._get_next_schedule_time()
         return await super().run(*args, **kwargs)
 
-    async def inspect(self, *args: Any, **kwargs: Any) -> bool:
-        label = f"Watching {self._rendered_schedule}"
-        now = datetime.datetime.now()
-        if now > self._scheduled_time:
-            self.print_out_dark(f"{label} (Meet {self._scheduled_time})")
-            return True
-        self.show_progress(f"{label} (Waiting for {self._scheduled_time})")
-        return False
+    def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
+        def loop_inspect() -> bool:
+            label = f"Watching {self._rendered_schedule}"
+            identifier = self.get_identifier()
+            scheduled_time = self.__scheduled_times[identifier]
+            self.set_task_xcom(
+                key="scheduled-time", value=scheduled_time
+            )
+            now = datetime.datetime.now()
+            if now > scheduled_time:
+                self.print_out_dark(f"{label} (Meet {scheduled_time})")
+                self.__scheduled_times[identifier] = self._get_next_schedule_time()
+                return True
+            self.show_progress(f"{label} (Waiting for {scheduled_time})")
+            return False
+        return loop_inspect
+
+    def _get_next_schedule_time(self) -> datetime.datetime:
+        cron = self._get_cron()
+        return cron.get_next(datetime.datetime)
+
+    def _get_cron(self) -> Any:
+        margin = datetime.timedelta(seconds=0.001)
+        slightly_before_now = datetime.datetime.now() - margin
+        cron = croniter.croniter(self._rendered_schedule, slightly_before_now)
+        return cron
