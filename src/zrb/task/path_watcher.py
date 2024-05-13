@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from zrb.helper.accessories.color import colored
@@ -48,6 +49,8 @@ class PathWatcher(Watcher):
     - <task-name>.modified-file
     - <task-name>.deleted-file
     """
+
+    __init_times: Mapping[str, Mapping[str, float]] = {}
 
     def __init__(
         self,
@@ -127,6 +130,7 @@ class PathWatcher(Watcher):
             for ignored_path in self._get_rendered_ignored_paths()
             if ignored_path != ""
         ]
+        self.__init_times[self.get_identifier()] = self._get_mod_times()
         return await super().run(*args, **kwargs)
 
     def _get_rendered_ignored_paths(self) -> List[str]:
@@ -135,15 +139,15 @@ class PathWatcher(Watcher):
         return [self.render_str(ignored_path) for ignored_path in self._ignored_path]
 
     def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
-        init_times: Mapping[str, float] = self._get_mod_times()
-
         async def loop_inspect() -> bool:
             label = f"Watching {self._rendered_path}"
             try:
+                init_times = self.__init_times[self.get_identifier()]
                 mod_times = self._get_mod_times()
             except Exception as e:
                 self.show_progress(f"{label} Cannot inspect")
                 raise e
+            await asyncio.sleep(0.1)
             # watch changes
             if self._watch_new_files:
                 new_files = mod_times.keys() - init_times.keys()
@@ -151,7 +155,7 @@ class PathWatcher(Watcher):
                     self.print_out_dark(f"{label} [+] New file detected: {file}")
                     self.set_task_xcom("new-file", file)
                     self.set_task_xcom("file", file)
-                    init_times = self._get_mod_times()
+                    self.__init_times[self.get_identifier()] = self._get_mod_times()
                     return True
             if self._watch_deleted_files:
                 deleted_files = init_times.keys() - mod_times.keys()
@@ -159,7 +163,7 @@ class PathWatcher(Watcher):
                     self.print_out_dark(f"{label} [-] File deleted: {file}")
                     self.set_task_xcom("deleted-file", file)
                     self.set_task_xcom("file", file)
-                    init_times = self._get_mod_times()
+                    self.__init_times[self.get_identifier()] = self._get_mod_times()
                     return True
             if self._watch_modified_files:
                 modified_files = {
@@ -171,7 +175,7 @@ class PathWatcher(Watcher):
                     self.print_out_dark(f"{label} [/] File modified: {file}")
                     self.set_task_xcom("modified-file", file)
                     self.set_task_xcom("file", file)
-                    init_times = self._get_mod_times()
+                    self.__init_times[self.get_identifier()] = self._get_mod_times()
                     return True
             self.show_progress(f"{label} (Nothing changed)")
             return False

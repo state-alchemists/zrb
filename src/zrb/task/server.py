@@ -92,14 +92,15 @@ class Controller:
         return fn
 
     def _get_task(self) -> AnyTask:
-        actions = list(self._actions)
+        actions = [action.copy() for action in self._actions]
         actions.insert(0, self._get_remonitor_task())
+        triggers = [trigger.copy() for trigger in self._triggers]
         task: AnyTask = FlowTask(
             name=to_kebab_case(self._name),
             inputs=self._inputs,
             envs=self._envs,
             env_files=self._env_files,
-            steps=[self._triggers, actions],
+            steps=[triggers, actions],
         )
         return task
 
