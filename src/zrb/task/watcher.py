@@ -1,7 +1,11 @@
+from functools import lru_cache
 from zrb.helper.accessories.color import colored
+from zrb.helper.accessories.name import get_random_name
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Callable, Iterable, Optional, Union
+from zrb.helper.typing import (
+    Any, Callable, Iterable, List, Mapping, Optional, Union
+)
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -21,8 +25,27 @@ from zrb.task_input.any_input import AnyInput
 logger.debug(colored("Loading zrb.task.watcher", attrs=["dark"]))
 
 
+class Looper():
+    def __init__(self):
+        self._functions: Mapping[str, Callable[..., Any]] = {}
+        self._queue: Mapping[str, List[Any]] = {}
+
+    def register(
+        self, identifier: str, function: Callable[..., Any]
+    ):
+        if identifier in self._function:
+            return
+        self._functions[identifier] = function
+
+    @lru_cache
+    async def run():
+        pass
+
+
 @typechecked
-class Checker(Checker):
+class Watcher(Checker):
+    __looper = Looper()
+
     def __init__(
         self,
         name: str = "watch",
@@ -74,11 +97,8 @@ class Checker(Checker):
             progress_interval=progress_interval,
             expected_result=expected_result,
         )
+        self._identifier = get_random_name()
 
-    def get_execution_group(self) -> str:
-        execution_id = self.get_execution_id()
-        if ":" not in execution_id:
-            return ""
-        execution_id_parts = execution_id.split(":")
-        return execution_id_parts[0]
+    def get_identifier(self) -> str:
+        return self._identifier
 
