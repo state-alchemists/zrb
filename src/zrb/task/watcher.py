@@ -1,6 +1,6 @@
-from functools import lru_cache
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
+from zrb.helper.callable import run_async
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import (
@@ -22,24 +22,31 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
+import asyncio
+
 logger.debug(colored("Loading zrb.task.watcher", attrs=["dark"]))
 
 
 class Looper():
     def __init__(self):
-        self._functions: Mapping[str, Callable[..., Any]] = {}
-        self._queue: Mapping[str, List[Any]] = {}
+        self._functions: Mapping[str, Callable[..., bool]] = {}
+        self._queue: Mapping[str, List[Optional[bool]]] = {}
 
-    def register(
-        self, identifier: str, function: Callable[..., Any]
+    async def pop(self, identifier: str) -> Optional[bool]:
+        if identifier not in self._queue or len(self._queue[identifier]) == 0:
+            return None
+        return self._queue[identifier].pop(0)
+
+    async def register(
+        self, identifier: str, function: Callable[..., Optional[bool]]
     ):
-        if identifier in self._function:
+        if identifier in self._functions:
             return
         self._functions[identifier] = function
-
-    @lru_cache
-    async def run():
-        pass
+        self._queue[identifier] = []
+        while True:
+            result = await run_async(function)
+            self._queue[identifier] = result
 
 
 @typechecked
@@ -89,16 +96,26 @@ class Watcher(Checker):
             on_ready=on_ready,
             on_retry=on_retry,
             on_failed=on_failed,
-            checkers=[],
             checking_interval=checking_interval,
-            retry=0,
-            retry_interval=0,
             should_execute=should_execute,
             progress_interval=progress_interval,
             expected_result=expected_result,
         )
         self._identifier = get_random_name()
 
-    def get_identifier(self) -> str:
-        return self._identifier
+    async def run(self, *args: Any, **kwargs: Any) -> bool:
+        asyncio.create_task(
+            self.__looper.register(
+                self._identifier, self.create_loop_inspector()
+            )
+        )
+        return await super().run(*args, **kwargs)
+
+    async def inspect(self, *args, **kwargs: Any) -> Optional[bool]:
+        return await self.__looper.pop(self._identifier)
+
+    def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
+        def loop_inspect() -> Optional[bool]:
+            return False
+        return loop_inspect
 

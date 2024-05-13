@@ -83,15 +83,15 @@ class Checker(BaseTask):
         while True:
             self._should_show_progress = wait_time >= self._progress_interval
             inspect_result = await self.inspect(*args, **kwargs)
-            if inspect_result == self._expected_result:
+            if inspect_result is not None and inspect_result == self._expected_result:
                 return True
             if wait_time >= self._progress_interval:
                 wait_time = 0
             await asyncio.sleep(self._checking_interval)
             wait_time += self._checking_interval
 
-    async def inspect(self, *args: Any, **kwargs: Any) -> bool:
-        return False
+    async def inspect(self, *args: Any, **kwargs: Any) -> Optional[bool]:
+        return None
 
     def show_progress(self, message: str):
         if self._should_show_progress:

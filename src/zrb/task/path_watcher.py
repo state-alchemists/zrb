@@ -36,121 +36,6 @@ logger.debug(colored("Loading zrb.task.path_watcher", attrs=["dark"]))
 TPathWatcher = TypeVar("TPathWatcher", bound="PathWatcher")
 
 
-class PathWatchParam():
-
-    def __init__(
-        self,
-        execution_group: str,
-        path: str,
-        ignored_paths: List[str],
-        watch_new_files: bool,
-        watch_deleted_files: bool,
-        watch_modified_files: bool
-    ):
-        self.execution_group = execution_group
-        self.path = path
-        self.ignored_paths = ignored_paths
-        self.watch_new_files = watch_new_files
-        self.watch_deleted_files = watch_deleted_files
-        self.watch_modified_files = watch_modified_files
-
-    def stringify(self) -> str:
-        return ":".join([
-            f"{self.execution_group}",
-            f"{self.path}",
-            f"{self.ignored_paths}",
-            f"{self.watch_new_files}",
-            f"{self.watch_deleted_files}",
-            f"{self.watch_modified_files}",
-        ])
-
-
-class PathWatchLooper():
-
-    def __init__(self):
-        self._param: Mapping[str, PathWatchParam] = {}
-        self._listener_count: Mapping[str, int] = {}
-        self._queue: Mapping[str, List[bool]] = {}
-        self._last_mod_times: Mapping[str]
-
-    def register(
-        self,
-        execution_group: str,
-        path: str,
-        ignored_paths: str,
-        watch_new_files: bool,
-        watch_deleted_files: bool,
-        watch_modified_files: bool
-    ):
-        param = PathWatchParam(
-            execution_group=execution_group,
-            path=path,
-            ignored_paths=ignored_paths,
-            watch_new_files=watch_new_files,
-            watch_deleted_files=watch_deleted_files,
-            watch_modified_files=watch_modified_files
-        )
-        key = param.stringify()
-        if key not in self._param:
-            self._param[key] = param
-            self._listener_count[key] = 0
-            self._last_mod_times[key] = self._get_mod_times(
-                path=path, ignored_paths=ignored_paths
-            )
-            self._queue[key] = []
-        self._listener_count[key] += 1
-
-    def unregister(
-        self,
-        execution_group: str,
-        path: str,
-        ignored_paths: str,
-        watch_new_files: bool,
-        watch_deleted_files: bool,
-        watch_modified_files: bool
-    ):
-        param = PathWatchParam(
-            execution_group=execution_group,
-            path=path,
-            ignored_paths=ignored_paths,
-            watch_new_files=watch_new_files,
-            watch_deleted_files=watch_deleted_files,
-            watch_modified_files=watch_modified_files
-        )
-        key = param.stringify()
-        if key not in self._param:
-            return
-        if self._listener_count[key] <= 1:
-            del self._listener_count[key]
-            del self._param[key]
-            del self._queue[key]
-            del self._last_mod_times[key]
-            return
-        self._listener_count -= 1
-
-    async def run(self):
-        while True:
-            for key, param in self._param.items():
-                pass
-        pass
-
-    def _get_mod_times(
-        self, path: str, ignored_paths: str
-    ) -> Mapping[str, float]:
-        matches = get_file_names(
-            glob_path=path,
-            glob_ignored_paths=ignored_paths,
-        )
-        mod_times: Mapping[str, float] = {}
-        for file_name in matches:
-            try:
-                mod_time = os.stat(file_name).st_mtime
-                mod_times[file_name] = mod_time
-            except Exception as e:
-                self.print_err(e)
-        return mod_times
-
-
 @typechecked
 class PathWatcher(Watcher):
     """
@@ -222,7 +107,6 @@ class PathWatcher(Watcher):
         self._watch_deleted_files = watch_deleted_files
         self._rendered_path: str = ""
         self._rendered_ignored_paths: List[str] = []
-        self._init_times: Mapping[str, float] = {}
 
     def copy(self) -> TPathWatcher:
         return super().copy()
@@ -243,7 +127,6 @@ class PathWatcher(Watcher):
             for ignored_path in self._get_rendered_ignored_paths()
             if ignored_path != ""
         ]
-        self._init_times = self._get_mod_times()
         return await super().run(*args, **kwargs)
 
     def _get_rendered_ignored_paths(self) -> List[str]:
@@ -251,41 +134,48 @@ class PathWatcher(Watcher):
             return [self.render_str(self._ignored_path)]
         return [self.render_str(ignored_path) for ignored_path in self._ignored_path]
 
-    async def inspect(self, *args: Any, **kwargs: Any) -> bool:
-        label = f"Watching {self._rendered_path}"
-        try:
-            mod_times = self._get_mod_times()
-        except Exception as e:
-            self.show_progress(f"{label} Cannot inspect")
-            raise e
-        # watch changes
-        if self._watch_new_files:
-            new_files = mod_times.keys() - self._init_times.keys()
-            for file in new_files:
-                self.print_out_dark(f"{label} [+] New file detected: {file}")
-                self.set_task_xcom("new-file", file)
-                self.set_task_xcom("file", file)
-                return True
-        if self._watch_deleted_files:
-            deleted_files = self._init_times.keys() - mod_times.keys()
-            for file in deleted_files:
-                self.print_out_dark(f"{label} [-] File deleted: {file}")
-                self.set_task_xcom("deleted-file", file)
-                self.set_task_xcom("file", file)
-                return True
-        if self._watch_modified_files:
-            modified_files = {
-                file
-                for file, mod_time in mod_times.items()
-                if file in mod_times and self._init_times[file] != mod_time
-            }
-            for file in modified_files:
-                self.print_out_dark(f"{label} [/] File modified: {file}")
-                self.set_task_xcom("modified-file", file)
-                self.set_task_xcom("file", file)
-                return True
-        self.show_progress(f"{label} (Nothing changed)")
-        return False
+    def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
+        init_times: Mapping[str, float] = self._get_mod_times()
+
+        async def loop_inspect() -> bool:
+            label = f"Watching {self._rendered_path}"
+            try:
+                mod_times = self._get_mod_times()
+            except Exception as e:
+                self.show_progress(f"{label} Cannot inspect")
+                raise e
+            # watch changes
+            if self._watch_new_files:
+                new_files = mod_times.keys() - init_times.keys()
+                for file in new_files:
+                    self.print_out_dark(f"{label} [+] New file detected: {file}")
+                    self.set_task_xcom("new-file", file)
+                    self.set_task_xcom("file", file)
+                    init_times = self._get_mod_times()
+                    return True
+            if self._watch_deleted_files:
+                deleted_files = init_times.keys() - mod_times.keys()
+                for file in deleted_files:
+                    self.print_out_dark(f"{label} [-] File deleted: {file}")
+                    self.set_task_xcom("deleted-file", file)
+                    self.set_task_xcom("file", file)
+                    init_times = self._get_mod_times()
+                    return True
+            if self._watch_modified_files:
+                modified_files = {
+                    file
+                    for file, mod_time in mod_times.items()
+                    if file in mod_times and init_times[file] != mod_time
+                }
+                for file in modified_files:
+                    self.print_out_dark(f"{label} [/] File modified: {file}")
+                    self.set_task_xcom("modified-file", file)
+                    self.set_task_xcom("file", file)
+                    init_times = self._get_mod_times()
+                    return True
+            self.show_progress(f"{label} (Nothing changed)")
+            return False
+        return loop_inspect
 
     def _get_mod_times(self) -> Mapping[str, float]:
         matches = get_file_names(
