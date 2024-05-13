@@ -25,12 +25,11 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.checker import Checker
+from zrb.task.watcher import Watcher
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
-from zrb.task.watcher import Watcher
 
 logger.debug(colored("Loading zrb.task.time_watcher", attrs=["dark"]))
 
@@ -45,6 +44,7 @@ class TimeWatcher(Watcher):
     Once the changes detected, TimeWatcher will be completed
     and <task-name>.scheduled-time xcom will be set.
     """
+
     __scheduled_times: Mapping[str, Mapping[str, datetime.datetime]] = {}
 
     def __init__(
@@ -121,9 +121,7 @@ class TimeWatcher(Watcher):
             label = f"Watching {self._rendered_schedule}"
             identifier = self.get_identifier()
             scheduled_time = self.__scheduled_times[identifier]
-            self.set_task_xcom(
-                key="scheduled-time", value=scheduled_time
-            )
+            self.set_task_xcom(key="scheduled-time", value=scheduled_time)
             now = datetime.datetime.now()
             if now > scheduled_time:
                 self.print_out_dark(f"{label} (Meet {scheduled_time})")
@@ -131,6 +129,7 @@ class TimeWatcher(Watcher):
                 return True
             self.show_progress(f"{label} (Waiting for {scheduled_time})")
             return False
+
         return loop_inspect
 
     def _get_next_schedule_time(self) -> datetime.datetime:

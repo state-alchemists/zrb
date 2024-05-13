@@ -180,6 +180,7 @@ class PathWatcher(Watcher):
                     return True
             self.show_progress(f"{label} (Nothing changed)")
             return False
+
         return loop_inspect
 
     def _get_mod_times(self) -> Mapping[str, float]:

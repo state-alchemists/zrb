@@ -14,4 +14,3 @@ async def run_async(fn: Callable, *args: Any, **kwargs: Any) -> Any:
     coro = asyncio.to_thread(fn, *args, **kwargs)
     task = asyncio.create_task(coro)
     return await task
-
