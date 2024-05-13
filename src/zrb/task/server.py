@@ -93,7 +93,7 @@ class Controller:
         return fn
 
     def _get_task(self) -> AnyTask:
-        actions = self._actions
+        actions = list(self._actions)
         actions.insert(0, self._get_remonitor_task())
         task: AnyTask = FlowTask(
             name=to_kebab_case(self._name),
