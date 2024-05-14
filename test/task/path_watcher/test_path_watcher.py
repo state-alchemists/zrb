@@ -14,12 +14,9 @@ def test_path_watcher():
         name='toucher',
         cwd=os.path.join(_CURRENT_DIR, 'resources'),
         cmd=[
-            'sleep 1',
             'touch a/a.txt',
             'sleep 1',
             'touch b/b.txt',
-            'sleep 1',
-            'touch c/c.txt',
         ]
     )
     task = CmdTask(

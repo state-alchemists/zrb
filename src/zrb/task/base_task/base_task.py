@@ -26,6 +26,7 @@ from zrb.task.any_task_event_handler import (
 from zrb.task.base_task.component.base_task_model import BaseTaskModel
 from zrb.task.base_task.component.renderer import Renderer
 from zrb.task.base_task.component.trackers import AttemptTracker, FinishTracker
+from zrb.task.looper import looper
 from zrb.task.parallel import AnyParallel
 from zrb.task_env.env import Env, PrivateEnv
 from zrb.task_env.env_file import EnvFile
@@ -164,6 +165,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         is_async: bool = False,
         show_done_info: bool = True,
         should_clear_xcom: bool = False,
+        should_stop_looper: bool = False,
     ) -> Callable[..., Any]:
         async def function(*args: Any, **kwargs: Any) -> Any:
             self.log_info("Copy task")
@@ -175,6 +177,8 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
                 kwargs=kwargs,
                 show_done_info=show_done_info,
             )
+            if should_stop_looper:
+                looper.stop()
             if should_clear_xcom:
                 self_cp.clear_xcom()
             return result

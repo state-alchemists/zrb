@@ -110,7 +110,12 @@ class Runner:
 
     def __get_wrapped_task_function(self, task: AnyTask) -> Callable[..., Any]:
         def wrapped_function(*args: Any, **kwargs: Any) -> Any:
-            function = task.to_function(env_prefix=self.__env_prefix, raise_error=True)
+            function = task.to_function(
+                env_prefix=self.__env_prefix,
+                raise_error=True,
+                should_clear_xcom=True,
+                should_stop_looper=True,
+            )
             try:
                 function(*args, **kwargs)
             except Exception:

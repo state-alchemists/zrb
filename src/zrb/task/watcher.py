@@ -1,6 +1,7 @@
 import asyncio
 
 from zrb.helper.accessories.color import colored
+from zrb.helper.accessories.name import get_random_name
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
@@ -14,20 +15,23 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.base_task.base_task import BaseTask
+from zrb.task.checker import Checker
+from zrb.task.looper import looper
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-logger.debug(colored("Loading zrb.task.checker", attrs=["dark"]))
+logger.debug(colored("Loading zrb.task.watcher", attrs=["dark"]))
 
 
 @typechecked
-class Checker(BaseTask):
+class Watcher(Checker):
+    __looper = looper
+
     def __init__(
         self,
-        name: str = "check",
+        name: str = "watch",
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -49,7 +53,7 @@ class Checker(BaseTask):
         expected_result: bool = True,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
     ):
-        BaseTask.__init__(
+        Checker.__init__(
             self,
             name=name,
             group=group,
@@ -68,33 +72,29 @@ class Checker(BaseTask):
             on_ready=on_ready,
             on_retry=on_retry,
             on_failed=on_failed,
-            checkers=[],
             checking_interval=checking_interval,
-            retry=0,
-            retry_interval=0,
             should_execute=should_execute,
+            progress_interval=progress_interval,
+            expected_result=expected_result,
         )
-        self._progress_interval = progress_interval
-        self._expected_result = expected_result
-        self._should_show_progress = False
+        self._identifier = get_random_name()
+
+    def get_identifier(self):
+        return self._identifier
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        wait_time = 0
-        while True:
-            self._should_show_progress = wait_time >= self._progress_interval
-            inspect_result = await self.inspect(*args, **kwargs)
-            if inspect_result is not None and inspect_result == self._expected_result:
-                return True
-            if wait_time >= self._progress_interval:
-                wait_time = 0
-            await asyncio.sleep(self._checking_interval)
-            wait_time += self._checking_interval
+        if not looper.is_registered(self._identifier):
+            asyncio.create_task(
+                looper.register(self._identifier, self.create_loop_inspector())
+            )
+        return await super().run(*args, **kwargs)
 
-    async def inspect(self, *args: Any, **kwargs: Any) -> Optional[bool]:
-        return None
+    async def inspect(self, *args, **kwargs: Any) -> Optional[bool]:
+        result = await looper.pop(self._identifier)
+        return result
 
-    def show_progress(self, message: str):
-        if self._should_show_progress:
-            self.print_out_dark(message)
-            return
-        self.log_debug(message)
+    def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
+        def loop_inspect() -> Optional[bool]:
+            return None
+
+        return loop_inspect

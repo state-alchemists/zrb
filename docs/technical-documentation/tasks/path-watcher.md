@@ -547,6 +547,11 @@ copied_task.set_name('new_name')
 ```
 
 
+### `PathWatcher.create_loop_inspector`
+
+No documentation available.
+
+
 ### `PathWatcher.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
@@ -620,6 +625,11 @@ visual representation in user interfaces or documentation.
 __Returns:__
 
 `str`: A string representing the icon identifier for the task
+
+### `PathWatcher.get_identifier`
+
+No documentation available.
+
 
 ### `PathWatcher.get_input_map`
 
