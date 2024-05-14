@@ -131,6 +131,11 @@ No documentation available.
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
+### `TimeWatcher._get_cron`
+
+No documentation available.
+
+
 ### `TimeWatcher._get_elapsed_time`
 
 No documentation available.
@@ -183,6 +188,11 @@ __Returns:__
 `List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
 ### `TimeWatcher._get_max_attempt`
+
+No documentation available.
+
+
+### `TimeWatcher._get_next_schedule_time`
 
 No documentation available.
 
@@ -533,6 +543,11 @@ copied_task.set_name('new_name')
 ```
 
 
+### `TimeWatcher.create_loop_inspector`
+
+No documentation available.
+
+
 ### `TimeWatcher.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
@@ -606,6 +621,11 @@ visual representation in user interfaces or documentation.
 __Returns:__
 
 `str`: A string representing the icon identifier for the task
+
+### `TimeWatcher.get_identifier`
+
+No documentation available.
+
 
 ### `TimeWatcher.get_input_map`
 
