@@ -15,6 +15,8 @@ def test_path_watcher():
         cwd=os.path.join(_CURRENT_DIR, 'resources'),
         cmd=[
             'touch a/a.txt',
+            'sleep 1',
+            'touch b/b.txt',
         ]
     )
     task = CmdTask(
@@ -22,7 +24,7 @@ def test_path_watcher():
         upstreams=[patch_watcher, toucher],
         cmd='echo {{task.get_xcom("watch-path.file")}}'
     )
-    fn = task.to_function(should_stop_looper=True)
+    fn = task.to_function()
     result = fn()
     output = result.output
-    assert output == os.path.join(_CURRENT_DIR, 'resources', 'a', 'a.txt')
+    assert output == os.path.join(_CURRENT_DIR, 'resources', 'b', 'b.txt')
