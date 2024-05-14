@@ -35,6 +35,7 @@ from zrb.task.rsync_task import RsyncTask
 from zrb.task.server import Controller, Server
 from zrb.task.task import Task
 from zrb.task.time_watcher import TimeWatcher
+from zrb.task.watcher import Watcher
 from zrb.task.wiki_task import create_wiki_tasks
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -77,6 +78,7 @@ assert PathChecker
 assert PathWatcher
 assert Controller
 assert Server
+assert Watcher
 assert TimeWatcher
 assert ResourceMaker
 assert FlowTask
