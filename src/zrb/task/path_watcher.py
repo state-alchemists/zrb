@@ -129,7 +129,7 @@ class PathWatcher(Watcher):
             for ignored_path in self._get_rendered_ignored_paths()
             if ignored_path != ""
         ]
-        identifier = self.get_identifeer()
+        identifier = self.get_identifier()
         if identifier in self.__init_times:
             self.__init_times[identifier] = self._get_mod_times()
         return await super().run(*args, **kwargs)
