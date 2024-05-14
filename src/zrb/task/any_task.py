@@ -308,6 +308,7 @@ class AnyTask(ABC):
         is_async: bool = False,
         show_done_info: bool = True,
         should_clear_xcom: bool = False,
+        should_stop_looper: bool = False,
     ) -> Callable[..., Any]:
         """
         Converts the current task into a callable function.

@@ -119,8 +119,17 @@ class PathWatcher(Watcher):
         raise_error: bool = True,
         is_async: bool = False,
         show_done_info: bool = True,
+        should_clear_xcom: bool = False,
+        should_stop_looper: bool = False,
     ) -> Callable[..., bool]:
-        return super().to_function(env_prefix, raise_error, is_async, show_done_info)
+        return super().to_function(
+            env_prefix=env_prefix,
+            raise_error=raise_error,
+            is_async=is_async,
+            show_done_info=show_done_info,
+            should_clear_xcom=should_clear_xcom,
+            should_stop_looper=should_stop_looper,
+        )
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self._rendered_path = self.render_str(self._path)
@@ -130,7 +139,7 @@ class PathWatcher(Watcher):
             if ignored_path != ""
         ]
         identifier = self.get_identifier()
-        if identifier in self.__init_times:
+        if identifier not in self.__init_times:
             self.__init_times[identifier] = self._get_mod_times()
         return await super().run(*args, **kwargs)
 

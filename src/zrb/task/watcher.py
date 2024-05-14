@@ -15,8 +15,8 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.looper import looper
 from zrb.task.checker import Checker
+from zrb.task.looper import looper
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
