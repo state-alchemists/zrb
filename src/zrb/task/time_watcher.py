@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 
 import croniter
@@ -126,7 +127,8 @@ class TimeWatcher(Watcher):
         return await super().run(*args, **kwargs)
 
     def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
-        def loop_inspect() -> bool:
+        async def loop_inspect() -> bool:
+            await asyncio.sleep(0.1)
             label = f"Watching {self._rendered_schedule}"
             identifier = self.get_identifier()
             scheduled_time = self.__scheduled_times[identifier]

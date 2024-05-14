@@ -28,8 +28,6 @@ schedule = Server(
             ),
             action=create_recurring_action(
                 notif_title="Schedule",
-                trigger_caption="Schedule",
-                trigger_xcom_key="watch-time.scheduled-time",
             ),
         )
     ],

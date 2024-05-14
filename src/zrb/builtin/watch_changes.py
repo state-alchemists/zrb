@@ -35,8 +35,6 @@ watch_changes = Server(
             ),
             action=create_recurring_action(
                 notif_title="Watch",
-                trigger_caption="File changes",
-                trigger_xcom_key="watch-path.file",
             ),
         )
     ],

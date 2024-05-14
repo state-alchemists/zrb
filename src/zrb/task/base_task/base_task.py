@@ -177,10 +177,10 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
                 kwargs=kwargs,
                 show_done_info=show_done_info,
             )
-            if should_clear_xcom:
-                self_cp.clear_xcom()
             if should_stop_looper:
                 looper.stop()
+            if should_clear_xcom:
+                self_cp.clear_xcom()
             return result
 
         if is_async:
