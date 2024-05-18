@@ -86,6 +86,7 @@ class Controller:
         task = self._get_task()
 
         async def fn() -> Any:
+            task.print_out_dark(f"Starting controller: {self._name}")
             task_fn = task.to_function(is_async=True)
             return await task_fn(*self._args, **self._kwargs)
 

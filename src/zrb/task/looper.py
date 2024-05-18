@@ -32,8 +32,11 @@ class Looper:
                 if result is not None:
                     if not result:
                         continue
+                    while len(self._queue[identifier]) > 1000:
+                        self._queue[identifier].pop(0)
                     self._queue[identifier].append(result)
             except KeyboardInterrupt:
+                self.stop()
                 break
 
 
