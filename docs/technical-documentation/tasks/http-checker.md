@@ -485,8 +485,7 @@ Checks if the current task is `ready`.
 Any other tasks depends on the current task, will be `started` once the current task is `ready`.
 
 This method should be implemented to define the criteria for considering the task
-`ready`. The specifics of this completion depend on the task's
-nature and the subclass implementation.
+`ready`. The specifics of this completion depend on the task's nature and the subclass implementation.
 
 __Returns:__
 
@@ -1133,7 +1132,7 @@ __Examples:__
 ```python
 from zrb import Task
 class MyTask(Task):
-    async def run(self, *args: Any, **kwargs: Any) -> int:
+    def run(self, *args: Any, **kwargs: Any) -> int:
         self.print_out('Doing some calculation')
         return 42
 ```

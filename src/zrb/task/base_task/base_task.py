@@ -72,10 +72,10 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     ):
         # init properties
         retry_interval = retry_interval if retry_interval >= 0 else 0
-        checking_interval = checking_interval if checking_interval > 0 else 0.1
+        checking_interval = checking_interval if checking_interval > 0 else 0.05
         retry = retry if retry >= 0 else 0
         # init parent classes
-        FinishTracker.__init__(self)
+        FinishTracker.__init__(self, checking_interval=checking_interval)
         Renderer.__init__(self)
         AttemptTracker.__init__(self, retry=retry)
         BaseTaskModel.__init__(
@@ -233,7 +233,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             await run_async(self._on_retry, self)
 
     async def check(self) -> bool:
-        return await self._is_done()
+        return await run_async(self._is_done)
 
     def inject_envs(self):
         super().inject_envs()
@@ -315,7 +315,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         if self.__is_check_triggered:
             self.log_debug("Waiting readiness flag to be set")
             while not self.__is_ready:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(self._checking_interval)
             return True
         self.__is_check_triggered = True
         check_result = await self._check()
@@ -336,7 +336,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         self.log_debug("Waiting execution to be started")
         while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(self._checking_interval / 2.0)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self._get_checkers():
             checker_task._set_execution_id(self.get_execution_id())
