@@ -40,9 +40,7 @@ install_helix = FlowTask(
             Task(
                 name="configure-helix",
                 run=write_config(
-                    template_file=os.path.join(
-                        _CURRENT_DIR, "resource", "config.toml"
-                    ),
+                    template_file=os.path.join(_CURRENT_DIR, "resource", "config.toml"),
                     config_file="~/.config/helix/config.toml",
                     remove_old_config=True,
                 ),

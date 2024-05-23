@@ -148,7 +148,7 @@ class TimeWatcher(Watcher):
         return cron.get_next(datetime.datetime)
 
     def _get_cron(self) -> Any:
-        margin = datetime.timedelta(seconds=self._checking_interval/2.0)
+        margin = datetime.timedelta(seconds=self._checking_interval / 2.0)
         slightly_before_now = datetime.datetime.now() - margin
         cron = croniter.croniter(self._rendered_schedule, slightly_before_now)
         return cron

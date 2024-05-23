@@ -70,5 +70,5 @@ class FinishTracker:
 
     async def _is_done(self) -> bool:
         while self.__execution_queue is None:
-            await asyncio.sleep(self.__checking_interval/2.0)
+            await asyncio.sleep(self.__checking_interval / 2.0)
         return await self.__execution_queue.get()

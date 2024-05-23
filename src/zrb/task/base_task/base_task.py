@@ -336,7 +336,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         self.log_debug("Waiting execution to be started")
         while not self.__is_execution_started:
             # Don't start checking before the execution itself has been started
-            await asyncio.sleep(self._checking_interval/2.0)
+            await asyncio.sleep(self._checking_interval / 2.0)
         check_coroutines: Iterable[asyncio.Task] = []
         for checker_task in self._get_checkers():
             checker_task._set_execution_id(self.get_execution_id())
