@@ -233,7 +233,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             await run_async(self._on_retry, self)
 
     async def check(self) -> bool:
-        return await self._is_done()
+        return await run_async(self._is_done)
 
     def inject_envs(self):
         super().inject_envs()
