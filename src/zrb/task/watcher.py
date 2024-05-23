@@ -48,7 +48,7 @@ class Watcher(Checker):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        checking_interval: Union[int, float] = 0.1,
+        checking_interval: Union[int, float] = 0,
         progress_interval: Union[int, float] = 30,
         expected_result: bool = True,
         should_execute: Union[bool, str, Callable[..., bool]] = True,

@@ -68,7 +68,7 @@ class TimeWatcher(Watcher):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         schedule: JinjaTemplate = "",
-        checking_interval: Union[int, float] = 1,
+        checking_interval: Union[int, float] = 0,
         progress_interval: Union[int, float] = 30,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
     ):
@@ -128,7 +128,7 @@ class TimeWatcher(Watcher):
 
     def create_loop_inspector(self) -> Callable[..., Optional[bool]]:
         async def loop_inspect() -> bool:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(self._checking_interval)
             label = f"Watching {self._rendered_schedule}"
             identifier = self.get_identifier()
             scheduled_time = self.__scheduled_times[identifier]
@@ -148,7 +148,7 @@ class TimeWatcher(Watcher):
         return cron.get_next(datetime.datetime)
 
     def _get_cron(self) -> Any:
-        margin = datetime.timedelta(seconds=0.001)
+        margin = datetime.timedelta(seconds=self._checking_interval/2.0)
         slightly_before_now = datetime.datetime.now() - margin
         cron = croniter.croniter(self._rendered_schedule, slightly_before_now)
         return cron

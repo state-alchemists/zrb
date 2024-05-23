@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Optional
+from zrb.helper.typing import Optional, Union
 
 LOG_NAME_LENGTH = 20
 
@@ -51,9 +51,10 @@ class AttemptTracker:
 
 @typechecked
 class FinishTracker:
-    def __init__(self):
+    def __init__(self, checking_interval: Union[float, int]):
         self.__execution_queue: Optional[asyncio.Queue] = None
         self.__counter = 0
+        self.__checking_interval = checking_interval
 
     async def _mark_awaited(self):
         if self.__execution_queue is None:
@@ -69,5 +70,5 @@ class FinishTracker:
 
     async def _is_done(self) -> bool:
         while self.__execution_queue is None:
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(self.__checking_interval/2.0)
         return await self.__execution_queue.get()
