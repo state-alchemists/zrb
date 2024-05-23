@@ -7,14 +7,12 @@
 <!--start-doc-->
 ## `AnyTask`
 
-Abstract base class for defining tasks in a task management system.
+Contract/interface for all Zrb Task.
 
-This class acts as a template for creating new task types. To define a new task,
-extend this class and implement all its abstract methods. The `AnyTask` class is
-considered atomic and is not broken into multiple interfaces.
+This class acts as a template for creating new Zrb Task types.
 
-Subclasses should implement the abstract methods to define custom behavior for
-task execution, state transitions, and other functionalities.
+To define a new Zrb Task, you should extend this class and implement all its methods.
+The easiest way to do so is by extending `Task`
 
 ### `AnyTask._get_checkers`
 
@@ -294,8 +292,7 @@ Checks if the current task is `ready`.
 Any other tasks depends on the current task, will be `started` once the current task is `ready`.
 
 This method should be implemented to define the criteria for considering the task
-`ready`. The specifics of this completion depend on the task's
-nature and the subclass implementation.
+`ready`. The specifics of this completion depend on the task's nature and the subclass implementation.
 
 __Returns:__
 
@@ -937,7 +934,7 @@ __Examples:__
 ```python
 from zrb import Task
 class MyTask(Task):
-    async def run(self, *args: Any, **kwargs: Any) -> int:
+    def run(self, *args: Any, **kwargs: Any) -> int:
         self.print_out('Doing some calculation')
         return 42
 ```
