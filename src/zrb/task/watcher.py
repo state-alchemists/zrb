@@ -2,6 +2,7 @@ import asyncio
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
+from zrb.helper.callable import run_async
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, Iterable, Optional, Union
@@ -85,7 +86,9 @@ class Watcher(Checker):
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         if not looper.is_registered(self._identifier):
             asyncio.create_task(
-                looper.register(self._identifier, self.create_loop_inspector())
+                run_async(
+                    looper.register, self._identifier, self.create_loop_inspector()
+                )
             )
         return await super().run(*args, **kwargs)
 
