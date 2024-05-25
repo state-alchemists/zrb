@@ -77,7 +77,7 @@ class Env:
 
     def should_render(self) -> bool:
         """
-        Determines whether the environment value should be rendered.
+        Retrieves whether the environment value should be rendered.
 
         Returns:
             bool: True if the environment value should be rendered, False otherwise.
