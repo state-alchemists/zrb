@@ -76,7 +76,7 @@ class RecurringTask(BaseTask):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         checkers: Iterable[AnyTask] = [],
-        checking_interval: float = 0.1,
+        checking_interval: float = 0.05,
         retry: int = 0,
         retry_interval: float = 1,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
@@ -185,7 +185,7 @@ class RecurringTask(BaseTask):
     async def __run_from_queue(self):
         while True:
             if len(self._run_configs) == 0:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.05)
                 continue
             if self._single_execution:
                 # Drain the queue, leave only the latest task

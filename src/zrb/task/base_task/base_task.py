@@ -58,7 +58,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         upstreams: Iterable[AnyTask] = [],
         fallbacks: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: Union[float, int] = 0.1,
+        checking_interval: Union[float, int] = 0.05,
         run: Optional[Callable[..., Any]] = None,
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,

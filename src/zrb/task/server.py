@@ -142,7 +142,7 @@ class Server(BaseTask):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         checkers: Iterable[AnyTask] = [],
-        checking_interval: Union[int, float] = 0.1,
+        checking_interval: Union[int, float] = 0.05,
         retry: int = 0,
         retry_interval: Union[int, float] = 1,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
@@ -184,7 +184,6 @@ class Server(BaseTask):
 
     async def run(self, *args: Any, **kwargs: Any):
         controllers = [copy.deepcopy(controller) for controller in self._controllers]
-        kwargs = {key: kwargs[key] for key in kwargs if not key.startswith("_")}
         for controller in controllers:
             controller.set_envs(self._get_envs())
             controller.set_env_files(self._get_env_files())

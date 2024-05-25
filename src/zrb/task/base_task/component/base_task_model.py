@@ -58,7 +58,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         upstreams: Iterable[AnyTask] = [],
         fallbacks: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: Union[int, float] = 0.1,
+        checking_interval: Union[int, float] = 0.05,
         run: Optional[Callable[..., Any]] = None,
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,

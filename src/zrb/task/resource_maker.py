@@ -123,7 +123,7 @@ class ResourceMaker(BaseTask):
             on_retry=on_retry,
             on_failed=on_failed,
             checkers=[],
-            checking_interval=0.1,
+            checking_interval=0.05,
             retry=0,
             retry_interval=0,
             should_execute=should_execute,

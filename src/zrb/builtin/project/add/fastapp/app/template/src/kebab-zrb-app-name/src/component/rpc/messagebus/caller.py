@@ -15,7 +15,7 @@ class MessagebusCaller(Caller):
         publisher: Publisher,
         consumer_factory: Callable[[], Consumer],
         timeout: float = 30,
-        check_reply_interval: float = 0.1,
+        check_reply_interval: float = 0.05,
     ):
         self.logger = logger
         self.admin = admin
