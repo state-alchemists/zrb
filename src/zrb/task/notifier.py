@@ -58,7 +58,7 @@ class Notifier(BaseTask):
         on_ready: Optional[OnReady] = None,
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
-        checking_interval: Union[int, float] = 0,
+        checking_interval: Union[int, float] = 0.1,
         retry: int = 2,
         retry_interval: Union[float, int] = 1,
         should_execute: Union[bool, str, Callable[..., bool]] = True,

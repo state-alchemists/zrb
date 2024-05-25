@@ -49,7 +49,7 @@ class CommonTaskModel:
         upstreams: Iterable[AnyTask] = [],
         fallbacks: Iterable[AnyTask] = [],
         checkers: Iterable[AnyTask] = [],
-        checking_interval: Union[float, int] = 0,
+        checking_interval: Union[float, int] = 0.1,
         run: Optional[Callable[..., Any]] = None,
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,

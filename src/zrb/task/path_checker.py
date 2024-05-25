@@ -56,7 +56,7 @@ class PathChecker(Checker):
         on_failed: Optional[OnFailed] = None,
         path: JinjaTemplate = "",
         ignored_path: Union[JinjaTemplate, Iterable[JinjaTemplate]] = [],
-        checking_interval: Union[int, float] = 0,
+        checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 5,
         expected_result: bool = True,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,

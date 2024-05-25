@@ -68,7 +68,7 @@ class TimeWatcher(Watcher):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         schedule: JinjaTemplate = "",
-        checking_interval: Union[int, float] = 0,
+        checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 30,
         should_execute: Union[bool, JinjaTemplate, Callable[..., bool]] = True,
     ):

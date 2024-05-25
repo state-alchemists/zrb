@@ -76,7 +76,7 @@ class RecurringTask(BaseTask):
         on_retry: Optional[OnRetry] = None,
         on_failed: Optional[OnFailed] = None,
         checkers: Iterable[AnyTask] = [],
-        checking_interval: float = 0,
+        checking_interval: float = 0.1,
         retry: int = 0,
         retry_interval: float = 1,
         should_execute: Union[bool, str, Callable[..., bool]] = True,

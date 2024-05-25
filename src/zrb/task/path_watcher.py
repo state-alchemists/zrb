@@ -72,7 +72,7 @@ class PathWatcher(Watcher):
         on_failed: Optional[OnFailed] = None,
         path: JinjaTemplate = "",
         ignored_path: Union[JinjaTemplate, Iterable[JinjaTemplate]] = [],
-        checking_interval: Union[int, float] = 0,
+        checking_interval: Union[int, float] = 0.1,
         progress_interval: Union[int, float] = 30,
         watch_new_files: bool = True,
         watch_modified_files: bool = True,
