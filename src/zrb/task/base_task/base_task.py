@@ -273,15 +273,14 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             new_args = copy.deepcopy(args)
             if len(args) == 0 and "_args" in kwargs:
                 new_args = kwargs["_args"]
-            new_kwargs["_args"] = new_args
-            # inject self as input_map['_task']
-            new_kwargs["_task"] = self
             self._set_args(new_args)
             self._set_kwargs(new_kwargs)
             # run the task
             coroutines = [
                 asyncio.create_task(self._loop_check(show_done_info=show_done_info)),
-                asyncio.create_task(self._run_all(*new_args, **new_kwargs)),
+                asyncio.create_task(
+                    self._run_all(*new_args, _args=new_args, _task=self, **new_kwargs)
+                ),
             ]
             results = await asyncio.gather(*coroutines)
             result = results[-1]
