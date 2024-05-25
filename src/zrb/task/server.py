@@ -1,4 +1,5 @@
 import asyncio
+import copy
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
@@ -61,25 +62,25 @@ class Controller:
     def get_sub_env_files(self) -> Iterable[EnvFile]:
         env_files = []
         for trigger in self._triggers:
-            env_files += trigger.copy()._get_env_files()
+            env_files += trigger._get_env_files()
         for action in self._actions:
-            env_files += action.copy()._get_env_files()
+            env_files += action._get_env_files()
         return env_files
 
     def get_sub_envs(self) -> Iterable[Env]:
         envs = []
         for trigger in self._triggers:
-            envs += trigger.copy()._get_envs()
+            envs += trigger._get_envs()
         for action in self._actions:
-            envs += action.copy()._get_envs()
+            envs += action._get_envs()
         return envs
 
     def get_sub_inputs(self) -> Iterable[AnyInput]:
         inputs = []
         for trigger in self._triggers:
-            inputs += trigger.copy()._get_combined_inputs()
+            inputs += trigger._get_combined_inputs()
         for action in self._actions:
-            inputs += action.copy()._get_combined_inputs()
+            inputs += action._get_combined_inputs()
         return inputs
 
     def to_function(self) -> Callable[..., Any]:
@@ -149,9 +150,10 @@ class Server(BaseTask):
     ):
         inputs, envs, env_files = list(inputs), list(envs), list(env_files)
         for controller in controllers:
-            inputs += controller.get_sub_inputs()
-            envs += controller.get_sub_envs()
-            env_files += controller.get_sub_env_files()
+            controller_cp = copy.deepcopy(controller)
+            inputs += controller_cp.get_sub_inputs()
+            envs += controller_cp.get_sub_envs()
+            env_files += controller_cp.get_sub_env_files()
         BaseTask.__init__(
             self,
             name=name,
@@ -181,11 +183,17 @@ class Server(BaseTask):
         self._controllers = controllers
 
     async def run(self, *args: Any, **kwargs: Any):
-        for controller in self._controllers:
+        controllers = [
+            copy.deepcopy(controller) for controller in self._controllers
+        ]
+        kwargs = {
+            key: kwargs[key] for key in kwargs if not key.startswith("_")
+        }
+        for controller in controllers:
             controller.set_envs(self._get_envs())
             controller.set_env_files(self._get_env_files())
             controller.set_inputs(self._get_inputs())
             controller.set_args(args)
             controller.set_kwargs(kwargs)
-        functions = [controller.to_function() for controller in self._controllers]
+        functions = [controller.to_function() for controller in controllers]
         await asyncio.gather(*[fn() for fn in functions])

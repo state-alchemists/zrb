@@ -72,7 +72,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     ):
         # init properties
         retry_interval = retry_interval if retry_interval >= 0 else 0
-        checking_interval = checking_interval if checking_interval > 0 else 0.05
+        checking_interval = checking_interval if checking_interval > 0 else 0.1
         retry = retry if retry >= 0 else 0
         # init parent classes
         FinishTracker.__init__(self, checking_interval=checking_interval)
