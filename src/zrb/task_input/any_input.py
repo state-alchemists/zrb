@@ -11,10 +11,9 @@ logger.debug(colored("Loading zrb.task_input.any_input", attrs=["dark"]))
 
 class AnyInput(ABC):
     """
-    Abstract base class representing a generalized input specification.
-    This class serves as a template for creating various input types,
-    providing a standardized interface for input handling and processing.
+    Interface for all Zrb Input.
 
+    Inputs make Zrb Tasks configurable by allowing user to interact with Zrb Task.
     """
 
     @abstractmethod

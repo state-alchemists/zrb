@@ -15,8 +15,8 @@ logger.debug(colored("Loading zrb.task_env.env", attrs=["dark"]))
 @typechecked
 class Env:
     """
-    Env Represents an environment configuration for a task, encapsulating details such as environment name, OS-specific
-    environment name, default values, and rendering behavior.
+    Env provide environment variables for Zrb Tasks.
+    Env encapsulating details such as environment name, OS environment name, default values, and rendering behavior.
 
     Attributes:
         name (str): Environment name as recognized by the task.

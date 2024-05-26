@@ -16,8 +16,9 @@ logger.debug(colored("Loading zrb.task_env.env_file", attrs=["dark"]))
 @typechecked
 class EnvFile:
     """
-    Represents a handler for an environment file, facilitating the creation and management of environment variables
-    (Env objects) based on the contents of the specified environment file.
+    EnvFile provide environment variables for Zrb Tasks based on environment file.
+
+    Under the hood, EnvFile creates list of Zrb Env based on the environment file.
 
     Attributes:
         path (str): The path to the environment file.

@@ -15,7 +15,7 @@ TGroup = TypeVar("TGroup", bound="Group")
 @typechecked
 class Group:
     """
-    Represents a group of tasks and subgroups, facilitating organization and hierarchy.
+    Represents a group of Zrb Tasks and subgroups, facilitating organization and hierarchy.
 
     This class allows the creation of a hierarchical structure by grouping tasks and
     other task groups together. It provides methods to add tasks, retrieve tasks,
