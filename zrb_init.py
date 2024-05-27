@@ -36,9 +36,7 @@ from zrb.helper.docstring import get_markdown_from_docstring
 
 import os
 import re
-import subprocess
 import sys
-import time
 import tomlkit
 
 _CURRENT_DIR = os.path.dirname(__file__)
@@ -188,50 +186,6 @@ def make_docs(*args: Any, **kwargs: Any):
         task.print_out(f"Inject `{cls.__name__} docstring` to {file_name}")
         inject_doc(file_name, cls)
 
-
-###############################################################################
-# ⚙️ show-trigger-info
-###############################################################################
-
-
-@python_task(name="show-trigger-info")
-def show_trigger_info(*args: Any, **kwargs: Any):
-    task = kwargs.get("_task")
-    file = task.get_xcom("watch-path.file")
-    if file != "":
-        task.print_out(f"Trigger: {file}")
-
-
-###############################################################################
-# ⚙️ remake-docs
-###############################################################################
-
-remake_docs = CmdTask(
-    name="remake-docs",
-    cwd=_CURRENT_DIR,
-    envs=[Env("ZRB_SHOW_TIME", os_name="", default="0")],
-    upstreams=[show_trigger_info],
-    cmd="zrb make-docs",
-)
-
-###############################################################################
-# ⚙️ auto-make-docs
-###############################################################################
-
-auto_make_docs = Server(
-    name="auto-make-docs",
-    description="Make documentation whenever there is any changes in the code",
-    controllers=[
-        Controller(
-            name='watch',
-            trigger=PathWatcher(
-                path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
-            ),
-            action=remake_docs,
-        )
-    ]
-)
-runner.register(auto_make_docs)
 
 ###############################################################################
 # ⚙️ build
@@ -489,42 +443,6 @@ test.add_upstream(install_symlink)
 runner.register(test)
 
 ###############################################################################
-# ⚙️ re-test
-###############################################################################
-retest = test_only.copy()
-retest.add_upstream(show_trigger_info)
-
-###############################################################################
-# ⚙️ auto-test
-###############################################################################
-
-auto_test = Server(
-    name="auto-test",
-    description="Run zrb test, automatically",
-    upstreams=[test],
-    controllers=[
-        Controller(
-            name="watch",
-            action=retest,
-            trigger=[
-                PathWatcher(
-                    path=os.path.join(_CURRENT_DIR, "src", "zrb", "**", "*.py"),
-                ),
-                PathWatcher(
-                    path=os.path.join(_CURRENT_DIR, "test", "**", "*.py"),
-                    ignored_path=[
-                        os.path.join("**", "template", "**", "test"),
-                        os.path.join("**", "generator", "**", "app"),
-                        os.path.join("**", "resource_maker", "app"),
-                    ],
-                ),
-            ],
-        )
-    ]
-)
-runner.register(auto_test)
-
-###############################################################################
 # ⚙️ serve-test
 ###############################################################################
 
@@ -540,7 +458,7 @@ serve_test = CmdTask(
             default="9000",
         )
     ],
-    upstreams=[auto_test],
+    upstreams=[test],
     cmd=[
         "set -e",
         'echo "🤖 Serve coverage report"',
@@ -552,17 +470,6 @@ serve_test = CmdTask(
     checking_interval=0.3,
 )
 runner.register(serve_test)
-
-###############################################################################
-# ⚙️ monitor
-###############################################################################
-
-monitor = Task(
-    name="monitor",
-    description="Monitor any changes and perform actions accordingly",
-    upstreams=[serve_test, auto_make_docs],
-)
-runner.register(monitor)
 
 ###############################################################################
 # ⚙️ playground create
