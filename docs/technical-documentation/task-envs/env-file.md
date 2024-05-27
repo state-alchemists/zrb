@@ -7,8 +7,9 @@
 <!--start-doc-->
 ## `EnvFile`
 
-Represents a handler for an environment file, facilitating the creation and management of environment variables
-(Env objects) based on the contents of the specified environment file.
+Env is an interface for a Task to read and use OS Environment File.
+
+Under the hood, EnvFile creates list of Env based on its `path` property.
 
 __Attributes:__
 

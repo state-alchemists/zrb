@@ -9,7 +9,7 @@ logger.debug(colored("Loading zrb.task_input.task_input", attrs=["dark"]))
 
 class Input(BaseInput):
     """
-    Alias for BaseInput
+    Input is an interface for a Task to read user input at the beginning of the execution.
 
     Attributes:
         name (str): The name of the input, used as a unique identifier.

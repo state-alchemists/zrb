@@ -11,9 +11,12 @@ logger.debug(colored("Loading zrb.task_input.any_input", attrs=["dark"]))
 
 class AnyInput(ABC):
     """
-    Interface for all Zrb Input.
+    Abstraction for Zrb Input.
 
-    Inputs make Zrb Tasks configurable by allowing user to interact with Zrb Task.
+    This class acts as a template for creating new Inputs.
+
+    To define a new Input type, you should extend this class and implement all its methods.
+    The easiest way to do so is by extending `Input`
     """
 
     @abstractmethod

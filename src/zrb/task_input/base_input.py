@@ -14,9 +14,9 @@ logger.debug(colored("Loading zrb.task_input.base_input", attrs=["dark"]))
 @typechecked
 class BaseInput(AnyInput):
     """
-    A concrete implementation of the AnyInput interface, representing a specific type of task input.
-    This class allows for the creation of interactive and configurable inputs for tasks, with various attributes
-    to customize its behavior and appearance.
+    Base class for all Input.
+
+    Input is an interface for a Task to read user input at the beginning of the execution.
 
     Attributes:
         name (str): The name of the input, used as a unique identifier.

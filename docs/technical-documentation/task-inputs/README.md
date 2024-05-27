@@ -2,6 +2,8 @@
 
 # Task Input
 
+- [AnyInput](any-input.md)
+- [BaseInput](base-input.md)
 - [Input](input.md)
 - [BoolInput](bool-input.md)
 - [ChoiceInput](choice-input.md)

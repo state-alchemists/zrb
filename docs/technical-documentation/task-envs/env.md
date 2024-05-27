@@ -7,8 +7,9 @@
 <!--start-doc-->
 ## `Env`
 
-Env Represents an environment configuration for a task, encapsulating details such as environment name, OS-specific
-environment name, default values, and rendering behavior.
+Env is an interface for a Task to read and use OS Environment Variable.
+
+Env encapsulating details such as environment name, OS environment name, default values, and rendering behavior.
 
 __Attributes:__
 
@@ -97,7 +98,7 @@ __Returns:__
 
 ### `Env.should_render`
 
-Determines whether the environment value should be rendered.
+Retrieves whether the environment value should be rendered.
 
 __Returns:__
 

@@ -7,11 +7,11 @@
 <!--start-doc-->
 ## `AnyTask`
 
-Contract/interface for all Zrb Task.
+Abstraction for Zrb Task.
 
-This class acts as a template for creating new Zrb Task types.
+This class acts as a template for creating new Task type.
 
-To define a new Zrb Task, you should extend this class and implement all its methods.
+To define a new Task type, you should extend this class and implement all its methods.
 The easiest way to do so is by extending `Task`
 
 ### `AnyTask._get_checkers`

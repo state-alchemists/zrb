@@ -22,6 +22,7 @@ from zrb import (
     Env,
     EnvFile,
     Group,
+    AnyInput,
     Input,
     BoolInput,
     ChoiceInput,
@@ -31,6 +32,7 @@ from zrb import (
     StrInput,
 )
 from zrb.task.base_task.base_task import BaseTask
+from zrb.task_input.base_input import BaseInput
 from zrb.helper.docstring import get_markdown_from_docstring
 
 import os
@@ -173,6 +175,8 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(dir, "tasks", "rsync-task.md"): RsyncTask,
         os.path.join(dir, "tasks", "notifier.md"): Notifier,
         os.path.join(dir, "tasks", "time-watcher.md"): TimeWatcher,
+        os.path.join(dir, "task-inputs", "any-input.md"): AnyInput,
+        os.path.join(dir, "task-inputs", "base-input.md"): BaseInput,
         os.path.join(dir, "task-inputs", "input.md"): Input,
         os.path.join(dir, "task-inputs", "bool-input.md"): BoolInput,
         os.path.join(dir, "task-inputs", "choice-input.md"): ChoiceInput,

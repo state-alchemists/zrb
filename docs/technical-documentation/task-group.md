@@ -7,7 +7,7 @@
 <!--start-doc-->
 ## `Group`
 
-Represents a group of tasks and subgroups, facilitating organization and hierarchy.
+Group is an umbrella of several related Tasks or sub-groups, facilitating organization and hierarchy.
 
 This class allows the creation of a hierarchical structure by grouping tasks and
 other task groups together. It provides methods to add tasks, retrieve tasks,
