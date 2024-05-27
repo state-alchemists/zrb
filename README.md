@@ -11,9 +11,9 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 - __Automate__ day-to-day tasks.
 - __Generate__ projects or applications.
 - __Prepare__, __run__, and __deploy__ your applications with a single command.
-- Etc.
+- Deliver __faster__ with __fewer human errors__.
 
-You can also write custom task definitions in [Python](https://www.python.org/), enhancing Zrb's base capabilities. Defining your tasks in Zrb gives you several advantages because:
+Zrb allows you to write custom task definitions in [Python](https://www.python.org/), further enhancing Zrb's capabilities. Defining your tasks in Zrb gives you several advantages because:
 
 - Every task has a __retry mechanism__.
 - Zrb handles your __task dependencies__ automatically.
