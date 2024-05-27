@@ -17,7 +17,6 @@ from zrb import (
     PortChecker,
     HTTPChecker,
     Server,
-    Controller,
     BaseRemoteCmdTask,
     Notifier,
     Env,

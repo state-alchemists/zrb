@@ -9,7 +9,16 @@ logger.debug(colored("Loading zrb.task.task", attrs=["dark"]))
 @typechecked
 class Task(BaseTask):
     """
-    Alias for BaseTask.
+    The task is the smallest Zrb automation unit.
+
+    You can configure a Task by using several interfaces:
+    - `inputs`: interfaces to read user input at the beginning of the execution.
+    - `envs`: interfaces to read and use OS Environment Variables.
+    - `env_files`: interfaces to read and use Environment Files.
+
+    Moreover, you can define Task dependencies by specifying it's `upstreams` or by using shift-right operator.
+
+    Finally, you can put related Tasks under the same `group`.
     """
 
     pass
