@@ -262,10 +262,10 @@ Visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tut
 
 # 🐞 Bug Report + Feature Request
 
-You can submit bug report and feature request by creating a new [issue](https://github.com/state-alchemists/zrb/issues) on Zrb Github Repositories. When reporting a bug or requesting a feature, please be sure to:
+You can submit bug reports and feature requests by creating a new [issue](https://github.com/state-alchemists/zrb/issues) on Zrb's GitHub Repositories. When reporting a bug or requesting a feature, please be sure to:
 
 - Include the version of Zrb you are using (i.e., `zrb version`)
-- Tell us what you have try
+- Tell us what you have tried
 - Tell us what you expect
 - Tell us what you get
 
