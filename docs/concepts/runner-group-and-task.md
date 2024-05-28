@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Runner, Group, and Task
 
@@ -376,4 +376,4 @@ Furthermore, `@python_task` turns `hello` into a `Task`. Thus, you can no longer
 
 You have learned the basic building blocks of Zrb automation. Next, you can continue with [Task Lifecycle](task-lifecycle.md).
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

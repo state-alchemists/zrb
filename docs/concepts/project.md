@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Project 
 
@@ -77,4 +77,4 @@ source project.sh
 Make sure you load `project.sh` every time you start working on a Project.
 
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

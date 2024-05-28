@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Task Lifecycle
 
@@ -167,4 +167,4 @@ runner.register(update_ubuntu)
 
 You have seen how to handle Task Lifecycle in Zrb. Next, you can learn about [Task Upstream](task-upstream.md).
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Inputs
 
@@ -200,4 +200,4 @@ You cannot use the following keywords as your input names:
 Next, you can learn about [environments](environments.md).
 
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Extending CmdTask
 
@@ -125,4 +125,4 @@ zrb say-hi
 Add more examples.
 
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Environments
 
@@ -339,4 +339,4 @@ For more detailed visualization, please look at the following table:
 
 Next, you can learn about inter-task communication using [`xcom`](xcom.md).
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

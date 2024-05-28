@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Copying Task
 
@@ -65,4 +65,4 @@ You see that despite the option to skip the execution, `dbt_run` and `skippable_
 
 For more flexibility, you can extend [Task](extending-task.md) and [CmdTask](extending-cmd-task.md)
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

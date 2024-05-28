@@ -1,7 +1,7 @@
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
 
-[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
+[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/common-mistakes/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
 
 # 🤖 Zrb: A Framework to Enhance Your Workflow
@@ -257,7 +257,7 @@ Visit [our tutorials](https://github.com/state-alchemists/zrb/blob/main/docs/tut
 - [🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md)
 - [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md)
 - [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
-- [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/oops-i-did-it-again/README.md)
+- [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/common-mistakes/README.md)
 - [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
 
 # 🐞 Bug Report + Feature Request

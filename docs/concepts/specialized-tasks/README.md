@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts and Terminologies](../README.md)
 
 # Specialized Tasks
 
@@ -19,4 +19,4 @@ Aside from `Task` and `CmdTask`, Zrb has multiple specialized Tasks.
 - [Checker](checker.md): Use this Task to check other Task readiness or as `Server`'s trigger'.
 - [FlowTask](flow-task.md): Use this Task to combine several unrelated Tasks into a single workflow.
 
-🔖 [Table of Contents](../../README.md) / [Concepts](../README.md)
+🔖 [Table of Contents](../../README.md) / [Concepts and Terminologies](../README.md)

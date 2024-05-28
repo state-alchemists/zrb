@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Task Upstream
 
@@ -148,4 +148,4 @@ Let's say you have a connection glitch while doing `upgrade`. Zrb will only retr
 
 Next, you can learn about [inputs](inputs.md) and [environments](environments.md).
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)

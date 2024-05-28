@@ -1,4 +1,4 @@
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
 
 # Template Rendering
 
@@ -472,4 +472,4 @@ Zrb renders Checker attributes as Jinja Template. The detailed renderable attrib
 
 Next, you can learn more about [specialized tasks](specialized-tasks/README.md)
 
-🔖 [Table of Contents](../README.md) / [Concepts](README.md)
+🔖 [Table of Contents](../README.md) / [Concepts and Terminologies](README.md)
