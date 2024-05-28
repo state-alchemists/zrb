@@ -10,7 +10,7 @@
 </div>
 
 
-# Concepts
+# Concepts and Terminologies
 
 - [Project](project.md)
 - [Runner, Group, and Task](runner-group-and-task.md)
