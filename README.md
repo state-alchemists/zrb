@@ -297,7 +297,7 @@ We are thankful for the following libraries and services. They accelerate Zrb de
     - [Jsons](https://pypi.org.project/jsons/): Parse JSON. This package should be part of the standard library.
     - [Libcst](https://pypi.org/project/libcst/): Turn Python code into a Concrete Syntax Tree.
     - [Croniter](https://pypi.org/project/croniter/): Parse cron pattern.
-    - [Poetry](https://pypi.org/project/poetry), [flake8](https://pypi.org/project/flake8/), [black](https://pypi.org/project/black), [isort](https://pypi.org/project/isort), and many more. See the complete list of Zrb's requirements.txt
+    - [Poetry](https://pypi.org/project/poetry), [flake8](https://pypi.org/project/flake8/), [black](https://pypi.org/project/black), [isort](https://pypi.org/project/isort), and many more. See the complete list of Zrb's [pyproject.toml](https://github.com/state-alchemists/zrb/blob/main/pyproject.toml)
 - Services
     - [asciiflow.com](https://asciiflow.com/): Creates beautiful ASCII-based diagrams.
     - [emojipedia.org](https://emojipedia.org/): Find emoji.
