@@ -15,7 +15,8 @@ Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) autom
 
 Zrb allows you to write custom task definitions in [Python](https://www.python.org/), further enhancing Zrb's capabilities. Defining your tasks in Zrb gives you several advantages because:
 
-- Every task has a __retry mechanism__.
+- Every Zrb Task has a __retry mechanism__.
+- Every Zrb Task is __configurable__ via __environment variables__ or __user inputs__.
 - Zrb handles your __task dependencies__ automatically.
 - Zrb runs your task dependencies __concurrently__.
 
@@ -53,7 +54,9 @@ Download Datasets ──┘
        ⬇️
 ```
 
-You can create a file named `zrb_init.py` and define the tasks as follows:
+Zrb Task is the smallest automation unit. You can configure a Zrb Task using user input (`inputs`) or environment variables (`envs` or `env_files`). Every Zrb Task has a configurable `retry` mechanism. Moreover, you can also define Zrb Task dependencies using the shift right operator `>>` or `upstreams` parameter.
+
+You can create a file named `zrb_init.py` and define your Zrb Tasks as follows:
 
 ```python
 # File name: zrb_init.py
@@ -97,7 +100,7 @@ def show_stats(*args, **kwargs):
 # Define dependencies: `show_stat` depends on both, `download_dataset` and `install_pandas`
 Parallel(download_dataset, install_pandas) >> show_stats
 
-# Register the tasks so that they are accessbie from the CLI
+# Register the tasks so that they are accessble from the CLI
 runner.register(install_pandas, download_dataset, show_stats)
 ```
 
@@ -294,7 +297,7 @@ We are thankful for the following libraries and services. They accelerate Zrb de
     - [Jsons](https://pypi.org.project/jsons/): Parse JSON. This package should be part of the standard library.
     - [Libcst](https://pypi.org/project/libcst/): Turn Python code into a Concrete Syntax Tree.
     - [Croniter](https://pypi.org/project/croniter/): Parse cron pattern.
-    - [Flit](https://pypi.org/project/flit), [Twine](https://pypi.org/project/twine/), and many more. See the complete list of Zrb's requirements.txt
+    - [Poetry](https://pypi.org/project/poetry), [flake8](https://pypi.org/project/flake8/), [black](https://pypi.org/project/black), [isort](https://pypi.org/project/isort), and many more. See the complete list of Zrb's requirements.txt
 - Services
     - [asciiflow.com](https://asciiflow.com/): Creates beautiful ASCII-based diagrams.
     - [emojipedia.org](https://emojipedia.org/): Find emoji.
