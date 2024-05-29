@@ -34,10 +34,10 @@ Triggered ─────► Waiting ────► Started ─────► 
 ```
 
 - `Triggered`: The Task is triggered.
-- `Waiting`: The Task is waiting for all upstreams to be ready.
+- `Waiting`: The Task is waiting for all upstreams to be ready. Once the upstreams are ready, the Task will either be `Skipped` or `Started` depending on its `should_execute` parameter.
 - `Skipped`: The Task is not executed and will immediately enter the `Ready` state.
 - `Started`: The Task execution is started.
-- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than the maximum attempt.
+- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than its `retry` property.
 - `Retry`: The task will be restarted.
 - `Ready`: The task is ready.
 

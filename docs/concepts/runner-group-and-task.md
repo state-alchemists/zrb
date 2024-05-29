@@ -5,8 +5,8 @@
 Runner, task, and group are some pretty simple but essential concepts in Zrb. Let's look at a short description of each terminology.
 
 - __Task__: Zrb Task is the smallest unit of your workflow.
-- __Runner__: When a Task is registered into Zrb Runner, it will be accessible from the CLI.
-- __Group__: Groups are like directory of Tasks. You can put related Tasks under the same Group, and you can make a nested Groups.
+- __Runner__: Registering a Zrb Task into Zrb Runner will make it accessible from the CLI.
+- __Group__: Group is an umbrella for your Zrb Tasks. You can put related Tasks under the same Group. Furthermore, a Zrb Group might contain other Subgroups, forming a hierarchical structure.
 
 Let's discuss each terminology in more detail.
 
@@ -51,7 +51,7 @@ You can also put your Task under Task Groups.
 ```python
 from zrb import runner, Task, Group
 
-group = Group(name='group)
+group = Group(name='group')
 task = Task(name='task', group=group)
 runner.register(task)
 ```
@@ -136,7 +136,7 @@ You can use Group to organize your Tasks. A Group will only be accessible from t
 
 You can also put a Group under another Group.
 
-Hierarchically speaking, you can think of Task Groups as directories to organize your Tasks.The following are some built-in Tasks and Task Groups in Zrb.
+Hierarchically speaking, you can think of Task Groups as directories to organize your Tasks. The following are some built-in Tasks and Task Groups in Zrb.
 
 ```
 zrb
