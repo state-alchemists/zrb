@@ -355,7 +355,7 @@ def task_name(*args, **kwargs):
 
 `@python_task` decorator turns your function into a `Task`. That means `task_name` is now a Zrb Task and you can no longer treat `task_name` as a function (i.e., `task_name()` won't work).
 
-## Common Task Properties
+## Common Task Parameters
 
 <div align="center">
   <img src="_images/emoji/house.png"/>
