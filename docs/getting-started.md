@@ -115,45 +115,30 @@ In our previous example, Zrb will put `bm9uLWNyZWRlbnRpYWwtc3RyaW5n` into `Stand
   <img src="_images/emoji/file_cabinet.png"/>
   <p>
     <sub>
-      Put related Tasks under the same Group for better discoverability.
+      We put related Tasks under the same Group for better discoverability.
     </sub>
   </p>
 </div>
 
-Hierarchically speaking, you can think of Task Groups as directories and Tasks as files.
-
-That means that a Task Group might contain:
-
-- Other Task Groups
-- One or more Tasks
+Using Group, we can put several related tasks under the same category. You can think of Groups as directories/folders.
 
 ```
 zrb
-├── base64
-│   ├── decode
-│   └── encode
-├── devtool
-│   ├── install
-│   │   ├── aws
-│   │   ├── docker
-│   │   ├── gcloud
-│   │   ├── ...
-│   │   └── zsh
-├── env
-│   └── get
-├── eval
-├── explain
-│   ├── dry-principle
-│   ├── kiss-principle
-│   ├── solid-principle
-│   ├── ...
-│   └── zen-of-python
-├── git
+├── base64            # group
+│   ├── decode        # task (zrb base64 decode)
+│   └── encode        # task (zrb base64 encode)
+├── devtool           # group
+│   └── install       # sub-group
+│       ├── aws       # task (zrb devtool install aws)
+│       ├── docker    # task (zrb devtool install docker)
+│       ├── gcloud    # task (zrb devtool install gcloud)
+│       ├── ...
+│       └── zsh       # task (zrb devtool install zsh)
 ├── ...
-└── watch-changes
+└── watch-changes     # task (zrb watch-changes)
 ```
 
-When you type `zrb` in your terminal, you will see top-level Tasks and Task Groups. You can then type the sub Task Group or the sub Task until you find what you need.
+When you type `zrb` in your terminal, you will see top-level Tasks and Groups. You can then type the Sub-Group/Task name until you find what you need.
 
 Let's try it.
 
@@ -298,7 +283,7 @@ For a more sophisticated way to create a Project, please visit [the project sect
   </p>
 </div>
 
-Zrb Tasks are your most negligible unit of job definition.
+Task is the smallest unit of Zrb automation.
 
 Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `Server`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
 

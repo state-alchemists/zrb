@@ -21,9 +21,7 @@ A Task will only be `started` or `skipped` if all its upstreams are `ready`.
 
 Furthermore, the upstreams might run in parallel/concurrently.
 
-To define Task Upstreams, you can use `upstreams` attribute like the following.
-
-Let's see the following example.
+To define Task Upstreams, you can use `upstreams` parameter like the following.
 
 ```python
 from zrb import runner, python_task, CmdTask

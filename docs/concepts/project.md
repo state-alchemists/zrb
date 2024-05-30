@@ -15,7 +15,7 @@ Zrb allows you to isolate your work by putting them into Zrb Projects.
 
 # Simple Project
 
-At its core, a Project is any directory containing a single file named `zrb_init.py`. This simple setup is already sufficient for a simple hello-world project. Let's see how you can make a Project with a few commands.
+At its core, a Project is a directory containing a single file named `zrb_init.py`. This simple setup is already sufficient for a simple hello-world project. Let's see how you can make a Project with a few commands.
 
 ```bash
 mkdir my-project
