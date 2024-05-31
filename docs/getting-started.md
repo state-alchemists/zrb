@@ -15,9 +15,6 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 
 - [Installing Zrb](#installing-zrb)
 - [Running a Task](#running-a-task)
-  - [How Tasks are Organized](#how-tasks-are-organized)
-  - [Getting Available Tasks/Task Groups](#getting-available-taskstask-groups)
-  - [Using Interactive Mode](#using-interactive-mode)
 - [Creating a Project](#creating-a-project)
 - [Creating a Task](#creating-a-task)
 - [Basic Example](#basic-example)
@@ -70,57 +67,77 @@ Alternatively, you can also install Zrb as a container. Please see the [installa
 Zrb comes with some built-in task definitions. To run a Zrb task, you need to follow the following pattern:
 
 ```bash
-zrb [task-groups...] <task-name> [task-parameters...]
+zrb [task-groups...] <task-name> [task-inputs...]
 ```
 
 Let's see the following example:
 
 ```bash
- zrb base64 encode --text "non-credential-string"
-       │      │    └──────────────┬─────────────┘                            
-       │      │                   │ 
-       ▼      │                   ▼
-   task-group │            task-parameter
-              │
-              ▼
-          task-name
+zrb base64 encode --text "non-credential-string"
+      │      │    └──────────────┬─────────────┘                            
+      │      │                   │ 
+      ▼      │                   ▼
+  task-group │            task-input
+             │
+             ▼
+         task-name
 ```
 
-You will see how Zrb encoded `non-credential-string` into `bm9uLWNyZWRlbnRpYWwtc3RyaW5n`.
+In the example, you have just run the `encode` Task under `base64` Group. You also provide `non-credential-string` as `base64`'s `text` Input.
 
-```
-Support zrb growth and development!
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ○ ◷ 2023-11-10 09:08:33.183 ❁ 35276 → 1/1 🍎    zrb base64 encode • Completed in 0.051436424255371094 seconds
-bm9uLWNyZWRlbnRpYWwtc3RyaW5n
-To run again: zrb base64 encode --text "non-credential-string"
+If you don't provide the Input directly, Zrb will activate an interactive mode to let you fill in the missing values.
+
+```bash
+# Running base64 encode in an interactive mode
+zrb base64 encode
+Text []:
 ```
 
-Like any CLI program, when you run a Zrb task, you get two kinds of outputs:
+You can skip the interactive mode by setting `ZRB_SHOW_PROMPT` to `0` or `false` as described in [configuration section](./configurations.md). When you disable the interactive mode, Zrb will use Task Input's default value.
 
-- `Standard Error (stderr)`: Contains logs, error messages, and other information.
-- `Standard Output (stdout)`: Contains the output of the program.
+```bash
+# Running base64 encode in a non-interactive mode.
+ZRB_SHOW_PROMPT=false zrb base64 encode
+```
 
-In our previous example, Zrb will put `bm9uLWNyZWRlbnRpYWwtc3RyaW5n` into `Standard Output` and everything else into `Standard Error`. You will need this information if you want to [integrate Zrb with other tools](tutorials/integration-with-other-tools.md)
+## Task Output
+
+As with any other CLI commands, Zrb uses `stdout` and `stderr`.
+
+- `Standard Output (stdout)`: Usually contains the output of the program.
+- `Standard Error (stderr)`: Usually contains logs, error messages, and other information.
+
+If not specified, `stdout` and `stderr` usually refer to your default output device (i.e., screen/monitor).
+
+Let's see an example.
+
+```bash
+zrb base64 encode --text "non-credential-string"
+```
+
+```
+        ┌─ Support zrb growth and development!
+        │  ☕ Donate at: https://stalchmst.com/donation
+stderr  │  🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+        │  🐤 Follow us at: https://twitter.com/zarubastalchmst 
+        └─ 🤖 ○ ◷ 2023-11-10 09:08:33.183 ❁ 35276 → 1/1 🍎    zrb base64 encode • Completed in 0.051436424255371094 seconds
+        ┌─
+stdout  |  bm9uLWNyZWRlbnRpYWwtc3RyaW5n
+        └─ 
+        ┌─
+stderr  |  To run again: zrb base64 encode --text "non-credential-string"
+        └─ 
+```
+
+Knowing `stdout` and `stderr` in detail is crucial if you want to [integrate Zrb with other tools](tutorials/integration-with-other-tools.md).
 
 > __⚠️ WARNING:__ Base64 is a encoding algorithm that allows you to transform any characters into an alphabet which consists of Latin letters, digits, plus, and slash.
 >
 > Anyone can easily decode a base64-encoded string. __Never use it to encrypt your password or any important credentials!__
 
-## How Tasks are Organized
+## Task Group
 
-<div align="center">
-  <img src="_images/emoji/file_cabinet.png"/>
-  <p>
-    <sub>
-      We put related Tasks under the same Group for better discoverability.
-    </sub>
-  </p>
-</div>
-
-Using Group, we can put several related tasks under the same category. You can think of Groups as directories/folders.
+Referring to our previous example, we can see that the `encode` Task is located under `base64` Group. This grouping mechanism makes Zrb Tasks more organized and discoverable. You can think of Groups as directories/folders.
 
 ```
 zrb
@@ -143,111 +160,19 @@ When you type `zrb` in your terminal, you will see top-level Tasks and Groups. Y
 Let's try it.
 
 ```bash
+# Showing top level Tasks and Groups.
 zrb
-```
 
-```
-Usage: zrb [OPTIONS] COMMAND [ARGS]...
-
-                bb
-   zzzzz rr rr  bb
-     zz  rrr  r bbbbbb
-    zz   rr     bb   bb
-   zzzzz rr     bbbbbb   0.1.0
-   _ _ . .  . _ .  _ . . .
-
-Super framework for your super app.
-
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  base64         Base64 operations
-  coba           coba
-  devtool        Developer tools management
-  env            Environment variable management
-  eval           Evaluate Python expression
-  explain        Explain things
-  git            Git related commands
-  md5            MD5 operations
-  process        Process related commands
-  project        Project management
-  say            Say anything, https://www.youtube.com/watch?v=MbPr1oHO4Hw
-  schedule       Show message/run command periodically
-  ubuntu         Ubuntu related commands
-  update         Update zrb
-  version        Get Zrb version
-  watch-changes  Watch changes and show message/run command
-```
-
-You see that Zrb has many Tasks and Task Groups. Now, let's take a look at `base64` Group.
-
-```bash
+# Showing any Groups or Tasks under `base64` group
 zrb base64
-```
 
-```
-Usage: zrb base64 [OPTIONS] COMMAND [ARGS]...
-
-  Base64 operations
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  decode  Decode a base64 encoded text
-  encode  Encode a text using base64 algorithm
-```
-
-You will find two tasks (i.e., `decode` and `encode`) under the `base64` group. To execute the task, you can type `zrb base64 decode` or `zrb base64 encode`.
-
-## Using Interactive Mode
-
-<div align="center">
-  <img src="_images/emoji/speech_balloon.png"/>
-  <p>
-    <sub>
-      Most life issues are just communication problems in disguise.
-    </sub>
-  </p>
-</div>
-
-In the previous example, you have seen how you can set the Task Parameters by using CLI options as follows:
-
-```bash
-zrb base64 encode --text "non-credential-string"
-```
-
-The CLI Options are always optional. You can run the task without specifying the options. When you do so, Zrb will activate the interactive mode so that you can supply the parameter values on the run.
-
-Let's try it.
-
-```bash
+# Running `encode` Task under `base64` group
 zrb base64 encode
 ```
 
-```
-Text []: non-credential-string
-Support zrb growth and development!
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-🤖 ○ ◷ 2023-11-10 09:10:58.805 ❁ 35867 → 1/1 🍈    zrb base64 encode • Completed in 0.053427934646606445 seconds
-bm9uLWNyZWRlbnRpYWwtc3RyaW5n
-To run again: zrb base64 encode --text "non-credential-string"
-```
-
-> __📝 NOTE:__ You can disable the interactive mode by setting `ZRB_SHOW_PROMPT` to `0` or `false`. Please refer to [configuration section](./configurations.md) for more information.
->
-> When prompts are disabled, Zrb will automatically use task-parameter's default values.
-
 That's all you need to know to run Zrb Tasks.
 
-In the rest of this section, you will learn about Zrb project and how to make your own Zrb Tasks.
+In the rest of this section, you will learn about Zrb Projects and how to make your own Zrb Tasks.
 
 # Creating A Project
 
@@ -262,7 +187,9 @@ In the rest of this section, you will learn about Zrb project and how to make yo
 
 At its basic, a Project is a directory containing a single file named `zrb_init.py`. This simple setup is already sufficient for a simple hello-world project.
 
-You can create a Project by invoking the following command:
+Zrb automatically imports `zrb_init.py` and loads any registered Tasks. Those Tasks will be available and discoverable from the Zrb CLI command.
+
+To create a simple Project, you can invoke the following command:
 
 ```bash
 mkdir my-project
@@ -270,7 +197,7 @@ cd my-project
 touch zrb_init.py
 ```
 
-For a more sophisticated way to create a Project, please visit [the project section](concepts/project.md)
+For a more sophisticated way to create a Project, you should run `zrb project create`. Please visit [the project section](concepts/project.md) for more information.
 
 # Creating A Task
 
@@ -283,17 +210,43 @@ For a more sophisticated way to create a Project, please visit [the project sect
   </p>
 </div>
 
-Task is the smallest unit of Zrb automation.
+Zrb Task is the smallest unit of your automation.
 
 Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `Server`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
 
-Typically, a Zrb Task has multiple settings:
+All Tasks are defined and written in Python. Typically, a Zrb Task has multiple parameters:
 
-- Retry mechanism
-- Task Upstreams
-- Task Environment and Environment File
-- Task Input/Parameter 
-- Readiness Checker
+- Common Configuration.
+  - `inputs`: interfaces to read user input at the beginning of the execution.
+  - `envs`: interfaces to read and use OS Environment Variables.
+  - `env_files`: interfaces to read and use Environment Files.
+  - `group`: Where the Task belongs to, if unspecified, Zrb will put the Task directly under the top-level command.
+- Dependency configuration.
+  - `upstreams`: Upstreams (dependencies) of the current Task. You can also use `shift-right` (`>>`) operator to define the dependencies.
+- Lifecycle related parameters.
+  - `retry`: How many retries should be attempted.
+  - `retry_interval`: How long to wait before the next retry attempt.
+  - `fallbacks`: What to do if the Task is failed and no retry attempt will be performed.
+  - `checkers`: How to determine if a Task is `Ready`.
+  - `checking_interval`: How long to wait before checking for Task's readiness.
+  - `run`: What a Task should do.
+  - `on_triggered`: What to do when a Task is `Triggered`.
+  - `on_waiting`: What to do when a Task is `Waiting`.
+  - `on_skipped`: What to do when a Task is `Skipped`.
+  - `on_started`: What to do when a Task is `Started`.
+  - `on_ready`: What to do when a Task is `Ready`.
+  - `on_retry`: What to do when a Task is `Retry`.
+  - `on_failed`: What to do when a Task is `Failed`.
+  - `should_execute`: Whether a Task should be `Started` or not (`Skipped`).
+
+Every Task has its life-cycle state:
+- `Triggered`: The Task is triggered.
+- `Waiting`: The Task is waiting for all it's upstreams to be ready.
+- `Skipped`: The Task is not executed and will immediately enter the `Ready` state.
+- `Started`: The Task execution is started.
+- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than the maximum attempt.
+- `Retry`: The task will be restarted.
+- `Ready`: The task is ready.
 
 To learn more about Task, please visit [the concept section](concepts/README.md).
 
