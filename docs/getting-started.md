@@ -212,6 +212,17 @@ For a more sophisticated way to create a Project, you should run `zrb project cr
 
 Zrb Task is the smallest unit of your automation.
 
+Every Zrb Task has its life-cycle state:
+- `Triggered`: The Task is triggered.
+- `Waiting`: The Task is waiting for all it's upstreams to be ready.
+- `Skipped`: The Task is not executed and will immediately enter the `Ready` state.
+- `Started`: The Task execution is started.
+- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than the maximum attempt.
+- `Retry`: The task will be restarted.
+- `Ready`: The task is ready.
+
+You can learn more about the lifecycle states in [the task lifecycle documentation](concepts/task-lifecycle.md).
+
 Zrb has multiple Task Types, including `CmdTask`, `python_task`, `DockerComposeTask`, `FlowTask`, `Server`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc.
 
 All Tasks are defined and written in Python. Typically, a Zrb Task has multiple parameters:
@@ -239,16 +250,26 @@ All Tasks are defined and written in Python. Typically, a Zrb Task has multiple 
   - `on_failed`: What to do when a Task is `Failed`.
   - `should_execute`: Whether a Task should be `Started` or not (`Skipped`).
 
-Every Task has its life-cycle state:
-- `Triggered`: The Task is triggered.
-- `Waiting`: The Task is waiting for all it's upstreams to be ready.
-- `Skipped`: The Task is not executed and will immediately enter the `Ready` state.
-- `Started`: The Task execution is started.
-- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than the maximum attempt.
-- `Retry`: The task will be restarted.
-- `Ready`: The task is ready.
+To define a Zrb Task, you must import the Task Type from the `zrb` package.
 
-To learn more about Task, please visit [the concept section](concepts/README.md).
+```python
+from zrb import CmdTask, Env, StrInput, runner
+
+hello = CmdTask(
+    name="hello",
+    envs=[Env(name="USER", default="guest")],
+    inputs=[
+      StrInput(name="color", prompt="Your favorite color", default="black")
+    ],
+    cmds=[
+        'echo "Hello $USER"',
+        'echo "Your favorite color is {{input.color}}"',
+    ]
+)
+runner.register(hello)
+```
+
+Another way to define a Task is by using `@python_task` decorator. We will discuss the definition of task in the next section.
 
 ## Task Definition
 
@@ -307,31 +328,6 @@ def task_name(*args, **kwargs):
 ```
 
 `@python_task` decorator turns your function into a `Task`. That means `task_name` is now a Zrb Task and you can no longer treat `task_name` as a function (i.e., `task_name()` won't work).
-
-## Common Task Parameters
-
-<div align="center">
-  <img src="_images/emoji/house.png"/>
-  <p>
-    <sub>
-      Property buying: where Monopoly meets your real bank balance.
-    </sub>
-  </p>
-</div>
-
-The following properties are usually available:
-
-- __name__: The name of the Task. When you invoke the task using the CLI, you need to use this name. You should wrote Task name in `kebab-case` (i.e., separated by `-`).
-- __description__: The description of the task.
-- __group__: The task group to which the task belongs.
-- __inputs__: Task inputs and their default values.
-- __envs__: Task's environment variables.
-- __env_files__: Task's environment files.
-- __retry__: How many times to retry the execution before entering `Failed` state.
-- __upstreams__: Upstreams of the task. You can provide `AnyTask` as upstream.
-- __checkers__: List of checker tasks. You need this for long-running tasks.
-- __runner__: Only available in `@python_task`. The valid value is `zrb.runner`.
-
 
 # Basic Example
 
