@@ -213,12 +213,12 @@ For a more sophisticated way to create a Project, you should run `zrb project cr
 Zrb Task is the smallest unit of your automation.
 
 Every Zrb Task has its life-cycle state:
-- `Triggered`: The Task is triggered.
-- `Waiting`: The Task is waiting for all it's upstreams to be ready.
-- `Skipped`: The Task is not executed and will immediately enter the `Ready` state.
-- `Started`: The Task execution is started.
-- `Failed`: The Task execution is failed. It will enter the `Retry` state if the current attempt is less than the maximum attempt.
-- `Retry`: The task will be restarted.
+- `Triggered`: The Task is triggered (either by the user or by the other Task).
+- `Waiting`: Zrb has already triggered the Task. The Task is now waiting for all its upstreams to be ready.
+- `Skipped`: Task upstreams are ready, but the Task is not executed and will immediately enter the `Ready` state.
+- `Started`: The upstreams are ready, and Zrb is now starting the Task execution.
+- `Failed`: Zrb failed to execute the Task. It will enter the `Retry` state if the current attempt does not exceed the maximum attempt.
+- `Retry`: The task has already entered the `Failed` state. Now, Zrb will try to start the Task execution.
 - `Ready`: The task is ready.
 
 You can learn more about the lifecycle states in [the task lifecycle documentation](concepts/task-lifecycle.md).
@@ -233,24 +233,37 @@ All Tasks are defined and written in Python. Typically, a Zrb Task has multiple 
   - `env_files`: interfaces to read and use Environment Files.
   - `group`: Where the Task belongs to, if unspecified, Zrb will put the Task directly under the top-level command.
 - Dependency configuration.
-  - `upstreams`: Upstreams (dependencies) of the current Task. You can also use `shift-right` (`>>`) operator to define the dependencies.
+  - `upstreams`: Upstreams (dependencies) of the current Task. You can also use the `shift-right` (`>>`) operator to define the dependencies.
 - Lifecycle related parameters.
-  - `retry`: How many retries should be attempted.
-  - `retry_interval`: How long to wait before the next retry attempt.
-  - `fallbacks`: What to do if the Task is failed and no retry attempt will be performed.
+  - `retry`: Maximum retry attempt.
+  - `retry_interval`: The duration is to wait before Zrb starts the next attempt.
+  - `fallbacks`: Action to take if the Task has failed for good.
   - `checkers`: How to determine if a Task is `Ready`.
-  - `checking_interval`: How long to wait before checking for Task's readiness.
-  - `run`: What a Task should do.
-  - `on_triggered`: What to do when a Task is `Triggered`.
-  - `on_waiting`: What to do when a Task is `Waiting`.
-  - `on_skipped`: What to do when a Task is `Skipped`.
-  - `on_started`: What to do when a Task is `Started`.
-  - `on_ready`: What to do when a Task is `Ready`.
-  - `on_retry`: What to do when a Task is `Retry`.
-  - `on_failed`: What to do when a Task is `Failed`.
-  - `should_execute`: Whether a Task should be `Started` or not (`Skipped`).
+  - `checking_interval`: The duration to wait before Zrb checks for the Task's readiness.
+  - `run`: Action to do when Zrb executes the Task.
+  - `on_triggered`: Action to do when a Task is `Triggered`.
+  - `on_waiting`: Action to do when a Task is `Waiting`.
+  - `on_skipped`: Action to do when a Task is `Skipped`.
+  - `on_started`: Action to do when a Task is `Started`.
+  - `on_ready`: Action to do when a Task is `Ready`.
+  - `on_retry`: Action to do when a Task is `Retry`.
+  - `on_failed`: Action to do when a Task is `Failed`.
+  - `should_execute`: Condition to determine whether a Task should be `Started` or `Skipped`.
 
-To define a Zrb Task, you must import the Task Type from the `zrb` package.
+## Defining Tasks
+
+Your Task definition should be accessible from your Project's `zrb_init.py`. You can write the definition in your `zrb_init.py` or import the module containing your Task definition into `zrb_init.py`.
+
+There are two ways to define a Task:
+
+- By creating an instance of a `TaskType` (e.g., `CmdTask`, `DockerComposeTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, `FlowTask`, and `Server`)
+- By using `@python_task` decorator
+
+In the following subsections, we will create a `hello` Task using `CmdTask` and `@python_task` decorator.
+
+The Tasks should read and use the `USER` environment variable and read `color` from user input.
+
+### Creating Instances of TaskTypes
 
 ```python
 from zrb import CmdTask, Env, StrInput, runner
@@ -269,65 +282,67 @@ hello = CmdTask(
 runner.register(hello)
 ```
 
-Another way to define a Task is by using `@python_task` decorator. We will discuss the definition of task in the next section.
+In the example, we create an instance of a `CmdTask` and assign it to the `hello` variable. Then, we register the Task with the `runner`. The Task has several properties.
 
-## Task Definition
+- name: Representing the Task name.
+- envs: Representing the Environment Variable.
+- Inputs: Representing user inputs.
+- Cmd: Representing the command line to be executed.
 
-<div align="center">
-  <img src="_images/emoji/sparkles.png"/>
-  <p>
-    <sub>
-      And then there was light.
-    </sub>
-  </p>
-</div>
+Notice how we use `$USER` to get the value of the Environment Variable and `{`{input.color}}` to get the user input.
 
-There are two ways to create a Zrb Task:
+Once you declare and register the Task in your `zrb_init.py`, you will be able to run the Task by invoking the command.
 
-- __Using Task Class__ (e.g., `CmdTask`, `DockerComposeTask`, `FlowTask`, `Server`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, etc)
-- __Using `@python_task` decorator__
-
-### Using Task Class
-
-You can use Task Class as follows:
-
-```python
-variable_name = TaskClass(
-    name='task-name',
-    # other_task_property=some_value,
-    # ...
-)
+```bash
+zrb hello
 ```
 
-Each Task Class handles a specific use case. For example, you can use `CmdTask` to run a shell script, but it is better to use `DockerComposeTask` for docker-compose-related jobs.
-
-Here is a quick list to see which class is better for what:
-
-- __Task__: General purpose class, usually created using `@python_task` decorator.
-- __CmdTask__: Run a CLI command/shell script.
-- __DockerComposeTask__: Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
-- __RemoteCmdTask__: Run a CLI command/shell script on remote computers using SSH.
-- __RsyncTask__: Copy file from/to remote computers using `rsync` command.
-- __ResourceMaker__: Create resources (source code/documents) based on provided templates.
-- __FlowTask__: Combine unrelated tasks into a single Workflow.
-- __Server__: Handle recurring tasks.
-
-
-### Using `@python_task` decorator
-
-`@python_task` decorator is a syntactic sugar for `Task` class. You can use the decorator as follows:
+### Using `@python_task` Decorator
 
 ```python
+from zrb import python_task, Env, StrInput, runner
+
 @python_task(
-    name='task-name,
-    # other_task_property=some_value,
-    # ...
+    name="hello",
+    envs=[Env(name="USER", default="guest")],
+    inputs=[
+      StrInput(name="color", prompt="Your favorite color", default="black")
+    ],
 )
-def task_name(*args, **kwargs):
-    pass
+def hello(*args, **kwargs):
+    task = kwargs.get("_task")
+    # get environment variable: user
+    env_map = task.get_env_map()
+    user = env_map.get("USER")
+    # get color
+    color = kwargs.get("color")
+    return "\n".join([
+        f"Hello {user}",
+        f"Your favorite color is {color}",
+    ])
+runner.register(hello)
 ```
 
-`@python_task` decorator turns your function into a `Task`. That means `task_name` is now a Zrb Task and you can no longer treat `task_name` as a function (i.e., `task_name()` won't work).
+In the example, we use a `@python_task` decorator to transform the `hello` function into a Task. Then, we register the Task with the `runner`.
+
+Note that `hello` is now a Task, not a function. So, calling `hello()` won't work.
+
+Like in the previous section, the `hello` Task has several properties.
+
+- name: Representing the Task name.
+- envs: Representing the Environment Variable.
+- Inputs: Representing user inputs.
+
+When Zrb executes the Task, it will pass all user inputs as keyword arguments. Additionally, Zrb adds `_task` argument so you can use it to get the environment map.
+
+> __⚠️ WARNING:__ When using the `@python_decorator`, you must fetch the environment map using `_task.get_env_map()`, not `os.getenv()`.
+
+
+Once you declare and register the Task in your `zrb_init.py`, you will be able to run the Task by invoking the command.
+
+```bash
+zrb hello
+```
 
 # Basic Example
 
@@ -339,6 +354,8 @@ def task_name(*args, **kwargs):
     </sub>
   </p>
 </div>
+
+Let's have a look at the following examples.
 
 ```python
 from zrb import runner, Parallel, Task, CmdTask, python_task, Env, StrInput
