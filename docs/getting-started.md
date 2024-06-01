@@ -703,15 +703,24 @@ monitor = Server(
     icon='🔍',
     name='monitor',
     controllers=[
-      Controller(
-        name="build-periodically",
-        action=build,
-        triggers=[
-            PathWatcher(path=os.path.join(CURRENT_DIR, 'template', '*.*')),
-            PathWatcher(path=os.path.join(CURRENT_DIR, '.env')),
-            TimeWatcher(schedule='* * * * *')
-        ]
-      )
+        Controller(
+            name="build-on-template-change",
+            # action=CmdTask(name="abc"),
+            action=build,
+            trigger=PathWatcher(path=os.path.join(CURRENT_DIR, 'template', '*.*')),
+        ),
+        Controller(
+            name="build-on-env-change",
+            # action=CmdTask(name="abc"),
+            action=build,
+            trigger=PathWatcher(path=os.path.join(CURRENT_DIR, '.env')),
+        ),
+        Controller(
+            name="build-periodically",
+            # action=CmdTask(name="abc"),
+            action=build,
+            trigger=TimeWatcher(schedule='* * * * *')
+        )
     ]
 )
 
@@ -733,7 +742,6 @@ serve = CmdTask(
 
 Parallel(prepare_env, prepare_template) >> Parallel(build, monitor) >> serve
 runner.register(build, monitor, serve)
-
 ```
 
 Let's break down the task.
