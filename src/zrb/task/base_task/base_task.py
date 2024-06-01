@@ -306,7 +306,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             new_kwargs = self.get_input_map()
             # make sure args and kwargs['_args'] are the same
             self.log_info("Set run args")
-            new_args = copy.deepcopy(args)
+            new_args = list(args)
             if len(args) == 0 and "_args" in kwargs:
                 new_args = kwargs["_args"]
             self._set_args(new_args)
@@ -491,7 +491,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         # set current task local keyval
         await self._set_local_keyval(kwargs=kwargs, env_prefix=env_prefix)
         # get new_kwargs for upstream and checkers
-        new_kwargs = copy.deepcopy(kwargs)
+        new_kwargs = {key: kwargs[key] for key in kwargs}
         new_kwargs.update(self.get_input_map())
         upstream_coroutines = []
         # set upstreams keyval

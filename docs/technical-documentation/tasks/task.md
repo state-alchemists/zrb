@@ -14,7 +14,7 @@ You can configure a Task by using several interfaces:
 - `envs`: interfaces to read and use OS Environment Variables.
 - `env_files`: interfaces to read and use Environment Files.
 
-Moreover, you can define Task dependencies by specifying it's `upstreams` or by using shift-right operator.
+Moreover, you can define Task dependencies by specifying its `upstreams` or by using shift-right operator.
 
 Every Task has its own life-cycle state:
 - `Triggered`: The Task is triggered.

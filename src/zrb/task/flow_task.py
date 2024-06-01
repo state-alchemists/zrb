@@ -52,20 +52,6 @@ class FlowTask(BaseTask):
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
     ):
-        final_upstreams: List[AnyTask] = list(upstreams)
-        inputs: List[AnyInput] = list(inputs)
-        envs: List[Env] = list(envs)
-        env_files: List[EnvFile] = list(env_files)
-        for step in steps:
-            tasks = self._step_to_tasks(step)
-            new_upstreams = self._get_embeded_tasks(
-                tasks=tasks,
-                upstreams=final_upstreams,
-                inputs=inputs,
-                envs=envs,
-                env_files=env_files,
-            )
-            final_upstreams = new_upstreams
         BaseTask.__init__(
             self,
             name=name,
@@ -76,7 +62,13 @@ class FlowTask(BaseTask):
             icon=icon,
             color=color,
             description=description,
-            upstreams=final_upstreams,
+            upstreams=self._create_flow_upstreams(
+                steps=steps,
+                upstreams=list(upstreams),
+                inputs=list(inputs),
+                envs=list(envs),
+                env_files=list(env_files),
+            ),
             fallbacks=fallbacks,
             on_triggered=on_triggered,
             on_waiting=on_waiting,
@@ -97,12 +89,33 @@ class FlowTask(BaseTask):
     def copy(self) -> TFlowTask:
         return super().copy()
 
-    def _step_to_tasks(self, node: Union[AnyTask, List[AnyTask]]) -> List[AnyTask]:
-        if isinstance(node, AnyTask):
-            return [node]
-        return node
+    def _create_flow_upstreams(
+        self,
+        steps: List[Union[AnyTask, List[AnyTask]]],
+        upstreams: List[AnyTask],
+        inputs: List[AnyInput],
+        envs: List[Env],
+        env_files: List[EnvFile],
+    ) -> List[AnyTask]:
+        flow_upstreams = upstreams
+        for step in steps:
+            tasks = [task.copy() for task in self._step_to_tasks(step)]
+            new_upstreams = self._create_embeded_tasks(
+                tasks=tasks,
+                upstreams=flow_upstreams,
+                inputs=inputs,
+                envs=envs,
+                env_files=env_files,
+            )
+            flow_upstreams = new_upstreams
+        return flow_upstreams
 
-    def _get_embeded_tasks(
+    def _step_to_tasks(self, step: Union[AnyTask, List[AnyTask]]) -> List[AnyTask]:
+        if isinstance(step, AnyTask):
+            return [step]
+        return step
+
+    def _create_embeded_tasks(
         self,
         tasks: List[AnyTask],
         upstreams: List[AnyTask],
@@ -111,28 +124,26 @@ class FlowTask(BaseTask):
         env_files: List[EnvFile],
     ) -> List[AnyTask]:
         embeded_tasks: List[AnyTask] = []
-        for task in tasks:
-            embeded_task = task.copy()
-            embeded_task_root_upstreams = self._get_root_upstreams(tasks=[embeded_task])
-            for embeded_task_root_upstream in embeded_task_root_upstreams:
-                embeded_task_root_upstream.add_upstream(*upstreams)
-            # embeded_task.add_upstream(*upstreams)
+        for embeded_task in tasks:
+            embeded_task_upstreams = self._get_all_upstreams(tasks=[embeded_task])
+            for embeded_task_upstream in embeded_task_upstreams:
+                embeded_task_upstream.add_upstream(*upstreams)
             embeded_task.add_env(*envs)
             embeded_task.add_env_file(*env_files)
             embeded_task.add_input(*inputs)
             embeded_tasks.append(embeded_task)
         return embeded_tasks
 
-    def _get_root_upstreams(self, tasks: List[AnyTask]):
-        root_upstreams = []
+    def _get_all_upstreams(self, tasks: List[AnyTask]):
+        all_upstreams = []
         for task in tasks:
             upstreams = task._get_upstreams()
             if len(upstreams) == 0:
-                root_upstreams.append(task)
+                all_upstreams.append(task)
                 continue
             for upstream in upstreams:
                 if len(upstream._get_upstreams()) == 0:
-                    root_upstreams.append(upstream)
+                    all_upstreams.append(upstream)
                     continue
-                root_upstreams += self._get_root_upstreams([upstream])
-        return root_upstreams
+                all_upstreams += self._get_all_upstreams([upstream])
+        return all_upstreams

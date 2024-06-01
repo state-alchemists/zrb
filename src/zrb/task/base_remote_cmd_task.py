@@ -146,7 +146,7 @@ class SingleBaseRemoteCmdTask(CmdTask):
         self._remote_config = remote_config
 
     def copy(self) -> TSingleBaseRemoteCmdTask:
-        return copy.deepcopy(self)
+        return super().copy()
 
     def inject_envs(self):
         super().inject_envs()

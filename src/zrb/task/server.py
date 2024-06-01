@@ -36,8 +36,8 @@ class Controller:
         name: Optional[str] = None,
     ):
         self._name = get_random_name() if name is None else name
-        self._triggers = [trigger] if isinstance(trigger, AnyTask) else trigger
-        self._actions = [action] if isinstance(action, AnyTask) else action
+        self._triggers = self._to_task_list(trigger)
+        self._actions = self._to_task_list(action)
         self._args: List[Any] = []
         self._kwargs: Mapping[str, Any] = {}
         self._inputs: List[AnyInput] = []
@@ -59,7 +59,7 @@ class Controller:
     def set_env_files(self, env_files: List[EnvFile]):
         self._env_files = env_files
 
-    def get_sub_env_files(self) -> Iterable[EnvFile]:
+    def get_original_env_files(self) -> Iterable[EnvFile]:
         env_files = []
         for trigger in self._triggers:
             env_files += trigger._get_env_files()
@@ -67,7 +67,7 @@ class Controller:
             env_files += action._get_env_files()
         return env_files
 
-    def get_sub_envs(self) -> Iterable[Env]:
+    def get_original_envs(self) -> Iterable[Env]:
         envs = []
         for trigger in self._triggers:
             envs += trigger._get_envs()
@@ -75,7 +75,7 @@ class Controller:
             envs += action._get_envs()
         return envs
 
-    def get_sub_inputs(self) -> Iterable[AnyInput]:
+    def get_original_inputs(self) -> Iterable[AnyInput]:
         inputs = []
         for trigger in self._triggers:
             inputs += trigger._get_combined_inputs()
@@ -92,6 +92,11 @@ class Controller:
             return await task_fn(*self._args, **self._kwargs)
 
         return fn
+
+    def _to_task_list(self, tasks: Union[AnyTask, List[AnyTask]]) -> List[AnyTask]:
+        if isinstance(tasks, AnyTask):
+            return [tasks.copy()]
+        return [task.copy() for task in tasks]
 
     def _get_task(self) -> AnyTask:
         actions = [action.copy() for action in self._actions]
@@ -151,9 +156,9 @@ class Server(BaseTask):
         inputs, envs, env_files = list(inputs), list(envs), list(env_files)
         for controller in controllers:
             controller_cp = copy.deepcopy(controller)
-            inputs += controller_cp.get_sub_inputs()
-            envs += controller_cp.get_sub_envs()
-            env_files += controller_cp.get_sub_env_files()
+            inputs += controller_cp.get_original_inputs()
+            envs += controller_cp.get_original_envs()
+            env_files += controller_cp.get_original_env_files()
         BaseTask.__init__(
             self,
             name=name,
@@ -183,12 +188,11 @@ class Server(BaseTask):
         self._controllers = controllers
 
     async def run(self, *args: Any, **kwargs: Any):
-        controllers = [copy.deepcopy(controller) for controller in self._controllers]
-        for controller in controllers:
+        for controller in self._controllers:
             controller.set_envs(self._get_envs())
             controller.set_env_files(self._get_env_files())
             controller.set_inputs(self._get_inputs())
             controller.set_args(args)
             controller.set_kwargs(kwargs)
-        functions = [controller.to_function() for controller in controllers]
+        functions = [controller.to_function() for controller in self._controllers]
         await asyncio.gather(*[fn() for fn in functions])
