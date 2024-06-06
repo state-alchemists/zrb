@@ -228,6 +228,7 @@ Zrb has multiple Task Types, including `CmdTask`, `DockerComposeTask`, `RemoteCm
 All Tasks are defined and written in Python and should be accessible from your Project's `zrb_init.py`. Typically, a Zrb Task has multiple parameters:
 
 - Common parameters.
+  - `name`: Task name, conventionally written in `kebab-case` (i.e., separated by `-`).
   - `inputs`: interfaces to read user input at the beginning of the execution.
   - `envs`: interfaces to read and use OS Environment Variables.
   - `env_files`: interfaces to read and use Environment Files.
