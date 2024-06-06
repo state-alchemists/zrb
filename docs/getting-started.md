@@ -286,7 +286,7 @@ In the example, we create an instance of a `CmdTask` and assign it to the `hello
 
 Notice how we use `$USER` to get the value of the Environment Variable and `{{input.color}}` to get the user input.
 
-Once you declare and register the Task in your `zrb_init.py, you can run the Task by invoking the command.
+Once you declare and register the Task in your `zrb_init.py`, you can run the Task by invoking the command.
 
 ```bash
 zrb hello-cmd
@@ -335,7 +335,7 @@ When Zrb executes the Task, it will pass all user inputs as keyword arguments. A
 > __⚠️ WARNING:__ When using the `@python_decorator`, you must fetch the environment map using `_task.get_env_map()`, not `os.getenv()`.
 
 
-Once you declare and register the Task in your `zrb_init.py, you can run the Task by invoking the command.
+Once you declare and register the Task in your `zrb_init.py`, you can run the Task by invoking the command.
 
 ```bash
 zrb hello
