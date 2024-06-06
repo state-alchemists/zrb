@@ -278,8 +278,8 @@ runner.register(hello_cmd)
 
 In the example, we create an instance of a `CmdTask` and assign it to the `hello_cmd` variable. Finally, we register the Task in Zrb's `runner` to make it accessible from the CLI. The Task has several properties.
 
-- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`).
-- `envs`: Representing the Environment Variable.
+- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). You should use the Task's name whenever you want to run the Task from the CLI.
+- `envs`: Representing the environment variable.
 - `inputs`: Representing user inputs.
 - `cmd`: Representing the command line to execute.
 
@@ -324,8 +324,8 @@ Note that `hello_py` is now a Task, not a function. So, calling `hello_py()` won
 
 As in the previous section, the `hello-py` Task has several properties.
 
-- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`).
-- `envs`: Representing the Environment Variable.
+- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). You should use the Task's name whenever you want to run the Task from the CLI.
+- `envs`: Representing the environment variable.
 - `inputs`: Representing user inputs.
 
 When Zrb executes the Task, it will pass all user inputs as keyword arguments. Additionally, Zrb adds `_task` argument so you can use it to get the environment map.
@@ -403,12 +403,6 @@ Parallel(hello_cmd, hello_py) >> hello
 runner.register(hello, hello_cmd, hello_py)
 ```
 
-A few notes:
-
-- Conventionally, we write Task names in `kebab-case` (i.e., separated by `-`). In our example, the Task names were `hello-cmd`, `hello-py`, and `hello`.
-- Meanwhile, we write Task variables or functions in `snake_case` (i.e., separated by `_`). In our example, the Task variables or functions are `hello_cmd`, `hello_py`, and `hello`.
-- When accessing the Task from the CLI, we should use the Task name. However, when accessing the Task programmatically, we should use the Task variables.
-
 As you register `hello`, `hello-cmd`, and `hello-py` to the runner, you can call them from the CLI.
 
 ```bash
@@ -417,7 +411,7 @@ zrb hello-cmd
 zrb hello-py
 ```
 
-Notice that when you run `zrb hello`, Zrb will automatically execute `hello-cmd` and `hello-py` first since `hello` depends on them.
+Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and `hello-py` first since `hello` depends on them.
 
 # Advance Example: Long Running Task
 
