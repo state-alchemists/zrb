@@ -228,7 +228,7 @@ Zrb has multiple Task Types, including `CmdTask`, `DockerComposeTask`, `RemoteCm
 All Tasks are defined and written in Python and should be accessible from your Project's `zrb_init.py`. Typically, a Zrb Task has multiple parameters:
 
 - Common parameters.
-  - `name`: Task name, conventionally written in `kebab-case` (i.e., separated by `-`).
+  - `name`: Task name, conventionally written in `kebab-case` (i.e., separated by `-`). It acts as an identifier when users execute the Task from the CLI.
   - `inputs`: interfaces to read user input at the beginning of the execution.
   - `envs`: interfaces to read and use OS Environment Variables.
   - `env_files`: interfaces to read and use Environment Files.
@@ -279,9 +279,9 @@ runner.register(hello_cmd)
 
 In the example, we create an instance of a `CmdTask` and assign it to the `hello_cmd` variable. Finally, we register the Task in Zrb's `runner` to make it accessible from the CLI. The Task has several properties.
 
-- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). You should use the Task's name whenever you want to run the Task from the CLI.
-- `envs`: Representing the environment variable.
-- `inputs`: Representing user inputs.
+- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). In our example, the Task name was `hello-cmd`
+- `envs`: Representing the environment variable used by the Task.
+- `inputs`: Representing user inputs used by the Task.
 - `cmd`: Representing the command line to execute.
 
 Notice how we use `$USER` to get the value of the Environment Variable and `{{input.color}}` to get the user input.
@@ -325,9 +325,10 @@ Note that `hello_py` is now a Task, not a function. So, calling `hello_py()` won
 
 As in the previous section, the `hello-py` Task has several properties.
 
-- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). You should use the Task's name whenever you want to run the Task from the CLI.
-- `envs`: Representing the environment variable.
-- `inputs`: Representing user inputs.
+- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). In our example, the Task name was `hello-py`
+- `envs`: Representing the environment variable used by the Task.
+- `inputs`: Representing user inputs used by the Task.
+
 
 When Zrb executes the Task, it will pass all user inputs as keyword arguments. Additionally, Zrb adds `_task` argument so you can use it to get the environment map.
 
