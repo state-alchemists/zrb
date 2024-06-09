@@ -18,7 +18,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 - [Creating a Project](#creating-a-project)
 - [Creating a Task](#creating-a-task)
 - [Defining Dependencies](#defining-dependencies)
-- [Advance Example](#advance-example-long-running-task)
+- [Advanced Example](#advanced-example-long-running-task)
 
 This guide assumes you have some familiarity with CLI and Python.
 
@@ -415,7 +415,7 @@ zrb hello-py
 
 Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and `hello-py` first since `hello` depends on them.
 
-# Advance Example: Long Running Task
+# Advanced Example: Long Running Task
 
 <div align="center">
   <img src="_images/emoji/railway_car.png"/>
