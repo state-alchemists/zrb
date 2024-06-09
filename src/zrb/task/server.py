@@ -129,7 +129,7 @@ class Server(BaseTask):
     def __init__(
         self,
         name: str,
-        controllers: List[Controller],
+        controllers: Iterable[Controller],
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -185,7 +185,7 @@ class Server(BaseTask):
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
         )
-        self._controllers = controllers
+        self._controllers = list(controllers)
 
     async def run(self, *args: Any, **kwargs: Any):
         for controller in self._controllers:
