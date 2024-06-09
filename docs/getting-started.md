@@ -18,7 +18,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 - [Creating a Project](#creating-a-project)
 - [Creating a Task](#creating-a-task)
 - [Defining Dependencies](#defining-dependencies)
-- [Ultimate Example: Personal CI/CD](#ultimate-example-personal-ci-cd)
+- [Ultimate Example: Personal CI/CD](#ultimate-example-personal-cicd)
 
 This guide assumes you have some familiarity with CLI and Python.
 
