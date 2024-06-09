@@ -64,7 +64,7 @@ Alternatively, you can also install Zrb as a container. Please see the [installa
   </p>
 </div>
 
-Zrb comes with some built-in task definitions. To run a Zrb task, you need to follow the following pattern:
+Zrb comes with some built-in Tasks. To run a Zrb Task, you need to follow the following pattern:
 
 ```bash
 zrb [task-groups...] <task-name> [task-inputs...]
@@ -295,7 +295,7 @@ zrb hello-cmd
 ## Using `@python_task` Decorator
 
 ```python
-from zrb import python_task, Env, StrInput, runner
+from zrb import Env, StrInput, python_task, runner
 
 @python_task(
     name="hello-py",
@@ -319,20 +319,20 @@ def hello_py(*args, **kwargs):
 runner.register(hello_py)
 ```
 
-In the example, we use a `@python_task` decorator to transform the `hello` function into a Task. Finally, we register the Task in Zrb's `runner` to make it accessible from the CLI.
+In the example, we use a `@python_task` decorator to transform the `hello_py` function into a Task. Finally, we register the Task in Zrb's `runner` to make it accessible from the CLI.
 
 Note that `hello_py` is now a Task, not a function. So, calling `hello_py()` won't work.
 
-As in the previous section, the `hello-py` Task has several properties.
+As in the previous section, the `hello_py` Task has several properties.
 
-- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). In our example, the Task name was `hello-py`
+- `name`: Representing the Task name, conventionally written in `kebab-case` (i.e., separated by `-`). In our example, the Task name was `hello-py`.
 - `envs`: Representing the environment variable used by the Task.
 - `inputs`: Representing user inputs used by the Task.
 
 
 When Zrb executes the Task, it will pass all user inputs as keyword arguments. Additionally, Zrb adds `_task` argument so you can use it to get the environment map.
 
-> __⚠️ WARNING:__ When using the `@python_decorator`, you must fetch the environment map using `_task.get_env_map()`, not `os.getenv()`.
+> __⚠️ WARNING:__ When using the `@python_decorator`, you must fetch the environment map using  `kwargs.get("_task").get_env_map()`, instead of `os.getenv()`.. Unlike `os.getenv()`, the `get_env_map()` method handles Task environment rendering and other internal mechanism.
 
 
 Once you declare and register the Task in your `zrb_init.py`, you can run the Task by invoking the command.
