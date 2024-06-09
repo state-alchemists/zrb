@@ -18,7 +18,7 @@ Welcome to Zrb's getting started guide. We will cover everything you need to kno
 - [Creating a Project](#creating-a-project)
 - [Creating a Task](#creating-a-task)
 - [Defining Dependencies](#defining-dependencies)
-- [Advanced Example](#advanced-example-long-running-task)
+- [Ultimate Example: Personal CI/CD](#ultimate-example-personal-ci-cd)
 
 This guide assumes you have some familiarity with CLI and Python.
 
@@ -415,196 +415,152 @@ zrb hello-py
 
 Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and `hello-py` first since `hello` depends on them.
 
-# Advanced Example: Long Running Task
-
-<div align="center">
-  <img src="_images/emoji/railway_car.png"/>
-  <p>
-    <sub>
-      <a href="https://www.youtube.com/watch?v=vYh-PjASgNk" target="_blank">It's a long, long journey</a>
-    </sub>
-  </p>
-</div>
-
-
-Let's start with a use case:
-
-- We want to serve a single HTML file
-- The HTML file contains some information from environment variables and user inputs.
-- Zrb should generate the HTML file based on a single HTML template.
-- Whenever the HTML template is modified, Zrb should re-generate the HTML file.
-
-We can break down the requirements into some tasks.
-
-```
-     🥬                               🍳
-Prepare .env ─────────┐ ┌────────► Build HTML ──────┐
-                      │ │                           │       🥗
-                      ├─┤                           ├────► Serve
-                      │ │                           │
-Prepare HTML ─────────┘ └───► Monitor and Rebuild ──┘
-  Template                            HTML
-    🥬                                🔍 
-```
-
-Let's see how we build this:
+# Ultimate Example: Personal CI/CD
 
 ```python
-from typing import Any
 from zrb import (
-    runner, Parallel, Task, CmdTask, python_task, ResourceMaker, Server,
-    Controller, PathWatcher, TimeWatcher, HTTPChecker, Env, EnvFile, IntInput
+    AnyTask, Controller, HTTPChecker, Env, EnvFile, FlowTask, StrInput, PasswordInput,
+    Parallel, PathWatcher, ResourceMaker, RemoteConfig, RemoteCmdTask, RsyncTask,
+    Server, python_task, runner
 )
+
 import os
 
-CURRENT_DIR = os.path.dirname(__file__)
+CURRENT_DIR_PATH = os.path.dirname(__file__)
+TEMPLATE_DIR_PATH = os.path.join(CURRENT_DIR_PATH, "template")
+OUTPUT_DIR_PATH = os.path.join(CURRENT_DIR_PATH, "output")
+ENV_FILE_PATH = os.path.join(CURRENT_DIR_PATH, "config.env")
+
+DEFAULT_ENV_MAP = {
+    "TITLE": "My homepage",
+    "CONTENT": "Hello world",
+    "AUTHOR": "Myself",
+    "WEB_HOST": "stalchmst.com",
+    "WEB_PORT": "5000",
+}
 
 
 @python_task(
-    icon='🍆',
-    name='prepare-template',
+    name="init-template",
+    should_execute=not os.path.isdir(TEMPLATE_DIR_PATH)
 )
-def prepare_template(*args: Any, **kwargs: Any):
-    task: Task = kwargs.get('_task')
-    template_dir = os.path.join(CURRENT_DIR, 'template')
-    template_html_file = os.path.join(template_dir, 'index.html')
-    if os.path.isfile(template_html_file):
-        task.print_out(f'{template_html_file} already exists')
-        return
-    os.makedirs(template_dir, exist_ok=True)
-    with open(template_html_file, 'w') as file:
-        task.print_out(f'Creating {template_html_file}')
-        file.write('\n'.join([
-            '<title>ConfigTitle</title>',
-            '<p>Message: ConfigMessage</p>',
-            '<p>Author: ConfigAuthor</p>',
-            '<p>Last Generated: LastGenerated</p>'
+def init_template(*args, **kwargs):
+    task: AnyTask = kwargs.get("_task")
+    task.print_out("Creating template")
+    os.makedirs(TEMPLATE_DIR_PATH)
+    with open(os.path.join(TEMPLATE_DIR_PATH, "index.html"), "w") as file:
+        file.write("\n".join([
+            "<title>CfgTitle</title>",
+            "<h1>CfgTitle</h1>",
+            "<p>CfgContent</p>",
+            "<p>CfgAuthor, Last Updated on CfgLastGenerated</p>"
         ]))
 
 
 @python_task(
-    icon='🥬',
-    name='prepare-env',
+    name="init-env",
+    should_execute=not os.path.isfile(ENV_FILE_PATH)
 )
-def prepare_env(*args: Any, **kwargs: Any):
-    task: Task = kwargs.get('_task')
-    env_file = os.path.join(CURRENT_DIR, '.env')
-    if os.path.isfile(env_file):
-        task.print_out(f'{env_file} already exists')
-        return
-    with open(env_file, 'w') as file:
-        task.print_out(f'Creating {env_file}')
-        file.write('\n'.join([
-            'TITLE=My-page',
-            'DEV_TITLE=My-page-dev',
-            'AUTHOR=No-one'
+def init_env(*args, **kwargs):
+    task: AnyTask = kwargs.get("_task")
+    task.print_out("Creating configuration")
+    with open(ENV_FILE_PATH, "w") as file:
+        file.write("\n".join([
+            f"export {key}={DEFAULT_ENV_MAP[key]}" for key in DEFAULT_ENV_MAP
         ]))
 
 
 build = ResourceMaker(
-    icon='🍳',
-    name='build',
+    name="build",
+    env_files=[EnvFile(path=ENV_FILE_PATH)],
     envs=[
-        Env(name='MESSAGE', default='Salve Mane')
-    ],
-    env_files=[
-        EnvFile(path=os.path.join(CURRENT_DIR, '.env'))
-    ],
-    template_path=os.path.join(CURRENT_DIR, 'template'),
-    destination_path=os.path.join(CURRENT_DIR, 'web'),
+        Env(name=key, default=DEFAULT_ENV_MAP[key]) for key in DEFAULT_ENV_MAP
+    ] if not os.path.isfile(ENV_FILE_PATH) else [],
+    template_path=TEMPLATE_DIR_PATH,
+    destination_path=OUTPUT_DIR_PATH,
     replacements={
-        'ConfigTitle': '{{ env.TITLE }}',
-        'ConfigMessage': '{{ env.MESSAGE }}',
-        'ConfigAuthor': '{{ env.AUTHOR }}',
-        'LastGenerated': '{{ datetime.datetime.now() }}'
-    }
+        "CfgTitle": "{{env.TITLE}}",
+        "CfgContent": "{{env.CONTENT}}",
+        "CfgAuthor": "{{env.AUTHOR}}",
+        "CfgLastGenerated": "{{datetime.datetime.now()}}",
+    },
 )
+Parallel(init_template, init_env) >> build
 
 
-monitor = Server(
-    icon='🔍',
-    name='monitor',
-    controllers=[
-        Controller(
-            name="build-on-template-change",
-            # action=CmdTask(name="abc"),
-            action=build,
-            trigger=PathWatcher(path=os.path.join(CURRENT_DIR, 'template', '*.*')),
+remote_configs = [
+    RemoteConfig(
+        name="remote",
+        host="{{input.remote_host}}",
+        user="{{input.remote_user}}",
+        password="{{input.remote_pass}}"
+    )
+]
+
+deploy = FlowTask(
+    name="deploy",
+    inputs=[
+        StrInput(name="remote-host", prompt="Host", default="stalchmst.com"),
+        StrInput(name="remote-user", prompt="User", default="root"),
+        PasswordInput(name="remote-pass", prompt="Password"),
+        StrInput(name="remote-path", prompt="Path", default="/var/www"),
+    ],
+    env_files=[EnvFile(path=ENV_FILE_PATH)],
+    steps=[
+        build,
+        RsyncTask(
+            name="copy-to-server",
+            remote_configs=remote_configs,
+            src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
+            dst="{{input.remote_path}}"
         ),
-        Controller(
-            name="build-on-env-change",
-            # action=CmdTask(name="abc"),
-            action=build,
-            trigger=PathWatcher(path=os.path.join(CURRENT_DIR, '.env')),
-        ),
-        Controller(
-            name="build-periodically",
-            # action=CmdTask(name="abc"),
-            action=build,
-            trigger=TimeWatcher(schedule='* * * * *')
+        RemoteCmdTask(
+            name="start-server",
+            remote_configs=remote_configs,
+            cmd=[
+                "set +e",
+                "cd {{input.remote_path}}",
+                "if curl http://{{env.WEB_HOST}}:{{env.WEB_PORT}}",
+                "then",
+                "  echo Server already running",
+                "else",
+                "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
+                "screen -ls",
+                "fi",
+            ],
+            checkers=[
+                HTTPChecker(
+                    host="{{env.WEB_HOST}}",
+                    port="{{env.WEB_PORT}}",
+                    env_files=[EnvFile(path=ENV_FILE_PATH)],
+                )
+            ]
         )
     ]
 )
 
-serve = CmdTask(
-    icon='🥗',
-    name='serve',
-    envs=[
-        Env('BIND_ADDRESS', default='0.0.0.0')
-    ],
-    inputs=[
-        IntInput(name='port', default='8080')
-    ],
-    cwd=os.path.join(CURRENT_DIR, 'web'),
-    cmd='python -m http.server {{ input.port }} --bind {{ env.BIND_ADDRESS }}',
-    checkers=[
-        HTTPChecker(host='{{ env.BIND_ADDRESS }}', port='{{ input.port }}')
+auto_deploy = Server(
+    name="auto-deploy",
+    controllers=[
+        Controller(
+            trigger=PathWatcher(path=os.path.join(TEMPLATE_DIR_PATH, "**/*.*")),
+            action=deploy,
+        ),
+        Controller(
+            trigger=PathWatcher(path=ENV_FILE_PATH),
+            action=deploy,
+        )
     ]
 )
+deploy >> auto_deploy
 
-Parallel(prepare_env, prepare_template) >> Parallel(build, monitor) >> serve
-runner.register(build, monitor, serve)
+runner.register(init_template, init_env, build, deploy, auto_deploy)
+
 ```
-
-Let's break down the task.
-
-- `prepare-template`: This task makes the HTML template if not exists.
-- `prepare-env`: This task makes an `.env` if not exists.
-- `build`: This task create the HTML based on the template. It also load `.env` generated by `prepare-env`. While copying the HTML template into `web` directory, this task will also perform several replacement:
-  - `ConfigTitle`: This text will be replaced with `TITLE` environment value.
-  - `ConfigMessage`: This text will be replaced with `MESSAGE` environment value.
-  - `ConfigAuthor`: This text will be replaced with `AUTHOR` environment value.
-  - `LastGenerated`: This text will be replaced with current time (i.e., `datetime.datetime.now()`)
-- `monitor`: This task will run `build` based on several triggers:
-  - If there is any changes in `.env`
-  - If there is any changes under `template` directory
-  - Every minute
-- `serve`: This task serves the HTML. Zrb will check whether this task is `Completed` by using a `HTTPChecker`.
-
-We also define task dependencies and make some tasks (i.e., `build`, `monitor`, and `serve`) available from the CLI
-
-
-You can try to run the task by invoking the following command:
-
-```bash
-zrb serve
-```
-
-The HTML page will be available from [http://localhost:8080](http://localhost:8080).
-
-Furthermore, you can set `ZRB_ENV` into `DEV` and see how Zrb automatically cascade `DEV_TITLE` into `TITLE`
-
-```bash
-export ZRB_ENV=DEV
-zrb serve
-```
-
-Once you do so, you will see that Zrb now shows `My-page-dev` instead of `My-page` as the page title. You can learn more about environment cascading at the [environment section](concepts/environments.md).
-
 
 # Next
 
-Now you are ready. You can proceed with the [concept section](concepts/README.md) to learn more about the details.
+Now you are ready. You can proceed with the [concept section](concepts/README.md) to learn more details.
 
 Have fun, Happy Coding, and Automate More!!!
 

@@ -48,8 +48,8 @@ class RsyncTask(BaseRemoteCmdTask):
         remote_configs: Iterable[RemoteConfig],
         src: JinjaTemplate,
         dst: JinjaTemplate,
-        is_remote_src: bool = False,
-        is_remote_dst: bool = True,
+        src_is_remote: bool = False,
+        dst_is_remote: bool = True,
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -77,8 +77,8 @@ class RsyncTask(BaseRemoteCmdTask):
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
     ):
-        parsed_src = self._get_parsed_path(is_remote_src, src)
-        parsed_dst = self._get_parsed_path(is_remote_dst, dst)
+        parsed_src = self._get_parsed_path(src_is_remote, src)
+        parsed_dst = self._get_parsed_path(dst_is_remote, dst)
         cmd = f'auth_rsync "{parsed_src}" "{parsed_dst}"'
         BaseRemoteCmdTask.__init__(
             self,

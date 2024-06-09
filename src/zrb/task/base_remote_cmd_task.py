@@ -1,4 +1,3 @@
-import copy
 import os
 import pathlib
 
@@ -50,8 +49,10 @@ class RemoteConfig:
         password: JinjaTemplate = "",
         ssh_key: JinjaTemplate = "",
         port: Union[int, JinjaTemplate] = 22,
+        name: Optional[str] = None,
         config_map: Optional[Mapping[str, JinjaTemplate]] = None,
     ):
+        self.name = name if name is not None else host
         self.host = host
         self.user = user
         self.password = password
@@ -227,6 +228,7 @@ class BaseRemoteCmdTask(BaseTask):
         post_cmd_path: CmdVal = "",
         cwd: Optional[Union[str, pathlib.Path]] = None,
         upstreams: Iterable[AnyTask] = [],
+        fallbacks: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
         on_waiting: Optional[OnWaiting] = None,
         on_skipped: Optional[OnSkipped] = None,
@@ -247,9 +249,10 @@ class BaseRemoteCmdTask(BaseTask):
         should_show_cmd: bool = True,
         should_show_working_directory: bool = True,
     ):
-        sub_tasks = [
+        self._remote_configs = list(remote_configs)
+        self._sub_tasks = [
             SingleBaseRemoteCmdTask(
-                name=f"{name}-{remote_config.host}",
+                name=f"{name}-{remote_config.name}",
                 remote_config=remote_config,
                 inputs=inputs,
                 envs=envs,
@@ -264,6 +267,7 @@ class BaseRemoteCmdTask(BaseTask):
                 post_cmd_path=post_cmd_path,
                 cwd=cwd,
                 upstreams=upstreams,
+                fallbacks=fallbacks,
                 on_triggered=on_triggered,
                 on_waiting=on_waiting,
                 on_skipped=on_skipped,
@@ -284,7 +288,7 @@ class BaseRemoteCmdTask(BaseTask):
                 should_show_cmd=should_show_cmd,
                 should_show_working_directory=should_show_working_directory,
             )
-            for remote_config in list(remote_configs)
+            for remote_config in self._remote_configs
         ]
         BaseTask.__init__(
             self,
@@ -293,7 +297,61 @@ class BaseRemoteCmdTask(BaseTask):
             color=color,
             group=group,
             description=description,
-            upstreams=sub_tasks,
+            upstreams=self._sub_tasks,
             retry=0,
             return_upstream_result=True,
         )
+
+    def insert_input(self, *inputs: AnyInput):
+        super().insert_input(*inputs)
+        for subtask in self._sub_tasks:
+            subtask.insert_input(*inputs)
+
+    def add_input(self, *inputs: AnyInput):
+        super().add_input(*inputs)
+        for subtask in self._sub_tasks:
+            subtask.add_input(*inputs)
+
+    def insert_env(self, *envs: Env):
+        super().insert_env(*envs)
+        for subtask in self._sub_tasks:
+            subtask.insert_env(*envs)
+
+    def add_env(self, *envs: Env):
+        super().add_env(*envs)
+        for subtask in self._sub_tasks:
+            subtask.add_env(*envs)
+
+    def insert_env_file(self, *env_files: EnvFile):
+        super().insert_env_file(*env_files)
+        for subtask in self._sub_tasks:
+            subtask.insert_env_file(*env_files)
+
+    def add_env_file(self, *env_files: Env):
+        super().add_env_file(*env_files)
+        for subtask in self._sub_tasks:
+            subtask.add_env_file(*env_files)
+
+    def insert_upstream(self, *upstreams: AnyTask):
+        for subtask in self._sub_tasks:
+            subtask.insert_upstream(*upstreams)
+
+    def add_upstream(self, *upstreams: AnyTask):
+        for subtask in self._sub_tasks:
+            subtask.add_upstream(*upstreams)
+
+    def insert_fallback(self, *fallbacks: AnyTask):
+        for subtask in self._sub_tasks:
+            subtask.insert_fallbacks(*fallbacks)
+
+    def add_fallback(self, *fallbacks: AnyTask):
+        for subtask in self._sub_tasks:
+            subtask.add_fallback(*fallbacks)
+
+    def insert_checker(self, *checkers: AnyTask):
+        for subtask in self._sub_tasks:
+            subtask.insert_checkers(*checkers)
+
+    def add_checker(self, *checkers: AnyTask):
+        for subtask in self._sub_tasks:
+            subtask.add_checker(*checkers)
