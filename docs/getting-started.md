@@ -417,6 +417,24 @@ Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and
 
 # Ultimate Example: Personal CI/CD
 
+According to [Wikipedia](https://en.wikipedia.org/wiki/CI/CD), CI/CD is the combined practices of continuous integration (CI) and continuous delivery (CD) or, less often, continuous deployment. They are sometimes referred to collectively as continuous development or continuous software development.
+
+- Continuous integration: Frequent merging of several small changes into a main branch.
+- Continuous delivery: When teams produce software in short cycles with high speed and frequency so that reliable software can be released at any time, and with a simple and repeatable deployment process when deciding to deploy.
+- Continuous deployment: When new software functionality is rolled out completely automatically.
+
+In the following example, we will make a simple CI/CD pipeline that continuously generates static pages and deploys them to the remote server via SSH.
+
+We won't use any Git server or CI/CD platform. Instead, we will build a custom automation using Zrb.
+
+In our scenario, Developers can do several things:
+- Edit `templates` and `configurations`.
+- Run the `build` command to create a `deployable` based on existing `templates` and `configurations`.
+- Copy `deployable` to remote servers.
+- Run the `serve` command to make it accessible from the internet.
+
+We also want to enhance the workflow so that whenever `templates` and `configurations` are modified, the deployable will be generated, copied to the server, and served to the user. 
+
 ```
        ┌────────────────────────────────────────────┐       ┌────────────────┐
        │ Local Computer                             │       │ Server         │
@@ -440,6 +458,167 @@ Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and
                                                    ~           ~
                                                    ~~~~~~~~~~~~~
 ```
+
+## Import and Define Values
+
+```python
+from zrb import (
+    AnyTask, Controller, HTTPChecker, Env, EnvFile, FlowTask, StrInput, PasswordInput,
+    Parallel, PathWatcher, ResourceMaker, RemoteConfig, RemoteCmdTask, RsyncTask,
+    Server, python_task, runner
+)
+
+import os
+
+CURRENT_DIR_PATH = os.path.dirname(__file__)
+TEMPLATE_DIR_PATH = os.path.join(CURRENT_DIR_PATH, "template")
+OUTPUT_DIR_PATH = os.path.join(CURRENT_DIR_PATH, "output")
+ENV_FILE_PATH = os.path.join(CURRENT_DIR_PATH, "config.env")
+
+DEFAULT_ENV_MAP = {
+    "TITLE": "My homepage",
+    "CONTENT": "Hello world",
+    "AUTHOR": "Myself",
+    "WEB_HOST": "stalchmst.com",
+    "WEB_PORT": "5000",
+}
+```
+
+## Initiate Templates and Configurations
+
+```python
+@python_task(
+    name="init-template",
+    should_execute=not os.path.isdir(TEMPLATE_DIR_PATH)
+)
+def init_template(*args, **kwargs):
+    task: AnyTask = kwargs.get("_task")
+    task.print_out("Creating template")
+    os.makedirs(TEMPLATE_DIR_PATH)
+    with open(os.path.join(TEMPLATE_DIR_PATH, "index.html"), "w") as file:
+        file.write("\n".join([
+            "<title>CfgTitle</title>",
+            "<h1>CfgTitle</h1>",
+            "<p>CfgContent</p>",
+            "<p>CfgAuthor, Last Updated on CfgLastGenerated</p>"
+        ]))
+
+
+@python_task(
+    name="init-env",
+    should_execute=not os.path.isfile(ENV_FILE_PATH)
+)
+def init_env(*args, **kwargs):
+    task: AnyTask = kwargs.get("_task")
+    task.print_out("Creating configuration")
+    with open(ENV_FILE_PATH, "w") as file:
+        file.write("\n".join([
+            f"export {key}={DEFAULT_ENV_MAP[key]}" for key in DEFAULT_ENV_MAP
+        ]))
+```
+
+## Build
+
+```python
+build = ResourceMaker(
+    name="build",
+    env_files=[EnvFile(path=ENV_FILE_PATH)],
+    envs=[
+        Env(name=key, default=DEFAULT_ENV_MAP[key]) for key in DEFAULT_ENV_MAP
+    ] if not os.path.isfile(ENV_FILE_PATH) else [],
+    template_path=TEMPLATE_DIR_PATH,
+    destination_path=OUTPUT_DIR_PATH,
+    replacements={
+        "CfgTitle": "{{env.TITLE}}",
+        "CfgContent": "{{env.CONTENT}}",
+        "CfgAuthor": "{{env.AUTHOR}}",
+        "CfgLastGenerated": "{{datetime.datetime.now()}}",
+    },
+)
+Parallel(init_template, init_env) >> build
+```
+
+## Deploy
+
+```python
+remote_configs = [
+    RemoteConfig(
+        name="remote",
+        host="{{input.remote_host}}",
+        user="{{input.remote_user}}",
+        password="{{input.remote_pass}}"
+    )
+]
+
+deploy = FlowTask(
+    name="deploy",
+    inputs=[
+        StrInput(name="remote-host", prompt="Host", default="stalchmst.com"),
+        StrInput(name="remote-user", prompt="User", default="root"),
+        PasswordInput(name="remote-pass", prompt="Password"),
+        StrInput(name="remote-path", prompt="Path", default="/var/www"),
+    ],
+    env_files=[EnvFile(path=ENV_FILE_PATH)],
+    steps=[
+        build,
+        RsyncTask(
+            name="copy-to-server",
+            remote_configs=remote_configs,
+            src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
+            dst="{{input.remote_path}}"
+        ),
+        RemoteCmdTask(
+            name="start-server",
+            remote_configs=remote_configs,
+            cmd=[
+                "set +e",
+                "cd {{input.remote_path}}",
+                "if curl http://{{env.WEB_HOST}}:{{env.WEB_PORT}}",
+                "then",
+                "  echo Server already running",
+                "else",
+                "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
+                "screen -ls",
+                "fi",
+            ],
+            checkers=[
+                HTTPChecker(
+                    host="{{env.WEB_HOST}}",
+                    port="{{env.WEB_PORT}}",
+                    env_files=[EnvFile(path=ENV_FILE_PATH)],
+                )
+            ]
+        )
+    ]
+)
+```
+
+## Auto Deploy
+
+```python
+auto_deploy = Server(
+    name="auto-deploy",
+    controllers=[
+        Controller(
+            trigger=PathWatcher(path=os.path.join(TEMPLATE_DIR_PATH, "**/*.*")),
+            action=deploy,
+        ),
+        Controller(
+            trigger=PathWatcher(path=ENV_FILE_PATH),
+            action=deploy,
+        )
+    ]
+)
+deploy >> auto_deploy
+```
+
+## Register Tasks
+
+```python
+runner.register(init_template, init_env, build, deploy, auto_deploy)
+```
+
+## Put Everything Together
 
 ```python
 from zrb import (
@@ -511,7 +690,6 @@ build = ResourceMaker(
 )
 Parallel(init_template, init_env) >> build
 
-
 remote_configs = [
     RemoteConfig(
         name="remote",
@@ -579,7 +757,6 @@ auto_deploy = Server(
 deploy >> auto_deploy
 
 runner.register(init_template, init_env, build, deploy, auto_deploy)
-
 ```
 
 # Next
