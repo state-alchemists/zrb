@@ -423,17 +423,17 @@ According to [Wikipedia](https://en.wikipedia.org/wiki/CI/CD), CI/CD is the comb
 - Continuous delivery: When teams produce software in short cycles with high speed and frequency so that reliable software can be released at any time, and with a simple and repeatable deployment process when deciding to deploy.
 - Continuous deployment: When new software functionality is rolled out completely automatically.
 
-In the following example, we will make a simple CI/CD pipeline that continuously generates static pages and deploys them to the remote server via SSH.
+In the following example, we will make a simple CI/CD pipeline that __continuously generates static pages__ and __deploys them to the remote server__ via SSH.
 
 We won't use any Git server or CI/CD platform. Instead, we will build a custom automation using Zrb.
 
-In our scenario, Developers can do several things:
+In our scenario, Developers can do several things manually:
 - Edit `templates` and `configurations`.
 - Run the `build` command to create a `deployable` based on existing `templates` and `configurations`.
 - Copy `deployable` to remote servers.
 - Run the `serve` command to make it accessible from the internet.
 
-We also want to enhance the workflow so that whenever `templates` and `configurations` are modified, the deployable will be generated, copied to the server, and served to the user. 
+We also want to enhance the workflow so that whenever `templates` and `configurations` are __modified__, the `deployable` will be __generated__, __copied__ to the server, and __served__ to the user. 
 
 ```
        ┌────────────────────────────────────────────┐       ┌────────────────┐
@@ -484,6 +484,14 @@ DEFAULT_ENV_MAP = {
 }
 ```
 
+We start our quest by importing some objects we want to use later. We also define several global variables we will use when defining our tasks:
+
+- `CURRENT_DIR_PATH`: current directory where the script is defined.
+- `TEMPLATE_DIR_PATH`: directory where we will put the `template`.
+- `OUTPUT_DIR_PATH`: directory where `deployable` will be generated.
+- `ENV_FILE_PATH`: `configuration` file name.
+- `DEFAULT_ENV_MAP`: Default `configuration` value.
+
 ## Initiate Templates and Configurations
 
 ```python
@@ -517,6 +525,41 @@ def init_env(*args, **kwargs):
         ]))
 ```
 
+We then continue with some Task definitions. We need a way to ensure that our `template` and `configuration` exist in the first place.
+
+We define the Tasks by using the `@python_task` decorator, and we only want the Tasks to be executed if the `template` or `configuration` doesn't exist. To do so, we make use of `should_execute` parameters:
+
+- Zrb will execute `init_template` only if `TEMPLATE_DIR_PATH` directory does not exist (`not os.path.isdir(TEMPLATE_DIR_PATH)`).
+- Zrb will execute `init_env` only if `ENV_FILE_PATH` file does not exist (`not os.path.isfile(ENV_FILE_PATH)`).
+
+As for `init_template`, we want it to create an `index.html` under `TEMPLATE_DIR_PATH`. The file contains some keywords that will be replaced when we `build` the static pages.
+
+- `CfgTitle`: The title of the page.
+- `CfgContent`: The content of the page.
+- `CfgAuthor`: Page author.
+- `CfgLastGenerated`: Page last generated time.
+
+Meanwhile, `init_env` should create the `ENV_FILE_PATH` file containing environment variable definitions based on `DEFAULT_ENV_MAP` value. We are using a [list comprehension](https://www.learnpython.org/en/List_Comprehensions) to construct the content of the files, and then we merge them using `join` method.
+
+To see what each Tasks do, you can add the following lines:
+
+```python
+# Just to test, delete before you proceed with next section
+runner.register(init_template, init_env)
+```
+
+Once the Tasks are registered, you can then run them using CLI:
+
+```bash
+zrb init-template
+zrb init-env
+```
+
+Notice how Zrb created `template` directory and `config.env` file.
+
+> __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
+
+
 ## Build
 
 ```python
@@ -538,6 +581,53 @@ build = ResourceMaker(
 Parallel(init_template, init_env) >> build
 ```
 
+We then continue to define the `build` Task. Zrb has a particular Task Type named `ResourceMaker` that creates resources based on the existing template.
+
+`ResourceMaker` has some important parameters that distinguish it from other Task Types:
+
+- `template_path`: location of the template.
+- `destination_path`: location where the resource should be generated.
+- `replacements`: map of words to be replaced when generating the resources. 
+
+The `replacements` property might contain [Jinja Template](https://jinja.palletsprojects.com/en/3.1.x/templates/). For more comprehensive documentation about what you can use here, you should visit [Zrb template rendering documentation](./concepts/template-rendering.md). But, in short, you can use `env`, `input`, and some standard Python modules like `os` and `datetime`.
+
+You might notice how we use `env_files` and `envs` in the `build` Task. Since `ENV_FILE_PATH` might not exist, we need to have a fallback default environment variables based on `DEFAULT_ENV_MAP`. Note that we should not load the default environment variables if `ENV_FILE_PATH` exists.
+
+```python
+build = ResourceMaker(
+    name="build",
+    env_files=[EnvFile(path=ENV_FILE_PATH)],
+    envs=[
+        Env(name=key, default=DEFAULT_ENV_MAP[key]) for key in DEFAULT_ENV_MAP
+    ] if not os.path.isfile(ENV_FILE_PATH) else [],
+    # other parameter definitions
+)
+```
+
+Finally, we want Zrb to execute `init_template` and `init_env` first before running `build` Task. 
+
+```python
+Parallel(init_template, init_env) >> build
+```
+
+To see what `build` Tasks do, you can add the following lines:
+
+```python
+# Just to test, delete before you proceed with next section
+runner.register(build)
+```
+
+Once the Task is registered, you can then run them using CLI:
+
+```bash
+zrb  build
+```
+
+Notice how Zrb created an `index.html` file under `output` directory, replacing all defined keywords with proper values.
+
+> __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
+
+
 ## Deploy
 
 ```python
@@ -550,6 +640,36 @@ remote_configs = [
     )
 ]
 
+copy_to_server = RsyncTask(
+    name="copy-to-server",
+    remote_configs=remote_configs,
+    src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
+    dst="{{input.remote_path}}"
+) 
+
+start_server = RemoteCmdTask(
+    name="start-server",
+    remote_configs=remote_configs,
+    cmd=[
+        "set +e",
+        "cd {{input.remote_path}}",
+        "if curl http://{{env.WEB_HOST}}:{{env.WEB_PORT}}",
+        "then",
+        "  echo Server already running",
+        "else",
+        "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
+        "screen -ls",
+        "fi",
+    ],
+    checkers=[
+        HTTPChecker(
+            host="{{env.WEB_HOST}}",
+            port="{{env.WEB_PORT}}",
+            env_files=[EnvFile(path=ENV_FILE_PATH)],
+        )
+    ]
+)
+
 deploy = FlowTask(
     name="deploy",
     inputs=[
@@ -559,37 +679,7 @@ deploy = FlowTask(
         StrInput(name="remote-path", prompt="Path", default="/var/www"),
     ],
     env_files=[EnvFile(path=ENV_FILE_PATH)],
-    steps=[
-        build,
-        RsyncTask(
-            name="copy-to-server",
-            remote_configs=remote_configs,
-            src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
-            dst="{{input.remote_path}}"
-        ),
-        RemoteCmdTask(
-            name="start-server",
-            remote_configs=remote_configs,
-            cmd=[
-                "set +e",
-                "cd {{input.remote_path}}",
-                "if curl http://{{env.WEB_HOST}}:{{env.WEB_PORT}}",
-                "then",
-                "  echo Server already running",
-                "else",
-                "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
-                "screen -ls",
-                "fi",
-            ],
-            checkers=[
-                HTTPChecker(
-                    host="{{env.WEB_HOST}}",
-                    port="{{env.WEB_PORT}}",
-                    env_files=[EnvFile(path=ENV_FILE_PATH)],
-                )
-            ]
-        )
-    ]
+    steps=[build, copy_to_server, start_server],
 )
 ```
 
@@ -699,6 +789,36 @@ remote_configs = [
     )
 ]
 
+copy_to_server = RsyncTask(
+    name="copy-to-server",
+    remote_configs=remote_configs,
+    src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
+    dst="{{input.remote_path}}"
+) 
+
+start_server = RemoteCmdTask(
+    name="start-server",
+    remote_configs=remote_configs,
+    cmd=[
+        "set +e",
+        "cd {{input.remote_path}}",
+        "if curl http://{{env.WEB_HOST}}:{{env.WEB_PORT}}",
+        "then",
+        "  echo Server already running",
+        "else",
+        "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
+        "screen -ls",
+        "fi",
+    ],
+    checkers=[
+        HTTPChecker(
+            host="{{env.WEB_HOST}}",
+            port="{{env.WEB_PORT}}",
+            env_files=[EnvFile(path=ENV_FILE_PATH)],
+        )
+    ]
+)
+
 deploy = FlowTask(
     name="deploy",
     inputs=[
@@ -708,37 +828,7 @@ deploy = FlowTask(
         StrInput(name="remote-path", prompt="Path", default="/var/www"),
     ],
     env_files=[EnvFile(path=ENV_FILE_PATH)],
-    steps=[
-        build,
-        RsyncTask(
-            name="copy-to-server",
-            remote_configs=remote_configs,
-            src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
-            dst="{{input.remote_path}}"
-        ),
-        RemoteCmdTask(
-            name="start-server",
-            remote_configs=remote_configs,
-            cmd=[
-                "set +e",
-                "cd {{input.remote_path}}",
-                "if curl http://{{env.WEB_HOST}}:{{env.WEB_PORT}}",
-                "then",
-                "  echo Server already running",
-                "else",
-                "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
-                "screen -ls",
-                "fi",
-            ],
-            checkers=[
-                HTTPChecker(
-                    host="{{env.WEB_HOST}}",
-                    port="{{env.WEB_PORT}}",
-                    env_files=[EnvFile(path=ENV_FILE_PATH)],
-                )
-            ]
-        )
-    ]
+    steps=[build, copy_to_server, start_server],
 )
 
 auto_deploy = Server(
