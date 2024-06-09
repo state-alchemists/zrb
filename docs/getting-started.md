@@ -417,6 +417,30 @@ Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and
 
 # Ultimate Example: Personal CI/CD
 
+```
+       ┌────────────────────────────────────────────┐       ┌────────────────┐
+       │ Local Computer                             │       │ Server         │
+       │                                            │       │                │
+       │   ┌─────────────┐                          │       │                │
+    ┌──┼───┤Template     ├─┐                        │       │                │           ~~~~~~~~
+    │  │   └─────────────┘ │           ┌──────────┐ │       │   ┌──────────┐ │           ~      ~
+    │  │                   ├──Build───►│Deployable├─┼─Rsync─┼──►│Deployable├─┼─Serve───► ~ User ~
+    │  │   ┌─────────────┐ │    │      └──────────┘ │   |   │   └──────────┘ │   │       ~      ~
+    ├──┼───┤Configuration├─┘    │                   │   │   │                │   │       ~~~~~~~~
+    │  │   └─────────────┘      │                   │   │   │                │   │
+    │  │                        │                   │   │   │                │   │
+    │  └────────────────────────┼───────────────────┘   │   └────────────────┘   │
+    │                           │                       │                        │
+ Create/                       Run                     Run                      Run
+  Edit                          ────────────────────────┬─────────────────────────
+    │                                                   │
+    │                                              ~~~~~~~~~~~~~
+    │                                              ~           ~
+    └──────────────────────────────────────────────~ Developer ~
+                                                   ~           ~
+                                                   ~~~~~~~~~~~~~
+```
+
 ```python
 from zrb import (
     AnyTask, Controller, HTTPChecker, Env, EnvFile, FlowTask, StrInput, PasswordInput,
