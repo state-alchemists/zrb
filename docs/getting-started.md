@@ -630,6 +630,16 @@ Notice how Zrb created an `index.html` file under `output` directory, replacing 
 
 ## Deploy
 
+When deploying our static page, we need to do several steps:
+
+- Build the `deployable` (already defined in our previous sections).
+- Copy `deployable` to the remote server.
+- Start the web service in the remote server.
+
+We will break down the steps and combine them into a single `FlowTask`.
+
+### Copy to Server
+
 ```python
 remote_configs = [
     RemoteConfig(
@@ -646,7 +656,24 @@ copy_to_server = RsyncTask(
     src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
     dst="{{input.remote_path}}"
 ) 
+```
 
+Since we have already defined the `build` Task, we continue to create a `copy_to_server` task. We use `RsyncTask`, a Zrb Task Type that synchronizes files using `rsync` utility.
+
+`RsyncTask` has some distinguished parameters:
+
+- `remote_configs`: list of remote connection configurations.
+- `src`: source path.
+- `is_src_remote`: whether `src` is on the remote server or not (default: `False`)
+- `dst`: destination path.
+- `is_dst_remote`: whether `dst` is on the remote server or not (default: `True`)
+
+In the example, we define the `remote_configs` to pick up values from user inputs. We will provide the inputs later.
+
+
+### Start the Web Service
+
+```python
 start_server = RemoteCmdTask(
     name="start-server",
     remote_configs=remote_configs,
@@ -657,7 +684,7 @@ start_server = RemoteCmdTask(
         "then",
         "  echo Server already running",
         "else",
-        "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
+        "  screen -dmS web_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
         "screen -ls",
         "fi",
     ],
@@ -669,7 +696,21 @@ start_server = RemoteCmdTask(
         )
     ]
 )
+```
 
+Next, we define a Task to run the web service. We use `RemoteCmdTask`, a Zrb Task Type similar to `CmdTask`, but focussing on running the cmd scripts on the remote servers.
+
+The Task shares the same `remote_configs` as the previous `RsyncTask` since they deal with the same remote server.
+
+The `cmd` parameter contains a script to run a new `screen` session and execute a Python Web Server on that session if the `curl` request fails.
+
+Finally, we define the `checkers` parameter and add an `HTTPChecker` on it. `HTTPChecker` is another Zrb Task Type that checks whether an HTTP Connection is ready.
+
+By defining the `checkers`, we make sure that `start_server` will only considered ready if we can establish the HTTP connection.
+
+### Combine All Steps
+
+```python
 deploy = FlowTask(
     name="deploy",
     inputs=[
@@ -682,6 +723,49 @@ deploy = FlowTask(
     steps=[build, copy_to_server, start_server],
 )
 ```
+
+Finally, we combine `build`, `copy_to_server`, and `start_server` into a single `FlowTask`. `FlowTask` allows you to combine several unrelated Tasks into a single workflow.
+
+`FlowTask` has a particular parameter named `steps`. You can add any Tasks to the steps, and they will run sequentially. If you need some Taks to run in parallel, you can do as follows:
+
+```python
+task_variable = FlowTask(
+    name="task-name",
+    steps=[
+        [task1, task2], # task1 and task2 will run in parallel.
+        task3, # task3 will run once task1 and task2 ready.
+    ]
+)
+```
+
+### Run Deployment
+
+We have defined a `deploy` Task. To see what it does, you can add the following lines:
+
+```python
+# Just to test, delete before you proceed with next section
+runner.register(deploy)
+```
+
+Before running the Task, you need to edit the configuration on `config.env`. Provide the desired `WEB_HOST` and `WEB_PORT` values.
+
+After you set the configuration, you can then run the deployment using CLI:
+
+```bash
+zrb  deploy
+```
+
+Zrb will prompt you to fill up several inputs:
+- Remote host
+- Remote user
+- Remote password
+- Remote path
+
+Once you provide all the inputs, Zrb will deploy your application.
+
+
+> __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
+
 
 ## Auto Deploy
 
@@ -701,6 +785,8 @@ auto_deploy = Server(
 )
 deploy >> auto_deploy
 ```
+
+We have already defined the deployment Task. Now, it's time to make the deployment run automatically.
 
 ## Register Tasks
 
@@ -806,7 +892,7 @@ start_server = RemoteCmdTask(
         "then",
         "  echo Server already running",
         "else",
-        "  screen -dmS test_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
+        "  screen -dmS web_session bash -c 'cd {{input.remote_path}} && python -m http.server {{env.WEB_PORT}}'",
         "screen -ls",
         "fi",
     ],
