@@ -708,7 +708,7 @@ Finally, we define the `checkers` parameter and add an `HTTPChecker` on it. `HTT
 
 By defining the `checkers`, we make sure that `start_server` will only considered ready if we can establish the HTTP connection.
 
-### Combine All Steps
+### Combine Deployment Steps
 
 ```python
 deploy = FlowTask(
@@ -767,6 +767,33 @@ Once you provide all the inputs, Zrb will deploy your application.
 > __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
 
 
+### Troubleshooting Deployment
+
+We deal with computers constantly. Thus, we know you probably won't have things work on the first run unless you are very lucky. Here are some things to try when unsure why things don't work as expected.
+
+<details>
+
+<summary>We hope you are lucky, but in case you are not, click this.</summary>
+
+- Ensure you have the `VPS` and `SSH` access. You can test this by accessing `ssh <remote-user>@<remote-host>` and enter your `<remote-password>`.
+    - If you are using `Amazon EC2`, please follow [this guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/TroubleshootingInstancesConnecting.html).
+    - If you are using `GCP Compute Engine`, please follow [this guide](https://cloud.google.com/compute/docs/troubleshooting/troubleshooting-ssh-errors).
+    - Otherwise, follow your VPS provider's troubleshooting document.
+- Ensure you set the configuration correctly, especially the `WEB_HOST` and `WEB_PORT`. If your VPS is not attached to any domain, you can use its public IP as your `WEB_HOST`.
+- Ensure you enter the correct inputs when invoking the `zrb deploy` command.
+- Ensure you have `screen` installed inside your VPS (try to run `screen --help` from your VPS using `ssh` connection).
+- Ensure you have `python` installed inside your VPS (try to run `python --help` from your VPS using `ssh` connection).
+    - Some Linux distributions use `python3` instead of `python`. If you are using Ubuntu or Debian-based OS on your VPS, you can try to run `sudo apt install python-is-python3`. 
+- Ensure your VPS's inbound rule and firewall allow TCP access to your `WEB_PORT`. You need to check both the inbound rule and the VPS's firewall. Most VPS have a two-layer firewall. For example, [Vultr has Vultr Firewall and OS Firewall](https://docs.vultr.com/vultr-firewall).
+    - To ensure your problem is not with the firewall, try to access your VPS using `ssh` connection and perform `python -m http.server <WEB_PORT>`
+    - Once the web server is running, open another `ssh` connection and perform `curl <WEB_HOST>:<WEB_PORT>`
+    - If things run smoothly, you probably have problems with your firewall setting.
+        - If your VPS uses `ufw`, ensure that the `WEB_PORT` inbound rule is okay by invoking `sudo ufw status`.
+            - If your `WEB_PORT` is not accessible, run `sudo ufw allow <WEB_PORT>/tcp` to enable the access.
+        - Otherwise, please follow your VPS's OS-level firewall documentation.
+    - If things don't run smoothly, you probably have your `WEB_HOST`` setting wrong.
+</details>
+
 ## Auto Deploy
 
 ```python
@@ -786,7 +813,18 @@ auto_deploy = Server(
 deploy >> auto_deploy
 ```
 
-We have already defined the deployment Task. Now, it's time to make the deployment run automatically.
+We have already defined the deployment Task. Now, it's time to make the deployment run automatically. Zrb has a Task Type named `Server` that perfectly matches this goal.
+
+A `Server` has a parameter named `controllers`. Each `controller` has their `trigger` and `action`. Whenever Zrb detects that the `trigger` enter the `Ready` state, it will proceed by running the `action`.
+
+In our example, we have two `controllers`. Both `controllers` have the same `action`, deploying the static page. However, they have different `triggers`. Any changes in `TEMPLATE_DIR_PATH` trigger the first `controller`, while any changes in `ENV_FILE_PATH` trigger the second one.
+
+We use `PathWatcher` to detect changes on both `controllers`. `PathWatcher` is a special Task Type that watches for any changes in a particular `path` before becoming `Ready`.
+
+Aside from `PathWatcher`, Zrb has another Task Type named `TimeWatcher` that watches for the current time and compares it to its `schedule` before becoming `Ready`. This Task Type is helpful if you want to run some actions periodically.
+
+Lastly, we want Zrb to execute the deployment at least once. Thus, we define the `deploy` Task as `auto_deploy` upstream using the shift-right operator.
+
 
 ## Register Tasks
 
@@ -794,7 +832,25 @@ We have already defined the deployment Task. Now, it's time to make the deployme
 runner.register(init_template, init_env, build, deploy, auto_deploy)
 ```
 
+Now you have all Tasks defined and linked to each other. Finally, you can run the auto deployment by invoking the CLI command.
+
+```bash
+zrb auto-deploy
+```
+
+Zrb will ask you to complete several inputs before proceeding with the auto-deployment.
+
+You can trigger the deployment by adding/editing/deleting any files in the `TEMPLATE_PATH` directory or modifying the `ENV_FILE_PATH` file.
+
+The easiest way to trigger the changes without modifying the file content is by using the `touch` command.
+
+```bash
+touch config.env
+```
+
 ## Put Everything Together
+
+Here are the complete Task definitions. Copy it to your `zrb_init.py`, and have fun.
 
 ```python
 from zrb import (
