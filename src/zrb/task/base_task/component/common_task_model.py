@@ -65,6 +65,11 @@ class CommonTaskModel:
         self._group = group
         if group is not None:
             group._add_task(self)
+        checkers_cp: List[AnyTask] = [checker.copy() for checker in checkers]
+        for checker in checkers_cp:
+            checker.add_env(*envs)
+            checker.add_env_file(*env_files)
+            checker.add_input(*inputs)
         self._description = coalesce_str(description, name)
         self._inputs = inputs
         self._envs = envs
@@ -75,7 +80,7 @@ class CommonTaskModel:
         self._retry_interval = retry_interval
         self._upstreams = upstreams
         self._fallbacks = fallbacks
-        self._checkers = [checker.copy() for checker in checkers]
+        self._checkers = checkers_cp
         self._checking_interval = checking_interval
         self._run_function: Optional[Callable[..., Any]] = run
         self._on_triggered = on_triggered
@@ -100,6 +105,9 @@ class CommonTaskModel:
         self.__has_already_inject_upstreams: bool = False
         self.__has_already_inject_fallbacks: bool = False
         self.__all_inputs: Optional[List[AnyInput]] = None
+
+    def _lock_checkers(self):
+        self.__allow_add_checkers = False
 
     def _lock_upstreams(self):
         self.__allow_add_upstreams = False
@@ -164,11 +172,15 @@ class CommonTaskModel:
         if not self.__allow_add_inputs:
             raise Exception(f"Cannot insert inputs for `{self.get_name()}`")
         self._inputs = list(inputs) + list(self._inputs)
+        for checker in self._get_checkers():
+            checker.insert_input(*inputs)
 
     def add_input(self, *inputs: AnyInput):
         if not self.__allow_add_inputs:
             raise Exception(f"Cannot add inputs for `{self.get_name()}`")
         self._inputs = list(self._inputs) + list(inputs)
+        for checker in self._get_checkers():
+            checker.add_input(*inputs)
 
     def inject_inputs(self):
         pass
@@ -219,11 +231,15 @@ class CommonTaskModel:
         if not self.__allow_add_envs:
             raise Exception(f"Cannot insert envs to `{self.get_name()}`")
         self._envs = list(envs) + list(self._envs)
+        for checker in self._get_checkers():
+            checker.insert_env(*envs)
 
     def add_env(self, *envs: Env):
         if not self.__allow_add_envs:
             raise Exception(f"Cannot add envs to `{self.get_name()}`")
         self._envs = list(self._envs) + list(envs)
+        for checker in self._get_checkers():
+            checker.add_env(*envs)
 
     def inject_envs(self):
         pass
@@ -255,11 +271,15 @@ class CommonTaskModel:
         if not self.__allow_add_env_files:
             raise Exception(f"Cannot insert env_files to `{self.get_name()}`")
         self._env_files = list(env_files) + list(self._env_files)
+        for checker in self._get_checkers():
+            checker.insert_env_file(*env_files)
 
     def add_env_file(self, *env_files: EnvFile):
         if not self.__allow_add_env_files:
             raise Exception(f"Cannot add env_files to `{self.get_name()}`")
         self._env_files = list(self._env_files) + list(env_files)
+        for checker in self._get_checkers():
+            checker.add_env_file(*env_files)
 
     def inject_env_files(self):
         pass
@@ -317,14 +337,25 @@ class CommonTaskModel:
     def insert_checker(self, *checkers: AnyTask):
         if not self.__allow_add_checkers:
             raise Exception(f"Cannot insert checkers to `{self.get_name()}`")
-        additional_checkers = [checker.copy() for checker in checkers]
+        additional_checkers = self.__complete_new_checkers(checkers)
         self._checkers = additional_checkers + self._checkers
 
     def add_checker(self, *checkers: AnyTask):
         if not self.__allow_add_checkers:
             raise Exception(f"Cannot add checkers to `{self.get_name()}`")
-        additional_checkers = [checker.copy() for checker in checkers]
+        additional_checkers = self.__complete_new_checkers(checkers)
         self._checkers = self._checkers + additional_checkers
+
+    def __complete_new_checkers(self, new_checkers: List[AnyTask]) -> List[AnyTask]:
+        """
+        For internal use: copy and completing new checkers
+        """
+        checkers: List[AnyTask] = [checker.copy() for checker in new_checkers]
+        for checker in checkers:
+            checker.add_input(*self._get_inputs())
+            checker.add_env(*self._get_envs())
+            checker.add_env_file(*self._get_env_files())
+        return checkers
 
     def inject_checkers(self):
         pass

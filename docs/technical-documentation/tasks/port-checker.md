@@ -65,6 +65,10 @@ No documentation available.
 No documentation available.
 
 
+### `PortChecker._CommonTaskModel__complete_new_checkers`
+
+For internal use: copy and completing new checkers
+
 ### `PortChecker._Renderer__ensure_cached_render_data`
 
 No documentation available.
@@ -216,6 +220,10 @@ No documentation available.
 
 No documentation available.
 
+
+### `PortChecker._lock_checkers`
+
+Lock checkers so that it cannot be altered anymore
 
 ### `PortChecker._lock_fallbacks`
 

@@ -569,6 +569,13 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def _lock_checkers(self):
+        """
+        Lock checkers so that it cannot be altered anymore
+        """
+        pass
+
+    @abstractmethod
     def _lock_upstreams(self):
         """
         Lock upstreams so that it cannot be altered anymore

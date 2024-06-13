@@ -65,6 +65,10 @@ No documentation available.
 No documentation available.
 
 
+### `BaseRemoteCmdTask._CommonTaskModel__complete_new_checkers`
+
+For internal use: copy and completing new checkers
+
 ### `BaseRemoteCmdTask._Renderer__ensure_cached_render_data`
 
 No documentation available.
@@ -216,6 +220,10 @@ No documentation available.
 
 No documentation available.
 
+
+### `BaseRemoteCmdTask._lock_checkers`
+
+Lock checkers so that it cannot be altered anymore
 
 ### `BaseRemoteCmdTask._lock_fallbacks`
 

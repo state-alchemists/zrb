@@ -467,10 +467,9 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
                 )
             )
         # set checker keyval
+        self._lock_checkers()
         checker_coroutines = []
         for checker_task in self._get_checkers():
-            checker_task.add_input(*self._get_inputs())
-            checker_task.add_env(*self._get_envs())
             checker_coroutines.append(
                 asyncio.create_task(
                     checker_task._set_keyval(kwargs=new_kwargs, env_prefix=env_prefix)

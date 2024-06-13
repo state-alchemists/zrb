@@ -107,6 +107,10 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of upstream tasks.
 
+### `AnyTask._lock_checkers`
+
+Lock checkers so that it cannot be altered anymore
+
 ### `AnyTask._lock_fallbacks`
 
 Lock fallbacks so that it cannot be altered anymore

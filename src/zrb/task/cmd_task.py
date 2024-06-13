@@ -1,5 +1,6 @@
 import asyncio
 import atexit
+import logging
 import os
 import pathlib
 import signal
@@ -7,7 +8,7 @@ import subprocess
 import sys
 import time
 
-from zrb.config.config import default_shell
+from zrb.config.config import default_shell, logging_level
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
@@ -53,6 +54,18 @@ def _reset_stty():
             subprocess.run(["stty", _original_stty], check=True)
         except Exception:
             _has_stty = False
+
+
+def _log_error(message: Any):
+    if logging_level > logging.ERROR:
+        return
+    colored_message = colored(f"{message}", color="red", attrs=["bold"])
+    logger.error(colored_message, exc_info=True)
+
+
+def _print_out_dark(message: Any):
+    message_str = f"{message}"
+    print(colored(message_str, attrs=["dark"]), file=sys.stderr)
 
 
 CmdVal = Union[
@@ -272,7 +285,7 @@ class CmdTask(BaseTask):
     def __on_kill(self, signum: Any, frame: Any):
         self._global_state.no_more_attempt = True
         self._global_state.is_killed_by_signal = True
-        self.print_out_dark(f"Getting signal {signum}")
+        _print_out_dark(f"Getting signal {signum}")
         for pid in self._pids:
             self.__kill_by_pid(pid)
         tasks = asyncio.all_tasks()
@@ -282,7 +295,7 @@ class CmdTask(BaseTask):
             except Exception as e:
                 self.print_err(e)
         time.sleep(0.3)
-        self.print_out_dark(f"Exiting with signal {signum}")
+        _print_out_dark(f"Exiting with signal {signum}")
         sys.exit(signum)
 
     def __on_exit(self):
@@ -297,20 +310,20 @@ class CmdTask(BaseTask):
             process_ever_exists = False
             if self.__is_process_exist(pid):
                 process_ever_exists = True
-                self.print_out_dark(f"Send SIGTERM to process {pid}")
+                _print_out_dark(f"Send SIGTERM to process {pid}")
                 os.killpg(os.getpgid(pid), signal.SIGTERM)
                 time.sleep(0.3)
             if self.__is_process_exist(pid):
-                self.print_out_dark(f"Send SIGINT to process {pid}")
+                _print_out_dark(f"Send SIGINT to process {pid}")
                 os.killpg(os.getpgid(pid), signal.SIGINT)
                 time.sleep(0.3)
             if self.__is_process_exist(pid):
-                self.print_out_dark(f"Send SIGKILL to process {pid}")
+                _print_out_dark(f"Send SIGKILL to process {pid}")
                 os.killpg(os.getpgid(pid), signal.SIGKILL)
             if process_ever_exists:
-                self.print_out_dark(f"Process {pid} is killed successfully")
+                _print_out_dark(f"Process {pid} is killed successfully")
         except Exception:
-            self.log_error(f"Cannot kill process {pid}")
+            _log_error(f"Cannot kill process {pid}")
 
     def __is_process_exist(self, pid: int) -> bool:
         try:

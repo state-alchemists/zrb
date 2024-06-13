@@ -141,6 +141,10 @@ No documentation available.
 No documentation available.
 
 
+### `DockerComposeTask._CommonTaskModel__complete_new_checkers`
+
+For internal use: copy and completing new checkers
+
 ### `DockerComposeTask._DockerComposeTask__apply_service_env`
 
 No documentation available.
@@ -332,6 +336,10 @@ No documentation available.
 
 No documentation available.
 
+
+### `DockerComposeTask._lock_checkers`
+
+Lock checkers so that it cannot be altered anymore
 
 ### `DockerComposeTask._lock_fallbacks`
 
