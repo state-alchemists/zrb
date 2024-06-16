@@ -170,9 +170,11 @@ zrb base64
 zrb base64 encode
 ```
 
+> __📝 NOTE:__  Zrb comes with builtin Task Definitions. Unless you set `ZRB_SHOULD_LOAD_BUILTIN` to `false`, Zrb will automatically loads the builtin Tasks.
+
 That's all you need to know to run Zrb Tasks.
 
-In the rest of this section, you will learn about Zrb Projects and how to make your own Zrb Tasks.
+In the rest of this page, you will learn about Zrb Projects and how to make your own Zrb Tasks.
 
 # Creating A Project
 
@@ -417,10 +419,10 @@ Notice that when you run `zrb hello`, Zrb automatically executes `hello-cmd` and
 
 # Ultimate Example: Personal CI/CD
 
-According to [Wikipedia](https://en.wikipedia.org/wiki/CI/CD), CI/CD is the combined practices of continuous integration (CI) and continuous delivery (CD) or, less often, continuous deployment. They are sometimes referred to collectively as continuous development or continuous software development.
+According to [Wikipedia](https://en.wikipedia.org/wiki/CI/CD), CI/CD is the combined practice of continuous integration (CI) and continuous delivery (CD) or, less often, continuous deployment. They are sometimes referred to collectively as continuous development or continuous software development.
 
 - Continuous integration: Frequent merging of several small changes into a main branch.
-- Continuous delivery: When teams produce software in short cycles with high speed and frequency so that reliable software can be released at any time, and with a simple and repeatable deployment process when deciding to deploy.
+- Continuous delivery: When teams produce software in short cycles with high speed and frequency so that reliable software can be released at any time and with a simple and repeatable deployment process when deciding to deploy.
 - Continuous deployment: When new software functionality is rolled out completely automatically.
 
 In the following example, we will make a simple CI/CD pipeline that __continuously generates static pages__ and __deploys them to the remote server__ via SSH.
@@ -557,7 +559,7 @@ zrb init-env
 
 Notice how Zrb created `template` directory and `config.env` file.
 
-> __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
+> __⚠️ WARNING:__ You can only register a Task once. Make sure to delete the Task registration part before continuing with the next section.
 
 
 ## Build
@@ -620,12 +622,12 @@ runner.register(build)
 Once the Task is registered, you can then run them using CLI:
 
 ```bash
-zrb  build
+zrb build
 ```
 
 Notice how Zrb created an `index.html` file under `output` directory, replacing all defined keywords with proper values.
 
-> __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
+> __⚠️ WARNING:__ You can only register a Task once. Make sure to delete the Task registration part before continuing with the next section.
 
 
 ## Deploy
@@ -698,6 +700,9 @@ start_server = RemoteCmdTask(
 )
 ```
 
+> __📝 NOTE:__  Aside from `cmd` paramter, `CmdTask` and `RemoteCmdTask` has a `cmd_path` parameter. You can use this parameter to refer to the shell script file (e.g., `RemoteCmdTask(name="start-server", cmd_path=os.path.join(CURRENT_DIR, "start-server.sh"))`).
+
+
 Next, we define a Task to run the web service. We use `RemoteCmdTask`, a Zrb Task Type similar to `CmdTask`, but focussing on running the cmd scripts on the remote servers.
 
 The Task shares the same `remote_configs` as the previous `RsyncTask` since they deal with the same remote server.
@@ -752,7 +757,7 @@ Before running the Task, you need to edit the configuration on `config.env`. Pro
 After you set the configuration, you can then run the deployment using CLI:
 
 ```bash
-zrb  deploy
+zrb deploy
 ```
 
 Zrb will prompt you to fill up several inputs:
@@ -764,7 +769,7 @@ Zrb will prompt you to fill up several inputs:
 Once you provide all the inputs, Zrb will deploy your application.
 
 
-> __⚠️ WARNING:__ Make sure to delete the Task registration part before continuing with the next section.
+> __⚠️ WARNING:__ You can only register a Task once. Make sure to delete the Task registration part before continuing with the next section.
 
 
 ### Troubleshooting Deployment
@@ -791,7 +796,7 @@ We deal with computers constantly. Thus, we know you probably won't have things 
         - If your VPS uses `ufw`, ensure that the `WEB_PORT` inbound rule is okay by invoking `sudo ufw status`.
             - If your `WEB_PORT` is not accessible, run `sudo ufw allow <WEB_PORT>/tcp` to enable the access.
         - Otherwise, please follow your VPS's OS-level firewall documentation.
-    - If things don't run smoothly, you probably have your `WEB_HOST`` setting wrong.
+    - If things don't run smoothly, you probably have your `WEB_HOST` setting wrong.
 </details>
 
 ## Auto Deploy
@@ -850,7 +855,12 @@ touch config.env
 
 ## Put Everything Together
 
-Here are the complete Task definitions. Copy it to your `zrb_init.py`, and have fun.
+Great. The example covers pretty much everything you need to know.
+
+<details>
+<summary>
+Here are the complete Task definitions.
+</summary>
 
 ```python
 from zrb import (
@@ -990,6 +1000,9 @@ deploy >> auto_deploy
 
 runner.register(init_template, init_env, build, deploy, auto_deploy)
 ```
+</details>
+
+ Put the definition on your `zrb_init.py`, and have fun.
 
 # Next
 
