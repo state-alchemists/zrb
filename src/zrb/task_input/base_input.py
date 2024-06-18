@@ -137,19 +137,19 @@ class BaseInput(AnyInput):
         return options
     
     def __wrapped_callback(self, ctx, param, value) -> Any:
-        if self.name not in self.__input_value_map:
-            self.__input_value_map[self.name] = value
-        return self.__input_value_map[self.name]
+        if self.get_name() not in self.__input_value_map:
+            self.__input_value_map[self.get_name()] = value
+        return self.__input_value_map[self.get_name()]
     
     def __wrapped_default(self) -> Any:
-        if self.name not in self.__default:
+        if self.get_name() not in self.__default:
             if callable(self._default):
                 default = self._default(self.__input_value_map)
-                self.__default[self.name] = default
+                self.__default[self.get_name()] = default
                 return default
-            self.__default[self.name] = self._default
+            self.__default[self.get_name()] = self._default
             return self._default
-        return self.__default[self.name]
+        return self.__default[self.get_name()]
 
     def should_render(self) -> bool:
         return self.__should_render
