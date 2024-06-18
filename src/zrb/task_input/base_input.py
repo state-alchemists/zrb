@@ -50,6 +50,9 @@ class BaseInput(AnyInput):
         >>> )
     """
 
+    __input_value_map: Mapping[str, Any] = {}
+    __default: Mapping[str, Any] = {}
+
     def __init__(
         self,
         name: str,
@@ -126,10 +129,27 @@ class BaseInput(AnyInput):
             "show_choices": self._show_choices,
             "show_envvar": self._show_envvar,
             "nargs": self._nargs,
+            "callback": self.__wrapped_callback,
+            "default": self.__wrapped_default,
         }
         if show_prompt:
             options["prompt"] = self._prompt
         return options
+    
+    def __wrapped_callback(self, ctx, param, value) -> Any:
+        if self.name not in self.__input_value_map:
+            self.__input_value_map[self.name] = value
+        return self.__input_value_map[self.name]
+    
+    def __wrapped_default(self) -> Any:
+        if self.name not in self.__default:
+            if callable(self._default):
+                default = self._default(self.__input_value_map)
+                self.__default[self.name] = default
+                return default
+            self.__default[self.name] = self._default
+            return self._default
+        return self.__default[self.name]
 
     def should_render(self) -> bool:
         return self.__should_render
