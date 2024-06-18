@@ -21,8 +21,9 @@ class FloatInput(BaseInput):
         name (str): The name of the input.
         shortcut (Optional[str]): An optional shortcut string for the input.
         default (Optional[Any]): The default value for the input, expected to be a float if set.
-        description (Optional[str]): A brief description of the input's purpose.
-        show_default (Union[bool, str, None]): Option to display the default value. Can be a boolean or string.
+        callback (Optional[Any]): The default value of the input.
+        description (Optional[str]): A brief description of what the input is for.
+        show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): A boolean or string to prompt the user for input. If `True`, uses the default prompt.
         confirmation_prompt (Union[bool, str]): If `True`, the user is asked to confirm the input.
         prompt_required (bool): If `True`, the prompt for input is mandatory.

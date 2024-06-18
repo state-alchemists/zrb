@@ -22,8 +22,9 @@ class IntInput(BaseInput):
         name (str): The name of the input, serving as an identifier.
         shortcut (Optional[str]): An optional shortcut for easier reference to the input.
         default (Optional[Any]): The default value for the input, should be an integer if provided.
-        description (Optional[str]): A brief description of what the input represents or its intended use.
-        show_default (Union[bool, str, None]): Option to show the default value in prompts or documentation.
+        callback (Optional[Any]): The default value of the input.
+        description (Optional[str]): A brief description of what the input is for.
+        show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): A boolean or string to determine the prompt for user input. If `True`, uses a default prompt.
         confirmation_prompt (Union[bool, str]): If `True`, the user will be asked to confirm their input.
         prompt_required (bool): If `True`, makes the input prompt mandatory.

@@ -2,13 +2,15 @@ from zrb.config.config import show_prompt
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, List, Mapping, Optional, Union
+from zrb.helper.typing import Any, Callable, List, Mapping, Optional, Union
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
 
 logger.debug(colored("Loading zrb.task_input.base_input", attrs=["dark"]))
 
 # flake8: noqa E501
+
+InputCallback = Callable[[Mapping[str, Any]], Any]
 
 
 @typechecked
@@ -22,8 +24,9 @@ class BaseInput(AnyInput):
         name (str): The name of the input, used as a unique identifier.
         shortcut (Optional[str]): An optional single-character shortcut for the input.
         default (Optional[Any]): The default value of the input.
+        callback (Optional[Any]): The default value of the input.
         description (Optional[str]): A brief description of what the input is for.
-        show_default (Union[bool, JinjaTemplate, None]): Determines whether the default value should be displayed.
+        show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): The prompt text to be displayed when asking for the input.
         confirmation_prompt (Union[bool, str]): A prompt for confirmation if required.
         prompt_required (bool): Indicates whether a prompt is required.
@@ -57,7 +60,8 @@ class BaseInput(AnyInput):
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[Any] = None,
+        default: Optional[Union[Any, InputCallback]] = None,
+        callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -82,6 +86,7 @@ class BaseInput(AnyInput):
         self._shortcut = shortcut
         self._prompt = prompt
         self._default = default
+        self._callback = callback
         self._help = description if description is not None else name
         self._type = type
         self._show_default = show_default
@@ -113,7 +118,6 @@ class BaseInput(AnyInput):
 
     def get_options(self) -> Mapping[str, Any]:
         options: Mapping[str, Any] = {
-            "default": self._default,
             "help": self._help,
             "type": self._type,
             "show_default": self._show_default,
@@ -135,12 +139,17 @@ class BaseInput(AnyInput):
         if show_prompt:
             options["prompt"] = self._prompt
         return options
-    
+
     def __wrapped_callback(self, ctx, param, value) -> Any:
         if self.get_name() not in self.__input_value_map:
+            if callable(self._callback):
+                result = self._callback(self.__input_value_map)
+                self.__input_value_map[self.get_name()] = result
+                return result
             self.__input_value_map[self.get_name()] = value
+            return value
         return self.__input_value_map[self.get_name()]
-    
+
     def __wrapped_default(self) -> Any:
         if self.get_name() not in self.__default:
             if callable(self._default):

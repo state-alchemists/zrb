@@ -25,8 +25,9 @@ class ChoiceInput(BaseInput):
         shortcut (Optional[str]): An optional shortcut string for the input.
         choices (Iterable[Any]): An iterable of choices from which the user can select.
         default (Optional[Any]): The default value for the input. Should be one of the choices if set.
-        description (Optional[str]): A brief description of the input.
-        show_default (Union[bool, str, None]): Option to display the default value. Can be a boolean or string representation.
+        callback (Optional[Any]): The default value of the input.
+        description (Optional[str]): A brief description of what the input is for.
+        show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): A boolean or string to prompt the user for input. If `True`, uses the default prompt.
         confirmation_prompt (Union[bool, str]): If set to `True`, the user is asked to confirm the input.
         prompt_required (bool): If `True`, the prompt for input is mandatory.
