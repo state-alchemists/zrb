@@ -1,6 +1,6 @@
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
-from zrb.task_input.base_input import BaseInput, InputCallback
+from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
 logger.debug(colored("Loading zrb.task_input.task_input", attrs=["dark"]))
 

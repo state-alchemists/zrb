@@ -10,7 +10,8 @@ logger.debug(colored("Loading zrb.task_input.base_input", attrs=["dark"]))
 
 # flake8: noqa E501
 
-InputCallback = Callable[[Mapping[str, Any]], Any]
+InputCallback = Callable[[Mapping[str, Any], Any], Any]
+InputDefault = Callable[[Mapping[str, Any]], Any]
 
 
 @typechecked
@@ -60,7 +61,7 @@ class BaseInput(AnyInput):
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[Union[Any, InputCallback]] = None,
+        default: Optional[Union[Any, InputDefault]] = None,
         callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
@@ -143,7 +144,7 @@ class BaseInput(AnyInput):
     def _wrapped_callback(self, ctx, param, value) -> Any:
         if self.get_name() not in self.__input_value_map:
             if callable(self._callback):
-                result = self._callback(self.__input_value_map)
+                result = self._callback(self.__input_value_map, value)
                 self.__input_value_map[self.get_name()] = result
                 return result
             self.__input_value_map[self.get_name()] = value
