@@ -4,7 +4,7 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Iterable, Optional, Union
-from zrb.task_input.base_input import BaseInput
+from zrb.task_input.base_input import BaseInput, InputCallback
 
 logger.debug(colored("Loading zrb.task_input.choice_input", attrs=["dark"]))
 
@@ -54,7 +54,8 @@ class ChoiceInput(BaseInput):
         name: str,
         shortcut: Optional[str] = None,
         choices: Iterable[Any] = [],
-        default: Optional[Any] = None,
+        default: Optional[Union[Any, InputCallback]] = None,
+        callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -77,6 +78,7 @@ class ChoiceInput(BaseInput):
             name=name,
             shortcut=shortcut,
             default=default,
+            callback=callback,
             description=description,
             show_default=show_default,
             prompt=prompt,

@@ -133,14 +133,14 @@ class BaseInput(AnyInput):
             "show_choices": self._show_choices,
             "show_envvar": self._show_envvar,
             "nargs": self._nargs,
-            "callback": self.__wrapped_callback,
-            "default": self.__wrapped_default,
+            "callback": self._wrapped_callback,
+            "default": self._wrapped_default,
         }
         if show_prompt:
             options["prompt"] = self._prompt
         return options
 
-    def __wrapped_callback(self, ctx, param, value) -> Any:
+    def _wrapped_callback(self, ctx, param, value) -> Any:
         if self.get_name() not in self.__input_value_map:
             if callable(self._callback):
                 result = self._callback(self.__input_value_map)
@@ -150,7 +150,7 @@ class BaseInput(AnyInput):
             return value
         return self.__input_value_map[self.get_name()]
 
-    def __wrapped_default(self) -> Any:
+    def _wrapped_default(self) -> Any:
         if self.get_name() not in self.__default:
             if callable(self._default):
                 default = self._default(self.__input_value_map)

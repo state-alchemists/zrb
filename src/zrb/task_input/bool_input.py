@@ -2,7 +2,7 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Optional, Union
-from zrb.task_input.base_input import BaseInput
+from zrb.task_input.base_input import BaseInput, InputCallback
 
 logger.debug(colored("Loading zrb.task_input.bool_input", attrs=["dark"]))
 
@@ -49,7 +49,8 @@ class BoolInput(BaseInput):
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[Any] = None,
+        default: Optional[Union[Any, InputCallback]] = None,
+        callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -72,6 +73,7 @@ class BoolInput(BaseInput):
             name=name,
             shortcut=shortcut,
             default=default,
+            callback=callback,
             description=description,
             show_default=show_default,
             prompt=prompt,
