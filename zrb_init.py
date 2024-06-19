@@ -28,6 +28,7 @@ from zrb import (
     ChoiceInput,
     FloatInput,
     IntInput,
+    MultilineInput,
     PasswordInput,
     StrInput,
 )
@@ -182,6 +183,7 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(dir, "task-inputs", "choice-input.md"): ChoiceInput,
         os.path.join(dir, "task-inputs", "float-input.md"): FloatInput,
         os.path.join(dir, "task-inputs", "int-input.md"): IntInput,
+        os.path.join(dir, "task-inputs", "multiline-input.md"): MultilineInput,
         os.path.join(dir, "task-inputs", "password-input.md"): PasswordInput,
         os.path.join(dir, "task-inputs", "str-input.md"): StrInput,
     }

@@ -1,5 +1,6 @@
-from zrb.helper.typecheck import typechecked
 import click
+
+from zrb.helper.typecheck import typechecked
 
 
 @typechecked

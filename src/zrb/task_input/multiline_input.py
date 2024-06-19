@@ -47,14 +47,15 @@ class MultilineInput(BaseInput):
         >>> multiline_input.get_default()
         'user123'
     """
+
     __default: Mapping[str, Any] = {}
 
     def __init__(
         self,
         name: str,
         shortcut: Optional[str] = None,
-        comment_start = "#",
-        editor = default_editor,
+        comment_start="#",
+        editor=default_editor,
         default: Optional[Union[Any, InputDefault]] = None,
         callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
@@ -106,5 +107,7 @@ class MultilineInput(BaseInput):
             text = super()._wrapped_default()
             prompt = self._prompt if isinstance(self._prompt, str) else self.get_name()
             mark_comment = " ".join([self._comment_start, prompt])
-            self.__default[self.get_name()] = edit(editor=self._editor, mark_comment=mark_comment, text=text)
+            self.__default[self.get_name()] = edit(
+                editor=self._editor, mark_comment=mark_comment, text=text
+            )
         return self.__default[self.get_name()]

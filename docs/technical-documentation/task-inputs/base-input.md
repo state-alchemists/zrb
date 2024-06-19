@@ -16,8 +16,9 @@ __Attributes:__
 - `name` (`str`): The name of the input, used as a unique identifier.
 - `shortcut` (`Optional[str]`): An optional single-character shortcut for the input.
 - `default` (`Optional[Any]`): The default value of the input.
+- `callback` (`Optional[Any]`): The default value of the input.
 - `description` (`Optional[str]`): A brief description of what the input is for.
-- `show_default` (`Union[bool, JinjaTemplate, None]`): Determines whether the default value should be displayed.
+- `show_default` (`Union[bool, JinjaTemplate, None]`): Determines the default value to be shown.
 - `prompt` (`Union[bool, str]`): The prompt text to be displayed when asking for the input.
 - `confirmation_prompt` (`Union[bool, str]`): A prompt for confirmation if required.
 - `prompt_required` (`bool`): Indicates whether a prompt is required.
@@ -45,6 +46,16 @@ task = Task(
     ]
 )
 ```
+
+
+### `BaseInput._wrapped_callback`
+
+No documentation available.
+
+
+### `BaseInput._wrapped_default`
+
+No documentation available.
 
 
 ### `BaseInput.get_default`
