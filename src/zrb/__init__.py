@@ -45,6 +45,7 @@ from zrb.task_input.bool_input import BoolInput
 from zrb.task_input.choice_input import ChoiceInput
 from zrb.task_input.float_input import FloatInput
 from zrb.task_input.int_input import IntInput
+from zrb.task_input.multiline_input import MultilineInput
 from zrb.task_input.password_input import PasswordInput
 from zrb.task_input.str_input import StrInput
 from zrb.task_input.task_input import Input
@@ -93,6 +94,7 @@ assert BoolInput
 assert ChoiceInput
 assert FloatInput
 assert IntInput
+assert MultilineInput
 assert PasswordInput
 assert StrInput
 assert Env

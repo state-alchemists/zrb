@@ -62,17 +62,28 @@ Zrb log verbosity.
 Default shell to run Cmd Task (should be `bash` compatible).
 
 - __Default value:__ `zsh` or `bash`, depending on `$SHELL`
-- __Possible value:__
+- __Possible values:__
     - `/usr/bin/zsh` 
     - `/usr/bin/bash`
     - etc.
 
 > __⚠️ WARNING:__ Stick with bash compatible shell. Most builtin tasks are written for bash scripts.
 
+## `ZRB_EDITOR`
+
+- __Default value:__ `nano`
+- __Possible values:__ 
+  - `nano`
+  - `vi`
+  - `vim`
+  - `nvim`
+  - `hx`
+  - etc.
+
 ## `ZRB_TMP_DIR`
 
 - __Default value:__ `/tmp`
-- __Possible value:__ Any existing directory path
+- __Possible values:__ Any existing directory path
 
 
 ## `ZRB_SHOULD_LOAD_BULTIN`
@@ -80,28 +91,28 @@ Default shell to run Cmd Task (should be `bash` compatible).
 Whether Zrb should load the builtin tasks or not.
 
 - __Default value:__ `true`
-- __Possible value:__ boolean values
+- __Possible values:__ boolean values
 
 ## `ZRB_SHOW_ADVERTISEMENT`
 
 Whether Zrb should load show advertisement or not.
 
 - __Default value:__ `true`
-- __Possible value:__ boolean values
+- __Possible values:__ boolean values
 
 ## `ZRB_SHOW_PROMPT`
 
 Whether Zrb should always show prompt or not.
 
 - __Default value:__ `true`
-- __Possible value:__ boolean values
+- __Possible values:__ boolean values
 
 ## `ZRB_SHOW_TIME`
 
 Whether Zrb should log the time or not.
 
 - __Default value:__ `true`
-- __Possible value:__ boolean values
+- __Possible values:__ boolean values
 
 ## `ZRB_ENABLE_TYPE_CHECKING`
 
@@ -110,12 +121,12 @@ Whether Zrb should check data type or not.
 Although it is safer to enable type checking, you can improve Zrb performance by turning off type checking.
 
 - __Default value:__ `true`
-- __Possible value:__ boolean values
+- __Possible values:__ boolean values
 
 ## `ZRB_CONTAINER_BACKEND`
 
 - __Default value:__ `docker`
-- __Possible value:__ `docker`, `podman`
+- __Possible values:__ `docker`, `podman`
 
 
 🔖 [Table of Contents](README.md)
