@@ -9,6 +9,7 @@
 - [ChoiceInput](choice-input.md)
 - [FloatInput](float-input.md)
 - [IntInput](int-input.md)
+- [MultilineInput](multiline-input.md)
 - [PasswordInput](password-input.md)
 - [StrInput](str-input.md)
 

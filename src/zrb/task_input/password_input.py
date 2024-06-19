@@ -2,7 +2,7 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Optional, Union
-from zrb.task_input.base_input import BaseInput
+from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
 logger.debug(colored("Loading zrb.task_input.password_input", attrs=["dark"]))
 
@@ -23,8 +23,9 @@ class PasswordInput(BaseInput):
         name (str): The name of the input, serving as an identifier.
         shortcut (Optional[str]): An optional shortcut string for the input.
         default (Optional[Any]): The default value for the input, expected to be a string if set.
-        description (Optional[str]): A brief description of the input's purpose.
-        show_default (Union[bool, str, None]): Option to display the default value. Can be a boolean or string.
+        callback (Optional[Any]): The default value of the input.
+        description (Optional[str]): A brief description of what the input is for.
+        show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): A boolean or string to prompt the user for input. If `True`, uses the default prompt.
         confirmation_prompt (Union[bool, str]): If `True`, the user is asked to confirm the input.
         prompt_required (bool): If `True`, the prompt for input is mandatory.
@@ -49,7 +50,8 @@ class PasswordInput(BaseInput):
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[Any] = None,
+        default: Optional[Union[Any, InputDefault]] = None,
+        callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -71,6 +73,7 @@ class PasswordInput(BaseInput):
             name=name,
             shortcut=shortcut,
             default=default,
+            callback=callback,
             description=description,
             show_default=show_default,
             prompt=prompt,

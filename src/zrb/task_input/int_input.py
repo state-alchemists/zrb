@@ -2,7 +2,7 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Optional, Union
-from zrb.task_input.base_input import BaseInput
+from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
 logger.debug(colored("Loading zrb.task_input.int_input", attrs=["dark"]))
 
@@ -22,8 +22,9 @@ class IntInput(BaseInput):
         name (str): The name of the input, serving as an identifier.
         shortcut (Optional[str]): An optional shortcut for easier reference to the input.
         default (Optional[Any]): The default value for the input, should be an integer if provided.
-        description (Optional[str]): A brief description of what the input represents or its intended use.
-        show_default (Union[bool, str, None]): Option to show the default value in prompts or documentation.
+        callback (Optional[Any]): The default value of the input.
+        description (Optional[str]): A brief description of what the input is for.
+        show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): A boolean or string to determine the prompt for user input. If `True`, uses a default prompt.
         confirmation_prompt (Union[bool, str]): If `True`, the user will be asked to confirm their input.
         prompt_required (bool): If `True`, makes the input prompt mandatory.
@@ -49,7 +50,8 @@ class IntInput(BaseInput):
         self,
         name: str,
         shortcut: Optional[str] = None,
-        default: Optional[Any] = None,
+        default: Optional[Union[Any, InputDefault]] = None,
+        callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
         show_default: Union[bool, str, None] = None,
         prompt: Union[bool, str] = True,
@@ -72,6 +74,7 @@ class IntInput(BaseInput):
             name=name,
             shortcut=shortcut,
             default=default,
+            callback=callback,
             description=description,
             show_default=show_default,
             prompt=prompt,

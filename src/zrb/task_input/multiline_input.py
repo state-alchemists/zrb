@@ -1,16 +1,18 @@
+from zrb.config.config import default_editor
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
+from zrb.helper.multilline import edit
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Optional, Union
+from zrb.helper.typing import Any, Mapping, Optional, Union
 from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
-logger.debug(colored("Loading zrb.task_input.str_input", attrs=["dark"]))
+logger.debug(colored("Loading zrb.task_input.multiline_input", attrs=["dark"]))
 
 # flake8: noqa E501
 
 
 @typechecked
-class StrInput(BaseInput):
+class MultilineInput(BaseInput):
     """
     A specialized input class for handling string-based inputs in various tasks.
 
@@ -41,15 +43,19 @@ class StrInput(BaseInput):
         should_render (bool): If `True’, renders the input in the user interface or command-line interface.
 
     Examples:
-        >>> str_input = StrInput(name='username', default='user123', description='Enter your username')
-        >>> str_input.get_default()
+        >>> multiline_input = StrInput(name='username', default='user123', description='Enter your username')
+        >>> multiline_input.get_default()
         'user123'
     """
+
+    __default: Mapping[str, Any] = {}
 
     def __init__(
         self,
         name: str,
         shortcut: Optional[str] = None,
+        comment_start="#",
+        editor=default_editor,
         default: Optional[Union[Any, InputDefault]] = None,
         callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
@@ -93,3 +99,15 @@ class StrInput(BaseInput):
             nargs=nargs,
             should_render=should_render,
         )
+        self._comment_start = comment_start
+        self._editor = editor
+
+    def _wrapped_default(self) -> Any:
+        if self.get_name() not in self.__default:
+            text = super()._wrapped_default()
+            prompt = self._prompt if isinstance(self._prompt, str) else self.get_name()
+            mark_comment = " ".join([self._comment_start, prompt])
+            self.__default[self.get_name()] = edit(
+                editor=self._editor, mark_comment=mark_comment, text=text
+            )
+        return self.__default[self.get_name()]
