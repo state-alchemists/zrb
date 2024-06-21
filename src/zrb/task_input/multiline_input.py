@@ -59,7 +59,7 @@ class MultilineInput(BaseInput):
         default: Optional[Union[Any, InputDefault]] = None,
         callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
-        show_default: Union[bool, str, None] = None,
+        show_default: Union[bool, str] = True,
         prompt: Union[bool, str] = True,
         confirmation_prompt: Union[bool, str] = False,
         prompt_required: bool = True,

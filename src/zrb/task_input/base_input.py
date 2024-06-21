@@ -1,6 +1,7 @@
 from zrb.config.config import show_prompt
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
+from zrb.helper.string.jinja import is_probably_jinja
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, List, Mapping, Optional, Union
 from zrb.task_input.any_input import AnyInput
@@ -64,7 +65,7 @@ class BaseInput(AnyInput):
         default: Optional[Union[Any, InputDefault]] = None,
         callback: Optional[InputCallback] = None,
         description: Optional[str] = None,
-        show_default: Union[bool, str, None] = None,
+        show_default: Union[bool, str] = True,
         prompt: Union[bool, str] = True,
         confirmation_prompt: Union[bool, str] = False,
         prompt_required: bool = True,
@@ -90,7 +91,9 @@ class BaseInput(AnyInput):
         self._callback = callback
         self._help = description if description is not None else name
         self._type = type
-        self._show_default = show_default
+        self._show_default = self.__get_calculated_show_default(
+            show_default, should_render, default
+        )
         self._confirmation_prompt = confirmation_prompt
         self._prompt_required = prompt_required
         self._hide_input = hide_input
@@ -105,10 +108,24 @@ class BaseInput(AnyInput):
         self._nargs = nargs
         self.__should_render = should_render
 
+    def __get_calculated_show_default(
+        self,
+        show_default: Union[bool, str, None],
+        should_render: bool,
+        default: Optional[Union[Any, InputDefault]],
+    ) -> str:
+        if show_default != True:
+            return show_default
+        if callable(default) or (should_render and is_probably_jinja(default)):
+            return "Calculated on runtime"
+        return f"{default}"
+
     def get_name(self) -> str:
         return self._name
 
     def get_default(self) -> Any:
+        if callable(self._default):
+            return self._default(self.__input_value_map)
         return self._default
 
     def get_param_decl(self) -> List[str]:
