@@ -47,7 +47,7 @@ float_input.get_default()
 ```
 
 
-### `FloatInput._BaseInput__get_calculated_show_default`
+### `FloatInput._get_calculated_show_default`
 
 No documentation available.
 

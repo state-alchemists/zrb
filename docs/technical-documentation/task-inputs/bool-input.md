@@ -47,7 +47,7 @@ False
 ```
 
 
-### `BoolInput._BaseInput__get_calculated_show_default`
+### `BoolInput._get_calculated_show_default`
 
 No documentation available.
 

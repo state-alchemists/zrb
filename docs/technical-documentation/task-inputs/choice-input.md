@@ -49,7 +49,7 @@ choice_input.get_default()
 ```
 
 
-### `ChoiceInput._BaseInput__get_calculated_show_default`
+### `ChoiceInput._get_calculated_show_default`
 
 No documentation available.
 
