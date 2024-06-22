@@ -2,6 +2,7 @@ from zrb.config.config import show_prompt
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.jinja import is_probably_jinja
+from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import Any, Callable, List, Mapping, Optional, Union
 from zrb.task_input.any_input import AnyInput
@@ -55,8 +56,8 @@ class BaseInput(AnyInput):
         >>> )
     """
 
-    __input_value_map: Mapping[str, Any] = {}
-    __default: Mapping[str, Any] = {}
+    __value_cache: Mapping[str, Any] = {}
+    __default_cache: Mapping[str, Any] = {}
 
     def __init__(
         self,
@@ -125,7 +126,7 @@ class BaseInput(AnyInput):
 
     def get_default(self) -> Any:
         if callable(self._default):
-            return self._default(self.__input_value_map)
+            return self._default(self.__value_cache)
         return self._default
 
     def get_param_decl(self) -> List[str]:
@@ -159,24 +160,26 @@ class BaseInput(AnyInput):
         return options
 
     def _wrapped_callback(self, ctx, param, value) -> Any:
-        if self.get_name() not in self.__input_value_map:
+        var_name = to_variable_name(self.get_name())
+        if var_name not in self.__value_cache:
             if callable(self._callback):
-                result = self._callback(self.__input_value_map, value)
-                self.__input_value_map[self.get_name()] = result
+                result = self._callback(self.__value_cache, value)
+                self.__value_cache[var_name] = result
                 return result
-            self.__input_value_map[self.get_name()] = value
+            self.__value_cache[var_name] = value
             return value
-        return self.__input_value_map[self.get_name()]
+        return self.__value_cache[var_name]
 
     def _wrapped_default(self) -> Any:
-        if self.get_name() not in self.__default:
+        var_name = to_variable_name(self.get_name())
+        if var_name not in self.__default_cache:
             if callable(self._default):
-                default = self._default(self.__input_value_map)
-                self.__default[self.get_name()] = default
+                default = self._default(self.__value_cache)
+                self.__default_cache[var_name] = default
                 return default
-            self.__default[self.get_name()] = self._default
+            self.__default_cache[var_name] = self._default
             return self._default
-        return self.__default[self.get_name()]
+        return self.__default_cache[var_name]
 
     def should_render(self) -> bool:
         return self.__should_render

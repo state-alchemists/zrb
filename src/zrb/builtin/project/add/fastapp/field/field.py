@@ -32,6 +32,7 @@ from zrb.task.task import Task
 @python_task(
     name="validate",
     inputs=[project_dir_input, app_name_input, module_name_input, entity_name_input],
+    retry=0,
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")

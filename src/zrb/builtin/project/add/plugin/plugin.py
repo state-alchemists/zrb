@@ -28,7 +28,11 @@ from zrb.task.task import Task
 _CURRENT_DIR = os.path.dirname(__file__)
 
 
-@python_task(name="validate", inputs=[project_dir_input, package_name_input])
+@python_task(
+    name="validate",
+    inputs=[project_dir_input, package_name_input],
+    retry=0,
+)
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")
     validate_existing_project_dir(project_dir)

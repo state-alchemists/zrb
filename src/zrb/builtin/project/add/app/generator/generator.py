@@ -26,6 +26,7 @@ _CURRENT_DIR = os.path.dirname(__file__)
 @python_task(
     name="validate",
     inputs=[project_dir_input, package_name_input],
+    retry=0,
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")

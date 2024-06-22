@@ -23,6 +23,7 @@ _CURRENT_DIR = os.path.dirname(__file__)
         project_dir_input,
         task_name_input,
     ],
+    retry=0,
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")

@@ -1,5 +1,6 @@
 import os
 
+from zrb.helper.util import coalesce, to_kebab_case, to_snake_case
 from zrb.task_input.int_input import IntInput
 from zrb.task_input.str_input import StrInput
 
@@ -41,9 +42,9 @@ app_image_name_input = StrInput(
     name="app-image-name",
     description="App image name",
     prompt="App image name",
-    default=app_image_default_namespace
-    + "/"
-    + "{{util.to_kebab_case(input.app_name)}}",  # noqa
+    default=lambda m: "/".join(
+        [app_image_default_namespace, to_kebab_case(m.get("app_name"))]
+    ),
 )
 
 http_port_input = IntInput(
@@ -58,5 +59,7 @@ env_prefix_input = StrInput(
     name="env-prefix",
     description="OS environment prefix",
     prompt="OS environment prefix",
-    default='{{util.to_snake_case(util.coalesce(input.app_name, input.task_name, "MY")).upper()}}',  # noqa
+    default=lambda m: to_snake_case(
+        coalesce(m.get("app_name"), m.get("task_name"), "MY")
+    ).upper(),
 )

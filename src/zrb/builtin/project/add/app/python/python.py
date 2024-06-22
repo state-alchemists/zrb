@@ -31,6 +31,7 @@ _snake_app_name_tpl = "{{util.to_snake_case(input.app_name)}}"
 @python_task(
     name="validate",
     inputs=[project_dir_input, app_name_input],
+    retry=0,
 )
 async def validate(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir")
