@@ -10,6 +10,7 @@ entity_name_input = StrInput(
 
 plural_entity_name_input = StrInput(
     name="plural-entity-name",
+    shortcut="p",
     description="Plural entity name",
     prompt="Plural entity name",
     default=lambda m: m.get("entity_name") + "s",
