@@ -27,18 +27,18 @@ class StrInput(BaseInput):
         show_default (Union[bool, JinjaTemplate, None]): Determines the default value to be shown.
         prompt (Union[bool, str]): A boolean or string to prompt the user for input. If `True`, uses the default prompt.
         confirmation_prompt (Union[bool, str]): If `True`, the user is asked to confirm the input.
-        prompt_required (bool): If `True’, the prompt for input is mandatory.
-        hide_input (bool): If `True’, hides the input value, typically used for sensitive data.
-        is_flag (Optional[bool]): Indicates if the input is a flag. If `True’, the input accepts boolean flag values.
+        prompt_required (bool): If `True`, the prompt for input is mandatory.
+        hide_input (bool): If `True`, hides the input value, typically used for sensitive data.
+        is_flag (Optional[bool]): Indicates if the input is a flag. If `True`, the input accepts boolean flag values.
         flag_value (Optional[Any]): The value associated with the flag if `is_flag` is `True`.
-        multiple (bool): If `True’, allows multiple string values for the input.
-        count (bool): If `True’, counts the occurrences of the input.
-        allow_from_autoenv (bool): If `True’, enables automatic population of the input from environment variables.
-        hidden (bool): If `True’, keeps the input hidden in help messages or documentation.
-        show_choices (bool): If `True’, shows any restricted choices for the input value.
-        show_envvar (bool): If `True’, displays the associated environment variable, if applicable.
+        multiple (bool): If `True`, allows multiple string values for the input.
+        count (bool): If `True`, counts the occurrences of the input.
+        allow_from_autoenv (bool): If `True`, enables automatic population of the input from environment variables.
+        hidden (bool): If `True`, keeps the input hidden in help messages or documentation.
+        show_choices (bool): If `True`, shows any restricted choices for the input value.
+        show_envvar (bool): If `True`, displays the associated environment variable, if applicable.
         nargs (int): The number of arguments that the input can accept.
-        should_render (bool): If `True’, renders the input in the user interface or command-line interface.
+        should_render (bool): If `True`, renders the input in the user interface or command-line interface.
 
     Examples:
         >>> str_input = StrInput(name='username', default='user123', description='Enter your username')

@@ -38,7 +38,7 @@ class PasswordInput(BaseInput):
         show_choices (bool): If `True`, displays the available choices to the user (if applicable).
         show_envvar (bool): Indicates whether to display the environment variable associated with this input.
         nargs (int): The number of arguments that the input can accept.
-        should_render (bool): If `True’, the input is rendered in the UI or command-line interface.
+        should_render (bool): If `True`, the input is rendered in the UI or command-line interface.
 
     Examples:
         >>> password_input = PasswordInput(name='password', description='Enter your password')
