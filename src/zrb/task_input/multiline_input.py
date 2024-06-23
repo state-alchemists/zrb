@@ -55,6 +55,7 @@ class MultilineInput(BaseInput):
         name: str,
         shortcut: Optional[str] = None,
         comment_prefix: str = "//",
+        comment_suffix: str = "",
         editor: str = default_editor,
         extension: str = "txt",
         default: Optional[Union[Any, InputDefault]] = None,
@@ -101,14 +102,14 @@ class MultilineInput(BaseInput):
             should_render=should_render,
         )
         self._comment_prefix = comment_prefix
+        self._comment_suffix = comment_suffix
         self._editor = editor
         self._extension = extension
 
     def _wrapped_default(self) -> Any:
         if self.get_name() not in self.__default_cache:
             text = super()._wrapped_default()
-            prompt = self._prompt if isinstance(self._prompt, str) else self.get_name()
-            mark_comment = " ".join([self._comment_prefix, prompt])
+            mark_comment = self._get_mark_comment()
             self.__default_cache[self.get_name()] = edit(
                 editor=self._editor,
                 mark_comment=mark_comment,
@@ -116,3 +117,9 @@ class MultilineInput(BaseInput):
                 extension=self._extension,
             )
         return self.__default_cache[self.get_name()]
+
+    def _get_mark_comment(self):
+        prompt = self._prompt if isinstance(self._prompt, str) else self.get_name()
+        if self._comment_suffix.strip() != "":
+            return " ".join([self._comment_prefix, prompt])
+        return " ".join([self._comment_prefix, prompt, self._comment_suffix])

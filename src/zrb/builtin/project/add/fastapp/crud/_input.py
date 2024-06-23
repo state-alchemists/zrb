@@ -13,7 +13,7 @@ plural_entity_name_input = StrInput(
     shortcut="p",
     description="Plural entity name",
     prompt="Plural entity name",
-    default=lambda m: m.get("entity_name") + "s",
+    default=lambda m: m.get("entity_name", "") + "s",
 )
 
 main_column_name_input = StrInput(

@@ -53,6 +53,11 @@ multiline_input.get_default()
 No documentation available.
 
 
+### `MultilineInput._get_mark_comment`
+
+No documentation available.
+
+
 ### `MultilineInput._wrapped_callback`
 
 No documentation available.
