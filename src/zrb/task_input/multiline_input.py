@@ -120,6 +120,6 @@ class MultilineInput(BaseInput):
 
     def _get_mark_comment(self):
         prompt = self._prompt if isinstance(self._prompt, str) else self.get_name()
-        if self._comment_suffix.strip() != "":
+        if self._comment_suffix.strip() == "":
             return " ".join([self._comment_prefix, prompt])
         return " ".join([self._comment_prefix, prompt, self._comment_suffix])
