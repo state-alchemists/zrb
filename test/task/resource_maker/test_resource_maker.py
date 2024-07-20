@@ -21,6 +21,7 @@ def test_resource_maker():
         excludes=['*/excluded'],
         replacements={
             'zrb_app_name': 'my_app',
+            '# zrb_start_doc': '###\n# start application at certain port\n###',
             '212133000': '8080'
         }
     )
@@ -50,6 +51,9 @@ def test_resource_maker():
         '',
         '',
         'def start():',
+        "    ###",
+        "    # start application at certain port",
+        "    ###",
         "    print(f'starting my_app on port {port}')",
         '    return True',
         ''
