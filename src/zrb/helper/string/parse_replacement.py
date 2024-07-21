@@ -13,7 +13,7 @@ def parse_replacement(text: str, replacement: Mapping[str, str]):
     new_text = text
     for old, new in replacement.items():
         if len(new.strip().split("\n")) > 1:
-            pattern = "".join(["^([ \\t]+)", old])
+            pattern = "".join(["^([ \\t]+)", re.escape(old)])
             new_replacement = "".join(["\\1", new.replace("\n", "\n\\1")])
             new_text = re.sub(pattern, new_replacement, new_text, flags=re.MULTILINE)
             continue
