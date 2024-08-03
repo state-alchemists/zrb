@@ -48,13 +48,6 @@ then
 
     log_info "Setting environment variables"
     export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
-    # export CFLAGS="-Wno-incompatible-function-pointer-types -U__ANDROID_API__ -D__ANDROID_API__=26 -include unistd.h"
-    # export GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
-    # export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 
-    # export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 
-    # export GRPC_PYTHON_BUILD_SYSTEM_CARES=1 
-    # export LDFLAGS="-llog"
-    # export MATHLIB="m"
 
     log_info "Change repo"
     termux-change-repo
@@ -99,11 +92,11 @@ then
     if [ ! -d "$HOME/.pyenv" ]
     then
 
-        log_info "Installing pyenv prerequisites"
         if [ "$OS_TYPE" = "darwin" ]
         then
             if command_exists brew
             then
+                log_info "Using brew to install pyenv prerequisites"
                 brew install openssl readline sqlite3 xz zlib tcl-tk
             else
                 log_info "Brew not found, continuing anyway"
@@ -112,25 +105,31 @@ then
         then
             if command_exists pkg
             then
+                log_info "Using pkg to install pyenv prerequisites"
                 try_sudo pkg update
                 try_sudo pkg install -y build-essential
             elif command_exists apt
             then
+                log_info "Using apt to install pyenv prerequisites"
                 try_sudo apt update
                 try_sudo apt install -y build-essential libssl-dev zlib1g-dev \
                     libbz2-dev libreadline-dev libsqlite3-dev curl \
                     libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
             elif command_exists yum
             then
+                log_info "Using yum to install pyenv prerequisites"
                 try_sudo yum install -y gcc make patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
             elif command_exists dnf
             then
+                log_info "Using dnf to install pyenv prerequisites"
                 try_sudo dnf install -y make gcc patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel libuuid-devel gdbm-libs libnsl2
             elif command_exists pacman
             then
+                log_info "Using pacman to install pyenv prerequisites"
                 try_sudo pacman -syu --noconfirm base-devel openssl zlib xz tk
             elif command_exists apk
             then
+                log_info "Using apk to install pyenv prerequisites"
                 try_sudo apk add --no-cache git bash build-base libffi-dev openssl-dev bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev
             else
                 log_info "No known package manager found, continuing anyway"
