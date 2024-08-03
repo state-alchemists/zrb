@@ -101,7 +101,7 @@ then
             else
                 log_info "Brew not found, continuing anyway"
             fi
-        elif [ "$OS_TYPE" = "linux" ]
+        elif [ "$OS_TYPE" = "linux" ] || [ "$OS_TYPE" = "Linux" ]
         then
             if command_exists pkg
             then
