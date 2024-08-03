@@ -1,4 +1,8 @@
 set -e
+
+#########################################################################################
+# Getting OS_TYPE and IS_TERMUX value
+#########################################################################################
 OS_TYPE=$(uname)
 
 if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
@@ -7,6 +11,10 @@ then
 else
     IS_TERMUX=0
 fi
+
+#########################################################################################
+# Functions
+#########################################################################################
 
 log_info() {
     echo -e "🤖 \e[0;33m${1}\e[0;0m"
@@ -45,6 +53,9 @@ register_local_venv() {
 
 if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ]
 then
+    #####################################################################################
+    # Pyenv installation on Termux
+    #####################################################################################
 
     log_info "Setting environment variables"
     export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
@@ -52,7 +63,7 @@ then
     log_info "Change repo"
     termux-change-repo
 
-    log_info "Update existing packages"
+    log_info "Updating packages"
     pkg update
     pkg upgrade -y
 
@@ -62,7 +73,7 @@ then
         termux-setup-storage
     fi
 
-    log_info "Installing new packages"
+    log_info "Installing prerequisites"
     pkg install termux-api openssh curl wget git which \
         python rust clang cmake build-essential golang swig \
         binutils ninja patchelf libxml2 libxslt \
@@ -87,10 +98,14 @@ then
 
 elif [ "$IS_TERMUX" = "0" ]
 then
+
+    #####################################################################################
+    # Pyenv installation on non-termux environment
+    #####################################################################################
     
-    # Make sure pyenv is installed
     if [ ! -d "$HOME/.pyenv" ]
     then
+        # Install prerequisites
 
         if [ "$OS_TYPE" = "darwin" ]
         then
@@ -101,7 +116,7 @@ then
             else
                 log_info "Brew not found, continuing anyway"
             fi
-        elif [ "$OS_TYPE" = "linux" ] || [ "$OS_TYPE" = "Linux" ]
+        elif [ "$OS_TYPE" = "Linux" ]
         then
             if command_exists pkg
             then
