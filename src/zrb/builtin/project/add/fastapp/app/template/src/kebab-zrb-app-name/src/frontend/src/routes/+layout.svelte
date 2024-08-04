@@ -3,7 +3,7 @@
 	import Navigation from '$lib/components/navigation/Navigation.svelte';
 	import { navData } from '$lib/config/navData';
 	import { getBrand, getTitle } from '$lib/config/app';
-	import logo from '/static/logo.png';
+	import logo from '@static/logo.png';
   	import "../app.css";
 
 	let appBrand = '';

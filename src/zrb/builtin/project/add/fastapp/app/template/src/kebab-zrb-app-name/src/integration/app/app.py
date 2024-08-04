@@ -16,7 +16,8 @@ from config import (
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from integration.app_lifespan import app_lifespan, app_state
+from integration.app.app_lifespan import app_lifespan
+from integration.app.app_state import app_state
 from integration.frontend_index import frontend_index_response
 from schema.frontend_config import FrontendConfig
 

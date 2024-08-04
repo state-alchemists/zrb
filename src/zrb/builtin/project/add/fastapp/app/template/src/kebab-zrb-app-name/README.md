@@ -132,12 +132,81 @@ If you want to run PascalZrbAppName on containers, you will also need `Docker` w
 
 You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kubernetes cluster.
 
+# High Level Architecture
+
+PascalZrbAppName heavily uses dependency inversion and avoids dependency injection on the same time.
+
+This architecture aims to let the developers define and choose new implementations without breaking any existing part.
+
+To achieve this, we use two elements:
+
+- __Component__: Containing interface and implementation
+- __Integration__: Instantiation of the components. Here is where you choose which component implementation to use and how we tailor the implementations.
+
+Let's see the following example.
+
+```
+     ┌────────────────────────────────────────────┐     
+     │ Component                                  │     
+     │   ┌───────────────┐     ┌────────────────┐ │     
+     │   │ Messagebus    │     │ RPC Caller     │ │     
+     │   │   ┌────────┐  │     │   ┌──────────┐ │ │     
+     │   │   │Kafka   │  ├─────┼──►│Messagebus├─┼─┼────┐
+     │   │   └────────┘  │     │   └──────────┘ │ │    │
+     │   │   ┌────────┐  │     │   ┌──────────┐ │ │    │
+  ┌──┼───┼───┤Rabbitmq│  │     │   │Grpc      │ │ │    │
+  │  │   │   └────────┘  │     │   └──────────┘ │ │    │
+  │  │   │   ┌────────┐  │     └────────────────┘ │    │
+  │  │   │   │Other   │  ├──┐                     │    │
+  │  │   │   └────────┘  │  │  ┌────────────────┐ │    │
+  │  │   └───────────────┘  │  │ RPC Server     │ │    │
+  │  │                      │  │   ┌──────────┐ │ │    │
+  │  │                      └──┼──►│Messagebus├─┼─┼─┐  │
+  │  │                         │   └──────────┘ │ │ │  │
+  │  │                         │   ┌──────────┐ │ │ │  │
+  │  │                         │   │Grpc      │ │ │ │  │
+  │  │                         │   └──────────┘ │ │ │  │
+  │  │                         └────────────────┘ │ │  │
+  │  └────────────────────────────────────────────┘ │  │
+  │                                                 │  │
+  │  ┌────────────────────────────────────────────┐ │  │
+  │  │ Integration                                │ │  │
+  │  │  ┌──────────┐                              │ │  │
+  └──┼─►│Messagebus├───────┬──────────────┐       │ │  │
+     │  └──────────┘       │              │       │ │  │
+     │                ┌────▼─────┐  ┌─────▼────┐  │ │  │
+     │                │RPC Caller│  │RPC Server│◄─┼─┘  │
+     │                └────▲─────┘  └──────────┘  │    │
+     └─────────────────────┼──────────────────────┘    │
+                           └───────────────────────────┘
+```
+
+__Components__
+
+In the example, there are three component interfaces:
+- `Messagebus`
+- `RPC Caller`
+- `RPC Server`
+
+Each interface has several implementations, for example there are two implementation of `RPC Caller`:
+- `RPCCaller.Messagebus`: RPC Caller implementation that need `Messagebus`.
+- `RPCCaller.Grpc`: RPC Caller through GRPC, doesn't need any other component.
+
+__Integration__
+
+As for integration, we need to choose particular component implementations.
+
+- `Messagebus`: For Messagebus, we choose `Messagebus.Rabbitmq` component.
+- `RPC Caller`: For RPC Caller, we choose `RPCCaller.Messasgebus`. This implementation need a `Messagebus` interface.
+- `RPC Server`: For RPC Server, we choose `RPCServer.Messasgebus`. This implementation need a `Messagebus` interface.
+
+
 # Directory Structure
 
 - `docker-compose.yml`: A multi-profile docker-compose file. This helps you to run your application as a monolith/microservices.
 - `all-module-disabled.env`: Feature flags to be used when you deactivate all modules.
 - `all-module-enabled.env`: Feature flags to be used when you activate all modules.
-- `deployment/`: Deployment directory. By default, we put deployment along with the source code to make it easier to maintain/manage. You can later move your deployments to another repository if you think you need to.
+- `deployment/`: Deployment directory. By default, we put deployment along with the source code to make it easier to maintain/manage. You can later move your deployments to another repository if you need to do so.
     - `/helm-charts`: Helm charts for Rabbitmq, Redpanda, and Postgre.
     - `__main__.py`: Main Pulumi script.
     - `template.env`: Default configuration for deployment
@@ -187,12 +256,19 @@ You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kub
 
 # Decisions and Constraints
 
+## Dependency Inversion without Dependency Injection
+
+We tend to avoid magical dependency inversion unless necessary. We want PascalZrbEntityName to be as explicit as possible. We do this by providing two elements:
+
+- Component: Containing all interfaces and implementations
+- Integration: Instantiation of components. This is where we choose and tailor the component's implementation.
+
 ## Frontend
-- PascalZrbAppName's Frontend is served as static files and is built before runtime (not SSR/Server Side Rendering). That's mean.
+PascalZrbAppName's front end serves static files built before runtime (not SSR/Server Side Rendering). That's mean.
     - The SEO is probably not good.
     - The page load is sensibly good.
 - We use Svelte for Frontend because it is easier to read/learn compared to React, Vue, or Angular.
-- At the moment, the frontend use:
+- At the moment, the front end use:
     - Sveltekit
     - TailwindCSS
     - DaisyUI
@@ -203,7 +279,7 @@ You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kub
     - Database connection
     - Database migration
     - Data manipulation
-- To create a custom database implementation, you need to create an implementation that complies with `core.repo.Repo`.
+- To create a custom database implementation, you must create one that complies with `core.repo.Repo`.
 
 ## Messaging
 
@@ -215,11 +291,11 @@ You will also need `Pulumi` if you want to deploy PascalZrbAppName into your Kub
     - No messaging platform, a.k.a: in memory. This will only work properly if you run PascalZrbAppName as a monolith.
         - `APP_BROKER_TYPE=mock`
 - To create custom event handlers, you need to implement two interfaces:
-    - `core.messagebus.Publisher`
-    - `core.messagebus.Server`
+    - `component.messagebus.Publisher`
+    - `component.messagebus.Server`
 
 ## RPC
 
 - Currently, RPC implementation depends on the messaging platforms. It is possible to override this behavior by creating you custom implementation. There are two interfaces you need to override:
-    - `core.rpc.Caller`
-    - `core.rpc.Server`
+    - `component.rpc.Caller`
+    - `component.rpc.Server`

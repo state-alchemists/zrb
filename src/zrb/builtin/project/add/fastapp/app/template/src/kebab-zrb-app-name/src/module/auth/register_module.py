@@ -4,7 +4,7 @@ from config import (
     app_enable_event_handler,
     app_enable_rpc_server,
 )
-from integration.app import app
+from integration.app.app import app
 from integration.log import logger
 from integration.messagebus import consumer, publisher
 from integration.rpc import rpc_caller, rpc_server

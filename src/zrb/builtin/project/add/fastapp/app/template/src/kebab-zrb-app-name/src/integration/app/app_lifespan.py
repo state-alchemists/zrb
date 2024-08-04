@@ -12,7 +12,7 @@ from config import (
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from helper.async_task import create_task
-from integration.app_state import app_state, set_not_ready_on_error
+from integration.app.app_state import app_state, set_not_ready_on_error
 from integration.log import logger
 from integration.messagebus import consumer
 from integration.rpc import rpc_server
