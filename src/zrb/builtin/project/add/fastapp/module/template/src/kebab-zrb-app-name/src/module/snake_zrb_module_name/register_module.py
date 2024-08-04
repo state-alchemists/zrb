@@ -4,7 +4,7 @@ from config import (
     app_enable_rpc_server,
     app_enable_snake_zrb_module_name_module,
 )
-from integration.app import app
+from integration.app.app import app
 from integration.log import logger
 from integration.messagebus import consumer, publisher
 from integration.rpc import rpc_caller, rpc_server
