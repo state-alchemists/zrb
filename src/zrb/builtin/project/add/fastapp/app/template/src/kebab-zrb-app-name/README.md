@@ -143,43 +143,63 @@ To achieve this, we use two elements:
 - __Component__: Containing interface and implementation
 - __Integration__: Instantiation of the components. Here is where you choose which component implementation to use and how we tailor the implementations.
 
-The following example shows two component interfaces, `Messagebus` and `RPC`. Each interface has several implementations.
-
-To define `Kafka` and `Rabbitmq` `RPC`, you will need a `Messagebus`.
-
-As for the integration, we choose `Rabbitmq` Messagebus
+Let's see the following example.
 
 ```
-     ┌─────────────────┐                       
-     │ Component       │                       
-     │  ┌────────────┐ │                       
-     │  │ Messagebus │ │                       
-     │  │  ┌───────┐ │ │                       
-     │  │  │Kafka  │ │ │      ┌───────────────┐
-     │  │  └───────┘ │ │      │ Integration   │
-     │  │  ┌───────┐ │ │      │  ┌──────────┐ │
-  ┌──┼──┼──┤Rabitmq├─┼─┼──────┼─►│Messagebus│ │
-  │  │  │  └───────┘ │ │      │  └────┬─────┘ │
-  │  │  │  ┌───────┐ │ │      │  ┌────▼─────┐ │
-  │  │  │  │Other  │ │ │  ┌───┼─►│RPC       │ │
-  │  │  │  └───────┘ │ │  │   │  └──────────┘ │
-  │  │  └──────┬─────┘ │  │   │  ┌──────────┐ │
-  │  │         │       │  │   │  │App       │ │
-  │  │  ┌──────┼─────┐ │  │   │  └──────────┘ │
-  │  │  │ RPC  │     │ │  │   └───────────────┘
-  │  │  │ Caller  │     │ │  │   └───────────────┘
-  │  │  │  ┌───▼───┐ │ │  │                    
-  │  │  │  │Caller  │ │ │  │                    
-  │  │  │  └───────┘ │ │  │                    
-  │  │  │  ┌───────┐ │ │  │                    
-  └──┼──┼─►│Rabitmq├─┼─┼──┘                    
-     │  │  └───────┘ │ │                       
-     │  │  ┌───────┐ │ │                       
-     │  │  │Other  │ │ │                       
-     │  │  └───────┘ │ │                       
-     │  └────────────┘ │                       
-     └─────────────────┘                       
+     ┌────────────────────────────────────────────┐     
+     │ Component                                  │     
+     │   ┌───────────────┐     ┌────────────────┐ │     
+     │   │ Messagebus    │     │ RPC Caller     │ │     
+     │   │   ┌────────┐  │     │   ┌──────────┐ │ │     
+     │   │   │Kafka   │  ├─────┼──►│Messagebus├─┼─┼────┐
+     │   │   └────────┘  │     │   └──────────┘ │ │    │
+     │   │   ┌────────┐  │     │   ┌──────────┐ │ │    │
+  ┌──┼───┼───┤Rabbitmq│  │     │   │Grpc      │ │ │    │
+  │  │   │   └────────┘  │     │   └──────────┘ │ │    │
+  │  │   │   ┌────────┐  │     └────────────────┘ │    │
+  │  │   │   │Other   │  ├──┐                     │    │
+  │  │   │   └────────┘  │  │  ┌────────────────┐ │    │
+  │  │   └───────────────┘  │  │ RPC Server     │ │    │
+  │  │                      │  │   ┌──────────┐ │ │    │
+  │  │                      └──┼──►│Messagebus├─┼─┼─┐  │
+  │  │                         │   └──────────┘ │ │ │  │
+  │  │                         │   ┌──────────┐ │ │ │  │
+  │  │                         │   │Grpc      │ │ │ │  │
+  │  │                         │   └──────────┘ │ │ │  │
+  │  │                         └────────────────┘ │ │  │
+  │  └────────────────────────────────────────────┘ │  │
+  │                                                 │  │
+  │  ┌────────────────────────────────────────────┐ │  │
+  │  │ Integration                                │ │  │
+  │  │  ┌──────────┐                              │ │  │
+  └──┼─►│Messagebus├───────┬──────────────┐       │ │  │
+     │  └──────────┘       │              │       │ │  │
+     │                ┌────▼─────┐  ┌─────▼────┐  │ │  │
+     │                │RPC Caller│  │RPC Server│◄─┼─┘  │
+     │                └────▲─────┘  └──────────┘  │    │
+     └─────────────────────┼──────────────────────┘    │
+                           └───────────────────────────┘
 ```
+
+__Components__
+
+In the example, there are three component interfaces:
+- `Messagebus`
+- `RPC Caller`
+- `RPC Server`
+
+Each interface has several implementations, for example there are two implementation of `RPC Caller`:
+- `RPCCaller.Messagebus`: RPC Caller implementation that need `Messagebus`.
+- `RPCCaller.Grpc`: RPC Caller through GRPC, doesn't need any other component.
+
+__Integration__
+
+As for integration, we need to choose particular component implementations.
+
+- `Messagebus`: For Messagebus, we choose `Messagebus.Rabbitmq` component.
+- `RPC Caller`: For RPC Caller, we choose `RPCCaller.Messasgebus`. This implementation need a `Messagebus` interface.
+- `RPC Server`: For RPC Server, we choose `RPCServer.Messasgebus`. This implementation need a `Messagebus` interface.
+
 
 # Directory Structure
 
