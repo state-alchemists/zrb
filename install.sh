@@ -51,12 +51,71 @@ register_local_venv() {
     echo 'fi' >> $1
 }
 
+create_and_register_local_venv() {
+    log_info "Creating local venv"
+    python -m venv $HOME/.local-venv
+    source $HOME/.local-venv/bin/activate
+    
+    # register local venv to .zshrc
+    if command_exists zsh
+    then
+        register_local_venv "$HOME/.zshrc"
+    fi
+    # register local venv to .bashrc
+    if command_exists bash
+    then
+        register_local_venv "$HOME/.bashrc"
+    fi
+}
+
+install_pyenv() {
+    log_info "Installing pyenv"
+    curl https://pyenv.run | bash
+
+    # register .pyenv to .zshrc
+    if [ -f "$HOME/.zshrc" ]
+    then
+        register_pyenv "$HOME/.zshrc"
+    fi
+    # register .pyenv to .bashrc
+    if [ -f "$HOME/.bashrc" ]
+    then
+        register_pyenv "$HOME/.bashrc"
+    fi
+    # activate pyenv
+    log_info "Activating pyenv"
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+}
+
+install_python_on_pyenv() {
+    # install python 3.10.0
+    log_info "Installing python 3.10.0"
+    pyenv install 3.10.0
+    # set global python to 3.10.0
+    log_info "Setting python 3.10.0 as global"
+    pyenv global 3.10.0
+}
+
+install_poetry() {
+    log_info "Installing Poetry"
+    pip install --upgrade pip setuptools
+    pip install poetry
+}
+
+install_zrb() {
+    log_info "Installing Zrb"
+    eval pip install zrb
+}
+
+#########################################################################################
+# Installation
+#########################################################################################
+
 if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ]
 then
-    #####################################################################################
-    # Pyenv installation on Termux
-    #####################################################################################
-
     log_info "Setting environment variables"
     export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
 
@@ -79,30 +138,8 @@ then
         binutils ninja patchelf libxml2 libxslt \
         postgresql sqlite
 
-    log_info "Creating local venv"
-    python -m venv $HOME/.local-venv
-    source $HOME/.local-venv/bin/activate
-
-    
-    # register local venv to .zshrc
-    if command_exists zsh
-    then
-        register_local_venv "$HOME/.zshrc"
-    fi
-
-    # register local venv to .bashrc
-    if command_exists bash
-    then
-        register_local_venv "$HOME/.bashrc"
-    fi
-
 elif [ "$IS_TERMUX" = "0" ]
 then
-
-    #####################################################################################
-    # Pyenv installation on non-termux environment
-    #####################################################################################
-    
     if [ ! -d "$HOME/.pyenv" ]
     then
         # Install prerequisites
@@ -152,38 +189,16 @@ then
         else
             log_info "Unsupported OS, cannot install pyenv pre-requisites, continuing anyway"
         fi
-        log_info "Installing pyenv"
-        curl https://pyenv.run | bash
     fi
 
     if ! command_exists pyenv
     then
-        # register .pyenv to .zshrc
-        if [ -f "$HOME/.zshrc" ]
-        then
-            register_pyenv "$HOME/.zshrc"
-        fi
-        # register .pyenv to .bashrc
-        if [ -f "$HOME/.bashrc" ]
-        then
-            register_pyenv "$HOME/.bashrc"
-        fi
-        # activate pyenv
-        log_info "Activating pyenv"
-        export PYENV_ROOT="$HOME/.pyenv"
-        export PATH="$PYENV_ROOT/bin:$PATH"
-        eval "$(pyenv init -)"
-        eval "$(pyenv virtualenv-init -)"
+        install_pyenv
     fi
 
     if ! command_exists python
     then
-        # install python 3.10.0
-        log_info "Installing python 3.10.0"
-        pyenv install 3.10.0
-        # set global python to 3.10.0
-        log_info "Setting python 3.10.0 as global"
-        pyenv global 3.10.0
+        install_python_on_pyenv
     fi
 else
     log_info "Assuming Python is installed"
@@ -191,13 +206,15 @@ fi
 
 if ! command_exists poetry
 then
-    log_info "Installing Poetry"
-    pip install --upgrade pip setuptools
-    pip install poetry
+    install_poetry
+fi
+
+if [ ! -d "${HOME}/.local-venv" ]
+then
+    create_and_register_local_venv
 fi
 
 if ! command_exists zrb
 then
-    log_info "Installing Zrb"
-    eval pip install zrb
+    install_zrb
 fi
