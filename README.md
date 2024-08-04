@@ -31,6 +31,7 @@ pip install zrb
 Alternatively, you can also use our installation script to install Zrb along with some prerequisites:
 
 ```bash
+sudo apt install ca-certificates # Make sure ca-ceritificates is installed
 source <(curl -s https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)
 ```
 
