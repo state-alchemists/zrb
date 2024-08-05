@@ -5,7 +5,7 @@ set -e
 #########################################################################################
 
 log_info() {
-    echo -e "🤖 \e[0;33m${1}\e[0;0m"
+    printf "🤖 \e[0;33m${1}\e[0;0m\n"
 }
 
 command_exists() {
@@ -148,7 +148,7 @@ then
     then
         # Install prerequisites
 
-        if [ "$OS_TYPE" = "darwin" ]
+        if [ "$OS_TYPE" = "Darwin" ]
         then
             if command_exists brew
             then
