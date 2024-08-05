@@ -1,18 +1,6 @@
 set -e
 
 #########################################################################################
-# Getting OS_TYPE and IS_TERMUX value
-#########################################################################################
-OS_TYPE=$(uname)
-
-if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
-then
-    IS_TERMUX=1
-else
-    IS_TERMUX=0
-fi
-
-#########################################################################################
 # Functions
 #########################################################################################
 
@@ -54,7 +42,7 @@ register_local_venv() {
 create_and_register_local_venv() {
     log_info "Creating local venv"
     python -m venv $HOME/.local-venv
-    source $HOME/.local-venv/bin/activate
+    . $HOME/.local-venv/bin/activate
     
     # register local venv to .zshrc
     if command_exists zsh
@@ -109,6 +97,22 @@ install_zrb() {
     log_info "Installing Zrb"
     eval pip install zrb
 }
+
+
+#########################################################################################
+# Getting variables
+#########################################################################################
+OS_TYPE=$(uname)
+
+if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
+then
+    IS_TERMUX=1
+else
+    IS_TERMUX=0
+fi
+
+IS_PYENV_INSTALLED=0
+IS_LOCAL_VENV_INSTALLED=0
 
 #########################################################################################
 # Installation
@@ -194,6 +198,7 @@ then
     if ! command_exists pyenv
     then
         install_pyenv
+        IS_PYENV_INSTALLED=1
     fi
 
     if ! command_exists python
@@ -212,9 +217,15 @@ fi
 if [ ! -d "${HOME}/.local-venv" ]
 then
     create_and_register_local_venv
+    IS_LOCAL_VENV_INSTALLED=1
 fi
 
 if ! command_exists zrb
 then
     install_zrb
+fi
+
+if [ "$IS_PYENV_INSTALLED" = 1 ] || [ "$IS_LOCAL_VENV_INSTALLED" = 1 ]
+then
+    log_info "You need to restart your terminal session!!!"
 fi
