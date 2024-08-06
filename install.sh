@@ -8,6 +8,17 @@ log_info() {
     printf "🤖 \e[0;33m${1}\e[0;0m\n"
 }
 
+confirm() {
+    # Prompt the user for confirmation
+    log_info "$1 (y/N)"
+    read choice
+    case "$choice" in
+        y|Y ) return 0;;
+        n|N ) return 1;;
+        * ) echo "Invalid choice"; return 1;;
+    esac
+}
+
 command_exists() {
     command -v "$1" &> /dev/null
 }
@@ -118,7 +129,7 @@ IS_LOCAL_VENV_INSTALLED=0
 # Installation
 #########################################################################################
 
-if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ]
+if [ "$IS_TERMUX" = "1" ] && [ ! -d "$HOME/.local-venv" ] && confirm "Do you want to setup termux?"
 then
     log_info "Setting environment variables"
     export CFLAGS="-Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
@@ -142,7 +153,7 @@ then
         binutils ninja patchelf libxml2 libxslt \
         postgresql sqlite
 
-elif [ "$IS_TERMUX" = "0" ]
+elif [ "$IS_TERMUX" = "0" ] && confirm "Do you want to install pyenv?"
 then
     if [ ! -d "$HOME/.pyenv" ]
     then
@@ -205,16 +216,18 @@ then
     then
         install_python_on_pyenv
     fi
-else
-    log_info "Assuming Python is installed"
+elif ! command_exists python
+    log_info "You need to install Python first."
+    log_info "Exiting"
+    exit 1
 fi
 
-if ! command_exists poetry
+if ! command_exists poetry && confirm "Do you want to install poetry?"
 then
     install_poetry
 fi
 
-if [ ! -d "${HOME}/.local-venv" ]
+if [ ! -d "${HOME}/.local-venv" ] && confirm "Do you want to create virtual environment?"
 then
     create_and_register_local_venv
     IS_LOCAL_VENV_INSTALLED=1
