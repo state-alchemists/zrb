@@ -54,10 +54,10 @@ async def _copy_file(
     if any(fnmatch.fnmatch(src, pattern) for pattern in excludes):
         return
     new_dst_name = parse_replacement(dst, replacements)
-    if any(fnmatch.fnmatch(new_dst_name, pattern) for pattern in skip_parsing):
-        return
     if new_dst_name != src:
         shutil.copy2(src, new_dst_name)
+    if any(fnmatch.fnmatch(new_dst_name, pattern) for pattern in skip_parsing):
+        return
     try:
         file_content = await read_text_file_async(new_dst_name)
         new_file_content = parse_replacement(file_content, replacements)

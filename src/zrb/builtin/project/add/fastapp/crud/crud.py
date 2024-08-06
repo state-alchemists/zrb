@@ -117,7 +117,7 @@ async def register_crud(*args: Any, **kwargs: Any):
                 project_dir=project_dir,
                 kebab_app_name=kebab_app_name,
                 snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name
+                snake_entity_name=snake_entity_name,
             )
         ),
         asyncio.create_task(
@@ -126,7 +126,7 @@ async def register_crud(*args: Any, **kwargs: Any):
                 project_dir=project_dir,
                 kebab_app_name=kebab_app_name,
                 snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name
+                snake_entity_name=snake_entity_name,
             )
         ),
         asyncio.create_task(
@@ -135,7 +135,7 @@ async def register_crud(*args: Any, **kwargs: Any):
                 project_dir=project_dir,
                 kebab_app_name=kebab_app_name,
                 snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name
+                snake_entity_name=snake_entity_name,
             )
         ),
     )
