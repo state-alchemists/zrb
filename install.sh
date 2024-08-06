@@ -217,6 +217,7 @@ then
         install_python_on_pyenv
     fi
 elif ! command_exists python
+then
     log_info "You need to install Python first."
     log_info "Exiting"
     exit 1
