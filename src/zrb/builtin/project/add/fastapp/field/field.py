@@ -95,37 +95,37 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
     await asyncio.gather(
         asyncio.create_task(
             add_column_to_test(
-                task,
-                project_dir,
-                kebab_app_name,
-                snake_module_name,
-                snake_entity_name,
-                snake_column_name,
-                column_type,
+                task=task,
+                project_dir=project_dir,
+                kebab_app_name=kebab_app_name,
+                snake_module_name=snake_module_name,
+                snake_entity_name=snake_entity_name,
+                snake_column_name=snake_column_name,
+                column_type=column_type,
             )
         ),
         asyncio.create_task(
             add_column_to_schema(
-                task,
-                project_dir,
-                kebab_app_name,
-                snake_module_name,
-                snake_entity_name,
-                pascal_entity_name,
-                snake_column_name,
-                column_type,
+                task=task,
+                project_dir=project_dir,
+                kebab_app_name=kebab_app_name,
+                snake_module_name=snake_module_name,
+                snake_entity_name=snake_entity_name,
+                pascal_entity_name=pascal_entity_name,
+                snake_column_name=snake_column_name,
+                column_type=column_type,
             )
         ),
         asyncio.create_task(
             add_column_to_repo(
-                task,
-                project_dir,
-                kebab_app_name,
-                snake_module_name,
-                snake_entity_name,
-                pascal_entity_name,
-                snake_column_name,
-                column_type,
+                task=task,
+                project_dir=project_dir,
+                kebab_app_name=kebab_app_name,
+                snake_module_name=snake_module_name,
+                snake_entity_name=snake_entity_name,
+                pascal_entity_name=pascal_entity_name,
+                snake_column_name=snake_column_name,
+                column_type=column_type,
             )
         ),
         asyncio.create_task(
