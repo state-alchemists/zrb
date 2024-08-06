@@ -4,8 +4,17 @@ set -e
 # Functions
 #########################################################################################
 
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
 log_info() {
-    printf "🤖 \e[0;33m${1}\e[0;0m\n"
+    if command_exists printf
+    then
+        printf "🤖 \e[0;33m${1}\e[0;0m\n"
+    else
+        echo "🤖 ${1}"
+    fi
 }
 
 confirm() {
@@ -17,10 +26,6 @@ confirm() {
         n|N ) return 1;;
         * ) echo "Invalid choice"; return 1;;
     esac
-}
-
-command_exists() {
-    command -v "$1" &> /dev/null
 }
 
 try_sudo() {
