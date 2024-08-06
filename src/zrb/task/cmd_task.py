@@ -127,7 +127,8 @@ class CmdTask(BaseTask):
         executable: Optional[str] = None,
         cmd: CmdVal = "",
         cmd_path: CmdVal = "",
-        cwd: Optional[Union[str, pathlib.Path]] = None,
+        cwd: Optional[Union[JinjaTemplate, pathlib.Path]] = None,
+        should_render_cwd: bool = True,
         upstreams: Iterable[AnyTask] = [],
         fallbacks: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -181,6 +182,7 @@ class CmdTask(BaseTask):
         self._cmd = cmd
         self._cmd_path = cmd_path
         self.__set_cwd(cwd)
+        self._should_render_cwd = should_render_cwd
         self._max_output_size = max_output_line
         self._max_error_size = max_error_line
         self._output_buffer: Iterable[str] = []
@@ -233,13 +235,14 @@ class CmdTask(BaseTask):
         cmd = self.get_cmd_script(*args, **kwargs)
         if self._should_show_cmd:
             self.print_out_dark("Run script: " + self.__get_multiline_repr(cmd))
+        cwd = self._get_cwd()
         if self._should_show_working_directory:
-            self.print_out_dark("Working directory: " + self._cwd)
+            self.print_out_dark("Working directory: " + cwd)
         self._output_buffer = []
         self._error_buffer = []
         process = await asyncio.create_subprocess_shell(
             cmd,
-            cwd=self._cwd,
+            cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=self.get_env_map(),
@@ -271,6 +274,11 @@ class CmdTask(BaseTask):
         self.set_task_xcom(key="output", value=output)
         self.set_task_xcom(key="error", value=error)
         return CmdResult(output, error)
+
+    def _get_cwd(self) -> Union[str, pathlib.Path]:
+        if self._should_render_cwd and isinstance(self._cwd, str):
+            return self.render_str(self._cwd)
+        return self._cwd
 
     def _should_attempt(self) -> bool:
         if self._global_state.no_more_attempt:

@@ -249,6 +249,11 @@ No documentation available.
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
+### `DockerComposeTask._get_cwd`
+
+No documentation available.
+
+
 ### `DockerComposeTask._get_elapsed_time`
 
 No documentation available.
