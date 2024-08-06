@@ -17,7 +17,7 @@ async def add_column_to_insert_page(
     kebab_entity_name: str,
     kebab_column_name: str,
     snake_column_name: str,
-    capitalized_human_readable_column_name: str,
+    column_caption: str,
 ):
     list_page_file_path = os.path.join(
         project_dir,
@@ -45,11 +45,8 @@ async def add_column_to_insert_page(
     field_subst = "\\n".join(
         [
             '\\1<div class="mb-4">',
-            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>',  # noqa
-            f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value='
-            + "{row."
-            + snake_column_name
-            + "} />",  # noqa
+            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{column_caption}</label>',  # noqa
+            f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{column_caption}" bind:value="{{row.{snake_column_name}}}" />',  # noqa
             "\\1</div>",
             "\\1\\2",
         ]
@@ -68,7 +65,7 @@ async def add_column_to_update_page(
     kebab_entity_name: str,
     kebab_column_name: str,
     snake_column_name: str,
-    capitalized_human_readable_column_name: str,
+    column_caption: str,
 ):
     list_page_file_path = os.path.join(
         project_dir,
@@ -91,11 +88,8 @@ async def add_column_to_update_page(
     subst = "\\n".join(
         [
             '\\1<div class="mb-4">',
-            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>',  # noqa
-            f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{capitalized_human_readable_column_name}" bind:value='
-            + "{row."
-            + snake_column_name
-            + "} />",  # noqa
+            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{column_caption}</label>',  # noqa
+            f'\\1    <input type="text" class="input w-full" id="{kebab_column_name}" placeholder="{column_caption}" bind:value="{{row.{snake_column_name}}}" />',  # noqa
             "\\1</div>",
             "\\1\\2",
         ]
@@ -114,7 +108,7 @@ async def add_column_to_delete_page(
     kebab_entity_name: str,
     kebab_column_name: str,
     snake_column_name: str,
-    capitalized_human_readable_column_name: str,
+    column_caption: str,
 ):
     list_page_file_path = os.path.join(
         project_dir,
@@ -137,11 +131,8 @@ async def add_column_to_delete_page(
     subst = "\\n".join(
         [
             '\\1<div class="mb-4">',
-            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>',  # noqa
-            f'\\1    <span id="{kebab_column_name}">'
-            + "{row."
-            + snake_column_name
-            + "}</span>",  # noqa
+            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{column_caption}</label>',  # noqa
+            f'\\1    <span id="{kebab_column_name}">{{row.{snake_column_name}}}</span>',
             "\\1</div>",
             "\\1\\2",
         ]
@@ -160,7 +151,7 @@ async def add_column_to_detail_page(
     kebab_entity_name: str,
     kebab_column_name: str,
     snake_column_name: str,
-    capitalized_human_readable_column_name: str,
+    column_caption: str,
 ):
     list_page_file_path = os.path.join(
         project_dir,
@@ -180,18 +171,13 @@ async def add_column_to_detail_page(
     html_content = await read_text_file_async(list_page_file_path)
     task.print_out("Add field to detail page")
     regex = r"(.*)(<!-- DON'T DELETE: insert new field here-->)"
-    subst = "\\n".join(
-        [
-            '\\1<div class="mb-4">',
-            f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{capitalized_human_readable_column_name}</label>',  # noqa
-            f'\\1    <span id="{kebab_column_name}">'
-            + "{row."
-            + snake_column_name
-            + "}</span>",  # noqa
-            "\\1</div>",
-            "\\1\\2",
-        ]
-    )
+    subst = "\\n".join([
+        '\\1<div class="mb-4">',
+        f'\\1    <label class="block text-gray-700 font-bold mb-2" for="{kebab_column_name}">{column_caption}</label>',  # noqa
+        f'\\1    <span id="{kebab_column_name}">{{row.{snake_column_name}}}</span>',
+        "\\1</div>",
+        "\\1\\2",
+    ])
     html_content = re.sub(regex, subst, html_content, 0, re.MULTILINE)
     task.print_out(f"Write modified HTML to: {list_page_file_path}")
     await write_text_file_async(list_page_file_path, html_content)
@@ -205,7 +191,7 @@ async def add_column_to_list_page(
     kebab_module_name: str,
     kebab_entity_name: str,
     snake_column_name: str,
-    capitalized_human_readable_column_name: str,
+    column_caption: str,
 ):
     list_page_file_path = os.path.join(
         project_dir,
@@ -224,14 +210,18 @@ async def add_column_to_list_page(
     # process header
     task.print_out("Add column header to table")
     header_regex = r"(.*)(<!-- DON'T DELETE: insert new column header here-->)"
-    header_subst = "\\n".join(
-        [f"\\1<th>{capitalized_human_readable_column_name}</th>", "\\1\\2"]
-    )
+    header_subst = "\\n".join([
+        f"\\1<th>{column_caption}</th>",
+        "\\1\\2"
+    ])
     html_content = re.sub(header_regex, header_subst, html_content, 0, re.MULTILINE)
     # process column
     task.print_out("Add column to table")
     column_regex = r"(.*)(<!-- DON'T DELETE: insert new column here-->)"
-    column_subst = "\\n".join(["\\1<td>{row." + snake_column_name + "}</td>", "\\1\\2"])
+    column_subst = "\\n".join([
+        "\\1<td>{{row.{snake_column_name}}}</td>",
+        "\\1\\2"
+    ])
     html_content = re.sub(column_regex, column_subst, html_content, 0, re.MULTILINE)
     task.print_out(f"Write modified HTML to: {list_page_file_path}")
     await write_text_file_async(list_page_file_path, html_content)
