@@ -1,3 +1,4 @@
+from zrb.task_input.choice_input import ChoiceInput
 from zrb.task_input.str_input import StrInput
 
 column_name_input = StrInput(
@@ -8,10 +9,21 @@ column_name_input = StrInput(
     default="title",
 )
 
-column_type_input = StrInput(
+column_type_input = ChoiceInput(
     name="column-type",
     shortcut="t",
     description="Column type",
     prompt="Column type",
-    default="str",
+    choices=[
+        "string",
+        "text",
+        "boolean",
+        "integer",
+        "float",
+        "double",
+        "date",
+        "datetime",
+        "time",
+    ],
+    default="string",
 )

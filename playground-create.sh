@@ -80,7 +80,23 @@ zrb project add fastapp field \
     --module-name "library" \
     --entity-name "book" \
     --column-name "title" \
-    --column-type "str"
+    --column-type "string"
+
+zrb project add fastapp field \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library" \
+    --entity-name "book" \
+    --column-name "page_number" \
+    --column-type "integer"
+
+zrb project add fastapp field \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library" \
+    --entity-name "book" \
+    --column-name "available" \
+    --column-type "boolean"
 
 log_info 'Add plugin'
 zrb project add plugin \

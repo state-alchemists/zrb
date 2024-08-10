@@ -6,7 +6,7 @@ from zrb.helper.typecheck import typechecked
 from zrb.helper.util import to_snake_case
 from zrb.task.task import Task
 
-from ._common import get_app_dir
+from ._common import get_app_dir, get_python_value_for_testing
 
 
 @typechecked
@@ -37,9 +37,13 @@ async def inject_test(
         "updated_success_data",
         "to_be_deleted_success_data",
     ]
+    default_python_value = get_python_value_for_testing(column_type)
     for dict_name in dict_names:
         code = add_key_value_to_dict(
-            code=code, dict_name=dict_name, key=f"'{snake_column_name}'", value="''"
+            code=code,
+            dict_name=dict_name,
+            key=f"'{snake_column_name}'",
+            value=default_python_value,
         )
     task.print_out(f"Write modified code to: {test_file_path}")
     await write_text_file_async(test_file_path, code)

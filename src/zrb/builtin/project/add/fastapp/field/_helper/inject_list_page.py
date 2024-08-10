@@ -21,14 +21,14 @@ async def inject_list_page(
     kebab_entity_name = to_kebab_case(entity_name)
     snake_column_name = to_snake_case(column_name)
     column_caption = to_capitalized_human_readable(column_name)
-    list_page_file_path = os.path.join(
+    file_path = os.path.join(
         get_app_frontend_routes_dir(project_dir, app_name),
         kebab_module_name,
         kebab_entity_name,
         "+page.svelte",
     )
-    task.print_out(f"Read HTML from: {list_page_file_path}")
-    html_content = await read_text_file_async(list_page_file_path)
+    task.print_out(f"Read HTML from: {file_path}")
+    html_content = await read_text_file_async(file_path)
     # process header
     task.print_out("Add column header to table")
     html_content = replace_marker(
@@ -43,5 +43,5 @@ async def inject_list_page(
         marker="<!-- DON'T DELETE: insert new column here-->",
         code=f"<td>{{row.{snake_column_name}}}</td>",
     )
-    task.print_out(f"Write modified HTML to: {list_page_file_path}")
-    await write_text_file_async(list_page_file_path, html_content)
+    task.print_out(f"Write modified HTML to: {file_path}")
+    await write_text_file_async(file_path, html_content)

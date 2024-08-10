@@ -6,7 +6,7 @@ from zrb.helper.typecheck import typechecked
 from zrb.helper.util import to_pascal_case, to_snake_case
 from zrb.task.task import Task
 
-from ._common import get_app_dir
+from ._common import get_app_dir, get_sqlalchemy_column_type
 
 
 @typechecked
@@ -35,12 +35,13 @@ async def inject_repo(
     task.print_out(f"Read code from: {repo_file_path}")
     code = await read_text_file_async(repo_file_path)
     task.print_out(f'Add column "{snake_column_name}" to the repo')
+    sqlalchemy_column_type = get_sqlalchemy_column_type(column_type)
     code = add_property_to_class(
         code=code,
         class_name=f"DBEntity{pascal_entity_name}",
         property_name=snake_column_name,
         property_type="Column",
-        property_value="Column(String)",
+        property_value=f"Column({sqlalchemy_column_type})",
     )
     task.print_out(f"Write modified code to: {repo_file_path}")
     await write_text_file_async(repo_file_path, code)

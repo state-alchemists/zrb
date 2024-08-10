@@ -2,7 +2,7 @@ from typing import AsyncIterator
 
 import pytest
 from httpx import AsyncClient
-from src.config import APP_AUTH_ADMIN_PASSWORD, APP_AUTH_NAME_USERNAME
+from src.config import APP_AUTH_ADMIN_PASSWORD, APP_AUTH_ADMIN_USERNAME
 
 inserted_success_data = {
     "username": "test-create-user-success",
@@ -51,7 +51,7 @@ async def test_insert_user_and_get_success(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )
@@ -104,7 +104,7 @@ async def test_update_user_and_get_success(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )
@@ -171,7 +171,7 @@ async def test_delete_user_and_get_success(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )

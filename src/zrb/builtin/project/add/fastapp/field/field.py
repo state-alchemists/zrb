@@ -153,6 +153,7 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
                 module_name=module_name,
                 entity_name=entity_name,
                 column_name=column_name,
+                column_type=column_type,
             )
         ),
         asyncio.create_task(
@@ -163,6 +164,7 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
                 module_name=module_name,
                 entity_name=entity_name,
                 column_name=column_name,
+                column_type=column_type,
             )
         ),
     )

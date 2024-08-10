@@ -2,7 +2,7 @@ from typing import AsyncIterator
 
 import pytest
 from httpx import AsyncClient
-from src.config import APP_AUTH_ADMIN_PASSWORD, APP_AUTH_NAME_USERNAME
+from src.config import APP_AUTH_ADMIN_PASSWORD, APP_AUTH_ADMIN_USERNAME
 
 
 @pytest.mark.asyncio
@@ -13,7 +13,7 @@ async def test_admin_user_login_success(
         login_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )
@@ -54,7 +54,7 @@ async def test_admin_user_failed_invalid_password(
     async for client in test_client_generator:
         login_response = await client.post(
             "/api/v1/auth/login",
-            json={"identity": APP_AUTH_NAME_USERNAME, "password": "invalid-password"},
+            json={"identity": APP_AUTH_ADMIN_USERNAME, "password": "invalid-password"},
         )
         assert login_response.status_code == 404
 
@@ -68,7 +68,7 @@ async def test_create_normal_user_and_login_with_username_success(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )
@@ -113,7 +113,7 @@ async def test_create_normal_user_and_login_with_phone_success(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )
@@ -155,7 +155,7 @@ async def test_create_normal_user_and_login_with_email_success(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )
@@ -200,7 +200,7 @@ async def test_create_normal_user_and_login_failed(
         login_admin_response = await client.post(
             "/api/v1/auth/login",
             json={
-                "identity": APP_AUTH_NAME_USERNAME,
+                "identity": APP_AUTH_ADMIN_USERNAME,
                 "password": APP_AUTH_ADMIN_PASSWORD,
             },
         )

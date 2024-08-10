@@ -4,7 +4,18 @@ from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
     PascalZrbEntityName,
     PascalZrbEntityNameData,
 )
-from sqlalchemy import Column, String
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Double,
+    Float,
+    Integer,
+    String,
+    Text,
+    Time,
+)
 
 
 class DBEntityPascalZrbEntityName(Base, DBEntityMixin):
