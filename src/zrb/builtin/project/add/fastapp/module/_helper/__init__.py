@@ -1,0 +1,17 @@
+from .append_all_disabled_env import append_all_disabled_env
+from .append_all_enabled_env import append_all_enabled_env
+from .append_deployment_template_env import append_deployment_template_env
+from .append_src_template_env import append_src_template_env
+from .create_app_config import create_app_config
+from .create_microservice_config import create_microservice_config
+from .register_migration import register_migration
+from .register_module import register_module
+
+assert append_all_disabled_env
+assert append_all_enabled_env
+assert append_deployment_template_env
+assert append_src_template_env
+assert create_app_config
+assert create_microservice_config
+assert register_migration
+assert register_module

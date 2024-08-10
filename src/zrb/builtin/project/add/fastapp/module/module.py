@@ -88,57 +88,28 @@ async def add_fastapp_module(*args: Any, **kwargs: Any):
     project_dir = kwargs.get("project_dir", ".")
     app_name = kwargs.get("app_name")
     module_name = kwargs.get("module_name")
-    kebab_app_name = util.to_kebab_case(app_name)
-    snake_app_name = util.to_snake_case(app_name)
-    kebab_module_name = util.to_kebab_case(module_name)
-    snake_module_name = util.to_snake_case(module_name)
-    upper_snake_module_name = snake_module_name.upper()
     await asyncio.gather(
         asyncio.create_task(
-            create_microservice_config(
-                task,
-                project_dir,
-                kebab_app_name,
-                snake_app_name,
-                kebab_module_name,
-                snake_module_name,
-                upper_snake_module_name,
-            )
+            create_microservice_config(task, project_dir, app_name, module_name)
+        ),
+        asyncio.create_task(register_module(task, project_dir, app_name, module_name)),
+        asyncio.create_task(
+            register_migration(task, project_dir, app_name, module_name)
         ),
         asyncio.create_task(
-            register_module(task, project_dir, kebab_app_name, snake_module_name)
+            create_app_config(task, project_dir, app_name, module_name)
         ),
         asyncio.create_task(
-            register_migration(task, project_dir, kebab_app_name, snake_module_name)
+            append_all_enabled_env(task, project_dir, app_name, module_name)
         ),
         asyncio.create_task(
-            create_app_config(
-                task,
-                project_dir,
-                kebab_app_name,
-                snake_module_name,
-                upper_snake_module_name,
-            )
+            append_all_disabled_env(task, project_dir, app_name, module_name)
         ),
         asyncio.create_task(
-            append_all_enabled_env(
-                task, project_dir, kebab_app_name, upper_snake_module_name
-            )
+            append_src_template_env(task, project_dir, app_name, module_name)
         ),
         asyncio.create_task(
-            append_all_disabled_env(
-                task, project_dir, kebab_app_name, upper_snake_module_name
-            )
-        ),
-        asyncio.create_task(
-            append_src_template_env(
-                task, project_dir, kebab_app_name, upper_snake_module_name
-            )
-        ),
-        asyncio.create_task(
-            append_deployment_template_env(
-                task, project_dir, kebab_app_name, upper_snake_module_name
-            )
+            append_deployment_template_env(task, project_dir, app_name, module_name)
         ),
     )
     task.print_out(colored("Fastapp crud added", color="yellow"))
