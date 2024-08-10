@@ -7,14 +7,14 @@ from zrb.builtin.project.add.fastapp._group import project_add_fastapp_group
 from zrb.builtin.project.add.fastapp.app._input import app_name_input
 from zrb.builtin.project.add.fastapp.crud._input import entity_name_input
 from zrb.builtin.project.add.fastapp.field._helper import (
-    add_column_to_delete_page,
-    add_column_to_detail_page,
-    add_column_to_insert_page,
-    add_column_to_list_page,
-    add_column_to_repo,
-    add_column_to_schema,
-    add_column_to_test,
-    add_column_to_update_page,
+    inject_delete_page,
+    inject_detail_page,
+    inject_insert_page,
+    inject_list_page,
+    inject_repo,
+    inject_schema,
+    inject_test,
+    inject_update_page,
 )
 from zrb.builtin.project.add.fastapp.field._input import (
     column_name_input,
@@ -80,109 +80,89 @@ async def add_fastapp_field(*args: Any, **kwargs: Any):
     module_name = kwargs.get("module_name")
     entity_name = kwargs.get("entity_name")
     column_name = kwargs.get("column_name")
-    column_type = kwargs.get("column_name")
-    kebab_app_name = util.to_kebab_case(app_name)
-    kebab_module_name = util.to_kebab_case(module_name)
-    snake_module_name = util.to_snake_case(module_name)
-    kebab_entity_name = util.to_kebab_case(entity_name)
-    snake_entity_name = util.to_snake_case(entity_name)
-    pascal_entity_name = util.to_pascal_case(entity_name)
-    snake_column_name = util.to_snake_case(column_name)
-    kebab_column_name = util.to_kebab_case(column_name)
-    column_caption = util.to_capitalized_human_readable(column_name)
+    column_type = kwargs.get("column_type")
     await asyncio.gather(
         asyncio.create_task(
-            add_column_to_test(
+            inject_test(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name,
-                snake_column_name=snake_column_name,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
                 column_type=column_type,
             )
         ),
         asyncio.create_task(
-            add_column_to_schema(
+            inject_schema(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name,
-                pascal_entity_name=pascal_entity_name,
-                snake_column_name=snake_column_name,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
                 column_type=column_type,
             )
         ),
         asyncio.create_task(
-            add_column_to_repo(
+            inject_repo(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name,
-                pascal_entity_name=pascal_entity_name,
-                snake_column_name=snake_column_name,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
                 column_type=column_type,
             )
         ),
         asyncio.create_task(
-            add_column_to_list_page(
+            inject_list_page(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                kebab_module_name=kebab_module_name,
-                kebab_entity_name=kebab_entity_name,
-                snake_column_name=snake_column_name,
-                column_caption=column_caption,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
             )
         ),
         asyncio.create_task(
-            add_column_to_detail_page(
+            inject_detail_page(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                kebab_module_name=kebab_module_name,
-                kebab_entity_name=kebab_entity_name,
-                kebab_column_name=kebab_column_name,
-                snake_column_name=snake_column_name,
-                column_caption=column_caption,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
             )
         ),
         asyncio.create_task(
-            add_column_to_delete_page(
+            inject_delete_page(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                kebab_module_name=kebab_module_name,
-                kebab_entity_name=kebab_entity_name,
-                kebab_column_name=kebab_column_name,
-                snake_column_name=snake_column_name,
-                column_caption=column_caption,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
             )
         ),
         asyncio.create_task(
-            add_column_to_update_page(
+            inject_update_page(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                kebab_module_name=kebab_module_name,
-                kebab_entity_name=kebab_entity_name,
-                kebab_column_name=kebab_column_name,
-                snake_column_name=snake_column_name,
-                column_caption=column_caption,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
             )
         ),
         asyncio.create_task(
-            add_column_to_insert_page(
+            inject_insert_page(
                 task=task,
                 project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                kebab_module_name=kebab_module_name,
-                kebab_entity_name=kebab_entity_name,
-                kebab_column_name=kebab_column_name,
-                snake_column_name=snake_column_name,
-                column_caption=column_caption,
+                app_name=app_name,
+                module_name=module_name,
+                entity_name=entity_name,
+                column_name=column_name,
             )
         ),
     )
