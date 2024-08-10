@@ -2,9 +2,7 @@ import os
 
 from locust import HttpUser, between, task
 
-access_token_cookie_key = os.getenv(
-    "PUBLIC_AUTH_ACCESS_TOKEN_COOKIE_KEY", "access_token"
-)
+access_token_cookie_key = os.getenv("APP_AUTH_ACCESS_TOKEN_COOKIE_KEY", "access_token")
 admin_username = os.getenv("APP_AUTH_ADMIN_USERNAME", "root")
 admin_password = os.getenv("APP_AUTH_ADMIN_PASSWORD", "toor")
 

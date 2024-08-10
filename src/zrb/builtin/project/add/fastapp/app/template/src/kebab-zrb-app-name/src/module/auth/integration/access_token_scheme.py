@@ -1,4 +1,4 @@
-from config import app_auth_access_token_cookie_key
+from config import APP_AUTH_ACCESS_TOKEN_COOKIE_KEY
 from module.auth.component import (
     AccessTokenScheme,
     create_oauth2_bearer_access_token_scheme,
@@ -11,6 +11,6 @@ access_token_scheme: AccessTokenScheme = (
         guest_user=guest_user,
         access_token_util=access_token_util,
         token_url="/api/v1/auth/login-oauth",
-        token_cookie_key=app_auth_access_token_cookie_key,
+        token_cookie_key=APP_AUTH_ACCESS_TOKEN_COOKIE_KEY,
     )
 )

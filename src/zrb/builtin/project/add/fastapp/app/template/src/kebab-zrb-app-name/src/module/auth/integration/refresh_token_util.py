@@ -1,18 +1,18 @@
 from config import (
-    app_auth_jwt_token_algorithm,
-    app_auth_jwt_token_secret_key,
-    app_auth_refresh_token_type,
+    APP_AUTH_JWT_TOKEN_ALGORITHM,
+    APP_AUTH_JWT_TOKEN_SECRET_KEY,
+    APP_AUTH_REFRESH_TOKEN_TYPE,
 )
 from module.auth.component import JWTRefreshTokenUtil, RefreshTokenUtil
 
 
 def init_token_util() -> RefreshTokenUtil:
-    if app_auth_refresh_token_type.lower() == "jwt":
+    if APP_AUTH_REFRESH_TOKEN_TYPE.lower() == "jwt":
         return JWTRefreshTokenUtil(
-            secret_key=app_auth_jwt_token_secret_key,
-            algorithm=app_auth_jwt_token_algorithm,
+            secret_key=APP_AUTH_JWT_TOKEN_SECRET_KEY,
+            algorithm=APP_AUTH_JWT_TOKEN_ALGORITHM,
         )
-    raise ValueError(f"Invalid auth token type: {app_auth_refresh_token_type}")
+    raise ValueError(f"Invalid auth token type: {APP_AUTH_REFRESH_TOKEN_TYPE}")
 
 
 refresh_token_util = init_token_util()

@@ -233,7 +233,7 @@ async def create_app_config(
     )
     config_code = "\n".join(
         [
-            f"app_enable_{snake_module_name}_module = str_to_boolean(os.environ.get(",  # noqa
+            f"APP_ENABLE_{upper_snake_module_name}_MODULE = str_to_boolean(os.environ.get(",  # noqa
             f"    'APP_ENABLE_{upper_snake_module_name}_MODULE', 'true'" "))",
         ]
     )

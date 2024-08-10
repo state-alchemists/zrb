@@ -14,31 +14,31 @@ from component.messagebus import (
     RMQPublisher,
 )
 from config import (
-    app_broker_type,
-    app_kafka_bootstrap_servers,
-    app_kafka_sasl_mechanism,
-    app_kafka_sasl_pass,
-    app_kafka_sasl_user,
-    app_kafka_security_protocol,
-    app_rmq_connection_string,
-    zrb_app_name,
+    APP_BROKER_TYPE,
+    APP_KAFKA_BOOTSTRAP_SERVERS,
+    APP_KAFKA_SASL_MECHANISM,
+    APP_KAFKA_SASL_PASS,
+    APP_KAFKA_SASL_USER,
+    APP_KAFKA_SECURITY_PROTOCOL,
+    APP_NAME,
+    APP_RMQ_CONNECTION_STRING,
 )
 from integration.log import logger
 
 
 def init_admin(default_admin: Admin) -> Admin:
-    if app_broker_type == "rabbitmq":
+    if APP_BROKER_TYPE == "rabbitmq":
         return RMQAdmin(
-            logger=logger, connection_string=app_rmq_connection_string, configs={}
+            logger=logger, connection_string=APP_RMQ_CONNECTION_STRING, configs={}
         )
-    if app_broker_type == "kafka":
+    if APP_BROKER_TYPE == "kafka":
         return KafkaAdmin(
             logger=logger,
-            bootstrap_servers=app_kafka_bootstrap_servers,
-            security_protocol=app_kafka_security_protocol,
-            sasl_mechanism=app_kafka_sasl_mechanism,
-            sasl_plain_username=app_kafka_sasl_user,
-            sasl_plain_password=app_kafka_sasl_pass,
+            bootstrap_servers=APP_KAFKA_BOOTSTRAP_SERVERS,
+            security_protocol=APP_KAFKA_SECURITY_PROTOCOL,
+            sasl_mechanism=APP_KAFKA_SASL_MECHANISM,
+            sasl_plain_username=APP_KAFKA_SASL_USER,
+            sasl_plain_password=APP_KAFKA_SASL_PASS,
             configs={},
         )
     return default_admin
@@ -47,21 +47,21 @@ def init_admin(default_admin: Admin) -> Admin:
 def init_publisher(
     serializer: MessageSerializer, admin: Admin, default_publisher: Publisher
 ) -> Publisher:
-    if app_broker_type == "rabbitmq":
+    if APP_BROKER_TYPE == "rabbitmq":
         return RMQPublisher(
             logger=logger,
-            connection_string=app_rmq_connection_string,
+            connection_string=APP_RMQ_CONNECTION_STRING,
             serializer=serializer,
             rmq_admin=admin,
         )
-    if app_broker_type == "kafka":
+    if APP_BROKER_TYPE == "kafka":
         return KafkaPublisher(
             logger=logger,
-            bootstrap_servers=app_kafka_bootstrap_servers,
-            security_protocol=app_kafka_security_protocol,
-            sasl_mechanism=app_kafka_sasl_mechanism,
-            sasl_plain_username=app_kafka_sasl_user,
-            sasl_plain_password=app_kafka_sasl_pass,
+            bootstrap_servers=APP_KAFKA_BOOTSTRAP_SERVERS,
+            security_protocol=APP_KAFKA_SECURITY_PROTOCOL,
+            sasl_mechanism=APP_KAFKA_SASL_MECHANISM,
+            sasl_plain_username=APP_KAFKA_SASL_USER,
+            sasl_plain_password=APP_KAFKA_SASL_PASS,
             serializer=serializer,
             kafka_admin=admin,
         )
@@ -71,22 +71,22 @@ def init_publisher(
 def init_consumer(
     serializer: MessageSerializer, admin: Admin, default_consumer: Consumer
 ) -> Consumer:
-    if app_broker_type == "rabbitmq":
+    if APP_BROKER_TYPE == "rabbitmq":
         return RMQConsumer(
             logger=logger,
-            connection_string=app_rmq_connection_string,
+            connection_string=APP_RMQ_CONNECTION_STRING,
             serializer=serializer,
             rmq_admin=admin,
         )
-    if app_broker_type == "kafka":
+    if APP_BROKER_TYPE == "kafka":
         return KafkaConsumer(
             logger=logger,
-            bootstrap_servers=app_kafka_bootstrap_servers,
-            security_protocol=app_kafka_security_protocol,
-            sasl_mechanism=app_kafka_sasl_mechanism,
-            sasl_plain_username=app_kafka_sasl_user,
-            sasl_plain_password=app_kafka_sasl_pass,
-            group_id=zrb_app_name,
+            bootstrap_servers=APP_KAFKA_BOOTSTRAP_SERVERS,
+            security_protocol=APP_KAFKA_SECURITY_PROTOCOL,
+            sasl_mechanism=APP_KAFKA_SASL_MECHANISM,
+            sasl_plain_username=APP_KAFKA_SASL_USER,
+            sasl_plain_password=APP_KAFKA_SASL_PASS,
+            group_id=APP_NAME,
             serializer=serializer,
             kafka_admin=admin,
         )

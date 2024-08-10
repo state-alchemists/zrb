@@ -1,8 +1,8 @@
 from config import (
-    app_enable_api,
-    app_enable_event_handler,
-    app_enable_rpc_server,
-    app_enable_snake_zrb_module_name_module,
+    APP_ENABLE_API,
+    APP_ENABLE_EVENT_HANDLER,
+    APP_ENABLE_RPC_SERVER,
+    APP_ENABLE_SNAKE_ZRB_MODULE_NAME_MODULE,
 )
 from integration.app.app import app
 from integration.log import logger
@@ -15,10 +15,10 @@ from module.snake_zrb_module_name.rpc import register_rpc
 
 
 def register_snake_zrb_module_name():
-    if not app_enable_snake_zrb_module_name_module:
+    if not APP_ENABLE_SNAKE_ZRB_MODULE_NAME_MODULE:
         logger.info('🥪 Skip registering "snake_zrb_module_name"')
         return
-    if app_enable_api:
+    if APP_ENABLE_API:
         register_api(
             logger=logger,
             app=app,
@@ -26,11 +26,11 @@ def register_snake_zrb_module_name():
             rpc_caller=rpc_caller,
             publisher=publisher,
         )
-    if app_enable_event_handler:
+    if APP_ENABLE_EVENT_HANDLER:
         register_event(
             logger=logger, consumer=consumer, rpc_caller=rpc_caller, publisher=publisher
         )
-    if app_enable_rpc_server:
+    if APP_ENABLE_RPC_SERVER:
         register_rpc(
             logger=logger,
             rpc_server=rpc_server,

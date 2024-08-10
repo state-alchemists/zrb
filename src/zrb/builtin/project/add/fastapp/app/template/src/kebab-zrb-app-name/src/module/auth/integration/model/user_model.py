@@ -1,7 +1,7 @@
 from config import (
-    app_auth_access_token_expire_seconds,
-    app_auth_admin_active,
-    app_auth_refresh_token_expire_seconds,
+    APP_AUTH_ACCESS_TOKEN_EXPIRE_SECONDS,
+    APP_AUTH_ADMIN_ACTIVE,
+    APP_AUTH_REFRESH_TOKEN_EXPIRE_SECONDS,
 )
 from integration.messagebus import publisher
 from module.auth.entity.user.model import UserModel
@@ -15,10 +15,10 @@ user_model: UserModel = UserModel(
     publisher=publisher,
     permission_model=permission_model,
     access_token_util=access_token_util,
-    access_token_expire_seconds=app_auth_access_token_expire_seconds,
+    access_token_expire_seconds=APP_AUTH_ACCESS_TOKEN_EXPIRE_SECONDS,
     refresh_token_util=refresh_token_util,
-    refresh_token_expire_seconds=app_auth_refresh_token_expire_seconds,
+    refresh_token_expire_seconds=APP_AUTH_REFRESH_TOKEN_EXPIRE_SECONDS,
     guest_user=guest_user,
-    admin_user=admin_user if app_auth_admin_active else None,
+    admin_user=admin_user if APP_AUTH_ADMIN_ACTIVE else None,
     admin_user_password=admin_user_password,
 )

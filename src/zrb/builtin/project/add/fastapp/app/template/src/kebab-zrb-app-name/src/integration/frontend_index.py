@@ -1,9 +1,9 @@
 import os
 
-from config import app_src_dir
+from config import APP_SRC_DIR
 from fastapi.responses import HTMLResponse
 
-index_html_path = os.path.join(app_src_dir, "frontend", "build", "index.html")
+index_html_path = os.path.join(APP_SRC_DIR, "frontend", "build", "index.html")
 with open(index_html_path, "r") as f:
     index_html_content = f.read()
 
