@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "0.23.4"
+version = "0.23.5"
 description = "A Framework to Enhance Your Workflow"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
