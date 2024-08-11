@@ -4,9 +4,12 @@ import logging
 from typing import Any, Callable, Mapping, Optional
 
 import aiormq
-from component.messagebus.messagebus import (Consumer, MessageSerializer,
-                                             TEventHandler,
-                                             must_get_message_serializer)
+from component.messagebus.messagebus import (
+    Consumer,
+    MessageSerializer,
+    TEventHandler,
+    must_get_message_serializer,
+)
 from component.messagebus.rabbitmq.admin import RMQAdmin, must_get_rmq_admin
 
 

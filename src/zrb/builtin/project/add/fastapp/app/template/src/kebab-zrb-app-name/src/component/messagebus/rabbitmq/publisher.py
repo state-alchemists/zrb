@@ -3,8 +3,11 @@ import logging
 from typing import Any, Optional
 
 import aiormq
-from component.messagebus.messagebus import (MessageSerializer, Publisher,
-                                             must_get_message_serializer)
+from component.messagebus.messagebus import (
+    MessageSerializer,
+    Publisher,
+    must_get_message_serializer,
+)
 from component.messagebus.rabbitmq.admin import RMQAdmin, must_get_rmq_admin
 from pydantic import BaseModel
 

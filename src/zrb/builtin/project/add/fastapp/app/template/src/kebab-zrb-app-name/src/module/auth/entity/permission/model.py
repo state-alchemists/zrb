@@ -1,7 +1,6 @@
 from component.messagebus.messagebus import Publisher
 from module.auth.entity.permission.repo import PermissionRepo
-from module.auth.schema.permission import (Permission, PermissionData,
-                                           PermissionResult)
+from module.auth.schema.permission import Permission, PermissionData, PermissionResult
 from module.log.component.historical_repo_model import HistoricalRepoModel
 
 

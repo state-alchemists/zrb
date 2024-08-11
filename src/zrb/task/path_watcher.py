@@ -4,12 +4,27 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.file.match import get_file_names
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (Any, Callable, Iterable, JinjaTemplate, List,
-                               Mapping, Optional, TypeVar, Union)
+from zrb.helper.typing import (
+    Any,
+    Callable,
+    Iterable,
+    JinjaTemplate,
+    List,
+    Mapping,
+    Optional,
+    TypeVar,
+    Union,
+)
 from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (OnFailed, OnReady, OnRetry,
-                                             OnSkipped, OnStarted, OnTriggered,
-                                             OnWaiting)
+from zrb.task.any_task_event_handler import (
+    OnFailed,
+    OnReady,
+    OnRetry,
+    OnSkipped,
+    OnStarted,
+    OnTriggered,
+    OnWaiting,
+)
 from zrb.task.watcher import Watcher
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile

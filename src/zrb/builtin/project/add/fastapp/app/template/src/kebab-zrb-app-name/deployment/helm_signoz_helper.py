@@ -1,5 +1,9 @@
-from _common import (NAMESPACE, SIGNOZ_CLICKHOUSE_NAMESPACE,
-                     SIGNOZ_CLICKHOUSE_PASSWORD, SIGNOZ_CLICKHOUSE_USER)
+from _common import (
+    NAMESPACE,
+    SIGNOZ_CLICKHOUSE_NAMESPACE,
+    SIGNOZ_CLICKHOUSE_PASSWORD,
+    SIGNOZ_CLICKHOUSE_USER,
+)
 from pulumi_kubernetes.helm.v3 import Chart, LocalChartOpts
 
 

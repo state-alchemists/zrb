@@ -2,9 +2,16 @@ import os
 from typing import List, Mapping
 
 import pulumi_kubernetes as k8s
-from _common import (MODULES, NAMESPACE, TEMPLATE_ENV_MAP,
-                     get_app_gateway_env_map, get_app_monolith_env_map,
-                     get_app_service_env_map, to_kebab_case, to_snake_case)
+from _common import (
+    MODULES,
+    NAMESPACE,
+    TEMPLATE_ENV_MAP,
+    get_app_gateway_env_map,
+    get_app_monolith_env_map,
+    get_app_service_env_map,
+    to_kebab_case,
+    to_snake_case,
+)
 
 image = os.getenv("IMAGE", "kebab-zrb-app-name:latest")
 app_monolith_replica = int(os.getenv("REPLICA", "1"))

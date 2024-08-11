@@ -1,7 +1,10 @@
 from zrb import Env, EnvFile
 
-from ._constant import (APP_TEMPLATE_ENV_FILE_NAME, DEPLOYMENT_DIR,
-                        DEPLOYMENT_TEMPLATE_ENV_FILE_NAME)
+from ._constant import (
+    APP_TEMPLATE_ENV_FILE_NAME,
+    DEPLOYMENT_DIR,
+    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
+)
 
 deployment_app_env_file = EnvFile(
     path=APP_TEMPLATE_ENV_FILE_NAME, prefix="DEPLOYMENT_APP_ZRB_ENV_PREFIX"

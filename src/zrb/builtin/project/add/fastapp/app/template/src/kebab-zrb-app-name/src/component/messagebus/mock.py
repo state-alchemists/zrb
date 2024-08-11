@@ -3,9 +3,13 @@ import inspect
 import logging
 from typing import Any, Callable, List, Mapping
 
-from component.messagebus.messagebus import (Admin, Consumer,
-                                             MessageSerializer, Publisher,
-                                             TEventHandler)
+from component.messagebus.messagebus import (
+    Admin,
+    Consumer,
+    MessageSerializer,
+    Publisher,
+    TEventHandler,
+)
 
 
 class MockConsumer(Consumer):
