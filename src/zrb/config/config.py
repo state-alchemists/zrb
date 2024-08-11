@@ -30,19 +30,19 @@ def _get_default_tmp_dir() -> str:
     return os.path.expanduser(os.path.join("~", ".tmp"))
 
 
-tmp_dir = os.getenv("ZRB_TMP_DIR", _get_default_tmp_dir())
-default_shell = os.getenv("ZRB_SHELL", _get_current_shell())
-default_editor = os.getenv("ZRB_EDITOR", "nano")
-init_script_str = os.getenv("ZRB_INIT_SCRIPTS", "")
-init_scripts = init_script_str.split(":") if init_script_str != "" else []
-logging_level = untyped_to_logging_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
-should_load_builtin = untyped_to_boolean(os.getenv("ZRB_SHOULD_LOAD_BUILTIN", "1"))
-env_prefix = os.getenv("ZRB_ENV", "")
-show_advertisement = untyped_to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
-show_prompt = untyped_to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
-show_time = untyped_to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
-version = _get_version()
-container_backend = _get_valid_container_backend(
+TMP_DIR = os.getenv("ZRB_TMP_DIR", _get_default_tmp_dir())
+DEFAULT_SHELL = os.getenv("ZRB_SHELL", _get_current_shell())
+DEFAULT_EDITOR = os.getenv("ZRB_EDITOR", "nano")
+INIT_SCRIPT_STR = os.getenv("ZRB_INIT_SCRIPTS", "")
+INIT_SCRIPTS = INIT_SCRIPT_STR.split(":") if INIT_SCRIPT_STR != "" else []
+LOGGING_LEVEL = untyped_to_logging_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
+SHOULD_LOAD_BUILTIN = untyped_to_boolean(os.getenv("ZRB_SHOULD_LOAD_BUILTIN", "1"))
+ENV_PREFIX = os.getenv("ZRB_ENV", "")
+SHOW_ADVERTISEMENT = untyped_to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
+SHOW_PROMPT = untyped_to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
+SHOW_TIME = untyped_to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
+VERSION = _get_version()
+CONTAINER_BACKEND = _get_valid_container_backend(
     os.getenv("ZRB_CONTAINER_BACKEND", "docker")
 )
-enable_type_checking = untyped_to_boolean(os.getenv("ZRB_ENABLE_TYPE_CHECKING", "1"))
+ENABLE_TYPE_CHECKING = untyped_to_boolean(os.getenv("ZRB_ENABLE_TYPE_CHECKING", "1"))

@@ -4,7 +4,7 @@ import os
 import shutil
 
 from zrb.advertisement import advertisements
-from zrb.config.config import show_advertisement, tmp_dir
+from zrb.config.config import SHOW_ADVERTISEMENT, TMP_DIR
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.advertisement import get_advertisement
 from zrb.helper.callable import run_async
@@ -127,7 +127,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     def __get_xcom_dir(self, execution_id: Optional[str] = None) -> str:
         if execution_id is None:
             execution_id = self.get_execution_id()
-        return os.path.join(tmp_dir, f"xcom.{execution_id}")
+        return os.path.join(TMP_DIR, f"xcom.{execution_id}")
 
     def __ensure_xcom_dir_exists(self, execution_id: Optional[str] = None):
         xcom_dir = self.__get_xcom_dir(execution_id=execution_id)
@@ -303,7 +303,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             await asyncio.sleep(self._checking_interval)
         self._end_timer()
         if show_done_info:
-            if show_advertisement:
+            if SHOW_ADVERTISEMENT:
                 selected_advertisement = get_advertisement(advertisements)
                 selected_advertisement.show()
             self._show_done_info()

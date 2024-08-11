@@ -1,4 +1,4 @@
-from zrb.config.config import show_prompt
+from zrb.config.config import SHOW_PROMPT
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_variable_name
@@ -141,7 +141,7 @@ class BaseInput(AnyInput):
             "callback": self._wrapped_callback,
             "default": self._wrapped_default,
         }
-        if show_prompt:
+        if SHOW_PROMPT:
             options["prompt"] = self._prompt
         return options
 

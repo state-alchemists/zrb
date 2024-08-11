@@ -1,10 +1,10 @@
-from zrb.config.config import enable_type_checking
+from zrb.config.config import ENABLE_TYPE_CHECKING
 from zrb.helper.accessories.untyped_color import untyped_colored as colored
 from zrb.helper.log import logger
 
 logger.debug(colored("Loading zrb.helper.typing", attrs=["dark"]))
 
-if enable_type_checking:
+if ENABLE_TYPE_CHECKING:
     from beartype.typing import (
         Any,
         Callable,
