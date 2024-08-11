@@ -4,13 +4,9 @@ from zrb import CmdTask, runner
 
 from .._project import deploy_project
 from ._constant import DEPLOYMENT_DIR
-from ._env import (
-    deployment_app_env_file,
-    deployment_config_env_file,
-    deployment_replica_env,
-    pulumi_backend_url_env,
-    pulumi_config_passphrase_env,
-)
+from ._env import (deployment_app_env_file, deployment_config_env_file,
+                   deployment_replica_env, pulumi_backend_url_env,
+                   pulumi_config_passphrase_env)
 from ._group import snake_zrb_app_name_group
 from ._input import pulumi_stack_input, replica_input
 from .image import push_snake_zrb_app_name_image

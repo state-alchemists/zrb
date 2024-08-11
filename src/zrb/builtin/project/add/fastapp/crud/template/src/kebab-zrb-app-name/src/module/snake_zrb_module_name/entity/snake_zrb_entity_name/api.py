@@ -8,10 +8,7 @@ from module.auth.component import Authorizer
 from module.auth.integration import access_token_scheme
 from module.auth.schema.token import AccessTokenData
 from module.snake_zrb_module_name.schema.snake_zrb_entity_name import (
-    PascalZrbEntityName,
-    PascalZrbEntityNameData,
-    PascalZrbEntityNameResult,
-)
+    PascalZrbEntityName, PascalZrbEntityNameData, PascalZrbEntityNameResult)
 from opentelemetry import trace
 
 tracer = trace.get_tracer(__name__)

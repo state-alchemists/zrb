@@ -5,11 +5,8 @@ from typing import Any, Optional
 from aiokafka import AIOKafkaProducer
 from aiokafka.producer.producer import DefaultPartitioner, _missing
 from component.messagebus.kafka.admin import KafkaAdmin, must_get_kafka_admin
-from component.messagebus.messagebus import (
-    MessageSerializer,
-    Publisher,
-    must_get_message_serializer,
-)
+from component.messagebus.messagebus import (MessageSerializer, Publisher,
+                                             must_get_message_serializer)
 from pydantic import BaseModel
 
 

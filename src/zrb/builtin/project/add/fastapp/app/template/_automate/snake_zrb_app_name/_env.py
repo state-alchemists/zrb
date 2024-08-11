@@ -2,12 +2,8 @@ import jsons
 
 from zrb import Env, EnvFile
 
-from ._constant import (
-    APP_TEMPLATE_ENV_FILE_NAME,
-    DEPLOYMENT_DIR,
-    DEPLOYMENT_TEMPLATE_ENV_FILE_NAME,
-    MODULES,
-)
+from ._constant import (APP_TEMPLATE_ENV_FILE_NAME, DEPLOYMENT_DIR,
+                        DEPLOYMENT_TEMPLATE_ENV_FILE_NAME, MODULES)
 
 app_env_file = EnvFile(path=APP_TEMPLATE_ENV_FILE_NAME, prefix="ZRB_ENV_PREFIX")
 

@@ -8,13 +8,9 @@ from zrb.builtin.explain import explain_group
 from zrb.builtin.git import git_group
 from zrb.builtin.md5 import md5_group
 from zrb.builtin.process import process_group, process_pid_group
-from zrb.builtin.project import (
-    project_add_app_group,
-    project_add_fastapp_group,
-    project_add_group,
-    project_add_task_group,
-    project_group,
-)
+from zrb.builtin.project import (project_add_app_group,
+                                 project_add_fastapp_group, project_add_group,
+                                 project_add_task_group, project_group)
 from zrb.builtin.ubuntu import ubuntu_group, ubuntu_install_group
 from zrb.helper.accessories.color import colored
 

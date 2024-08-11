@@ -4,14 +4,9 @@ from zrb import CmdTask, Env, runner
 
 from ..._project import deploy_project
 from .._constant import AUTOMATE_DIR, DEPLOYMENT_DIR, PREFER_MICROSERVICES
-from .._env import (
-    deployment_app_env_file,
-    deployment_config_env_file,
-    deployment_enable_monitoring_env,
-    deployment_modules_env,
-    pulumi_backend_url_env,
-    pulumi_config_passphrase_env,
-)
+from .._env import (deployment_app_env_file, deployment_config_env_file,
+                    deployment_enable_monitoring_env, deployment_modules_env,
+                    pulumi_backend_url_env, pulumi_config_passphrase_env)
 from .._input import pulumi_stack_input, replica_input
 from ..container._input import enable_monitoring_input
 from ..image import push_snake_zrb_app_name_image

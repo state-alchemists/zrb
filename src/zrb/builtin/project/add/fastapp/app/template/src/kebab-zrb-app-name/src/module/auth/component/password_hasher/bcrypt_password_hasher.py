@@ -1,5 +1,6 @@
 import bcrypt
-from module.auth.component.password_hasher.password_hasher import PasswordHasher
+from module.auth.component.password_hasher.password_hasher import \
+    PasswordHasher
 
 
 class BcryptPasswordHasher(PasswordHasher):

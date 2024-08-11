@@ -5,16 +5,9 @@ import time
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
-from zrb.helper.util import (
-    coalesce,
-    coalesce_str,
-    to_boolean,
-    to_camel_case,
-    to_human_readable,
-    to_kebab_case,
-    to_pascal_case,
-    to_snake_case,
-)
+from zrb.helper.util import (coalesce, coalesce_str, to_boolean, to_camel_case,
+                             to_human_readable, to_kebab_case, to_pascal_case,
+                             to_snake_case)
 
 logger.debug(colored("Loading zrb.helper.render_data", attrs=["dark"]))
 
