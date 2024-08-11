@@ -341,20 +341,22 @@ class DockerComposeTask(CmdTask):
         raise Exception(f"Invalid compose file: {compose_file}")
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        cmd_str = "\n".join([
-            # setup
-            self._create_cmd_script(
-                self._setup_cmd_path, self._setup_cmd, *args, **kwargs
-            ),
-            # compose
-            self._get_docker_compose_cmd_script(
-                compose_cmd=self._compose_cmd,
-                compose_options=self._compose_options,
-                compose_flags=self._compose_flags,
-                compose_args=self._compose_args,
-                *args
-            )
-        ])
+        cmd_str = "\n".join(
+            [
+                # setup
+                self._create_cmd_script(
+                    self._setup_cmd_path, self._setup_cmd, *args, **kwargs
+                ),
+                # compose
+                self._get_docker_compose_cmd_script(
+                    compose_cmd=self._compose_cmd,
+                    compose_options=self._compose_options,
+                    compose_flags=self._compose_flags,
+                    compose_args=self._compose_args,
+                    *args,
+                ),
+            ]
+        )
         self.log_info(f"Command: {cmd_str}")
         return cmd_str
 
@@ -363,24 +365,30 @@ class DockerComposeTask(CmdTask):
         compose_cmd: str,
         compose_options: Mapping[JinjaTemplate, JinjaTemplate],
         compose_flags: Iterable[JinjaTemplate],
-        compose_args:  Iterable[JinjaTemplate],
+        compose_args: Iterable[JinjaTemplate],
         *args: Any,
     ) -> str:
         command_options = dict(compose_options)
         command_options["--file"] = self._compose_runtime_file
-        options = " ".join([
-            f"{self.render_str(key)} {double_quote(self.render_str(val))}"
-            for key, val in command_options.items()
-            if self.render_str(val) != ""
-        ])
-        flags = " ".join([
-            self.render_str(flag)
-            for flag in compose_flags
-            if self.render_str(flag) != ""
-        ])
-        args = " ".join([
-            double_quote(self.render_str(arg))
-            for arg in compose_args
-            if self.render_str(arg) != ""
-        ])
+        options = " ".join(
+            [
+                f"{self.render_str(key)} {double_quote(self.render_str(val))}"
+                for key, val in command_options.items()
+                if self.render_str(val) != ""
+            ]
+        )
+        flags = " ".join(
+            [
+                self.render_str(flag)
+                for flag in compose_flags
+                if self.render_str(flag) != ""
+            ]
+        )
+        args = " ".join(
+            [
+                double_quote(self.render_str(arg))
+                for arg in compose_args
+                if self.render_str(arg) != ""
+            ]
+        )
         return f"{CONTAINER_BACKEND} compose {options} {compose_cmd} {flags} {args}"
