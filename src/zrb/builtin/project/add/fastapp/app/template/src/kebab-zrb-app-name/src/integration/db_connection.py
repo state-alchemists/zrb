@@ -1,6 +1,12 @@
 import time
 
-from config import APP_DB_CONNECTION, APP_DB_ENGINE_SHOW_LOG
+from config import (
+    APP_DB_CONNECTION,
+    APP_DB_ENGINE_SHOW_LOG,
+    APP_DB_POOL_MAX_OVERFLOW,
+    APP_DB_POOL_PRE_PING,
+    APP_DB_POOL_SIZE,
+)
 from integration.log import logger
 from sqlalchemy import Engine, create_engine, event
 
@@ -27,4 +33,10 @@ def after_cursor_execute(conn, cursor, statement, parameters, context, executema
     )
 
 
-engine: Engine = create_engine(APP_DB_CONNECTION, echo=APP_DB_ENGINE_SHOW_LOG)
+engine: Engine = create_engine(
+    APP_DB_CONNECTION,
+    echo=APP_DB_ENGINE_SHOW_LOG,
+    pool_pre_ping=APP_DB_POOL_PRE_PING,
+    pool_size=APP_DB_POOL_SIZE,
+    max_identifier_length=APP_DB_POOL_MAX_OVERFLOW,
+)

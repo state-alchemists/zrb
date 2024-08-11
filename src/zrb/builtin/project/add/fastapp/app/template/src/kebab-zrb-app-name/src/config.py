@@ -53,6 +53,10 @@ APP_AUTH_GUEST_PHONE = os.getenv("APP_AUTH_GUEST_PHONE", "")
 APP_DB_CONNECTION = os.getenv("APP_DB_CONNECTION", "sqlite://")
 APP_DB_ENGINE_SHOW_LOG = str_to_boolean(os.getenv("APP_DB_ENGINE_SHOW_LOG", "false"))
 APP_DB_AUTO_MIGRATE = str_to_boolean(os.getenv("APP_DB_AUTO_MIGRATE", "true"))
+APP_DB_POOL_PRE_PING = str_to_boolean(os.getenv("APP_DB_POOL_PRE_PING", "true"))
+APP_DB_POOL_SIZE = int(os.getenv("APP_DB_POOL_SIZE", "20"))
+APP_DB_POOL_MAX_OVERFLOW = int(os.getenv("APP_DB_POOL_MAX_OVERFLOW", "0"))
+
 
 APP_BROKER_TYPE = os.getenv("APP_BROKER_TYPE", "mock")
 
