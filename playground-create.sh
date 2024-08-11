@@ -98,6 +98,22 @@ zrb project add fastapp field \
     --column-name "available" \
     --column-type "boolean"
 
+zrb project add fastapp field \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library" \
+    --entity-name "book" \
+    --column-name "purchase_date" \
+    --column-type "date"
+
+zrb project add fastapp field \
+    --project-dir . \
+    --app-name "fastapp" \
+    --module-name "library" \
+    --entity-name "book" \
+    --column-name "synopsis" \
+    --column-type "text"
+
 log_info 'Add plugin'
 zrb project add plugin \
     --project-dir . \

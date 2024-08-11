@@ -17,7 +17,7 @@ from zrb.builtin.project.add.plugin._input import (
     package_repository_input,
 )
 from zrb.builtin.project.add.project_task import add_project_tasks
-from zrb.config.config import version
+from zrb.config.config import VERSION
 from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 from zrb.runner import runner
@@ -61,7 +61,7 @@ copy_resource = ResourceMaker(
         "zrbPackageDocumentation": "{{input.package_documentation}}",
         "zrbPackageAuthorName": "{{input.package_author_name}}",
         "zrbPackageAuthorEmail": "{{input.package_author_email}}",
-        "zrbVersion": version,
+        "zrbVersion": VERSION,
     },
     template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",

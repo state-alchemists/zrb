@@ -1,16 +1,17 @@
-from zrb import DockerComposeTask, HTTPChecker, runner
+from zrb import DockerComposeStartTask, HTTPChecker, runner
 
 from ..._project import start_project_containers
 from .._constant import RESOURCE_DIR
 from .._input import host_input, https_input, local_input
+from ..image import build_snake_zrb_app_name_image
 from ..image._env import image_env
 from ..image._input import image_input
 from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
 from ._service_config import snake_zrb_app_name_service_config
-from .init import init_snake_zrb_app_name_container
+from .remove import remove_snake_zrb_app_name_container
 
-start_snake_zrb_app_name_container = DockerComposeTask(
+start_snake_zrb_app_name_container = DockerComposeStartTask(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -22,10 +23,8 @@ start_snake_zrb_app_name_container = DockerComposeTask(
         image_input,
     ],
     should_execute="{{ input.local_snake_zrb_app_name}}",
-    upstreams=[init_snake_zrb_app_name_container],
+    upstreams=[build_snake_zrb_app_name_image, remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
-    compose_cmd="logs",
-    compose_flags=["-f"],
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs={"snake_zrb_app_name": snake_zrb_app_name_service_config},
     env_files=[compose_env_file],

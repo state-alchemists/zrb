@@ -4,7 +4,7 @@ from functools import lru_cache
 
 import click
 
-from zrb.config.config import init_scripts, should_load_builtin, version
+from zrb.config.config import INIT_SCRIPTS, SHOULD_LOAD_BUILTIN, VERSION
 from zrb.helper.accessories.color import colored
 from zrb.helper.loader.load_module import load_module
 from zrb.helper.log import logger
@@ -18,7 +18,7 @@ HELP = f"""
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {version}
+   zzzzz rr     bbbbbb   {VERSION}
    _ _ . .  . _ .  _ . . .
 
 Super framework for your super app.
@@ -40,7 +40,7 @@ def create_cli() -> click.Group:
     logger.info(colored("Prepare CLI", attrs=["dark"]))
     zrb_cli_group = MultilineHelpClickGroup(name="zrb", help=HELP)
     # Load default tasks
-    if should_load_builtin:
+    if SHOULD_LOAD_BUILTIN:
         logger.info(colored("Load builtins", attrs=["dark"]))
         from zrb import builtin
 
@@ -50,7 +50,7 @@ def create_cli() -> click.Group:
     project_script = os.path.join(project_dir, "zrb_init.py")
     load_module(script_path=project_script, sys_path_index=0)
     # load from ZRB_INIT_SCRIPTS environment
-    for index, init_script in enumerate(init_scripts):
+    for index, init_script in enumerate(INIT_SCRIPTS):
         logger.info(colored(f"Load module from {init_script}", attrs=["dark"]))
         try:
             load_module(script_path=init_script, sys_path_index=index + 1)

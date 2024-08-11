@@ -4,7 +4,7 @@ import os
 import sys
 from functools import lru_cache
 
-from zrb.config.config import env_prefix, logging_level, show_time
+from zrb.config.config import ENV_PREFIX, LOGGING_LEVEL, SHOW_TIME
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_variable_name
@@ -118,35 +118,35 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self.__kwargs = kwargs
 
     def log_debug(self, message: Any):
-        if logging_level > logging.DEBUG:
+        if LOGGING_LEVEL > logging.DEBUG:
             return
         prefix = self.__get_log_prefix()
         colored_message = colored(f"{prefix} • {message}", attrs=["dark"])
         logger.debug(colored_message)
 
     def log_warn(self, message: Any):
-        if logging_level > logging.WARNING:
+        if LOGGING_LEVEL > logging.WARNING:
             return
         prefix = self.__get_log_prefix()
         colored_message = colored(f"{prefix} • {message}", attrs=["dark"])
         logger.warning(colored_message)
 
     def log_info(self, message: Any):
-        if logging_level > logging.INFO:
+        if LOGGING_LEVEL > logging.INFO:
             return
         prefix = self.__get_log_prefix()
         colored_message = colored(f"{prefix} • {message}", attrs=["dark"])
         logger.info(colored_message)
 
     def log_error(self, message: Any):
-        if logging_level > logging.ERROR:
+        if LOGGING_LEVEL > logging.ERROR:
             return
         prefix = self.__get_log_prefix()
         colored_message = colored(f"{prefix} • {message}", color="red", attrs=["bold"])
         logger.error(colored_message, exc_info=True)
 
     def log_critical(self, message: Any):
-        if logging_level > logging.CRITICAL:
+        if LOGGING_LEVEL > logging.CRITICAL:
             return
         prefix = self.__get_log_prefix()
         colored_message = colored(f"{prefix} • {message}", color="red", attrs=["bold"])
@@ -192,9 +192,9 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         self._play_bell()
 
     def _show_env_prefix(self):
-        if env_prefix == "":
+        if ENV_PREFIX == "":
             return
-        colored_env_prefix = colored(env_prefix, color="yellow")
+        colored_env_prefix = colored(ENV_PREFIX, color="yellow")
         colored_label = colored("Your current environment: ", attrs=["dark"])
         print(colored(f"{colored_label}{colored_env_prefix}"), file=sys.stderr)
 
@@ -225,7 +225,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         return colored(text, color=self.get_color())
 
     def __get_print_prefix(self) -> str:
-        common_prefix = self.__get_common_prefix(show_time=show_time)
+        common_prefix = self.__get_common_prefix(show_time=SHOW_TIME)
         icon = self.get_icon()
         length = LOG_NAME_LENGTH - len(icon)
         rjust_cli_name = self.__get_rjust_full_cli_name(length)

@@ -1,4 +1,4 @@
-from zrb import DockerComposeTask, runner
+from zrb import DockerComposeStartTask, runner
 
 from ...._project import start_project_containers
 from ..._checker import (
@@ -13,16 +13,17 @@ from ..._checker import (
 )
 from ..._constant import PREFER_MICROSERVICES, RESOURCE_DIR
 from ..._input import host_input, https_input, local_input
+from ...image import build_snake_zrb_app_name_image
 from ...image._env import image_env
 from ...image._input import image_input
 from .._env import compose_env_file, host_port_env
 from .._input import enable_monitoring_input
 from .._service_config import snake_zrb_app_name_service_configs
+from ..remove import remove_snake_zrb_app_name_container
 from ._group import snake_zrb_app_name_monolith_container_group
 from ._helper import activate_monolith_compose_profile
-from .init import init_snake_zrb_app_name_monolith_container
 
-start_snake_zrb_app_name_monolith_container = DockerComposeTask(
+start_snake_zrb_app_name_monolith_container = DockerComposeStartTask(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -35,11 +36,9 @@ start_snake_zrb_app_name_monolith_container = DockerComposeTask(
         image_input,
     ],
     should_execute="{{ input.local_snake_zrb_app_name}}",
-    upstreams=[init_snake_zrb_app_name_monolith_container],
+    upstreams=[build_snake_zrb_app_name_image, remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
     setup_cmd=activate_monolith_compose_profile,
-    compose_cmd="logs",
-    compose_flags=["-f"],
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=snake_zrb_app_name_service_configs,
     env_files=[compose_env_file],
