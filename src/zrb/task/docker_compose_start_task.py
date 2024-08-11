@@ -123,29 +123,27 @@ class DockerComposeStartTask(DockerComposeTask):
         )
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        cmd_str = "\n".join(
-            [
-                # setup
-                self._create_cmd_script(
-                    self._setup_cmd_path, self._setup_cmd, *args, **kwargs
-                ),
-                # compose start
-                self._get_docker_compose_cmd_script(
-                    compose_cmd="up",
-                    compose_options=self._compose_options,
-                    compose_flags=list(self._compose_flags) + ["-d"],
-                    compose_args=self._compose_args,
-                    *args,
-                ),
-                # compose log
-                self._get_docker_compose_cmd_script(
-                    compose_cmd="logs",
-                    compose_options={},
-                    compose_flags=["-f"],
-                    compose_args=[],
-                    *args,
-                ),
-            ]
-        )
+        cmd_str = "\n".join([
+            # setup
+            self._create_cmd_script(
+                self._setup_cmd_path, self._setup_cmd, *args, **kwargs
+            ),
+            # compose start
+            self._get_docker_compose_cmd_script(
+                compose_cmd="up",
+                compose_options=self._compose_options,
+                compose_flags=list(self._compose_flags) + ["-d"],
+                compose_args=self._compose_args,
+                *args,
+            ),
+            # compose log
+            self._get_docker_compose_cmd_script(
+                compose_cmd="logs",
+                compose_options={},
+                compose_flags=["-f"],
+                compose_args=[],
+                *args,
+            ),
+        ])
         self.log_info(f"Command: {cmd_str}")
         return cmd_str
