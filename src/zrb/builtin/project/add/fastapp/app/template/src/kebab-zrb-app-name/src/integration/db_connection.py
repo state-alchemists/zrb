@@ -1,6 +1,6 @@
 import time
 
-from config import app_db_connection, app_db_engine_show_log
+from config import APP_DB_CONNECTION, APP_DB_ENGINE_SHOW_LOG
 from integration.log import logger
 from sqlalchemy import Engine, create_engine, event
 
@@ -27,4 +27,4 @@ def after_cursor_execute(conn, cursor, statement, parameters, context, executema
     )
 
 
-engine: Engine = create_engine(app_db_connection, echo=app_db_engine_show_log)
+engine: Engine = create_engine(APP_DB_CONNECTION, echo=APP_DB_ENGINE_SHOW_LOG)

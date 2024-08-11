@@ -107,36 +107,15 @@ async def register_crud(*args: Any, **kwargs: Any):
     app_name = kwargs.get("app_name")
     module_name = kwargs.get("module_name")
     entity_name = kwargs.get("entity_name")
-    kebab_app_name = util.to_kebab_case(app_name)
-    snake_module_name = util.to_snake_case(module_name)
-    snake_entity_name = util.to_snake_case(entity_name)
     await asyncio.gather(
         asyncio.create_task(
-            register_api(
-                task=task,
-                project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name,
-            )
+            register_api(task, project_dir, app_name, module_name, entity_name)
         ),
         asyncio.create_task(
-            register_rpc(
-                task=task,
-                project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name,
-            )
+            register_rpc(task, project_dir, app_name, module_name, entity_name)
         ),
         asyncio.create_task(
-            register_permission(
-                task=task,
-                project_dir=project_dir,
-                kebab_app_name=kebab_app_name,
-                snake_module_name=snake_module_name,
-                snake_entity_name=snake_entity_name,
-            )
+            register_permission(task, project_dir, app_name, module_name, entity_name)
         ),
     )
 

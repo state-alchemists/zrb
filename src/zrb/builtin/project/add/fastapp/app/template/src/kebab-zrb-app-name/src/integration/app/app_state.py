@@ -1,6 +1,6 @@
 import asyncio
 
-from config import app_max_not_ready
+from config import APP_MAX_NOT_READY
 from integration.log import logger
 
 
@@ -35,5 +35,5 @@ app_state = AppState()
 async def set_not_ready_on_error(exception: Exception):
     logger.critical(exception)
     app_state.set_readiness(False)
-    await asyncio.sleep(app_max_not_ready)
+    await asyncio.sleep(APP_MAX_NOT_READY)
     app_state.set_liveness(False)

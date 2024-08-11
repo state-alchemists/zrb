@@ -48,7 +48,7 @@ zrb project add fastapp crud --project-dir . --app-name "myapp" --module-name "l
 
 echo "👷 Add title field"
 zrb project add fastapp field --project-dir . --app-name "myapp" --module-name "library" \
-    --entity-name "book" --column-name "title" --column-type "str"
+    --entity-name "book" --column-name "title" --column-type "string"
 
 echo "👷 Start fastapp"
 zrb project fastapp monolith start

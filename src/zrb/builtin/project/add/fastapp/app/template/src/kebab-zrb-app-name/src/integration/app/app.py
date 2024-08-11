@@ -1,17 +1,17 @@
 from config import (
-    app_cors_allow_credentials,
-    app_cors_allow_headers,
-    app_cors_allow_methods,
-    app_cors_allow_origin_regex,
-    app_cors_allow_origins,
-    app_cors_expose_headers,
-    app_cors_max_age,
-    app_enable_frontend,
-    public_auth_access_token_cookie_key,
-    public_auth_refresh_token_cookie_key,
-    public_brand,
-    public_title,
-    zrb_app_name,
+    APP_AUTH_ACCESS_TOKEN_COOKIE_KEY,
+    APP_AUTH_REFRESH_TOKEN_COOKIE_KEY,
+    APP_BRAND,
+    APP_CORS_ALLOW_CREDENTIALS,
+    APP_CORS_ALLOW_HEADERS,
+    APP_CORS_ALLOW_METHODS,
+    APP_CORS_ALLOW_ORIGIN_REGEX,
+    APP_CORS_ALLOW_ORIGINS,
+    APP_CORS_EXPOSE_HEADERS,
+    APP_CORS_MAX_AGE,
+    APP_ENABLE_FRONTEND,
+    APP_NAME,
+    APP_TITLE,
 )
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,9 +21,9 @@ from integration.app.app_state import app_state
 from integration.frontend_index import frontend_index_response
 from schema.frontend_config import FrontendConfig
 
-app = FastAPI(title=zrb_app_name, lifespan=app_lifespan)
+app = FastAPI(title=APP_NAME, lifespan=app_lifespan)
 
-if app_enable_frontend:
+if APP_ENABLE_FRONTEND:
 
     @app.middleware("http")
     async def catch_all(request, call_next):
@@ -38,13 +38,13 @@ if app_enable_frontend:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=app_cors_allow_origins,
-    allow_origin_regex=app_cors_allow_origin_regex,
-    allow_methods=app_cors_allow_methods,
-    allow_headers=app_cors_allow_headers,
-    allow_credentials=app_cors_allow_credentials,
-    expose_headers=app_cors_expose_headers,
-    max_age=app_cors_max_age,
+    allow_origins=APP_CORS_ALLOW_ORIGINS,
+    allow_origin_regex=APP_CORS_ALLOW_ORIGIN_REGEX,
+    allow_methods=APP_CORS_ALLOW_METHODS,
+    allow_headers=APP_CORS_ALLOW_HEADERS,
+    allow_credentials=APP_CORS_ALLOW_CREDENTIALS,
+    expose_headers=APP_CORS_EXPOSE_HEADERS,
+    max_age=APP_CORS_MAX_AGE,
 )
 
 
@@ -60,7 +60,7 @@ def get_application_liveness_status():
     """
     if app_state.get_liveness():
         return JSONResponse(
-            content={"app": zrb_app_name, "alive": True}, status_code=status.HTTP_200_OK
+            content={"app": APP_NAME, "alive": True}, status_code=status.HTTP_200_OK
         )
     return JSONResponse(
         content={"message": "Service is not alive"},
@@ -81,7 +81,7 @@ def get_application_readiness_status():
     """
     if app_state.get_readiness():
         return JSONResponse(
-            content={"app": zrb_app_name, "ready": True}, status_code=status.HTTP_200_OK
+            content={"app": APP_NAME, "ready": True}, status_code=status.HTTP_200_OK
         )
     return JSONResponse(
         content={"message": "Service is not ready"},
@@ -93,8 +93,8 @@ def get_application_readiness_status():
 @app.get("/api/v1/frontend/configs", response_model=FrontendConfig)
 def get_configs() -> FrontendConfig:
     return FrontendConfig(
-        brand=public_brand,
-        title=public_title,
-        access_token_cookie_key=public_auth_access_token_cookie_key,
-        refresh_token_cookie_key=public_auth_refresh_token_cookie_key,
+        brand=APP_BRAND,
+        title=APP_TITLE,
+        access_token_cookie_key=APP_AUTH_ACCESS_TOKEN_COOKIE_KEY,
+        refresh_token_cookie_key=APP_AUTH_REFRESH_TOKEN_COOKIE_KEY,
     )

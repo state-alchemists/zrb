@@ -225,7 +225,7 @@ zrb project add fastapp crud --project-dir . --app-name "fastapp" --module-name 
 
 # Add column to the entity
 zrb project add fastapp field --project-dir . --app-name "fastapp" --module-name "library" \
-    --entity-name "book" --column-name "title" --column-type "str"
+    --entity-name "book" --column-name "title" --column-type "string"
 
 # Run Fastapp as monolith
 zrb project fastapp monolith start

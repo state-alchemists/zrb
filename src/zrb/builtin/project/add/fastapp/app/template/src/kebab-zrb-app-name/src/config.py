@@ -4,100 +4,94 @@ from typing import List
 
 from helper.conversion import str_to_boolean, str_to_logging_level
 
-app_src_dir = os.path.dirname(__file__)
+APP_SRC_DIR = os.path.dirname(__file__)
 
-zrb_app_name = os.getenv("APP_NAME", "app")
-app_logging_level = str_to_logging_level(os.getenv("APP_LOGGING_LEVEL", "INFO"))
-app_host = os.getenv("APP_HOST", "0.0.0.0")
-app_port = int(os.getenv("APP_PORT", "8080"))
-app_reload = str_to_boolean(os.getenv("APP_RELOAD", "true"))
-app_max_not_ready = int(os.getenv("APP_MAX_NOT_READY", "10"))
+APP_NAME = os.getenv("APP_NAME", "app")
+APP_BRAND = os.getenv("PUBLIC_BRAND", "PascalZrbAppName")
+APP_TITLE = os.getenv("PUBLIC_TITLE", "PascalZrbAppName")
 
-app_enable_otel = str_to_boolean(os.getenv("APP_ENABLE_OTEL", "false"))
-app_otel_exporter_otlp_endpoint = os.getenv(
+APP_LOGGING_LEVEL = str_to_logging_level(os.getenv("APP_LOGGING_LEVEL", "INFO"))
+APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
+APP_PORT = int(os.getenv("APP_PORT", "8080"))
+APP_RELOAD = str_to_boolean(os.getenv("APP_RELOAD", "true"))
+APP_MAX_NOT_READY = int(os.getenv("APP_MAX_NOT_READY", "10"))
+
+APP_ENABLE_OTEL = str_to_boolean(os.getenv("APP_ENABLE_OTEL", "false"))
+APP_OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv(
     "APP_OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
 )
 
-app_auth_access_token_cookie_key = os.getenv(
-    "PUBLIC_AUTH_ACCESS_TOKEN_COOKIE_KEY", "access_token"
+APP_AUTH_ACCESS_TOKEN_COOKIE_KEY = os.getenv(
+    "APP_AUTH_ACCESS_TOKEN_COOKIE_KEY", "access_token"
 )
-app_auth_refresh_token_cookie_key = os.getenv(
-    "PUBLIC_AUTH_REFRESH_TOKEN_COOKIE_KEY", "refresh_token"
+APP_AUTH_REFRESH_TOKEN_COOKIE_KEY = os.getenv(
+    "APP_AUTH_REFRESH_TOKEN_COOKIE_KEY", "refresh_token"
 )
 
-app_auth_access_token_type = os.getenv("APP_AUTH_ACCESS_TOKEN_TYPE", "jwt")
-app_auth_access_token_expire_seconds = int(
+APP_AUTH_ACCESS_TOKEN_TYPE = os.getenv("APP_AUTH_ACCESS_TOKEN_TYPE", "jwt")
+APP_AUTH_ACCESS_TOKEN_EXPIRE_SECONDS = int(
     os.getenv("APP_AUTH_ACCESS_TOKEN_EXPIRE_SECONDS", "300")
 )
-app_auth_refresh_token_type = os.getenv("APP_AUTH_REFRESH_TOKEN_TYPE", "jwt")
-app_auth_refresh_token_expire_seconds = int(
+APP_AUTH_REFRESH_TOKEN_TYPE = os.getenv("APP_AUTH_REFRESH_TOKEN_TYPE", "jwt")
+APP_AUTH_REFRESH_TOKEN_EXPIRE_SECONDS = int(
     os.getenv("APP_AUTH_REFRESH_TOKEN_EXPIRE_SECONDS", "86400")
 )
-app_auth_jwt_token_secret_key = os.getenv("APP_AUTH_JWT_TOKEN_SECRET_KEY", "secret")
-app_auth_jwt_token_algorithm = os.getenv("APP_AUTH_JWT_TOKEN_ALGORITHM", "HS256")
+APP_AUTH_JWT_TOKEN_SECRET_KEY = os.getenv("APP_AUTH_JWT_TOKEN_SECRET_KEY", "secret")
+APP_AUTH_JWT_TOKEN_ALGORITHM = os.getenv("APP_AUTH_JWT_TOKEN_ALGORITHM", "HS256")
 
-app_auth_admin_active = str_to_boolean(os.getenv("APP_AUTH_ADMIN_ACTIVE", "true"))
-app_auth_admin_user_id = os.getenv("APP_AUTH_ADMIN_USER_ID", "root")
-app_auth_admin_username = os.getenv("APP_AUTH_ADMIN_USERNAME", "admin")
-app_auth_admin_password = os.getenv("APP_AUTH_ADMIN_PASSWORD", "admin")
-app_auth_admin_email = os.getenv("APP_AUTH_ADMIN_EMAIL", "")
-app_auth_admin_phone = os.getenv("APP_AUTH_ADMIN_PHONE", "")
-app_auth_guest_user_id = os.getenv("APP_AUTH_GUEST_USER_ID", "guest")
-app_auth_guest_username = os.getenv("APP_AUTH_GUEST_USERNAME", "guest")
-app_auth_guest_email = os.getenv("APP_AUTH_GUEST_EMAIL", "")
-app_auth_guest_phone = os.getenv("APP_AUTH_GUEST_PHONE", "")
+APP_AUTH_ADMIN_ACTIVE = str_to_boolean(os.getenv("APP_AUTH_ADMIN_ACTIVE", "true"))
+APP_AUTH_ADMIN_USER_ID = os.getenv("APP_AUTH_ADMIN_USER_ID", "root")
+APP_AUTH_ADMIN_USERNAME = os.getenv("APP_AUTH_ADMIN_USERNAME", "admin")
+APP_AUTH_ADMIN_PASSWORD = os.getenv("APP_AUTH_ADMIN_PASSWORD", "admin")
+APP_AUTH_ADMIN_EMAIL = os.getenv("APP_AUTH_ADMIN_EMAIL", "")
+APP_AUTH_ADMIN_PHONE = os.getenv("APP_AUTH_ADMIN_PHONE", "")
+APP_AUTH_GUEST_USER_ID = os.getenv("APP_AUTH_GUEST_USER_ID", "guest")
+APP_AUTH_GUEST_USERNAME = os.getenv("APP_AUTH_GUEST_USERNAME", "guest")
+APP_AUTH_GUEST_EMAIL = os.getenv("APP_AUTH_GUEST_EMAIL", "")
+APP_AUTH_GUEST_PHONE = os.getenv("APP_AUTH_GUEST_PHONE", "")
 
-app_db_connection = os.getenv("APP_DB_CONNECTION", "sqlite://")
-app_db_engine_show_log = str_to_boolean(os.getenv("APP_DB_ENGINE_SHOW_LOG", "false"))
-app_db_auto_migrate = str_to_boolean(os.getenv("APP_DB_AUTO_MIGRATE", "true"))
+APP_DB_CONNECTION = os.getenv("APP_DB_CONNECTION", "sqlite://")
+APP_DB_ENGINE_SHOW_LOG = str_to_boolean(os.getenv("APP_DB_ENGINE_SHOW_LOG", "false"))
+APP_DB_AUTO_MIGRATE = str_to_boolean(os.getenv("APP_DB_AUTO_MIGRATE", "true"))
 
-app_broker_type = os.getenv("APP_BROKER_TYPE", "mock")
+APP_BROKER_TYPE = os.getenv("APP_BROKER_TYPE", "mock")
 
-app_enable_rpc_server: bool = str_to_boolean(os.getenv("APP_ENABLE_RPC_SERVER", "true"))
+APP_ENABLE_RPC_SERVER: bool = str_to_boolean(os.getenv("APP_ENABLE_RPC_SERVER", "true"))
 
-app_enable_event_handler: bool = str_to_boolean(
+APP_ENABLE_EVENT_HANDLER: bool = str_to_boolean(
     os.getenv("APP_ENABLE_EVENT_HANDLER", "true")
 )
 
-app_enable_frontend: bool = str_to_boolean(os.getenv("APP_ENABLE_FRONTEND", "true"))
+APP_ENABLE_FRONTEND: bool = str_to_boolean(os.getenv("APP_ENABLE_FRONTEND", "true"))
 
-app_enable_api: bool = str_to_boolean(os.getenv("APP_ENABLE_API", "true"))
+APP_ENABLE_API: bool = str_to_boolean(os.getenv("APP_ENABLE_API", "true"))
 
-app_rmq_connection_string = os.getenv(
+APP_RMQ_CONNECTION_STRING = os.getenv(
     "APP_RMQ_CONNECTION", "amqp://guest:guest@localhost/"
 )
 
-app_kafka_bootstrap_servers = os.getenv("APP_KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-app_kafka_security_protocol = os.getenv("APP_KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
-app_kafka_sasl_mechanism = os.getenv("APP_KAFKA_SASL_MECHANISM", "SCRAM-SHA-512")
-app_kafka_sasl_user = os.getenv("APP_KAFKA_SASL_USER", "admin")
-app_kafka_sasl_pass = os.getenv("APP_KAFKA_SASL_PASS", "admin")
+APP_KAFKA_BOOTSTRAP_SERVERS = os.getenv("APP_KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+APP_KAFKA_SECURITY_PROTOCOL = os.getenv("APP_KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+APP_KAFKA_SASL_MECHANISM = os.getenv("APP_KAFKA_SASL_MECHANISM", "SCRAM-SHA-512")
+APP_KAFKA_SASL_USER = os.getenv("APP_KAFKA_SASL_USER", "admin")
+APP_KAFKA_SASL_PASS = os.getenv("APP_KAFKA_SASL_PASS", "admin")
 
-app_cors_allow_origins: List[str] = json.loads(
+APP_CORS_ALLOW_ORIGINS: List[str] = json.loads(
     os.getenv("APP_CORS_ALLOW_ORIGINS", '["*"]')
 )
-app_cors_allow_origin_regex: str = os.getenv("APP_CORS_ALLOW_ORIGIN_REGEX", "")
-app_cors_allow_methods: List[str] = json.loads(
+APP_CORS_ALLOW_ORIGIN_REGEX: str = os.getenv("APP_CORS_ALLOW_ORIGIN_REGEX", "")
+APP_CORS_ALLOW_METHODS: List[str] = json.loads(
     os.getenv("APP_CORS_ALLOW_METHODS", '["*"]')
 )
-app_cors_allow_headers: List[str] = json.loads(
+APP_CORS_ALLOW_HEADERS: List[str] = json.loads(
     os.getenv("APP_CORS_ALLOW_HEADERS", '["*"]')
 )
-app_cors_allow_credentials: bool = str_to_boolean(
+APP_CORS_ALLOW_CREDENTIALS: bool = str_to_boolean(
     os.getenv("APP_CORS_ALLOW_CREDENTIALS", "false")
 )
-app_cors_expose_headers: bool = str_to_boolean(
+APP_CORS_EXPOSE_HEADERS: bool = str_to_boolean(
     os.getenv("APP_CORS_EXPOSE_HEADERS", "false")
 )
-app_cors_max_age: int = int(os.getenv("APP_CORS_MAX_AGE", "600"))
-app_enable_auth_module = str_to_boolean(os.getenv("APP_ENABLE_AUTH_MODULE", "true"))
-app_enable_log_module = str_to_boolean(os.getenv("APP_ENABLE_LOG_MODULE", "true"))
-
-public_brand = os.getenv("PUBLIC_BRAND", "PascalZrbAppName")
-public_title = os.getenv("PUBLIC_TITLE", "PascalZrbAppName")
-public_auth_access_token_cookie_key = os.getenv(
-    "PUBLIC_AUTH_ACCESS_TOKEN_COOKIE_KEY", "access_token"
-)
-public_auth_refresh_token_cookie_key = os.getenv(
-    "PUBLIC_AUTH_REFRESH_TOKEN_COOKIE_KEY", "refresh_token"
-)
+APP_CORS_MAX_AGE: int = int(os.getenv("APP_CORS_MAX_AGE", "600"))
+APP_ENABLE_AUTH_MODULE = str_to_boolean(os.getenv("APP_ENABLE_AUTH_MODULE", "true"))
+APP_ENABLE_LOG_MODULE = str_to_boolean(os.getenv("APP_ENABLE_LOG_MODULE", "true"))

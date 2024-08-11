@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 
 import jinja2
 
@@ -18,6 +19,7 @@ def _is_undefined(value: Any) -> bool:
     return value is None or isinstance(value, jinja2.Undefined)
 
 
+@lru_cache
 @typechecked
 def coalesce(value: Any, *alternatives: Any) -> Any:
     if not _is_undefined(value):
@@ -28,6 +30,7 @@ def coalesce(value: Any, *alternatives: Any) -> Any:
     return None
 
 
+@lru_cache
 @typechecked
 def coalesce_str(value: Any, *alternatives: Any) -> Any:
     if not _is_undefined(value) and value != "":
@@ -38,6 +41,7 @@ def coalesce_str(value: Any, *alternatives: Any) -> Any:
     return ""
 
 
+@lru_cache
 @typechecked
 def to_camel_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
@@ -47,6 +51,7 @@ def to_camel_case(text: Optional[str]) -> str:
     return pascal[0].lower() + pascal[1:]
 
 
+@lru_cache
 @typechecked
 def to_pascal_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
@@ -56,6 +61,7 @@ def to_pascal_case(text: Optional[str]) -> str:
     )
 
 
+@lru_cache
 @typechecked
 def to_kebab_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
@@ -63,6 +69,7 @@ def to_kebab_case(text: Optional[str]) -> str:
     return "-".join([x.lower() for x in _to_space_separated(text).split(" ")])
 
 
+@lru_cache
 @typechecked
 def to_snake_case(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
@@ -70,12 +77,14 @@ def to_snake_case(text: Optional[str]) -> str:
     return "_".join([x.lower() for x in _to_space_separated(text).split(" ")])
 
 
+@lru_cache
 @typechecked
 def _to_alphanum(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
     return NON_ALPHA_NUM.sub(" ", text)
 
 
+@lru_cache
 @typechecked
 def to_human_readable(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
@@ -87,11 +96,13 @@ def to_human_readable(text: Optional[str]) -> str:
     )
 
 
+@lru_cache
 @typechecked
 def to_capitalized_human_readable(text: Optional[str]) -> str:
     return to_human_readable(text).capitalize()
 
 
+@lru_cache
 @typechecked
 def _to_space_separated(text: Optional[str]) -> str:
     text = str(text) if not _is_undefined(text) else ""
@@ -122,6 +133,7 @@ def _to_space_separated(text: Optional[str]) -> str:
     return " ".join(new_parts).strip(" ")
 
 
+@lru_cache
 @typechecked
 def to_boolean(text: str) -> bool:
     return conversion_to_boolean(text)
