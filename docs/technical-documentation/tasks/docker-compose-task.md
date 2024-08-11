@@ -254,6 +254,11 @@ Getting all inputs of this task and all its upstream, non-duplicated.
 No documentation available.
 
 
+### `DockerComposeTask._get_docker_compose_cmd_script`
+
+No documentation available.
+
+
 ### `DockerComposeTask._get_elapsed_time`
 
 No documentation available.

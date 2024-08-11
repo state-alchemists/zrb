@@ -10,7 +10,7 @@ from zrb.builtin.project.create._input import (
     project_description_input,
     project_name_input,
 )
-from zrb.config.config import version
+from zrb.config.config import VERSION
 from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 from zrb.runner import runner
@@ -57,7 +57,7 @@ copy_resource = ResourceMaker(
         "zrbProjectAuthorName": "{{input.project_author_name}}",
         "zrbProjectAuthorEmail": "{{input.project_author_email}}",
         "zrbImageDefaultNamespace": _IMAGE_DEFAULT_NAMESPACE,
-        "zrbVersion": version,
+        "zrbVersion": VERSION,
     },
     replacement_mutator=copy_resource_replacement_mutator,
     template_path=os.path.join(_CURRENT_DIR, "template"),

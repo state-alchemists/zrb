@@ -1,4 +1,4 @@
-from zrb.config.config import default_editor
+from zrb.config.config import DEFAULT_EDITOR
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.multiline import edit
@@ -56,7 +56,7 @@ class MultilineInput(BaseInput):
         shortcut: Optional[str] = None,
         comment_prefix: str = "//",
         comment_suffix: str = "",
-        editor: str = default_editor,
+        editor: str = DEFAULT_EDITOR,
         extension: str = "txt",
         default: Optional[Union[Any, InputDefault]] = None,
         callback: Optional[InputCallback] = None,

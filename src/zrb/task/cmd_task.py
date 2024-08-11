@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 
-from zrb.config.config import default_shell, logging_level
+from zrb.config.config import DEFAULT_SHELL, LOGGING_LEVEL
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
@@ -57,7 +57,7 @@ def _reset_stty():
 
 
 def _log_error(message: Any):
-    if logging_level > logging.ERROR:
+    if LOGGING_LEVEL > logging.ERROR:
         return
     colored_message = colored(f"{message}", color="red", attrs=["bold"])
     logger.error(colored_message, exc_info=True)
@@ -187,8 +187,8 @@ class CmdTask(BaseTask):
         self._max_error_size = max_error_line
         self._output_buffer: Iterable[str] = []
         self._error_buffer: Iterable[str] = []
-        if executable is None and default_shell != "":
-            executable = default_shell
+        if executable is None and DEFAULT_SHELL != "":
+            executable = DEFAULT_SHELL
         self._executable = executable
         self._process: Optional[asyncio.subprocess.Process]
         self._preexec_fn = preexec_fn

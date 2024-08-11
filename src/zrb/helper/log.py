@@ -1,15 +1,15 @@
 import logging
 
-from zrb.config.config import logging_level
+from zrb.config.config import LOGGING_LEVEL
 from zrb.helper.accessories.untyped_color import untyped_colored as colored
 
 # create logger
 logger = logging.getLogger("zrb")
-logger.setLevel(logging_level)
+logger.setLevel(LOGGING_LEVEL)
 
 # create console handler and set level to debug
 ch = logging.StreamHandler()
-ch.setLevel(logging_level)
+ch.setLevel(LOGGING_LEVEL)
 
 # create formatter
 formatter = logging.Formatter(

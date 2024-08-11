@@ -14,6 +14,7 @@ from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.checker import Checker
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task
+from zrb.task.docker_compose_start_task import DockerComposeStartTask
 from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
 from zrb.task.flow_task import FlowTask
 from zrb.task.http_checker import HTTPChecker
@@ -66,6 +67,7 @@ assert python_task
 assert Task
 assert CmdTask
 assert DockerComposeTask
+assert DockerComposeStartTask
 assert ServiceConfig
 assert BaseRemoteCmdTask
 assert RemoteConfig
