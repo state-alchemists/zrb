@@ -20,6 +20,8 @@ def get_support_container_compose_profiles(*args: Any, **kwargs: Any) -> List[st
     task: Task = kwargs.get("_task")
     env_map = task.get_env_map()
     compose_profiles: List[str] = []
+    if env_map.get("APP_DB_CONNECTION", "").startswith("postgresql"):
+        compose_profiles.append("postgres")
     broker_type = env_map.get("APP_BROKER_TYPE", "rabbitmq")
     if broker_type in ["rabbitmq", "kafka"]:
         compose_profiles.append(broker_type)

@@ -112,6 +112,8 @@ services:
     container_name: ${CONTAINER_PREFIX:-my}-kebab-zrb-app-name-postgresql
     hostname: postgresql
     restart: unless-stopped
+    profiles:
+    - postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
