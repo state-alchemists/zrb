@@ -16,7 +16,7 @@ _CURRENT_DIR = os.path.dirname(__file__)
 
 
 _disable_all_module_envs = get_disable_all_module_envs()
-start_snake_zrb_app_name_microservices: List[Task] = []
+start_snake_zrb_app_name_services: List[Task] = []
 for _module_index, _module_name in enumerate(MODULES):
     _service_env_file = get_service_env_file(_module_name)
     _service_envs = get_service_envs(zrbAppHttpPort, _module_index, _module_name)
@@ -52,4 +52,4 @@ for _module_index, _module_name in enumerate(MODULES):
             )
         ],
     )
-    start_snake_zrb_app_name_microservices.append(_start_service)
+    start_snake_zrb_app_name_services.append(_start_service)

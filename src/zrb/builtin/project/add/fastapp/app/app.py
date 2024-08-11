@@ -16,6 +16,7 @@ from zrb.builtin.project.add.fastapp.app._input import (
     env_prefix_input,
     http_port_input,
 )
+from zrb.config.config import VERSION
 from zrb.helper.accessories.color import colored
 from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case
@@ -70,6 +71,7 @@ copy_resource = ResourceMaker(
         "zrb-app-image-name": "{{input.app_image_name}}",
         "zrbAppHttpAuthPort": '{{util.coalesce(input.http_port, "3001") + 1}}',
         "zrbAppHttpLogPort": '{{util.coalesce(input.http_port, "3001") + 2}}',
+        "zrbVersion": VERSION,
     },
     template_path=os.path.join(_CURRENT_DIR, "template"),
     destination_path="{{ input.project_dir }}",

@@ -24,39 +24,33 @@ package_homepage_input = StrInput(
     name="package-homepage",
     description="Package homepage",
     prompt="Package homepage",
-    default="".join(
-        [
-            "https://github.com/",
-            SYSTEM_USER,
-            "/{{util.to_kebab_case(input.package_name)}}",
-        ]
-    ),
+    default="".join([
+        "https://github.com/",
+        SYSTEM_USER,
+        "/{{util.to_kebab_case(input.package_name)}}",
+    ]),
 )
 
 package_repository_input = StrInput(
     name="package-repository",
     description="Package repository",
     prompt="Package repository",
-    default="".join(
-        [
-            "https://github.com/",
-            SYSTEM_USER,
-            "/{{util.to_kebab_case(input.package_name)}}",
-        ]
-    ),
+    default="".join([
+        "https://github.com/",
+        SYSTEM_USER,
+        "/{{util.to_kebab_case(input.package_name)}}",
+    ]),
 )
 
 package_documentation_input = StrInput(
     name="package-documentation",
     description="Package documentation",
     prompt="Package documentation",
-    default="".join(
-        [
-            "https://github.com/",
-            SYSTEM_USER,
-            "/{{util.to_kebab_case(input.package_name)}}",
-        ]
-    ),
+    default="".join([
+        "https://github.com/",
+        SYSTEM_USER,
+        "/{{util.to_kebab_case(input.package_name)}}",
+    ]),
 )
 
 package_author_name_input = StrInput(

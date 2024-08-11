@@ -10,7 +10,7 @@ from .._input import host_input, https_input, local_input
 from ..container._input import enable_monitoring_input
 from ._group import snake_zrb_app_name_microservices_group
 from .start_gateway import start_snake_zrb_app_name_gateway
-from .start_microservices import start_snake_zrb_app_name_microservices
+from .start_services import start_snake_zrb_app_name_services
 
 _CURRENT_DIR = os.path.dirname(__file__)
 
@@ -28,7 +28,7 @@ _CURRENT_DIR = os.path.dirname(__file__)
     ],
     upstreams=[
         start_snake_zrb_app_name_gateway,
-        *start_snake_zrb_app_name_microservices,
+        *start_snake_zrb_app_name_services,
     ],
 )
 def start_snake_zrb_app_name_microservices(*args: Any, **kwargs: Any):
