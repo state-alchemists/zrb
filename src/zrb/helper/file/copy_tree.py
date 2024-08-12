@@ -1,7 +1,7 @@
 import fnmatch
 import os
 import shutil
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Optional
 
 from zrb.helper.accessories.color import colored
@@ -17,7 +17,7 @@ logger.debug(colored("Loading zrb.helper.file.copy_tree", attrs=["dark"]))
 async def copy_tree(
     src: str,
     dst: str,
-    replacements: Optional[dict[str, str]] = None,
+    replacements: Optional[Mapping[str, str]] = None,
     excludes: Optional[Iterable[str]] = None,
     skip_parsing: Optional[Iterable[str]] = None,
 ):
@@ -48,7 +48,7 @@ async def copy_tree(
 async def _copy_file(
     src: str,
     dst: str,
-    replacements: Optional[dict[str, str]] = None,
+    replacements: Optional[Mapping[str, str]] = None,
     excludes: Optional[Iterable[str]] = None,
     skip_parsing: Optional[Iterable[str]] = None,
 ):

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Mapping
 from typing import Optional
 
 from aiokafka import __version__
@@ -21,7 +22,7 @@ class KafkaAdmin(Admin):
         self,
         logger: logging.Logger,
         bootstrap_servers: str,
-        configs: dict[str, KafkaEventConfig],
+        configs: Mapping[str, KafkaEventConfig],
         client_id: str = "kafka-admin-" + __version__,
         security_protocol="PLAINTEXT",
         sasl_mechanism="PLAIN",
@@ -42,7 +43,7 @@ class KafkaAdmin(Admin):
         self.sasl_kerberos_service_name = sasl_kerberos_service_name
         self.sasl_kerberos_domain_name = sasl_kerberos_domain_name
         self.sasl_oauth_token_provider = sasl_oauth_token_provider
-        self._existing_events: dict[str, bool] = {}
+        self._existing_events: Mapping[str, bool] = {}
 
     async def create_events(self, event_names: list[str]):
         # Only handle non-existing events

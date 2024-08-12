@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import get_random_color
@@ -191,7 +191,7 @@ class CommonTaskModel:
         if self.__all_inputs is not None:
             return self.__all_inputs
         self.__all_inputs: list[AnyInput] = []
-        existing_input_names: dict[str, bool] = {}
+        existing_input_names: Mapping[str, bool] = {}
         # Add task inputs
         inputs = self._get_inputs()
         for input_index, first_occurence_task_input in enumerate(inputs):
@@ -243,8 +243,8 @@ class CommonTaskModel:
             self.__has_already_inject_envs = True
         return list(self._envs)
 
-    def _get_combined_env(self) -> dict[str, Env]:
-        all_envs: dict[str, Env] = {}
+    def _get_combined_env(self) -> Mapping[str, Env]:
+        all_envs: Mapping[str, Env] = {}
         for env_name in os.environ:
             if env_name in RESERVED_ENV_NAMES:
                 continue

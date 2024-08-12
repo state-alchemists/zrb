@@ -1,4 +1,5 @@
 from typing import Any
+from collections.abc import Mapping
 from zrb import (
     runner,
     AnyTask,
@@ -151,7 +152,7 @@ runner.register(format_code)
 def make_docs(*args: Any, **kwargs: Any):
     task: Task = kwargs.get("_task")
     dir = os.path.join(_CURRENT_DIR, "docs", "technical-documentation")
-    configs: dict[str, Any] = {
+    configs: Mapping[str, Any] = {
         os.path.join(dir, "task-group.md"): Group,
         os.path.join(dir, "task-envs", "env.md"): Env,
         os.path.join(dir, "task-envs", "env-file.md"): EnvFile,

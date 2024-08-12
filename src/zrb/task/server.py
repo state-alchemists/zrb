@@ -1,6 +1,6 @@
 import asyncio
 import copy
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import colored
@@ -40,7 +40,7 @@ class Controller:
         self._triggers = self._to_task_list(trigger)
         self._actions = self._to_task_list(action)
         self._args: list[Any] = []
-        self._kwargs: dict[str, Any] = {}
+        self._kwargs: Mapping[str, Any] = {}
         self._inputs: list[AnyInput] = []
         self._envs: list[Env] = []
         self._env_files: list[EnvFile] = []
@@ -48,7 +48,7 @@ class Controller:
     def set_args(self, args: list[Any]):
         self._args = args
 
-    def set_kwargs(self, kwargs: dict[str, Any]):
+    def set_kwargs(self, kwargs: Mapping[str, Any]):
         self._kwargs = kwargs
 
     def set_inputs(self, inputs: list[AnyInput]):

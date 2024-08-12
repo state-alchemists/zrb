@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -53,7 +54,7 @@ class JWTAccessTokenUtil(AccessTokenUtil):
         except jwt.JWTError:
             raise HTTPAPIException(422, "Invalid token")
 
-    def _get_decode_options(self, parse_expired_token: bool) -> dict[str, Any]:
+    def _get_decode_options(self, parse_expired_token: bool) -> Mapping[str, Any]:
         if parse_expired_token:
             return {"verify_exp": False}
         return {}

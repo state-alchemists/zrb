@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
@@ -32,7 +32,7 @@ from zrb.task_input.any_input import AnyInput
 
 logger.debug(colored("Loading zrb.task.resource_maker", attrs=["dark"]))
 
-Replacement = dict[str, JinjaTemplate]
+Replacement = Mapping[str, JinjaTemplate]
 ReplacementMutator = Callable[[AnyTask, Replacement], Replacement]
 TResourceMaker = TypeVar("TResourceMaker", bound="ResourceMaker")
 
@@ -159,7 +159,7 @@ class ResourceMaker(BaseTask):
         self.log_debug(f"Rendered excludes: {excludes}")
         # render replacements
         self.log_debug(f"Render replacements: {self._replacements}")
-        rendered_replacements: dict[str, str] = {
+        rendered_replacements: Mapping[str, str] = {
             old: self.render_str(new) for old, new in self._replacements.items()
         }
         self.log_debug(f"Rendered replacements: {rendered_replacements}")
@@ -186,9 +186,9 @@ class ResourceMaker(BaseTask):
         return True
 
     def _default_mutate_replacements(
-        self, rendered_replacements: dict[str, str]
-    ) -> dict[str, str]:
-        transformations: dict[str, Callable[[str], str]] = {
+        self, rendered_replacements: Mapping[str, str]
+    ) -> Mapping[str, str]:
+        transformations: Mapping[str, Callable[[str], str]] = {
             "Pascal": to_pascal_case,
             "camel": to_camel_case,
             "kebab": to_kebab_case,

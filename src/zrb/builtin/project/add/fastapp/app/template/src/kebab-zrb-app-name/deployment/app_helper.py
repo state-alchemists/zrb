@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 
 import pulumi_kubernetes as k8s
 from _common import (
@@ -98,8 +99,8 @@ def _create_app_deployment(
     resource_name: str,
     image: str,
     replica: int,
-    app_labels: dict[str, str],
-    env_map: dict[str, str],
+    app_labels: Mapping[str, str],
+    env_map: Mapping[str, str],
     app_port: int,
 ) -> k8s.apps.v1.Deployment:
     # Pulumi deployment docs:
@@ -146,7 +147,7 @@ def _create_app_deployment(
 
 def _create_app_service(
     resource_name: str,
-    app_labels: dict[str, str],
+    app_labels: Mapping[str, str],
     app_port: int,
     service_type: str = "LoadBalancer",
     service_port: int = 8080,

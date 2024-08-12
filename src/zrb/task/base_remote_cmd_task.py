@@ -1,6 +1,6 @@
 import os
 import pathlib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
@@ -43,7 +43,7 @@ class RemoteConfig:
         ssh_key: JinjaTemplate = "",
         port: Union[int, JinjaTemplate] = 22,
         name: Optional[str] = None,
-        config_map: Optional[dict[str, JinjaTemplate]] = None,
+        config_map: Optional[Mapping[str, JinjaTemplate]] = None,
     ):
         self.name = name if name is not None else host
         self.host = host

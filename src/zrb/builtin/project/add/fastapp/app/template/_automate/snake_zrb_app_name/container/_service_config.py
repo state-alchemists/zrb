@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 
 from zrb import Env, EnvFile, ServiceConfig
 from zrb.helper.util import to_kebab_case
@@ -30,7 +31,7 @@ _enable_all_module_env_file = EnvFile(
     path=_enable_all_module_env_file_name, prefix=_container_env_prefix
 )
 
-snake_zrb_app_name_service_configs: dict[str, ServiceConfig] = {
+snake_zrb_app_name_service_configs: Mapping[str, ServiceConfig] = {
     "kebab-zrb-app-name": ServiceConfig(
         env_files=[
             _app_template_env_file,

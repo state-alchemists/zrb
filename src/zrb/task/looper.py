@@ -10,7 +10,7 @@ logger.debug(colored("Loading zrb.task.looper", attrs=["dark"]))
 
 class Looper:
     def __init__(self):
-        self._queue: dict[str, list[Optional[bool]]] = {}
+        self._queue: Mapping[str, list[Optional[bool]]] = {}
         self._should_stop = False
 
     async def pop(self, identifier: str) -> Optional[bool]:

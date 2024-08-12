@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Optional
 
 from component.messagebus.messagebus import Publisher
@@ -69,7 +70,9 @@ class UserModel(HistoricalRepoModel[User, UserData, UserResult]):
             return self.guest_user
         return await super().get_by_id(id)
 
-    async def is_authorized(self, id: str, *permission_names: str) -> dict[str, bool]:
+    async def is_authorized(
+        self, id: str, *permission_names: str
+    ) -> Mapping[str, bool]:
         user = await self.get_by_id(id)
         if self.is_admin(user.id):
             return {permission_name: True for permission_name in permission_names}

@@ -1,5 +1,6 @@
 import asyncio
 import os
+from collections.abc import Mapping
 from typing import Any
 
 import jsons
@@ -69,7 +70,7 @@ async def _add_docker_compose_service(
 @typechecked
 def _get_new_docker_compose_service_definition(
     app_name: str, module_name: str, app_host_port_env: str, app_container_port_env: str
-) -> dict[str, Any]:
+) -> Mapping[str, Any]:
     kebab_app_name = to_kebab_case(app_name)
     kebab_module_name = to_kebab_case(module_name)
     snake_module_name = to_snake_case(module_name)

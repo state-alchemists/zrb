@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 from typing import Any, Optional, Union
 
 import jinja2
@@ -25,30 +26,30 @@ class AnyExtensionFileSystemLoader(jinja2.FileSystemLoader):
 @typechecked
 class Renderer:
     def __init__(self):
-        self.__input_map: dict[str, Any] = {}
+        self.__input_map: Mapping[str, Any] = {}
         self.__task: Optional[AnyTask] = None
-        self.__env_map: dict[str, str] = {}
-        self.__render_data: Optional[dict[str, Any]] = None
-        self.__rendered_str: dict[str, str] = {}
+        self.__env_map: Mapping[str, str] = {}
+        self.__render_data: Optional[Mapping[str, Any]] = None
+        self.__rendered_str: Mapping[str, str] = {}
 
     def _set_task(self, task: AnyTask):
         self.__task = task
 
-    def get_input_map(self) -> dict[str, Any]:
+    def get_input_map(self) -> Mapping[str, Any]:
         # This return reference to input map, so input map can be updated
         return self.__input_map
 
     def _set_input_map(self, key: str, val: Any):
         self.__input_map[key] = val
 
-    def get_env_map(self) -> dict[str, str]:
+    def get_env_map(self) -> Mapping[str, str]:
         # This return reference to env map, so env map can be updated
         return self.__env_map
 
     def _set_env_map(self, key: str, val: str):
         self.__env_map[key] = val
 
-    def render_any(self, value: Any, data: Optional[dict[str, Any]] = None) -> Any:
+    def render_any(self, value: Any, data: Optional[Mapping[str, Any]] = None) -> Any:
         if isinstance(value, str):
             return self.render_str(value, data)
         return value
@@ -56,14 +57,14 @@ class Renderer:
     def render_float(
         self,
         value: Union[JinjaTemplate, float],
-        data: Optional[dict[str, Any]] = None,
+        data: Optional[Mapping[str, Any]] = None,
     ) -> float:
         if isinstance(value, str):
             return float(self.render_str(value, data))
         return value
 
     def render_int(
-        self, value: Union[JinjaTemplate, int], data: Optional[dict[str, Any]] = None
+        self, value: Union[JinjaTemplate, int], data: Optional[Mapping[str, Any]] = None
     ) -> int:
         if isinstance(value, str):
             return int(self.render_str(value, data))
@@ -72,14 +73,14 @@ class Renderer:
     def render_bool(
         self,
         value: Union[JinjaTemplate, bool],
-        data: Optional[dict[str, Any]] = None,
+        data: Optional[Mapping[str, Any]] = None,
     ) -> bool:
         if isinstance(value, str):
             return to_boolean(self.render_str(value, data))
         return value
 
     def render_str(
-        self, value: JinjaTemplate, data: Optional[dict[str, Any]] = None
+        self, value: JinjaTemplate, data: Optional[Mapping[str, Any]] = None
     ) -> str:
         if value in self.__rendered_str:
             return self.__rendered_str[value]
@@ -95,7 +96,7 @@ class Renderer:
         return rendered_text
 
     def render_file(
-        self, path: JinjaTemplate, data: Optional[dict[str, Any]] = None
+        self, path: JinjaTemplate, data: Optional[Mapping[str, Any]] = None
     ) -> str:
         location_dir = os.path.dirname(path)
         env = jinja2.Environment(loader=AnyExtensionFileSystemLoader([location_dir]))
@@ -106,8 +107,8 @@ class Renderer:
         return rendered_text
 
     def __get_render_data(
-        self, additional_data: Optional[dict[str, Any]] = None
-    ) -> dict[str, Any]:
+        self, additional_data: Optional[Mapping[str, Any]] = None
+    ) -> Mapping[str, Any]:
         self.__ensure_cached_render_data()
         if additional_data is None:
             return self.__render_data

@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from ruamel.yaml import YAML, CommentedMap
@@ -25,7 +26,7 @@ def write_compose_file(file_name: str, data: Any):
 
 
 @typechecked
-def add_services(file_name: str, new_services: dict[str, str]):
+def add_services(file_name: str, new_services: Mapping[str, str]):
     data = read_compose_file(file_name)
     data = CommentedMap(data)
     data["services"].update(CommentedMap(new_services))

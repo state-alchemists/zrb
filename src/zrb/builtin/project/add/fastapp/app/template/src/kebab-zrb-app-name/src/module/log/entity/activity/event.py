@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from logging import Logger
 from typing import Any
 
@@ -13,5 +14,5 @@ def register_event(
     logger.info('🥪 Register event handlers for "log.activity"')
 
     @consumer.register("log_new_activity")
-    async def insert(data: dict[str, Any]):
+    async def insert(data: Mapping[str, Any]):
         await activity_model.insert(data=ActivityData(**data))

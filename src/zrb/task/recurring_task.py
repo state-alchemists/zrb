@@ -1,6 +1,6 @@
 import asyncio
 import copy
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import colored
@@ -31,7 +31,7 @@ class RunConfig:
         self,
         fn: Callable[..., Any],
         args: list[Any],
-        kwargs: dict[Any, Any],
+        kwargs: Mapping[Any, Any],
         execution_id: str,
     ):
         self.fn = fn
@@ -118,7 +118,7 @@ class RecurringTask(BaseTask):
         self._single_execution = single_execution
         self.print_err("Deprecated, please use Server instead")
 
-    async def _set_keyval(self, kwargs: dict[str, Any], env_prefix: str):
+    async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self.get_input_map())

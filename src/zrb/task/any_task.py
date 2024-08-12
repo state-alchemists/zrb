@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
@@ -1059,7 +1059,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_input_map(self) -> dict[str, Any]:
+    def get_input_map(self) -> Mapping[str, Any]:
         """
         Get a map representing task's Inputs.
 
@@ -1076,7 +1076,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_env_map(self) -> dict[str, Any]:
+    def get_env_map(self) -> Mapping[str, Any]:
         """
         Get a map representing task's Envs and EnvFiles
 
@@ -1093,7 +1093,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def render_any(self, value: Any, data: Optional[dict[str, Any]] = None) -> Any:
+    def render_any(self, value: Any, data: Optional[Mapping[str, Any]] = None) -> Any:
         """
         Render any value.
         """
@@ -1103,7 +1103,7 @@ class AnyTask(ABC):
     def render_float(
         self,
         value: Union[JinjaTemplate, float],
-        data: Optional[dict[str, Any]] = None,
+        data: Optional[Mapping[str, Any]] = None,
     ) -> float:
         """
         Render float value.
@@ -1112,7 +1112,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_int(
-        self, value: Union[JinjaTemplate, int], data: Optional[dict[str, Any]] = None
+        self, value: Union[JinjaTemplate, int], data: Optional[Mapping[str, Any]] = None
     ) -> int:
         pass
 
@@ -1120,7 +1120,7 @@ class AnyTask(ABC):
     def render_bool(
         self,
         value: Union[JinjaTemplate, bool],
-        data: Optional[dict[str, Any]] = None,
+        data: Optional[Mapping[str, Any]] = None,
     ) -> bool:
         """
         Render int value.
@@ -1129,7 +1129,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_str(
-        self, value: JinjaTemplate, data: Optional[dict[str, Any]] = None
+        self, value: JinjaTemplate, data: Optional[Mapping[str, Any]] = None
     ) -> str:
         """
         Render str value.
@@ -1138,7 +1138,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_file(
-        self, path: JinjaTemplate, data: Optional[dict[str, Any]] = None
+        self, path: JinjaTemplate, data: Optional[Mapping[str, Any]] = None
     ) -> str:
         """
         Render file content.
@@ -1164,7 +1164,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def _set_keyval(self, kwargs: dict[str, Any], env_prefix: str):
+    def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         """
         For internal use.
 

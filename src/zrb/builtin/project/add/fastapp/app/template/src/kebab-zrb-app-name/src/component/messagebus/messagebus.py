@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Optional
 
 from component.serializer.serializer import JsonSerializer, Serializer
@@ -38,9 +38,9 @@ class Consumer(ABC):
 
 
 class MessageSerializer:
-    def __init__(self, serializers: Optional[dict[str, Serializer]] = None):
+    def __init__(self, serializers: Optional[Mapping[str, Serializer]] = None):
         serializers = serializers if serializers is not None else {}
-        self.serializers: dict[str, Serializer] = serializers
+        self.serializers: Mapping[str, Serializer] = serializers
         self.default_serializer = JsonSerializer()
 
     def encode(self, event_name: str, message: Any) -> Any:

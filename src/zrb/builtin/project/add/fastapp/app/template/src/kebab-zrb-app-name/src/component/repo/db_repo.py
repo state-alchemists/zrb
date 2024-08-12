@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from typing import Any, Optional, Type, TypeVar
 
 from component.repo.repo import Repo
@@ -210,7 +211,7 @@ class DBRepo(Repo[Schema, SchemaData]):
 
     def _schema_data_to_db_entity_map(
         self, db: Session, schema_data: SchemaData
-    ) -> dict[str, Any]:
+    ) -> Mapping[str, Any]:
         """
         Convert entity_data into dictionary
         The result of this convertion is used for inserting/updating db_entity.

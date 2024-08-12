@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
@@ -8,7 +9,7 @@ logger.debug(colored("Loading zrb.helper.string.parse_replacment", attrs=["dark"
 
 
 @typechecked
-def parse_replacement(text: str, replacement: dict[str, str]):
+def parse_replacement(text: str, replacement: Mapping[str, str]):
     new_text = text
     for old, new in replacement.items():
         if len(new.strip().split("\n")) > 1:

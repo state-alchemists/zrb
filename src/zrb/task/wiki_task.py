@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.action.runner import Runner
@@ -121,7 +121,7 @@ def _create_function(directory: str, file_name: str) -> Callable[..., Any]:
     return fn
 
 
-def _get_directory_structure(path) -> dict[str, list[str]]:
+def _get_directory_structure(path) -> Mapping[str, list[str]]:
     contents = {"files": [], "dirs": []}
     for item in os.listdir(path):
         full_path = os.path.join(path, item)

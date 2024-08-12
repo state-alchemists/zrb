@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any, Optional, Union
 
 from zrb.config.config import DEFAULT_EDITOR
@@ -49,7 +50,7 @@ class MultilineInput(BaseInput):
         'user123'
     """
 
-    __default_cache: dict[str, Any] = {}
+    __default_cache: Mapping[str, Any] = {}
 
     def __init__(
         self,

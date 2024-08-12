@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
@@ -41,7 +41,7 @@ class PathWatcher(Watcher):
     - <task-name>.deleted-file
     """
 
-    __init_times: dict[str, dict[str, float]] = {}
+    __init_times: Mapping[str, Mapping[str, float]] = {}
 
     def __init__(
         self,
@@ -184,12 +184,12 @@ class PathWatcher(Watcher):
 
         return loop_inspect
 
-    def _get_mod_times(self) -> dict[str, float]:
+    def _get_mod_times(self) -> Mapping[str, float]:
         matches = get_file_names(
             glob_path=self._rendered_path,
             glob_ignored_paths=self._rendered_ignored_paths,
         )
-        mod_times: dict[str, float] = {}
+        mod_times: Mapping[str, float] = {}
         for file_name in matches:
             try:
                 mod_time = os.stat(file_name).st_mtime

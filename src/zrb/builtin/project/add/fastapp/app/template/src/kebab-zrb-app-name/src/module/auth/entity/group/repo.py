@@ -1,4 +1,5 @@
 from abc import ABC
+from collections.abc import Mapping
 from typing import Any
 
 from component.repo import DBEntityMixin, DBRepo, Repo
@@ -30,7 +31,7 @@ class GroupDBRepo(DBRepo[Group, GroupData], GroupRepo):
 
     def _schema_data_to_db_entity_map(
         self, db: Session, group_data: GroupData
-    ) -> dict[str, Any]:
+    ) -> Mapping[str, Any]:
         db_entity_map = super()._schema_data_to_db_entity_map(db, group_data)
         # Transform permissions
         db_entity_map["permissions"] = (

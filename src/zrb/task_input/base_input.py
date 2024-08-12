@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.config.config import SHOW_PROMPT
@@ -14,8 +14,8 @@ logger.debug(colored("Loading zrb.task_input.base_input", attrs=["dark"]))
 
 # flake8: noqa E501
 
-InputCallback = Callable[[dict[str, Any], Any], Any]
-InputDefault = Callable[[dict[str, Any]], Any]
+InputCallback = Callable[[Mapping[str, Any], Any], Any]
+InputDefault = Callable[[Mapping[str, Any]], Any]
 
 
 @typechecked
@@ -58,8 +58,8 @@ class BaseInput(AnyInput):
         >>> )
     """
 
-    __value_cache: dict[str, Any] = {}
-    __default_cache: dict[str, Any] = {}
+    __value_cache: Mapping[str, Any] = {}
+    __default_cache: Mapping[str, Any] = {}
 
     def __init__(
         self,
@@ -123,8 +123,8 @@ class BaseInput(AnyInput):
             param_decl.append(f"-{self._shortcut}")
         return param_decl
 
-    def get_options(self) -> dict[str, Any]:
-        options: dict[str, Any] = {
+    def get_options(self) -> Mapping[str, Any]:
+        options: Mapping[str, Any] = {
             "help": self._help,
             "type": self._type,
             "show_default": self._get_calculated_show_default(),

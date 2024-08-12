@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from logging import Logger
 from typing import Any
 
@@ -23,11 +24,11 @@ def register_rpc(
     @rpc_server.register("snake_zrb_module_name_get_snake_zrb_entity_name")
     async def get(
         keyword: str,
-        criterion: dict[str, Any],
+        criterion: Mapping[str, Any],
         limit: int,
         offset: int,
-        user_token_data: dict[str, Any],
-    ) -> dict[str, Any]:
+        user_token_data: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
         result = await snake_zrb_entity_name_model.get(
             search_filter=SearchFilter(keyword=keyword, criterion=criterion),
             limit=limit,
@@ -37,15 +38,15 @@ def register_rpc(
 
     @rpc_server.register("snake_zrb_module_name_get_snake_zrb_entity_name_by_id")
     async def get_by_id(
-        id: str, user_token_data: dict[str, Any] = {}
-    ) -> dict[str, Any]:
+        id: str, user_token_data: Mapping[str, Any] = {}
+    ) -> Mapping[str, Any]:
         row = await snake_zrb_entity_name_model.get_by_id(id)
         return row.model_dump()
 
     @rpc_server.register("snake_zrb_module_name_insert_snake_zrb_entity_name")
     async def insert(
-        data: dict[str, Any], user_token_data: dict[str, Any]
-    ) -> dict[str, Any]:
+        data: Mapping[str, Any], user_token_data: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         data["created_by"] = user_token_data.user_id
         data["updated_by"] = user_token_data.user_id
@@ -56,8 +57,8 @@ def register_rpc(
 
     @rpc_server.register("snake_zrb_module_name_update_snake_zrb_entity_name")
     async def update(
-        id: str, data: dict[str, Any], user_token_data: dict[str, Any]
-    ) -> dict[str, Any]:
+        id: str, data: Mapping[str, Any], user_token_data: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         data["updated_by"] = user_token_data.user_id
         row = await snake_zrb_entity_name_model.update(
@@ -66,7 +67,7 @@ def register_rpc(
         return row.model_dump()
 
     @rpc_server.register("snake_zrb_module_name_delete_snake_zrb_entity_name")
-    async def delete(id: str, user_token_data: dict[str, Any]) -> dict[str, Any]:
+    async def delete(id: str, user_token_data: Mapping[str, Any]) -> Mapping[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         row = await snake_zrb_entity_name_model.delete(id=id)
         return row.model_dump()

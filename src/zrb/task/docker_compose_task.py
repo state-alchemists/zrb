@@ -1,6 +1,6 @@
 import os
 import pathlib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.config.config import CONTAINER_BACKEND
@@ -87,10 +87,10 @@ class DockerComposeTask(CmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        compose_service_configs: dict[str, ServiceConfig] = {},
+        compose_service_configs: Mapping[str, ServiceConfig] = {},
         compose_file: Optional[str] = None,
         compose_cmd: str = "up",
-        compose_options: dict[JinjaTemplate, JinjaTemplate] = {},
+        compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
         compose_args: Iterable[JinjaTemplate] = [],
         compose_env_prefix: str = "",
@@ -196,7 +196,7 @@ class DockerComposeTask(CmdTask):
         # inject envs from docker compose file
         compose_data = read_compose_file(self._compose_template_file)
         env_map = fetch_compose_file_env_map(compose_data)
-        added_env_map: dict[str, bool] = {}
+        added_env_map: Mapping[str, bool] = {}
         for key, value in env_map.items():
             # Need to get this everytime because we only want
             # the first compose file env value for a certain key
@@ -261,9 +261,9 @@ class DockerComposeTask(CmdTask):
         return compose_data
 
     def __get_service_new_env_map(
-        self, service_name: str, service_env_map: dict[str, str], new_envs: list[Env]
-    ) -> dict[str, str]:
-        new_service_envs: dict[str, str] = {}
+        self, service_name: str, service_env_map: Mapping[str, str], new_envs: list[Env]
+    ) -> Mapping[str, str]:
+        new_service_envs: Mapping[str, str] = {}
         for env in new_envs:
             env_name = env.get_name()
             if env_name in service_env_map:
@@ -355,7 +355,7 @@ class DockerComposeTask(CmdTask):
     def _get_docker_compose_cmd_script(
         self,
         compose_cmd: str,
-        compose_options: dict[JinjaTemplate, JinjaTemplate],
+        compose_options: Mapping[JinjaTemplate, JinjaTemplate],
         compose_flags: Iterable[JinjaTemplate],
         compose_args: Iterable[JinjaTemplate],
         *args: Any,

@@ -1,5 +1,6 @@
 import inspect
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from component.messagebus.messagebus import Consumer, Publisher
@@ -24,7 +25,7 @@ class MessagebusServer(Server):
     def register(self, rpc_name):
         def wrapper(handler: TRPCHandler):
             @self.consumer.register(rpc_name)
-            async def event_handler(message_dict: dict[str, Any]):
+            async def event_handler(message_dict: Mapping[str, Any]):
                 message: Message = Message.from_dict(message_dict)
                 args = message.args
                 kwargs = message.kwargs

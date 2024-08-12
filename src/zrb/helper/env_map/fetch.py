@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.jinja import is_probably_jinja
@@ -10,18 +12,20 @@ logger.debug(colored("Loading zrb.helper.env_map.fetch", attrs=["dark"]))
 
 
 @typechecked
-def fetch_env_map_from_group(env_map: dict[str, str], group: Group) -> dict[str, str]:
+def fetch_env_map_from_group(
+    env_map: Mapping[str, str], group: Group
+) -> Mapping[str, str]:
     for task in group.get_tasks():
         env_map = fetch_env_map_from_task(env_map, task)
     for sub_group in group.get_children():
-        sub_env_map: dict[str, str] = fetch_env_map_from_group(env_map, sub_group)
+        sub_env_map: Mapping[str, str] = fetch_env_map_from_group(env_map, sub_group)
         env_map = _cascade_env_map(env_map, sub_env_map)
     return env_map
 
 
 @typechecked
-def fetch_env_map_from_task(env_map: dict[str, str], task: AnyTask):
-    task_env_map: dict[str, str] = {}
+def fetch_env_map_from_task(env_map: Mapping[str, str], task: AnyTask):
+    task_env_map: Mapping[str, str] = {}
     for env_file in task._get_env_files():
         envs = env_file.get_envs()
         task_env_map = _add_envs_to_env_map(task_env_map, envs)
@@ -35,7 +39,9 @@ def fetch_env_map_from_task(env_map: dict[str, str], task: AnyTask):
 
 
 @typechecked
-def _add_envs_to_env_map(env_map: dict[str, str], envs: list[Env]) -> dict[str, str]:
+def _add_envs_to_env_map(
+    env_map: Mapping[str, str], envs: list[Env]
+) -> Mapping[str, str]:
     for env in envs:
         if env.get_os_name() == "":
             continue
@@ -47,8 +53,8 @@ def _add_envs_to_env_map(env_map: dict[str, str], envs: list[Env]) -> dict[str, 
 
 @typechecked
 def _cascade_env_map(
-    env_map: dict[str, str], other_env_map: dict[str, str]
-) -> dict[str, str]:
+    env_map: Mapping[str, str], other_env_map: Mapping[str, str]
+) -> Mapping[str, str]:
     for key, value in other_env_map.items():
         if key in env_map:
             continue

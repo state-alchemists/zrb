@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from component.messagebus.messagebus import (
@@ -17,7 +17,7 @@ class MockConsumer(Consumer):
     def __init__(self, logger: logging.Logger, serializer: MessageSerializer):
         self.logger = logger
         self.serializer = serializer
-        self._handlers: dict[str, TEventHandler] = {}
+        self._handlers: Mapping[str, TEventHandler] = {}
 
     def register(self, event_name: str) -> Callable[[TEventHandler], Any]:
         def wrapper(handler: TEventHandler):

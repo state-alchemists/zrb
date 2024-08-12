@@ -26,9 +26,9 @@ class Runner:
         logger.info(colored("Create runner", attrs=["dark"]))
         self.__env_prefix = env_prefix
         self.__tasks: list[AnyTask] = []
-        self.__registered_groups: dict[str, click.Group] = {}
+        self.__registered_groups: Mapping[str, click.Group] = {}
         self.__top_levels: list[CliSubcommand] = []
-        self.__subcommands: dict[str, list[click.Group]] = {}
+        self.__subcommands: Mapping[str, list[click.Group]] = {}
         self.__registered_task_cli_name: list[str] = []
         logger.info(colored("Runner created", attrs=["dark"]))
 
@@ -99,7 +99,7 @@ class Runner:
         command.params.append(click.Argument(["_args"], nargs=-1))
         # add task inputs,
         # if there are inputs with the same name, choose the first.
-        registered_input: dict[str, bool] = {}
+        registered_input: Mapping[str, bool] = {}
         for task_input in task_inputs:
             if task_input.get_name() in registered_input:
                 continue

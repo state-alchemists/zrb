@@ -2,7 +2,7 @@ import asyncio
 import copy
 import os
 import shutil
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.advertisement import advertisements
@@ -255,7 +255,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         env_prefix: str,
         raise_error: bool,
         args: Iterable[Any],
-        kwargs: dict[str, Any],
+        kwargs: Mapping[str, Any],
         show_done_info: bool = True,
     ):
         try:
@@ -423,7 +423,9 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         ]
         await asyncio.gather(*coroutines)
 
-    async def __trigger_fallbacks(self, tasks: list[AnyTask], kwargs: dict[str, Any]):
+    async def __trigger_fallbacks(
+        self, tasks: list[AnyTask], kwargs: Mapping[str, Any]
+    ):
         coroutines: Iterable[asyncio.Task] = []
         for fallback in self.__get_all_fallbacks(tasks):
             fallback._set_execution_id(self.get_execution_id())
@@ -444,7 +446,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             return await run_async(self._should_execute, *args, **kwargs)
         return self.render_bool(self._should_execute)
 
-    async def _set_keyval(self, kwargs: dict[str, Any], env_prefix: str):
+    async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
         for task_input in self._get_combined_inputs():
             key = to_variable_name(task_input.get_name())
@@ -478,7 +480,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         coroutines = checker_coroutines + upstream_coroutines
         await asyncio.gather(*coroutines)
 
-    async def _set_local_keyval(self, kwargs: dict[str, Any], env_prefix: str = ""):
+    async def _set_local_keyval(self, kwargs: Mapping[str, Any], env_prefix: str = ""):
         if self.__is_keyval_set:
             return True
         self.__is_keyval_set = True

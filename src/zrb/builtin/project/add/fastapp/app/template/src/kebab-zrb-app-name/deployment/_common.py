@@ -1,6 +1,7 @@
 import copy
 import os
 import re
+from collections.abc import Mapping
 
 import jsons
 from dotenv import dotenv_values
@@ -25,7 +26,7 @@ MODULES: list[str] = jsons.loads(MODULE_JSON_STR)
 
 APP_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "..", "src"))
 TEMPLATE_ENV_FILE_NAME: str = os.path.join(APP_DIR, "template.env")
-TEMPLATE_ENV_MAP: dict[str, str] = {
+TEMPLATE_ENV_MAP: Mapping[str, str] = {
     key: os.getenv(key, default_value)
     for key, default_value in dotenv_values(TEMPLATE_ENV_FILE_NAME).items()
 }
@@ -55,8 +56,8 @@ SIGNOZ_CLICKHOUSE_PASSWORD: str = os.getenv("SIGNOZ_CLICKHOUSE_PASSWORD", "toor"
 
 
 def get_app_monolith_env_map(
-    template_env_map: dict[str, str], modules: list[str]
-) -> dict[str, str]:
+    template_env_map: Mapping[str, str], modules: list[str]
+) -> Mapping[str, str]:
     env_map = copy.deepcopy(template_env_map)
     env_map["APP_RMQ_CONNECTION"] = (
         f"amqp://{RABBITMQ_AUTH_USERNAME}:{RABBITMQ_AUTH_PASSWORD}@rabbitmq"  # noqa
@@ -83,8 +84,8 @@ def get_app_monolith_env_map(
 
 
 def get_app_gateway_env_map(
-    template_env_map: dict[str, str], modules: list[str]
-) -> dict[str, str]:
+    template_env_map: Mapping[str, str], modules: list[str]
+) -> Mapping[str, str]:
     env_map = get_app_monolith_env_map(template_env_map, modules)
     for module_name in modules:
         env_name = get_module_flag_env_name(module_name)
@@ -98,8 +99,8 @@ def get_app_gateway_env_map(
 
 
 def get_app_service_env_map(
-    template_env_map: dict[str, str], modules: list[str], current_module: str
-) -> dict[str, str]:
+    template_env_map: Mapping[str, str], modules: list[str], current_module: str
+) -> Mapping[str, str]:
     env_map = get_app_monolith_env_map(template_env_map, modules)
     for module_name in modules:
         env_name = get_module_flag_env_name(module_name)

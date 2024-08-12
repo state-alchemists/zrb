@@ -83,7 +83,7 @@ Provides a mapping (dictionary) representing the input.
 
 __Returns:__
 
-`dict[str, Any]`: A dictionary where keys are option names and values are the corresponding details.
+`Mapping[str, Any]`: A dictionary where keys are option names and values are the corresponding details.
 
 ### `Input.get_param_decl`
 

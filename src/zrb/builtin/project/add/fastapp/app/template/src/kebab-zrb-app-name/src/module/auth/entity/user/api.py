@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from logging import Logger
 from typing import Annotated
 
@@ -61,11 +62,11 @@ def register_auth_api(
         except Exception as e:
             raise HTTPAPIException(error=e)
 
-    @app.post("/api/v1/auth/is-authorized", response_model=dict[str, bool])
+    @app.post("/api/v1/auth/is-authorized", response_model=Mapping[str, bool])
     async def is_authorized(
         data: IsAuthorizedRequest,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
-    ) -> dict[str, str]:
+    ) -> Mapping[str, str]:
         try:
             user_id = user_token_data.user_id
             with tracer.start_as_current_span("auth.rpc.auth_is_user_authorized"):

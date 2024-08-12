@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 import croniter
@@ -39,7 +39,7 @@ class TimeWatcher(Watcher):
     and <task-name>.scheduled-time xcom will be set.
     """
 
-    __scheduled_times: dict[str, dict[str, datetime.datetime]] = {}
+    __scheduled_times: Mapping[str, Mapping[str, datetime.datetime]] = {}
 
     def __init__(
         self,

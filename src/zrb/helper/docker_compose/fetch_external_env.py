@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from zrb.helper.accessories.color import colored
@@ -10,7 +11,7 @@ logger.debug(
 
 
 @typechecked
-def fetch_compose_file_env_map(data: Any) -> dict[str, str]:
+def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
     global_env_dict = {}
     if "services" not in data:
         return global_env_dict
@@ -34,7 +35,7 @@ def fetch_compose_file_env_map(data: Any) -> dict[str, str]:
 
 
 @typechecked
-def parse_compose_file_env_string(env_str: str) -> dict[str, str]:
+def parse_compose_file_env_string(env_str: str) -> Mapping[str, str]:
     env_dict = {}
     stack = []
     key = ""

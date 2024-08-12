@@ -2,7 +2,7 @@ import datetime
 import logging
 import os
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from functools import lru_cache
 from typing import Any, Optional, Union
 
@@ -96,7 +96,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         PidModel.__init__(self)
         TimeTracker.__init__(self)
         self.__args: list[Any] = []
-        self.__kwargs: dict[str, Any] = {}
+        self.__kwargs: Mapping[str, Any] = {}
 
     def _set_args(self, args: Iterable[Any]):
         """
@@ -104,7 +104,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         """
         self.__args = list(args)
 
-    def _set_kwargs(self, kwargs: dict[str, Any]):
+    def _set_kwargs(self, kwargs: Mapping[str, Any]):
         """
         Set kwargs that will be shown at the end of the execution
         """

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import Any
 
 from zrb.helper.accessories.color import colored
@@ -50,12 +51,12 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def get_options(self) -> dict[str, Any]:
+    def get_options(self) -> Mapping[str, Any]:
         """
         Provides a mapping (dictionary) representing the input.
 
         Returns:
-            dict[str, Any]: A dictionary where keys are option names and values are the corresponding details.
+            Mapping[str, Any]: A dictionary where keys are option names and values are the corresponding details.
         """
         pass
 

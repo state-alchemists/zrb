@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 from functools import lru_cache
 from typing import Optional
 
@@ -7,7 +8,7 @@ from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 
 logger.debug(colored("Loading zrb.helper.default_env", attrs=["dark"]))
-_PROJECT_DIR_MAP: dict[str, str] = {}
+_PROJECT_DIR_MAP: Mapping[str, str] = {}
 
 
 @lru_cache
