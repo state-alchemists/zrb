@@ -1,5 +1,5 @@
+from collections.abc import AsyncIterator
 from datetime import date, datetime, time
-from typing import AsyncIterator
 
 import pytest
 from config import APP_AUTH_ADMIN_PASSWORD, APP_AUTH_ADMIN_USERNAME

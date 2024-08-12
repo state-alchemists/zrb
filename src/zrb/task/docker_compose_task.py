@@ -1,5 +1,7 @@
 import os
 import pathlib
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
 
 from zrb.config.config import CONTAINER_BACKEND
 from zrb.helper.accessories.color import colored
@@ -10,17 +12,7 @@ from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -71,14 +63,14 @@ ensure_zrb_network_task = _get_ensure_zrb_network_task(CONTAINER_BACKEND)
 
 @typechecked
 class ServiceConfig:
-    def __init__(self, envs: List[Env] = [], env_files: List[EnvFile] = []):
+    def __init__(self, envs: list[Env] = [], env_files: list[EnvFile] = []):
         self._envs = envs
         self._env_files = env_files
 
-    def get_envs(self) -> List[Env]:
+    def get_envs(self) -> list[Env]:
         return self._envs
 
-    def get_env_files(self) -> List[EnvFile]:
+    def get_env_files(self) -> list[EnvFile]:
         return self._env_files
 
 
@@ -95,10 +87,10 @@ class DockerComposeTask(CmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        compose_service_configs: Mapping[str, ServiceConfig] = {},
+        compose_service_configs: dict[str, ServiceConfig] = {},
         compose_file: Optional[str] = None,
         compose_cmd: str = "up",
-        compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
+        compose_options: dict[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
         compose_args: Iterable[JinjaTemplate] = [],
         compose_env_prefix: str = "",
@@ -204,7 +196,7 @@ class DockerComposeTask(CmdTask):
         # inject envs from docker compose file
         compose_data = read_compose_file(self._compose_template_file)
         env_map = fetch_compose_file_env_map(compose_data)
-        added_env_map: Mapping[str, bool] = {}
+        added_env_map: dict[str, bool] = {}
         for key, value in env_map.items():
             # Need to get this everytime because we only want
             # the first compose file env value for a certain key
@@ -224,7 +216,7 @@ class DockerComposeTask(CmdTask):
     def __generate_compose_runtime_file(self):
         compose_data = read_compose_file(self._compose_template_file)
         for service, service_config in self._compose_service_configs.items():
-            envs: List[Env] = []
+            envs: list[Env] = []
             env_files = service_config.get_env_files()
             for env_file in env_files:
                 envs += env_file.get_envs()
@@ -233,7 +225,7 @@ class DockerComposeTask(CmdTask):
         write_compose_file(self._compose_runtime_file, compose_data)
 
     def __apply_service_env(
-        self, compose_data: Any, service_name: str, envs: List[Env]
+        self, compose_data: Any, service_name: str, envs: list[Env]
     ) -> Any:
         # service not found
         service_map = compose_data["services"]
@@ -269,9 +261,9 @@ class DockerComposeTask(CmdTask):
         return compose_data
 
     def __get_service_new_env_map(
-        self, service_name: str, service_env_map: Mapping[str, str], new_envs: List[Env]
-    ) -> Mapping[str, str]:
-        new_service_envs: Mapping[str, str] = {}
+        self, service_name: str, service_env_map: dict[str, str], new_envs: list[Env]
+    ) -> dict[str, str]:
+        new_service_envs: dict[str, str] = {}
         for env in new_envs:
             env_name = env.get_name()
             if env_name in service_env_map:
@@ -280,9 +272,9 @@ class DockerComposeTask(CmdTask):
         return new_service_envs
 
     def __get_service_new_env_list(
-        self, service_name: str, service_env_list: List[str], new_envs: List[Env]
-    ) -> List[str]:
-        new_service_envs: List[str] = []
+        self, service_name: str, service_env_list: list[str], new_envs: list[Env]
+    ) -> list[str]:
+        new_service_envs: list[str] = []
         for env in new_envs:
             should_be_added = 0 == len(
                 [
@@ -363,7 +355,7 @@ class DockerComposeTask(CmdTask):
     def _get_docker_compose_cmd_script(
         self,
         compose_cmd: str,
-        compose_options: Mapping[JinjaTemplate, JinjaTemplate],
+        compose_options: dict[JinjaTemplate, JinjaTemplate],
         compose_flags: Iterable[JinjaTemplate],
         compose_args: Iterable[JinjaTemplate],
         *args: Any,

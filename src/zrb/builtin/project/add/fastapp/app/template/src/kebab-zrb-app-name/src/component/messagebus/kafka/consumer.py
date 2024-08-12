@@ -1,7 +1,8 @@
 import asyncio
 import inspect
 import logging
-from typing import Any, Callable, Mapping, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 from aiokafka import AIOKafkaConsumer, __version__
 from aiokafka.consumer.consumer import RoundRobinPartitionAssignor
@@ -111,10 +112,10 @@ class KafkaConsumer(Consumer):
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.retry = retry
         self.retry_interval = retry_interval
-        self._handlers: Mapping[str, TEventHandler] = {}
+        self._handlers: dict[str, TEventHandler] = {}
         self._is_start_triggered = False
         self._is_stop_triggered = False
-        self._topic_to_event_map: Mapping[str, str] = {}
+        self._topic_to_event_map: dict[str, str] = {}
         self.identifier = identifier
 
     def register(self, event_name: str) -> Callable[[TEventHandler], Any]:

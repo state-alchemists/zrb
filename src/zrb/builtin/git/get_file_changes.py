@@ -1,8 +1,9 @@
+from typing import Any
+
 from zrb.builtin.git._group import git_group
 from zrb.helper.accessories.color import colored
 from zrb.helper.git.detect_changes import get_modified_file_states
 from zrb.helper.task import show_lines
-from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task_input.bool_input import BoolInput

@@ -1,8 +1,9 @@
 import os
+from collections.abc import Callable
+from typing import Any
 
 from zrb.helper.file.text import read_text_file_async, write_text_file_async
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable
 from zrb.task.task import Task
 
 

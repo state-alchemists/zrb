@@ -1,4 +1,4 @@
-from typing import Generic, List, Optional, Type, TypeVar
+from typing import Generic, Optional, Type, TypeVar
 
 from component.repo.repo import Repo
 from component.repo.search_filter import SearchFilter
@@ -18,10 +18,10 @@ class RepoModel(Generic[Schema, SchemaData, SchemaResult]):
     async def get_by_id(self, id: str) -> Schema:
         return await self.repo.get_by_id(id)
 
-    async def get_all(self) -> List[Schema]:
+    async def get_all(self) -> list[Schema]:
         count = await self.repo.count()
         limit = 1000
-        schema_list: List[Schema] = []
+        schema_list: list[Schema] = []
         for offset in range(0, count, limit):
             partial_schema_list = await self.repo.get(limit=limit, offset=offset)
             schema_list += partial_schema_list

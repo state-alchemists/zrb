@@ -3,7 +3,6 @@ import subprocess
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Mapping
 
 logger.debug(colored("Loading zrb.helper.git.detect_changes", attrs=["dark"]))
 
@@ -16,12 +15,12 @@ class ModificationState:
 
 
 @typechecked
-def get_modified_file_states(commit: str) -> Mapping[str, ModificationState]:
+def get_modified_file_states(commit: str) -> dict[str, ModificationState]:
     exit_status, output = subprocess.getstatusoutput(f"git show {commit}")
     if exit_status != 0:
         raise Exception(output)
     lines = output.split("\n")
-    modified_files: Mapping[str, ModificationState] = {}
+    modified_files: dict[str, ModificationState] = {}
     for line in lines:
         if not line.startswith("---") and not line.startswith("+++"):
             continue

@@ -1,5 +1,6 @@
 import re
 from functools import lru_cache
+from typing import Any, Optional
 
 import jinja2
 
@@ -7,7 +8,6 @@ from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_boolean as conversion_to_boolean
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Optional
 
 logger.debug(colored("Loading zrb.helper.util", attrs=["dark"]))
 

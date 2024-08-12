@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from zrb import Task
 
@@ -16,10 +16,10 @@ def should_start_support_container(*args: Any, **kwargs: Any) -> bool:
     return len(compose_profiles) > 0
 
 
-def get_support_container_compose_profiles(*args: Any, **kwargs: Any) -> List[str]:
+def get_support_container_compose_profiles(*args: Any, **kwargs: Any) -> list[str]:
     task: Task = kwargs.get("_task")
     env_map = task.get_env_map()
-    compose_profiles: List[str] = []
+    compose_profiles: list[str] = []
     if env_map.get("APP_DB_CONNECTION", "").startswith("postgresql"):
         compose_profiles.append("postgres")
     broker_type = env_map.get("APP_BROKER_TYPE", "rabbitmq")

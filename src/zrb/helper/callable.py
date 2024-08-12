@@ -1,6 +1,7 @@
 import asyncio
 import inspect
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable
+from typing import Any
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger

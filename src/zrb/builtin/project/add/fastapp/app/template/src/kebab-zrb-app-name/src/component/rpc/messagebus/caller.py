@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from component.messagebus.messagebus import Admin, Consumer, Publisher
 from component.rpc.rpc import Caller, Message, Result

@@ -1,35 +1,13 @@
-from zrb.config.config import ENABLE_TYPE_CHECKING
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, Optional, Type, TypeVar, Union
+
 from zrb.helper.accessories.untyped_color import untyped_colored as colored
 from zrb.helper.log import logger
 
 logger.debug(colored("Loading zrb.helper.typing", attrs=["dark"]))
 
-if ENABLE_TYPE_CHECKING:
-    from beartype.typing import (
-        Any,
-        Callable,
-        Iterable,
-        List,
-        Mapping,
-        Optional,
-        Tuple,
-        Type,
-        TypeVar,
-        Union,
-    )
-else:
-    from typing import (
-        Any,
-        Callable,
-        Iterable,
-        List,
-        Mapping,
-        Optional,
-        Tuple,
-        Type,
-        TypeVar,
-        Union,
-    )
+Tuple = tuple
+List = list
 
 JinjaTemplate = str
 

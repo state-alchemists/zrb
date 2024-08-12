@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from ..support._helper import get_support_container_compose_profiles
 
@@ -16,7 +16,7 @@ def should_start_monolith_container(*args: Any, **kwargs: Any) -> bool:
     return len(compose_profiles) > 0
 
 
-def _get_monolith_container_compose_profiles(*args: Any, **kwargs: Any) -> List[str]:
+def _get_monolith_container_compose_profiles(*args: Any, **kwargs: Any) -> list[str]:
     compose_profiles = get_support_container_compose_profiles(*args, **kwargs)
     compose_profiles.append("monolith")
     return compose_profiles

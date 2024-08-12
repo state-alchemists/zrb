@@ -1,5 +1,3 @@
-from typing import List
-
 from component.schema import BaseCountSchema, BaseDateTimeSchema
 from module.auth.schema.permission import Permission
 
@@ -10,7 +8,7 @@ class GroupBase(BaseDateTimeSchema):
 
 
 class GroupData(GroupBase):
-    permissions: List[str]
+    permissions: list[str]
 
 
 class Group(GroupBase):
@@ -18,8 +16,8 @@ class Group(GroupBase):
         from_attributes = True
 
     id: str
-    permissions: List[Permission] = []
+    permissions: list[Permission] = []
 
 
 class GroupResult(BaseCountSchema):
-    data: List[Group]
+    data: list[Group]

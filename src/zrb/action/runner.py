@@ -1,11 +1,12 @@
 import sys
+from collections.abc import Callable
+from typing import Any, Union
 
 import click
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable, List, Mapping, Union
 from zrb.task.any_task import AnyTask
 from zrb.task_group.group import Group as TaskGroup
 
@@ -24,11 +25,11 @@ class Runner:
     def __init__(self, env_prefix: str = ""):
         logger.info(colored("Create runner", attrs=["dark"]))
         self.__env_prefix = env_prefix
-        self.__tasks: List[AnyTask] = []
-        self.__registered_groups: Mapping[str, click.Group] = {}
-        self.__top_levels: List[CliSubcommand] = []
-        self.__subcommands: Mapping[str, List[click.Group]] = {}
-        self.__registered_task_cli_name: List[str] = []
+        self.__tasks: list[AnyTask] = []
+        self.__registered_groups: dict[str, click.Group] = {}
+        self.__top_levels: list[CliSubcommand] = []
+        self.__subcommands: dict[str, list[click.Group]] = {}
+        self.__registered_task_cli_name: list[str] = []
         logger.info(colored("Runner created", attrs=["dark"]))
 
     def register(self, *tasks: AnyTask):
@@ -98,7 +99,7 @@ class Runner:
         command.params.append(click.Argument(["_args"], nargs=-1))
         # add task inputs,
         # if there are inputs with the same name, choose the first.
-        registered_input: Mapping[str, bool] = {}
+        registered_input: dict[str, bool] = {}
         for task_input in task_inputs:
             if task_input.get_name() in registered_input:
                 continue

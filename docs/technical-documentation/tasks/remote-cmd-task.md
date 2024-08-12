@@ -147,7 +147,7 @@ uses to load environment variables, primarily for setup and configuration purpos
 
 __Returns:__
 
-`List[EnvFile]`: A list of `EnvFile` instances associated with the task.
+`list[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
 ### `RemoteCmdTask._get_envs`
 
@@ -158,7 +158,7 @@ configured for the task, essential for understanding and debugging the task's en
 
 __Returns:__
 
-`List[Env]`: A list of `Env` instances representing the environment variables of the task.
+`list[Env]`: A list of `Env` instances representing the environment variables of the task.
 
 ### `RemoteCmdTask._get_fallbacks`
 
@@ -182,7 +182,7 @@ for introspection and debugging purposes.
 
 __Returns:__
 
-`List[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
+`list[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
 ### `RemoteCmdTask._get_max_attempt`
 

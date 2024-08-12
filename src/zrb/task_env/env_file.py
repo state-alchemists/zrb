@@ -1,10 +1,11 @@
+from typing import Optional
+
 from dotenv import dotenv_values
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import List, Optional
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 
@@ -43,25 +44,25 @@ class EnvFile:
         self.__path = path
         self.__prefix = prefix.upper() if prefix is not None else None
         self.__should_render = should_render
-        self.__env_list: List[Env] = []
+        self.__env_list: list[Env] = []
         self.__env_list_fetched: bool = False
 
-    def get_envs(self) -> List[Env]:
+    def get_envs(self) -> list[Env]:
         """
         Retrieves a list of Env objects based on the environment file. If a prefix is provided, it is
         applied to the environment variable names.
 
         Returns:
-            List[Env]: A list of Env objects representing the environment variables defined in the file.
+            list[Env]: A list of Env objects representing the environment variables defined in the file.
 
         Examples:
             >>> from zrb import Env, EnvFile
             >>> env_file = EnvFile(path='some_file.env')
-            >>> envs: List[Env] = env_file.get_envs()
+            >>> envs: list[Env] = env_file.get_envs()
         """
         if self.__env_list_fetched:
             return self.__env_list
-        env_list: List[Env] = []
+        env_list: list[Env] = []
         env_map = dotenv_values(self.__path)
         for key, value in env_map.items():
             if key in RESERVED_ENV_NAMES:

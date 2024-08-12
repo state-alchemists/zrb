@@ -1,4 +1,4 @@
-from typing import List
+
 from zrb.task.cmd_task import CmdTask
 from zrb.task.task import Task
 from zrb.task.flow_task import FlowTask
@@ -38,7 +38,7 @@ def test_flow_task():
 
 
 def test_flow_task_with_existing_tasks():
-    outputs: List[str] = []
+    outputs: list[str] = []
 
     @python_task(
         name='prepare-lab'

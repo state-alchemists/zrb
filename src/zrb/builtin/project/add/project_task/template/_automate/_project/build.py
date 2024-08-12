@@ -1,7 +1,8 @@
+from typing import Any
+
 from zrb import Task, python_task, runner
 from zrb.builtin import project_group
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
 
 
 @python_task(

@@ -1,21 +1,14 @@
 import asyncio
 import datetime
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
 
 import croniter
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -46,7 +39,7 @@ class TimeWatcher(Watcher):
     and <task-name>.scheduled-time xcom will be set.
     """
 
-    __scheduled_times: Mapping[str, Mapping[str, datetime.datetime]] = {}
+    __scheduled_times: dict[str, dict[str, datetime.datetime]] = {}
 
     def __init__(
         self,

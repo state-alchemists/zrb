@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from ..support._helper import get_support_container_compose_profiles
 
@@ -18,7 +18,7 @@ def should_start_microservices_container(*args: Any, **kwargs: Any) -> bool:
 
 def _get_microservices_container_compose_profiles(
     *args: Any, **kwargs: Any
-) -> List[str]:
+) -> list[str]:
     compose_profiles = get_support_container_compose_profiles(*args, **kwargs)
     compose_profiles.append("microservices")
     return compose_profiles

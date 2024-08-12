@@ -1,7 +1,8 @@
 import asyncio
 import inspect
 import logging
-from typing import Any, Callable, Mapping, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 import aiormq
 from component.messagebus.messagebus import (
@@ -36,7 +37,7 @@ class RMQConsumer(Consumer):
         self.retry = retry
         self.retry_interval = retry_interval
         self.prefetch_count = prefetch_count
-        self._handlers: Mapping[str, TEventHandler] = {}
+        self._handlers: dict[str, TEventHandler] = {}
         self._is_start_triggered = False
         self._is_stop_triggered = False
         self.identifier = identifier
@@ -68,7 +69,7 @@ class RMQConsumer(Consumer):
             await self._connect()
             event_names = list(self._handlers.keys())
             await self.rmq_admin.create_events(event_names)
-            f'🐰 [{self.identifier}] Listening from "{event_names}"'
+            f'🐰 [{self.identifier}] listening from "{event_names}"'
             for event_name in event_names:
                 queue_name = self.rmq_admin.get_queue_name(event_name)
                 on_message = self._create_consumer_callback(self.channel, event_name)

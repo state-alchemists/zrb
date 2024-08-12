@@ -1,10 +1,11 @@
 import os
+from typing import Optional
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import JinjaTemplate, Optional
+from zrb.helper.typing import JinjaTemplate
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 
 logger.debug(colored("Loading zrb.task_env.env", attrs=["dark"]))

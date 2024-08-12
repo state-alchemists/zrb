@@ -39,14 +39,14 @@ applied to the environment variable names.
 
 __Returns:__
 
-`List[Env]`: A list of Env objects representing the environment variables defined in the file.
+`list[Env]`: A list of Env objects representing the environment variables defined in the file.
 
 __Examples:__
 
 ```python
 from zrb import Env, EnvFile
 env_file = EnvFile(path='some_file.env')
-envs: List[Env] = env_file.get_envs()
+envs: list[Env] = env_file.get_envs()
 ```
 
 

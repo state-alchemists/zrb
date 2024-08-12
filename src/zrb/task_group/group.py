@@ -1,9 +1,10 @@
+from typing import Optional, TypeVar
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import List, Optional, TypeVar
 from zrb.task.any_task import AnyTask
 
 logger.debug(colored("Loading zrb.task_group.group", attrs=["dark"]))
@@ -40,8 +41,8 @@ class Group:
         self._parent = parent
         if parent is not None:
             parent.__children.append(self)
-        self.__children: List[TGroup] = []
-        self.__tasks: List[AnyTask] = []
+        self.__children: list[TGroup] = []
+        self.__tasks: list[AnyTask] = []
 
     def get_parent(self) -> Optional[TGroup]:
         """
@@ -136,12 +137,12 @@ class Group:
         """
         self.__tasks.append(task)
 
-    def get_tasks(self) -> List[AnyTask]:
+    def get_tasks(self) -> list[AnyTask]:
         """
         Get direct Tasks under this Task Group.
 
         Returns:
-            List[AnyTask]: List of direct Tasks under this Task Group.
+            list[AnyTask]: list of direct Tasks under this Task Group.
 
         Examples:
             >>> from zrb import Group, Task
@@ -153,14 +154,14 @@ class Group:
         """
         return self.__tasks
 
-    def get_children(self) -> List[TGroup]:
+    def get_children(self) -> list[TGroup]:
         """
         Retrieves the list of direct subgroups under this group.
 
         Returns a list of immediate subgroups nested within this group, helping to understand the group's hierarchical structure.
 
         Returns:
-            List[Group]: List of direct subgroups under this Task group.
+            list[Group]: list of direct subgroups under this Task group.
 
         Examples:
             >>> from zrb import Group, Task

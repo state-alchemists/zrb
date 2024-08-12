@@ -1,11 +1,12 @@
 import asyncio
 import copy
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.helper.util import to_kebab_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -31,32 +32,32 @@ logger.debug(colored("Loading zrb.task.server", attrs=["dark"]))
 class Controller:
     def __init__(
         self,
-        trigger: Union[AnyTask, List[AnyTask]],
-        action: Union[AnyTask, List[AnyTask]],
+        trigger: Union[AnyTask, list[AnyTask]],
+        action: Union[AnyTask, list[AnyTask]],
         name: Optional[str] = None,
     ):
         self._name = get_random_name() if name is None else name
         self._triggers = self._to_task_list(trigger)
         self._actions = self._to_task_list(action)
-        self._args: List[Any] = []
-        self._kwargs: Mapping[str, Any] = {}
-        self._inputs: List[AnyInput] = []
-        self._envs: List[Env] = []
-        self._env_files: List[EnvFile] = []
+        self._args: list[Any] = []
+        self._kwargs: dict[str, Any] = {}
+        self._inputs: list[AnyInput] = []
+        self._envs: list[Env] = []
+        self._env_files: list[EnvFile] = []
 
-    def set_args(self, args: List[Any]):
+    def set_args(self, args: list[Any]):
         self._args = args
 
-    def set_kwargs(self, kwargs: Mapping[str, Any]):
+    def set_kwargs(self, kwargs: dict[str, Any]):
         self._kwargs = kwargs
 
-    def set_inputs(self, inputs: List[AnyInput]):
+    def set_inputs(self, inputs: list[AnyInput]):
         self._inputs = inputs
 
-    def set_envs(self, envs: List[Env]):
+    def set_envs(self, envs: list[Env]):
         self._envs = envs
 
-    def set_env_files(self, env_files: List[EnvFile]):
+    def set_env_files(self, env_files: list[EnvFile]):
         self._env_files = env_files
 
     def get_original_env_files(self) -> Iterable[EnvFile]:
@@ -93,7 +94,7 @@ class Controller:
 
         return fn
 
-    def _to_task_list(self, tasks: Union[AnyTask, List[AnyTask]]) -> List[AnyTask]:
+    def _to_task_list(self, tasks: Union[AnyTask, list[AnyTask]]) -> list[AnyTask]:
         if isinstance(tasks, AnyTask):
             return [tasks.copy()]
         return [task.copy() for task in tasks]

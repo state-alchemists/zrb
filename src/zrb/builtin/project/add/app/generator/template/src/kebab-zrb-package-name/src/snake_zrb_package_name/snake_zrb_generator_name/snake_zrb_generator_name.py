@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from zrb.builtin.project._helper import (
     create_register_module,
@@ -8,7 +9,6 @@ from zrb.builtin.project._helper import (
 from zrb.builtin.project._input import project_dir_input
 from zrb.builtin.project.add.app._group import project_add_app_group
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case
 from zrb.runner import runner
 from zrb.task.decorator import python_task

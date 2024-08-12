@@ -1,8 +1,8 @@
 import asyncio
 import time
+from typing import Optional, Union
 
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Optional, Union
 
 LOG_NAME_LENGTH = 20
 

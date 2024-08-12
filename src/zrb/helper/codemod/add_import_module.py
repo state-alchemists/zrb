@@ -1,9 +1,10 @@
+from typing import Optional, Union
+
 import libcst as cst
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Optional, Tuple, Union
 
 logger.debug(colored("Loading zrb.helper.codemod.add_import_module", attrs=["dark"]))
 
@@ -83,7 +84,7 @@ def _get_new_import(
 
 
 @typechecked
-def _split_module_path(module_path) -> Tuple[str, str]:
+def _split_module_path(module_path) -> tuple[str, str]:
     prefix = ""
     suffix = ""
     is_prefix = True

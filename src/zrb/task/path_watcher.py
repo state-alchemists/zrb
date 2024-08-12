@@ -1,20 +1,12 @@
 import os
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.file.match import get_file_names
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -49,7 +41,7 @@ class PathWatcher(Watcher):
     - <task-name>.deleted-file
     """
 
-    __init_times: Mapping[str, Mapping[str, float]] = {}
+    __init_times: dict[str, dict[str, float]] = {}
 
     def __init__(
         self,
@@ -108,7 +100,7 @@ class PathWatcher(Watcher):
         self._watch_modified_files = watch_modified_files
         self._watch_deleted_files = watch_deleted_files
         self._rendered_path: str = ""
-        self._rendered_ignored_paths: List[str] = []
+        self._rendered_ignored_paths: list[str] = []
 
     def copy(self) -> TPathWatcher:
         return super().copy()
@@ -143,7 +135,7 @@ class PathWatcher(Watcher):
             self.__init_times[identifier] = self._get_mod_times()
         return await super().run(*args, **kwargs)
 
-    def _get_rendered_ignored_paths(self) -> List[str]:
+    def _get_rendered_ignored_paths(self) -> list[str]:
         if isinstance(self._ignored_path, str):
             return [self.render_str(self._ignored_path)]
         return [self.render_str(ignored_path) for ignored_path in self._ignored_path]
@@ -192,12 +184,12 @@ class PathWatcher(Watcher):
 
         return loop_inspect
 
-    def _get_mod_times(self) -> Mapping[str, float]:
+    def _get_mod_times(self) -> dict[str, float]:
         matches = get_file_names(
             glob_path=self._rendered_path,
             glob_ignored_paths=self._rendered_ignored_paths,
         )
-        mod_times: Mapping[str, float] = {}
+        mod_times: dict[str, float] = {}
         for file_name in matches:
             try:
                 mod_time = os.stat(file_name).st_mtime

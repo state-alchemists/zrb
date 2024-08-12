@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Any
 
 import jsons
 from dotenv import dotenv_values
@@ -11,7 +12,6 @@ from zrb.helper.file.text import (
     write_text_file_async,
 )
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, List, Mapping
 from zrb.helper.util import to_kebab_case, to_snake_case
 from zrb.task.task import Task
 
@@ -37,7 +37,7 @@ async def create_microservice_config(
 
 @typechecked
 async def _add_docker_compose_service(
-    task: Task, modules: List[str], project_dir: str, app_name: str, module_name: str
+    task: Task, modules: list[str], project_dir: str, app_name: str, module_name: str
 ):
     kebab_app_name = to_kebab_case(app_name)
     snake_module_name = to_snake_case(module_name)
@@ -71,7 +71,7 @@ async def _add_docker_compose_service(
 @typechecked
 def _get_new_docker_compose_service_definition(
     app_name: str, module_name: str, app_host_port_env: str, app_container_port_env: str
-) -> Mapping[str, Any]:
+) -> dict[str, Any]:
     kebab_app_name = to_kebab_case(app_name)
     kebab_module_name = to_kebab_case(module_name)
     snake_module_name = to_snake_case(module_name)
@@ -127,7 +127,7 @@ async def _create_automation_json_config(
     task.print_out(f"Read json config from: {json_modules_file_path}")
     json_str = await read_text_file_async(json_modules_file_path)
     task.print_out(f'Add "{snake_module_name}" to json config')
-    modules: List[str] = jsons.loads(json_str)
+    modules: list[str] = jsons.loads(json_str)
     modules.append(snake_module_name)
     json_str = jsons.dumps(modules)
     task.print_out(f"Write new json config to: {json_modules_file_path}")
@@ -137,7 +137,7 @@ async def _create_automation_json_config(
 
 @typechecked
 async def _append_compose_env(
-    task: Task, modules: List[str], project_dir: str, app_name: str, module_name: str
+    task: Task, modules: list[str], project_dir: str, app_name: str, module_name: str
 ):
     kebab_app_name = to_kebab_case(app_name)
     snake_module_name = to_snake_case(module_name)

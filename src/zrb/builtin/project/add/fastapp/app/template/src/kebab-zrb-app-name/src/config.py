@@ -1,6 +1,5 @@
 import json
 import os
-from typing import List
 
 from helper.conversion import str_to_boolean, str_to_logging_level
 
@@ -80,14 +79,14 @@ APP_KAFKA_SASL_MECHANISM = os.getenv("APP_KAFKA_SASL_MECHANISM", "SCRAM-SHA-512"
 APP_KAFKA_SASL_USER = os.getenv("APP_KAFKA_SASL_USER", "admin")
 APP_KAFKA_SASL_PASS = os.getenv("APP_KAFKA_SASL_PASS", "admin")
 
-APP_CORS_ALLOW_ORIGINS: List[str] = json.loads(
+APP_CORS_ALLOW_ORIGINS: list[str] = json.loads(
     os.getenv("APP_CORS_ALLOW_ORIGINS", '["*"]')
 )
 APP_CORS_ALLOW_ORIGIN_REGEX: str = os.getenv("APP_CORS_ALLOW_ORIGIN_REGEX", "")
-APP_CORS_ALLOW_METHODS: List[str] = json.loads(
+APP_CORS_ALLOW_METHODS: list[str] = json.loads(
     os.getenv("APP_CORS_ALLOW_METHODS", '["*"]')
 )
-APP_CORS_ALLOW_HEADERS: List[str] = json.loads(
+APP_CORS_ALLOW_HEADERS: list[str] = json.loads(
     os.getenv("APP_CORS_ALLOW_HEADERS", '["*"]')
 )
 APP_CORS_ALLOW_CREDENTIALS: bool = str_to_boolean(

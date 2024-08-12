@@ -1,7 +1,8 @@
+from typing import Any
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, List, Mapping
 
 logger.debug(
     colored("Loading zrb.helper.docker_compose.fetch_external_env", attrs=["dark"])
@@ -9,7 +10,7 @@ logger.debug(
 
 
 @typechecked
-def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
+def fetch_compose_file_env_map(data: Any) -> dict[str, str]:
     global_env_dict = {}
     if "services" not in data:
         return global_env_dict
@@ -19,7 +20,7 @@ def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
         environments = data["services"][service]["environment"]
         if isinstance(environments, list):
             for environment in environments:
-                parts: List[str] = environment.split("=")
+                parts: list[str] = environment.split("=")
                 if len(parts) > 0:
                     env_str = str(parts[1])
                     env_dict = parse_compose_file_env_string(env_str)
@@ -33,7 +34,7 @@ def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
 
 
 @typechecked
-def parse_compose_file_env_string(env_str: str) -> Mapping[str, str]:
+def parse_compose_file_env_string(env_str: str) -> dict[str, str]:
     env_dict = {}
     stack = []
     key = ""

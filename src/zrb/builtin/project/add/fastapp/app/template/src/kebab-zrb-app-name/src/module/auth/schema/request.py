@@ -1,5 +1,3 @@
-from typing import List
-
 from pydantic import BaseModel
 
 
@@ -8,4 +6,4 @@ class RefreshTokenRequest(BaseModel):
 
 
 class IsAuthorizedRequest(BaseModel):
-    permission_names: List[str]
+    permission_names: list[str]

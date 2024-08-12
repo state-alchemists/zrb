@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Mapping
+from typing import Any
 
 from component.messagebus import Consumer, Publisher
 from component.rpc import Caller
@@ -13,5 +13,5 @@ def register_event(
     logger.info('🥪 Register event handlers for "log.activity"')
 
     @consumer.register("log_new_activity")
-    async def insert(data: Mapping[str, Any]):
+    async def insert(data: dict[str, Any]):
         await activity_model.insert(data=ActivityData(**data))

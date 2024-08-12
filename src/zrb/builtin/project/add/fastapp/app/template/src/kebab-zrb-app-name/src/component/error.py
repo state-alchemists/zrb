@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 from fastapi import HTTPException
 
@@ -8,7 +8,7 @@ class HTTPAPIException(HTTPException):
         self,
         status_code: Optional[int] = None,
         error_message: Optional[str] = None,
-        headers: Optional[Mapping[str, Any]] = None,
+        headers: Optional[dict[str, Any]] = None,
         error: Optional[Exception] = None,
     ):
         if error is HTTPException:
@@ -48,8 +48,8 @@ class HTTPAPIException(HTTPException):
         return 500
 
     def _get_headers(
-        self, original_headers: Optional[Mapping[str, Any]] = None
-    ) -> Mapping[str, Any]:
+        self, original_headers: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         headers = {} if original_headers is None else dict(original_headers)
         headers["api-error"] = "yes"
         return headers

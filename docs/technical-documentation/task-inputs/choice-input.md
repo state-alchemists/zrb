@@ -86,7 +86,7 @@ Provides a mapping (dictionary) representing the input.
 
 __Returns:__
 
-`Mapping[str, Any]`: A dictionary where keys are option names and values are the corresponding details.
+`dict[str, Any]`: A dictionary where keys are option names and values are the corresponding details.
 
 ### `ChoiceInput.get_param_decl`
 
@@ -94,7 +94,7 @@ Fetches a list of parameter option associated with the input (i.e., `-f` or `--f
 
 __Returns:__
 
-`List[str]`: A list containing strings of parameter options.
+`list[str]`: A list containing strings of parameter options.
 
 ### `ChoiceInput.is_hidden`
 

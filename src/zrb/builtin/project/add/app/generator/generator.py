@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from zrb.builtin.project._helper import validate_existing_project_dir
 from zrb.builtin.project._input import project_dir_input
@@ -13,7 +14,6 @@ from zrb.builtin.project.add.app.generator._input import (
 from zrb.helper.accessories.color import colored
 from zrb.helper.codemod.add_assert_resource import add_assert_resource
 from zrb.helper.codemod.add_import_module import add_import_module
-from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case, to_snake_case
 from zrb.runner import runner
 from zrb.task.decorator import python_task

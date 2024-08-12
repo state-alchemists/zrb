@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from module.auth.integration.model.permission_model import permission_model
 from module.auth.schema.permission import PermissionData
@@ -14,7 +14,7 @@ ACTION_DESCRIPTION = {
 
 
 async def ensure_entity_permission(
-    module_name: str, entity_name: str, action_names: Optional[List[str]] = None
+    module_name: str, entity_name: str, action_names: Optional[list[str]] = None
 ):
     if action_names is None:
         action_names = DEFAULT_ACTION_NAMES

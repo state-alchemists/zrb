@@ -87,7 +87,7 @@ Returns a list of immediate subgroups nested within this group, helping to under
 
 __Returns:__
 
-`List[Group]`: List of direct subgroups under this Task group.
+`list[Group]`: list of direct subgroups under this Task group.
 
 __Examples:__
 
@@ -178,7 +178,7 @@ Get direct Tasks under this Task Group.
 
 __Returns:__
 
-`List[AnyTask]`: List of direct Tasks under this Task Group.
+`list[AnyTask]`: list of direct Tasks under this Task Group.
 
 __Examples:__
 

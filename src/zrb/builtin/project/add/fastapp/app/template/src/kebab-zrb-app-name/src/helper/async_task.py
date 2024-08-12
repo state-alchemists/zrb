@@ -1,6 +1,6 @@
 import asyncio
 import inspect
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 
 def create_task(awaitable: Awaitable, on_error: Callable) -> asyncio.Task:
