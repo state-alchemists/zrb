@@ -1,4 +1,3 @@
-version: '3'
 services:
   myapp_simple_no_default_env:
     build: image

@@ -1,4 +1,3 @@
-version: '3'
 services:
   myapp_simple_map_env:
     build: image
