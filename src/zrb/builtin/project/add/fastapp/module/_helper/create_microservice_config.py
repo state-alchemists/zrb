@@ -50,11 +50,9 @@ async def _add_docker_compose_service(
     app_container_port_env_name = f"APP_{upper_snake_module_name}_MODULE_PORT"
     app_container_port_env = (
         "${" + app_container_port_env_name + ":-" + module_app_port_str + "}"
-    )  # noqa
+    )
     app_host_port_env_name = f"APP_{upper_snake_module_name}_HOST_MODULE_PORT"
-    app_host_port_env = (
-        "${" + app_host_port_env_name + ":-" + module_app_port_str + "}"
-    )  # noqa
+    app_host_port_env = "${" + app_host_port_env_name + ":-" + module_app_port_str + "}"
     service_definition = _get_new_docker_compose_service_definition(
         app_name=app_name,
         module_name=module_name,

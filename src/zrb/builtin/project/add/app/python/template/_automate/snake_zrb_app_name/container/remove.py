@@ -15,7 +15,7 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
     cwd=RESOURCE_DIR,
     compose_cmd="down",
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
-    compose_service_configs={"snake_zrb_app_name": snake_zrb_app_name_service_config},
+    compose_service_configs={"kebab-zrb-app-name": snake_zrb_app_name_service_config},
     env_files=[compose_env_file],
     envs=[
         image_env,

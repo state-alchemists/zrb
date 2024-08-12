@@ -333,22 +333,22 @@ class DockerComposeTask(CmdTask):
         raise Exception(f"Invalid compose file: {compose_file}")
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        cmd_str = "\n".join(
-            [
-                # setup
-                self._create_cmd_script(
-                    self._setup_cmd_path, self._setup_cmd, *args, **kwargs
-                ),
-                # compose
-                self._get_docker_compose_cmd_script(
-                    compose_cmd=self._compose_cmd,
-                    compose_options=self._compose_options,
-                    compose_flags=self._compose_flags,
-                    compose_args=self._compose_args,
-                    *args,
-                ),
-            ]
+        # setup
+        setup_cmd = self._create_cmd_script(
+            self._setup_cmd_path, self._setup_cmd, *args, **kwargs
         )
+        cmd_list = [setup_cmd] if setup_cmd.strip() != "" else []
+        # compose command
+        cmd_list.append(
+            self._get_docker_compose_cmd_script(
+                compose_cmd=self._compose_cmd,
+                compose_options=self._compose_options,
+                compose_flags=self._compose_flags,
+                compose_args=self._compose_args,
+                *args,
+            )
+        )
+        cmd_str = "\n".join(cmd_list)
         self.log_info(f"Command: {cmd_str}")
         return cmd_str
 

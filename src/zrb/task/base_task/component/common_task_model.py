@@ -339,7 +339,7 @@ class CommonTaskModel:
         additional_checkers = self.__complete_new_checkers(checkers)
         self._checkers = self._checkers + additional_checkers
 
-    def __complete_new_checkers(self, new_checkers: list[AnyTask]) -> list[AnyTask]:
+    def __complete_new_checkers(self, new_checkers: Iterable[AnyTask]) -> list[AnyTask]:
         """
         For internal use: copy and completing new checkers
         """
