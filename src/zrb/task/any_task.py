@@ -1,18 +1,10 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_input.any_input import AnyInput
@@ -824,7 +816,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def _get_env_files(self) -> List[EnvFile]:
+    def _get_env_files(self) -> list[EnvFile]:
         """
         Retrieves the list of environment variable files associated with the task.
 
@@ -832,7 +824,7 @@ class AnyTask(ABC):
         uses to load environment variables, primarily for setup and configuration purposes.
 
         Returns:
-            List[EnvFile]: A list of `EnvFile` instances associated with the task.
+            list[EnvFile]: A list of `EnvFile` instances associated with the task.
         """
         pass
 
@@ -850,7 +842,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def _get_envs(self) -> List[Env]:
+    def _get_envs(self) -> list[Env]:
         """
         Retrieves the list of environment variables set for the task.
 
@@ -858,7 +850,7 @@ class AnyTask(ABC):
         configured for the task, essential for understanding and debugging the task's environment setup.
 
         Returns:
-            List[Env]: A list of `Env` instances representing the environment variables of the task.
+            list[Env]: A list of `Env` instances representing the environment variables of the task.
         """
         pass
 
@@ -880,7 +872,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def _get_inputs(self) -> List[AnyInput]:
+    def _get_inputs(self) -> list[AnyInput]:
         """
         Retrieves the list of inputs associated with the task.
 
@@ -889,7 +881,7 @@ class AnyTask(ABC):
         for introspection and debugging purposes.
 
         Returns:
-            List[AnyInput]: A list of `AnyInput` instances representing the inputs for the task.
+            list[AnyInput]: A list of `AnyInput` instances representing the inputs for the task.
         """
         pass
 
@@ -1067,7 +1059,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_input_map(self) -> Mapping[str, Any]:
+    def get_input_map(self) -> dict[str, Any]:
         """
         Get a map representing task's Inputs.
 
@@ -1084,7 +1076,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_env_map(self) -> Mapping[str, Any]:
+    def get_env_map(self) -> dict[str, Any]:
         """
         Get a map representing task's Envs and EnvFiles
 
@@ -1101,7 +1093,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def render_any(self, value: Any, data: Optional[Mapping[str, Any]] = None) -> Any:
+    def render_any(self, value: Any, data: Optional[dict[str, Any]] = None) -> Any:
         """
         Render any value.
         """
@@ -1111,7 +1103,7 @@ class AnyTask(ABC):
     def render_float(
         self,
         value: Union[JinjaTemplate, float],
-        data: Optional[Mapping[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> float:
         """
         Render float value.
@@ -1120,7 +1112,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_int(
-        self, value: Union[JinjaTemplate, int], data: Optional[Mapping[str, Any]] = None
+        self, value: Union[JinjaTemplate, int], data: Optional[dict[str, Any]] = None
     ) -> int:
         pass
 
@@ -1128,7 +1120,7 @@ class AnyTask(ABC):
     def render_bool(
         self,
         value: Union[JinjaTemplate, bool],
-        data: Optional[Mapping[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Render int value.
@@ -1137,7 +1129,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_str(
-        self, value: JinjaTemplate, data: Optional[Mapping[str, Any]] = None
+        self, value: JinjaTemplate, data: Optional[dict[str, Any]] = None
     ) -> str:
         """
         Render str value.
@@ -1146,7 +1138,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def render_file(
-        self, path: JinjaTemplate, data: Optional[Mapping[str, Any]] = None
+        self, path: JinjaTemplate, data: Optional[dict[str, Any]] = None
     ) -> str:
         """
         Render file content.
@@ -1172,7 +1164,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+    def _set_keyval(self, kwargs: dict[str, Any], env_prefix: str):
         """
         For internal use.
 

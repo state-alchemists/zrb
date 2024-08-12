@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from zrb.builtin.project._helper import (
     create_register_module,
@@ -18,7 +19,6 @@ from zrb.builtin.project.add.fastapp.app._input import (
 )
 from zrb.config.config import VERSION
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
 from zrb.helper.util import to_kebab_case
 from zrb.runner import runner
 from zrb.task.decorator import python_task

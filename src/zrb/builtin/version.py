@@ -1,5 +1,6 @@
+from typing import Any
+
 from zrb.config.config import VERSION
-from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.task import Task

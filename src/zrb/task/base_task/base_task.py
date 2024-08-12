@@ -2,6 +2,8 @@ import asyncio
 import copy
 import os
 import shutil
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Union
 
 from zrb.advertisement import advertisements
 from zrb.config.config import SHOW_ADVERTISEMENT, TMP_DIR
@@ -12,7 +14,6 @@ from zrb.helper.map.conversion import to_str as map_to_str
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -41,14 +42,14 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     Every Task definition should be extended from this class.
     """
 
-    __running_tasks: List[AnyTask] = []
+    __running_tasks: list[AnyTask] = []
 
     def __init__(
         self,
         name: str,
         group: Optional[Group] = None,
         description: str = "",
-        inputs: List[AnyInput] = [],
+        inputs: list[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
@@ -119,7 +120,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             operand.add_upstream(self)
             return operand
         if isinstance(operand, AnyParallel):
-            other_tasks: List[AnyTask] = operand.get_tasks()
+            other_tasks: list[AnyTask] = operand.get_tasks()
             for other_task in other_tasks:
                 other_task.add_upstream(self)
             return operand
@@ -254,7 +255,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         env_prefix: str,
         raise_error: bool,
         args: Iterable[Any],
-        kwargs: Mapping[str, Any],
+        kwargs: dict[str, Any],
         show_done_info: bool = True,
     ):
         try:
@@ -415,24 +416,22 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         # wait all upstream checkers to complete
         await asyncio.gather(*coroutines)
 
-    async def __trigger_failure(self, tasks: List[AnyTask]):
+    async def __trigger_failure(self, tasks: list[AnyTask]):
         coroutines = [
             task.on_failed(is_last_attempt=True, exception=Exception("canceled"))
             for task in tasks
         ]
         await asyncio.gather(*coroutines)
 
-    async def __trigger_fallbacks(
-        self, tasks: List[AnyTask], kwargs: Mapping[str, Any]
-    ):
+    async def __trigger_fallbacks(self, tasks: list[AnyTask], kwargs: dict[str, Any]):
         coroutines: Iterable[asyncio.Task] = []
         for fallback in self.__get_all_fallbacks(tasks):
             fallback._set_execution_id(self.get_execution_id())
             coroutines.append(asyncio.create_task(fallback._run_all(**kwargs)))
         await asyncio.gather(*coroutines)
 
-    def __get_all_fallbacks(self, tasks: List[AnyTask]) -> List[AnyTask]:
-        all_fallbacks: List[AnyTask] = []
+    def __get_all_fallbacks(self, tasks: list[AnyTask]) -> list[AnyTask]:
+        all_fallbacks: list[AnyTask] = []
         for task in tasks:
             task._lock_fallbacks()
             for fallback in task._get_fallbacks():
@@ -445,7 +444,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             return await run_async(self._should_execute, *args, **kwargs)
         return self.render_bool(self._should_execute)
 
-    async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+    async def _set_keyval(self, kwargs: dict[str, Any], env_prefix: str):
         # if input is not in input_map, add default values
         for task_input in self._get_combined_inputs():
             key = to_variable_name(task_input.get_name())
@@ -479,7 +478,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         coroutines = checker_coroutines + upstream_coroutines
         await asyncio.gather(*coroutines)
 
-    async def _set_local_keyval(self, kwargs: Mapping[str, Any], env_prefix: str = ""):
+    async def _set_local_keyval(self, kwargs: dict[str, Any], env_prefix: str = ""):
         if self.__is_keyval_set:
             return True
         self.__is_keyval_set = True

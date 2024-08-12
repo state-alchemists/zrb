@@ -1,18 +1,12 @@
 import os
 import pathlib
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    Mapping,
-    Optional,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -46,9 +40,9 @@ class DockerComposeStartTask(DockerComposeTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        compose_service_configs: Mapping[str, ServiceConfig] = {},
+        compose_service_configs: dict[str, ServiceConfig] = {},
         compose_file: Optional[str] = None,
-        compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
+        compose_options: dict[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
         compose_args: Iterable[JinjaTemplate] = [],
         compose_env_prefix: str = "",

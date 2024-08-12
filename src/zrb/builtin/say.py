@@ -1,8 +1,8 @@
 import datetime
 import random
+from typing import Any
 
 from zrb.helper.task import show_lines
-from zrb.helper.typing import Any, List
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task_input.int_input import IntInput
@@ -94,7 +94,7 @@ def say(*args: Any, **kwargs: Any):
     show_lines(kwargs["_task"], *lines)
 
 
-def _get_content(text: str, width: int) -> List[str]:
+def _get_content(text: str, width: int) -> list[str]:
     if text == "":
         now = datetime.datetime.now()
         today = "Today is " + now.strftime("%A, %B %d, %Y")
@@ -108,7 +108,7 @@ def _get_content(text: str, width: int) -> List[str]:
     return _split_text_by_width(text, width)
 
 
-def _split_text_by_width(text: str, width: int) -> List[str]:
+def _split_text_by_width(text: str, width: int) -> list[str]:
     original_lines = text.split("\n")
     new_lines = []
     for original_line in original_lines:

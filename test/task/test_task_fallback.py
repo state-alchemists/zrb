@@ -1,10 +1,10 @@
-from zrb.helper.typing import Any, List
+from typing import Any
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
 from zrb.task.cmd_task import CmdTask
 
 
-def create_on_failed(logs: List[str]):
+def create_on_failed(logs: list[str]):
     def on_failed(task: AnyTask, is_last_attempt: bool, exception: Exception):
         task_name = task.get_name()
         if is_last_attempt:
@@ -14,7 +14,7 @@ def create_on_failed(logs: List[str]):
     return on_failed
 
 
-def create_fallback_task(task_name: str, logs: List[str]):
+def create_fallback_task(task_name: str, logs: list[str]):
     @python_task(
         name="fallback",
         retry=0
@@ -25,7 +25,7 @@ def create_fallback_task(task_name: str, logs: List[str]):
 
 
 def test_failure_and_fallback():
-    logs: List[str] = []
+    logs: list[str] = []
     task_1 = CmdTask(
         name='task1',
         on_failed=create_on_failed(logs),

@@ -1,19 +1,12 @@
 import os
 import pathlib
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -50,7 +43,7 @@ class RemoteConfig:
         ssh_key: JinjaTemplate = "",
         port: Union[int, JinjaTemplate] = 22,
         name: Optional[str] = None,
-        config_map: Optional[Mapping[str, JinjaTemplate]] = None,
+        config_map: Optional[dict[str, JinjaTemplate]] = None,
     ):
         self.name = name if name is not None else host
         self.host = host

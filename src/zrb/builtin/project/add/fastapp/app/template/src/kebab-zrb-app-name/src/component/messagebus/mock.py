@@ -1,7 +1,8 @@
 import asyncio
 import inspect
 import logging
-from typing import Any, Callable, List, Mapping
+from collections.abc import Callable
+from typing import Any
 
 from component.messagebus.messagebus import (
     Admin,
@@ -16,7 +17,7 @@ class MockConsumer(Consumer):
     def __init__(self, logger: logging.Logger, serializer: MessageSerializer):
         self.logger = logger
         self.serializer = serializer
-        self._handlers: Mapping[str, TEventHandler] = {}
+        self._handlers: dict[str, TEventHandler] = {}
 
     def register(self, event_name: str) -> Callable[[TEventHandler], Any]:
         def wrapper(handler: TEventHandler):
@@ -59,8 +60,8 @@ class MockPublisher(Publisher):
 
 
 class MockAdmin(Admin):
-    async def create_events(self, event_names: List[str]):
+    async def create_events(self, event_names: list[str]):
         return
 
-    async def delete_events(self, event_names: List[str]):
+    async def delete_events(self, event_names: list[str]):
         return

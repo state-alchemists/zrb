@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Any
 
 from zrb.builtin.project._helper import validate_existing_project_dir
 from zrb.builtin.project._input import project_dir_input
@@ -18,7 +19,6 @@ from zrb.builtin.project.add.fastapp.module._helper import (
 from zrb.builtin.project.add.fastapp.module._input import module_name_input
 from zrb.helper import util
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.resource_maker import ResourceMaker

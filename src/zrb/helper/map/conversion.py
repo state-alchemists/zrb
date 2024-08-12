@@ -1,14 +1,15 @@
+from typing import Any
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Mapping
 
 logger.debug(colored("Loading zrb.helper.map.conversion", attrs=["dark"]))
 
 
 @typechecked
 def to_str(
-    str_map: Mapping[str, Any],
+    str_map: dict[str, Any],
     item_separator: str = "\n",
     item_prefix: str = "",
     keyval_separator: str = " : ",

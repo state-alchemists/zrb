@@ -1,13 +1,13 @@
 import os
 from functools import lru_cache
+from typing import Optional
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Mapping, Optional
 
 logger.debug(colored("Loading zrb.helper.default_env", attrs=["dark"]))
-_PROJECT_DIR_MAP: Mapping[str, str] = {}
+_PROJECT_DIR_MAP: dict[str, str] = {}
 
 
 @lru_cache

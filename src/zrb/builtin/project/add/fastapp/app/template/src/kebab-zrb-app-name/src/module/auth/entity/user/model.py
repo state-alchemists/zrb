@@ -1,4 +1,4 @@
-from typing import List, Mapping, Optional
+from typing import Optional
 
 from component.messagebus.messagebus import Publisher
 from module.auth.component import AccessTokenUtil, RefreshTokenUtil
@@ -69,9 +69,7 @@ class UserModel(HistoricalRepoModel[User, UserData, UserResult]):
             return self.guest_user
         return await super().get_by_id(id)
 
-    async def is_authorized(
-        self, id: str, *permission_names: str
-    ) -> Mapping[str, bool]:
+    async def is_authorized(self, id: str, *permission_names: str) -> dict[str, bool]:
         user = await self.get_by_id(id)
         if self.is_admin(user.id):
             return {permission_name: True for permission_name in permission_names}
@@ -81,7 +79,7 @@ class UserModel(HistoricalRepoModel[User, UserData, UserResult]):
             for permission_name in permission_names
         }
 
-    def _get_permission_names(self, user: User) -> List[str]:
+    def _get_permission_names(self, user: User) -> list[str]:
         permission_names = [permission.name for permission in user.permissions]
         for group in user.groups:
             additional_permission_names = [

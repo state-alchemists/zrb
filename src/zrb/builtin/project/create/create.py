@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from zrb.builtin.project._group import project_group
 from zrb.builtin.project._input import project_dir_input
@@ -12,7 +13,6 @@ from zrb.builtin.project.create._input import (
 )
 from zrb.config.config import VERSION
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task

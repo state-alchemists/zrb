@@ -1,5 +1,3 @@
-from typing import List
-
 from component.schema import BaseCountSchema, BaseDateTimeSchema
 from module.auth.schema.group import Group
 from module.auth.schema.permission import Permission
@@ -11,8 +9,8 @@ class UserBase(BaseDateTimeSchema):
     phone: str
     email: str
     description: str
-    groups: List[str]
-    permissions: List[str]
+    groups: list[str]
+    permissions: list[str]
 
 
 class UserData(UserBase):
@@ -21,15 +19,15 @@ class UserData(UserBase):
 
 class User(UserBase):
     id: str
-    permissions: List[Permission] = []
-    groups: List[Group] = []
+    permissions: list[Permission] = []
+    groups: list[Group] = []
 
     class Config:
         from_attributes = True
 
 
 class UserResult(BaseCountSchema):
-    data: List[User]
+    data: list[User]
 
 
 class UserLogin(BaseModel):

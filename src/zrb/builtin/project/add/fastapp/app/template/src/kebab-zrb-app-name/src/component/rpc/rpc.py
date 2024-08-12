@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, List, Mapping, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 TRPCHandler = Callable[..., Any]
 TMessage = TypeVar("TMessage", bound="Message")
@@ -27,7 +28,7 @@ class Server(ABC):
 
 
 class Message:
-    def __init__(self, reply_event: str, args: List[Any], kwargs: Mapping[str, Any]):
+    def __init__(self, reply_event: str, args: list[Any], kwargs: dict[str, Any]):
         self.reply_event = reply_event
         self.args = args
         self.kwargs = kwargs
@@ -40,7 +41,7 @@ class Message:
         }
 
     @classmethod
-    def from_dict(cls, dictionary: Mapping[str, Any]) -> TMessage:
+    def from_dict(cls, dictionary: dict[str, Any]) -> TMessage:
         return cls(
             reply_event=dictionary.get("reply_event", ""),
             args=dictionary.get("args", []),
@@ -57,7 +58,7 @@ class Result:
         return {"result": self.result, "error": self.error}
 
     @classmethod
-    def from_dict(cls, dictionary: Mapping[str, Any]) -> TResult:
+    def from_dict(cls, dictionary: dict[str, Any]) -> TResult:
         return cls(
             result=dictionary.get("result", None), error=dictionary.get("error", "")
         )

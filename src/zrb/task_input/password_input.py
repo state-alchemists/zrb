@@ -1,7 +1,8 @@
+from typing import Any, Optional, Union
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Optional, Union
 from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
 logger.debug(colored("Loading zrb.task_input.password_input", attrs=["dark"]))

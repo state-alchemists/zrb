@@ -1,12 +1,12 @@
 import sys
+from collections.abc import Callable
+from typing import Any, Union
 
 import click
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from typing import Any, Union
-from collections.abc import Callable
 from zrb.task.any_task import AnyTask
 from zrb.task_group.group import Group as TaskGroup
 

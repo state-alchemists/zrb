@@ -1,5 +1,4 @@
 import os
-from typing import List, Mapping
 
 import pulumi_kubernetes as k8s
 from _common import (
@@ -24,8 +23,8 @@ app_port = int(os.getenv("APP_PORT", app_monolith_env_map.get("APP_PORT", "8080"
 app_gateway_env_map = get_app_gateway_env_map(TEMPLATE_ENV_MAP, MODULES)
 
 
-def create_app_microservices_deployments() -> List[k8s.apps.v1.Deployment]:
-    deployments: List[k8s.apps.v1.Deployment] = []
+def create_app_microservices_deployments() -> list[k8s.apps.v1.Deployment]:
+    deployments: list[k8s.apps.v1.Deployment] = []
     deployments.append(
         _create_app_deployment(
             resource_name="kebab-zrb-app-name-gateway",
@@ -58,8 +57,8 @@ def create_app_microservices_deployments() -> List[k8s.apps.v1.Deployment]:
     return deployments
 
 
-def create_app_microservices_services() -> List[k8s.core.v1.Service]:
-    services: List[k8s.core.v1.Service] = []
+def create_app_microservices_services() -> list[k8s.core.v1.Service]:
+    services: list[k8s.core.v1.Service] = []
     services.append(
         _create_app_service(
             resource_name="kebab-zrb-app-name-gateway",
@@ -99,8 +98,8 @@ def _create_app_deployment(
     resource_name: str,
     image: str,
     replica: int,
-    app_labels: Mapping[str, str],
-    env_map: Mapping[str, str],
+    app_labels: dict[str, str],
+    env_map: dict[str, str],
     app_port: int,
 ) -> k8s.apps.v1.Deployment:
     # Pulumi deployment docs:
@@ -147,7 +146,7 @@ def _create_app_deployment(
 
 def _create_app_service(
     resource_name: str,
-    app_labels: Mapping[str, str],
+    app_labels: dict[str, str],
     app_port: int,
     service_type: str = "LoadBalancer",
     service_port: int = 8080,

@@ -1,5 +1,3 @@
-from typing import List
-
 from zrb import Env, EnvFile
 from zrb.helper.util import to_kebab_case, to_snake_case
 
@@ -7,7 +5,7 @@ from .._constant import APP_TEMPLATE_ENV_FILE_NAME, MODULES
 from .._env import app_enable_otel_env
 
 
-def get_service_envs(base_port: int, module_index: int, module_name: str) -> List[Env]:
+def get_service_envs(base_port: int, module_index: int, module_name: str) -> list[Env]:
     kebab_module_name = to_kebab_case(module_name)
     snake_module_name = to_snake_case(module_name)
     upper_snake_module_name = snake_module_name.upper()
@@ -48,8 +46,8 @@ def get_service_env_file(module_name: str) -> EnvFile:
     )
 
 
-def get_disable_all_module_envs() -> List[Env]:
-    disable_all_module_envs: List[Env] = []
+def get_disable_all_module_envs() -> list[Env]:
+    disable_all_module_envs: list[Env] = []
     for module in MODULES:
         snake_module_name = to_snake_case(module)
         upper_snake_module_name = snake_module_name.upper()

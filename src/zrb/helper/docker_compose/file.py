@@ -1,9 +1,10 @@
+from typing import Any
+
 from ruamel.yaml import YAML, CommentedMap
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Mapping
 
 logger.debug(colored("Loading zrb.helper.docker_compose.file", attrs=["dark"]))
 
@@ -24,7 +25,7 @@ def write_compose_file(file_name: str, data: Any):
 
 
 @typechecked
-def add_services(file_name: str, new_services: Mapping[str, str]):
+def add_services(file_name: str, new_services: dict[str, str]):
     data = read_compose_file(file_name)
     data = CommentedMap(data)
     data["services"].update(CommentedMap(new_services))

@@ -1,5 +1,3 @@
-from typing import List
-
 from component.schema import BaseCountSchema, BaseDateTimeSchema
 
 
@@ -17,4 +15,4 @@ class Activity(ActivityData):
 
 
 class ActivityResult(BaseCountSchema):
-    data: List[Activity]
+    data: list[Activity]

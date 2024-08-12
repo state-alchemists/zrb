@@ -1,6 +1,7 @@
+from typing import Any
+
 from zrb.builtin.env._group import env_group
 from zrb.helper.accessories.color import colored
-from zrb.helper.typing import Any, List
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
@@ -15,7 +16,7 @@ async def get_env(*args: Any, **kwargs: Any):
     names = list(env_map.keys())
     names.sort()
     colored_equal = colored("=", color="grey", attrs=["dark"])
-    env_lines: List[str] = []
+    env_lines: list[str] = []
     for name in names:
         value = env_map[name]
         colored_name = colored(name, color="green", attrs=["bold"])

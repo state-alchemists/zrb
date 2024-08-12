@@ -1,9 +1,9 @@
 import hashlib
+from typing import Any
 
 import aiofiles
 
 from zrb.builtin.md5._group import md5_group
-from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 from zrb.task_input.str_input import StrInput

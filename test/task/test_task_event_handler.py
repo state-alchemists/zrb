@@ -1,45 +1,44 @@
-from zrb.helper.typing import List
 from zrb.task.decorator import python_task
 from zrb.task.any_task import AnyTask
 
 
-def create_on_triggered(logs: List[str]):
+def create_on_triggered(logs: list[str]):
     def on_triggered(task: AnyTask):
         logs.append('triggered')
     return on_triggered
 
 
-def create_on_waiting(logs: List[str]):
+def create_on_waiting(logs: list[str]):
     def on_waiting(task: AnyTask):
         logs.append('waiting')
     return on_waiting
 
 
-def create_on_skipped(logs: List[str]):
+def create_on_skipped(logs: list[str]):
     def on_skipped(task: AnyTask):
         logs.append('skipped')
     return on_skipped
 
 
-def create_on_started(logs: List[str]):
+def create_on_started(logs: list[str]):
     def on_started(task: AnyTask):
         logs.append('started')
     return on_started
 
 
-def create_on_ready(logs: List[str]):
+def create_on_ready(logs: list[str]):
     def on_ready(task: AnyTask):
         logs.append('ready')
     return on_ready
 
 
-def create_on_retry(logs: List[str]):
+def create_on_retry(logs: list[str]):
     def on_retry(task: AnyTask):
         logs.append('retry')
     return on_retry
 
 
-def create_on_failed(logs: List[str]):
+def create_on_failed(logs: list[str]):
     def on_failed(task: AnyTask, is_last_attempt: bool, exception: Exception):
         if is_last_attempt:
             logs.append('failed for good')

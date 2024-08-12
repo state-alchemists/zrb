@@ -1,9 +1,10 @@
+from typing import Any, Optional, Union
+
 from zrb.config.config import DEFAULT_EDITOR
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.multiline import edit
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Mapping, Optional, Union
 from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
 logger.debug(colored("Loading zrb.task_input.multiline_input", attrs=["dark"]))
@@ -48,7 +49,7 @@ class MultilineInput(BaseInput):
         'user123'
     """
 
-    __default_cache: Mapping[str, Any] = {}
+    __default_cache: dict[str, Any] = {}
 
     def __init__(
         self,

@@ -1,19 +1,12 @@
 import os
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import get_random_color
 from zrb.helper.accessories.icon import get_random_icon
 from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Mapping,
-    Optional,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.helper.util import coalesce_str
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -39,7 +32,7 @@ class CommonTaskModel:
         name: str,
         group: Optional[Group] = None,
         description: str = "",
-        inputs: List[AnyInput] = [],
+        inputs: list[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
@@ -65,7 +58,7 @@ class CommonTaskModel:
         self._group = group
         if group is not None:
             group._add_task(self)
-        checkers_cp: List[AnyTask] = [checker.copy() for checker in checkers]
+        checkers_cp: list[AnyTask] = [checker.copy() for checker in checkers]
         for checker in checkers_cp:
             checker.add_env(*envs)
             checker.add_env_file(*env_files)
@@ -104,7 +97,7 @@ class CommonTaskModel:
         self.__has_already_inject_inputs: bool = False
         self.__has_already_inject_upstreams: bool = False
         self.__has_already_inject_fallbacks: bool = False
-        self.__all_inputs: Optional[List[AnyInput]] = None
+        self.__all_inputs: Optional[list[AnyInput]] = None
 
     def _lock_checkers(self):
         self.__allow_add_checkers = False
@@ -185,7 +178,7 @@ class CommonTaskModel:
     def inject_inputs(self):
         pass
 
-    def _get_inputs(self) -> List[AnyInput]:
+    def _get_inputs(self) -> list[AnyInput]:
         if not self.__has_already_inject_inputs:
             self.inject_inputs()
             self.__has_already_inject_inputs = True
@@ -197,8 +190,8 @@ class CommonTaskModel:
         """
         if self.__all_inputs is not None:
             return self.__all_inputs
-        self.__all_inputs: List[AnyInput] = []
-        existing_input_names: Mapping[str, bool] = {}
+        self.__all_inputs: list[AnyInput] = []
+        existing_input_names: dict[str, bool] = {}
         # Add task inputs
         inputs = self._get_inputs()
         for input_index, first_occurence_task_input in enumerate(inputs):
@@ -244,14 +237,14 @@ class CommonTaskModel:
     def inject_envs(self):
         pass
 
-    def _get_envs(self) -> List[Env]:
+    def _get_envs(self) -> list[Env]:
         if not self.__has_already_inject_envs:
             self.inject_envs()
             self.__has_already_inject_envs = True
         return list(self._envs)
 
-    def _get_combined_env(self) -> Mapping[str, Env]:
-        all_envs: Mapping[str, Env] = {}
+    def _get_combined_env(self) -> dict[str, Env]:
+        all_envs: dict[str, Env] = {}
         for env_name in os.environ:
             if env_name in RESERVED_ENV_NAMES:
                 continue
@@ -297,7 +290,7 @@ class CommonTaskModel:
     def inject_upstreams(self):
         pass
 
-    def _get_upstreams(self) -> List[AnyTask]:
+    def _get_upstreams(self) -> list[AnyTask]:
         if not self.__has_already_inject_upstreams:
             self.inject_upstreams()
             self.__has_already_inject_upstreams = True
@@ -316,7 +309,7 @@ class CommonTaskModel:
     def inject_fallbacks(self):
         pass
 
-    def _get_fallbacks(self) -> List[AnyTask]:
+    def _get_fallbacks(self) -> list[AnyTask]:
         if not self.__has_already_inject_fallbacks:
             self.inject_fallbacks()
             self.__has_already_inject_fallbacks = True
@@ -328,7 +321,7 @@ class CommonTaskModel:
     def get_color(self) -> str:
         return self._color
 
-    def _get_env_files(self) -> List[EnvFile]:
+    def _get_env_files(self) -> list[EnvFile]:
         if not self.__has_already_inject_env_files:
             self.inject_env_files()
             self.__has_already_inject_env_files = True
@@ -346,11 +339,11 @@ class CommonTaskModel:
         additional_checkers = self.__complete_new_checkers(checkers)
         self._checkers = self._checkers + additional_checkers
 
-    def __complete_new_checkers(self, new_checkers: List[AnyTask]) -> List[AnyTask]:
+    def __complete_new_checkers(self, new_checkers: list[AnyTask]) -> list[AnyTask]:
         """
         For internal use: copy and completing new checkers
         """
-        checkers: List[AnyTask] = [checker.copy() for checker in new_checkers]
+        checkers: list[AnyTask] = [checker.copy() for checker in new_checkers]
         for checker in checkers:
             checker.add_input(*self._get_inputs())
             checker.add_env(*self._get_envs())
@@ -360,7 +353,7 @@ class CommonTaskModel:
     def inject_checkers(self):
         pass
 
-    def _get_checkers(self) -> List[AnyTask]:
+    def _get_checkers(self) -> list[AnyTask]:
         if not self.__allow_add_checkers:
             self.inject_checkers()
             self.__allow_add_checkers = True

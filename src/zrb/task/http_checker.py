@@ -1,17 +1,11 @@
+from collections.abc import Callable, Iterable
 from http.client import HTTPConnection, HTTPSConnection
+from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,

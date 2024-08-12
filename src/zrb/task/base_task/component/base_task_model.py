@@ -2,7 +2,9 @@ import datetime
 import logging
 import os
 import sys
+from collections.abc import Callable, Iterable
 from functools import lru_cache
+from typing import Any, Optional, Union
 
 from zrb.config.config import ENV_PREFIX, LOGGING_LEVEL, SHOW_TIME
 from zrb.helper.accessories.color import colored
@@ -10,16 +12,7 @@ from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Mapping,
-    Optional,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -48,7 +41,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         name: str,
         group: Optional[Group] = None,
         description: str = "",
-        inputs: List[AnyInput] = [],
+        inputs: list[AnyInput] = [],
         envs: Iterable[Env] = [],
         env_files: Iterable[EnvFile] = [],
         icon: Optional[str] = None,
@@ -102,8 +95,8 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         )
         PidModel.__init__(self)
         TimeTracker.__init__(self)
-        self.__args: List[Any] = []
-        self.__kwargs: Mapping[str, Any] = {}
+        self.__args: list[Any] = []
+        self.__kwargs: dict[str, Any] = {}
 
     def _set_args(self, args: Iterable[Any]):
         """
@@ -111,7 +104,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
         """
         self.__args = list(args)
 
-    def _set_kwargs(self, kwargs: Mapping[str, Any]):
+    def _set_kwargs(self, kwargs: dict[str, Any]):
         """
         Set kwargs that will be shown at the end of the execution
         """
@@ -201,7 +194,7 @@ class BaseTaskModel(CommonTaskModel, PidModel, TimeTracker):
     def _show_run_command(self):
         if not self.__has_cli_interface:
             return
-        params: List[str] = [double_quote(arg) for arg in self.__args]
+        params: list[str] = [double_quote(arg) for arg in self.__args]
         for task_input in self._get_combined_inputs():
             if task_input.is_hidden():
                 continue

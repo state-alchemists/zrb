@@ -5,7 +5,6 @@ from zrb.builtin.project.add.fastapp.app._input import app_name_input
 from zrb.builtin.project.add.fastapp.crud._input import entity_name_input
 from zrb.builtin.project.add.fastapp.module._input import module_name_input
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import List
 from zrb.task.any_task import AnyTask
 from zrb.task.cmd_task import CmdTask
 
@@ -20,7 +19,7 @@ _NAV_PERMISSION = "{{util.to_snake_case(input.module_name)}}:{{util.to_snake_cas
 
 
 @typechecked
-def create_add_navigation_task(upstreams: List[AnyTask]) -> AnyTask:
+def create_add_navigation_task(upstreams: list[AnyTask]) -> AnyTask:
     return CmdTask(
         name="add-navigation",
         inputs=[

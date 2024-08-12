@@ -1,16 +1,16 @@
 import fnmatch
 import glob
+from collections.abc import Iterable
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Iterable, List
 
 logger.debug(colored("Loading zrb.helper.file.match", attrs=["dark"]))
 
 
 @typechecked
-def get_file_names(glob_path: str, glob_ignored_paths: Iterable[str]) -> List[str]:
+def get_file_names(glob_path: str, glob_ignored_paths: Iterable[str]) -> list[str]:
     matches = []
     for file in glob.glob(glob_path, recursive=True):
         should_ignore = any(

@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, List, Mapping, Union
+from typing import Any, Union
 
 from component.messagebus import Publisher
 from component.repo import SearchFilter
@@ -30,8 +30,8 @@ def register_rpc(
 
     @rpc_server.register("auth_is_user_authorized")
     async def is_user_having_permission(
-        id: str, permission_name: Union[str, List[str]]
-    ) -> Mapping[str, bool]:
+        id: str, permission_name: Union[str, list[str]]
+    ) -> dict[str, bool]:
         """
         Used by RPC Authenticator
         """
@@ -40,23 +40,23 @@ def register_rpc(
         return await user_model.is_authorized(id, *permission_name)
 
     @rpc_server.register("auth_create_token")
-    async def create_token(login_data: Mapping[str, str]) -> Mapping[str, str]:
+    async def create_token(login_data: dict[str, str]) -> dict[str, str]:
         result = await user_model.create_auth_token(UserLogin(**login_data))
         return result.model_dump()
 
     @rpc_server.register("auth_refresh_token")
-    async def refresh_token(refresh_token: str, access_token: str) -> Mapping[str, str]:
+    async def refresh_token(refresh_token: str, access_token: str) -> dict[str, str]:
         result = await user_model.refresh_auth_token(refresh_token, access_token)
         return result.model_dump()
 
     @rpc_server.register("auth_get_user")
     async def get(
         keyword: str,
-        criterion: Mapping[str, Any],
+        criterion: dict[str, Any],
         limit: int,
         offset: int,
-        user_token_data: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        user_token_data: dict[str, Any],
+    ) -> dict[str, Any]:
         result = await user_model.get(
             search_filter=SearchFilter(keyword=keyword, criterion=criterion),
             limit=limit,
@@ -66,15 +66,15 @@ def register_rpc(
 
     @rpc_server.register("auth_get_user_by_id")
     async def get_by_id(
-        id: str, user_token_data: Mapping[str, Any] = {}
-    ) -> Mapping[str, Any]:
+        id: str, user_token_data: dict[str, Any] = {}
+    ) -> dict[str, Any]:
         row = await user_model.get_by_id(id)
         return row.model_dump()
 
     @rpc_server.register("auth_insert_user")
     async def insert(
-        data: Mapping[str, Any], user_token_data: Mapping[str, Any]
-    ) -> Mapping[str, Any]:
+        data: dict[str, Any], user_token_data: dict[str, Any]
+    ) -> dict[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         data["created_by"] = user_token_data.user_id
         data["updated_by"] = user_token_data.user_id
@@ -83,15 +83,15 @@ def register_rpc(
 
     @rpc_server.register("auth_update_user")
     async def update(
-        id: str, data: Mapping[str, Any], user_token_data: Mapping[str, Any]
-    ) -> Mapping[str, Any]:
+        id: str, data: dict[str, Any], user_token_data: dict[str, Any]
+    ) -> dict[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         data["updated_by"] = user_token_data.user_id
         row = await user_model.update(id=id, data=UserData(**data))
         return row.model_dump()
 
     @rpc_server.register("auth_delete_user")
-    async def delete(id: str, user_token_data: Mapping[str, Any]) -> Mapping[str, Any]:
+    async def delete(id: str, user_token_data: dict[str, Any]) -> dict[str, Any]:
         user_token_data = AccessTokenData(**user_token_data)
         row = await user_model.delete(id=id)
         return row.model_dump()

@@ -1,17 +1,11 @@
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.file.match import get_file_names
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -88,7 +82,7 @@ class PathChecker(Checker):
         self._path = path
         self._ignored_path = ignored_path
         self._rendered_path: str = ""
-        self._rendered_ignored_paths: List[str] = []
+        self._rendered_ignored_paths: list[str] = []
 
     def copy(self) -> TPathChecker:
         return super().copy()
@@ -120,7 +114,7 @@ class PathChecker(Checker):
         ]
         return await super().run(*args, **kwargs)
 
-    def _get_rendered_ignored_paths(self) -> List[str]:
+    def _get_rendered_ignored_paths(self) -> list[str]:
         if isinstance(self._ignored_path, str):
             return [self.render_str(self._ignored_path)]
         return [self.render_str(ignored_path) for ignored_path in self._ignored_path]

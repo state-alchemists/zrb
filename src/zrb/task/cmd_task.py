@@ -7,21 +7,14 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, Union
 
 from zrb.config.config import DEFAULT_SHELL, LOGGING_LEVEL
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import (
-    Any,
-    Callable,
-    Iterable,
-    JinjaTemplate,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-)
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -111,7 +104,7 @@ class CmdTask(BaseTask):
         >>> runner.register(hello)
     """
 
-    _pids: List[int] = []
+    _pids: list[int] = []
     _global_state = CmdGlobalState()
 
     def __init__(

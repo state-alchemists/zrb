@@ -1,9 +1,11 @@
+from collections.abc import Iterable
+from typing import Any, Optional, Union
+
 import click
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Iterable, Optional, Union
 from zrb.task_input.base_input import BaseInput, InputCallback, InputDefault
 
 logger.debug(colored("Loading zrb.task_input.choice_input", attrs=["dark"]))

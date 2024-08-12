@@ -1,11 +1,12 @@
 import asyncio
 import copy
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -29,8 +30,8 @@ class RunConfig:
     def __init__(
         self,
         fn: Callable[..., Any],
-        args: List[Any],
-        kwargs: Mapping[Any, Any],
+        args: list[Any],
+        kwargs: dict[Any, Any],
         execution_id: str,
     ):
         self.fn = fn
@@ -112,12 +113,12 @@ class RecurringTask(BaseTask):
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
         )
-        self._triggers: List[AnyTask] = [trigger.copy() for trigger in triggers]
-        self._run_configs: List[RunConfig] = []
+        self._triggers: list[AnyTask] = [trigger.copy() for trigger in triggers]
+        self._run_configs: list[RunConfig] = []
         self._single_execution = single_execution
         self.print_err("Deprecated, please use Server instead")
 
-    async def _set_keyval(self, kwargs: Mapping[str, Any], env_prefix: str):
+    async def _set_keyval(self, kwargs: dict[str, Any], env_prefix: str):
         await super()._set_keyval(kwargs=kwargs, env_prefix=env_prefix)
         new_kwargs = copy.deepcopy(kwargs)
         new_kwargs.update(self.get_input_map())

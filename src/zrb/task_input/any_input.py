@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
-from zrb.helper.typing import Any, List, Mapping
 
 logger.debug(colored("Loading zrb.task_input.any_input", attrs=["dark"]))
 
@@ -40,22 +40,22 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def get_param_decl(self) -> List[str]:
+    def get_param_decl(self) -> list[str]:
         """
         Fetches a list of parameter option associated with the input (i.e., `-f` or `--file`).
 
         Returns:
-            List[str]: A list containing strings of parameter options.
+            list[str]: A list containing strings of parameter options.
         """
         pass
 
     @abstractmethod
-    def get_options(self) -> Mapping[str, Any]:
+    def get_options(self) -> dict[str, Any]:
         """
         Provides a mapping (dictionary) representing the input.
 
         Returns:
-            Mapping[str, Any]: A dictionary where keys are option names and values are the corresponding details.
+            dict[str, Any]: A dictionary where keys are option names and values are the corresponding details.
         """
         pass
 

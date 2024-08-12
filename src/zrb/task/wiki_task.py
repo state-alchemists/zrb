@@ -1,11 +1,12 @@
 import os
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Union
 
 from zrb.action.runner import Runner
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.task import show_lines
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 from zrb.helper.util import to_human_readable
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
@@ -49,7 +50,7 @@ def create_wiki_tasks(
 ):
     abs_directory = os.path.abspath(directory)
     directory_structure = _get_directory_structure(abs_directory)
-    tasks: List[AnyTask] = []
+    tasks: list[AnyTask] = []
     for file_name in directory_structure["files"]:
         if not file_name.endswith(".md"):
             continue
@@ -120,7 +121,7 @@ def _create_function(directory: str, file_name: str) -> Callable[..., Any]:
     return fn
 
 
-def _get_directory_structure(path) -> Mapping[str, List[str]]:
+def _get_directory_structure(path) -> dict[str, list[str]]:
     contents = {"files": [], "dirs": []}
     for item in os.listdir(path):
         full_path = os.path.join(path, item)

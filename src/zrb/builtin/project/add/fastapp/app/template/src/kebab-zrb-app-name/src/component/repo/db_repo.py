@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Mapping, Optional, Type, TypeVar
+from typing import Any, Optional, Type, TypeVar
 
 from component.repo.repo import Repo
 from component.repo.search_filter import SearchFilter
@@ -28,8 +28,8 @@ class DBRepo(Repo[Schema, SchemaData]):
     ):
         self.logger = logger
         self.engine = engine
-        self.db_entity_attribute_names: List[str] = dir(self.db_entity_cls)
-        self._keyword_fields: Optional[List[InstrumentedAttribute]] = None
+        self.db_entity_attribute_names: list[str] = dir(self.db_entity_cls)
+        self._keyword_fields: Optional[list[InstrumentedAttribute]] = None
 
     async def get_by_id(self, id: str) -> Schema:
         """
@@ -48,7 +48,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         search_filter: Optional[SearchFilter] = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Schema]:
+    ) -> list[Schema]:
         """
         Find multiple records by keyword with limit and offset.
         """
@@ -164,7 +164,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         criterion: _ColumnExpressionArgument[bool],
         limit: int = 100,
         offset: int = 0,
-    ) -> List[DBEntity]:
+    ) -> list[DBEntity]:
         try:
             db_query = db.query(self.db_entity_cls).filter(criterion)
             if "created_at" in self.db_entity_attribute_names:
@@ -210,7 +210,7 @@ class DBRepo(Repo[Schema, SchemaData]):
 
     def _schema_data_to_db_entity_map(
         self, db: Session, schema_data: SchemaData
-    ) -> Mapping[str, Any]:
+    ) -> dict[str, Any]:
         """
         Convert entity_data into dictionary
         The result of this convertion is used for inserting/updating db_entity.
@@ -245,7 +245,7 @@ class DBRepo(Repo[Schema, SchemaData]):
         ]
         return or_(*keyword_criterion)
 
-    def _get_keyword_fields(self) -> List[InstrumentedAttribute]:
+    def _get_keyword_fields(self) -> list[InstrumentedAttribute]:
         """
         Return list of fields for keyword filtering
         """

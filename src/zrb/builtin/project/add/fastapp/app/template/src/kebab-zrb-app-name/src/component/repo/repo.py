@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, Optional, TypeVar
 
 from component.repo.search_filter import SearchFilter
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ class Repo(Generic[Schema, SchemaData], ABC):
     @abstractmethod
     async def get(
         self, search_filter: Optional[SearchFilter], limit: int, offset: int
-    ) -> List[Schema]:
+    ) -> list[Schema]:
         pass
 
     @abstractmethod

@@ -1,4 +1,5 @@
 import os
+from typing import Any, Optional
 
 from zrb.builtin.project._input import project_dir_input
 from zrb.helper import util
@@ -7,7 +8,6 @@ from zrb.helper.codemod.add_assert_resource import add_assert_resource
 from zrb.helper.codemod.add_import_module import add_import_module
 from zrb.helper.file.text import read_text_file_async, write_text_file_async
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, List, Optional
 from zrb.task.any_task import AnyTask
 from zrb.task.decorator import python_task
 from zrb.task.task import Task
@@ -61,8 +61,8 @@ async def register_module_to_project(
 @typechecked
 def create_register_module(
     module_path: str,
-    inputs: Optional[List[AnyInput]] = None,
-    upstreams: Optional[List[AnyTask]] = None,
+    inputs: Optional[list[AnyInput]] = None,
+    upstreams: Optional[list[AnyTask]] = None,
     alias: Optional[str] = None,
     task_name: str = "register-module",
 ) -> Task:

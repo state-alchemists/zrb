@@ -1,14 +1,16 @@
+from collections.abc import Callable
+from typing import Optional
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.callable import run_async
 from zrb.helper.log import logger
-from zrb.helper.typing import Callable, List, Mapping, Optional
 
 logger.debug(colored("Loading zrb.task.looper", attrs=["dark"]))
 
 
 class Looper:
     def __init__(self):
-        self._queue: Mapping[str, List[Optional[bool]]] = {}
+        self._queue: dict[str, list[Optional[bool]]] = {}
         self._should_stop = False
 
     async def pop(self, identifier: str) -> Optional[bool]:

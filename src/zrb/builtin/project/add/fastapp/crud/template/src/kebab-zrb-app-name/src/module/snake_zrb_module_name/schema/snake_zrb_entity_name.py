@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import List, Optional
+from typing import Optional
 
 from component.schema import BaseCountSchema, BaseDateTimeSchema
 
@@ -16,4 +16,4 @@ class PascalZrbEntityName(PascalZrbEntityNameData):
 
 
 class PascalZrbEntityNameResult(BaseCountSchema):
-    data: List[PascalZrbEntityName]
+    data: list[PascalZrbEntityName]

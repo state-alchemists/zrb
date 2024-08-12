@@ -1,7 +1,9 @@
+from collections.abc import Callable, Iterable
+from typing import Optional, TypeVar, Union
+
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Callable, Iterable, List, Optional, TypeVar, Union
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -48,7 +50,7 @@ class FlowTask(BaseTask):
         checking_interval: Union[float, int] = 0.05,
         retry: int = 2,
         retry_interval: Union[float, int] = 1,
-        steps: List[Union[AnyTask, List[AnyTask]]] = [],
+        steps: list[Union[AnyTask, list[AnyTask]]] = [],
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
     ):
@@ -91,12 +93,12 @@ class FlowTask(BaseTask):
 
     def _create_flow_upstreams(
         self,
-        steps: List[Union[AnyTask, List[AnyTask]]],
-        upstreams: List[AnyTask],
-        inputs: List[AnyInput],
-        envs: List[Env],
-        env_files: List[EnvFile],
-    ) -> List[AnyTask]:
+        steps: list[Union[AnyTask, list[AnyTask]]],
+        upstreams: list[AnyTask],
+        inputs: list[AnyInput],
+        envs: list[Env],
+        env_files: list[EnvFile],
+    ) -> list[AnyTask]:
         flow_upstreams = upstreams
         for step in steps:
             tasks = [task.copy() for task in self._step_to_tasks(step)]
@@ -110,20 +112,20 @@ class FlowTask(BaseTask):
             flow_upstreams = new_upstreams
         return flow_upstreams
 
-    def _step_to_tasks(self, step: Union[AnyTask, List[AnyTask]]) -> List[AnyTask]:
+    def _step_to_tasks(self, step: Union[AnyTask, list[AnyTask]]) -> list[AnyTask]:
         if isinstance(step, AnyTask):
             return [step]
         return step
 
     def _create_embeded_tasks(
         self,
-        tasks: List[AnyTask],
-        upstreams: List[AnyTask],
-        inputs: List[AnyInput],
-        envs: List[Env],
-        env_files: List[EnvFile],
-    ) -> List[AnyTask]:
-        embeded_tasks: List[AnyTask] = []
+        tasks: list[AnyTask],
+        upstreams: list[AnyTask],
+        inputs: list[AnyInput],
+        envs: list[Env],
+        env_files: list[EnvFile],
+    ) -> list[AnyTask]:
+        embeded_tasks: list[AnyTask] = []
         for embeded_task in tasks:
             embeded_task_upstreams = self._get_all_upstreams(tasks=[embeded_task])
             for embeded_task_upstream in embeded_task_upstreams:
@@ -134,7 +136,7 @@ class FlowTask(BaseTask):
             embeded_tasks.append(embeded_task)
         return embeded_tasks
 
-    def _get_all_upstreams(self, tasks: List[AnyTask]):
+    def _get_all_upstreams(self, tasks: list[AnyTask]):
         all_upstreams = []
         for task in tasks:
             upstreams = task._get_upstreams()

@@ -1,10 +1,12 @@
+from collections.abc import Callable
+from typing import Any, Optional, Union
+
 from zrb.config.config import SHOW_PROMPT
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.string.conversion import to_variable_name
 from zrb.helper.string.jinja import is_probably_jinja
 from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import Any, Callable, List, Mapping, Optional, Union
 from zrb.task_input.any_input import AnyInput
 from zrb.task_input.constant import RESERVED_INPUT_NAMES
 
@@ -12,8 +14,8 @@ logger.debug(colored("Loading zrb.task_input.base_input", attrs=["dark"]))
 
 # flake8: noqa E501
 
-InputCallback = Callable[[Mapping[str, Any], Any], Any]
-InputDefault = Callable[[Mapping[str, Any]], Any]
+InputCallback = Callable[[dict[str, Any], Any], Any]
+InputDefault = Callable[[dict[str, Any]], Any]
 
 
 @typechecked
@@ -56,8 +58,8 @@ class BaseInput(AnyInput):
         >>> )
     """
 
-    __value_cache: Mapping[str, Any] = {}
-    __default_cache: Mapping[str, Any] = {}
+    __value_cache: dict[str, Any] = {}
+    __default_cache: dict[str, Any] = {}
 
     def __init__(
         self,
@@ -115,14 +117,14 @@ class BaseInput(AnyInput):
             return self._default(self.__value_cache)
         return self._default
 
-    def get_param_decl(self) -> List[str]:
-        param_decl: List[str] = [f"--{self._name}"]
+    def get_param_decl(self) -> list[str]:
+        param_decl: list[str] = [f"--{self._name}"]
         if self._shortcut is not None:
             param_decl.append(f"-{self._shortcut}")
         return param_decl
 
-    def get_options(self) -> Mapping[str, Any]:
-        options: Mapping[str, Any] = {
+    def get_options(self) -> dict[str, Any]:
+        options: dict[str, Any] = {
             "help": self._help,
             "type": self._type,
             "show_default": self._get_calculated_show_default(),

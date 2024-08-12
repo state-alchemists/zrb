@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Annotated, List, Mapping
+from typing import Annotated
 
 from component.error import HTTPAPIException
 from component.messagebus import Publisher
@@ -61,11 +61,11 @@ def register_auth_api(
         except Exception as e:
             raise HTTPAPIException(error=e)
 
-    @app.post("/api/v1/auth/is-authorized", response_model=Mapping[str, bool])
+    @app.post("/api/v1/auth/is-authorized", response_model=dict[str, bool])
     async def is_authorized(
         data: IsAuthorizedRequest,
         user_token_data: AccessTokenData = Depends(access_token_scheme),
-    ) -> Mapping[str, str]:
+    ) -> dict[str, str]:
         try:
             user_id = user_token_data.user_id
             with tracer.start_as_current_span("auth.rpc.auth_is_user_authorized"):

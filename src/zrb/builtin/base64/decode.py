@@ -1,8 +1,8 @@
 import base64
+from typing import Any
 
 from zrb.builtin.base64._group import base64_group
 from zrb.builtin.base64._input import text_input
-from zrb.helper.typing import Any
 from zrb.runner import runner
 from zrb.task.decorator import python_task
 
