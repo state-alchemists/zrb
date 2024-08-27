@@ -33,8 +33,18 @@ def _get_default_tmp_dir() -> str:
 TMP_DIR = os.getenv("ZRB_TMP_DIR", _get_default_tmp_dir())
 DEFAULT_SHELL = os.getenv("ZRB_SHELL", _get_current_shell())
 DEFAULT_EDITOR = os.getenv("ZRB_EDITOR", "nano")
-INIT_SCRIPT_STR = os.getenv("ZRB_INIT_SCRIPTS", "")
-INIT_SCRIPTS = INIT_SCRIPT_STR.split(":") if INIT_SCRIPT_STR != "" else []
+INIT_MODULES_STR = os.getenv("ZRB_INIT_MODULES", "")
+INIT_MODULES = (
+    [module.strip() for module in INIT_MODULES_STR.split(":") if module.strip() != ""]
+    if INIT_MODULES_STR != ""
+    else []
+)
+INIT_SCRIPTS_STR = os.getenv("ZRB_INIT_SCRIPTS", "")
+INIT_SCRIPTS = (
+    [script.strip() for script in INIT_SCRIPTS_STR.split(":") if script.strip() != ""]
+    if INIT_SCRIPTS_STR != ""
+    else []
+)
 LOGGING_LEVEL = untyped_to_logging_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
 SHOULD_LOAD_BUILTIN = untyped_to_boolean(os.getenv("ZRB_SHOULD_LOAD_BUILTIN", "1"))
 ENV_PREFIX = os.getenv("ZRB_ENV", "")
