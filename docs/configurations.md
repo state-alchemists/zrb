@@ -36,6 +36,15 @@ Environment variable prefix for your tasks. When defined, Zrb will first try to 
 - __Possible values:__ Any combination of alpha-numeric and underscore
 - __Example:__ `DEV`
 
+## `ZRB_INIT_MODULES`
+
+List of Python modules that should be loaded by default.
+
+- __Default value:__ Empty
+- __Possible values:__ List of script paths, separated by colons(`:`).
+- __Example:__ `zrb_noto:zrb_extras`
+
+
 ## `ZRB_INIT_SCRIPTS`
 
 List of Python scripts that should be loaded by default.
