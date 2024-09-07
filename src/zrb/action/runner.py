@@ -1,5 +1,5 @@
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Union
 
 import click
