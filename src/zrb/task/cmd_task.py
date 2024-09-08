@@ -12,6 +12,7 @@ from typing import Any, Optional, TypeVar, Union
 
 from zrb.config.config import DEFAULT_SHELL, LOGGING_LEVEL
 from zrb.helper.accessories.color import colored
+from zrb.helper.asyncio_task import stop_asyncio_sync
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
@@ -289,16 +290,7 @@ class CmdTask(BaseTask):
         _print_out_dark(f"Getting signal {signum}")
         for pid in self._pids:
             self.__kill_by_pid(pid)
-        tasks = asyncio.all_tasks()
-        for task in tasks:
-            try:
-                task.cancel()
-            except RuntimeError as e:
-                if "event loop is closed" not in str(e).lower():
-                    raise e
-            except Exception as e:
-                self.print_err(e)
-        time.sleep(0.3)
+        stop_asyncio_sync()
         _print_out_dark(f"Exiting with signal {signum}")
         sys.exit(signum)
 

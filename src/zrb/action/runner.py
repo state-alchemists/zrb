@@ -5,6 +5,7 @@ from typing import Any, Union
 import click
 
 from zrb.helper.accessories.color import colored
+from zrb.helper.asyncio_task import stop_asyncio_sync
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.task.any_task import AnyTask
@@ -120,6 +121,7 @@ class Runner:
             try:
                 function(*args, **kwargs)
             except Exception:
+                stop_asyncio_sync()
                 sys.exit(1)
             finally:
                 task.clear_xcom()
