@@ -1,5 +1,6 @@
 import os
 
+NAME = os.getenv("NAME", "world")
 
-name = os.getenv("NAME", "world")
-print(f"Hello {name}")
+if __name__ == "__main__":
+    print(f"Hello {NAME}")
