@@ -288,7 +288,7 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             self._print_result(result)
             return result
         except RuntimeError as e:
-            if str(e) != "Event loop is closed":
+            if "event loop is closed" not in str(e).lower():
                 raise e
         except Exception as e:
             self.log_error(f"{e}")

@@ -293,6 +293,9 @@ class CmdTask(BaseTask):
         for task in tasks:
             try:
                 task.cancel()
+            except RuntimeError as e:
+                if "event loop is closed" not in str(e).lower():
+                    raise e
             except Exception as e:
                 self.print_err(e)
         time.sleep(0.3)
