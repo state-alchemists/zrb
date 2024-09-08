@@ -1,6 +1,5 @@
 import json
 import os
-
 from collections.abc import Mapping
 
 _PROJECT_DIR = os.getenv("ZRB_PROJECT_DIR", ".")

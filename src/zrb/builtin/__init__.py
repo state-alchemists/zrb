@@ -24,6 +24,7 @@ from zrb.builtin.eval import evaluate
 from zrb.builtin.explain import explain_group, explain_tasks
 from zrb.builtin.git import clear_git_branch, get_git_file_changes, git_group
 from zrb.builtin.md5 import hash_text_md5, md5_group, sum_file_md5
+from zrb.builtin.monorepo import add_to_monorepo, pull_from_monorepo, push_to_monorepo
 from zrb.builtin.process import (
     get_process_pid_by_name,
     get_process_pid_by_port,
@@ -41,15 +42,12 @@ from zrb.builtin.project import (
     add_project_tasks,
     add_python_app,
     add_python_task,
-    add_to_monorepo,
     create_project,
     project_add_app_group,
     project_add_fastapp_group,
     project_add_group,
     project_add_task_group,
     project_group,
-    pull_from_monorepo,
-    push_to_monorepo,
 )
 from zrb.builtin.say import say
 from zrb.builtin.schedule import schedule

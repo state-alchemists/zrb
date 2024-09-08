@@ -1,45 +1,31 @@
 import json
-
 from collections.abc import Mapping
-from zrb.builtin.project.monorepo._config import MONOREPO_CONFIG, MONOREPO_CONFIG_FILE
-from zrb.builtin.project.monorepo._group import project_monorepo_group
-from zrb.task.decorator import python_task
-from zrb.task.any_task import AnyTask
-from zrb.task_input.str_input import StrInput
+
+from zrb.builtin.monorepo._config import MONOREPO_CONFIG, MONOREPO_CONFIG_FILE
+from zrb.builtin.monorepo._group import monorepo_group
 from zrb.runner import runner
+from zrb.task.any_task import AnyTask
+from zrb.task.decorator import python_task
+from zrb.task_input.str_input import StrInput
 
 
 @python_task(
     name="add",
-    group=project_monorepo_group,
+    group=monorepo_group,
     inputs=[
-        StrInput(
-            name="alias",
-            shortcut="a",
-            prompt="Repo Alias",
-            prompt_required=True
-        ),
-        StrInput(
-            name="folder", shortcut="d",
-            prompt="Directory",
-            prompt_required=True
-        ),
-        StrInput(
-            name="origin",
-            shortcut="o",
-            prompt="Repo URL",
-            prompt_required=True
-        ),
+        StrInput(name="alias", shortcut="a", prompt="Repo Alias", prompt_required=True),
+        StrInput(name="folder", shortcut="d", prompt="Directory", prompt_required=True),
+        StrInput(name="origin", shortcut="o", prompt="Repo URL", prompt_required=True),
         StrInput(
             name="branch",
             shortcut="b",
             prompt="Repo Branch",
             prompt_required=True,
-            default="main"
+            default="main",
         ),
     ],
     description="Add repo to monorepo",
-    runner=runner
+    runner=runner,
 )
 def add_to_monorepo(*args, **kwargs):
     task: AnyTask = kwargs.get("_task")

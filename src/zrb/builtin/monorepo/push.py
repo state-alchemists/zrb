@@ -1,11 +1,11 @@
 from datetime import datetime
-from zrb.builtin.project.monorepo._group import project_monorepo_group
-from zrb.builtin.project.monorepo._task import PUSH_SUBREPO_UPSTREAM
+
+from zrb.builtin.monorepo._group import monorepo_group
+from zrb.builtin.monorepo._task import PUSH_SUBREPO_UPSTREAM
+from zrb.runner import runner
 from zrb.task.cmd_task import CmdTask
 from zrb.task.task import Task
 from zrb.task_input.str_input import StrInput
-from zrb.runner import runner
-
 
 _push_monorepo = CmdTask(
     name="push-monorepo",
@@ -15,18 +15,19 @@ _push_monorepo = CmdTask(
         'git commit -m "{{input.message}}"',
         'git push origin "$(git branch --show-current)"',
     ],
-    retry=0
+    retry=0,
 )
 
 push_to_monorepo = Task(
     name="push",
-    group=project_monorepo_group,
-    description="Pushing to subrepositories",
+    group=monorepo_group,
+    description="Pushing to subrepos",
     inputs=[
         StrInput(
             name="message",
+            shortcut="m",
             prompt="Commit Messsage",
-            default=lambda m: f"Pushing to subrepositories at {datetime.now().strftime('%Y-%m-%d %I:%M:%p')}"  # noqa
+            default=lambda m: f"Pushing to subrepos at {datetime.now().strftime('%Y-%m-%d %I:%M:%p')}",  # noqa
         )
     ],
 )

@@ -15,11 +15,6 @@ from zrb.builtin.project.add import (
     project_add_group,
     project_add_task_group,
 )
-from zrb.builtin.project.monorepo import (
-    add_to_monorepo,
-    pull_from_monorepo,
-    push_to_monorepo,
-)
 from zrb.builtin.project.create import create_project
 
 assert project_group
@@ -27,9 +22,6 @@ assert project_add_group
 assert project_add_app_group
 assert project_add_fastapp_group
 assert project_add_task_group
-assert add_to_monorepo
-assert pull_from_monorepo
-assert push_to_monorepo
 assert create_project
 assert add_plugin
 assert add_project_tasks
