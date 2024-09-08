@@ -11,7 +11,9 @@ prune_docker = CmdTask(
         BoolInput(
             name="all", shortcut="a", prompt="Remove all unused images", default=False
         ),
-        BoolInput(name="volume", shortcut="v", prompt="Clear volume", default=False)
+        BoolInput(
+            name="volume", shortcut="v", prompt="Prune anonymous volume", default=False
+        ),
     ],
     cmd=[
         "docker system prune -f {% if input.all %}-a{% endif %} {% if input.volume %}--volumes{% endif %}",  # noqa
