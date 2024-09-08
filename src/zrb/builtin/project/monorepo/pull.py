@@ -14,7 +14,7 @@ pull_from_monorepo = Task(
         StrInput(
             name="message",
             prompt="Commit Messsage",
-            default=lambda m: f"Pulling from subrepositories at {datetime.datetime.now().strftime('%Y-%m-%d %I:%M:%p')}"  # noqa
+            default=lambda m: f"Pulling from subrepositories at {datetime.now().strftime('%Y-%m-%d %I:%M:%p')}"  # noqa
         )
     ],
 )

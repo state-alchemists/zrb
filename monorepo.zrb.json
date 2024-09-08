@@ -1,0 +1,12 @@
+{
+  "alpha": {
+    "folder": "alpha",
+    "branch": "main",
+    "origin": "git@github.com:goFrendiAsgard/coba-monorepo-a.git"
+  },
+  "beta": {
+    "folder": "beta",
+    "branch": "main",
+    "origin": "git@github.com:goFrendiAsgard/coba-monorepo-b.git"
+  }
+}

@@ -26,7 +26,7 @@ push_to_monorepo = Task(
         StrInput(
             name="message",
             prompt="Commit Messsage",
-            default=lambda m: f"Pushing to subrepositories at {datetime.datetime.now().strftime('%Y-%m-%d %I:%M:%p')}"  # noqa
+            default=lambda m: f"Pushing to subrepositories at {datetime.now().strftime('%Y-%m-%d %I:%M:%p')}"  # noqa
         )
     ],
 )
