@@ -8,7 +8,6 @@ import (
 func main() {
 	name := os.Getenv("NAME")
 	if name == "" {
-		// Add default value (repo)
 		name = "World"
 	}
 	fmt.Printf("Hello %s\n", name)
