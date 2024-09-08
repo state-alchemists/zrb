@@ -24,6 +24,7 @@ from zrb.builtin.eval import evaluate
 from zrb.builtin.explain import explain_group, explain_tasks
 from zrb.builtin.git import clear_git_branch, get_git_file_changes, git_group
 from zrb.builtin.md5 import hash_text_md5, md5_group, sum_file_md5
+from zrb.builtin.monorepo import add_to_monorepo, pull_from_monorepo, push_to_monorepo
 from zrb.builtin.process import (
     get_process_pid_by_name,
     get_process_pid_by_port,
@@ -113,6 +114,9 @@ assert add_project_tasks
 assert add_cmd_task
 assert add_docker_compose_task
 assert add_python_task
+assert add_to_monorepo
+assert pull_from_monorepo
+assert push_to_monorepo
 assert ubuntu_group
 assert ubuntu_install_group
 assert update_ubuntu
