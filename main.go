@@ -1,7 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func main() {
-	fmt.Println("Hello world")
+	name := os.Getenv("NAME")
+	if name == "" {
+		name = "World"
+	}
+	fmt.Printf("Hello %s\n", name)
 }
