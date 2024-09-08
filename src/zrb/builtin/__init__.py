@@ -41,12 +41,15 @@ from zrb.builtin.project import (
     add_project_tasks,
     add_python_app,
     add_python_task,
+    add_to_monorepo,
     create_project,
     project_add_app_group,
     project_add_fastapp_group,
     project_add_group,
     project_add_task_group,
     project_group,
+    pull_from_monorepo,
+    push_to_monorepo,
 )
 from zrb.builtin.say import say
 from zrb.builtin.schedule import schedule
@@ -113,6 +116,9 @@ assert add_project_tasks
 assert add_cmd_task
 assert add_docker_compose_task
 assert add_python_task
+assert add_to_monorepo
+assert pull_from_monorepo
+assert push_to_monorepo
 assert ubuntu_group
 assert ubuntu_install_group
 assert update_ubuntu
