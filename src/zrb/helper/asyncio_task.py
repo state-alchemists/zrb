@@ -16,8 +16,11 @@ async def stop_asyncio():
 
 
 def stop_asyncio_sync():
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        loop.create_task(stop_asyncio())
-    else:
-        loop.run_until_complete(stop_asyncio())
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(stop_asyncio())
+        else:
+            loop.run_until_complete(stop_asyncio())
+    except Exception:
+        pass
