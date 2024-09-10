@@ -58,7 +58,6 @@ def create_cli() -> click.Group:
                     attrs=["bold"],
                 )
             )
-            traceback.print_exc()
     # Load zrb_init.py
     project_dir = os.getenv("ZRB_PROJECT_DIR", os.getcwd())
     project_script = os.path.join(project_dir, "zrb_init.py")

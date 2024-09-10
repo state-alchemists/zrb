@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from zrb.builtin.monorepo._config import MONOREPO_CONFIG
+from zrb.builtin.monorepo._config import MONOREPO_CONFIG, PROJECT_DIR
 from zrb.builtin.monorepo._group import monorepo_group
 from zrb.helper.util import to_kebab_case
 from zrb.runner import runner
@@ -9,17 +9,15 @@ from zrb.task.cmd_task import CmdTask
 from zrb.task_group.group import Group
 from zrb.task_input.str_input import StrInput
 
-_PROJECT_DIR = os.getenv("ZRB_PROJECT_DIR", ".")
-
 _pull_monorepo = CmdTask(
     name="pull-monorepo",
     inputs=[StrInput(name="message")],
-    cwd=_PROJECT_DIR,
     cmd=[
         "git add . -A",
         'git commit -m "{{input.message}}"',
         'git pull origin "$(git branch --show-current)"',
     ],
+    cwd=PROJECT_DIR,
     retry=0,
 )
 
@@ -49,13 +47,14 @@ for name, config in MONOREPO_CONFIG.items():
         cmd=[
             f'if [ ! -d "{subrepo_folder}" ]',
             "then",
-            "   echo Run subtree add",
+            "  echo Run subtree add",
             f'  git subtree add --prefix "{subrepo_folder}" "{subrepo_origin}" "{subrepo_branch}"',  # noqa
             "fi",
             "echo Run subtree pull",
             "set -e",
             f'git subtree pull --prefix "{subrepo_folder}" "{subrepo_origin}" "{subrepo_branch}"',  # noqa
         ],
+        cwd=PROJECT_DIR,
         retry=0,
     )
     _pull_monorepo >> pull_subrepo
@@ -79,7 +78,7 @@ for name, config in MONOREPO_CONFIG.items():
         cmd=[
             f'if [ ! -d "{subrepo_folder}" ]',
             "then",
-            "   echo Run subtree add",
+            "  echo Run subtree add",
             f'  git subtree add --prefix "{subrepo_folder}" "{subrepo_origin}" "{subrepo_branch}"',  # noqa
             "fi",
             "echo Run subtree pull",
@@ -90,10 +89,11 @@ for name, config in MONOREPO_CONFIG.items():
             'git commit -m "{{input.message}}"',
             f'git subtree push --prefix "{subrepo_folder}" "{subrepo_origin}" "{subrepo_branch}"',  # noqa
         ],
+        cwd=PROJECT_DIR,
         retry=0,
     )
     _pull_monorepo >> push_subrepo
     linked_push_subrepo = push_subrepo.copy()
-    PUSH_SUBREPO_UPSTREAM >> push_subrepo
+    PUSH_SUBREPO_UPSTREAM >> linked_push_subrepo
     PUSH_SUBREPO_UPSTREAM = linked_push_subrepo
     runner.register(push_subrepo)

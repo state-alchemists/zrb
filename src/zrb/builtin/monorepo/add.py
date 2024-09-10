@@ -1,7 +1,12 @@
 import json
+import os
 from collections.abc import Mapping
 
-from zrb.builtin.monorepo._config import MONOREPO_CONFIG, MONOREPO_CONFIG_FILE
+from zrb.builtin.monorepo._config import (
+    MONOREPO_CONFIG,
+    MONOREPO_CONFIG_FILE,
+    PROJECT_DIR,
+)
 from zrb.builtin.monorepo._group import monorepo_group
 from zrb.runner import runner
 from zrb.task.any_task import AnyTask
@@ -30,6 +35,9 @@ from zrb.task_input.str_input import StrInput
 def add_to_monorepo(*args, **kwargs):
     task: AnyTask = kwargs.get("_task")
     input_map: Mapping[str, str] = task.get_input_map()
+    abs_folder = os.path.join(PROJECT_DIR, input_map.get("folder", ""))
+    if os.path.isdir(abs_folder):
+        raise ValueError(f"Directory exists: {abs_folder}")
     config = dict(MONOREPO_CONFIG)
     config[input_map.get("alias", "")] = {
         "folder": input_map.get("folder", ""),

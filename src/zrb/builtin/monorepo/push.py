@@ -1,5 +1,7 @@
+import os
 from datetime import datetime
 
+from zrb.builtin.monorepo._config import PROJECT_DIR
 from zrb.builtin.monorepo._group import monorepo_group
 from zrb.builtin.monorepo._task import PUSH_SUBREPO_UPSTREAM
 from zrb.runner import runner
@@ -15,6 +17,7 @@ _push_monorepo = CmdTask(
         'git commit -m "{{input.message}}"',
         'git push origin "$(git branch --show-current)"',
     ],
+    cwd=PROJECT_DIR,
     retry=0,
 )
 
