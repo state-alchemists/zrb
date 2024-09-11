@@ -1,10 +1,11 @@
 import logging
+import sys
 
 from zrb.config.config import LOGGING_LEVEL
 from zrb.helper.accessories.untyped_color import untyped_colored as colored
 
 # create logger
-logger = logging.getLogger("zrb")
+logger = logging.getLogger("zrb", sys.stderr)
 logger.setLevel(LOGGING_LEVEL)
 
 # create console handler and set level to debug

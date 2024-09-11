@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 
 from zrb.builtin.monorepo._config import PROJECT_DIR

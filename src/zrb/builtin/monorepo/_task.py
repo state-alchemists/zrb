@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 
 from zrb.builtin.monorepo._config import MONOREPO_CONFIG, PROJECT_DIR
@@ -87,6 +86,7 @@ for name, config in MONOREPO_CONFIG.items():
             "set +e",
             "git add . -A",
             'git commit -m "{{input.message}}"',
+            "set -e",
             f'git subtree push --prefix "{subrepo_folder}" "{subrepo_origin}" "{subrepo_branch}"',  # noqa
         ],
         cwd=PROJECT_DIR,
