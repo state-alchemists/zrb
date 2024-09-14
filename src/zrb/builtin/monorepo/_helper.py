@@ -17,7 +17,10 @@ def create_pull_monorepo_task(
         envs=[
             Env("TIME", os_name="", default="{{datetime.datetime.now()}}"),
         ],
-        cmd_path=os.path.join(_CURRENT_DIR, "pull-monorepo.sh"),
+        cmd_path=[
+            os.path.join(_CURRENT_DIR, "_common.sh"),
+            os.path.join(_CURRENT_DIR, "pull-monorepo.sh"),
+        ],
         cwd=PROJECT_DIR,
         should_show_cmd=False,
         should_show_working_directory=False,
@@ -36,7 +39,10 @@ def create_push_monorepo_task(
         envs=[
             Env("MESSAGE", os_name="", default="{{input.message}}"),
         ],
-        cmd_path=os.path.join(_CURRENT_DIR, "push-monorepo.sh"),
+        cmd_path=[
+            os.path.join(_CURRENT_DIR, "_common.sh"),
+            os.path.join(_CURRENT_DIR, "push-monorepo.sh"),
+        ],
         cwd=PROJECT_DIR,
         should_show_cmd=False,
         should_show_working_directory=False,
@@ -59,7 +65,10 @@ def create_add_subrepo_task(
             Env("BRANCH", os_name="", default=branch),
             Env("TIME", os_name="", default="{{datetime.datetime.now()}}"),
         ],
-        cmd_path=os.path.join(_CURRENT_DIR, "add-subrepo.sh"),
+        cmd_path=[
+            os.path.join(_CURRENT_DIR, "_common.sh"),
+            os.path.join(_CURRENT_DIR, "add-subrepo.sh"),
+        ],
         cwd=PROJECT_DIR,
         should_show_cmd=False,
         should_show_working_directory=False,
@@ -82,7 +91,10 @@ def create_pull_subrepo_task(
             Env("BRANCH", os_name="", default=branch),
             Env("TIME", os_name="", default="{{datetime.datetime.now()}}"),
         ],
-        cmd_path=os.path.join(_CURRENT_DIR, "pull-subrepo.sh"),
+        cmd_path=[
+            os.path.join(_CURRENT_DIR, "_common.sh"),
+            os.path.join(_CURRENT_DIR, "pull-subrepo.sh"),
+        ],
         cwd=PROJECT_DIR,
         should_show_cmd=False,
         should_show_working_directory=False,
@@ -108,7 +120,10 @@ def create_push_subrepo_task(
             Env("TIME", os_name="", default="{{datetime.datetime.now()}}"),
             Env("MESSAGE", os_name="", default="{{input.message}}"),
         ],
-        cmd_path=os.path.join(_CURRENT_DIR, "push-subrepo.sh"),
+        cmd_path=[
+            os.path.join(_CURRENT_DIR, "_common.sh"),
+            os.path.join(_CURRENT_DIR, "push-subrepo.sh"),
+        ],
         cwd=PROJECT_DIR,
         should_show_cmd=False,
         should_show_working_directory=False,
