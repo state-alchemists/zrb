@@ -1,2 +1,4 @@
 docker-compose.yml
 ._docker-compose.*.runtime.yml
+.coverage
+.pytest_cache

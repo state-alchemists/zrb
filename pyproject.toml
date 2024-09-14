@@ -8,7 +8,34 @@ readme = "README.md"
 homepage = "https://github.com/state-alchemists/zrb"
 repository = "https://github.com/state-alchemists/zrb"
 documentation = "https://github.com/state-alchemists/zrb"
-keywords = ["Automation", "Task Runner", "Code Generator", "Low Code"]
+keywords = ["Automation", "Task Runner", "Code Generator", "Monorepo", "Low Code"]
+exclude = [
+    "__pycache__",
+    "_images",
+    ".github",
+    ".pytest_cache",
+    ".venv",
+    ".vscode",
+    "dist",
+    "docker",
+    "docs",
+    "htmlcov",
+    "playground",
+    "test",
+    ".coverage",
+    ".coveragerc",
+    ".cprofile.prof",
+    ".cprofile.svg",
+    ".env",
+    ".flake8",
+    ".gitignore",
+    ".python-version",
+    "install.sh",
+    "project.sh",
+    "README.md",
+    "template.env",
+    "zrb_init.py"
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<4.0.0"
