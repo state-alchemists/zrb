@@ -15,9 +15,10 @@ pull_from_monorepo = Task(
             name="message",
             shortcut="m",
             prompt="Commit Messsage",
-            default=lambda m: f"Pulling from subrepos at {datetime.now().strftime('%Y-%m-%d %I:%M:%p')}",  # noqa
+            default=lambda m: f"Synchronize subrepos at {datetime.now()}",
         )
     ],
+    retry=0,
 )
 PULL_SUBREPO_UPSTREAM >> pull_from_monorepo
 runner.register(pull_from_monorepo)

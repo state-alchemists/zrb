@@ -85,7 +85,6 @@ class FlowTask(BaseTask):
             retry_interval=retry_interval,
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
-            run=lambda *args, **kwargs: kwargs.get("_task").print_out("🆗"),
         )
 
     def copy(self) -> TFlowTask:
