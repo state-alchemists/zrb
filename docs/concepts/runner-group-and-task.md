@@ -232,7 +232,7 @@ You can see the relation among Zrb Task Classes in the following diagram:
   │      │           │           │             │                 │            │
   │      │           │           │             │                 │            │
   ▼      ▼           ▼           ▼             ▼                 ▼            ▼
-Task  CmdTask  ResourceMaker  FlowTask  BaseRemoteCmdTask     Checker   ReccuringTask
+Task  CmdTask  ResourceMaker  FlowTask      CmdTask           Checker   ReccuringTask
          │                                     │                 │
          │                                     │                 │
          ▼                               ┌─────┴──────┐          │

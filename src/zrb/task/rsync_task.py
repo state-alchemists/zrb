@@ -17,7 +17,6 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.cmd_task import CmdTask
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -39,19 +38,17 @@ ensure_rsync_is_installed = CmdTask(
         os.path.join(_SHELL_SCRIPT_DIR, "ensure-rsync-is-installed.sh"),
     ],
     preexec_fn=None,
+    should_print_cmd_result=False,
+    should_show_cmd=False,
+    should_show_working_directory=False,
 )
 
 
 @typechecked
-class RsyncTask(BaseRemoteCmdTask):
+class RsyncTask(CmdTask):
     def __init__(
         self,
         name: str,
-        remote_configs: Iterable[RemoteConfig],
-        src: JinjaTemplate,
-        dst: JinjaTemplate,
-        src_is_remote: bool = False,
-        dst_is_remote: bool = True,
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -60,7 +57,17 @@ class RsyncTask(BaseRemoteCmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        cwd: Optional[Union[str, pathlib.Path]] = None,
+        remote_host: JinjaTemplate = "localhost",
+        remote_port: Union[JinjaTemplate, int] = 22,
+        remote_user: JinjaTemplate = "root",
+        remote_password: JinjaTemplate = "",
+        remote_ssh_key: JinjaTemplate = "",
+        src_path: JinjaTemplate = ".",
+        src_is_remote: bool = False,
+        dst_path: JinjaTemplate = ".",
+        dst_is_remote: bool = True,
+        cwd: Optional[Union[JinjaTemplate, pathlib.Path]] = None,
+        should_render_cwd: bool = True,
         upstreams: Iterable[AnyTask] = [],
         fallbacks: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -78,14 +85,14 @@ class RsyncTask(BaseRemoteCmdTask):
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
+        return_upstream_result: bool = False,
+        should_print_cmd_result: bool = True,
+        should_show_cmd: bool = True,
+        should_show_working_directory: bool = True,
     ):
-        parsed_src = self._get_parsed_path(src_is_remote, src)
-        parsed_dst = self._get_parsed_path(dst_is_remote, dst)
-        cmd = f'auth_rsync "{parsed_src}" "{parsed_dst}"'
-        BaseRemoteCmdTask.__init__(
+        CmdTask.__init__(
             self,
             name=name,
-            remote_configs=remote_configs,
             group=group,
             inputs=inputs,
             envs=envs,
@@ -94,9 +101,8 @@ class RsyncTask(BaseRemoteCmdTask):
             color=color,
             description=description,
             executable=executable,
-            pre_cmd=_RSYNC_UTIL_SCRIPT,
-            cmd=cmd,
             cwd=cwd,
+            should_render_cwd=should_render_cwd,
             upstreams=[ensure_rsync_is_installed] + upstreams,
             fallbacks=fallbacks,
             on_triggered=on_triggered,
@@ -114,9 +120,39 @@ class RsyncTask(BaseRemoteCmdTask):
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
             should_execute=should_execute,
+            return_upstream_result=return_upstream_result,
+            should_print_cmd_result=should_print_cmd_result,
+            should_show_cmd=should_show_cmd,
+            should_show_working_directory=should_show_working_directory,
         )
+        self._remote_host = remote_host
+        self._remote_port = remote_port
+        self._remote_user = remote_user
+        self._remote_password = remote_password
+        self._remote_ssh_key = remote_ssh_key
+        self._src_path = src_path
+        self._src_is_remote = src_is_remote
+        self._dst_path = dst_path
+        self._dst_is_remote = dst_is_remote
 
-    def _get_parsed_path(self, is_remote: bool, path: str) -> str:
-        if not is_remote:
-            return path
-        return "${_CONFIG_USER}@${_CONFIG_HOST}:" + path
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        port = self.render_str(self._remote_port)
+        password = self.render_str(self._remote_password)
+        key = self.render_str(self._remote_ssh_key)
+        src = self._get_path(self._src_path, self._src_is_remote)
+        dst = self._get_path(self._dst_path, self._dst_is_remote)
+        if key != "" and password != "":
+            return f'sshpass -p "{password}" rsync --mkpath -avz -e "ssh -i {key} -p {port}" {src} {dst}'  # noqa
+        if key != "":
+            return f'rsync --mkpath -avz -e "ssh -i {key} -p {port}" {src} {dst}'
+        if password != "":
+            return f'sshpass -p "{password}" rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'  # noqa
+        return f'rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'
+
+    def _get_path(self, resource_path: str, is_remote: bool) -> str:
+        rendered_path = self.render_str(resource_path)
+        if is_remote:
+            host = self.render_str(self._remote_host)
+            user = self.render_str(self._remote_user)
+            return f"{user}@{host}:{rendered_path}"
+        return rendered_path

@@ -18,7 +18,6 @@ from zrb import (
     PortChecker,
     HTTPChecker,
     Server,
-    BaseRemoteCmdTask,
     Notifier,
     Env,
     EnvFile,
@@ -159,12 +158,9 @@ def make_docs(*args: Any, **kwargs: Any):
         os.path.join(dir, "tasks", "any-task.md"): AnyTask,
         os.path.join(dir, "tasks", "base-task.md"): BaseTask,
         os.path.join(dir, "tasks", "task.md"): Task,
-        os.path.join(
-            dir, "tasks", "base-remote-cmd-task.md"
-        ): BaseRemoteCmdTask,  # noqa
         os.path.join(dir, "tasks", "checker.md"): Checker,
         os.path.join(dir, "tasks", "cmd-task.md"): CmdTask,
-        os.path.join(dir, "tasks", "docker-compose-task.md"): DockerComposeTask,  # noqa
+        os.path.join(dir, "tasks", "docker-compose-task.md"): DockerComposeTask,
         os.path.join(dir, "tasks", "flow-task.md"): FlowTask,
         os.path.join(dir, "tasks", "http-checker.md"): HTTPChecker,
         os.path.join(dir, "tasks", "path-checker.md"): PathChecker,

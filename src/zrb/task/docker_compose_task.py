@@ -33,32 +33,33 @@ from zrb.task_input.any_input import AnyInput
 
 logger.debug(colored("Loading zrb.task.docker_compose_task", attrs=["dark"]))
 
-
-def _get_ensure_zrb_network_task(backend: str):
-    CURRENT_DIR = os.path.dirname(__file__)
-    SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
-    ensure_container_backend = CmdTask(
-        name="ensure-compose-backend",
-        cmd_path=[
-            os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-            os.path.join(SHELL_SCRIPT_DIR, f"ensure-{backend}-is-installed.sh"),
-        ],
-        preexec_fn=None,
-        should_print_cmd_result=False,
-    )
-    return CmdTask(
-        name="ensure-zrb-network",
-        cmd=[
-            f"{backend} network inspect zrb >/dev/null 2>&1 || \\",
-            f"{backend} network create -d bridge zrb",
-        ],
-        upstreams=[ensure_container_backend],
-        should_print_cmd_result=False,
-    )
-
-
 TDockerComposeTask = TypeVar("TDockerComposeTask", bound="DockerComposeTask")
-ensure_zrb_network_task = _get_ensure_zrb_network_task(CONTAINER_BACKEND)
+
+CURRENT_DIR = os.path.dirname(__file__)
+SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
+
+ensure_container_backend = CmdTask(
+    name="ensure-compose-backend",
+    cmd_path=[
+        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+        os.path.join(SHELL_SCRIPT_DIR, f"ensure-{CONTAINER_BACKEND}-is-installed.sh"),
+    ],
+    preexec_fn=None,
+    should_print_cmd_result=False,
+    should_show_cmd=False,
+    should_show_working_directory=False,
+)
+ensure_zrb_network_task = CmdTask(
+    name="ensure-zrb-network",
+    cmd=[
+        f"{CONTAINER_BACKEND} network inspect zrb >/dev/null 2>&1 || \\",
+        f"{CONTAINER_BACKEND} network create -d bridge zrb",
+    ],
+    upstreams=[ensure_container_backend],
+    should_print_cmd_result=False,
+    should_show_cmd=False,
+    should_show_working_directory=False,
+)
 
 
 @typechecked
@@ -120,14 +121,13 @@ class DockerComposeTask(CmdTask):
         should_show_cmd: bool = True,
         should_show_working_directory: bool = True,
     ):
-        combined_env_files = list(env_files)
         CmdTask.__init__(
             self,
             name=name,
             group=group,
             inputs=inputs,
             envs=envs,
-            env_files=combined_env_files,
+            env_files=env_files,
             icon=icon,
             color=color,
             description=description,

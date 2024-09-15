@@ -6,6 +6,7 @@ from typing import Any, Optional, Union
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
+from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -16,7 +17,6 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.cmd_task import CmdTask, CmdVal
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -37,15 +37,17 @@ ensure_ssh_is_installed = CmdTask(
         os.path.join(_SHELL_SCRIPT_DIR, "ensure-ssh-is-installed.sh"),
     ],
     preexec_fn=None,
+    should_print_cmd_result=False,
+    should_show_cmd=False,
+    should_show_working_directory=False,
 )
 
 
 @typechecked
-class RemoteCmdTask(BaseRemoteCmdTask):
+class RemoteCmdTask(CmdTask):
     def __init__(
         self,
         name: str,
-        remote_configs: Iterable[RemoteConfig],
         group: Optional[Group] = None,
         inputs: Iterable[AnyInput] = [],
         envs: Iterable[Env] = [],
@@ -54,9 +56,15 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
+        remote_host: JinjaTemplate = "localhost",
+        remote_port: Union[JinjaTemplate, int] = 22,
+        remote_user: JinjaTemplate = "root",
+        remote_password: JinjaTemplate = "",
+        remote_ssh_key: JinjaTemplate = "",
         cmd: CmdVal = "",
         cmd_path: CmdVal = "",
         cwd: Optional[Union[str, pathlib.Path]] = None,
+        should_render_cwd: bool = True,
         upstreams: Iterable[AnyTask] = [],
         fallbacks: Iterable[AnyTask] = [],
         on_triggered: Optional[OnTriggered] = None,
@@ -74,18 +82,14 @@ class RemoteCmdTask(BaseRemoteCmdTask):
         max_error_line: int = 1000,
         preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
+        return_upstream_result: bool = False,
+        should_print_cmd_result: bool = True,
+        should_show_cmd: bool = True,
+        should_show_working_directory: bool = True,
     ):
-        pre_cmd = "\n".join(
-            [
-                _SSH_UTIL_SCRIPT,
-                "_SCRIPT=\"$(cat <<'ENDSCRIPT'",
-            ]
-        )
-        post_cmd = "\n".join(["ENDSCRIPT", ')"', 'auth_ssh "$_SCRIPT"'])
-        BaseRemoteCmdTask.__init__(
+        CmdTask.__init__(
             self,
             name=name,
-            remote_configs=remote_configs,
             group=group,
             inputs=inputs,
             envs=envs,
@@ -94,11 +98,10 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             color=color,
             description=description,
             executable=executable,
-            pre_cmd=pre_cmd,
             cmd=cmd,
             cmd_path=cmd_path,
-            post_cmd=post_cmd,
             cwd=cwd,
+            should_render_cwd=should_render_cwd,
             upstreams=[ensure_ssh_is_installed] + upstreams,
             fallbacks=fallbacks,
             on_triggered=on_triggered,
@@ -116,4 +119,40 @@ class RemoteCmdTask(BaseRemoteCmdTask):
             max_error_line=max_error_line,
             preexec_fn=preexec_fn,
             should_execute=should_execute,
+            return_upstream_result=return_upstream_result,
+            should_print_cmd_result=should_print_cmd_result,
+            should_show_cmd=should_show_cmd,
+            should_show_working_directory=should_show_working_directory,
         )
+        self._remote_host = remote_host
+        self._remote_port = remote_port
+        self._remote_user = remote_user
+        self._remote_password = remote_password
+        self._remote_ssh_key = remote_ssh_key
+
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        cmd_script = self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
+        cmd_script = "\n".join(
+            [
+                "_SCRIPT=$(cat << 'ENDSCRIPT'",
+                cmd_script,
+                "ENDSCRIPT",
+                ")",
+            ]
+        )
+        ssh_command = self._get_ssh_command()
+        return "\n".join([cmd_script, ssh_command])
+
+    def _get_ssh_command(self) -> str:
+        host = self.render_str(self._remote_host)
+        port = self.render_str(self._remote_port)
+        user = self.render_str(self._remote_user)
+        password = self.render_str(self._remote_password)
+        key = self.render_str(self._remote_ssh_key)
+        if key != "" and password != "":
+            return f'sshpass -p "{password}" ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'  # noqa
+        if key != "":
+            return f'ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'
+        if password != "":
+            return f'sshpass -p "{password}" ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'  # noqa
+        return f'ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'

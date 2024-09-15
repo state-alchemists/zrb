@@ -7,8 +7,25 @@
 <!--start-doc-->
 ## `RemoteCmdTask`
 
-Base class for all Tasks.
-Every Task definition should be extended from this class.
+Command Task.
+You can use this task to run shell command.
+
+__Examples:__
+
+```python
+from zrb import runner, CmdTask, StrInput, Env
+hello = CmdTask(
+    name='hello',
+    inputs=[StrInput(name='name', default='World')],
+    envs=[Env(name='HOME_DIR', os_name='HOME')],
+    cmd=[
+        'echo Hello {{ input.name }}',
+        'echo Home directory is: $HOME_DIR',
+    ]
+)
+runner.register(hello)
+```
+
 
 ### `RemoteCmdTask._BaseTaskModel__get_colored`
 
@@ -65,6 +82,65 @@ No documentation available.
 No documentation available.
 
 
+### `RemoteCmdTask._CmdTask__add_to_buffer`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__get_multiline_repr`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__get_rendered_cmd`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__get_rendered_cmd_path`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__is_process_exist`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__kill_by_pid`
+
+Kill a pid, gracefully
+
+### `RemoteCmdTask._CmdTask__log_from_queue`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__on_exit`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__on_kill`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__queue_stream`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__set_cwd`
+
+No documentation available.
+
+
+### `RemoteCmdTask._CmdTask__wait_process`
+
+No documentation available.
+
+
 ### `RemoteCmdTask._CommonTaskModel__complete_new_checkers`
 
 For internal use: copy and completing new checkers
@@ -101,6 +177,11 @@ this will return True once every self.checkers is completed
 No documentation available.
 
 
+### `RemoteCmdTask._create_cmd_script`
+
+No documentation available.
+
+
 ### `RemoteCmdTask._end_timer`
 
 No documentation available.
@@ -132,6 +213,11 @@ No documentation available.
 
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
+
+### `RemoteCmdTask._get_cwd`
+
+No documentation available.
+
 
 ### `RemoteCmdTask._get_elapsed_time`
 
@@ -185,6 +271,11 @@ __Returns:__
 `list[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
 ### `RemoteCmdTask._get_max_attempt`
+
+No documentation available.
+
+
+### `RemoteCmdTask._get_ssh_command`
 
 No documentation available.
 
@@ -548,6 +639,11 @@ or scripts.
 __Returns:__
 
 `str`: The CLI name of the task.
+
+### `RemoteCmdTask.get_cmd_script`
+
+No documentation available.
+
 
 ### `RemoteCmdTask.get_color`
 
@@ -1162,6 +1258,11 @@ priority indication, or visual differentiation in a UI.
 __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
+
+### `RemoteCmdTask.set_cwd`
+
+No documentation available.
+
 
 ### `RemoteCmdTask.set_description`
 

@@ -10,7 +10,6 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.base_remote_cmd_task import BaseRemoteCmdTask, RemoteConfig
 from zrb.task.checker import Checker
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task
@@ -69,8 +68,6 @@ assert CmdTask
 assert DockerComposeTask
 assert DockerComposeStartTask
 assert ServiceConfig
-assert BaseRemoteCmdTask
-assert RemoteConfig
 assert RemoteCmdTask
 assert RsyncTask
 assert Notifier

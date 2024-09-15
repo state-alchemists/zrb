@@ -72,28 +72,32 @@ You can define something similar with Zrb:
 ```python
 # file: zrb_init.py
 from zrb import (
-    runner, CmdTask, RemoteCmdTask, RemoteConfig, PasswordInput
+    runner, CmdTask, RemoteCmdTask, PasswordInput, Parallel
 )
 
-remote_configs = [
-    RemoteConfig(
-        host=f'192.168.1.{sub_ip}',
-        user='ubuntu'
+_update_cache = [
+    RemoteCmdTask(
+        name="update-cache-192.168.1.{sub_ip}",
+        remote_host=f"192.168.1.{sub_ip}",
+        remote_user="ubuntu",
+        remote_ssh_key="~/.id-rsa.pub",
+        cmd="sudo apt update"
     ) for sub_ip in range(100, 103)
 ]
 
-update_package_cache = RemoteCmdTask(
-    name='update-package-cache',
-    remote_configs=remote_configs,
-    cmd='sudo apt update'
-)
+_install_curl = [
+    RemoteCmdTask(
+        name="install-curl-192.168.1.{sub_ip}",
+        remote_host=f"192.168.1.{sub_ip}",
+        remote_user="ubuntu",
+        remote_ssh_key="~/.id-rsa.pub",
+        cmd="sudo apt install curl --y"
+    ) for sub_ip in range(100, 103)
+]
 
-install_curl = RemoteCmdTask(
-    name='install-curl',
-    remote_configs=remote_configs,
-    upstreams=[update_package_cache],
-    cmd='sudo apt install curl --y'
-)
+install_curl = CmdTask(name="install-curl")
+
+Parallel(_update_cache) >> Parallel(_install_curl) >> install_curl
 runner.register(install_curl)
 ```
 

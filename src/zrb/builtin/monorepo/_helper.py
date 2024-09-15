@@ -3,8 +3,8 @@ import os
 from zrb.builtin.monorepo._config import PROJECT_DIR
 from zrb.task.cmd_task import CmdTask
 from zrb.task_env.env import Env
-from zrb.task_input.str_input import StrInput
 from zrb.task_input.any_input import AnyInput
+from zrb.task_input.str_input import StrInput
 
 _CURRENT_DIR = os.path.dirname(__file__)
 
@@ -30,8 +30,7 @@ def create_pull_monorepo_task(
 
 
 def create_push_monorepo_task(
-    task_name: str = "push-monorepo",
-    default_commit_message: str = "Save changes"
+    task_name: str = "push-monorepo", default_commit_message: str = "Save changes"
 ) -> CmdTask:
     return CmdTask(
         name=task_name,
@@ -108,7 +107,7 @@ def create_push_subrepo_task(
     folder: str,
     branch: str,
     task_name: str = "push",
-    default_commit_message: str = "Commit"
+    default_commit_message: str = "Commit",
 ) -> CmdTask:
     return CmdTask(
         name=task_name,

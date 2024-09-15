@@ -7,8 +7,25 @@
 <!--start-doc-->
 ## `RsyncTask`
 
-Base class for all Tasks.
-Every Task definition should be extended from this class.
+Command Task.
+You can use this task to run shell command.
+
+__Examples:__
+
+```python
+from zrb import runner, CmdTask, StrInput, Env
+hello = CmdTask(
+    name='hello',
+    inputs=[StrInput(name='name', default='World')],
+    envs=[Env(name='HOME_DIR', os_name='HOME')],
+    cmd=[
+        'echo Hello {{ input.name }}',
+        'echo Home directory is: $HOME_DIR',
+    ]
+)
+runner.register(hello)
+```
+
 
 ### `RsyncTask._BaseTaskModel__get_colored`
 
@@ -65,6 +82,65 @@ No documentation available.
 No documentation available.
 
 
+### `RsyncTask._CmdTask__add_to_buffer`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__get_multiline_repr`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__get_rendered_cmd`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__get_rendered_cmd_path`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__is_process_exist`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__kill_by_pid`
+
+Kill a pid, gracefully
+
+### `RsyncTask._CmdTask__log_from_queue`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__on_exit`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__on_kill`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__queue_stream`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__set_cwd`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__wait_process`
+
+No documentation available.
+
+
 ### `RsyncTask._CommonTaskModel__complete_new_checkers`
 
 For internal use: copy and completing new checkers
@@ -101,6 +177,11 @@ this will return True once every self.checkers is completed
 No documentation available.
 
 
+### `RsyncTask._create_cmd_script`
+
+No documentation available.
+
+
 ### `RsyncTask._end_timer`
 
 No documentation available.
@@ -132,6 +213,11 @@ No documentation available.
 
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
+
+### `RsyncTask._get_cwd`
+
+No documentation available.
+
 
 ### `RsyncTask._get_elapsed_time`
 
@@ -189,7 +275,7 @@ __Returns:__
 No documentation available.
 
 
-### `RsyncTask._get_parsed_path`
+### `RsyncTask._get_path`
 
 No documentation available.
 
@@ -553,6 +639,11 @@ or scripts.
 __Returns:__
 
 `str`: The CLI name of the task.
+
+### `RsyncTask.get_cmd_script`
+
+No documentation available.
+
 
 ### `RsyncTask.get_color`
 
@@ -1167,6 +1258,11 @@ priority indication, or visual differentiation in a UI.
 __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
+
+### `RsyncTask.set_cwd`
+
+No documentation available.
+
 
 ### `RsyncTask.set_description`
 

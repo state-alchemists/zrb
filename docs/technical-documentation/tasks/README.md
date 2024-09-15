@@ -11,7 +11,6 @@
 - [ResourceMaker](resource-maker.md)
 - [notifier](notifier.md)
 - [FlowTask](flow-task.md)
-- [BaseRemoteCmdTask](base-remote-cmd-task.md)
 - [RemoteCmdTask](remote-cmd-task.md)
 - [RsyncTask](rsync-task.md)
 - [Checker](checker.md)

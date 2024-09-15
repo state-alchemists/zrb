@@ -3,15 +3,14 @@ from zrb.builtin.monorepo._group import monorepo_group
 from zrb.builtin.monorepo._helper import (
     create_add_subrepo_task,
     create_pull_monorepo_task,
-    create_push_monorepo_task,
     create_pull_subrepo_task,
+    create_push_monorepo_task,
     create_push_subrepo_task,
 )
 from zrb.helper.util import to_kebab_case
 from zrb.runner import runner
 from zrb.task.flow_task import FlowTask
 from zrb.task_group.group import Group
-
 
 _pull_monorepo = create_pull_monorepo_task()
 
@@ -35,15 +34,15 @@ for name, config in MONOREPO_CONFIG.items():
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"add-{kebab_name}-subrepo"
+                task_name=f"add-{kebab_name}-subrepo",
             ),
             create_pull_subrepo_task(
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"pull-{kebab_name}-subrepo"
+                task_name=f"pull-{kebab_name}-subrepo",
             ),
-        ]
+        ],
     )
     runner.register(pull_subrepo)
 
@@ -55,15 +54,15 @@ for name, config in MONOREPO_CONFIG.items():
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"add-{kebab_name}-subrepo"
+                task_name=f"add-{kebab_name}-subrepo",
             ),
             create_pull_subrepo_task(
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"pull-{kebab_name}-subrepo"
+                task_name=f"pull-{kebab_name}-subrepo",
             ),
-        ]
+        ],
     )
     PULL_SUBREPO_UPSTREAM = linked_pull_subrepo
 
@@ -76,22 +75,22 @@ for name, config in MONOREPO_CONFIG.items():
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"add-{kebab_name}-subrepo"
+                task_name=f"add-{kebab_name}-subrepo",
             ),
             create_pull_subrepo_task(
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"pull-{kebab_name}-subrepo"
+                task_name=f"pull-{kebab_name}-subrepo",
             ),
             create_push_subrepo_task(
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"push-{kebab_name}-subrepo"
+                task_name=f"push-{kebab_name}-subrepo",
             ),
-            create_push_monorepo_task(task_name="push-monorepo")
-        ]
+            create_push_monorepo_task(task_name="push-monorepo"),
+        ],
     )
     runner.register(push_subrepo)
 
@@ -103,21 +102,21 @@ for name, config in MONOREPO_CONFIG.items():
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"add-{kebab_name}-subrepo"
+                task_name=f"add-{kebab_name}-subrepo",
             ),
             create_pull_subrepo_task(
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"pull-{kebab_name}-subrepo"
+                task_name=f"pull-{kebab_name}-subrepo",
             ),
             create_push_subrepo_task(
                 origin=origin,
                 folder=folder,
                 branch=branch,
-                task_name=f"push-{kebab_name}-subrepo"
+                task_name=f"push-{kebab_name}-subrepo",
             ),
-        ]
+        ],
     )
     PUSH_SUBREPO_UPSTREAM = linked_push_subrepo
 
