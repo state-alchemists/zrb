@@ -18,7 +18,7 @@ from zrb.task.any_task_event_handler import (
     OnWaiting,
 )
 from zrb.task.cmd_task import CmdTask, CmdVal
-from zrb.task_env.env import Env
+from zrb.task_env.env import Env, PrivateEnv
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
@@ -27,8 +27,6 @@ logger.debug(colored("Loading zrb.task.remote_cmd_task", attrs=["dark"]))
 
 _CURRENT_DIR = os.path.dirname(__file__)
 _SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "shell-scripts")
-with open(os.path.join(_SHELL_SCRIPT_DIR, "ssh-util.sh")) as file:
-    _SSH_UTIL_SCRIPT = file.read()
 
 ensure_ssh_is_installed = CmdTask(
     name="ensure-ssh-is-installed",
@@ -92,7 +90,9 @@ class RemoteCmdTask(CmdTask):
             name=name,
             group=group,
             inputs=inputs,
-            envs=envs,
+            envs=envs + [
+                PrivateEnv(name="_ZRB_SSH_PASSWORD", default=remote_password)
+            ],
             env_files=env_files,
             icon=icon,
             color=color,
@@ -150,9 +150,9 @@ class RemoteCmdTask(CmdTask):
         password = self.render_str(self._remote_password)
         key = self.render_str(self._remote_ssh_key)
         if key != "" and password != "":
-            return f'sshpass -p "{password}" ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'  # noqa
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'  # noqa
         if key != "":
             return f'ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'
         if password != "":
-            return f'sshpass -p "{password}" ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'  # noqa
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'  # noqa
         return f'ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'

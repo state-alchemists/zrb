@@ -18,7 +18,7 @@ from zrb.task.any_task_event_handler import (
     OnWaiting,
 )
 from zrb.task.cmd_task import CmdTask
-from zrb.task_env.env import Env
+from zrb.task_env.env import Env, PrivateEnv
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
@@ -27,8 +27,6 @@ logger.debug(colored("Loading zrb.task.rsync_task", attrs=["dark"]))
 
 _CURRENT_DIR = os.path.dirname(__file__)
 _SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "shell-scripts")
-with open(os.path.join(_SHELL_SCRIPT_DIR, "rsync-util.sh")) as file:
-    _RSYNC_UTIL_SCRIPT = file.read()
 
 ensure_rsync_is_installed = CmdTask(
     name="ensure-ssh-is-installed",
@@ -95,7 +93,9 @@ class RsyncTask(CmdTask):
             name=name,
             group=group,
             inputs=inputs,
-            envs=envs,
+            envs=envs + [
+                PrivateEnv(name="_ZRB_SSH_PASSWORD", default=remote_password)
+            ],
             env_files=env_files,
             icon=icon,
             color=color,
@@ -142,11 +142,11 @@ class RsyncTask(CmdTask):
         src = self._get_path(self._src_path, self._src_is_remote)
         dst = self._get_path(self._dst_path, self._dst_is_remote)
         if key != "" and password != "":
-            return f'sshpass -p "{password}" rsync --mkpath -avz -e "ssh -i {key} -p {port}" {src} {dst}'  # noqa
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -i {key} -p {port}" {src} {dst}'  # noqa
         if key != "":
             return f'rsync --mkpath -avz -e "ssh -i {key} -p {port}" {src} {dst}'
         if password != "":
-            return f'sshpass -p "{password}" rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'  # noqa
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'  # noqa
         return f'rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'
 
     def _get_path(self, resource_path: str, is_remote: bool) -> str:
