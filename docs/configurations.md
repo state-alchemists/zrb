@@ -132,10 +132,5 @@ Although it is safer to enable type checking, you can improve Zrb performance by
 - __Default value:__ `true`
 - __Possible values:__ boolean values
 
-## `ZRB_CONTAINER_BACKEND`
-
-- __Default value:__ `docker`
-- __Possible values:__ `docker`, `podman`
-
 
 🔖 [Table of Contents](README.md)

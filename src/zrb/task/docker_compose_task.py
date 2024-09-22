@@ -3,7 +3,6 @@ import pathlib
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
-from zrb.config.config import CONTAINER_BACKEND
 from zrb.helper.accessories.color import colored
 from zrb.helper.accessories.name import get_random_name
 from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
@@ -42,24 +41,24 @@ ensure_container_backend = CmdTask(
     name="ensure-compose-backend",
     cmd_path=[
         os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
-        os.path.join(SHELL_SCRIPT_DIR, f"ensure-{CONTAINER_BACKEND}-is-installed.sh"),
+        os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
     ],
     preexec_fn=None,
     should_print_cmd_result=False,
     should_show_cmd=False,
     should_show_working_directory=False,
 )
-ensure_zrb_network_task = CmdTask(
-    name="ensure-zrb-network",
-    cmd=[
-        f"{CONTAINER_BACKEND} network inspect zrb >/dev/null 2>&1 || \\",
-        f"{CONTAINER_BACKEND} network create -d bridge zrb",
-    ],
-    upstreams=[ensure_container_backend],
-    should_print_cmd_result=False,
-    should_show_cmd=False,
-    should_show_working_directory=False,
-)
+# ensure_zrb_network_task = CmdTask(
+#     name="ensure-zrb-network",
+#     cmd=[
+#         "docker network inspect zrb >/dev/null 2>&1 || \\",
+#         "docker network create -d bridge zrb",
+#     ],
+#     upstreams=[ensure_container_backend],
+#     should_print_cmd_result=False,
+#     should_show_cmd=False,
+#     should_show_working_directory=False,
+# )
 
 
 @typechecked
@@ -134,7 +133,7 @@ class DockerComposeTask(CmdTask):
             executable=executable,
             cwd=cwd,
             should_render_cwd=should_render_cwd,
-            upstreams=[ensure_zrb_network_task] + upstreams,
+            upstreams=[ensure_container_backend] + upstreams,
             fallbacks=fallbacks,
             on_triggered=on_triggered,
             on_waiting=on_waiting,
@@ -333,11 +332,17 @@ class DockerComposeTask(CmdTask):
         raise Exception(f"Invalid compose file: {compose_file}")
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        cmd_list = []
+        # create network
+        create_network_cmd = self._get_create_compose_network_script()
+        if create_network_cmd.strip() != "":
+            cmd_list.append(create_network_cmd)
         # setup
         setup_cmd = self._create_cmd_script(
             self._setup_cmd_path, self._setup_cmd, *args, **kwargs
         )
-        cmd_list = [setup_cmd] if setup_cmd.strip() != "" else []
+        if setup_cmd.strip() != "":
+            cmd_list.append(setup_cmd)
         # compose command
         cmd_list.append(
             self._get_docker_compose_cmd_script(
@@ -351,6 +356,19 @@ class DockerComposeTask(CmdTask):
         cmd_str = "\n".join(cmd_list)
         self.log_info(f"Command: {cmd_str}")
         return cmd_str
+
+    def _get_create_compose_network_script(self) -> str:
+        compose_data = read_compose_file(self._compose_runtime_file)
+        networks: Mapping[str, Mapping[str, Any]] = compose_data.get("networks", {})
+        scripts = []
+        for key, config in networks.items():
+            if not config.get("external", False):
+                continue
+            network_name = config.get("name", key)
+            scripts.append(
+                f"docker network inspect {network_name} || docker network create -d bridge{network_name}"  # noqa
+            )
+        return "\n".join(scripts)
 
     def _get_docker_compose_cmd_script(
         self,
@@ -383,4 +401,4 @@ class DockerComposeTask(CmdTask):
                 if self.render_str(arg) != ""
             ]
         )
-        return f"{CONTAINER_BACKEND} compose {options} {compose_cmd} {flags} {args}"
+        return f"docker compose {options} {compose_cmd} {flags} {args}"

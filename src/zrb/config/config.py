@@ -18,12 +18,6 @@ def _get_current_shell() -> str:
     return "bash"
 
 
-def _get_valid_container_backend(container_backend: str) -> str:
-    if container_backend.lower().strip() == "podman":
-        return "podman"
-    return "docker"
-
-
 def _get_default_tmp_dir() -> str:
     if os.path.isdir("/tmp"):
         return "/tmp"
@@ -52,7 +46,4 @@ SHOW_ADVERTISEMENT = untyped_to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1")
 SHOW_PROMPT = untyped_to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
 SHOW_TIME = untyped_to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
 VERSION = _get_version()
-CONTAINER_BACKEND = _get_valid_container_backend(
-    os.getenv("ZRB_CONTAINER_BACKEND", "docker")
-)
 ENABLE_TYPE_CHECKING = untyped_to_boolean(os.getenv("ZRB_ENABLE_TYPE_CHECKING", "1"))
