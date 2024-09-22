@@ -48,7 +48,7 @@ fi
 if command_exists chsh
 then
     log_info "Changing default shell to zsh..."
-     try_sudo chsh -s zsh
+    chsh -s $(which zsh)
 else
     log_info "chsh command not found. Please change the default shell manually."
 fi
