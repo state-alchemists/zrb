@@ -67,7 +67,17 @@ No documentation available.
 No documentation available.
 
 
+### `RsyncTask._BaseTask__get_async_function`
+
+No documentation available.
+
+
 ### `RsyncTask._BaseTask__get_xcom_dir`
+
+No documentation available.
+
+
+### `RsyncTask._BaseTask__to_sync_function`
 
 No documentation available.
 

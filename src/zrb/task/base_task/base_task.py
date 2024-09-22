@@ -159,16 +159,15 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
     def copy(self) -> AnyTask:
         return copy.deepcopy(self)
 
-    def to_function(
+    def __get_async_function(
         self,
         env_prefix: str = "",
         raise_error: bool = True,
-        is_async: bool = False,
         show_done_info: bool = True,
         should_clear_xcom: bool = False,
         should_stop_looper: bool = False,
     ) -> Callable[..., Any]:
-        async def function(*args: Any, **kwargs: Any) -> Any:
+        async def async_function(*args: Any, **kwargs: Any) -> Any:
             self.log_info("Copy task")
             self_cp: AnyTask = self.copy()
             result = await self_cp._run_and_check_all(
@@ -184,9 +183,41 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
                 self_cp.clear_xcom()
             return result
 
+        return async_function
+
+    def __to_sync_function(
+        self, async_function: Callable[..., Any]
+    ) -> Callable[..., Any]:
+        def sync_function(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return asyncio.run(async_function(*args, **kwargs))
+            except RuntimeError as e:
+                if "event loop is closed" not in str(e).lower():
+                    raise e
+            except asyncio.CancelledError:
+                self.print_out_dark("Task is cancelled")
+
+        return sync_function
+
+    def to_function(
+        self,
+        env_prefix: str = "",
+        raise_error: bool = True,
+        is_async: bool = False,
+        show_done_info: bool = True,
+        should_clear_xcom: bool = False,
+        should_stop_looper: bool = False,
+    ) -> Callable[..., Any]:
+        async_function = self.__get_async_function(
+            env_prefix=env_prefix,
+            raise_error=raise_error,
+            show_done_info=show_done_info,
+            should_clear_xcom=should_clear_xcom,
+            should_stop_looper=should_stop_looper,
+        )
         if is_async:
-            return function
-        return lambda *args, **kwargs: asyncio.run(function(*args, **kwargs))
+            return async_function
+        return self.__to_sync_function(async_function)
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         if self._run_function is not None:
@@ -287,9 +318,6 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
             result = results[-1]
             self._print_result(result)
             return result
-        except RuntimeError as e:
-            if raise_error and ("event loop is closed" not in str(e).lower()):
-                raise e
         except Exception as e:
             self.log_error(f"{e}")
             if raise_error:
@@ -384,7 +412,9 @@ class BaseTask(FinishTracker, AttemptTracker, Renderer, BaseTaskModel, AnyTask):
         is_failed: bool = False
         while self._should_attempt():
             try:
-                self.log_debug(f"Started with args: {args} and kwargs: {local_kwargs}")
+                self.log_debug(
+                    f"Started with args: {args} and kwargs: {local_kwargs}"
+                )  # noqa
                 await self.on_started()
                 self.__running_tasks.append(self)
                 result = await run_async(self.run, *args, **local_kwargs)

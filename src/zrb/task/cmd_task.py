@@ -291,8 +291,6 @@ class CmdTask(BaseTask):
         for pid in self._pids:
             self.__kill_by_pid(pid)
         stop_asyncio_sync()
-        _print_out_dark(f"Exiting with signal {signum}")
-        sys.exit(signum)
 
     def __on_exit(self):
         self._global_state.no_more_attempt = True

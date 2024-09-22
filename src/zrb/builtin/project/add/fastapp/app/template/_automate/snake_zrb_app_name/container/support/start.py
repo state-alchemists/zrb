@@ -17,7 +17,6 @@ from .._input import enable_monitoring_input
 from .._service_config import snake_zrb_app_name_service_configs
 from ..remove import remove_snake_zrb_app_name_container
 from ._group import snake_zrb_app_name_support_container_group
-from ._helper import activate_support_compose_profile, should_start_support_container
 
 start_snake_zrb_app_name_support_container = DockerComposeStartTask(
     icon="🐳",
@@ -31,10 +30,23 @@ start_snake_zrb_app_name_support_container = DockerComposeStartTask(
         https_input,
         image_input,
     ],
-    should_execute=should_start_support_container,
     upstreams=[remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
-    setup_cmd=activate_support_compose_profile,
+    should_execute=" ".join(
+        [
+            "{{",
+            'env.APP_DB_CONNECTION.startswith("postgresql")',
+            'or env.APP_BROKER_TYPE in ("kafka", "rabbitmq")',
+            "or input.enable_snake_zrb_app_name_monitoring",
+            "}}",
+        ]
+    ),
+    compose_profiles=[
+        '{{"postgres" if env.APP_DB_CONNECTION.startswith("postgresql") else ""}}',
+        '{{"kafka" if env.APP_BROKER_TYPE == "kafka" else ""}}',
+        '{{"rabbitmq" if env.APP_BROKER_TYPE == "rabbitmq" else ""}}',
+        '{{"monitoring" if input.enable_snake_zrb_app_name_monitoring else ""}}',
+    ],
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=snake_zrb_app_name_service_configs,
     env_files=[compose_env_file],

@@ -22,5 +22,5 @@ def stop_asyncio_sync():
             loop.create_task(stop_asyncio())
         else:
             loop.run_until_complete(stop_asyncio())
-    except Exception:
-        pass
+    except asyncio.CancelledError:
+        logger.warning("Task is cancelled")

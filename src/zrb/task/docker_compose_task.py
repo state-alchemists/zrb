@@ -93,6 +93,7 @@ class DockerComposeTask(CmdTask):
         compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
         compose_args: Iterable[JinjaTemplate] = [],
+        compose_profiles: CmdVal = "",
         compose_env_prefix: str = "",
         setup_cmd: CmdVal = "",
         setup_cmd_path: CmdVal = "",
@@ -167,6 +168,7 @@ class DockerComposeTask(CmdTask):
         self._compose_flags = compose_flags
         self._compose_args = compose_args
         self._compose_env_prefix = compose_env_prefix
+        self._compose_profiles = compose_profiles
         self._compose_template_file = self.__get_compose_template_file(compose_file)
         self._compose_runtime_file = self.__get_compose_runtime_file(
             self._compose_template_file
@@ -334,18 +336,22 @@ class DockerComposeTask(CmdTask):
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_list = []
         # create network
-        create_network_cmd = self._get_create_compose_network_script()
-        if create_network_cmd.strip() != "":
-            cmd_list.append(create_network_cmd)
+        create_network_script = self._get_create_compose_network_script()
+        if create_network_script.strip() != "":
+            cmd_list.append(create_network_script)
+        # set compose profiles
+        compose_profile_script = self._get_compose_profile_script(*args, **kwargs)
+        if compose_profile_script.strip() != "":
+            cmd_list.append(compose_profile_script)
         # setup
-        setup_cmd = self._create_cmd_script(
+        setup_script = self._create_cmd_script(
             self._setup_cmd_path, self._setup_cmd, *args, **kwargs
         )
-        if setup_cmd.strip() != "":
-            cmd_list.append(setup_cmd)
+        if setup_script.strip() != "":
+            cmd_list.append(setup_script)
         # compose command
         cmd_list.append(
-            self._get_docker_compose_cmd_script(
+            self._get_execute_docker_compose_script(
                 compose_cmd=self._compose_cmd,
                 compose_options=self._compose_options,
                 compose_flags=self._compose_flags,
@@ -357,6 +363,25 @@ class DockerComposeTask(CmdTask):
         self.log_info(f"Command: {cmd_str}")
         return cmd_str
 
+    def _get_compose_profile_script(self, *args, **kwargs) -> str:
+        # Get list representation of self._compose_profiles
+        compose_profiles = self._compose_profiles
+        if callable(compose_profiles):
+            compose_profiles = self._compose_profiles(*args, **kwargs)
+        if isinstance(compose_profiles, str):
+            compose_profiles = compose_profiles.split(",")
+        # Get only non empty profiles
+        filtered_compose_profiles = [
+            self.render_str(profile)
+            for profile in compose_profiles
+            if self.render_str(profile).strip() != ""
+        ]
+        print(filtered_compose_profiles)
+        if len(filtered_compose_profiles) == 0:
+            return ""
+        compose_profiles_str = ",".join(filtered_compose_profiles)
+        return f"export COMPOSE_PROFILES={compose_profiles_str}"
+
     def _get_create_compose_network_script(self) -> str:
         compose_data = read_compose_file(self._compose_runtime_file)
         networks: Mapping[str, Mapping[str, Any]] = compose_data.get("networks", {})
@@ -366,11 +391,11 @@ class DockerComposeTask(CmdTask):
                 continue
             network_name = config.get("name", key)
             scripts.append(
-                f"docker network inspect {network_name} || docker network create -d bridge{network_name}"  # noqa
+                f"docker network inspect {network_name} > /dev/null 2>&1 || docker network create -d bridge{network_name}"  # noqa
             )
         return "\n".join(scripts)
 
-    def _get_docker_compose_cmd_script(
+    def _get_execute_docker_compose_script(
         self,
         compose_cmd: str,
         compose_options: Mapping[JinjaTemplate, JinjaTemplate],

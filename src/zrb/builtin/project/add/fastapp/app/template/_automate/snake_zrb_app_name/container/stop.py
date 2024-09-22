@@ -5,7 +5,6 @@ from .._constant import RESOURCE_DIR
 from ..image._env import image_env
 from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
-from ._helper import activate_all_compose_profile
 from ._service_config import snake_zrb_app_name_service_configs
 
 stop_snake_zrb_app_name_container = DockerComposeTask(
@@ -14,8 +13,15 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     description="Stop human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,
-    setup_cmd=activate_all_compose_profile,
     compose_cmd="stop",
+    compose_profiles=[
+        "postgres",
+        "kafka",
+        "rabbitmq",
+        "monitoring",
+        "monolith",
+        "microservices",
+    ],
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=snake_zrb_app_name_service_configs,
     env_files=[compose_env_file],

@@ -122,7 +122,7 @@ class Runner:
                 function(*args, **kwargs)
             except Exception:
                 stop_asyncio_sync()
-                sys.exit(1)
+                # sys.exit(1)
             finally:
                 task.clear_xcom()
 
