@@ -349,14 +349,15 @@ class CmdTask(BaseTask):
             )
         )
         # wait process
-        await process.wait()
-        # wait reader and logger
-        await stdout_process
-        await stderr_process
-        await stdout_queue.put(None)
-        await stderr_queue.put(None)
-        await stdout_log_process
-        await stderr_log_process
+        await asyncio.gather(
+            process.wait(),
+            stdout_process,
+            stderr_process,
+        )
+        # stop messages in queue
+        await asyncio.gather(stdout_queue.put(None), stderr_queue.put(None))
+        # end logging
+        await asyncio.gather(stdout_log_process, stderr_log_process)
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)

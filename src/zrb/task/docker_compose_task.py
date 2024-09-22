@@ -48,17 +48,6 @@ ensure_container_backend = CmdTask(
     should_show_cmd=False,
     should_show_working_directory=False,
 )
-# ensure_zrb_network_task = CmdTask(
-#     name="ensure-zrb-network",
-#     cmd=[
-#         "docker network inspect zrb >/dev/null 2>&1 || \\",
-#         "docker network create -d bridge zrb",
-#     ],
-#     upstreams=[ensure_container_backend],
-#     should_print_cmd_result=False,
-#     should_show_cmd=False,
-#     should_show_working_directory=False,
-# )
 
 
 @typechecked
@@ -376,7 +365,6 @@ class DockerComposeTask(CmdTask):
             for profile in compose_profiles
             if self.render_str(profile).strip() != ""
         ]
-        print(filtered_compose_profiles)
         if len(filtered_compose_profiles) == 0:
             return ""
         compose_profiles_str = ",".join(filtered_compose_profiles)
