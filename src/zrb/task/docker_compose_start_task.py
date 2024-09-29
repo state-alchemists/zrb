@@ -45,6 +45,7 @@ class DockerComposeStartTask(DockerComposeTask):
         compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
         compose_args: Iterable[JinjaTemplate] = [],
+        compose_profiles: Iterable[JinjaTemplate] = [],
         compose_env_prefix: str = "",
         setup_cmd: CmdVal = "",
         setup_cmd_path: CmdVal = "",
@@ -85,9 +86,11 @@ class DockerComposeStartTask(DockerComposeTask):
             executable=executable,
             compose_service_configs=compose_service_configs,
             compose_file=compose_file,
+            compose_cmd="up",
             compose_options=compose_options,
             compose_flags=compose_flags,
             compose_args=compose_args,
+            compose_profiles=compose_profiles,
             compose_env_prefix=compose_env_prefix,
             setup_cmd=setup_cmd,
             setup_cmd_path=setup_cmd_path,
@@ -116,31 +119,31 @@ class DockerComposeStartTask(DockerComposeTask):
             should_show_working_directory=should_show_working_directory,
         )
 
-    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        # setup
-        setup_cmd = self._create_cmd_script(
-            self._setup_cmd_path, self._setup_cmd, *args, **kwargs
+    def _get_execute_docker_compose_script(
+        self,
+        compose_cmd: JinjaTemplate,
+        compose_options: Mapping[JinjaTemplate, JinjaTemplate],
+        compose_flags: Iterable[JinjaTemplate],
+        compose_args: Iterable[JinjaTemplate],
+        *args: Any
+    ) -> JinjaTemplate:
+        return "\n".join(
+            [
+                # compose start
+                super()._get_execute_docker_compose_script(
+                    compose_cmd=compose_cmd,
+                    compose_options=compose_options,
+                    compose_flags=list(compose_flags) + ["-d"],
+                    compose_args=compose_args,
+                    *args,
+                ),
+                # compose log
+                super()._get_execute_docker_compose_script(
+                    compose_cmd="logs",
+                    compose_options={},
+                    compose_flags=["-f"],
+                    compose_args=[],
+                    *args,
+                ),
+            ]
         )
-        cmd_list = [setup_cmd] if setup_cmd.strip() != "" else []
-        # compose command
-        cmd_list = cmd_list + [
-            # compose start
-            self._get_docker_compose_cmd_script(
-                compose_cmd="up",
-                compose_options=self._compose_options,
-                compose_flags=list(self._compose_flags) + ["-d"],
-                compose_args=self._compose_args,
-                *args,
-            ),
-            # compose log
-            self._get_docker_compose_cmd_script(
-                compose_cmd="logs",
-                compose_options={},
-                compose_flags=["-f"],
-                compose_args=[],
-                *args,
-            ),
-        ]
-        cmd_str = "\n".join(cmd_list)
-        self.log_info(f"Command: {cmd_str}")
-        return cmd_str

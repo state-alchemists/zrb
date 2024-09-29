@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Optional
 
 from zrb.helper.accessories.color import colored

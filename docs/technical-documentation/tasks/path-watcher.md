@@ -56,7 +56,17 @@ No documentation available.
 No documentation available.
 
 
+### `PathWatcher._BaseTask__get_async_function`
+
+No documentation available.
+
+
 ### `PathWatcher._BaseTask__get_xcom_dir`
+
+No documentation available.
+
+
+### `PathWatcher._BaseTask__to_sync_function`
 
 No documentation available.
 

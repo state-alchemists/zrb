@@ -21,7 +21,6 @@ from .._input import enable_monitoring_input
 from .._service_config import snake_zrb_app_name_service_configs
 from ..remove import remove_snake_zrb_app_name_container
 from ._group import snake_zrb_app_name_monolith_container_group
-from ._helper import activate_monolith_compose_profile
 
 start_snake_zrb_app_name_monolith_container = DockerComposeStartTask(
     icon="🐳",
@@ -38,7 +37,13 @@ start_snake_zrb_app_name_monolith_container = DockerComposeStartTask(
     should_execute="{{ input.local_snake_zrb_app_name}}",
     upstreams=[build_snake_zrb_app_name_image, remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
-    setup_cmd=activate_monolith_compose_profile,
+    compose_profiles=[
+        '{{"postgres" if env.APP_DB_CONNECTION.startswith("postgresql") else ""}}',
+        '{{"kafka" if env.APP_BROKER_TYPE == "kafka" else ""}}',
+        '{{"rabbitmq" if env.APP_BROKER_TYPE == "rabbitmq" else ""}}',
+        '{{"monitoring" if input.enable_snake_zrb_app_name_monitoring else ""}}',
+        "monolith",
+    ],
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs=snake_zrb_app_name_service_configs,
     env_files=[compose_env_file],

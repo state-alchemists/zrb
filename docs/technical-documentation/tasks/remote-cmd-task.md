@@ -67,7 +67,17 @@ No documentation available.
 No documentation available.
 
 
+### `RemoteCmdTask._BaseTask__get_async_function`
+
+No documentation available.
+
+
 ### `RemoteCmdTask._BaseTask__get_xcom_dir`
+
+No documentation available.
+
+
+### `RemoteCmdTask._BaseTask__to_sync_function`
 
 No documentation available.
 

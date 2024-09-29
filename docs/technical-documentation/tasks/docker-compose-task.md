@@ -67,7 +67,17 @@ No documentation available.
 No documentation available.
 
 
+### `DockerComposeTask._BaseTask__get_async_function`
+
+No documentation available.
+
+
 ### `DockerComposeTask._BaseTask__get_xcom_dir`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseTask__to_sync_function`
 
 No documentation available.
 
@@ -249,12 +259,17 @@ No documentation available.
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
-### `DockerComposeTask._get_cwd`
+### `DockerComposeTask._get_compose_profile_script`
 
 No documentation available.
 
 
-### `DockerComposeTask._get_docker_compose_cmd_script`
+### `DockerComposeTask._get_create_compose_network_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._get_cwd`
 
 No documentation available.
 
@@ -285,6 +300,11 @@ configured for the task, essential for understanding and debugging the task's en
 __Returns:__
 
 `list[Env]`: A list of `Env` instances representing the environment variables of the task.
+
+### `DockerComposeTask._get_execute_docker_compose_script`
+
+No documentation available.
+
 
 ### `DockerComposeTask._get_fallbacks`
 
