@@ -21,7 +21,7 @@ def get_modified_file_states(
 ) -> Mapping[str, ModificationState]:
     # git show b176b5a main
     exit_status, output = subprocess.getstatusoutput(
-        f"git diff {current_commit} {source_commit}"
+        f"git diff {source_commit} {current_commit}"
     )
     if exit_status != 0:
         raise Exception(output)
