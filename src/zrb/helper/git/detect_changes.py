@@ -17,11 +17,11 @@ class ModificationState:
 
 @typechecked
 def get_modified_file_states(
-    commit: str, source_commit: str = "main"
+    current_commit: str, source_commit: str = "main"
 ) -> Mapping[str, ModificationState]:
     # git show b176b5a main
     exit_status, output = subprocess.getstatusoutput(
-        f"git diff {commit} {source_commit}"
+        f"git diff {current_commit} {source_commit}"
     )
     if exit_status != 0:
         raise Exception(output)
