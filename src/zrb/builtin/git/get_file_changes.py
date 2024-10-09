@@ -16,11 +16,18 @@ from zrb.task_input.str_input import StrInput
     description="Get modified files",
     inputs=[
         StrInput(
-            name="commit",
+            name="current-commit",
             shortcut="c",
-            description="commit hash/tag",
-            prompt="Commit hash/Tag",
+            description="current commit hash/tag",
+            prompt="Current commit hash/Tag",
             default="HEAD",
+        ),
+        StrInput(
+            name="source-commit",
+            shortcut="s",
+            description="source commit hash/tag",
+            prompt="Source commit hash/Tag",
+            default="main",
         ),
         BoolInput(
             name="include-new",
@@ -44,11 +51,12 @@ from zrb.task_input.str_input import StrInput
     runner=runner,
 )
 async def get_git_file_changes(*args: Any, **kwargs: Any):
-    commit = kwargs.get("commit", "HEAD")
+    current_commit = kwargs.get("current_commit", "HEAD")
+    source_commit = kwargs.get("source_commit", "main")
     include_new = kwargs.get("include_new", True)
     include_removed = kwargs.get("include_removed", True)
     include_updated = kwargs.get("include_updated", True)
-    modified_file_states = get_modified_file_states(commit)
+    modified_file_states = get_modified_file_states(current_commit, source_commit)
     modified_file_keys = []
     output = []
     for modified_file, state in modified_file_states.items():
