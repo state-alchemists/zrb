@@ -138,7 +138,6 @@ class CmdTask(BaseTask):
         retry_interval: Union[float, int] = 1,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
         should_print_cmd_result: bool = True,
@@ -184,8 +183,6 @@ class CmdTask(BaseTask):
         if executable is None and DEFAULT_SHELL != "":
             executable = DEFAULT_SHELL
         self._executable = executable
-        self._process: Optional[asyncio.subprocess.Process]
-        self._preexec_fn = preexec_fn
         self._should_print_cmd_result = should_print_cmd_result
         self._should_show_working_directory = should_show_working_directory
         self._should_show_cmd = should_show_cmd
@@ -234,17 +231,17 @@ class CmdTask(BaseTask):
             self.print_out_dark("Working directory: " + cwd)
         self._output_buffer = []
         self._error_buffer = []
-        process = await asyncio.create_subprocess_shell(
+        process = subprocess.Popen(
             cmd,
             cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=self.get_env_map(),
             shell=True,
+            text=True,
             executable=self._executable,
-            close_fds=True,
-            preexec_fn=self._preexec_fn,
-            bufsize=0,
+            bufsize=1,
         )
         self._set_task_pid(process.pid)
         self._pids.append(process.pid)
@@ -274,91 +271,6 @@ class CmdTask(BaseTask):
             return self.render_str(self._cwd)
         return self._cwd
 
-    def _should_attempt(self) -> bool:
-        if self._global_state.no_more_attempt:
-            return False
-        return super()._should_attempt()
-
-    def _is_last_attempt(self) -> bool:
-        if self._global_state.no_more_attempt:
-            return True
-        return super()._is_last_attempt()
-
-    def __on_kill(self, signum: Any, frame: Any):
-        self._global_state.no_more_attempt = True
-        self._global_state.is_killed_by_signal = True
-        _print_out_dark(f"Getting signal {signum}")
-        for pid in self._pids:
-            self.__kill_by_pid(pid)
-        stop_asyncio_sync()
-
-    def __on_exit(self):
-        self._global_state.no_more_attempt = True
-        self.__kill_by_pid(self._process.pid)
-
-    def __kill_by_pid(self, pid: int):
-        """
-        Kill a pid, gracefully
-        """
-        try:
-            process_ever_exists = False
-            if self.__is_process_exist(pid):
-                process_ever_exists = True
-                _print_out_dark(f"Send SIGTERM to process {pid}")
-                os.killpg(os.getpgid(pid), signal.SIGTERM)
-                time.sleep(0.3)
-            if self.__is_process_exist(pid):
-                _print_out_dark(f"Send SIGINT to process {pid}")
-                os.killpg(os.getpgid(pid), signal.SIGINT)
-                time.sleep(0.3)
-            if self.__is_process_exist(pid):
-                _print_out_dark(f"Send SIGKILL to process {pid}")
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
-            if process_ever_exists:
-                _print_out_dark(f"Process {pid} is killed successfully")
-        except Exception:
-            _log_error(f"Cannot kill process {pid}")
-
-    def __is_process_exist(self, pid: int) -> bool:
-        try:
-            os.killpg(os.getpgid(pid), 0)
-            return True
-        except ProcessLookupError:
-            return False
-
-    async def __wait_process(self, process: asyncio.subprocess.Process):
-        # Create queue
-        stdout_queue = asyncio.Queue()
-        stderr_queue = asyncio.Queue()
-        # Read from streams and put into queue
-        stdout_process = asyncio.create_task(
-            self.__queue_stream(process.stdout, stdout_queue)
-        )
-        stderr_process = asyncio.create_task(
-            self.__queue_stream(process.stderr, stderr_queue)
-        )
-        # Handle messages in queue
-        stdout_log_process = asyncio.create_task(
-            self.__log_from_queue(
-                stdout_queue, self.print_out, self._output_buffer, self._max_output_size
-            )
-        )
-        stderr_log_process = asyncio.create_task(
-            self.__log_from_queue(
-                stderr_queue, self.print_err, self._error_buffer, self._max_error_size
-            )
-        )
-        # wait process
-        await asyncio.gather(
-            process.wait(),
-            stdout_process,
-            stderr_process,
-        )
-        # stop messages in queue
-        await asyncio.gather(stdout_queue.put(None), stderr_queue.put(None))
-        # end logging
-        await asyncio.gather(stdout_log_process, stderr_log_process)
-
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
 
@@ -384,38 +296,6 @@ class CmdTask(BaseTask):
         if isinstance(cmd, str):
             return self.render_str(cmd)
         return self.render_str("\n".join(list(cmd)))
-
-    async def __queue_stream(self, stream, queue: asyncio.Queue):
-        while True:
-            try:
-                line = await stream.readline()
-            except Exception as e:
-                line = str(e)
-            if not line:
-                break
-            await queue.put(line)
-
-    async def __log_from_queue(
-        self,
-        queue: asyncio.Queue,
-        print_log: Callable[[str], None],
-        buffer: Iterable[str],
-        max_size: int,
-    ):
-        while True:
-            line = await queue.get()
-            if not line:
-                break
-            line_str = line.decode("utf-8").rstrip()
-            self.__add_to_buffer(buffer, max_size, line_str)
-            _reset_stty()
-            print_log(line_str)
-            _reset_stty()
-
-    def __add_to_buffer(self, buffer: Iterable[str], max_size: int, new_line: str):
-        if len(buffer) >= max_size:
-            buffer.pop(0)
-        buffer.append(new_line)
 
     def __get_multiline_repr(self, text: str) -> str:
         lines_repr: Iterable[str] = []
