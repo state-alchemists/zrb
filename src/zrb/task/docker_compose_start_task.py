@@ -1,4 +1,3 @@
-import os
 import pathlib
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
@@ -66,7 +65,6 @@ class DockerComposeStartTask(DockerComposeTask):
         retry_interval: Union[float, int] = 1,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        preexec_fn: Optional[Callable[[], Any]] = os.setsid,
         should_execute: Union[bool, str, Callable[..., bool]] = True,
         return_upstream_result: bool = False,
         should_print_cmd_result: bool = True,
@@ -111,7 +109,6 @@ class DockerComposeStartTask(DockerComposeTask):
             retry_interval=retry_interval,
             max_output_line=max_output_line,
             max_error_line=max_error_line,
-            preexec_fn=preexec_fn,
             should_execute=should_execute,
             return_upstream_result=return_upstream_result,
             should_print_cmd_result=should_print_cmd_result,

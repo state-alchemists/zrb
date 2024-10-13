@@ -21,7 +21,6 @@ install_helix = FlowTask(
                 os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
                 os.path.join(_CURRENT_DIR, "install.sh"),
             ],
-            preexec_fn=None,
         ),
         [
             Task(
@@ -51,7 +50,6 @@ install_helix = FlowTask(
                     os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
                     os.path.join(_CURRENT_DIR, "install-language-server.sh"),
                 ],
-                preexec_fn=None,
             ),
         ],
     ],

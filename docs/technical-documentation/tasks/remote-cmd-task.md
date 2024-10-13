@@ -92,11 +92,6 @@ No documentation available.
 No documentation available.
 
 
-### `RemoteCmdTask._CmdTask__add_to_buffer`
-
-No documentation available.
-
-
 ### `RemoteCmdTask._CmdTask__get_multiline_repr`
 
 No documentation available.
@@ -112,44 +107,23 @@ No documentation available.
 No documentation available.
 
 
-### `RemoteCmdTask._CmdTask__is_process_exist`
+### `RemoteCmdTask._CmdTask__read_stderr`
 
 No documentation available.
 
 
-### `RemoteCmdTask._CmdTask__kill_by_pid`
-
-Kill a pid, gracefully
-
-### `RemoteCmdTask._CmdTask__log_from_queue`
+### `RemoteCmdTask._CmdTask__read_stdout`
 
 No documentation available.
 
 
-### `RemoteCmdTask._CmdTask__on_exit`
+### `RemoteCmdTask._CmdTask__send_stdin`
 
-No documentation available.
+Handle interactive stdin input with non-blocking behavior.
 
+### `RemoteCmdTask._CmdTask__terminate_process`
 
-### `RemoteCmdTask._CmdTask__on_kill`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__queue_stream`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__set_cwd`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__wait_process`
-
-No documentation available.
-
+Terminate the shell script if it's still running.
 
 ### `RemoteCmdTask._CommonTaskModel__complete_new_checkers`
 

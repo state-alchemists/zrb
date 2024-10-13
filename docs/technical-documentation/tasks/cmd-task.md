@@ -92,11 +92,6 @@ No documentation available.
 No documentation available.
 
 
-### `CmdTask._CmdTask__add_to_buffer`
-
-No documentation available.
-
-
 ### `CmdTask._CmdTask__get_multiline_repr`
 
 No documentation available.
@@ -112,44 +107,23 @@ No documentation available.
 No documentation available.
 
 
-### `CmdTask._CmdTask__is_process_exist`
+### `CmdTask._CmdTask__read_stderr`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__kill_by_pid`
-
-Kill a pid, gracefully
-
-### `CmdTask._CmdTask__log_from_queue`
+### `CmdTask._CmdTask__read_stdout`
 
 No documentation available.
 
 
-### `CmdTask._CmdTask__on_exit`
+### `CmdTask._CmdTask__send_stdin`
 
-No documentation available.
+Handle interactive stdin input with non-blocking behavior.
 
+### `CmdTask._CmdTask__terminate_process`
 
-### `CmdTask._CmdTask__on_kill`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__queue_stream`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__set_cwd`
-
-No documentation available.
-
-
-### `CmdTask._CmdTask__wait_process`
-
-No documentation available.
-
+Terminate the shell script if it's still running.
 
 ### `CmdTask._CommonTaskModel__complete_new_checkers`
 

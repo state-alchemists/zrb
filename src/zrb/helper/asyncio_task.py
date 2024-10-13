@@ -34,3 +34,5 @@ def stop_asyncio_sync():
             loop.create_task(stop_asyncio())
     except asyncio.CancelledError:
         logger.warning("Task is cancelled")
+    except Exception as e:
+        logger.warning(e)

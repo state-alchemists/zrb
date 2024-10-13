@@ -17,7 +17,6 @@ install_ubuntu_essentials = CmdTask(
         "cmake make tree tmux zsh neovim xdotool xsel",
     ],
     retry_interval=3,
-    preexec_fn=None,
 )
 update_and_install_essentials: CmdTask = install_ubuntu_essentials.copy()
 update_and_install_essentials.add_upstream(update_ubuntu)

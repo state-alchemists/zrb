@@ -13,7 +13,6 @@ install_ubuntu_tex = CmdTask(
         "texlive-fonts-extra texlive-latex-extra",
     ],
     retry_interval=3,
-    preexec_fn=None,
 )
 update_and_install_tex: CmdTask = install_ubuntu_tex.copy()
 update_and_install_tex.add_upstream(update_ubuntu)

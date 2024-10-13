@@ -1,6 +1,7 @@
 import logging
 import os
 import pathlib
+import select
 import subprocess
 import sys
 import threading
@@ -172,8 +173,8 @@ class CmdTask(BaseTask):
         self._cmd_path = cmd_path
         self._cwd = os.getcwd() if cwd is None else os.path.abspath(cwd)
         self._should_render_cwd = should_render_cwd
-        self._max_output_size = max_output_line
-        self._max_error_size = max_error_line
+        self._max_output_line = max_output_line
+        self._max_error_line = max_error_line
         self._output_buffer: Iterable[str] = []
         self._error_buffer: Iterable[str] = []
         if executable is None and DEFAULT_SHELL != "":
@@ -185,6 +186,9 @@ class CmdTask(BaseTask):
         self._process = None
         self._stdout = []
         self._stderr = []
+
+    def set_cwd(self, cwd: Optional[Union[JinjaTemplate, pathlib.Path]]):
+        self._cwd = os.getcwd() if cwd is None else os.path.abspath(cwd)
 
     def copy(self) -> TCmdTask:
         return super().copy()
@@ -238,6 +242,9 @@ class CmdTask(BaseTask):
             stdout_thread.start()
             stderr_thread.start()
             stdin_thread.start()
+            stdout_thread.join()
+            stderr_thread.join()
+            stdin_thread.join()
             self._process.wait()
             output = "\n".join(self._stdout)
             error = "\n".join(self._stderr)
@@ -262,11 +269,8 @@ class CmdTask(BaseTask):
                     if self._process.poll() is None and user_input:
                         self._process.stdin.write(user_input + "\n")
                         self._process.stdin.flush()
-                else:
-                    # No input available, continue polling
-                    pass
-        except Exception as e:
-            self.print_err(f"Error in stdin: {e}")
+        except Exception:
+            pass
         finally:
             # Close stdin when done to prevent hanging
             try:
@@ -276,22 +280,28 @@ class CmdTask(BaseTask):
 
     def __read_stdout(self):
         for line in self._process.stdout:
-            self.print_out_dark(line)
+            line = line.rstrip()
+            self.print_out(line)
             self._stdout.append(line)
+            if len(self._stdout) > self._max_output_line:
+                self._stdout.pop(0)
 
     def __read_stderr(self):
         for line in self._process.stderr:
+            line = line.rstrip()
             self.print_out_dark(line)
             self._stderr.append(line)
+            if len(self._stderr) > self._max_error_line:
+                self._stderr.pop(0)
 
     def __terminate_process(self):
         """Terminate the shell script if it's still running."""
         if self._process.poll() is None:  # If the process is still running
-            self._process.terminate()     # Gracefully terminate the process
+            self._process.terminate()  # Gracefully terminate the process
             try:
                 self._process.wait(timeout=5)  # Give it time to terminate
             except subprocess.TimeoutExpired:
-                self._process.kill()           # Forcefully kill if not terminated
+                self._process.kill()  # Forcefully kill if not terminated
 
     def _get_cwd(self) -> Union[str, pathlib.Path]:
         if self._should_render_cwd and isinstance(self._cwd, str):

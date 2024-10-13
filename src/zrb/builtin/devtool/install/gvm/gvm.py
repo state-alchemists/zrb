@@ -31,7 +31,6 @@ install_gvm = FlowTask(
                 os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
                 os.path.join(_CURRENT_DIR, "download.sh"),
             ],
-            preexec_fn=None,
         ),
         Task(
             name="configure-gvm",
@@ -46,7 +45,6 @@ install_gvm = FlowTask(
                 os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
                 os.path.join(_CURRENT_DIR, "finalize.sh"),
             ],
-            preexec_fn=None,
         ),
     ],
     retry=0,
