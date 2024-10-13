@@ -333,21 +333,23 @@ class DockerComposeTask(CmdTask):
         return os.path.join(directory, runtime_file_name)
 
     def __get_compose_template_file(self, compose_file: Optional[str]) -> str:
-        if compose_file is None:
-            for _compose_file in [
-                "compose.yml",
-                "compose.yaml",
-                "docker-compose.yml",
-                "docker-compose.yaml",
-            ]:
-                if os.path.exists(os.path.join(self._cwd, _compose_file)):
-                    return os.path.join(self._cwd, _compose_file)
-            raise Exception(f"Cannot find compose file on {self._cwd}")
-        if os.path.isabs(compose_file) and os.path.exists(compose_file):
-            return compose_file
-        if os.path.exists(os.path.join(self._cwd, compose_file)):
-            return os.path.join(self._cwd, compose_file)
-        raise Exception(f"Invalid compose file: {compose_file}")
+        if self._remote_host is None:
+            if compose_file is None:
+                for _compose_file in [
+                    "compose.yml",
+                    "compose.yaml",
+                    "docker-compose.yml",
+                    "docker-compose.yaml",
+                ]:
+                    if os.path.exists(os.path.join(self._cwd, _compose_file)):
+                        return os.path.join(self._cwd, _compose_file)
+                    raise Exception("Comppose file not found")
+            if os.path.isabs(compose_file) and os.path.exists(compose_file):
+                return compose_file
+            if os.path.exists(os.path.join(self._cwd, compose_file)):
+                return os.path.join(self._cwd, compose_file)
+            raise Exception("Comppose file not found")
+        return "docker-compose.yml"
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_list = []
