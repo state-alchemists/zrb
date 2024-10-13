@@ -23,11 +23,11 @@ from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
-logger.debug(colored("Loading zrb.task.docker_compose_task", attrs=["dark"]))
+logger.debug(colored("Loading zrb.task.docker_compose_starter", attrs=["dark"]))
 
 
 @typechecked
-class DockerComposeStartTask(DockerComposeTask):
+class DockerComposeStarter(DockerComposeTask):
     def __init__(
         self,
         name: str,

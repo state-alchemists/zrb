@@ -6,6 +6,7 @@ from ..image._env import image_env
 from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
 from ._service_config import snake_zrb_app_name_service_config
+from .prepare import make_snake_zrb_app_name_compose_file
 
 remove_snake_zrb_app_name_container = DockerComposeTask(
     icon="💨",
@@ -23,6 +24,7 @@ remove_snake_zrb_app_name_container = DockerComposeTask(
     ],
 )
 
+make_snake_zrb_app_name_compose_file >> remove_snake_zrb_app_name_container
 remove_snake_zrb_app_name_container >> remove_project_containers
 
 runner.register(remove_snake_zrb_app_name_container)

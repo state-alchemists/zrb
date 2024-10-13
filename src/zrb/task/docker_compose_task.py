@@ -4,15 +4,12 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
-from zrb.helper.accessories.name import get_random_name
 from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
-from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
+from zrb.helper.docker_compose.file import read_compose_file
 from zrb.helper.log import logger
-from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
-from zrb.helper.util import to_snake_case
 from zrb.task.any_task import AnyTask
 from zrb.task.any_task_event_handler import (
     OnFailed,
@@ -23,7 +20,6 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.base_cmd_task import CmdResult
 from zrb.task.cmd_task import CmdTask, CmdVal
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
@@ -165,18 +161,15 @@ class DockerComposeTask(CmdTask):
         self._compose_args = compose_args
         self._compose_env_prefix = compose_env_prefix
         self._compose_profiles = compose_profiles
-        self._compose_template_file = self.__get_compose_template_file(compose_file)
-        self._compose_runtime_file = self.__get_compose_runtime_file(
-            self._compose_template_file
-        )
+        self._compose_file = self.__get_compose_file(compose_file)
         # Flag to make mark whether service config and compose environments
         # has been added to this task's envs and env_files
         self._is_compose_additional_env_added = False
         self._is_compose_additional_env_file_added = False
         if self._remote_host is None:
-            self._upstreams += [ensure_docker_is_installed]
+            self.add_upstream(ensure_docker_is_installed)
         else:
-            self._upstreams += [
+            self.add_upstream(
                 CmdTask(
                     name="ensure-remote-docker-is-installed",
                     cmd_path=[
@@ -192,18 +185,10 @@ class DockerComposeTask(CmdTask):
                     should_show_cmd=False,
                     should_show_working_directory=False,
                 )
-            ]
+            )
 
     def copy(self) -> TDockerComposeTask:
         return super().copy()
-
-    def run(self, *args, **kwargs: Any) -> CmdResult:
-        self.__generate_compose_runtime_file()
-        try:
-            result = super().run(*args, **kwargs)
-        finally:
-            os.remove(self._compose_runtime_file)
-        return result
 
     def inject_envs(self):
         super().inject_envs()
@@ -211,7 +196,7 @@ class DockerComposeTask(CmdTask):
         for _, service_config in self._compose_service_configs.items():
             self.insert_env(*service_config.get_envs())
         # inject envs from docker compose file
-        compose_data = read_compose_file(self._compose_template_file)
+        compose_data = read_compose_file(self._compose_file)
         env_map = fetch_compose_file_env_map(compose_data)
         added_env_map: Mapping[str, bool] = {}
         for key, value in env_map.items():
@@ -226,129 +211,34 @@ class DockerComposeTask(CmdTask):
             self.insert_env(Env(name=key, os_name=os_name, default=value))
 
     def inject_env_files(self):
+        super().inject_env_files
         # inject env_files from service_configs
         for _, service_config in self._compose_service_configs.items():
             self.insert_env_file(*service_config.get_env_files())
 
-    def __generate_compose_runtime_file(self):
-        compose_data = read_compose_file(self._compose_template_file)
-        for service, service_config in self._compose_service_configs.items():
-            envs: list[Env] = []
-            env_files = service_config.get_env_files()
-            for env_file in env_files:
-                envs += env_file.get_envs()
-            envs += service_config.get_envs()
-            compose_data = self.__apply_service_env(compose_data, service, envs)
-        write_compose_file(self._compose_runtime_file, compose_data)
-
-    def __apply_service_env(
-        self, compose_data: Any, service_name: str, envs: list[Env]
-    ) -> Any:
-        # service not found
-        service_map = compose_data["services"]
-        if "services" not in compose_data or service_name not in service_map:
-            self.log_error(f"Cannot find services.{service_name}")
-            return compose_data
-        # service has no environment definition
-        if "environment" not in compose_data["services"][service_name]:
-            compose_data["services"][service_name]["environment"] = {
-                env.get_name(): self.__get_env_compose_value(service_name, env)
-                for env in envs
-            }
-            return compose_data
-        # service environment is a map
-        if isinstance(compose_data["services"][service_name]["environment"], dict):
-            new_env_map = self.__get_service_new_env_map(
-                service_name=service_name,
-                service_env_map=compose_data["services"][service_name]["environment"],
-                new_envs=envs,
-            )
-            for key, value in new_env_map.items():
-                compose_data["services"][service_name]["environment"][key] = value
-            return compose_data
-        # service environment is a list
-        if isinstance(compose_data["services"][service_name]["environment"], list):
-            new_env_list = self.__get_service_new_env_list(
-                service_name=service_name,
-                service_env_list=compose_data["services"][service_name]["environment"],
-                new_envs=envs,
-            )
-            compose_data["services"][service_name]["environment"] += new_env_list
-            return compose_data
-        return compose_data
-
-    def __get_service_new_env_map(
-        self, service_name: str, service_env_map: Mapping[str, str], new_envs: list[Env]
-    ) -> Mapping[str, str]:
-        new_service_envs: Mapping[str, str] = {}
-        for env in new_envs:
-            env_name = env.get_name()
-            if env_name in service_env_map:
-                continue
-            new_service_envs[env_name] = self.__get_env_compose_value(service_name, env)
-        return new_service_envs
-
-    def __get_service_new_env_list(
-        self, service_name: str, service_env_list: list[str], new_envs: list[Env]
-    ) -> list[str]:
-        new_service_envs: list[str] = []
-        for env in new_envs:
-            should_be_added = 0 == len(
-                [
-                    service_env
-                    for service_env in service_env_list
-                    if service_env.startswith(env.get_name() + "=")
-                ]
-            )
-            if not should_be_added:
-                continue
-            new_service_envs.append(
-                env.get_name() + "=" + self.__get_env_compose_value(service_name, env)
-            )
-        return new_service_envs
-
-    def __get_env_compose_value(self, service_name: str, env: Env) -> str:
-        env_prefix = to_snake_case(service_name).upper()
-        env_name = env.get_name()
-        env_default = env.get_default()
-        return "".join(["${", f"{env_prefix}_{env_name}:-{env_default}", "}"])
-
-    def __get_compose_runtime_file(self, compose_file_name: str) -> str:
-        directory, file = os.path.split(compose_file_name)
-        prefix = "_" if file.startswith(".") else "._"
-        runtime_prefix = self.get_cli_name()
-        if self._group is not None:
-            group_prefix = to_cli_name(self._group._get_full_cli_name())
-            runtime_prefix = f"{group_prefix}-{runtime_prefix}"
-        runtime_prefix += "-" + get_random_name(
-            separator="-", add_random_digit=True, digit_count=3
-        )
-        runtime_prefix = "." + runtime_prefix + ".runtime"
-        file_parts = file.split(".")
-        if len(file_parts) > 1:
-            file_parts[-2] += runtime_prefix
-            runtime_file_name = prefix + ".".join(file_parts)
-            return os.path.join(directory, runtime_file_name)
-        runtime_file_name = prefix + file + runtime_prefix
-        return os.path.join(directory, runtime_file_name)
-
-    def __get_compose_template_file(self, compose_file: Optional[str]) -> str:
+    def __get_compose_file(self, compose_file: Optional[str]) -> str:
         if self._remote_host is None:
+            cwd = self._cwd
             if compose_file is None:
-                for _compose_file in [
-                    "compose.yml",
-                    "compose.yaml",
-                    "docker-compose.yml",
-                    "docker-compose.yaml",
-                ]:
-                    if os.path.exists(os.path.join(self._cwd, _compose_file)):
-                        return os.path.join(self._cwd, _compose_file)
-                raise Exception(f"Cannot find compose file on {self._cwd}")
-            if os.path.isabs(compose_file) and os.path.exists(compose_file):
+                # Default compose files
+                for name in ["compose", "docker-compose"]:
+                    for ext in ["yaml", "yml"]:
+                        compose_file = os.path.join(cwd, f"{name}.{ext}")
+                        if os.path.exists(compose_file):
+                            return compose_file
+                # Default template compose files
+                for name in ["compose", "docker-compose"]:
+                    for ext in ["yaml", "yml"]:
+                        compose_file = os.path.join(cwd, f"{name}.{ext}")
+                        if os.path.exists(os.path.join(cwd, f"{name}.template.{ext}")):
+                            return compose_file
+                        if os.path.exists(os.path.join(cwd, f"{name}.tpl.{ext}")):
+                            return compose_file
+                return os.path.join(cwd, "docker-compose.yaml")
+            if os.path.isabs(compose_file):
                 return compose_file
-            if os.path.exists(os.path.join(self._cwd, compose_file)):
-                return os.path.join(self._cwd, compose_file)
-            raise Exception(f"Invalid compose file: {compose_file}")
+            if os.path.join(cwd, compose_file):
+                return os.path.join(cwd, compose_file)
         return "docker-compose.yml"
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
@@ -400,7 +290,7 @@ class DockerComposeTask(CmdTask):
         return f"export COMPOSE_PROFILES={compose_profiles_str}"
 
     def _get_create_compose_network_script(self) -> str:
-        compose_data = read_compose_file(self._compose_runtime_file)
+        compose_data = read_compose_file(self._compose_file)
         networks: Mapping[str, Mapping[str, Any]] = compose_data.get("networks", {})
         scripts = []
         for key, config in networks.items():
@@ -421,7 +311,7 @@ class DockerComposeTask(CmdTask):
         *args: Any,
     ) -> str:
         command_options = dict(compose_options)
-        command_options["--file"] = self._compose_runtime_file
+        command_options["--file"] = self._compose_file
         options = " ".join(
             [
                 f"{self.render_str(key)} {double_quote(self.render_str(val))}"

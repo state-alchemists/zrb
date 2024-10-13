@@ -1,6 +1,7 @@
 from zrb.task.docker_compose_task import (
     DockerComposeTask, ServiceConfig, Env, EnvFile
 )
+from zrb.task.docker_compose_maker import DockerComposeMaker
 
 import pathlib
 import os
@@ -9,16 +10,26 @@ import os
 def test_docker_compose_task_simple():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
+    service_configs = {
+        'myapp_simple': ServiceConfig(
+            envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+            env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+        )
+    }
+    docker_compose_maker = DockerComposeMaker(
+        name="make",
+        template_file=os.path.join(
+            resource_path, 'docker-compose-simple.template.yml'
+        ),
+        compose_file=os.path.join(resource_path, 'docker-compose-simple-1.yml'),
+        compose_service_configs=service_configs,
+    )
     docker_compose_task = DockerComposeTask(
         name='simple',
-        compose_file=os.path.join(resource_path, 'docker-compose-simple.yml'),
-        compose_service_configs={
-            'myapp_simple': ServiceConfig(
-                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
-                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
-            )
-        },
-        compose_flags=['--build']
+        compose_file=os.path.join(resource_path, 'docker-compose-simple-1.yml'),
+        compose_service_configs=service_configs,
+        compose_flags=['--build'],
+        upstreams=[docker_compose_maker]
     )
     function = docker_compose_task.to_function()
     result = function()
@@ -30,17 +41,26 @@ def test_docker_compose_task_simple():
 def test_docker_compose_task_with_cwd_and_compose_file():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
+    service_configs = {
+        'myapp_simple': ServiceConfig(
+            envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+            env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+        )
+    }
+    docker_compose_maker = DockerComposeMaker(
+        name="make",
+        cwd=resource_path,
+        template_file='docker-compose-simple.template.yml',
+        compose_file='docker-compose-simple-2.yml',
+        compose_service_configs=service_configs,
+    )
     docker_compose_task = DockerComposeTask(
         name='with-cwd-and-compose-file',
         cwd=resource_path,
-        compose_file='docker-compose-simple.yml',
-        compose_service_configs={
-            'myapp_simple': ServiceConfig(
-                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
-                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
-            )
-        },
-        compose_flags=['--build']
+        compose_file='docker-compose-simple-2.yml',
+        compose_service_configs=service_configs,
+        compose_flags=['--build'],
+        upstreams=[docker_compose_maker]
     )
     function = docker_compose_task.to_function()
     result = function()
@@ -52,16 +72,23 @@ def test_docker_compose_task_with_cwd_and_compose_file():
 def test_docker_compose_task_with_cwd():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
+    service_configs = {
+        'myapp': ServiceConfig(
+            envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+            env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+        )
+    }
+    docker_compose_maker = DockerComposeMaker(
+        name="make",
+        cwd=resource_path,
+        compose_service_configs=service_configs,
+    )
     docker_compose_task = DockerComposeTask(
         name='with-cwd',
         cwd=resource_path,
-        compose_service_configs={
-            'myapp': ServiceConfig(
-                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
-                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
-            )
-        },
-        compose_flags=['--build']
+        compose_service_configs=service_configs,
+        compose_flags=['--build'],
+        upstreams=[docker_compose_maker]
     )
     function = docker_compose_task.to_function()
     result = function()
@@ -88,18 +115,30 @@ def test_docker_compose_task_invalid_compose_file():
 def test_docker_compose_task_simple_no_default_env():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
+    service_configs = {
+        'myapp_simple_no_default_env': ServiceConfig(
+            envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+            env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+        )
+    }
+    docker_compose_maker = DockerComposeMaker(
+        name="make",
+        template_file=os.path.join(
+            resource_path, 'docker-compose-simple-no-default-env.template.yml'
+        ),
+        compose_file=os.path.join(
+            resource_path, 'docker-compose-simple-no-default-env.yml'
+        ),
+        compose_service_configs=service_configs,
+    )
     docker_compose_task = DockerComposeTask(
         name='simple-no-default-env',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-no-default-env.yml'
         ),
-        compose_service_configs={
-            'myapp_simple_no_default_env': ServiceConfig(
-                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
-                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
-            )
-        },
-        compose_flags=['--build']
+        compose_service_configs=service_configs,
+        compose_flags=['--build'],
+        upstreams=[docker_compose_maker]
     )
     function = docker_compose_task.to_function()
     # run with env set
@@ -116,18 +155,30 @@ def test_docker_compose_task_simple_no_default_env():
 def test_docker_compose_task_simple_map_env():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
+    service_configs = {
+        'myapp_simple_map_env': ServiceConfig(
+            envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+            env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+        )
+    }
+    docker_compose_maker = DockerComposeMaker(
+        name="make",
+        template_file=os.path.join(
+            resource_path, 'docker-compose-simple-map-env.template.yml'
+        ),
+        compose_file=os.path.join(
+            resource_path, 'docker-compose-simple-map-env.yml'
+        ),
+        compose_service_configs=service_configs,
+    )
     docker_compose_task = DockerComposeTask(
         name='simple-map-env',
         compose_file=os.path.join(
             resource_path, 'docker-compose-simple-map-env.yml'
         ),
-        compose_service_configs={
-            'myapp_simple_map_env': ServiceConfig(
-                envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
-                env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
-            )
-        },
-        compose_flags=['--build']
+        compose_service_configs=service_configs,
+        compose_flags=['--build'],
+        upstreams=[docker_compose_maker]
     )
     function = docker_compose_task.to_function()
     # run with no env
@@ -149,6 +200,22 @@ def test_docker_compose_task_simple_map_env():
 def test_docker_compose_task_simple_list_env():
     dir_path = pathlib.Path(__file__).parent.absolute()
     resource_path = os.path.join(dir_path, 'resource')
+    service_configs = {
+        'myapp_simple_list_env': ServiceConfig(
+            envs=[Env(name='POST_MESSAGE_2', default='As below so above')],
+            env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
+        )
+    }
+    docker_compose_maker = DockerComposeMaker(
+        name="make",
+        template_file=os.path.join(
+            resource_path, 'docker-compose-simple-list-env.template.yml'
+        ),
+        compose_file=os.path.join(
+            resource_path, 'docker-compose-simple-list-env.yml'
+        ),
+        compose_service_configs=service_configs,
+    )
     docker_compose_task = DockerComposeTask(
         name='simple-list-env',
         compose_file=os.path.join(
@@ -160,7 +227,8 @@ def test_docker_compose_task_simple_list_env():
                 env_files=[EnvFile(os.path.join(resource_path, 'runtime.env'))]
             )
         },
-        compose_flags=['--build']
+        compose_flags=['--build'],
+        upstreams=[docker_compose_maker]
     )
     function = docker_compose_task.to_function()
     # run with no env

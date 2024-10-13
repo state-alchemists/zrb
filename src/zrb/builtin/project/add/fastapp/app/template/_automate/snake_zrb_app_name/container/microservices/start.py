@@ -1,4 +1,4 @@
-from zrb import DockerComposeStartTask, runner
+from zrb import DockerComposeStarter, runner
 
 from ...._project import start_project_containers
 from ..._checker import (
@@ -19,10 +19,11 @@ from ...image._input import image_input
 from .._env import compose_env_file, host_port_env
 from .._input import enable_monitoring_input
 from .._service_config import snake_zrb_app_name_service_configs
+from ..prepare import make_snake_zrb_app_name_compose_file
 from ..remove import remove_snake_zrb_app_name_container
 from ._group import snake_zrb_app_name_microservices_container_group
 
-start_snake_zrb_app_name_microservices_container = DockerComposeStartTask(
+start_snake_zrb_app_name_microservices_container = DockerComposeStarter(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -63,6 +64,7 @@ start_snake_zrb_app_name_microservices_container = DockerComposeStartTask(
     ],
 )
 
+make_snake_zrb_app_name_compose_file >> start_snake_zrb_app_name_microservices_container
 if PREFER_MICROSERVICES:
     start_snake_zrb_app_name_microservices_container >> start_project_containers
 

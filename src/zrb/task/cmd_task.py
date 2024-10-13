@@ -142,4 +142,4 @@ class CmdTask(BaseCmdTask):
             should_show_working_directory=should_show_working_directory,
         )
         if self._remote_host is None:
-            self._upstreams += [ensure_ssh_is_installed]
+            self.add_upstream(ensure_ssh_is_installed)

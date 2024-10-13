@@ -13,7 +13,8 @@ from zrb.task.any_task_event_handler import (
 from zrb.task.checker import Checker
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task
-from zrb.task.docker_compose_start_task import DockerComposeStartTask
+from zrb.task.docker_compose_maker import DockerComposeMaker
+from zrb.task.docker_compose_starter import DockerComposeStarter
 from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
 from zrb.task.flow_task import FlowTask
 from zrb.task.http_checker import HTTPChecker
@@ -23,7 +24,6 @@ from zrb.task.path_checker import PathChecker
 from zrb.task.path_watcher import PathWatcher
 from zrb.task.port_checker import PortChecker
 from zrb.task.recurring_task import RecurringTask
-from zrb.task.remote_cmd_task import RemoteCmdTask
 from zrb.task.resource_maker import (
     Replacement,
     ReplacementMutator,
@@ -66,9 +66,9 @@ assert python_task
 assert Task
 assert CmdTask
 assert DockerComposeTask
-assert DockerComposeStartTask
+assert DockerComposeStarter
+assert DockerComposeMaker
 assert ServiceConfig
-assert RemoteCmdTask
 assert RsyncTask
 assert Notifier
 assert Checker

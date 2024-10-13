@@ -225,7 +225,7 @@ Every Zrb Task has its life-cycle state:
 
 You can learn more about the lifecycle states in [the task lifecycle documentation](concepts/task-lifecycle.md).
 
-Zrb has multiple Task Types, including `CmdTask`, `DockerComposeTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, `FlowTask`, `Server`, etc.
+Zrb has multiple Task Types, including `CmdTask`, `DockerComposeTask`, `RsyncTask`, `ResourceMaker`, `FlowTask`, `Server`, etc.
 
 All Tasks are defined and written in Python and should be accessible from your Project's `zrb_init.py`. Typically, a Zrb Task has multiple parameters:
 
@@ -255,7 +255,7 @@ All Tasks are defined and written in Python and should be accessible from your P
 
 There are two ways to define a Task:
 
-- By creating an instance of a `TaskType` (e.g., `CmdTask`, `DockerComposeTask`, `RemoteCmdTask`, `RsyncTask`, `ResourceMaker`, `FlowTask`, `Server`)
+- By creating an instance of a `TaskType` (e.g., `CmdTask`, `DockerComposeTask`, `RsyncTask`, `ResourceMaker`, `FlowTask`, `Server`)
 - By using `@python_task` decorator
 
 We will explore them in more detail. In the next two subsections, we will create a `hello` Task using `CmdTask` and `@python_task` decorator. The Tasks should read and use the `USER` environment variable and read `color` from user input.
@@ -466,7 +466,7 @@ We also want to enhance the workflow so that whenever `templates` and `configura
 ```python
 from zrb import (
     AnyTask, Controller, HTTPChecker, Env, EnvFile, FlowTask, StrInput, PasswordInput,
-    Parallel, PathWatcher, ResourceMaker, RemoteConfig, RemoteCmdTask, RsyncTask,
+    Parallel, PathWatcher, ResourceMaker, RemoteConfig, CmdTask, RsyncTask,
     Server, python_task, runner
 )
 
@@ -676,7 +676,7 @@ In the example, we define the `remote_configs` to pick up values from user input
 ### Start the Web Service
 
 ```python
-start_server = RemoteCmdTask(
+start_server = CmdTask(
     name="start-server",
     remote_configs=remote_configs,
     cmd=[
@@ -700,10 +700,10 @@ start_server = RemoteCmdTask(
 )
 ```
 
-> __📝 NOTE:__  Aside from `cmd` paramter, `CmdTask` and `RemoteCmdTask` has a `cmd_path` parameter. You can use this parameter to refer to the shell script file (e.g., `RemoteCmdTask(name="start-server", cmd_path=os.path.join(CURRENT_DIR, "start-server.sh"))`).
+> __📝 NOTE:__  Aside from `cmd` paramter, `CmdTask` has a `cmd_path` parameter. You can use this parameter to refer to the shell script file (e.g., `CmdTask(name="start-server", cmd_path=os.path.join(CURRENT_DIR, "start-server.sh"))`).
 
 
-Next, we define a Task to run the web service. We use `RemoteCmdTask`, a Zrb Task Type similar to `CmdTask`, but focussing on running the cmd scripts on the remote servers.
+Next, we define a Task to run the web service. We use `CmdTask`, a Zrb Task Type capable on running the cmd scripts on the remote servers.
 
 The Task shares the same `remote_configs` as the previous `RsyncTask` since they deal with the same remote server.
 
@@ -865,7 +865,7 @@ Here are the complete Task definitions.
 ```python
 from zrb import (
     AnyTask, Controller, HTTPChecker, Env, EnvFile, FlowTask, StrInput, PasswordInput,
-    Parallel, PathWatcher, ResourceMaker, RemoteConfig, RemoteCmdTask, RsyncTask,
+    Parallel, PathWatcher, ResourceMaker, RemoteConfig, CmdTask, RsyncTask,
     Server, python_task, runner
 )
 
@@ -948,7 +948,7 @@ copy_to_server = RsyncTask(
     dst="{{input.remote_path}}"
 ) 
 
-start_server = RemoteCmdTask(
+start_server = CmdTask(
     name="start-server",
     remote_configs=remote_configs,
     cmd=[

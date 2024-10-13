@@ -287,51 +287,6 @@ task = CmdTask(
 runner.register(task)
 ```
 
-## RemoteCmdTask
-
-Zrb renders the following attributes as Jinja Template:
-
-- `cmd` (`CmdVal`)
-- `cmd_path` (`CmdVal`)
-- `should_execute` (`Union[bool, JinjaTemplate, Callable[..., bool]]`)
-
-Furthermore, Zrb also renders [`remote_configs`](#remoteconfig) attributes as Jinja Template.
-
-Example:
-
-```python
-from zrb import runner, BoolInput, StrInput, PasswordInput, RemoteCmdTask, RemoteConfig
-
-task = RemoteCmdTask(
-    name='task',
-    inputs=[
-        BoolInput(name='should-execute', default=True),
-        StrInput(name='name', default='World'),
-        StrInput(name='server-1-host', default='stalchmst.com'),
-        StrInput(name='server-1-user', default='root'),
-        PasswordInput(name='server-1-pass'),
-        StrInput(name='server-2-host', default='contoso.com'),
-        StrInput(name='server-2-user', default='root'),
-        PasswordInput(name='server-2-pass')
-    ],
-    remote_configs=[
-        RemoteConfig(
-            host='{{ input.server_1_host }}',
-            user='{{ input.server_1_user }}',
-            password='{{ input.server_1_pass }}'
-        ),
-        RemoteConfig(
-            host='{{ input.server_2_host }}'
-            user='{{ input.server_2_user }}',
-            password='{{ input.server_2_pass }}'
-        ),
-    ],
-    should_execute='{{ input.should_execute }}',
-    cmd='echo "{{ input.name }}" && uname -a'
-)
-runner.register(task)
-```
-
 ## RsyncTask
 
 Zrb renders the following attributes as Jinja Template:

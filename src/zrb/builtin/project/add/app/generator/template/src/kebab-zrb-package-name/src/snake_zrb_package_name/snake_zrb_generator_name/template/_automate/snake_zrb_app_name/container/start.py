@@ -1,4 +1,4 @@
-from zrb import DockerComposeStartTask, HTTPChecker, runner
+from zrb import DockerComposeStarter, HTTPChecker, runner
 
 from ..._project import start_project_containers
 from .._constant import RESOURCE_DIR
@@ -9,9 +9,10 @@ from ..image._input import image_input
 from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
 from ._service_config import snake_zrb_app_name_service_config
+from .prepare import make_snake_zrb_app_name_compose_file
 from .remove import remove_snake_zrb_app_name_container
 
-start_snake_zrb_app_name_container = DockerComposeStartTask(
+start_snake_zrb_app_name_container = DockerComposeStarter(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -42,6 +43,7 @@ start_snake_zrb_app_name_container = DockerComposeStartTask(
     ],
 )
 
+make_snake_zrb_app_name_compose_file >> start_snake_zrb_app_name_container
 start_snake_zrb_app_name_container >> start_project_containers
 
 runner.register(start_snake_zrb_app_name_container)

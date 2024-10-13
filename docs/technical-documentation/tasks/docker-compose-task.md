@@ -140,37 +140,7 @@ No documentation available.
 
 For internal use: copy and completing new checkers
 
-### `DockerComposeTask._DockerComposeTask__apply_service_env`
-
-No documentation available.
-
-
-### `DockerComposeTask._DockerComposeTask__generate_compose_runtime_file`
-
-No documentation available.
-
-
-### `DockerComposeTask._DockerComposeTask__get_compose_runtime_file`
-
-No documentation available.
-
-
-### `DockerComposeTask._DockerComposeTask__get_compose_template_file`
-
-No documentation available.
-
-
-### `DockerComposeTask._DockerComposeTask__get_env_compose_value`
-
-No documentation available.
-
-
-### `DockerComposeTask._DockerComposeTask__get_service_new_env_list`
-
-No documentation available.
-
-
-### `DockerComposeTask._DockerComposeTask__get_service_new_env_map`
+### `DockerComposeTask._DockerComposeTask__get_compose_file`
 
 No documentation available.
 
