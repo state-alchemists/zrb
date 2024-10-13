@@ -1,4 +1,3 @@
-import logging
 import os
 import pathlib
 import select
@@ -8,7 +7,7 @@ import threading
 from collections.abc import Callable, Iterable
 from typing import Any, Optional, TypeVar, Union
 
-from zrb.config.config import DEFAULT_SHELL, LOGGING_LEVEL
+from zrb.config.config import DEFAULT_SHELL
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
@@ -30,34 +29,6 @@ from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
 logger.debug(colored("Loading zrb.task.cmd_task", attrs=["dark"]))
-
-_has_stty = True
-try:
-    _original_stty = subprocess.getoutput("stty -g").rstrip()
-except Exception:
-    _has_stty = False
-
-
-def _reset_stty():
-    global _has_stty
-    if _has_stty:
-        try:
-            subprocess.run(["stty", _original_stty], check=True)
-        except Exception:
-            _has_stty = False
-
-
-def _log_error(message: Any):
-    if LOGGING_LEVEL > logging.ERROR:
-        return
-    colored_message = colored(f"{message}", color="red", attrs=["bold"])
-    logger.error(colored_message, exc_info=True)
-
-
-def _print_out_dark(message: Any):
-    message_str = f"{message}"
-    print(colored(message_str, attrs=["dark"]), file=sys.stderr)
-
 
 CmdVal = Union[
     JinjaTemplate,
@@ -216,7 +187,7 @@ class CmdTask(BaseTask):
             return
         print(result.output)
 
-    async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
+    def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self.get_cmd_script(*args, **kwargs)
         if self._should_show_cmd:
             self.print_out_dark(f"Run script: {self.__get_multiline_repr(cmd)}")
@@ -233,7 +204,7 @@ class CmdTask(BaseTask):
             shell=True,
             text=True,
             executable=self._executable,
-            bufsize=1,
+            bufsize=0,
         )
         try:
             stdout_thread = threading.Thread(target=self.__read_stdout)
@@ -242,10 +213,10 @@ class CmdTask(BaseTask):
             stdout_thread.start()
             stderr_thread.start()
             stdin_thread.start()
+            self._process.wait()
             stdout_thread.join()
             stderr_thread.join()
             stdin_thread.join()
-            self._process.wait()
             output = "\n".join(self._stdout)
             error = "\n".join(self._stderr)
             # get return code

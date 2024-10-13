@@ -167,10 +167,10 @@ class DockerComposeTask(CmdTask):
     def copy(self) -> TDockerComposeTask:
         return super().copy()
 
-    async def run(self, *args, **kwargs: Any) -> CmdResult:
+    def run(self, *args, **kwargs: Any) -> CmdResult:
         self.__generate_compose_runtime_file()
         try:
-            result = await super().run(*args, **kwargs)
+            result = super().run(*args, **kwargs)
         finally:
             os.remove(self._compose_runtime_file)
         return result
