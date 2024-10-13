@@ -188,14 +188,14 @@ class CmdTask(BaseTask):
         print(result.output)
 
     def run(self, *args: Any, **kwargs: Any) -> CmdResult:
-        cmd = self.get_cmd_script(*args, **kwargs)
+        cmd_script = self.__get_local_or_remote_cmd_script(*args, **kwargs)
         if self._should_show_cmd:
-            self.print_out_dark(f"Run script: {self.__get_multiline_repr(cmd)}")
+            self.print_out_dark(f"Run script: {self.__get_multiline_repr(cmd_script)}")
         cwd = self._get_cwd()
         if self._should_show_working_directory:
             self.print_out_dark(f"Working directory: {cwd}")
         self._process = subprocess.Popen(
-            cmd,
+            cmd_script,
             cwd=cwd,
             stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=subprocess.PIPE,
@@ -265,25 +265,28 @@ class CmdTask(BaseTask):
             return self.render_str(self._cwd)
         return self._cwd
 
-    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
-
-    def _create_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        local_cmd_script = self.__create_local_cmd_script(
-            self._cmd_path, self._cmd, *args, **kwargs
-        )
+    def __get_local_or_remote_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        cmd_script = self.get_cmd_script(*args, **kwargs)
         if self._remote_host is None:
-            return local_cmd_script
-        cmd_script = "\n".join(
+            return cmd_script
+        remote_cmd_script = "\n".join(
             [
                 "_SCRIPT=$(cat << 'ENDSCRIPT'",
-                local_cmd_script,
+                cmd_script,
                 "ENDSCRIPT",
                 ")",
             ]
         )
         ssh_command = self.__get_ssh_command()
-        return "\n".join([cmd_script, ssh_command])
+        return "\n".join([remote_cmd_script, ssh_command])
+
+    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
+
+    def _create_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        return self.__create_local_cmd_script(
+            self._cmd_path, self._cmd, *args, **kwargs
+        )
 
     def __get_ssh_command(self) -> str:
         host = self.render_str(self._remote_host)
