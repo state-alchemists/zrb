@@ -88,7 +88,7 @@ class RemoteCmdTask(CmdTask):
             name=name,
             group=group,
             inputs=inputs,
-            envs=envs + [PrivateEnv(name="_ZRB_SSH_PASSWORD", default=remote_password)],
+            envs=envs,
             env_files=env_files,
             icon=icon,
             color=color,
