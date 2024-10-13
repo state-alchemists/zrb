@@ -22,7 +22,7 @@ from zrb.task.any_task_event_handler import (
     OnWaiting,
 )
 from zrb.task.base_task.base_task import BaseTask
-from zrb.task_env.env import Env
+from zrb.task_env.env import Env, PrivateEnv
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
@@ -77,6 +77,11 @@ class CmdTask(BaseTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
+        remote_host: JinjaTemplate = "localhost",
+        remote_port: Union[JinjaTemplate, int] = 22,
+        remote_user: JinjaTemplate = "root",
+        remote_password: JinjaTemplate = "",
+        remote_ssh_key: JinjaTemplate = "",
         cmd: CmdVal = "",
         cmd_path: CmdVal = "",
         cwd: Optional[Union[JinjaTemplate, pathlib.Path]] = None,
@@ -107,7 +112,7 @@ class CmdTask(BaseTask):
             name=name,
             group=group,
             inputs=inputs,
-            envs=envs,
+            envs=envs + [PrivateEnv(name="_ZRB_SSH_PASSWORD", default=remote_password)],
             env_files=env_files,
             icon=icon,
             color=color,
@@ -144,6 +149,11 @@ class CmdTask(BaseTask):
         self._should_print_cmd_result = should_print_cmd_result
         self._should_show_working_directory = should_show_working_directory
         self._should_show_cmd = should_show_cmd
+        self._remote_host = remote_host
+        self._remote_port = remote_port
+        self._remote_user = remote_user
+        self._remote_password = remote_password
+        self._remote_ssh_key = remote_ssh_key
         self._process = None
         self._stdout = []
         self._stderr = []
@@ -258,7 +268,38 @@ class CmdTask(BaseTask):
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
 
-    def _create_cmd_script(
+    def _create_cmd_script(self, *args: Any, **kwargs: Any) -> str:
+        local_cmd_script = self.__create_local_cmd_script(
+            self._cmd_path, self._cmd, *args, **kwargs
+        )
+        if self._remote_host is None:
+            return local_cmd_script
+        cmd_script = "\n".join(
+            [
+                "_SCRIPT=$(cat << 'ENDSCRIPT'",
+                local_cmd_script,
+                "ENDSCRIPT",
+                ")",
+            ]
+        )
+        ssh_command = self.__get_ssh_command()
+        return "\n".join([cmd_script, ssh_command])
+
+    def __get_ssh_command(self) -> str:
+        host = self.render_str(self._remote_host)
+        port = self.render_str(self._remote_port)
+        user = self.render_str(self._remote_user)
+        password = self.render_str(self._remote_password)
+        key = self.render_str(self._remote_ssh_key)
+        if key != "" and password != "":
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'  # noqa
+        if key != "":
+            return f'ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'
+        if password != "":
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'  # noqa
+        return f'ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'
+
+    def __create_local_cmd_script(
         self, cmd_path: CmdVal, cmd: CmdVal, *args: Any, **kwargs: Any
     ) -> str:
         if not isinstance(cmd_path, str) or cmd_path != "":

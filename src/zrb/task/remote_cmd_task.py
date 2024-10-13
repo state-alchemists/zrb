@@ -1,7 +1,7 @@
 import os
 import pathlib
 from collections.abc import Callable, Iterable
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
@@ -53,7 +53,7 @@ class RemoteCmdTask(CmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        remote_host: JinjaTemplate = "localhost",
+        remote_host: Optional[JinjaTemplate] = None,
         remote_port: Union[JinjaTemplate, int] = 22,
         remote_user: JinjaTemplate = "root",
         remote_password: JinjaTemplate = "",
@@ -94,6 +94,11 @@ class RemoteCmdTask(CmdTask):
             color=color,
             description=description,
             executable=executable,
+            remote_host=remote_host,
+            remote_port=remote_port,
+            remote_user=remote_user,
+            remote_password=remote_password,
+            remote_ssh_key=remote_ssh_key,
             cmd=cmd,
             cmd_path=cmd_path,
             cwd=cwd,
@@ -119,35 +124,3 @@ class RemoteCmdTask(CmdTask):
             should_show_cmd=should_show_cmd,
             should_show_working_directory=should_show_working_directory,
         )
-        self._remote_host = remote_host
-        self._remote_port = remote_port
-        self._remote_user = remote_user
-        self._remote_password = remote_password
-        self._remote_ssh_key = remote_ssh_key
-
-    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        cmd_script = self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
-        cmd_script = "\n".join(
-            [
-                "_SCRIPT=$(cat << 'ENDSCRIPT'",
-                cmd_script,
-                "ENDSCRIPT",
-                ")",
-            ]
-        )
-        ssh_command = self._get_ssh_command()
-        return "\n".join([cmd_script, ssh_command])
-
-    def _get_ssh_command(self) -> str:
-        host = self.render_str(self._remote_host)
-        port = self.render_str(self._remote_port)
-        user = self.render_str(self._remote_user)
-        password = self.render_str(self._remote_password)
-        key = self.render_str(self._remote_ssh_key)
-        if key != "" and password != "":
-            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'  # noqa
-        if key != "":
-            return f'ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'
-        if password != "":
-            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'  # noqa
-        return f'ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'
