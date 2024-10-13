@@ -117,10 +117,6 @@ No documentation available.
 No documentation available.
 
 
-### `CmdTask._CmdTask__send_stdin`
-
-Handle interactive stdin input with non-blocking behavior.
-
 ### `CmdTask._CmdTask__terminate_process`
 
 Terminate the shell script if it's still running.

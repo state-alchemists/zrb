@@ -1,6 +1,5 @@
 import os
 import pathlib
-import select
 import subprocess
 import sys
 import threading
@@ -47,12 +46,6 @@ class CmdResult:
         return self.output
 
 
-class CmdGlobalState:
-    def __init__(self):
-        self.no_more_attempt: bool = False
-        self.is_killed_by_signal: bool = False
-
-
 @typechecked
 class CmdTask(BaseTask):
     """
@@ -72,9 +65,6 @@ class CmdTask(BaseTask):
         >>> )
         >>> runner.register(hello)
     """
-
-    _pids: list[int] = []
-    _global_state = CmdGlobalState()
 
     def __init__(
         self,
@@ -197,7 +187,7 @@ class CmdTask(BaseTask):
         self._process = subprocess.Popen(
             cmd,
             cwd=cwd,
-            stdin=subprocess.PIPE,
+            stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=self.get_env_map(),
@@ -206,22 +196,25 @@ class CmdTask(BaseTask):
             executable=self._executable,
             bufsize=0,
         )
+        stdout_thread = threading.Thread(target=self.__read_stdout)
+        stderr_thread = threading.Thread(target=self.__read_stderr)
+        stdout_thread.start()
+        stderr_thread.start()
         try:
-            stdout_thread = threading.Thread(target=self.__read_stdout)
-            stderr_thread = threading.Thread(target=self.__read_stderr)
-            stdin_thread = threading.Thread(target=self.__send_stdin)
-            stdout_thread.start()
-            stderr_thread.start()
-            stdin_thread.start()
-            self._process.wait()
+            process_error = None
+            try:
+                self._process.wait()
+            except Exception as e:
+                process_error = e
             stdout_thread.join()
             stderr_thread.join()
-            stdin_thread.join()
             output = "\n".join(self._stdout)
             error = "\n".join(self._stderr)
             # get return code
             return_code = self._process.returncode
             self.log_info(f"Exit status: {return_code}")
+            if process_error is not None:
+                raise Exception(process_error)
             if return_code != 0:
                 raise Exception(f"Process {self._name} exited ({return_code}): {error}")
             self.set_task_xcom(key="output", value=output)
@@ -229,25 +222,6 @@ class CmdTask(BaseTask):
             return CmdResult(output, error)
         finally:
             self.__terminate_process()
-
-    def __send_stdin(self):
-        """Handle interactive stdin input with non-blocking behavior."""
-        try:
-            while self._process.poll() is None:  # While the process is still running
-                # Use select to check if there's input available from the user
-                if select.select([sys.stdin], [], [], 0.1)[0]:
-                    user_input = sys.stdin.readline().strip()  # Non-blocking input
-                    if self._process.poll() is None and user_input:
-                        self._process.stdin.write(user_input + "\n")
-                        self._process.stdin.flush()
-        except Exception:
-            pass
-        finally:
-            # Close stdin when done to prevent hanging
-            try:
-                self._process.stdin.close()
-            except BrokenPipeError:
-                pass
 
     def __read_stdout(self):
         for line in self._process.stdout:
@@ -270,8 +244,10 @@ class CmdTask(BaseTask):
         if self._process.poll() is None:  # If the process is still running
             self._process.terminate()  # Gracefully terminate the process
             try:
+                self.print_out_dark("Waiting for process termination")
                 self._process.wait(timeout=5)  # Give it time to terminate
             except subprocess.TimeoutExpired:
+                self.print_out_dark("Killing the process")
                 self._process.kill()  # Forcefully kill if not terminated
 
     def _get_cwd(self) -> Union[str, pathlib.Path]:
