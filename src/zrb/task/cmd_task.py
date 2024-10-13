@@ -1,18 +1,14 @@
-import asyncio
-import atexit
 import logging
 import os
 import pathlib
-import signal
 import subprocess
 import sys
-import time
+import threading
 from collections.abc import Callable, Iterable
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.config.config import DEFAULT_SHELL, LOGGING_LEVEL
 from zrb.helper.accessories.color import colored
-from zrb.helper.asyncio_task import stop_asyncio_sync
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
@@ -174,7 +170,7 @@ class CmdTask(BaseTask):
         max_error_line = max_error_line if max_error_line > 0 else 1
         self._cmd = cmd
         self._cmd_path = cmd_path
-        self.__set_cwd(cwd)
+        self._cwd = os.getcwd() if cwd is None else os.path.abspath(cwd)
         self._should_render_cwd = should_render_cwd
         self._max_output_size = max_output_line
         self._max_error_size = max_error_line
@@ -186,18 +182,12 @@ class CmdTask(BaseTask):
         self._should_print_cmd_result = should_print_cmd_result
         self._should_show_working_directory = should_show_working_directory
         self._should_show_cmd = should_show_cmd
+        self._process = None
+        self._stdout = []
+        self._stderr = []
 
     def copy(self) -> TCmdTask:
         return super().copy()
-
-    def set_cwd(self, cwd: Union[str, pathlib.Path]):
-        self.__set_cwd(cwd)
-
-    def __set_cwd(self, cwd: Optional[Union[str, pathlib.Path]]):
-        if cwd is None:
-            self._cwd: Union[str, pathlib.Path] = os.getcwd()
-            return
-        self._cwd: Union[str, pathlib.Path] = os.path.abspath(cwd)
 
     def to_function(
         self,
@@ -225,13 +215,11 @@ class CmdTask(BaseTask):
     async def run(self, *args: Any, **kwargs: Any) -> CmdResult:
         cmd = self.get_cmd_script(*args, **kwargs)
         if self._should_show_cmd:
-            self.print_out_dark("Run script: " + self.__get_multiline_repr(cmd))
+            self.print_out_dark(f"Run script: {self.__get_multiline_repr(cmd)}")
         cwd = self._get_cwd()
         if self._should_show_working_directory:
-            self.print_out_dark("Working directory: " + cwd)
-        self._output_buffer = []
-        self._error_buffer = []
-        process = subprocess.Popen(
+            self.print_out_dark(f"Working directory: {cwd}")
+        self._process = subprocess.Popen(
             cmd,
             cwd=cwd,
             stdin=subprocess.PIPE,
@@ -243,28 +231,67 @@ class CmdTask(BaseTask):
             executable=self._executable,
             bufsize=1,
         )
-        self._set_task_pid(process.pid)
-        self._pids.append(process.pid)
-        self._process = process
         try:
-            signal.signal(signal.SIGINT, self.__on_kill)
-            signal.signal(signal.SIGTERM, self.__on_kill)
+            stdout_thread = threading.Thread(target=self.__read_stdout)
+            stderr_thread = threading.Thread(target=self.__read_stderr)
+            stdin_thread = threading.Thread(target=self.__send_stdin)
+            stdout_thread.start()
+            stderr_thread.start()
+            stdin_thread.start()
+            self._process.wait()
+            output = "\n".join(self._stdout)
+            error = "\n".join(self._stderr)
+            # get return code
+            return_code = self._process.returncode
+            self.log_info(f"Exit status: {return_code}")
+            if return_code != 0:
+                raise Exception(f"Process {self._name} exited ({return_code}): {error}")
+            self.set_task_xcom(key="output", value=output)
+            self.set_task_xcom(key="error", value=error)
+            return CmdResult(output, error)
+        finally:
+            self.__terminate_process()
+
+    def __send_stdin(self):
+        """Handle interactive stdin input with non-blocking behavior."""
+        try:
+            while self._process.poll() is None:  # While the process is still running
+                # Use select to check if there's input available from the user
+                if select.select([sys.stdin], [], [], 0.1)[0]:
+                    user_input = sys.stdin.readline().strip()  # Non-blocking input
+                    if self._process.poll() is None and user_input:
+                        self._process.stdin.write(user_input + "\n")
+                        self._process.stdin.flush()
+                else:
+                    # No input available, continue polling
+                    pass
         except Exception as e:
-            self.print_err(e)
-        atexit.register(self.__on_exit)
-        await self.__wait_process(process)
-        self.log_info("Process completed")
-        atexit.unregister(self.__on_exit)
-        output = "\n".join(self._output_buffer)
-        error = "\n".join(self._error_buffer)
-        # get return code
-        return_code = process.returncode
-        self.log_info(f"Exit status: {return_code}")
-        if return_code != 0 and not self._global_state.is_killed_by_signal:
-            raise Exception(f"Process {self._name} exited ({return_code}): {error}")
-        self.set_task_xcom(key="output", value=output)
-        self.set_task_xcom(key="error", value=error)
-        return CmdResult(output, error)
+            self.print_err(f"Error in stdin: {e}")
+        finally:
+            # Close stdin when done to prevent hanging
+            try:
+                self._process.stdin.close()
+            except BrokenPipeError:
+                pass
+
+    def __read_stdout(self):
+        for line in self._process.stdout:
+            self.print_out_dark(line)
+            self._stdout.append(line)
+
+    def __read_stderr(self):
+        for line in self._process.stderr:
+            self.print_out_dark(line)
+            self._stderr.append(line)
+
+    def __terminate_process(self):
+        """Terminate the shell script if it's still running."""
+        if self._process.poll() is None:  # If the process is still running
+            self._process.terminate()     # Gracefully terminate the process
+            try:
+                self._process.wait(timeout=5)  # Give it time to terminate
+            except subprocess.TimeoutExpired:
+                self._process.kill()           # Forcefully kill if not terminated
 
     def _get_cwd(self) -> Union[str, pathlib.Path]:
         if self._should_render_cwd and isinstance(self._cwd, str):
