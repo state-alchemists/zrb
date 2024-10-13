@@ -27,6 +27,50 @@ runner.register(hello)
 ```
 
 
+### `DockerComposeTask._BaseCmdTask__create_local_cmd_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_local_or_remote_cmd_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_multiline_repr`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_rendered_cmd`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_rendered_cmd_path`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_ssh_command`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__read_stderr`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__read_stdout`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__terminate_process`
+
+Terminate the shell script if it's still running.
+
 ### `DockerComposeTask._BaseTaskModel__get_colored`
 
 No documentation available.
@@ -91,50 +135,6 @@ No documentation available.
 
 No documentation available.
 
-
-### `DockerComposeTask._CmdTask__create_local_cmd_script`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_local_or_remote_cmd_script`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_multiline_repr`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_rendered_cmd`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_rendered_cmd_path`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_ssh_command`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__read_stderr`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__read_stdout`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__terminate_process`
-
-Terminate the shell script if it's still running.
 
 ### `DockerComposeTask._CommonTaskModel__complete_new_checkers`
 

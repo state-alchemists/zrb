@@ -23,7 +23,8 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.cmd_task import CmdResult, CmdTask, CmdVal
+from zrb.task.base_cmd_task import CmdResult
+from zrb.task.cmd_task import CmdTask, CmdVal
 from zrb.task_env.constant import RESERVED_ENV_NAMES
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
@@ -36,9 +37,8 @@ TDockerComposeTask = TypeVar("TDockerComposeTask", bound="DockerComposeTask")
 
 CURRENT_DIR = os.path.dirname(__file__)
 SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
-
-ensure_container_backend = CmdTask(
-    name="ensure-compose-backend",
+ensure_docker_is_installed = CmdTask(
+    name="ensure-docker-is-installed",
     cmd_path=[
         os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
         os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
@@ -131,7 +131,7 @@ class DockerComposeTask(CmdTask):
             remote_ssh_key=remote_ssh_key,
             cwd=cwd,
             should_render_cwd=should_render_cwd,
-            upstreams=[ensure_container_backend] + upstreams,
+            upstreams=upstreams,
             fallbacks=fallbacks,
             on_triggered=on_triggered,
             on_waiting=on_waiting,
@@ -173,6 +173,26 @@ class DockerComposeTask(CmdTask):
         # has been added to this task's envs and env_files
         self._is_compose_additional_env_added = False
         self._is_compose_additional_env_file_added = False
+        if self._remote_host is None:
+            self._upstreams += [ensure_docker_is_installed]
+        else:
+            self._upstreams += [
+                CmdTask(
+                    name="ensure-remote-docker-is-installed",
+                    cmd_path=[
+                        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+                        os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
+                    ],
+                    remote_host=remote_host,
+                    remote_port=remote_port,
+                    remote_user=remote_user,
+                    remote_password=remote_password,
+                    remote_ssh_key=remote_ssh_key,
+                    should_print_cmd_result=False,
+                    should_show_cmd=False,
+                    should_show_working_directory=False,
+                )
+            ]
 
     def copy(self) -> TDockerComposeTask:
         return super().copy()

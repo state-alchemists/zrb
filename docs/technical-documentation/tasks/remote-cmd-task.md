@@ -5,7 +5,7 @@
 # Technical Specification
 
 <!--start-doc-->
-## `RemoteCmdTask`
+## `CmdTask`
 
 Command Task.
 You can use this task to run shell command.
@@ -27,167 +27,167 @@ runner.register(hello)
 ```
 
 
-### `RemoteCmdTask._BaseTaskModel__get_colored`
+### `CmdTask._BaseCmdTask__create_local_cmd_script`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTaskModel__get_colored_print_prefix`
+### `CmdTask._BaseCmdTask__get_local_or_remote_cmd_script`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTaskModel__get_common_prefix`
+### `CmdTask._BaseCmdTask__get_multiline_repr`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTaskModel__get_log_prefix`
+### `CmdTask._BaseCmdTask__get_rendered_cmd`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTaskModel__get_print_prefix`
+### `CmdTask._BaseCmdTask__get_rendered_cmd_path`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTask__check_upstreams`
+### `CmdTask._BaseCmdTask__get_ssh_command`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTask__ensure_xcom_dir_exists`
+### `CmdTask._BaseCmdTask__read_stderr`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTask__get_all_fallbacks`
+### `CmdTask._BaseCmdTask__read_stdout`
 
 No documentation available.
 
 
-### `RemoteCmdTask._BaseTask__get_async_function`
-
-No documentation available.
-
-
-### `RemoteCmdTask._BaseTask__get_xcom_dir`
-
-No documentation available.
-
-
-### `RemoteCmdTask._BaseTask__to_sync_function`
-
-No documentation available.
-
-
-### `RemoteCmdTask._BaseTask__trigger_failure`
-
-No documentation available.
-
-
-### `RemoteCmdTask._BaseTask__trigger_fallbacks`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__create_local_cmd_script`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__get_local_or_remote_cmd_script`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__get_multiline_repr`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__get_rendered_cmd`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__get_rendered_cmd_path`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__get_ssh_command`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__read_stderr`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__read_stdout`
-
-No documentation available.
-
-
-### `RemoteCmdTask._CmdTask__terminate_process`
+### `CmdTask._BaseCmdTask__terminate_process`
 
 Terminate the shell script if it's still running.
 
-### `RemoteCmdTask._CommonTaskModel__complete_new_checkers`
+### `CmdTask._BaseTaskModel__get_colored`
+
+No documentation available.
+
+
+### `CmdTask._BaseTaskModel__get_colored_print_prefix`
+
+No documentation available.
+
+
+### `CmdTask._BaseTaskModel__get_common_prefix`
+
+No documentation available.
+
+
+### `CmdTask._BaseTaskModel__get_log_prefix`
+
+No documentation available.
+
+
+### `CmdTask._BaseTaskModel__get_print_prefix`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__check_upstreams`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__ensure_xcom_dir_exists`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__get_all_fallbacks`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__get_async_function`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__get_xcom_dir`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__to_sync_function`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__trigger_failure`
+
+No documentation available.
+
+
+### `CmdTask._BaseTask__trigger_fallbacks`
+
+No documentation available.
+
+
+### `CmdTask._CommonTaskModel__complete_new_checkers`
 
 For internal use: copy and completing new checkers
 
-### `RemoteCmdTask._Renderer__ensure_cached_render_data`
+### `CmdTask._Renderer__ensure_cached_render_data`
 
 No documentation available.
 
 
-### `RemoteCmdTask._Renderer__get_render_data`
+### `CmdTask._Renderer__get_render_data`
 
 No documentation available.
 
 
-### `RemoteCmdTask._cached_check`
+### `CmdTask._cached_check`
 
 No documentation available.
 
 
-### `RemoteCmdTask._cached_run`
+### `CmdTask._cached_run`
 
 No documentation available.
 
 
-### `RemoteCmdTask._check`
+### `CmdTask._check`
 
 Check current task readiness.
 - If self.checkers is defined,
 this will return True once every self.checkers is completed
 - Otherwise, this will return check method's return value.
 
-### `RemoteCmdTask._check_should_execute`
+### `CmdTask._check_should_execute`
 
 No documentation available.
 
 
-### `RemoteCmdTask._create_cmd_script`
+### `CmdTask._create_cmd_script`
 
 No documentation available.
 
 
-### `RemoteCmdTask._end_timer`
+### `CmdTask._end_timer`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_attempt`
+### `CmdTask._get_attempt`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_checkers`
+### `CmdTask._get_checkers`
 
 Retrieves the checkers set for the task.
 
@@ -199,27 +199,27 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of checkers associated with the task.
 
-### `RemoteCmdTask._get_combined_env`
+### `CmdTask._get_combined_env`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_combined_inputs`
+### `CmdTask._get_combined_inputs`
 
 '
 Getting all inputs of this task and all its upstream, non-duplicated.
 
-### `RemoteCmdTask._get_cwd`
+### `CmdTask._get_cwd`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_elapsed_time`
+### `CmdTask._get_elapsed_time`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_env_files`
+### `CmdTask._get_env_files`
 
 Retrieves the list of environment variable files associated with the task.
 
@@ -230,7 +230,7 @@ __Returns:__
 
 `list[EnvFile]`: A list of `EnvFile` instances associated with the task.
 
-### `RemoteCmdTask._get_envs`
+### `CmdTask._get_envs`
 
 Retrieves the list of environment variables set for the task.
 
@@ -241,7 +241,7 @@ __Returns:__
 
 `list[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `RemoteCmdTask._get_fallbacks`
+### `CmdTask._get_fallbacks`
 
 Retrieves the fallback tasks of the current task.
 
@@ -253,7 +253,7 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of fallback tasks.
 
-### `RemoteCmdTask._get_inputs`
+### `CmdTask._get_inputs`
 
 Retrieves the list of inputs associated with the task.
 
@@ -265,17 +265,17 @@ __Returns:__
 
 `list[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
-### `RemoteCmdTask._get_max_attempt`
+### `CmdTask._get_max_attempt`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_task_pid`
+### `CmdTask._get_task_pid`
 
 No documentation available.
 
 
-### `RemoteCmdTask._get_upstreams`
+### `CmdTask._get_upstreams`
 
 Retrieves the upstream tasks of the current task.
 
@@ -287,86 +287,86 @@ __Returns:__
 
 `Iterable[TAnyTask]`: An iterable of upstream tasks.
 
-### `RemoteCmdTask._increase_attempt`
+### `CmdTask._increase_attempt`
 
 No documentation available.
 
 
-### `RemoteCmdTask._is_done`
+### `CmdTask._is_done`
 
 No documentation available.
 
 
-### `RemoteCmdTask._is_last_attempt`
+### `CmdTask._is_last_attempt`
 
 No documentation available.
 
 
-### `RemoteCmdTask._lock_checkers`
+### `CmdTask._lock_checkers`
 
 Lock checkers so that it cannot be altered anymore
 
-### `RemoteCmdTask._lock_fallbacks`
+### `CmdTask._lock_fallbacks`
 
 Lock fallbacks so that it cannot be altered anymore
 
-### `RemoteCmdTask._lock_upstreams`
+### `CmdTask._lock_upstreams`
 
 Lock upstreams so that it cannot be altered anymore
 
-### `RemoteCmdTask._loop_check`
+### `CmdTask._loop_check`
 
 For internal use.
 
 Regularly check whether the task is ready or not.
 
-### `RemoteCmdTask._mark_awaited`
+### `CmdTask._mark_awaited`
 
 No documentation available.
 
 
-### `RemoteCmdTask._mark_done`
+### `CmdTask._mark_done`
 
 No documentation available.
 
 
-### `RemoteCmdTask._play_bell`
+### `CmdTask._play_bell`
 
 No documentation available.
 
 
-### `RemoteCmdTask._print_result`
+### `CmdTask._print_result`
 
 For internal use.
 
 Call `print_result` or print values based on result type and other conditions.
 
-### `RemoteCmdTask._propagate_execution_id`
+### `CmdTask._propagate_execution_id`
 
 No documentation available.
 
 
-### `RemoteCmdTask._run_all`
+### `CmdTask._run_all`
 
 For internal use.
 
 Run this task and all its upstreams.
 
-### `RemoteCmdTask._run_and_check_all`
+### `CmdTask._run_and_check_all`
 
 No documentation available.
 
 
-### `RemoteCmdTask._set_args`
+### `CmdTask._set_args`
 
 Set args that will be shown at the end of the execution
 
-### `RemoteCmdTask._set_env_map`
+### `CmdTask._set_env_map`
 
 No documentation available.
 
 
-### `RemoteCmdTask._set_execution_id`
+### `CmdTask._set_execution_id`
 
 Sets the execution ID for the current task.
 
@@ -379,69 +379,69 @@ __Arguments:__
 
 - `execution_id` (`str`): A string representing the unique execution ID.
 
-### `RemoteCmdTask._set_has_cli_interface`
+### `CmdTask._set_has_cli_interface`
 
 Marks the task as having a CLI interface.
 
 This internal method is used to indicate that the task is accessible and executable through a CLI,
 enabling the task system to appropriately handle its CLI interactions.
 
-### `RemoteCmdTask._set_input_map`
+### `CmdTask._set_input_map`
 
 No documentation available.
 
 
-### `RemoteCmdTask._set_keyval`
+### `CmdTask._set_keyval`
 
 For internal use.
 
 Set current task's key values.
 
-### `RemoteCmdTask._set_kwargs`
+### `CmdTask._set_kwargs`
 
 Set kwargs that will be shown at the end of the execution
 
-### `RemoteCmdTask._set_local_keyval`
+### `CmdTask._set_local_keyval`
 
 No documentation available.
 
 
-### `RemoteCmdTask._set_task`
+### `CmdTask._set_task`
 
 No documentation available.
 
 
-### `RemoteCmdTask._set_task_pid`
+### `CmdTask._set_task_pid`
 
 No documentation available.
 
 
-### `RemoteCmdTask._should_attempt`
+### `CmdTask._should_attempt`
 
 No documentation available.
 
 
-### `RemoteCmdTask._show_done_info`
+### `CmdTask._show_done_info`
 
 No documentation available.
 
 
-### `RemoteCmdTask._show_env_prefix`
+### `CmdTask._show_env_prefix`
 
 No documentation available.
 
 
-### `RemoteCmdTask._show_run_command`
+### `CmdTask._show_run_command`
 
 No documentation available.
 
 
-### `RemoteCmdTask._start_timer`
+### `CmdTask._start_timer`
 
 No documentation available.
 
 
-### `RemoteCmdTask.add_checker`
+### `CmdTask.add_checker`
 
 Adds one or more `AnyTask` instances to the end of the current task's checker list.
 
@@ -462,7 +462,7 @@ task.add_checker(checker_task)
 ```
 
 
-### `RemoteCmdTask.add_env`
+### `CmdTask.add_env`
 
 Adds one or more `Env` instances to the end of the current task's environment variable list.
 
@@ -483,7 +483,7 @@ task.add_env(env_var)
 ```
 
 
-### `RemoteCmdTask.add_env_file`
+### `CmdTask.add_env_file`
 
 Adds one or more `EnvFile` instances to the end of the current task's environment file list.
 
@@ -505,7 +505,7 @@ task.add_env_file(env_file)
 ```
 
 
-### `RemoteCmdTask.add_fallback`
+### `CmdTask.add_fallback`
 
 Adds one or more `AnyTask` instances to the end of the current task's fallback list.
 
@@ -525,7 +525,7 @@ task.add_fallback(fallback_task)
 ```
 
 
-### `RemoteCmdTask.add_input`
+### `CmdTask.add_input`
 
 Adds one or more `AnyInput` instances to the end of the current task's input list.
 
@@ -546,7 +546,7 @@ task.add_input(email_input)
 ```
 
 
-### `RemoteCmdTask.add_upstream`
+### `CmdTask.add_upstream`
 
 Adds one or more `AnyTask` instances to the end of the current task's upstream list.
 
@@ -567,7 +567,7 @@ task.add_upstream(upstream_task)
 ```
 
 
-### `RemoteCmdTask.check`
+### `CmdTask.check`
 
 Checks if the current task is `ready`.
 
@@ -594,11 +594,11 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.clear_xcom`
+### `CmdTask.clear_xcom`
 
 Clear cross task communication.
 
-### `RemoteCmdTask.copy`
+### `CmdTask.copy`
 
 Creates and returns a copy of the current task.
 
@@ -619,7 +619,7 @@ copied_task.set_name('new_name')
 ```
 
 
-### `RemoteCmdTask.get_cli_name`
+### `CmdTask.get_cli_name`
 
 Gets the command-line interface (CLI) name of the task.
 
@@ -630,12 +630,12 @@ __Returns:__
 
 `str`: The CLI name of the task.
 
-### `RemoteCmdTask.get_cmd_script`
+### `CmdTask.get_cmd_script`
 
 No documentation available.
 
 
-### `RemoteCmdTask.get_color`
+### `CmdTask.get_color`
 
 Retrieves the color associated with the current task.
 
@@ -646,7 +646,7 @@ __Returns:__
 
 `str`: A string representing the color assigned to the task.
 
-### `RemoteCmdTask.get_description`
+### `CmdTask.get_description`
 
 Fetches the current description of the task.
 
@@ -657,7 +657,7 @@ __Returns:__
 
 `str`: The description of the task.
 
-### `RemoteCmdTask.get_env_map`
+### `CmdTask.get_env_map`
 
 Get a map representing task's Envs and EnvFiles
 
@@ -675,7 +675,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `RemoteCmdTask.get_execution_id`
+### `CmdTask.get_execution_id`
 
 Retrieves the execution ID of the task.
 
@@ -687,7 +687,7 @@ __Returns:__
 
 `str`: The unique execution ID of the task.
 
-### `RemoteCmdTask.get_icon`
+### `CmdTask.get_icon`
 
 Retrieves the icon identifier of the current task.
 
@@ -698,7 +698,7 @@ __Returns:__
 
 `str`: A string representing the icon identifier for the task
 
-### `RemoteCmdTask.get_input_map`
+### `CmdTask.get_input_map`
 
 Get a map representing task's Inputs.
 
@@ -716,7 +716,7 @@ def task(*args, **kwargs):
 ```
 
 
-### `RemoteCmdTask.get_name`
+### `CmdTask.get_name`
 
 Get task name
 
@@ -724,7 +724,7 @@ __Returns:__
 
 `str`: name of the task
 
-### `RemoteCmdTask.get_xcom`
+### `CmdTask.get_xcom`
 
 Get xcom value for cross task communication.
 
@@ -746,7 +746,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.inject_checkers`
+### `CmdTask.inject_checkers`
 
 Injects custom checkers into the task.
 
@@ -764,7 +764,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.inject_env_files`
+### `CmdTask.inject_env_files`
 
 Injects additional `EnvFile` into the task.
 
@@ -778,7 +778,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.inject_envs`
+### `CmdTask.inject_envs`
 
 Injects environment variables into the task.
 
@@ -792,7 +792,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.inject_fallbacks`
+### `CmdTask.inject_fallbacks`
 
 Injects fallback tasks into the current task.
 
@@ -810,7 +810,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.inject_inputs`
+### `CmdTask.inject_inputs`
 
 Injects custom inputs into the task.
 
@@ -828,7 +828,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.inject_upstreams`
+### `CmdTask.inject_upstreams`
 
 Injects upstream tasks into the current task.
 
@@ -846,7 +846,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.insert_checker`
+### `CmdTask.insert_checker`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's checker list.
 
@@ -868,7 +868,7 @@ task.insert_checker(checker_task)
 ```
 
 
-### `RemoteCmdTask.insert_env`
+### `CmdTask.insert_env`
 
 Inserts one or more `Env` instances at the beginning of the current task's environment variable list.
 
@@ -889,7 +889,7 @@ task.insert_env(env_var)
 ```
 
 
-### `RemoteCmdTask.insert_env_file`
+### `CmdTask.insert_env_file`
 
 Inserts one or more `EnvFile` instances at the beginning of the current task's environment file list.
 
@@ -911,7 +911,7 @@ task.insert_env_file(env_file)
 ```
 
 
-### `RemoteCmdTask.insert_fallback`
+### `CmdTask.insert_fallback`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's fallback list.
 
@@ -933,7 +933,7 @@ task.insert_fallback(fallback_task)
 ```
 
 
-### `RemoteCmdTask.insert_input`
+### `CmdTask.insert_input`
 
 Inserts one or more `AnyInput` instances at the beginning of the current task's input list.
 
@@ -954,7 +954,7 @@ task.insert_input(email_input)
 ```
 
 
-### `RemoteCmdTask.insert_upstream`
+### `CmdTask.insert_upstream`
 
 Inserts one or more `AnyTask` instances at the beginning of the current task's upstream list.
 
@@ -976,37 +976,37 @@ task.insert_upstream(upstream_task)
 ```
 
 
-### `RemoteCmdTask.log_critical`
+### `CmdTask.log_critical`
 
 Log message with log level "CRITICAL"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RemoteCmdTask.log_debug`
+### `CmdTask.log_debug`
 
 Log message with log level "DEBUG"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RemoteCmdTask.log_error`
+### `CmdTask.log_error`
 
 Log message with log level "ERROR"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RemoteCmdTask.log_info`
+### `CmdTask.log_info`
 
 Log message with log level "INFO"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RemoteCmdTask.log_warn`
+### `CmdTask.log_warn`
 
 Log message with log level "WARNING"
 
 You can set Zrb log level by using `ZRB_LOGGING_LEVEL` environment
 
-### `RemoteCmdTask.on_failed`
+### `CmdTask.on_failed`
 
 Specifies the behavior when the task execution fails.
 
@@ -1032,7 +1032,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.on_ready`
+### `CmdTask.on_ready`
 
 Defines actions to be performed when the task status is `ready`.
 
@@ -1050,7 +1050,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.on_retry`
+### `CmdTask.on_retry`
 
 Defines actions to perform when the task is retried.
 
@@ -1068,7 +1068,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.on_skipped`
+### `CmdTask.on_skipped`
 
 Defines actions to perform when the task status is set to `skipped`.
 
@@ -1085,7 +1085,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.on_started`
+### `CmdTask.on_started`
 
 Defines actions to perform when the task status is set to 'started'.
 
@@ -1102,7 +1102,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.on_triggered`
+### `CmdTask.on_triggered`
 
 Defines actions to perform when the task status is set to `triggered`.
 
@@ -1120,7 +1120,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.on_waiting`
+### `CmdTask.on_waiting`
 
 Defines actions to perform when the task status is set to `waiting`.
 
@@ -1138,19 +1138,19 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.print_err`
+### `CmdTask.print_err`
 
 Print message to stderr and style it as error.
 
-### `RemoteCmdTask.print_out`
+### `CmdTask.print_out`
 
 Print message to stderr as normal text.
 
-### `RemoteCmdTask.print_out_dark`
+### `CmdTask.print_out_dark`
 
 Print message to stdout and style it as faint.
 
-### `RemoteCmdTask.print_result`
+### `CmdTask.print_result`
 
 Print the task result to stdout for further processing.
 
@@ -1173,32 +1173,32 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.render_any`
+### `CmdTask.render_any`
 
 Render any value.
 
-### `RemoteCmdTask.render_bool`
+### `CmdTask.render_bool`
 
 Render int value.
 
-### `RemoteCmdTask.render_file`
+### `CmdTask.render_file`
 
 Render file content.
 
-### `RemoteCmdTask.render_float`
+### `CmdTask.render_float`
 
 Render float value.
 
-### `RemoteCmdTask.render_int`
+### `CmdTask.render_int`
 
 No documentation available.
 
 
-### `RemoteCmdTask.render_str`
+### `CmdTask.render_str`
 
 Render str value.
 
-### `RemoteCmdTask.run`
+### `CmdTask.run`
 
 Executes the main logic of the task.
 
@@ -1227,7 +1227,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.set_checking_interval`
+### `CmdTask.set_checking_interval`
 
 Sets the interval for checking the task's readiness or completion status.
 
@@ -1238,7 +1238,7 @@ __Arguments:__
 
 - `new_checking_interval` (`Union[float, int]`): The time interval (in seconds) for readiness or checks.
 
-### `RemoteCmdTask.set_color`
+### `CmdTask.set_color`
 
 Defines a new color for the current task.
 
@@ -1249,12 +1249,12 @@ __Arguments:__
 
 - `new_color` (`str`): A string representing the color to be assigned to the task.
 
-### `RemoteCmdTask.set_cwd`
+### `CmdTask.set_cwd`
 
 No documentation available.
 
 
-### `RemoteCmdTask.set_description`
+### `CmdTask.set_description`
 
 Sets a new description for the current task.
 
@@ -1265,7 +1265,7 @@ __Arguments:__
 
 - `new_description` (`str`): A string representing the new description of the task.
 
-### `RemoteCmdTask.set_icon`
+### `CmdTask.set_icon`
 
 Assigns a new icon to the current task.
 
@@ -1276,7 +1276,7 @@ __Arguments:__
 
 - `new_icon` (`str`): A string representing the icon identifier for the task.
 
-### `RemoteCmdTask.set_name`
+### `CmdTask.set_name`
 
 Sets a new name for the current task.
 
@@ -1287,7 +1287,7 @@ __Arguments:__
 
 - `new_name` (`str`): A string representing the new name to be assigned to the task.
 
-### `RemoteCmdTask.set_retry`
+### `CmdTask.set_retry`
 
 Sets the number of retry attempts for the task.
 
@@ -1298,7 +1298,7 @@ __Arguments:__
 
 - `new_retry` (`int`): An integer representing the number of retry attempts.
 
-### `RemoteCmdTask.set_retry_interval`
+### `CmdTask.set_retry_interval`
 
 Specifies the interval between retry attempts for the task.
 
@@ -1309,7 +1309,7 @@ __Arguments:__
 
 - `new_retry_interval` (`Union[float, int]`): The time interval (in seconds) to wait before a retry attempt.
 
-### `RemoteCmdTask.set_should_execute`
+### `CmdTask.set_should_execute`
 
 Determines whether the task should execute.
 
@@ -1321,7 +1321,7 @@ __Arguments:__
 
 - `should_execute` (`Union[bool, str, Callable[..., bool]]`): The condition to determine if the task should execute.
 
-### `RemoteCmdTask.set_task_xcom`
+### `CmdTask.set_task_xcom`
 
 Set task xcom for cross task communication.
 
@@ -1345,7 +1345,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.set_xcom`
+### `CmdTask.set_xcom`
 
 Set xcom for cross task communication.
 
@@ -1369,7 +1369,7 @@ class MyTask(Task):
 ```
 
 
-### `RemoteCmdTask.to_function`
+### `CmdTask.to_function`
 
 Converts the current task into a callable function.
 
