@@ -43,7 +43,7 @@ def test_failure_and_fallback():
         name='task3',
         on_failed=create_on_failed(logs),
         fallbacks=[create_fallback_task('task3', logs)],
-        cmd="sleep 1 && exit 1"
+        cmd="sleep 4 && echo hello"
     )
     task = CmdTask(
         name="task",
