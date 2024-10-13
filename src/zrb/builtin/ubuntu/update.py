@@ -11,6 +11,5 @@ update_ubuntu = CmdTask(
         "sudo apt upgrade -y",
     ],
     retry_interval=3,
-    preexec_fn=None,
 )
 runner.register(update_ubuntu)

@@ -92,11 +92,6 @@ No documentation available.
 No documentation available.
 
 
-### `DockerComposeTask._CmdTask__add_to_buffer`
-
-No documentation available.
-
-
 ### `DockerComposeTask._CmdTask__get_multiline_repr`
 
 No documentation available.
@@ -112,44 +107,19 @@ No documentation available.
 No documentation available.
 
 
-### `DockerComposeTask._CmdTask__is_process_exist`
+### `DockerComposeTask._CmdTask__read_stderr`
 
 No documentation available.
 
 
-### `DockerComposeTask._CmdTask__kill_by_pid`
-
-Kill a pid, gracefully
-
-### `DockerComposeTask._CmdTask__log_from_queue`
+### `DockerComposeTask._CmdTask__read_stdout`
 
 No documentation available.
 
 
-### `DockerComposeTask._CmdTask__on_exit`
+### `DockerComposeTask._CmdTask__terminate_process`
 
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__on_kill`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__queue_stream`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__set_cwd`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__wait_process`
-
-No documentation available.
-
+Terminate the shell script if it's still running.
 
 ### `DockerComposeTask._CommonTaskModel__complete_new_checkers`
 

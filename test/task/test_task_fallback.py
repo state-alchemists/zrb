@@ -63,4 +63,3 @@ def test_failure_and_fallback():
     'task2 fallback' in logs
     'task3 failed for good' in logs
     'task3 fallback' in logs
-

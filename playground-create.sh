@@ -7,7 +7,7 @@ command_exists() {
 try_sudo() {
     if command_exists sudo
     then
-        sudo $@
+        sudo -k $@
     else
         $@
     fi

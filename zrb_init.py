@@ -485,7 +485,6 @@ create_playground = CmdTask(
     cwd=_CURRENT_DIR,
     cmd_path=os.path.join(_CURRENT_DIR, "playground-create.sh"),
     retry=0,
-    preexec_fn=None,
     should_print_cmd_result=False,
 )
 runner.register(create_playground)

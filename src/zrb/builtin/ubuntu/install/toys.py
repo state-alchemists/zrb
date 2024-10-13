@@ -11,7 +11,6 @@ install_ubuntu_toys = CmdTask(
         "sudo apt install -y lolcat cowsay figlet neofetch",
     ],
     retry_interval=3,
-    preexec_fn=None,
 )
 update_and_install_toys: CmdTask = install_ubuntu_toys.copy()
 update_and_install_toys.add_upstream(update_ubuntu)

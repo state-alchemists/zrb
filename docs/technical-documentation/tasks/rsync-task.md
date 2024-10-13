@@ -92,11 +92,6 @@ No documentation available.
 No documentation available.
 
 
-### `RsyncTask._CmdTask__add_to_buffer`
-
-No documentation available.
-
-
 ### `RsyncTask._CmdTask__get_multiline_repr`
 
 No documentation available.
@@ -112,44 +107,19 @@ No documentation available.
 No documentation available.
 
 
-### `RsyncTask._CmdTask__is_process_exist`
+### `RsyncTask._CmdTask__read_stderr`
 
 No documentation available.
 
 
-### `RsyncTask._CmdTask__kill_by_pid`
-
-Kill a pid, gracefully
-
-### `RsyncTask._CmdTask__log_from_queue`
+### `RsyncTask._CmdTask__read_stdout`
 
 No documentation available.
 
 
-### `RsyncTask._CmdTask__on_exit`
+### `RsyncTask._CmdTask__terminate_process`
 
-No documentation available.
-
-
-### `RsyncTask._CmdTask__on_kill`
-
-No documentation available.
-
-
-### `RsyncTask._CmdTask__queue_stream`
-
-No documentation available.
-
-
-### `RsyncTask._CmdTask__set_cwd`
-
-No documentation available.
-
-
-### `RsyncTask._CmdTask__wait_process`
-
-No documentation available.
-
+Terminate the shell script if it's still running.
 
 ### `RsyncTask._CommonTaskModel__complete_new_checkers`
 

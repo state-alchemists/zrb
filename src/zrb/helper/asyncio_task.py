@@ -7,16 +7,16 @@ from zrb.helper.log import logger
 logger.debug(colored("Loading zrb.helper.asyncio_task", attrs=["dark"]))
 
 
-def _surpress_event_loop_error(unraisable):
-    if not (
-        isinstance(unraisable.exc_value, RuntimeError)
-        and str(unraisable.exc_value) == "Event loop is closed"
-    ):
-        # Raise exception for anything except "event loop is closed"
-        sys.__unraisablehook__(unraisable)
+# def _surpress_event_loop_error(unraisable):
+#     if not (
+#         isinstance(unraisable.exc_value, RuntimeError)
+#         and str(unraisable.exc_value) == "Event loop is closed"
+#     ):
+#         # Raise exception for anything except "event loop is closed"
+#         sys.__unraisablehook__(unraisable)
 
 
-sys.unraisablehook = _surpress_event_loop_error
+# sys.unraisablehook = _surpress_event_loop_error
 
 
 async def stop_asyncio():
@@ -34,3 +34,5 @@ def stop_asyncio_sync():
             loop.create_task(stop_asyncio())
     except asyncio.CancelledError:
         logger.warning("Task is cancelled")
+    except Exception as e:
+        logger.warning(e)
