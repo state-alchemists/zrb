@@ -77,7 +77,7 @@ class CmdTask(BaseTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        remote_host: JinjaTemplate = "localhost",
+        remote_host: Optional[JinjaTemplate] = None,
         remote_port: Union[JinjaTemplate, int] = 22,
         remote_user: JinjaTemplate = "root",
         remote_password: JinjaTemplate = "",

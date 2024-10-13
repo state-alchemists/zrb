@@ -92,6 +92,11 @@ No documentation available.
 No documentation available.
 
 
+### `RsyncTask._CmdTask__create_local_cmd_script`
+
+No documentation available.
+
+
 ### `RsyncTask._CmdTask__get_multiline_repr`
 
 No documentation available.
@@ -103,6 +108,11 @@ No documentation available.
 
 
 ### `RsyncTask._CmdTask__get_rendered_cmd_path`
+
+No documentation available.
+
+
+### `RsyncTask._CmdTask__get_ssh_command`
 
 No documentation available.
 

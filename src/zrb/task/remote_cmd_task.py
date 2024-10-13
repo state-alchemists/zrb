@@ -53,7 +53,7 @@ class RemoteCmdTask(CmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
-        remote_host: Optional[JinjaTemplate] = None,
+        remote_host: JinjaTemplate = "localhost",
         remote_port: Union[JinjaTemplate, int] = 22,
         remote_user: JinjaTemplate = "root",
         remote_password: JinjaTemplate = "",
