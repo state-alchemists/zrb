@@ -196,19 +196,19 @@ class DockerComposeTask(CmdTask):
         for _, service_config in self._compose_service_configs.items():
             self.insert_env(*service_config.get_envs())
         # inject envs from docker compose file
-        compose_data = read_compose_file(self._compose_file)
-        env_map = fetch_compose_file_env_map(compose_data)
-        added_env_map: Mapping[str, bool] = {}
-        for key, value in env_map.items():
-            # Need to get this everytime because we only want
-            # the first compose file env value for a certain key
-            if key in RESERVED_ENV_NAMES or key in added_env_map:
-                continue
-            added_env_map[key] = True
-            os_name = key
-            if self._compose_env_prefix != "":
-                os_name = f"{self._compose_env_prefix}_{os_name}"
-            self.insert_env(Env(name=key, os_name=os_name, default=value))
+        # compose_data = read_compose_file(self._compose_file)
+        # env_map = fetch_compose_file_env_map(compose_data)
+        # added_env_map: Mapping[str, bool] = {}
+        # for key, value in env_map.items():
+        #     # Need to get this everytime because we only want
+        #     # the first compose file env value for a certain key
+        #     if key in RESERVED_ENV_NAMES or key in added_env_map:
+        #         continue
+        #     added_env_map[key] = True
+        #     os_name = key
+        #     if self._compose_env_prefix != "":
+        #         os_name = f"{self._compose_env_prefix}_{os_name}"
+        #     self.insert_env(Env(name=key, os_name=os_name, default=value))
 
     def inject_env_files(self):
         super().inject_env_files

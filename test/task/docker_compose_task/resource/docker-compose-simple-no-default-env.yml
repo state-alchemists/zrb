@@ -1,0 +1,7 @@
+services:
+  myapp_simple_no_default_env:
+    build: image
+    environment:
+      MY_MESSAGE: ${ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE}
+      POST_MESSAGE_1: ${MYAPP_SIMPLE_NO_DEFAULT_ENV_POST_MESSAGE_1:-As above so below}
+      POST_MESSAGE_2: ${MYAPP_SIMPLE_NO_DEFAULT_ENV_POST_MESSAGE_2:-As below so above}

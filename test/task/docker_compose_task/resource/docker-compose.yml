@@ -1,0 +1,7 @@
+services:
+  myapp:
+    build: image
+    environment:
+      MY_MESSAGE: Hello, Compose!
+      POST_MESSAGE_1: ${MYAPP_POST_MESSAGE_1:-As above so below}
+      POST_MESSAGE_2: ${MYAPP_POST_MESSAGE_2:-As below so above}

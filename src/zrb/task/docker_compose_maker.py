@@ -106,6 +106,7 @@ class DockerComposeMaker(BaseTask):
             compose_data = self.__apply_service_env(compose_data, service, envs)
         self.print_out_dark(f"Writing to {self._compose_file}")
         write_compose_file(self._compose_file, compose_data)
+        return True
 
     def __apply_service_env(
         self, compose_data: Any, service_name: str, envs: list[Env]
