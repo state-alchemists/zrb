@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterable
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
-from zrb.helper.file.match import get_file_names
+from zrb.helper.file.match import get_match_file_names
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
@@ -122,7 +122,7 @@ class PathChecker(Checker):
     async def inspect(self, *args: Any, **kwargs: Any) -> bool:
         label = f"Checking {self._rendered_path}"
         try:
-            matches = get_file_names(
+            matches = get_match_file_names(
                 glob_path=self._rendered_path,
                 glob_ignored_paths=self._rendered_ignored_paths,
             )

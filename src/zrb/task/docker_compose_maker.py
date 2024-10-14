@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, Union
 
 from zrb.helper.accessories.color import colored
-from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
+from zrb.helper.docker_compose.file import read_local_compose_file, write_local_compose_file
 from zrb.helper.log import logger
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
@@ -96,7 +96,7 @@ class DockerComposeMaker(BaseTask):
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
         self.print_out_dark(f"Reading from {self._compose_file}")
-        compose_data = read_compose_file(self._template_file)
+        compose_data = read_local_compose_file(self._template_file)
         for service, service_config in self._compose_service_configs.items():
             envs: list[Env] = []
             env_files = service_config.get_env_files()
@@ -105,7 +105,7 @@ class DockerComposeMaker(BaseTask):
             envs += service_config.get_envs()
             compose_data = self.__apply_service_env(compose_data, service, envs)
         self.print_out_dark(f"Writing to {self._compose_file}")
-        write_compose_file(self._compose_file, compose_data)
+        write_local_compose_file(self._compose_file, compose_data)
         return True
 
     def __apply_service_env(
@@ -178,7 +178,7 @@ class DockerComposeMaker(BaseTask):
         env_prefix = to_snake_case(service_name).upper()
         env_name = env.get_name()
         env_default = env.get_default()
-        return "".join(["${", f"{env_prefix}_{env_name}:-{env_default}", "}"])
+        return f"${{{env_prefix}_{env_name}:-{env_default}}}"
 
     def __get_template_file(self, template_file: Optional[str]) -> str:
         if template_file is None:

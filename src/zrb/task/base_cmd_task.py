@@ -9,6 +9,7 @@ from typing import Any, Optional, TypeVar, Union
 from zrb.config.config import DEFAULT_SHELL
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
+from zrb.helper.ssh import get_remote_cmd_script
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
 from zrb.task.any_task import AnyTask
@@ -273,16 +274,15 @@ class BaseCmdTask(BaseTask):
         cmd_script = self.get_cmd_script(*args, **kwargs)
         if self._remote_host is None:
             return cmd_script
-        remote_cmd_script = "\n".join(
-            [
-                "_SCRIPT=$(cat << 'ENDSCRIPT'",
-                cmd_script,
-                "ENDSCRIPT",
-                ")",
-            ]
+        return get_remote_cmd_script(
+            cmd_script=cmd_script,
+            host=self.render_str(self._remote_host),
+            port=self.render_str(self._remote_port),
+            user=self.render_str(self._remote_user),
+            password="$_ZRB_SSH_PASSWORD",
+            use_password=self.render_str(self._remote_password) != "",
+            key=self.render_str(self._remote_ssh_key)
         )
-        ssh_command = self.__get_ssh_command()
-        return "\n".join([remote_cmd_script, ssh_command])
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
@@ -291,20 +291,6 @@ class BaseCmdTask(BaseTask):
         return self.__create_local_cmd_script(
             self._cmd_path, self._cmd, *args, **kwargs
         )
-
-    def __get_ssh_command(self) -> str:
-        host = self.render_str(self._remote_host)
-        port = self.render_str(self._remote_port)
-        user = self.render_str(self._remote_user)
-        password = self.render_str(self._remote_password)
-        key = self.render_str(self._remote_ssh_key)
-        if key != "" and password != "":
-            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'  # noqa
-        if key != "":
-            return f'ssh -t -p "{port}" -i "{key}" "{user}@{host}" "$_SCRIPT"'
-        if password != "":
-            return f'sshpass -p "$_ZRB_SSH_PASSWORD" ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'  # noqa
-        return f'ssh -t -p "{port}" "{user}@{host}" "$_SCRIPT"'
 
     def __create_local_cmd_script(
         self, cmd_path: CmdVal, cmd: CmdVal, *args: Any, **kwargs: Any

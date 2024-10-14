@@ -5,7 +5,7 @@ from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
-from zrb.helper.docker_compose.file import read_compose_file
+from zrb.helper.docker_compose.file import read_local_compose_file
 from zrb.helper.log import logger
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
@@ -290,7 +290,7 @@ class DockerComposeTask(CmdTask):
         return f"export COMPOSE_PROFILES={compose_profiles_str}"
 
     def _get_create_compose_network_script(self) -> str:
-        compose_data = read_compose_file(self._compose_file)
+        compose_data = read_local_compose_file(self._compose_file)
         networks: Mapping[str, Mapping[str, Any]] = compose_data.get("networks", {})
         scripts = []
         for key, config in networks.items():

@@ -655,8 +655,8 @@ remote_configs = [
 copy_to_server = RsyncTask(
     name="copy-to-server",
     remote_configs=remote_configs,
-    src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
-    dst="{{input.remote_path}}"
+    local_source_path="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
+    remote_destination_path="{{input.remote_path}}"
 ) 
 ```
 
@@ -944,8 +944,8 @@ remote_configs = [
 copy_to_server = RsyncTask(
     name="copy-to-server",
     remote_configs=remote_configs,
-    src="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
-    dst="{{input.remote_path}}"
+    local_source_path="".join([os.path.join(OUTPUT_DIR_PATH), "/"]),
+    remote_destination_path="{{input.remote_path}}"
 ) 
 
 start_server = CmdTask(
