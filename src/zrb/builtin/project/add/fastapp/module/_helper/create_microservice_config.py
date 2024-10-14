@@ -46,7 +46,7 @@ async def _add_docker_compose_service(
     module_app_port = 8080 + len(modules)
     module_app_port_str = str(module_app_port)
     docker_compose_file_path = os.path.join(
-        project_dir, "src", kebab_app_name, "docker-compose.yml"
+        project_dir, "src", kebab_app_name, "docker-compose.template.yml"
     )
     app_container_port_env_name = f"APP_{upper_snake_module_name}_MODULE_PORT"
     app_container_port_env = (

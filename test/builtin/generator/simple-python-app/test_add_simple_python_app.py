@@ -26,7 +26,7 @@ def test_add_simple_python_app():
 
     # src should exists
     assert os.path.isfile(
-        os.path.join(src_path, 'simple-app', 'docker-compose.yml')
+        os.path.join(src_path, 'simple-app', 'docker-compose.template.yml')
     )
 
     # python_app should be imported

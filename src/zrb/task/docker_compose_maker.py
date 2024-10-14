@@ -95,7 +95,7 @@ class DockerComposeMaker(BaseTask):
         return self._cwd
 
     async def run(self, *args: Any, **kwargs: Any) -> bool:
-        self.print_out(f"Reading from {self._compose_file}")
+        self.print_out_dark(f"Reading from {self._compose_file}")
         compose_data = read_compose_file(self._template_file)
         for service, service_config in self._compose_service_configs.items():
             envs: list[Env] = []
@@ -104,7 +104,7 @@ class DockerComposeMaker(BaseTask):
                 envs += env_file.get_envs()
             envs += service_config.get_envs()
             compose_data = self.__apply_service_env(compose_data, service, envs)
-        self.print_out(f"Writing to {self._compose_file}")
+        self.print_out_dark(f"Writing to {self._compose_file}")
         write_compose_file(self._compose_file, compose_data)
 
     def __apply_service_env(
