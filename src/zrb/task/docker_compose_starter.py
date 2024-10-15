@@ -126,7 +126,7 @@ class DockerComposeStarter(DockerComposeTask):
             should_show_working_directory=should_show_working_directory,
         )
 
-    def _get_execute_docker_compose_script(
+    def _get_execute_docker_compose_cmd_script(
         self,
         compose_cmd: JinjaTemplate,
         compose_options: Mapping[JinjaTemplate, JinjaTemplate],
@@ -137,7 +137,7 @@ class DockerComposeStarter(DockerComposeTask):
         return "\n".join(
             [
                 # compose start
-                super()._get_execute_docker_compose_script(
+                super()._get_execute_docker_compose_cmd_script(
                     compose_cmd=compose_cmd,
                     compose_options=compose_options,
                     compose_flags=list(compose_flags) + ["-d"],
@@ -145,7 +145,7 @@ class DockerComposeStarter(DockerComposeTask):
                     *args,
                 ),
                 # compose log
-                super()._get_execute_docker_compose_script(
+                super()._get_execute_docker_compose_cmd_script(
                     compose_cmd="logs",
                     compose_options={},
                     compose_flags=["-f"],
