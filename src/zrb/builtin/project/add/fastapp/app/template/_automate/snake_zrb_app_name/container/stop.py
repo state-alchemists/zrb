@@ -6,7 +6,6 @@ from ..image._env import image_env
 from ._env import compose_env_file, host_port_env
 from ._group import snake_zrb_app_name_container_group
 from ._service_config import snake_zrb_app_name_service_configs
-from .prepare import make_snake_zrb_app_name_compose_file
 
 stop_snake_zrb_app_name_container = DockerComposeTask(
     icon="⛔",
@@ -14,6 +13,7 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     description="Stop human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,
+    template_path="docker-compose.template.yml",
     compose_cmd="stop",
     compose_profiles=[
         "postgres",
@@ -32,7 +32,6 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     ],
 )
 
-make_snake_zrb_app_name_compose_file >> stop_snake_zrb_app_name_container
 stop_snake_zrb_app_name_container >> stop_project_containers
 
 runner.register(stop_snake_zrb_app_name_container)

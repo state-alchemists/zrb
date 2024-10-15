@@ -1,4 +1,4 @@
-from zrb import DockerComposeStarter, runner
+from zrb import DockerComposeTask, runner
 
 from ...._project import start_project_containers
 from ..._checker import (
@@ -19,11 +19,10 @@ from ...image._input import image_input
 from .._env import compose_env_file, host_port_env
 from .._input import enable_monitoring_input
 from .._service_config import snake_zrb_app_name_service_configs
-from ..prepare import make_snake_zrb_app_name_compose_file
 from ..remove import remove_snake_zrb_app_name_container
 from ._group import snake_zrb_app_name_monolith_container_group
 
-start_snake_zrb_app_name_monolith_container = DockerComposeStarter(
+start_snake_zrb_app_name_monolith_container = DockerComposeTask(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -38,6 +37,8 @@ start_snake_zrb_app_name_monolith_container = DockerComposeStarter(
     should_execute="{{ input.local_snake_zrb_app_name}}",
     upstreams=[build_snake_zrb_app_name_image, remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
+    template_path="docker-compose.template.yml",
+    compose_start=True,
     compose_profiles=[
         '{{"postgres" if env.APP_DB_CONNECTION.startswith("postgresql") else ""}}',
         '{{"kafka" if env.APP_BROKER_TYPE == "kafka" else ""}}',
@@ -64,7 +65,6 @@ start_snake_zrb_app_name_monolith_container = DockerComposeStarter(
     ],
 )
 
-make_snake_zrb_app_name_compose_file >> start_snake_zrb_app_name_monolith_container
 if not PREFER_MICROSERVICES:
     start_snake_zrb_app_name_monolith_container >> start_project_containers
 

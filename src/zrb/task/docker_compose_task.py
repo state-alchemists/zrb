@@ -384,34 +384,31 @@ class DockerComposeTask(CmdTask):
         return "\n".join(scripts)
 
     def _get_execute_or_start_docker_compose_cmd_script(self, *args: Any) -> str:
-        if self._compose_start:
-            return "\n".join(
-                [
-                    # compose start
-                    super()._get_execute_docker_compose_cmd_script(
-                        compose_cmd=self._compose_cmd,
-                        compose_options=self._compose_options,
-                        compose_flags=list(self._compose_flags) + ["-d"],
-                        compose_args=self._compose_args,
-                        *args,
-                    ),
-                    # compose log
-                    super()._get_execute_docker_compose_cmd_script(
-                        compose_cmd="logs",
-                        compose_options={},
-                        compose_flags=["-f"],
-                        compose_args=[],
-                        *args,
-                    ),
-                ]
+        if not self._compose_start:
+            # Run docker compose command
+            return self._get_execute_docker_compose_cmd_script(
+                compose_cmd=self._compose_cmd,
+                compose_options=self._compose_options,
+                compose_flags=self._compose_flags,
+                compose_args=self._compose_args,
+                *args,
             )
-        return self._get_execute_docker_compose_cmd_script(
+        # Start and log
+        compose_start = self._get_execute_docker_compose_cmd_script(
             compose_cmd=self._compose_cmd,
             compose_options=self._compose_options,
-            compose_flags=self._compose_flags,
+            compose_flags=list(self._compose_flags) + ["-d"],
             compose_args=self._compose_args,
             *args,
         )
+        compose_log = self._get_execute_docker_compose_cmd_script(
+            compose_cmd="logs",
+            compose_options={},
+            compose_flags=["-f"],
+            compose_args=[],
+            *args,
+        )
+        return "\n".join([compose_start, compose_log])
 
     def _get_execute_docker_compose_cmd_script(
         self,
