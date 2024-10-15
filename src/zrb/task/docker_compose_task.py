@@ -253,7 +253,7 @@ class DockerComposeTask(CmdTask):
                 user=self.render_str(self._remote_user),
                 password=self.render_str(self._remote_password),
                 use_password=self.render_str(self._remote_password) != "",
-                key=self.render_str(self._remote_ssh_key),
+                ssh_key=self.render_str(self._remote_ssh_key),
             )
             return
         write_local_compose_file(self.__get_compose_path(), compose_data)
@@ -465,7 +465,7 @@ class DockerComposeTask(CmdTask):
             user=self.render_str(self._remote_user),
             password=self.render_str(self._remote_password),
             use_password=self.render_str(self._remote_password) != "",
-            key=self.render_str(self._remote_ssh_key),
+            ssh_key=self.render_str(self._remote_ssh_key),
         )
 
     def __get_compose_data(self) -> Any:
@@ -479,7 +479,7 @@ class DockerComposeTask(CmdTask):
             user=self.render_str(self._remote_user),
             password=self.render_str(self._remote_password),
             use_password=self.render_str(self._remote_password) != "",
-            key=self.render_str(self._remote_ssh_key),
+            ssh_key=self.render_str(self._remote_ssh_key),
         )
 
     def __get_compose_path(self) -> str:
@@ -505,14 +505,16 @@ class DockerComposeTask(CmdTask):
                     local_compose_file = os.path.join(self._cwd, compose_path)
                     if os.path.exists(local_compose_file):
                         return local_compose_file
-                if is_remote_file_exists(
+                if self._remote_host is not None and is_remote_file_exists(
                     file_path=compose_path,
                     host=self.render_str(self._remote_host),
                     port=self.render_str(self._remote_port),
                     user=self.render_str(self._remote_user),
                     password=self.render_str(self._remote_password),
                     use_password=self.render_str(self._remote_password) != "",
-                    key=self.render_str(self._remote_ssh_key),
+                    ssh_key=self.render_str(self._remote_ssh_key),
                 ):
                     return compose_path
+        if self._remote_host is None:
+            return os.path.join(self._cwd, "docker-compose.yml")
         return "docker-compose.yml"

@@ -80,11 +80,13 @@ def test_docker_compose_task_invalid_compose_path():
     resource_path = os.path.join(dir_path, 'resource')
     is_error: bool = False
     try:
-        DockerComposeTask(
+        docker_compose_task = DockerComposeTask(
             name='simple',
             cwd=resource_path,
             compose_path='non-existing.yml',
         )
+        function = docker_compose_task.to_function()
+        function()
     except Exception:
         is_error = True
     assert is_error
