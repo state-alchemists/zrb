@@ -52,11 +52,6 @@ No documentation available.
 No documentation available.
 
 
-### `CmdTask._BaseCmdTask__get_ssh_command`
-
-No documentation available.
-
-
 ### `CmdTask._BaseCmdTask__read_stderr`
 
 No documentation available.

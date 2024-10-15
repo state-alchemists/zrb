@@ -1,7 +1,7 @@
 from collections.abc import Mapping
+from io import StringIO
 from typing import Any
 
-from io import StringIO
 from ruamel.yaml import YAML, CommentedMap
 
 from zrb.helper.accessories.color import colored
@@ -52,7 +52,7 @@ def read_remote_compose_file(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )
     yaml = YAML()
     return yaml.load(content)
@@ -81,7 +81,7 @@ def write_remote_compose_file(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )
 
 
@@ -95,7 +95,6 @@ def add_services_to_remote_compose_file(
     password: str = "",
     use_password: bool = False,
     ssh_key: str = "",
-
 ):
     data = read_remote_compose_file(
         file_path=file_path,
@@ -104,7 +103,7 @@ def add_services_to_remote_compose_file(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )
     data = CommentedMap(data)
     data["services"].update(CommentedMap(new_services))
@@ -116,5 +115,5 @@ def add_services_to_remote_compose_file(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )

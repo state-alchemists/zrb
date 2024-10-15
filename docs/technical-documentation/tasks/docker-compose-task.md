@@ -52,11 +52,6 @@ No documentation available.
 No documentation available.
 
 
-### `DockerComposeTask._BaseCmdTask__get_ssh_command`
-
-No documentation available.
-
-
 ### `DockerComposeTask._BaseCmdTask__read_stderr`
 
 No documentation available.
@@ -140,7 +135,52 @@ No documentation available.
 
 For internal use: copy and completing new checkers
 
-### `DockerComposeTask._DockerComposeTask__get_compose_file`
+### `DockerComposeTask._DockerComposeTask__apply_service_env`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__generate_compose_file`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_compose_data`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_compose_path`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_default_compose_path`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_env_compose_value`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_service_new_env_list`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_service_new_env_map`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_start_compose_data`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_template_compose_data`
 
 No documentation available.
 
@@ -256,7 +296,12 @@ __Returns:__
 
 `list[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `DockerComposeTask._get_execute_docker_compose_script`
+### `DockerComposeTask._get_execute_docker_compose_cmd_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._get_execute_or_start_docker_compose_cmd_script`
 
 No documentation available.
 

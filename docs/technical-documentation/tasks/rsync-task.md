@@ -52,11 +52,6 @@ No documentation available.
 No documentation available.
 
 
-### `RsyncTask._BaseCmdTask__get_ssh_command`
-
-No documentation available.
-
-
 ### `RsyncTask._BaseCmdTask__read_stderr`
 
 No documentation available.
@@ -146,6 +141,16 @@ No documentation available.
 
 
 ### `RsyncTask._Renderer__get_render_data`
+
+No documentation available.
+
+
+### `RsyncTask._RsyncTask__get_destination_path`
+
+No documentation available.
+
+
+### `RsyncTask._RsyncTask__get_source_path`
 
 No documentation available.
 
@@ -266,11 +271,6 @@ __Returns:__
 `list[AnyInput]`: A list of `AnyInput` instances representing the inputs for the task.
 
 ### `RsyncTask._get_max_attempt`
-
-No documentation available.
-
-
-### `RsyncTask._get_path`
 
 No documentation available.
 

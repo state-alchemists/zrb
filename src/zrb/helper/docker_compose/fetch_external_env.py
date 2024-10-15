@@ -11,7 +11,7 @@ logger.debug(
 
 
 @typechecked
-def fetch_compose_file_env_map(data: Any) -> Mapping[str, str]:
+def fetch_compose_data_env_map(data: Any) -> Mapping[str, str]:
     global_env_dict = {}
     if "services" not in data:
         return global_env_dict

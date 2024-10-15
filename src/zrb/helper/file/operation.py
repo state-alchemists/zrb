@@ -26,7 +26,7 @@ def read_remote_file(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )
     # Use SSH to read the remote file
     result = subprocess.run(
@@ -37,7 +37,7 @@ def read_remote_file(
 
 @typechecked
 def read_local_file(file_path: str) -> str:
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         return file.read()
 
 
@@ -59,7 +59,7 @@ def write_remote_file(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )
     # Use SSH to read the remote file
     subprocess.run(
@@ -69,7 +69,7 @@ def write_remote_file(
 
 @typechecked
 def write_local_file(file_path: str, content: str):
-    with open(file_path, 'w') as file:
+    with open(file_path, "w") as file:
         file.write(content)
 
 
@@ -81,7 +81,7 @@ def is_remote_file_exists(
     user: str = "",
     password: str = "",
     use_password: bool = False,
-    ssh_key: str = ""
+    ssh_key: str = "",
 ) -> bool:
     # Build the remote command to check if the file exists
     remote_cmd_script = get_remote_cmd_script(
@@ -91,7 +91,7 @@ def is_remote_file_exists(
         user=user,
         password=password,
         use_password=use_password,
-        ssh_key=ssh_key
+        ssh_key=ssh_key,
     )
     # Execute the command remotely
     result = subprocess.run(

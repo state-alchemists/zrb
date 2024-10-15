@@ -13,8 +13,6 @@ from zrb.task.any_task_event_handler import (
 from zrb.task.checker import Checker
 from zrb.task.cmd_task import CmdTask
 from zrb.task.decorator import python_task
-from zrb.task.docker_compose_maker import DockerComposeMaker
-from zrb.task.docker_compose_starter import DockerComposeStarter
 from zrb.task.docker_compose_task import DockerComposeTask, ServiceConfig
 from zrb.task.flow_task import FlowTask
 from zrb.task.http_checker import HTTPChecker
@@ -66,8 +64,6 @@ assert python_task
 assert Task
 assert CmdTask
 assert DockerComposeTask
-assert DockerComposeStarter
-assert DockerComposeMaker
 assert ServiceConfig
 assert RsyncTask
 assert Notifier

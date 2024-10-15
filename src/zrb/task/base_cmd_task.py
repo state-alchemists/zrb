@@ -281,7 +281,7 @@ class BaseCmdTask(BaseTask):
             user=self.render_str(self._remote_user),
             password="$_ZRB_SSH_PASSWORD",
             use_password=self.render_str(self._remote_password) != "",
-            key=self.render_str(self._remote_ssh_key)
+            key=self.render_str(self._remote_ssh_key),
         )
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:

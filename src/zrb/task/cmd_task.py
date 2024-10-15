@@ -17,13 +17,15 @@ from zrb.task.any_task_event_handler import (
     OnTriggered,
     OnWaiting,
 )
-from zrb.task.base_cmd_task import BaseCmdTask, CmdVal
+from zrb.task.base_cmd_task import BaseCmdTask, CmdResult, CmdVal
 from zrb.task_env.env import Env
 from zrb.task_env.env_file import EnvFile
 from zrb.task_group.group import Group
 from zrb.task_input.any_input import AnyInput
 
 logger.debug(colored("Loading zrb.task.cmd_task", attrs=["dark"]))
+assert CmdResult  # Need to be here so that it can be exported
+
 _CURRENT_DIR = os.path.dirname(__file__)
 _SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "shell-scripts")
 

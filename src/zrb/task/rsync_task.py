@@ -166,7 +166,7 @@ class RsyncTask(CmdTask):
             host = self.render_str(self._remote_host)
             user = self.render_str(self._remote_user)
             return f"{user}@{host}:{rendered_path}"
-        return self.render_str(self._local_source_path) 
+        return self.render_str(self._local_source_path)
 
     def __get_destination_path(self) -> str:
         if self._remote_destination_path is not None:
