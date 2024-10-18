@@ -59,10 +59,10 @@ class RsyncTask(CmdTask):
         remote_user: JinjaTemplate = "root",
         remote_password: JinjaTemplate = "",
         remote_ssh_key: JinjaTemplate = "",
-        src_path: JinjaTemplate = ".",
-        src_is_remote: bool = False,
-        dst_path: JinjaTemplate = ".",
-        dst_is_remote: bool = True,
+        remote_source_path: Optional[JinjaTemplate] = None,
+        remote_destination_path: Optional[JinjaTemplate] = None,
+        local_source_path: Optional[JinjaTemplate] = None,
+        local_destination_path: Optional[JinjaTemplate] = None,
         cwd: Optional[Union[JinjaTemplate, pathlib.Path]] = None,
         should_render_cwd: bool = True,
         upstreams: Iterable[AnyTask] = [],
@@ -86,6 +86,22 @@ class RsyncTask(CmdTask):
         should_show_cmd: bool = True,
         should_show_working_directory: bool = True,
     ):
+        if remote_source_path is None and local_source_path is None:
+            raise ValueError(
+                "Specify either 'remote_source_path' or 'local_source_path'"
+            )
+        if remote_source_path is not None and local_source_path is not None:
+            raise ValueError(
+                "Set only one: 'remote_source_path' or 'local_source_path'"
+            )
+        if remote_destination_path is None and local_destination_path is None:
+            raise ValueError(
+                "Specify either 'remote_destination_path' or 'local_destination_path'"
+            )
+        if remote_destination_path is not None and local_destination_path is not None:
+            raise ValueError(
+                "Set only one: 'remote_destination_path' or 'local_destination_path'"
+            )
         CmdTask.__init__(
             self,
             name=name,
@@ -125,17 +141,17 @@ class RsyncTask(CmdTask):
         self._remote_user = remote_user
         self._remote_password = remote_password
         self._remote_ssh_key = remote_ssh_key
-        self._src_path = src_path
-        self._src_is_remote = src_is_remote
-        self._dst_path = dst_path
-        self._dst_is_remote = dst_is_remote
+        self._remote_source_path = remote_source_path
+        self._remote_desination_path = remote_destination_path
+        self._local_source_path = local_source_path
+        self._local_destination_path = local_destination_path
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         port = self.render_str(self._remote_port)
         password = self.render_str(self._remote_password)
         key = self.render_str(self._remote_ssh_key)
-        src = self._get_path(self._src_path, self._src_is_remote)
-        dst = self._get_path(self._dst_path, self._dst_is_remote)
+        src = self.__get_source_path()
+        dst = self.__get_destination_path()
         if key != "" and password != "":
             return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -i {key} -p {port}" {src} {dst}'  # noqa
         if key != "":
@@ -144,10 +160,18 @@ class RsyncTask(CmdTask):
             return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'  # noqa
         return f'rsync --mkpath -avz -e "ssh -p {port}" {src} {dst}'
 
-    def _get_path(self, resource_path: str, is_remote: bool) -> str:
-        rendered_path = self.render_str(resource_path)
-        if is_remote:
+    def __get_source_path(self) -> str:
+        if self._remote_source_path is not None:
+            rendered_path = self.render_str(self._remote_source_path)
             host = self.render_str(self._remote_host)
             user = self.render_str(self._remote_user)
             return f"{user}@{host}:{rendered_path}"
-        return rendered_path
+        return self.render_str(self._local_source_path)
+
+    def __get_destination_path(self) -> str:
+        if self._remote_destination_path is not None:
+            rendered_path = self.render_str(self._remote_destination_path)
+            host = self.render_str(self._remote_host)
+            user = self.render_str(self._remote_user)
+            return f"{user}@{host}:{rendered_path}"
+        return self.render_str(self._local_destination_path)

@@ -1,5 +1,5 @@
 from zrb.helper.docker_compose.fetch_external_env import (
-    fetch_compose_file_env_map
+    fetch_compose_data_env_map
 )
 
 
@@ -24,7 +24,7 @@ def test_fetch_external_env():
             }
         }
     }
-    external_env = fetch_compose_file_env_map(data)
+    external_env = fetch_compose_data_env_map(data)
     assert external_env.get('PORT_A') == '8080'
     assert external_env.get('PROTOCOL_A') == 'http'
     assert external_env.get('HOST_A1') == ''

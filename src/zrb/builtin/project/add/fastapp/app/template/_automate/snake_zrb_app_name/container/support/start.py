@@ -1,4 +1,4 @@
-from zrb import DockerComposeStartTask, runner
+from zrb import DockerComposeTask, runner
 
 from ..._checker import (
     kafka_outside_checker,
@@ -18,7 +18,7 @@ from .._service_config import snake_zrb_app_name_service_configs
 from ..remove import remove_snake_zrb_app_name_container
 from ._group import snake_zrb_app_name_support_container_group
 
-start_snake_zrb_app_name_support_container = DockerComposeStartTask(
+start_snake_zrb_app_name_support_container = DockerComposeTask(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -32,6 +32,8 @@ start_snake_zrb_app_name_support_container = DockerComposeStartTask(
     ],
     upstreams=[remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
+    template_path="docker-compose.template.yml",
+    compose_start=True,
     should_execute=" ".join(
         [
             "{{",

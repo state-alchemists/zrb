@@ -69,7 +69,6 @@
   - [DockerComposeTask](specialized-tasks/docker-compose-task.md)
   - [ResourceMaker](specialized-tasks/resource-maker.md)
   - [Notifier](specialized-tasks/notifider.md)
-  - [RemoteCmdTask](specialized-tasks/remote-cmd-task.md)
   - [RsyncTask](specialized-tasks/rsync-task.md)
   - [Server](specialized-tasks/server.md)
   - [Checker](specialized-tasks/checker.md)

@@ -1,4 +1,4 @@
-from zrb import DockerComposeStartTask, HTTPChecker, runner
+from zrb import DockerComposeTask, HTTPChecker, runner
 
 from ..._project import start_project_containers
 from .._constant import RESOURCE_DIR
@@ -11,7 +11,7 @@ from ._group import snake_zrb_app_name_container_group
 from ._service_config import snake_zrb_app_name_service_config
 from .remove import remove_snake_zrb_app_name_container
 
-start_snake_zrb_app_name_container = DockerComposeStartTask(
+start_snake_zrb_app_name_container = DockerComposeTask(
     icon="🐳",
     name="start",
     description="Start human readable zrb app name container",
@@ -25,6 +25,8 @@ start_snake_zrb_app_name_container = DockerComposeStartTask(
     should_execute="{{ input.local_snake_zrb_app_name}}",
     upstreams=[build_snake_zrb_app_name_image, remove_snake_zrb_app_name_container],
     cwd=RESOURCE_DIR,
+    template_path="docker-compose.template.yml",
+    compose_start=True,
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs={"kebab-zrb-app-name": snake_zrb_app_name_service_config},
     env_files=[compose_env_file],

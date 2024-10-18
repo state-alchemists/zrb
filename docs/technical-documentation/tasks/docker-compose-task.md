@@ -27,6 +27,45 @@ runner.register(hello)
 ```
 
 
+### `DockerComposeTask._BaseCmdTask__create_local_cmd_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_local_or_remote_cmd_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_multiline_repr`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_rendered_cmd`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__get_rendered_cmd_path`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__read_stderr`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__read_stdout`
+
+No documentation available.
+
+
+### `DockerComposeTask._BaseCmdTask__terminate_process`
+
+Terminate the shell script if it's still running.
+
 ### `DockerComposeTask._BaseTaskModel__get_colored`
 
 No documentation available.
@@ -92,35 +131,6 @@ No documentation available.
 No documentation available.
 
 
-### `DockerComposeTask._CmdTask__get_multiline_repr`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_rendered_cmd`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__get_rendered_cmd_path`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__read_stderr`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__read_stdout`
-
-No documentation available.
-
-
-### `DockerComposeTask._CmdTask__terminate_process`
-
-Terminate the shell script if it's still running.
-
 ### `DockerComposeTask._CommonTaskModel__complete_new_checkers`
 
 For internal use: copy and completing new checkers
@@ -130,17 +140,22 @@ For internal use: copy and completing new checkers
 No documentation available.
 
 
-### `DockerComposeTask._DockerComposeTask__generate_compose_runtime_file`
+### `DockerComposeTask._DockerComposeTask__generate_compose_file`
 
 No documentation available.
 
 
-### `DockerComposeTask._DockerComposeTask__get_compose_runtime_file`
+### `DockerComposeTask._DockerComposeTask__get_compose_data`
 
 No documentation available.
 
 
-### `DockerComposeTask._DockerComposeTask__get_compose_template_file`
+### `DockerComposeTask._DockerComposeTask__get_compose_path`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_default_compose_path`
 
 No documentation available.
 
@@ -156,6 +171,16 @@ No documentation available.
 
 
 ### `DockerComposeTask._DockerComposeTask__get_service_new_env_map`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_start_compose_data`
+
+No documentation available.
+
+
+### `DockerComposeTask._DockerComposeTask__get_template_compose_data`
 
 No documentation available.
 
@@ -271,7 +296,12 @@ __Returns:__
 
 `list[Env]`: A list of `Env` instances representing the environment variables of the task.
 
-### `DockerComposeTask._get_execute_docker_compose_script`
+### `DockerComposeTask._get_execute_docker_compose_cmd_script`
+
+No documentation available.
+
+
+### `DockerComposeTask._get_execute_or_start_docker_compose_cmd_script`
 
 No documentation available.
 

@@ -72,11 +72,11 @@ You can define something similar with Zrb:
 ```python
 # file: zrb_init.py
 from zrb import (
-    runner, CmdTask, RemoteCmdTask, PasswordInput, Parallel
+    runner, CmdTask, PasswordInput, Parallel
 )
 
 _update_cache = [
-    RemoteCmdTask(
+    CmdTask(
         name="update-cache-192.168.1.{sub_ip}",
         remote_host=f"192.168.1.{sub_ip}",
         remote_user="ubuntu",
@@ -86,7 +86,7 @@ _update_cache = [
 ]
 
 _install_curl = [
-    RemoteCmdTask(
+    CmdTask(
         name="install-curl-192.168.1.{sub_ip}",
         remote_host=f"192.168.1.{sub_ip}",
         remote_user="ubuntu",

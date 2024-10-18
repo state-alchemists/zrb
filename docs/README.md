@@ -21,4 +21,5 @@
 - [Contributor Guide](contributor-guide.md)
 - [Maintainer Guide](maintainer-guide.md)
 - [Technical Documentation](technical-documentation/README.md)
+- [Updates](updates/README.md)
 - [FAQ](faq/README.md)

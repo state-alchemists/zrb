@@ -6,7 +6,7 @@ from typing import Any
 import jsons
 from dotenv import dotenv_values
 
-from zrb.helper.docker_compose.file import add_services
+from zrb.helper.docker_compose.file import add_services_to_local_compose_file
 from zrb.helper.file.text import (
     append_text_file_async,
     read_text_file_async,
@@ -46,7 +46,7 @@ async def _add_docker_compose_service(
     module_app_port = 8080 + len(modules)
     module_app_port_str = str(module_app_port)
     docker_compose_file_path = os.path.join(
-        project_dir, "src", kebab_app_name, "docker-compose.yml"
+        project_dir, "src", kebab_app_name, "docker-compose.template.yml"
     )
     app_container_port_env_name = f"APP_{upper_snake_module_name}_MODULE_PORT"
     app_container_port_env = (
@@ -61,8 +61,8 @@ async def _add_docker_compose_service(
         app_container_port_env=app_container_port_env,
     )
     task.print_out(f"Add service at: {docker_compose_file_path}")
-    add_services(
-        file_name=docker_compose_file_path,
+    add_services_to_local_compose_file(
+        file_path=docker_compose_file_path,
         new_services=service_definition,
     )
 
