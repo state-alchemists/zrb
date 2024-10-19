@@ -1,7 +1,0 @@
-from ._group import snake_zrb_app_name_monolith_group
-from .deploy import deploy_snake_zrb_app_name_monolith
-from .start import start_snake_zrb_app_name_monolith
-
-assert snake_zrb_app_name_monolith_group
-assert deploy_snake_zrb_app_name_monolith
-assert start_snake_zrb_app_name_monolith
