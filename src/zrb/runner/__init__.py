@@ -27,6 +27,6 @@ area = geometry.add_task(
             IntInput(name="height"),
         ],
         description="area of a square",
-        action=lambda t, s: t.print("adding")
+        action=lambda t, s: t.print("calculating area")
     )
 )

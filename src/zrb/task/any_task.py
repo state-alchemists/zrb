@@ -58,7 +58,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def print(
+    def print(
         self,
         *values: object,
         sep: str | None,

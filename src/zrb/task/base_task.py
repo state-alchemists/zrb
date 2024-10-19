@@ -8,6 +8,7 @@ from .any_task import AnyTask, State
 import asyncio
 import inspect
 import os
+import sys
 
 
 async def run_async(fn: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -25,7 +26,7 @@ class BaseTask(AnyTask):
         description: str | None = None,
         inputs: list[AnyInput] | None = None,
         envs: list[AnyEnv] | None = None,
-        action: Callable[[AnyTask, Session], Any] | None = None,
+        action: str | Callable[[AnyTask, Session], Any] | None = None,
         retries: int = 2,
         retry_period: float = 0,
         readiness_checks: list[AnyTask] | None = None,
@@ -75,12 +76,12 @@ class BaseTask(AnyTask):
             return []
         return self._upstreams
 
-    async def print(
+    def print(
         self,
         *values: object,
         sep: str | None = " ",
         end: str | None = "\n",
-        file: TextIO | None = None,
+        file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
         message = sep.join([f"{value}" for value in values])
@@ -116,7 +117,9 @@ class BaseTask(AnyTask):
     def _update_session_inputs(self, session: Session) -> Session:
         input_map = {}
         for task_input in self.get_inputs():
-            input_map.update(task_input.get_value(session))
+            input_map.update(
+                {task_input.get_name(): task_input.get_value(session)}
+            )
         input_map.update(session.inputs)
         session.inputs = input_map
 
@@ -180,4 +183,6 @@ class BaseTask(AnyTask):
     async def _async_run_action(self, session: Session) -> Any:
         if self._action is None:
             return
+        if isinstance(self._action, str):
+            return session.render(self._action)
         return await run_async(self._action, self, session)

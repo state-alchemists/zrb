@@ -38,6 +38,13 @@ class Session():
         self.envs = envs
         self.xcoms = xcoms
 
+    def __repr__(self):
+        inputs = self.inputs
+        args = self.args
+        envs = self.envs
+        xcoms = self.xcoms
+        return f"<Session inputs={inputs} args={args} envs={envs} xcoms={xcoms}>"
+
     def render(self, value: str):
         return value.format(
             input=self._inputs,
