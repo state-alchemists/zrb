@@ -1,8 +1,10 @@
 import asyncio
-import sys
 
 from zrb.helper.accessories.color import colored
 from zrb.helper.log import logger
+
+# import sys
+
 
 logger.debug(colored("Loading zrb.helper.asyncio_task", attrs=["dark"]))
 

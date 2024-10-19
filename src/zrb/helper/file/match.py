@@ -10,7 +10,9 @@ logger.debug(colored("Loading zrb.helper.file.match", attrs=["dark"]))
 
 
 @typechecked
-def get_file_names(glob_path: str, glob_ignored_paths: Iterable[str]) -> list[str]:
+def get_match_file_names(
+    glob_path: str, glob_ignored_paths: Iterable[str]
+) -> list[str]:
     matches = []
     for file in glob.glob(glob_path, recursive=True):
         should_ignore = any(

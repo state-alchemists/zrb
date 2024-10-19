@@ -13,6 +13,7 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     description="Stop human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,
+    template_path="docker-compose.template.yml",
     compose_cmd="stop",
     compose_profiles=[
         "postgres",

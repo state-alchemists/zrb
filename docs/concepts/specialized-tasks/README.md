@@ -13,7 +13,6 @@ Aside from `Task` and `CmdTask`, Zrb has multiple specialized Tasks.
 - [DockerComposeTask](docker-compose-task.md): Use this Task Class to deal with Docker Compose-related workflow.
 - [ResourceMaker](resource-maker.md): Use this Task to generate Code, module, etc.
 - [Notifier](notifider.md): Use this Task to notify the user about anything locally.
-- [RemoteCmdTask](remote-cmd-task.md): Use this Task to run a CLI command on remote computers.
 - [RsyncTask](rsync-task.md): Use this Task to copy from/to remote computers.
 - [Server](server.md): Use this Task to run a specific Task whenever some conditions are met.
 - [Checker](checker.md): Use this Task to check other Task readiness or as `Server`'s trigger'.

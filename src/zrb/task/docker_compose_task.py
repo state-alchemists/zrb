@@ -4,11 +4,15 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any, Optional, TypeVar, Union
 
 from zrb.helper.accessories.color import colored
-from zrb.helper.accessories.name import get_random_name
-from zrb.helper.docker_compose.fetch_external_env import fetch_compose_file_env_map
-from zrb.helper.docker_compose.file import read_compose_file, write_compose_file
+from zrb.helper.docker_compose.fetch_external_env import fetch_compose_data_env_map
+from zrb.helper.docker_compose.file import (
+    read_local_compose_file,
+    read_remote_compose_file,
+    write_local_compose_file,
+    write_remote_compose_file,
+)
+from zrb.helper.file.operation import is_remote_file_exists
 from zrb.helper.log import logger
-from zrb.helper.string.conversion import to_cli_name
 from zrb.helper.string.modification import double_quote
 from zrb.helper.typecheck import typechecked
 from zrb.helper.typing import JinjaTemplate
@@ -36,9 +40,8 @@ TDockerComposeTask = TypeVar("TDockerComposeTask", bound="DockerComposeTask")
 
 CURRENT_DIR = os.path.dirname(__file__)
 SHELL_SCRIPT_DIR = os.path.join(CURRENT_DIR, "..", "shell-scripts")
-
-ensure_container_backend = CmdTask(
-    name="ensure-compose-backend",
+ensure_docker_is_installed = CmdTask(
+    name="ensure-docker-is-installed",
     cmd_path=[
         os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
         os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
@@ -75,8 +78,15 @@ class DockerComposeTask(CmdTask):
         color: Optional[str] = None,
         description: str = "",
         executable: Optional[str] = None,
+        remote_host: Optional[JinjaTemplate] = None,
+        remote_port: Union[JinjaTemplate, int] = 22,
+        remote_user: JinjaTemplate = "root",
+        remote_password: JinjaTemplate = "",
+        remote_ssh_key: JinjaTemplate = "",
+        template_path: Optional[JinjaTemplate] = None,
         compose_service_configs: Mapping[str, ServiceConfig] = {},
-        compose_file: Optional[str] = None,
+        compose_path: Optional[str] = None,
+        compose_start: bool = False,
         compose_cmd: str = "up",
         compose_options: Mapping[JinjaTemplate, JinjaTemplate] = {},
         compose_flags: Iterable[JinjaTemplate] = [],
@@ -119,9 +129,14 @@ class DockerComposeTask(CmdTask):
             color=color,
             description=description,
             executable=executable,
+            remote_host=remote_host,
+            remote_port=remote_port,
+            remote_user=remote_user,
+            remote_password=remote_password,
+            remote_ssh_key=remote_ssh_key,
             cwd=cwd,
             should_render_cwd=should_render_cwd,
-            upstreams=[ensure_container_backend] + upstreams,
+            upstreams=upstreams,
             fallbacks=fallbacks,
             on_triggered=on_triggered,
             on_waiting=on_waiting,
@@ -142,9 +157,11 @@ class DockerComposeTask(CmdTask):
             should_show_cmd=should_show_cmd,
             should_show_working_directory=should_show_working_directory,
         )
+        self._template_path = template_path
         self._setup_cmd = setup_cmd
         self._setup_cmd_path = setup_cmd_path
         self._compose_service_configs = compose_service_configs
+        self._compose_start = compose_start
         self._compose_cmd = compose_cmd
         self._compose_options = compose_options
         if "--f" in compose_options:
@@ -155,25 +172,39 @@ class DockerComposeTask(CmdTask):
         self._compose_args = compose_args
         self._compose_env_prefix = compose_env_prefix
         self._compose_profiles = compose_profiles
-        self._compose_template_file = self.__get_compose_template_file(compose_file)
-        self._compose_runtime_file = self.__get_compose_runtime_file(
-            self._compose_template_file
-        )
+        self._compose_path = compose_path
+        self.__rendered_compose_path: Optional[str] = None
         # Flag to make mark whether service config and compose environments
         # has been added to this task's envs and env_files
         self._is_compose_additional_env_added = False
         self._is_compose_additional_env_file_added = False
+        if self._remote_host is None:
+            self.add_upstream(ensure_docker_is_installed)
+        else:
+            self.add_upstream(
+                CmdTask(
+                    name="ensure-remote-docker-is-installed",
+                    cmd_path=[
+                        os.path.join(SHELL_SCRIPT_DIR, "_common-util.sh"),
+                        os.path.join(SHELL_SCRIPT_DIR, "ensure-docker-is-installed.sh"),
+                    ],
+                    remote_host=remote_host,
+                    remote_port=remote_port,
+                    remote_user=remote_user,
+                    remote_password=remote_password,
+                    remote_ssh_key=remote_ssh_key,
+                    should_print_cmd_result=False,
+                    should_show_cmd=False,
+                    should_show_working_directory=False,
+                )
+            )
 
     def copy(self) -> TDockerComposeTask:
         return super().copy()
 
-    def run(self, *args, **kwargs: Any) -> CmdResult:
-        self.__generate_compose_runtime_file()
-        try:
-            result = super().run(*args, **kwargs)
-        finally:
-            os.remove(self._compose_runtime_file)
-        return result
+    def run(self, *args: Any, **kwargs: Any) -> CmdResult:
+        self.__generate_compose_file()
+        return super().run(*args, **kwargs)
 
     def inject_envs(self):
         super().inject_envs()
@@ -181,8 +212,8 @@ class DockerComposeTask(CmdTask):
         for _, service_config in self._compose_service_configs.items():
             self.insert_env(*service_config.get_envs())
         # inject envs from docker compose file
-        compose_data = read_compose_file(self._compose_template_file)
-        env_map = fetch_compose_file_env_map(compose_data)
+        compose_data = self.__get_start_compose_data()
+        env_map = fetch_compose_data_env_map(compose_data)
         added_env_map: Mapping[str, bool] = {}
         for key, value in env_map.items():
             # Need to get this everytime because we only want
@@ -196,12 +227,15 @@ class DockerComposeTask(CmdTask):
             self.insert_env(Env(name=key, os_name=os_name, default=value))
 
     def inject_env_files(self):
+        super().inject_env_files
         # inject env_files from service_configs
         for _, service_config in self._compose_service_configs.items():
             self.insert_env_file(*service_config.get_env_files())
 
-    def __generate_compose_runtime_file(self):
-        compose_data = read_compose_file(self._compose_template_file)
+    def __generate_compose_file(self):
+        if self._template_path is None:
+            return
+        compose_data = self.__get_template_compose_data()
         for service, service_config in self._compose_service_configs.items():
             envs: list[Env] = []
             env_files = service_config.get_env_files()
@@ -209,7 +243,20 @@ class DockerComposeTask(CmdTask):
                 envs += env_file.get_envs()
             envs += service_config.get_envs()
             compose_data = self.__apply_service_env(compose_data, service, envs)
-        write_compose_file(self._compose_runtime_file, compose_data)
+        self.print_out_dark(f"Writing to {self.__get_compose_path()}")
+        if self._remote_host is not None:
+            write_remote_compose_file(
+                file_path=self.__get_compose_path(),
+                data=compose_data,
+                host=self.render_str(self._remote_host),
+                port=self.render_str(self._remote_port),
+                user=self.render_str(self._remote_user),
+                password=self.render_str(self._remote_password),
+                use_password=self.render_str(self._remote_password) != "",
+                ssh_key=self.render_str(self._remote_ssh_key),
+            )
+            return
+        write_local_compose_file(self.__get_compose_path(), compose_data)
 
     def __apply_service_env(
         self, compose_data: Any, service_name: str, envs: list[Env]
@@ -281,43 +328,7 @@ class DockerComposeTask(CmdTask):
         env_prefix = to_snake_case(service_name).upper()
         env_name = env.get_name()
         env_default = env.get_default()
-        return "".join(["${", f"{env_prefix}_{env_name}:-{env_default}", "}"])
-
-    def __get_compose_runtime_file(self, compose_file_name: str) -> str:
-        directory, file = os.path.split(compose_file_name)
-        prefix = "_" if file.startswith(".") else "._"
-        runtime_prefix = self.get_cli_name()
-        if self._group is not None:
-            group_prefix = to_cli_name(self._group._get_full_cli_name())
-            runtime_prefix = f"{group_prefix}-{runtime_prefix}"
-        runtime_prefix += "-" + get_random_name(
-            separator="-", add_random_digit=True, digit_count=3
-        )
-        runtime_prefix = "." + runtime_prefix + ".runtime"
-        file_parts = file.split(".")
-        if len(file_parts) > 1:
-            file_parts[-2] += runtime_prefix
-            runtime_file_name = prefix + ".".join(file_parts)
-            return os.path.join(directory, runtime_file_name)
-        runtime_file_name = prefix + file + runtime_prefix
-        return os.path.join(directory, runtime_file_name)
-
-    def __get_compose_template_file(self, compose_file: Optional[str]) -> str:
-        if compose_file is None:
-            for _compose_file in [
-                "compose.yml",
-                "compose.yaml",
-                "docker-compose.yml",
-                "docker-compose.yaml",
-            ]:
-                if os.path.exists(os.path.join(self._cwd, _compose_file)):
-                    return os.path.join(self._cwd, _compose_file)
-            raise Exception(f"Cannot find compose file on {self._cwd}")
-        if os.path.isabs(compose_file) and os.path.exists(compose_file):
-            return compose_file
-        if os.path.exists(os.path.join(self._cwd, compose_file)):
-            return os.path.join(self._cwd, compose_file)
-        raise Exception(f"Invalid compose file: {compose_file}")
+        return f"${{{env_prefix}_{env_name}:-{env_default}}}"
 
     def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
         cmd_list = []
@@ -336,15 +347,7 @@ class DockerComposeTask(CmdTask):
         if setup_script.strip() != "":
             cmd_list.append(setup_script)
         # compose command
-        cmd_list.append(
-            self._get_execute_docker_compose_script(
-                compose_cmd=self._compose_cmd,
-                compose_options=self._compose_options,
-                compose_flags=self._compose_flags,
-                compose_args=self._compose_args,
-                *args,
-            )
-        )
+        cmd_list.append(self._get_execute_or_start_docker_compose_cmd_script(*args))
         cmd_str = "\n".join(cmd_list)
         self.log_info(f"Command: {cmd_str}")
         return cmd_str
@@ -368,7 +371,7 @@ class DockerComposeTask(CmdTask):
         return f"export COMPOSE_PROFILES={compose_profiles_str}"
 
     def _get_create_compose_network_script(self) -> str:
-        compose_data = read_compose_file(self._compose_runtime_file)
+        compose_data = self.__get_start_compose_data()
         networks: Mapping[str, Mapping[str, Any]] = compose_data.get("networks", {})
         scripts = []
         for key, config in networks.items():
@@ -380,7 +383,34 @@ class DockerComposeTask(CmdTask):
             )
         return "\n".join(scripts)
 
-    def _get_execute_docker_compose_script(
+    def _get_execute_or_start_docker_compose_cmd_script(self, *args: Any) -> str:
+        if not self._compose_start:
+            # Run docker compose command
+            return self._get_execute_docker_compose_cmd_script(
+                compose_cmd=self._compose_cmd,
+                compose_options=self._compose_options,
+                compose_flags=self._compose_flags,
+                compose_args=self._compose_args,
+                *args,
+            )
+        # Start and log
+        compose_start = self._get_execute_docker_compose_cmd_script(
+            compose_cmd=self._compose_cmd,
+            compose_options=self._compose_options,
+            compose_flags=list(self._compose_flags) + ["-d"],
+            compose_args=self._compose_args,
+            *args,
+        )
+        compose_log = self._get_execute_docker_compose_cmd_script(
+            compose_cmd="logs",
+            compose_options={},
+            compose_flags=["-f"],
+            compose_args=[],
+            *args,
+        )
+        return "\n".join([compose_start, compose_log])
+
+    def _get_execute_docker_compose_cmd_script(
         self,
         compose_cmd: str,
         compose_options: Mapping[JinjaTemplate, JinjaTemplate],
@@ -389,7 +419,7 @@ class DockerComposeTask(CmdTask):
         *args: Any,
     ) -> str:
         command_options = dict(compose_options)
-        command_options["--file"] = self._compose_runtime_file
+        command_options["--file"] = self.__get_compose_path()
         options = " ".join(
             [
                 f"{self.render_str(key)} {double_quote(self.render_str(val))}"
@@ -412,3 +442,76 @@ class DockerComposeTask(CmdTask):
             ]
         )
         return f"docker compose {options} {compose_cmd} {flags} {args}"
+
+    def __get_start_compose_data(self) -> Any:
+        if self._template_path is not None:
+            return self.__get_template_compose_data()
+        return self.__get_compose_data()
+
+    def __get_template_compose_data(self) -> Any:
+        template_path = self.render_str(self._template_path)
+        if self._remote_host is None:
+            if not os.path.isabs(template_path):
+                cwd = self._get_cwd()
+                template_path = os.path.join(cwd, template_path)
+            return read_local_compose_file(template_path)
+        return read_remote_compose_file(
+            file_path=template_path,
+            host=self.render_str(self._remote_host),
+            port=self.render_str(self._remote_port),
+            user=self.render_str(self._remote_user),
+            password=self.render_str(self._remote_password),
+            use_password=self.render_str(self._remote_password) != "",
+            ssh_key=self.render_str(self._remote_ssh_key),
+        )
+
+    def __get_compose_data(self) -> Any:
+        compose_path = self.__get_compose_path()
+        if self._remote_host is None:
+            return read_local_compose_file(compose_path)
+        return read_remote_compose_file(
+            file_path=compose_path,
+            host=self.render_str(self._remote_host),
+            port=self.render_str(self._remote_port),
+            user=self.render_str(self._remote_user),
+            password=self.render_str(self._remote_password),
+            use_password=self.render_str(self._remote_password) != "",
+            ssh_key=self.render_str(self._remote_ssh_key),
+        )
+
+    def __get_compose_path(self) -> str:
+        if self.__rendered_compose_path is not None:
+            return self.__rendered_compose_path
+        if self._compose_path is None:
+            self.__rendered_compose_path = self.__get_default_compose_path()
+            return self.__rendered_compose_path
+        rendered_compose_path = self.render_str(self._compose_path)
+        if self._remote_host is None and not os.path.isabs(rendered_compose_path):
+            self.__rendered_compose_path = os.path.join(
+                self._cwd, rendered_compose_path
+            )
+            return self.__rendered_compose_path
+        self.__rendered_compose_path = rendered_compose_path
+        return self.__rendered_compose_path
+
+    def __get_default_compose_path(self) -> str:
+        for name in ["compose", "docker-compose"]:
+            for ext in ["yaml", "yml"]:
+                compose_path = f"{name}.{ext}"
+                if self._remote_host is None:
+                    local_compose_file = os.path.join(self._cwd, compose_path)
+                    if os.path.exists(local_compose_file):
+                        return local_compose_file
+                if self._remote_host is not None and is_remote_file_exists(
+                    file_path=compose_path,
+                    host=self.render_str(self._remote_host),
+                    port=self.render_str(self._remote_port),
+                    user=self.render_str(self._remote_user),
+                    password=self.render_str(self._remote_password),
+                    use_password=self.render_str(self._remote_password) != "",
+                    ssh_key=self.render_str(self._remote_ssh_key),
+                ):
+                    return compose_path
+        if self._remote_host is None:
+            return os.path.join(self._cwd, "docker-compose.yml")
+        return "docker-compose.yml"

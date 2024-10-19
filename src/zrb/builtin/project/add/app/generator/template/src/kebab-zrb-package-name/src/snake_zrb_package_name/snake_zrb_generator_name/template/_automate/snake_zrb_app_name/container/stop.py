@@ -13,6 +13,7 @@ stop_snake_zrb_app_name_container = DockerComposeTask(
     description="Stop human readable zrb app name container",
     group=snake_zrb_app_name_container_group,
     cwd=RESOURCE_DIR,
+    template_path="docker-compose.template.yml",
     compose_cmd="stop",
     compose_env_prefix="CONTAINER_ZRB_ENV_PREFIX",
     compose_service_configs={"kebab-zrb-app-name": snake_zrb_app_name_service_config},

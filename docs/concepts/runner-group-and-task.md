@@ -212,7 +212,6 @@ There are many Task Classes you can use to create a Task.
 - [Task](../technical-documentation/tasks/task.md): General purpose class, usually created using [@python_task](../technical-documentation/tasks/python-task.md) decorator.
 - [CmdTask](../technical-documentation/tasks/cmd-task.md): Run a CLI command/shell script.
 - [DockerComposeTask](specialized-tasks/docker-compose-task.md): Run any docker-compose related command (e.g., `docker compose up`, `docker compose down`, etc.)
-- [RemoteCmdTask](specialized-tasks/remote-cmd-task.md): Run a CLI command/shell script on remote computers using SSH.
 - [RsyncTask](specialized-tasks/rsync-task.md): Copy file from/to remote computers using `rsync` command.
 - [ResourceMaker](specialized-tasks/resource-maker.md): Create resources (source code/documents) based on provided templates.
 - [FlowTask](specialized-tasks/flow-task.md): Combine unrelated tasks into a single Workflow.
@@ -238,7 +237,7 @@ Task  CmdTask  ResourceMaker  FlowTask      CmdTask           Checker   Reccurin
          ▼                               ┌─────┴──────┐          │
    DockerComposeTask                     │            │          │
                                          ▼            ▼          │
-                                   RemoteCmdTask   RsyncTask     │
+                                                   RsyncTask     │
                                                                  │
                               ┌───────────┬───────────┬──────────┼─────────────┐
                               │           │           │          │             │
