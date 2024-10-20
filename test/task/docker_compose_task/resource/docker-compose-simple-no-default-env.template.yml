@@ -1,5 +1,0 @@
-services:
-  myapp_simple_no_default_env:
-    build: image
-    environment:
-      MY_MESSAGE: "${ZRB_TEST_DC_TASK_SIMPLE_NO_DEFAULT_MESSAGE}"

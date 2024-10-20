@@ -1,3 +1,0 @@
-from .build import build_snake_zrb_package_name
-
-assert build_snake_zrb_package_name

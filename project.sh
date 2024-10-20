@@ -79,7 +79,7 @@ reload() {
     if [ "$_CURRENT_SHELL" = "zsh" ] || [ "$_CURRENT_SHELL" = "bash" ]
     then
         log_info "Setting up shell completion for $_CURRENT_SHELL"
-        eval "$(_ZRB_COMPLETE=${_CURRENT_SHELL}_source zrb)"
+        source <(zrb shell autocomplete ${CURRENT_SHELL})
     else
         log_info "Cannot set up shell completion for $_CURRENT_SHELL"
     fi
