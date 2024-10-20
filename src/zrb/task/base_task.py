@@ -5,8 +5,10 @@ from ..input.any_input import AnyInput
 from ..session.session import Session
 from ..util.cli import VALID_COLORS, WHITE, style
 from .any_task import AnyTask, State
+from ..config import SHOW_TIME
 
 import asyncio
+import datetime
 import inspect
 import os
 import sys
@@ -55,6 +57,16 @@ class BaseTask(AnyTask):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
+
+    def __rshift__(self, other: AnyTask | list[AnyTask]):
+        if isinstance(other, AnyTask):
+            other.set_upstreams(self)
+        if isinstance(other, list):
+            for task in other:
+                task.set_upstreams(self)
+
+    def __lshift__(self, other: AnyTask | list[AnyTask]):
+        self.set_upstreams(other)
 
     def get_name(self) -> str:
         return self._name
@@ -109,6 +121,11 @@ class BaseTask(AnyTask):
             return [self._upstreams]
         return self._upstreams
 
+    def set_upstreams(self, upstreams: AnyTask | list[AnyTask]):
+        if isinstance(upstreams, AnyTask):
+            self._upstreams.append(upstreams)
+        self._upstreams += upstreams
+
     def print(
         self,
         *values: object,
@@ -120,7 +137,13 @@ class BaseTask(AnyTask):
         color = self.get_color()
         icon = self.get_icon()
         name = self.get_name()
-        prefix = style(f"{icon} {name}", color=color)
+        padded_name = name.ljust(20)
+        if SHOW_TIME:
+            now = datetime.datetime.now()
+            formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
+            prefix = style(f"{icon} {padded_name} {formatted_time}", color=color)
+        else:
+            prefix = style(f"{icon} {padded_name}", color=color)
         message = sep.join([f"{value}" for value in values])
         print(f"{prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 

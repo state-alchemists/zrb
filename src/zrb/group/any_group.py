@@ -1,4 +1,5 @@
 from typing import TypeVar
+from collections.abc import Mapping
 from abc import ABC, abstractmethod
 from ..task import AnyTask
 
@@ -12,6 +13,10 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
+    def get_banner(self) -> str:
+        pass
+
+    @abstractmethod
     def get_description(self) -> str:
         pass
 
@@ -20,19 +25,19 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
-    def add_task(self, group: AnyTask) -> AnyTask:
+    def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
         pass
 
     @abstractmethod
-    def get_sub_tasks(self) -> list[AnyTask]:
+    def get_sub_tasks(self) -> Mapping[str, AnyTask]:
         pass
 
     @abstractmethod
-    def get_task_by_name(self, name: str) -> AnyTask | None:
+    def get_task_by_alias(self, alias: str) -> AnyTask | None:
         pass
 
     @abstractmethod
-    def get_sub_groups(self) -> list[TGroup]:
+    def get_sub_groups(self) -> Mapping[str, TGroup]:
         pass
 
     @abstractmethod

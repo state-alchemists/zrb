@@ -5,8 +5,11 @@ from ..task import AnyTask
 
 class Group(AnyGroup):
 
-    def __init__(self, name: str, description: str | None = None):
+    def __init__(
+        self, name: str, banner: str | None = None, description: str | None = None
+    ):
         self._name = name
+        self._banner = banner
         self._description = description
         self._groups: Mapping[str, AnyGroup] = {}
         self._tasks: Mapping[str, AnyTask] = {}
@@ -17,6 +20,11 @@ class Group(AnyGroup):
     def get_name(self):
         return self._name
 
+    def get_banner(self) -> str:
+        if self._banner is None:
+            return ""
+        return self._banner
+
     def get_description(self):
         return self._description if self._description is not None else self.get_name()
 
@@ -24,22 +32,23 @@ class Group(AnyGroup):
         self._groups[group.get_name()] = group
         return group
 
-    def add_task(self, task: AnyTask) -> AnyTask:
-        self._tasks[task.get_name()] = task
+    def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
+        alias = alias if alias is not None else task.get_name()
+        self._tasks[alias] = task
         return task
 
-    def get_sub_tasks(self) -> list[AnyTask]:
-        names = list(self._tasks.keys())
-        names.sort()
-        return [self._tasks.get(name) for name in names]
+    def get_sub_tasks(self) -> Mapping[str, AnyTask]:
+        alias = list(self._tasks.keys())
+        alias.sort()
+        return {name: self._tasks.get(name) for name in alias}
 
-    def get_task_by_name(self, name: str) -> AnyTask | None:
-        return self._tasks.get(name)
+    def get_task_by_alias(self, alias: str) -> AnyTask | None:
+        return self._tasks.get(alias)
 
-    def get_sub_groups(self) -> list[AnyGroup]:
+    def get_sub_groups(self) -> Mapping[str, AnyGroup]:
         names = list(self._groups.keys())
         names.sort()
-        return [self._groups.get(name) for name in names]
+        return {name: self._groups.get(name) for name in names}
 
     def get_group_by_name(self, name: str) -> AnyGroup | None:
         return self._groups.get(name)

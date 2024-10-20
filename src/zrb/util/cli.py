@@ -51,3 +51,9 @@ def style(
     if len(code_parts) > 0:
         return '\033[' + ';'.join(code_parts) + 'm' + text + '\033[0m'
     return text
+
+
+def section_header(text: str):
+    return style(
+        f" {text} ", color=BLACK, background=BG_WHITE, style=UNDERLINE
+    )

@@ -51,6 +51,10 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
+    def set_upstreams(self, upstreams: TAnyTask | list[TAnyTask]):
+        pass
+
+    @abstractmethod
     def run(self, session: Session | None = None) -> Any:
         pass
 

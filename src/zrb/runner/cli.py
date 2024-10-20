@@ -1,5 +1,8 @@
 from typing import Any
 from collections.abc import Mapping
+from ..config import VERSION
+from ..util.cli import section_header
+from ..util.load import load_zrb_init
 from ..group import Group
 from ..task import AnyTask
 from ..session import Session
@@ -10,6 +13,7 @@ import sys
 class Cli(Group):
 
     def run(self):
+        load_zrb_init()
         positional, options = self._parse_args(sys.argv[1:])
         node, args = self._get_node_from_positional_argv(positional)
         if isinstance(node, Group):
@@ -19,7 +23,8 @@ class Cli(Group):
             self._show_task_info(node)
             return
         result = self._run_task(node, args, options)
-        print(result)
+        if result is not None:
+            print(result)
         return result
 
     def _get_node_from_positional_argv(
@@ -28,10 +33,10 @@ class Cli(Group):
         node = self
         args = []
         for index, name in enumerate(positional):
-            task = node.get_task_by_name(name)
+            task = node.get_task_by_alias(name)
             group = node.get_group_by_name(name)
             if task is None and group is None:
-                raise ValueError("Invalid positional arguments")
+                raise ValueError("Invalid command")
             if group is not None:
                 if task is not None and index == len(positional) - 1:
                     node = task
@@ -62,23 +67,41 @@ class Cli(Group):
     def _show_task_info(self, task: AnyTask):
         description = task.get_description()
         inputs = task.get_inputs()
-        print(description)
-        for task_input in inputs:
-            print(f"--{task_input.get_name()}: {task_input.get_description()}")
+        if description != task.get_name() and description != "":
+            print(section_header("DESCRIPTION"))
+            print(description)
+            print()
+        if len(inputs) > 0:
+            print(section_header("INPUTS"))
+            for task_input in inputs:
+                task_input_name = task_input.get_name().ljust(20)
+                print(f"  --{task_input_name}: {task_input.get_description()}")
+            print()
 
     def _show_group_info(self, group: Group):
+        banner = group.get_banner()
         description = group.get_description()
         sub_groups = group.get_sub_groups()
         sub_tasks = group.get_sub_tasks()
-        print(description)
-        print()
-        print("GROUPS")
-        for group in sub_groups:
-            print(f"- {group.get_name()}: {group.get_description()}")
-        print()
-        print("TASKS")
-        for task in sub_tasks:
-            print(f"- {task.get_name()}: {task.get_description()}")
+        if banner != "":
+            print(banner)
+            print()
+        if description != group.get_name() and description != "":
+            print(section_header("DESCRIPTION"))
+            print(description)
+            print()
+        if len(sub_groups) > 0:
+            print(section_header("GROUPS"))
+            for group_name, group in sub_groups.items():
+                group_name = group_name.ljust(20)
+                print(f"  {group_name}: {group.get_description()}")
+            print()
+        if len(sub_tasks) > 0:
+            print(section_header("TASKS"))
+            for alias, task in sub_tasks.items():
+                alias = alias.ljust(20)
+                print(f"  {alias}: {task.get_description()}")
+            print()
 
     def _parse_args(self, args: list[str]) -> tuple[list[str], Mapping[str, Any]]:
         positional = []  # To store positional arguments
@@ -111,7 +134,23 @@ class Cli(Group):
         return positional, options
 
 
+ZRB_BANNER = f"""
+                bb
+   zzzzz rr rr  bb
+     zz  rrr  r bbbbbb
+    zz   rr     bb   bb
+   zzzzz rr     bbbbbb   {VERSION}
+   _ _ . .  . _ .  _ . . .
+
+Super framework for your super app.
+
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+"""
+
 cli = Cli(
     name="zrb",
-    description="A Framework to Enhanche your workflow"
+    description="A Framework to Enhanche your workflow",
+    banner=ZRB_BANNER
 )
