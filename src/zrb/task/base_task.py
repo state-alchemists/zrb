@@ -3,7 +3,7 @@ from collections.abc import Callable
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 from ..session.session import Session
-from ..util.cli import VALID_COLORS, WHITE, style
+from ..util.cli.style import VALID_COLORS, WHITE, style
 from .any_task import AnyTask, State
 from ..config import SHOW_TIME
 

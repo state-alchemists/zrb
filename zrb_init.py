@@ -1,4 +1,8 @@
-from zrb import AnyTask, BaseTask, make_task, Session, IntInput, PasswordInput, StrInput, Group, cli
+from zrb import (
+    AnyTask, BaseTask, make_task, Session, IntInput, PasswordInput, StrInput, Group, cli
+)
+from zrb.util.cli.autocomplete.data import get_command_completions
+from zrb.util.cli.autocomplete.bash import generate_bash_autocompletion
 import asyncio
 
 
@@ -15,18 +19,19 @@ def create_dummy_process(name: str, delay: int):
     return run_dummy_process
 
 
-a = Task(name="a", action=create_dummy_process("a", 1))
-b = Task(
+alpha = Task(name="a", action=create_dummy_process("a", 1))
+beta = Task(
     name="b",
     action=create_dummy_process("b", 10),
     readiness_checks=[
         Task(name="check-b", action=create_dummy_process("check-b", 2))
     ]
 )
-c = Task(name="c", action=create_dummy_process("c", 1), upstreams=[a, b])
-d = Task(name="d", action=create_dummy_process("d", 2), upstreams=[a, b, c])
-e = Task(name="e", action=create_dummy_process("e", 3), upstreams=[a, b, c])
+c = Task(name="c", action=create_dummy_process("c", 1), upstreams=[alpha, beta])
+d = Task(name="d", action=create_dummy_process("d", 2), upstreams=[alpha, beta, c])
+e = Task(name="e", action=create_dummy_process("e", 3), upstreams=[alpha, beta, c])
 f = Task(name="f", action=create_dummy_process("f", 1), upstreams=[d, e])
+cli.add_task(f, "fahrenhait")
 
 
 # Sample
@@ -67,22 +72,25 @@ cli.add_task(
 
 
 @make_task(
-    name="a",
+    name="alpha",
     inputs=[
         StrInput("name", default="human"),
         StrInput("address", default="earth")
     ]
 )
-def a(t: AnyTask, s: Session):
+def alpha(t: AnyTask, s: Session):
     t.print(s.render("{input.name} {input.address}"))
 
 
 @make_task(
-    name="b",
-    upstreams=[a]
+    name="beta",
+    upstreams=[alpha]
 )
-def b(t: AnyTask, s: Session):
+def beta(t: AnyTask, s: Session):
     t.print(s.envs.get("USER"))
 
 
-cli.add_task(b)
+cli.add_task(beta)
+
+command_completion = get_command_completions(cli)
+print(generate_bash_autocompletion(command_completion))

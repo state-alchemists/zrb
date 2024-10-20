@@ -2,7 +2,7 @@ from typing import Any, Coroutine, TextIO, TypeVar
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from ..session.session import Session
-from ..util.cli import GREEN, YELLOW, BLUE, MAGENTA, CYAN, ICONS
+from ..util.cli.style import GREEN, YELLOW, BLUE, MAGENTA, CYAN, ICONS
 from ..input.any_input import AnyInput
 from ..env.any_env import AnyEnv
 
