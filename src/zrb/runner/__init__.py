@@ -1,6 +1,7 @@
 from .cli import cli, Group
-from ..task import BaseTask
-from ..input import IntInput
+from ..task import AnyTask, BaseTask, make_task
+from ..input import IntInput, PasswordInput, StrInput
+from ..session import Session
 
 assert cli
 
@@ -27,6 +28,38 @@ area = geometry.add_task(
             IntInput(name="height"),
         ],
         description="area of a square",
-        action=lambda t, s: t.print("calculating area")
+        action="{input.width * input.height}"
     )
 )
+
+
+cli.add_task(
+    BaseTask(
+        name="input-password",
+        inputs=[PasswordInput(name="password", prompt="Your password")],
+        description="Try password",
+        action="Your password: {input.password}"
+    )
+)
+
+
+@make_task(
+    name="a",
+    inputs=[
+        StrInput("name", default="human"),
+        StrInput("address", default="earth")
+    ]
+)
+def a(t: AnyTask, s: Session):
+    t.print(s.render("{input.name} {input.address}"))
+
+
+@make_task(
+    name="b",
+    upstreams=[a]
+)
+def b(t: AnyTask, s: Session):
+    t.print(s.envs.get("USER"))
+
+
+cli.add_task(b)

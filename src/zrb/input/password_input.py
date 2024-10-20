@@ -1,6 +1,7 @@
 from .str_input import StrInput
 from collections.abc import Callable
 from ..session.session import Session
+import getpass
 
 
 class PasswordInput(StrInput):
@@ -9,14 +10,26 @@ class PasswordInput(StrInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default_value: str | Callable[[Session], str] = "",
+        default: str | Callable[[Session], str] = "",
         auto_render: bool = True,
+        allow_empty: bool = True,
+        allow_positional_argument: bool = True,
     ):
         super().__init__(
             name=name,
             description=description,
             prompt=prompt,
-            default_value=default_value,
-            auto_render=auto_render
+            default=default,
+            auto_render=auto_render,
+            allow_empty=allow_empty,
+            allow_positional_argument=allow_positional_argument,
         )
         self._is_secret = True
+
+    def _prompt_cli(self, session: Session) -> str:
+        prompt_message = self.get_prompt_message()
+        default_value = self.get_default_value(session)
+        value = getpass.getpass(f"{prompt_message}: ")
+        if value.strip() == "":
+            value = default_value
+        return value

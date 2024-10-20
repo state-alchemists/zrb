@@ -3,6 +3,7 @@ from collections.abc import Callable
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 from ..session.session import Session
+from ..util.cli import VALID_COLORS, WHITE, style
 from .any_task import AnyTask, State
 
 import asyncio
@@ -23,18 +24,24 @@ class BaseTask(AnyTask):
     def __init__(
         self,
         name: str,
+        color: int | None = None,
+        icon: str | None = None,
         description: str | None = None,
-        inputs: list[AnyInput] | None = None,
-        envs: list[AnyEnv] | None = None,
+        inputs: list[AnyInput] | AnyInput | None = None,
+        envs: list[AnyEnv] | AnyEnv | None = None,
         action: str | Callable[[AnyTask, Session], Any] | None = None,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_checks: list[AnyTask] | None = None,
+        readiness_checks: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0,
         readiness_check_period: float = 0,
-        upstreams: list[AnyTask] | None = None,
+        upstreams: list[AnyTask] | AnyTask | None = None,
     ):
         self._name = name
+        self._color = color
+        self._tmp_color = WHITE
+        self._icon = icon
+        self._tmp_icon = "😐"
         self._description = description
         self._inputs = inputs
         self._envs = envs
@@ -52,6 +59,26 @@ class BaseTask(AnyTask):
     def get_name(self) -> str:
         return self._name
 
+    def get_color(self) -> int | None:
+        if self._color is not None:
+            return self._color
+        return self._tmp_color
+
+    def set_tmp_color(self, color: int):
+        if self._color is not None:
+            return
+        if color not in VALID_COLORS:
+            raise ValueError("Invalid color")
+        self._tmp_color = color
+
+    def get_icon(self) -> int | None:
+        if self._icon is not None:
+            return self._icon
+        return self._tmp_icon
+
+    def set_tmp_icon(self, icon: str):
+        self._tmp_icon = icon
+
     def get_description(self) -> str:
         return self._description if self._description is not None else self.get_name()
 
@@ -59,6 +86,8 @@ class BaseTask(AnyTask):
         envs = []
         for upstream in self.get_upstreams():
             envs += upstream.get_envs()
+        if isinstance(self._inputs, AnyEnv):
+            envs.append(self._envs)
         if self._envs is not None:
             envs += self._envs
         return envs
@@ -67,6 +96,8 @@ class BaseTask(AnyTask):
         inputs = []
         for upstream in self.get_upstreams():
             inputs += upstream.get_inputs()
+        if isinstance(self._inputs, AnyInput):
+            inputs.append(self._inputs)
         if self._inputs is not None:
             inputs += self._inputs
         return inputs
@@ -74,6 +105,8 @@ class BaseTask(AnyTask):
     def get_upstreams(self) -> list[AnyTask]:
         if self._upstreams is None:
             return []
+        if isinstance(self._upstreams, AnyTask):
+            return [self._upstreams]
         return self._upstreams
 
     def print(
@@ -84,8 +117,12 @@ class BaseTask(AnyTask):
         file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
+        color = self.get_color()
+        icon = self.get_icon()
+        name = self.get_name()
+        prefix = style(f"{icon} {name}", color=color)
         message = sep.join([f"{value}" for value in values])
-        print(message, sep=sep, end=end, file=file, flush=flush)
+        print(f"{prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 
     def run(self, session: Session | None = None) -> Any:
         return asyncio.run(self.async_run(session))
@@ -108,20 +145,19 @@ class BaseTask(AnyTask):
         return None
 
     def _update_session_envs(self, session: Session) -> Session:
-        env_map = {key: val for key, val in os.environ.items()}
+        # Inject os environ
+        os_env_map = {
+            key: val for key, val in os.environ.items() if key not in session.envs
+        }
+        session.envs.update(os_env_map)
+        # Inject environment from task's envs
         for env in self.get_envs():
-            env_map.update(env.get_env_map(session))
-        env_map.update(session.envs)
-        session.envs = env_map
+            env.update_session(session)
 
     def _update_session_inputs(self, session: Session) -> Session:
-        input_map = {}
         for task_input in self.get_inputs():
-            input_map.update(
-                {task_input.get_name(): task_input.get_value(session)}
-            )
-        input_map.update(session.inputs)
-        session.inputs = input_map
+            if task_input.get_name() not in session.inputs:
+                task_input.update_session(session)
 
     async def _async_run_root_tasks(self, state: State):
         root_tasks = [

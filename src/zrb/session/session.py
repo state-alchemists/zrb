@@ -4,25 +4,19 @@ import os
 import datetime
 
 
-class TaskStatus():
-    def __init__(self):
-        self._started: bool = False
-        self._completed: bool = False
+class DictToObject:
+    def __init__(self, dictionary):
+        self._dictionary = dictionary
+        for key, value in dictionary.items():
+            setattr(self, key, value)
 
-    def __repr__(self):
-        return f"<TaskStatus started={self._started} completed={self._completed}>"
+    def __getitem__(self, key):
+        return self._dictionary[key]
 
-    def start(self):
-        self._started = True
 
-    def complete(self):
-        self._completed = True
-
-    def is_started(self):
-        return self._started
-
-    def is_completed(self):
-        return self._completed
+def fstring_like_format(template: str, data: Mapping[str, Any]):
+    # Safely evaluate the template as a Python expression
+    return eval(f'f"""{template}"""', {}, data)
 
 
 class Session():
@@ -45,12 +39,16 @@ class Session():
         xcoms = self.xcoms
         return f"<Session inputs={inputs} args={args} envs={envs} xcoms={xcoms}>"
 
-    def render(self, value: str):
-        return value.format(
-            input=self._inputs,
-            args=self._args,
-            envs=self._envs,
-            xcoms=self._xcoms,
-            os=os,
-            datetime=datetime
+    def render(self, template: str, additional_data: Mapping[str, Any] = {}):
+        return fstring_like_format(
+            template=template,
+            data={
+                "input": DictToObject(self.inputs),
+                "args": self.args,
+                "env": DictToObject(self.envs),
+                "xcom": DictToObject(self.xcoms),
+                "os": os,
+                "datetime": datetime,
+                **additional_data,
+            }
         )

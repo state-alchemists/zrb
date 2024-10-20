@@ -1,7 +1,8 @@
 from typing import Any, Coroutine, TextIO, TypeVar
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from ..session.session import Session, TaskStatus
+from ..session.session import Session
+from ..util.cli import GREEN, YELLOW, BLUE, MAGENTA, CYAN, ICONS
 from ..input.any_input import AnyInput
 from ..env.any_env import AnyEnv
 
@@ -15,6 +16,22 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_color(self) -> int | None:
+        pass
+
+    @abstractmethod
+    def set_tmp_color(self, color: int):
+        pass
+
+    @abstractmethod
+    def get_icon(self) -> int | None:
+        pass
+
+    @abstractmethod
+    def set_tmp_icon(self, icon: str):
         pass
 
     @abstractmethod
@@ -69,6 +86,27 @@ class AnyTask(ABC):
         pass
 
 
+class TaskStatus():
+    def __init__(self):
+        self._started: bool = False
+        self._completed: bool = False
+
+    def __repr__(self):
+        return f"<TaskStatus started={self._started} completed={self._completed}>"
+
+    def start(self):
+        self._started = True
+
+    def complete(self):
+        self._completed = True
+
+    def is_started(self):
+        return self._started
+
+    def is_completed(self):
+        return self._completed
+
+
 class State():
     def __init__(self, session: Session):
         self._task_status: Mapping[AnyTask, TaskStatus] = {}
@@ -76,6 +114,10 @@ class State():
         self._downstreams: Mapping[AnyTask, list[AnyTask]] = {}
         self._session = session
         self._long_run_coros: list[Coroutine] = []
+        self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
+        self._icons = ICONS
+        self._color_index = 0
+        self._icon_index = 0
 
     def get_session(self):
         return self._session
@@ -90,11 +132,27 @@ class State():
 
     def register_task(self, task: AnyTask):
         if task not in self._task_status:
+            task.set_tmp_color(self._get_color())
+            task.set_tmp_icon(self._get_icon())
             self._task_status[task] = TaskStatus()
         if task not in self._downstreams:
             self._downstreams[task] = []
         if task not in self._upstreams:
             self._upstreams[task] = []
+
+    def _get_color(self) -> int:
+        chosen = self._colors[self._color_index]
+        self._color_index += 1
+        if self._color_index >= len(self._colors):
+            self._color_index = 0
+        return chosen
+
+    def _get_icon(self) -> int:
+        chosen = self._icons[self._icon_index]
+        self._icon_index += 1
+        if self._icon_index >= len(self._icons):
+            self._icon_index = 0
+        return chosen
 
     def register_upstreams(self, task: AnyTask, upstreams: list[AnyTask]):
         self.register_task(task)

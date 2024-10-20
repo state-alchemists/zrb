@@ -10,16 +10,20 @@ class StrInput(BaseInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default_value: str | Callable[[Session], str] = "",
+        default: str | Callable[[Session], str] = "",
         auto_render: bool = True,
+        allow_empty: bool = True,
+        allow_positional_argument: bool = True,
     ):
         super().__init__(
             name=name,
             description=description,
             prompt=prompt,
-            default_value=default_value,
-            auto_render=auto_render
+            default=default,
+            auto_render=auto_render,
+            allow_empty=allow_empty,
+            allow_positional_argument=allow_positional_argument,
         )
 
-    def get_value(self, session: Session, value: Any = None) -> str:
-        return super().get_value(session, value)
+    def update_session(self, session: Session, value: Any = None) -> str:
+        return super().update_session(session, value)

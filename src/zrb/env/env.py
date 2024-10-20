@@ -21,44 +21,35 @@ class Env(AnyEnv):
         self._os_var_prefix = os_var_prefix
         self._auto_render = auto_render
 
-    def get_env_map(self, session: Session) -> Mapping[str, str]:
-        env_map = self._get_env_map(session)
-        if not self._use_os_environ:
-            return env_map
-        for var_name in env_map:
-            prefixed_var_name = self._get_prefixed_var_name(var_name)
-            if prefixed_var_name in os.environ:
-                env_map[var_name] = os.environ.get(prefixed_var_name)
+    def update_session(self, session: Session) -> Mapping[str, str]:
+        # Update session using file_path
+        file_path = self._get_file_path()
+        if file_path is not None:
+            file_env_map = dotenv_values(self._file_path)
+            for var_name, value in file_env_map.items():
+                self._update_single_env_session(session, var_name, value)
+        # Update session using env_vars
+        env_vars_map = self._env_vars if self._env_vars is not None else {}
+        for var_name, value in env_vars_map.items():
+            value = value(session) if callable(value) else value
+            self._update_single_env_session(session, var_name, value)
+
+    def _get_file_path(self, session: Session) -> str:
+        if self._file_path is None:
+            return None
+        if self._auto_render:
+            return session.render(self._file_path)
+        return self._file_path
+
+    def _update_single_env_session(self, session: Session, var_name: str, value: str):
+        if self._use_os_environ:
+            os_var_name = self._get_prefixed_var_name(var_name)
+            if os_var_name in os.environ:
+                session.envs[var_name] = os.environ.get(os_var_name)
+                return
+        session.envs[var_name] = value
 
     def _get_prefixed_var_name(self, name: str) -> str:
         if self._os_var_prefix is None:
             return name
         return f"{self._os_var_prefix}_{name}"
-
-    def _get_env_map(self, session: Session) -> Mapping[str, str]:
-        """Retrieve the combined environment map."""
-        file_env_map = self._load_from_file_path()
-        var_env_map = self._load_from_env_vars(session)
-        # Merge the two dictionaries, with env_vars overriding file_path values
-        combined_env_map = file_env_map.copy()  # Start with file env
-        combined_env_map.update(var_env_map)    # Override with env_vars
-        return combined_env_map
-
-    def _load_from_file_path(self) -> Mapping[str, str]:
-        if self._file_path is None:
-            return {}
-        return dotenv_values(self._file_path)
-
-    def _load_from_env_vars(self, session: Session) -> Mapping[str, str]:
-        if self._env_vars is None:
-            return {}
-        env_map: Mapping[str, str] = {}
-        for key, value in self._env_vars.items():
-            if callable(value):
-                env_map[key] = value(session)  # Call the function
-            else:
-                env_map[key] = value  # Direct value
-            # render
-            if self._auto_render:
-                env_map[key] = session.render(env_map[key])
-        return env_map

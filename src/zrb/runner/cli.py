@@ -18,7 +18,9 @@ class Cli(Group):
         if "h" in options or "help" in options:
             self._show_task_info(node)
             return
-        self._run_task(node, args, options)
+        result = self._run_task(node, args, options)
+        print(result)
+        return result
 
     def _get_node_from_positional_argv(
         self, positional: list[str]
@@ -44,16 +46,18 @@ class Cli(Group):
         return node, args
 
     def _run_task(self, task: AnyTask, args: list[str], options: list[str]):
-        session = Session(
-            inputs=options,
-            args=args
-        )
+        session = Session(inputs=options, args=args)
         inputs = task.get_inputs()
+        arg_index = 0
         for task_input in inputs:
             if task_input.get_name() not in session.inputs:
-                print(task_input.get_name())
-                pass
-        task.run(session)
+                if arg_index < len(args):
+                    task_input.update_session(session, args[arg_index])
+                    arg_index += 1
+                    continue
+                input_value = task_input.prompt_cli(session)
+                task_input.update_session(session, input_value)
+        return task.run(session)
 
     def _show_task_info(self, task: AnyTask):
         description = task.get_description()
