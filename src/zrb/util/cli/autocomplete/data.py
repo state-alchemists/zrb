@@ -28,7 +28,7 @@ def get_command_completions(
             previous_path=previous_path + [group_name],
             command_completions=command_completions,
         )
-    if len (subcommands) > 0:
+    if len(subcommands) > 0:
         command_completions.append(
             CommandCompletion(
                 paths=previous_path + [group_name],

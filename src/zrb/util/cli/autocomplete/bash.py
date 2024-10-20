@@ -1,6 +1,8 @@
-def generate_bash_autocompletion(command_completions):
+from .data import CommandCompletion
+
+
+def generate_bash_autocompletion(cmd: str, command_completions: CommandCompletion):
     bash_script = [
-        "# Register the completion function",
         "_zrb_complete() {",
         "    local cur subcommands",
         "",

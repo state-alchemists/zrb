@@ -1,8 +1,6 @@
 from zrb import (
     AnyTask, BaseTask, make_task, Session, IntInput, PasswordInput, StrInput, Group, cli
 )
-from zrb.util.cli.autocomplete.data import get_command_completions
-from zrb.util.cli.autocomplete.bash import generate_bash_autocompletion
 import asyncio
 
 
@@ -91,6 +89,3 @@ def beta(t: AnyTask, s: Session):
 
 
 cli.add_task(beta)
-
-command_completion = get_command_completions(cli)
-print(generate_bash_autocompletion(command_completion))
