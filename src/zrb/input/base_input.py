@@ -1,6 +1,6 @@
 from typing import Any
 from collections.abc import Callable
-from ..session.session import Session
+from ..session.shared_context import SharedContext
 from .any_input import AnyInput
 
 
@@ -10,7 +10,7 @@ class BaseInput(AnyInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default: Any | Callable[[Session], Any] = None,
+        default: Any | Callable[[SharedContext], Any] = None,
         auto_render: bool = True,
         allow_empty: bool = True,
         allow_positional_argument: bool = True,
@@ -38,20 +38,20 @@ class BaseInput(AnyInput):
     def allow_positional_argument(self) -> bool:
         return self._allow_positional_argument
 
-    def update_session(self, session: Session, value: Any = None):
+    def update_shared_context(self, shared_context: SharedContext, value: Any = None):
         if value is None:
-            value = self.get_default_value(session)
-        session.inputs[self.get_name()] = value
+            value = self.get_default_value(shared_context)
+        shared_context.inputs[self.get_name()] = value
 
-    def prompt_cli(self, session: Session) -> Any:
-        value = self._prompt_cli(session)
+    def prompt_cli(self, shared_context: SharedContext) -> Any:
+        value = self._prompt_cli(shared_context)
         while not self._allow_empty and (value == "" or value is None):
-            value = self._prompt_cli(session)
+            value = self._prompt_cli(shared_context)
         return value
 
-    def _prompt_cli(self, session: Session) -> Any:
+    def _prompt_cli(self, shared_context: SharedContext) -> Any:
         prompt_message = self.get_prompt_message()
-        default_value = self.get_default_value(session)
+        default_value = self.get_default_value(shared_context)
         if default_value is not None:
             prompt_message = f"{prompt_message} [{default_value}]"
         value = input(f"{prompt_message}: ")
@@ -59,13 +59,13 @@ class BaseInput(AnyInput):
             value = default_value
         return value
 
-    def get_default_value(self, session: Session) -> Any:
-        default_value = self._get_default_value(session)
+    def get_default_value(self, shared_context: SharedContext) -> Any:
+        default_value = self._get_default_value(shared_context)
         if self._auto_render and isinstance(default_value, str):
-            session.render(default_value)
+            shared_context.render(default_value)
         return default_value
 
-    def _get_default_value(self, session: Session) -> Any:
+    def _get_default_value(self, shared_context: SharedContext) -> Any:
         if callable(self._default_value):
-            return self._default_value(session)
+            return self._default_value(shared_context)
         return self._default_value

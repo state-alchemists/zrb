@@ -1,7 +1,7 @@
 from typing import TypeVar
 from collections.abc import Mapping
 from abc import ABC, abstractmethod
-from ..task import AnyTask
+from ..task.any_task import AnyTask
 
 
 TGroup = TypeVar("TGroup", bound="AnyGroup")

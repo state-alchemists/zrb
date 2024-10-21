@@ -2,9 +2,9 @@
 
 if [ -n "$PREFIX" ] && [ "$PREFIX" = "/data/data/com.termux/files/usr" ]
 then
-    IS_TERMUX=1
+    _IS_TERMUX=1
 else
-    IS_TERMUX=0
+    _IS_TERMUX=0
 fi
 
 
@@ -50,7 +50,7 @@ reload() {
     log_info 'Loading project configuration (.env)'
     source "${PROJECT_DIR}/.env"
 
-    if [ "$IS_TERMUX" = "1" ]
+    if [ "$_IS_TERMUX" = "1" ]
     then
         log_info 'Updating Build Flags'
         _OLD_CFLAGS="$CFLAGS"
@@ -61,28 +61,22 @@ reload() {
     poetry lock --no-update
     poetry install
 
-    if [ "$IS_TERMUX" = "1" ]
+    if [ "$_IS_TERMUX" = "1" ]
     then
         log_info 'Restoring Build Flags'
         export CFLAGS="$_OLD_CFLAGS"
     fi
 
-    _CURRENT_SHELL=$(ps -p $$ | awk 'NR==2 {print $4}')
-    case "$_CURRENT_SHELL" in
+    case $(ps -p $$ | awk 'NR==2 {print $4}') in
     *zsh)
-        _CURRENT_SHELL="zsh"
+        log_info "Setting up shell completion for zsh"
+        source <(zrb shell autocomplete zsh)
         ;;
     *bash)
-        _CURRENT_SHELL="bash"
+        log_info "Setting up shell completion for bash"
+        source <(zrb shell autocomplete bash)
         ;;
     esac
-    if [ "$_CURRENT_SHELL" = "zsh" ] || [ "$_CURRENT_SHELL" = "bash" ]
-    then
-        log_info "Setting up shell completion for $_CURRENT_SHELL"
-        source <(zrb shell autocomplete ${CURRENT_SHELL})
-    else
-        log_info "Cannot set up shell completion for $_CURRENT_SHELL"
-    fi
 }
 
 init

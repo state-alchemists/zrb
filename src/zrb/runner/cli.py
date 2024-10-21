@@ -3,9 +3,9 @@ from collections.abc import Mapping
 from ..config import VERSION
 from ..util.cli.style import section_header
 from ..util.load import load_zrb_init
-from ..group import Group
-from ..task import AnyTask
-from ..session import Session
+from ..group.group import Group
+from ..task.any_task import AnyTask
+from ..session.shared_context import SharedContext
 
 import sys
 
@@ -51,17 +51,17 @@ class Cli(Group):
         return node, args
 
     def _run_task(self, task: AnyTask, args: list[str], options: list[str]):
-        session = Session(inputs=options, args=args)
+        session = SharedContext(inputs=options, args=args)
         inputs = task.get_inputs()
         arg_index = 0
         for task_input in inputs:
             if task_input.get_name() not in session.inputs:
                 if arg_index < len(args):
-                    task_input.update_session(session, args[arg_index])
+                    task_input.update_shared_context(session, args[arg_index])
                     arg_index += 1
                     continue
                 input_value = task_input.prompt_cli(session)
-                task_input.update_session(session, input_value)
+                task_input.update_shared_context(session, input_value)
         return task.run(session)
 
     def _show_task_info(self, task: AnyTask):

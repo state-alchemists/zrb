@@ -1,4 +1,4 @@
-from .runner import cli
+from .runner.cli import cli
 
 
 def serve_cli():

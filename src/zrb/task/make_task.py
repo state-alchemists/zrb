@@ -4,7 +4,7 @@ from .any_task import AnyTask
 from .base_task import BaseTask
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..session.session import Session
+from ..session.context import Context
 
 
 def make_task(
@@ -20,9 +20,9 @@ def make_task(
     readiness_check_delay: float = 0,
     readiness_check_period: float = 0,
     upstreams: list[AnyTask] | AnyTask | None = None,
-) -> Callable[[Callable[[AnyTask, Session], Any]], AnyTask]:
+) -> Callable[[Callable[[Context], Any]], AnyTask]:
 
-    def _make_task(fn: Callable[..., Any]) -> BaseTask:
+    def _make_task(fn: Callable[[Context], Any]) -> BaseTask:
         return BaseTask(
             name=name,
             color=color,

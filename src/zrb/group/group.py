@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from .any_group import AnyGroup
-from ..task import AnyTask
+from ..task.any_task import AnyTask
 
 
 class Group(AnyGroup):

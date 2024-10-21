@@ -1,6 +1,6 @@
 from .base_input import BaseInput
 from collections.abc import Callable
-from ..session.session import Session
+from ..session.shared_context import SharedContext
 
 
 class IntInput(BaseInput):
@@ -9,7 +9,7 @@ class IntInput(BaseInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default: str | int | Callable[[Session], str] = 0,
+        default: str | int | Callable[[SharedContext], str] = 0,
         auto_render: bool = True,
         allow_empty: bool = True,
         allow_positional_argument: bool = True,
@@ -24,14 +24,16 @@ class IntInput(BaseInput):
             allow_positional_argument=allow_positional_argument,
         )
 
-    def update_session(self, session: Session, value: str | int | None = None):
+    def update_shared_context(
+        self, shared_context: SharedContext, value: str | int | None = None
+    ):
         if value is None:
-            value = self.get_default_value(session)
+            value = self.get_default_value(shared_context)
         value = int(value)
-        super().update_session(session, value)
+        super().update_shared_context(shared_context, value)
 
-    def get_default_value(self, session: Session) -> int:
-        return int(super().get_default_value(session))
+    def get_default_value(self, shared_context: SharedContext) -> int:
+        return int(super().get_default_value(shared_context))
 
-    def prompt_cli(self, session: Session) -> int:
-        return int(super().prompt_cli(session))
+    def prompt_cli(self, shared_context: SharedContext) -> int:
+        return int(super().prompt_cli(shared_context))

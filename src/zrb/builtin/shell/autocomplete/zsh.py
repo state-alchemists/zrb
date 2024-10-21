@@ -1,5 +1,5 @@
 from ....runner.cli import cli
-from ....session.session import Session
+from ....session.shared_context import SharedContext
 from ....task.any_task import AnyTask
 from ....task.make_task import make_task
 from ....util.cli.autocomplete.zsh import generate_zsh_autocompletion
@@ -11,7 +11,7 @@ from ._group import shell_autocomplete_group
     name="make-zsh-autocomplete",
     description="Create Zrb autocomplete script for zsh",
 )
-def make_zsh_autocomplete(t: AnyTask, s: Session):
+def make_zsh_autocomplete(t: AnyTask, s: SharedContext):
     command_completions = get_command_completions(cli)
     script = generate_zsh_autocompletion(
         cmd=cli.get_name(),

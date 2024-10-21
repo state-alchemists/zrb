@@ -1,5 +1,5 @@
 from zrb import (
-    AnyTask, BaseTask, make_task, Session, IntInput, PasswordInput, StrInput, Group, cli
+    BaseTask, make_task, Context, IntInput, PasswordInput, StrInput, Group, cli
 )
 import asyncio
 
@@ -9,27 +9,28 @@ class Task(BaseTask):
 
 
 def create_dummy_process(name: str, delay: int):
-    async def run_dummy_process(task: Task, session: Session):
-        print(f"start {name}")
+    async def run_dummy_process(ctx: Context):
+        ctx.print(f"start {name}")
         await asyncio.sleep(delay)
-        print(f"stop {name}")
+        ctx.print(f"stop {name}")
         return name
     return run_dummy_process
 
 
-alpha = Task(name="a", action=create_dummy_process("a", 1))
+alpha = Task(name="alpha", action=create_dummy_process("a", 1))
 beta = Task(
-    name="b",
+    name="beta",
     action=create_dummy_process("b", 10),
     readiness_checks=[
-        Task(name="check-b", action=create_dummy_process("check-b", 2))
+        Task(name="check-beta", action=create_dummy_process("check-b", 2))
     ]
 )
-c = Task(name="c", action=create_dummy_process("c", 1), upstreams=[alpha, beta])
-d = Task(name="d", action=create_dummy_process("d", 2), upstreams=[alpha, beta, c])
-e = Task(name="e", action=create_dummy_process("e", 3), upstreams=[alpha, beta, c])
-f = Task(name="f", action=create_dummy_process("f", 1), upstreams=[d, e])
-cli.add_task(f, "fahrenhait")
+gamma = Task(name="gamma", action=create_dummy_process("c", 1), upstreams=[alpha, beta])
+delta = Task(name="delta", action=create_dummy_process("d", 2), upstreams=[alpha, beta, gamma])
+epsilon = Task(name="epsilon", action=create_dummy_process("e", 3), upstreams=[alpha, beta, gamma])
+phi = Task(name="phi", action=create_dummy_process("f", 1), upstreams=[delta, epsilon])
+cli.add_task(beta)
+cli.add_task(phi)
 
 
 # Sample
@@ -70,22 +71,22 @@ cli.add_task(
 
 
 @make_task(
-    name="alpha",
+    name="greetings",
     inputs=[
         StrInput("name", default="human"),
         StrInput("address", default="earth")
     ]
 )
-def alpha(t: AnyTask, s: Session):
-    t.print(s.render("{input.name} {input.address}"))
+def greetings(ctx: Context):
+    ctx.print(ctx.render("Hello {input.name} on {input.address}"))
 
 
 @make_task(
-    name="beta",
-    upstreams=[alpha]
+    name="get-sys-info",
+    upstreams=[greetings]
 )
-def beta(t: AnyTask, s: Session):
-    t.print(s.envs.get("USER"))
+def get_sys_info(ctx: Context):
+    ctx.print(ctx.envs.get("USER"))
 
 
-cli.add_task(beta)
+cli.add_task(get_sys_info)

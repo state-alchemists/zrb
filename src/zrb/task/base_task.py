@@ -1,17 +1,17 @@
-from typing import Any, TextIO
+from typing import Any
 from collections.abc import Callable
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
+from ..session.shared_context import AnySharedContext
+from ..session.shared_context import SharedContext
+from ..session.context import Context
+from ..session.any_session import AnySession
 from ..session.session import Session
-from ..util.cli.style import VALID_COLORS, WHITE, style
-from .any_task import AnyTask, State
-from ..config import SHOW_TIME
+from .any_task import AnyTask
 
 import asyncio
-import datetime
 import inspect
 import os
-import sys
 
 
 async def run_async(fn: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -31,7 +31,7 @@ class BaseTask(AnyTask):
         description: str | None = None,
         inputs: list[AnyInput] | AnyInput | None = None,
         envs: list[AnyEnv] | AnyEnv | None = None,
-        action: str | Callable[[AnyTask, Session], Any] | None = None,
+        action: str | Callable[[Context], Any] | None = None,
         retries: int = 2,
         retry_period: float = 0,
         readiness_checks: list[AnyTask] | AnyTask | None = None,
@@ -41,9 +41,7 @@ class BaseTask(AnyTask):
     ):
         self._name = name
         self._color = color
-        self._tmp_color = WHITE
         self._icon = icon
-        self._tmp_icon = "😐"
         self._description = description
         self._inputs = inputs
         self._envs = envs
@@ -72,24 +70,10 @@ class BaseTask(AnyTask):
         return self._name
 
     def get_color(self) -> int | None:
-        if self._color is not None:
-            return self._color
-        return self._tmp_color
-
-    def set_tmp_color(self, color: int):
-        if self._color is not None:
-            return
-        if color not in VALID_COLORS:
-            raise ValueError("Invalid color")
-        self._tmp_color = color
+        return self._color
 
     def get_icon(self) -> int | None:
-        if self._icon is not None:
-            return self._icon
-        return self._tmp_icon
-
-    def set_tmp_icon(self, icon: str):
-        self._tmp_icon = icon
+        return self._icon
 
     def get_description(self) -> str:
         return self._description if self._description is not None else self.get_name()
@@ -126,122 +110,106 @@ class BaseTask(AnyTask):
             self._upstreams.append(upstreams)
         self._upstreams += upstreams
 
-    def print(
-        self,
-        *values: object,
-        sep: str | None = " ",
-        end: str | None = "\n",
-        file: TextIO | None = sys.stderr,
-        flush: bool = True
-    ):
-        color = self.get_color()
-        icon = self.get_icon()
-        name = self.get_name()
-        padded_name = name.ljust(20)
-        if SHOW_TIME:
-            now = datetime.datetime.now()
-            formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
-            prefix = style(f"{icon} {padded_name} {formatted_time}", color=color)
-        else:
-            prefix = style(f"{icon} {padded_name}", color=color)
-        message = sep.join([f"{value}" for value in values])
-        print(f"{prefix} {message}", sep=sep, end=end, file=file, flush=flush)
+    def get_readiness_checks(self) -> list[AnyTask]:
+        if self._readiness_checks is None:
+            return []
+        if isinstance(self._readiness_checks, AnyTask):
+            return [self._readiness_checks]
+        return self._readiness_checks
 
-    def run(self, session: Session | None = None) -> Any:
-        return asyncio.run(self.async_run(session))
+    def run(self, shared_context: AnySharedContext | None = None) -> Any:
+        return asyncio.run(self.async_run(shared_context))
 
-    async def async_run(self, session: Session | None = None) -> Any:
-        if session is None:
-            session = Session()
+    async def async_run(self, shared_context: AnySharedContext | None = None) -> Any:
+        if shared_context is None:
+            shared_context = SharedContext()
         # Update session
-        self._update_session_inputs(session)
-        self._update_session_envs(session)
+        self._fill_shared_context_inputs(shared_context)
+        self._fill_shared_context_envs(shared_context)
         # Create state
-        state = State(session=session)
-        state.register_upstreams(self, self.get_upstreams())
-        await self._async_run_root_tasks(state)
-        await state.wait_long_run_coroutines()
-        if self._name in session.xcoms:
-            xcom = session.xcoms[self._name]
-            if len(xcom) > 0:
-                return xcom[len(xcom) - 1]
-        return None
+        session = Session(shared_context=shared_context)
+        session.register_task(self)
+        await self._async_run_root_tasks(session)
+        await session.wait_long_run_coroutines()
+        return session.peek_task_xcom(self)
 
-    def _update_session_envs(self, session: Session) -> Session:
+    def _fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
         os_env_map = {
-            key: val for key, val in os.environ.items() if key not in session.envs
+            key: val for key, val in os.environ.items()
+            if key not in shared_context.envs
         }
-        session.envs.update(os_env_map)
+        shared_context.envs.update(os_env_map)
         # Inject environment from task's envs
         for env in self.get_envs():
-            env.update_session(session)
+            env.update_shared_context(shared_context)
 
-    def _update_session_inputs(self, session: Session) -> Session:
+    def _fill_shared_context_inputs(self, shared_context: AnySharedContext):
         for task_input in self.get_inputs():
-            if task_input.get_name() not in session.inputs:
-                task_input.update_session(session)
+            if task_input.get_name() not in shared_context.inputs:
+                task_input.update_shared_context(shared_context)
 
-    async def _async_run_root_tasks(self, state: State):
+    async def _async_run_root_tasks(self, session: AnySession):
         root_tasks = [
-            task for task in state.get_tasks()
-            if state.is_allowed_to_run(task)
+            task for task in session.get_tasks()
+            if session.is_allowed_to_run(task)
         ]
         coros = [
-            root_task._async_run_and_trigger_downstreams(state)
+            root_task._async_run_with_downstreams(session)
             for root_task in root_tasks
         ]
         await asyncio.gather(*coros)
 
-    async def _async_run_and_trigger_downstreams(self, state: State):
-        if not state.is_allowed_to_run(self):
+    async def _async_run_with_downstreams(self, session: AnySession):
+        if not session.is_allowed_to_run(self):
             return
-        state.mark_task_as_started(self)
-        result = await run_async(self._async_run_action_and_check_readiness, state)
-        state.mark_task_as_completed(self)
-        # Set xcoms
-        session = state.get_session()
-        if self._name not in session.xcoms:
-            session.xcoms[self._name] = []
-        session.xcoms[self._name].append(result)
-        # Define callback
-        downstreams = state.get_downstreams(self)
+        session.mark_task_as_started(self)
+        await run_async(self._async_run_action_and_check_readiness, session)
+        session.mark_task_as_completed(self)
+        # Get current task's downstreams
+        downstreams = session.get_downstreams(self)
         if len(downstreams) == 0:
             return
+        # Run all the downstreams asynchronously
         coros = [
-            downstream._async_run_and_trigger_downstreams(state)
+            downstream._async_run_with_downstreams(session)
             for downstream in downstreams
         ]
         await asyncio.gather(*coros)
 
-    async def _async_run_action_and_check_readiness(self, state: State) -> Any:
-        session = state.get_session()
+    async def _async_run_action_and_check_readiness(self, session: AnySession):
+        context = session.get_context(self)
         if self._readiness_checks is None or len(self._readiness_checks) == 0:
-            return await self._async_run_action(session)
-        action = asyncio.create_task(self._async_run_action(session))
-        coros = [
-            check._async_run_action_and_check_readiness(state)
+            result = await self._async_run_action_and_retry(context)
+            session.append_task_xcom(self, result)
+            return result
+        coro = asyncio.create_task(self._async_run_action_and_retry(context))
+        readiness_checks = [
+            check._async_run_with_downstreams(session)
             for check in self._readiness_checks
         ]
-        result = await asyncio.gather(*coros)
-        state.register_long_run_coroutine(action)
+        result = await asyncio.gather(*readiness_checks)
+        session.register_long_run_coroutine(self, coro)
         return result
 
-    async def _async_run_action_with_retry(self, session: Session) -> Any:
-        for attempt in range(self._retries + 1):
+    async def _async_run_action_and_retry(self, context: Context) -> Any:
+        max_attempt = self._retries + 1
+        context.set_max_attempt(max_attempt)
+        for attempt in range(max_attempt):
+            context.set_attempt(attempt + 1)
             if attempt > 0:
                 await asyncio.sleep(self._retry_period)
             try:
-                return await self._async_run_action(session)
+                return await self._async_run_action(context)
             except KeyboardInterrupt as e:
                 raise e
             except Exception:
                 continue
         raise Exception(f"failed after {self._retries + 1} attempts")
 
-    async def _async_run_action(self, session: Session) -> Any:
+    async def _async_run_action(self, context: Context) -> Any:
         if self._action is None:
             return
         if isinstance(self._action, str):
-            return session.render(self._action)
-        return await run_async(self._action, self, session)
+            return context.render(self._action)
+        return await run_async(self._action, context)
