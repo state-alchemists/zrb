@@ -1,4 +1,4 @@
-from ....group.any_group import AnyGroup
+from ...group.any_group import AnyGroup
 
 
 class SubCommand():
