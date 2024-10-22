@@ -20,6 +20,7 @@ def make_task(
     readiness_check_delay: float = 0,
     readiness_check_period: float = 0,
     upstreams: list[AnyTask] | AnyTask | None = None,
+    fallbacks: list[AnyTask] | AnyTask | None = None,
 ) -> Callable[[Callable[[Context], Any]], AnyTask]:
 
     def _make_task(fn: Callable[[Context], Any]) -> BaseTask:
@@ -36,7 +37,8 @@ def make_task(
             readiness_checks=readiness_checks,
             readiness_check_delay=readiness_check_delay,
             readiness_check_period=readiness_check_period,
-            upstreams=upstreams
+            upstreams=upstreams,
+            fallbacks=fallbacks,
         )
 
     return _make_task

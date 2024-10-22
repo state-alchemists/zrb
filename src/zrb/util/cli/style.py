@@ -57,3 +57,7 @@ def section_header(text: str):
     return style(
         f" {text} ", color=BLACK, background=BG_WHITE, style=UNDERLINE
     )
+
+
+def bold_red(text: str):
+    return style(text, color=RED, style=BOLD)

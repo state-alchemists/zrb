@@ -7,31 +7,29 @@ from ..group.group import Group
 from ..task.any_task import AnyTask
 from ..session.shared_context import SharedContext
 
-import sys
-
 
 class Cli(Group):
 
-    def run(self):
+    def run(self, args: list[str]):
         load_zrb_init()
-        positional, options = self._parse_args(sys.argv[1:])
-        node, args = self._get_node_from_positional_argv(positional)
+        kwargs, args = self._extract_kwargs_from_args(args)
+        node, args = self._extract_node_from_args(args)
         if isinstance(node, Group):
             self._show_group_info(node)
             return
-        if "h" in options or "help" in options:
+        if "h" in kwargs or "help" in kwargs:
             self._show_task_info(node)
             return
-        result = self._run_task(node, args, options)
+        result = self._run_task(node, args, kwargs)
         if result is not None:
             print(result)
         return result
 
-    def _get_node_from_positional_argv(
+    def _extract_node_from_args(
         self, positional: list[str]
     ) -> tuple[Group | AnyTask, list[str]]:
         node = self
-        args = []
+        residual_args = []
         for index, name in enumerate(positional):
             task = node.get_task_by_alias(name)
             group = node.get_group_by_name(name)
@@ -40,21 +38,21 @@ class Cli(Group):
             if group is not None:
                 if task is not None and index == len(positional) - 1:
                     node = task
-                    args = positional[index+1:]
+                    residual_args = positional[index+1:]
                     break
                 node = group
                 continue
             if task is not None:
                 node = task
-                args = positional[index+1:]
+                residual_args = positional[index+1:]
                 break
-        return node, args
+        return node, residual_args
 
     def _run_task(self, task: AnyTask, args: list[str], options: list[str]):
         session = SharedContext(inputs=options, args=args)
-        inputs = task.get_inputs()
+        task_inputs = task.get_inputs()
         arg_index = 0
-        for task_input in inputs:
+        for task_input in task_inputs:
             if task_input.get_name() not in session.inputs:
                 if arg_index < len(args):
                     task_input.update_shared_context(session, args[arg_index])
@@ -103,9 +101,11 @@ class Cli(Group):
                 print(f"  {alias}: {task.get_description()}")
             print()
 
-    def _parse_args(self, args: list[str]) -> tuple[list[str], Mapping[str, Any]]:
-        positional = []  # To store positional arguments
-        options = {}     # To store options as a dictionary
+    def _extract_kwargs_from_args(
+        self, args: list[str]
+    ) -> tuple[Mapping[str, Any], list[str]]:
+        residual_args = []  # To store positional arguments
+        kwargs = {}     # To store options as a dictionary
         i = 0
         while i < len(args):
             arg = args[i]
@@ -113,25 +113,25 @@ class Cli(Group):
                 # Handle key-value pairs like --keyword=value
                 if '=' in arg:
                     key, value = arg[2:].split('=', 1)
-                    options[key] = value
+                    kwargs[key] = value
                 else:
                     # Handle flags like --this followed by a value or set to True
                     key = arg[2:]
                     # Check if the next item is a value or another flag
                     if i + 1 < len(args) and not args[i + 1].startswith('-'):
-                        options[key] = args[i + 1]
+                        kwargs[key] = args[i + 1]
                         i += 1  # Skip the next argument as it's a value
                     else:
-                        options[key] = True
+                        kwargs[key] = True
             elif arg.startswith('-'):
                 # Handle short flags like -t or -n
                 key = arg[1:]
-                options[key] = True
+                kwargs[key] = True
             else:
                 # Anything else is considered a positional argument
-                positional.append(arg)
+                residual_args.append(arg)
             i += 1
-        return positional, options
+        return kwargs, residual_args
 
 
 ZRB_BANNER = f"""

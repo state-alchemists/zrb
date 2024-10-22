@@ -60,12 +60,8 @@ class BaseInput(AnyInput):
         return value
 
     def get_default_value(self, shared_context: SharedContext) -> Any:
-        default_value = self._get_default_value(shared_context)
-        if self._auto_render and isinstance(default_value, str):
-            shared_context.render(default_value)
-        return default_value
-
-    def _get_default_value(self, shared_context: SharedContext) -> Any:
         if callable(self._default_value):
             return self._default_value(shared_context)
+        if self._auto_render and isinstance(self._default_value, str):
+            return shared_context.render(self._default_value)
         return self._default_value

@@ -38,6 +38,10 @@ class AnyBaseTask(ABC):
         pass
 
     @abstractmethod
+    def get_fallbacks(self) -> list[TAnyBaseTask]:
+        pass
+
+    @abstractmethod
     def set_upstreams(self, upstreams: TAnyBaseTask | list[TAnyBaseTask]):
         pass
 

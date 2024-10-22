@@ -1,5 +1,6 @@
 from .runner.cli import cli
+import sys
 
 
 def serve_cli():
-    cli.run()
+    cli.run(sys.argv[1:])

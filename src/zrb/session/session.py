@@ -29,12 +29,14 @@ class Session(AnySession):
         return self._shared_context
 
     def get_context(self, task: AnyBaseTask) -> AnyContext:
+        self._register_single_task(task)
         return self._context[task]
 
-    def register_long_run_coroutine(self, task: AnyBaseTask, coro: Coroutine):
+    def defer_task_coroutine(self, task: AnyBaseTask, coro: Coroutine):
+        self._register_single_task(task)
         self._long_run_coros[task] = coro
 
-    async def wait_long_run_coroutines(self):
+    async def wait_deffered_task_coroutines(self):
         if len(self._long_run_coros) == 0:
             return
         tasks = self._long_run_coros.keys()
@@ -58,18 +60,32 @@ class Session(AnySession):
     def get_tasks(self) -> list[AnyBaseTask]:
         return list(self._task_status.keys())
 
-    def get_downstreams(self, task: AnyBaseTask) -> list[AnyBaseTask]:
+    def get_next_tasks(self, task: AnyBaseTask) -> list[AnyBaseTask]:
+        self._register_single_task(task)
         return self._downstreams.get(task)
 
     def mark_task_as_started(self, task: AnyBaseTask):
         self._register_single_task(task)
         self._task_status[task].mark_as_started()
 
+    def mark_task_as_ready(self, task: AnyBaseTask):
+        self._register_single_task(task)
+        self._task_status[task].mark_as_ready()
+
     def mark_task_as_completed(self, task: AnyBaseTask):
         self._register_single_task(task)
         self._task_status[task].mark_as_completed()
 
+    def mark_task_as_skipped(self, task: AnyBaseTask):
+        self._register_single_task(task)
+        self._task_status[task].mark_as_skipped()
+
+    def mark_task_as_permanently_failed(self, task: AnyBaseTask):
+        self._register_single_task(task)
+        self._task_status[task].mark_as_permanently_failed()
+
     def peek_task_xcom(self, task: AnyBaseTask) -> Any:
+        self._register_single_task(task)
         task_name = task.get_name()
         if task_name not in self._shared_context.xcoms:
             return None
@@ -79,11 +95,12 @@ class Session(AnySession):
         return None
 
     def append_task_xcom(self, task: AnyBaseTask, value: Any):
-        self._init_xcom(task)
+        self._register_single_task(task)
         self._shared_context.xcoms[task.get_name()].append(value)
 
     def _register_single_task(self, task: AnyBaseTask):
-        self._init_xcom(task)
+        if task.get_name() not in self._shared_context.xcoms:
+            self._shared_context.xcoms[task.get_name()] = deque([])
         if task not in self._context:
             self._context[task] = Context(
                 shared_context=self._shared_context,
@@ -98,15 +115,9 @@ class Session(AnySession):
         if task not in self._upstreams:
             self._upstreams[task] = []
 
-    def _init_xcom(self, task: AnyBaseTask):
-        task_name = task.get_name()
-        if task_name not in self._shared_context.xcoms:
-            self._shared_context.xcoms[task_name] = deque([])
-
     def _get_color(self, task: AnyBaseTask) -> int:
-        task_color = task.get_color()
-        if task_color is not None:
-            return task_color
+        if task.get_color() is not None:
+            return task.get_color()
         chosen = self._colors[self._color_index]
         self._color_index += 1
         if self._color_index >= len(self._colors):
@@ -114,9 +125,8 @@ class Session(AnySession):
         return chosen
 
     def _get_icon(self, task: AnyBaseTask) -> int:
-        task_icon = task.get_icon()
-        if task_icon is not None:
-            return task_icon
+        if task.get_icon() is not None:
+            return task.get_icon()
         chosen = self._icons[self._icon_index]
         self._icon_index += 1
         if self._icon_index >= len(self._icons):
@@ -124,11 +134,12 @@ class Session(AnySession):
         return chosen
 
     def is_allowed_to_run(self, task: AnyBaseTask):
+        self._register_single_task(task)
         task_status = self._task_status[task]
         if task_status.is_started() or task_status.is_completed():
             return False
-        incomplete_upstreams = [
+        unfulfilled_upstreams = [
             upstream for upstream in self._upstreams[task]
-            if not self._task_status[upstream].is_completed()
+            if not self._task_status[upstream].allow_run_downstream()
         ]
-        return len(incomplete_upstreams) == 0
+        return len(unfulfilled_upstreams) == 0

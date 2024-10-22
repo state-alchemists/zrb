@@ -74,7 +74,7 @@ cli.add_task(
     name="greetings",
     inputs=[
         StrInput("name", default="human"),
-        StrInput("address", default="earth")
+        StrInput("address", default="{os.getcwd()}")
     ]
 )
 def greetings(ctx: Context):
@@ -90,3 +90,18 @@ def get_sys_info(ctx: Context):
 
 
 cli.add_task(get_sys_info)
+
+
+@make_task(
+    name="create-something",
+    fallbacks=BaseTask(
+        name="fallback-create-something",
+        action=lambda ctx: ctx.print("cleaning up")
+    )
+)
+def create_something(ctx: Context):
+    ctx.print("trying to create")
+    raise Exception("failed")
+
+
+cli.add_task(create_something)

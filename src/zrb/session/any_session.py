@@ -16,11 +16,11 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def register_long_run_coroutine(self, task: AnyBaseTask, coro: Coroutine):
+    def defer_task_coroutine(self, task: AnyBaseTask, coro: Coroutine):
         pass
 
     @abstractmethod
-    async def wait_long_run_coroutines(self):
+    async def wait_deffered_task_coroutines(self):
         pass
 
     @abstractmethod
@@ -32,7 +32,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_downstreams(self, task: AnyBaseTask) -> list[AnyBaseTask]:
+    def get_next_tasks(self, task: AnyBaseTask) -> list[AnyBaseTask]:
         pass
 
     @abstractmethod
@@ -40,7 +40,19 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
+    def mark_task_as_ready(self, task: AnyBaseTask):
+        pass
+
+    @abstractmethod
     def mark_task_as_completed(self, task: AnyBaseTask):
+        pass
+
+    @abstractmethod
+    def mark_task_as_skipped(self, task: AnyBaseTask):
+        pass
+
+    @abstractmethod
+    def mark_task_as_permanently_failed(self, task: AnyBaseTask):
         pass
 
     @abstractmethod
