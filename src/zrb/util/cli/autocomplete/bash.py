@@ -1,7 +1,7 @@
-from .data import CommandCompletion
+from .subcommand import SubCommand
 
 
-def generate_bash_autocompletion(cmd: str, command_completions: CommandCompletion):
+def make_bash_completion_script(cmd: str, subcommands: list[SubCommand]):
     bash_script = [
         "_zrb_complete() {",
         "    local cur subcommands",
@@ -14,14 +14,14 @@ def generate_bash_autocompletion(cmd: str, command_completions: CommandCompletio
         ""
     ]
     # Iterate through command completions to generate conditions
-    for index, completion in enumerate(command_completions):
+    for index, subcommand in enumerate(subcommands):
         _add_completion_conditions(
             bash_script=bash_script,
-            path=completion.paths,
-            subcommands=completion.subcommands,
-            depth=len(completion.paths),
+            path=subcommand.paths,
+            nexts=subcommand.nexts,
+            depth=len(subcommand.paths),
             is_first=index == 0,
-            is_last=index == (len(command_completions) - 1),
+            is_last=index == (len(subcommands) - 1),
         )
     # Last part
     bash_script += [
@@ -38,7 +38,7 @@ def generate_bash_autocompletion(cmd: str, command_completions: CommandCompletio
 def _add_completion_conditions(
     bash_script: list[str],
     path: list[str],
-    subcommands: list[str],
+    nexts: list[str],
     depth: int,
     is_first: bool,
     is_last: bool
@@ -53,7 +53,7 @@ def _add_completion_conditions(
     bash_script += [
         if_statement,
         "then",
-        f"        subcommands=\"{' '.join(subcommands)}\"",
+        f"        subcommands=\"{' '.join(nexts)}\"",
     ]
     if is_last:
         bash_script.append("    fi")

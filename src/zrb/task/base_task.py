@@ -201,11 +201,11 @@ class BaseTask(AnyTask):
                 await asyncio.sleep(self._retry_period)
             try:
                 return await self._async_run_action(context)
-            except KeyboardInterrupt as e:
-                raise e
-            except Exception:
-                continue
-        raise Exception(f"failed after {self._retries + 1} attempts")
+            except KeyboardInterrupt:
+                return
+            except Exception as e:
+                if attempt >= max_attempt - 1:
+                    raise e
 
     async def _async_run_action(self, context: Context) -> Any:
         if self._action is None:

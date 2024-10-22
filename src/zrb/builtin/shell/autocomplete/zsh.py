@@ -1,23 +1,38 @@
-from ....runner.cli import cli
-from ....session.shared_context import SharedContext
-from ....task.any_task import AnyTask
+from ....session.context import Context
 from ....task.make_task import make_task
-from ....util.cli.autocomplete.zsh import generate_zsh_autocompletion
-from ....util.cli.autocomplete.data import get_command_completions
 from ._group import shell_autocomplete_group
+
+_COMPLETION_SCRIPT = """
+# Zsh dynamic completion script
+_zrb_complete() {
+    local -a subcommands
+    local cmd_input
+    local subcmd_output
+
+    # Build the command input based on the current words
+    cmd_input="zrb shell autocomplete subcmd ${words[1,CURRENT-1]}"
+
+    # Fetch the subcommands dynamically and store them in a variable
+    subcmd_output=$(eval "$cmd_input")
+
+    # Split the output into an array using spaces or newlines as separators
+    subcommands=(${=subcmd_output})
+
+    # Provide the completion suggestions
+    _describe 'subcommand' subcommands
+}
+
+# Register the completion function
+compdef _zrb_complete zrb
+"""
 
 
 @make_task(
     name="make-zsh-autocomplete",
     description="Create Zrb autocomplete script for zsh",
 )
-def make_zsh_autocomplete(t: AnyTask, s: SharedContext):
-    command_completions = get_command_completions(cli)
-    script = generate_zsh_autocompletion(
-        cmd=cli.get_name(),
-        command_completions=command_completions
-    )
-    return script
+def make_zsh_autocomplete(ctx: Context):
+    return _COMPLETION_SCRIPT
 
 
 shell_autocomplete_group.add_task(make_zsh_autocomplete, "zsh")

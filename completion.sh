@@ -49,3 +49,28 @@ _zrb_complete() {
 
 # Register the completion function
 compdef _zrb_complete zrb
+
+
+# Zsh completion script
+_zrb_complete() {
+    local -a subcommands
+    local cmd_output
+
+    # Initialize subcommands based on dynamic command output
+    if [[ $CURRENT -ge 2 ]]; then
+        # Form the command dynamically based on the current words
+        local cmd_args="${words[1,CURRENT-1]}"
+        
+        # Fetch subcommands dynamically using the zrb shell autocomplete subcmd
+        cmd_output=$(zrb shell autocomplete subcmd $cmd_args 2>/dev/null)
+
+        # Convert the output into an array of subcommands
+        subcommands=(${(s: :)cmd_output})
+    fi
+
+    # Provide the completion suggestions
+    _describe 'subcommand' subcommands
+}
+
+# Register the completion function
+compdef _zrb_complete zrb

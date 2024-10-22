@@ -1,23 +1,41 @@
-from ....runner.cli import cli
-from ....session.shared_context import SharedContext
-from ....task.any_task import AnyTask
+from ....session.context import Context
 from ....task.make_task import make_task
-from ....util.cli.autocomplete.bash import generate_bash_autocompletion
-from ....util.cli.autocomplete.data import get_command_completions
 from ._group import shell_autocomplete_group
+
+_COMPLETION_SCRIPT = """
+# Bash dynamic completion script
+_zrb_complete() {
+    local cur cmd_input subcmd_output
+    local -a subcommands
+
+    # Get the current word being completed
+    cur="${COMP_WORDS[COMP_CWORD]}"
+
+    # Build the command input dynamically (excluding the current word being typed)
+    cmd_input="zrb shell autocomplete subcmd ${COMP_WORDS[@]:0:$COMP_CWORD}"
+
+    # Fetch the subcommands dynamically
+    subcmd_output=$(eval "$cmd_input")
+
+    # Split the output into an array of subcommands using whitespace
+    IFS=' ' read -r -a subcommands <<< "$subcmd_output"
+
+    # Generate completion suggestions if subcommands is not empty
+    COMPREPLY=( $(compgen -W "${subcommands[*]}" -- "$cur") )
+}
+
+# Register the completion function for zrb
+complete -F _zrb_complete zrb
+
+"""
 
 
 @make_task(
     name="make-bash-autocomplete",
     description="Create Zrb autocomplete script for bash",
 )
-def make_bash_autocomplete(t: AnyTask, s: SharedContext):
-    command_completions = get_command_completions(cli)
-    script = generate_bash_autocompletion(
-        cmd=cli.get_name(),
-        command_completions=command_completions
-    )
-    return script
+def make_bash_autocomplete(ctx: Context):
+    return _COMPLETION_SCRIPT
 
 
 shell_autocomplete_group.add_task(make_bash_autocomplete, "bash")
