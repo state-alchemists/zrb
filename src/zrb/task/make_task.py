@@ -12,15 +12,15 @@ def make_task(
     color: int | None = None,
     icon: str | None = None,
     description: str | None = None,
-    inputs: list[AnyInput] | AnyInput | None = None,
-    envs: list[AnyEnv] | AnyEnv | None = None,
+    input: list[AnyInput] | AnyInput | None = None,
+    env: list[AnyEnv] | AnyEnv | None = None,
     retries: int = 2,
     retry_period: float = 0,
-    readiness_checks: list[AnyTask] | None = None,
+    readiness_check: list[AnyTask] | AnyTask | None = None,
     readiness_check_delay: float = 0,
     readiness_check_period: float = 0,
-    upstreams: list[AnyTask] | AnyTask | None = None,
-    fallbacks: list[AnyTask] | AnyTask | None = None,
+    upstream: list[AnyTask] | AnyTask | None = None,
+    fallback: list[AnyTask] | AnyTask | None = None,
 ) -> Callable[[Callable[[Context], Any]], AnyTask]:
 
     def _make_task(fn: Callable[[Context], Any]) -> BaseTask:
@@ -29,16 +29,16 @@ def make_task(
             color=color,
             icon=icon,
             description=description,
-            inputs=inputs,
-            envs=envs,
+            input=input,
+            env=env,
             action=fn,
             retries=retries,
             retry_period=retry_period,
-            readiness_checks=readiness_checks,
+            readiness_check=readiness_check,
             readiness_check_delay=readiness_check_delay,
             readiness_check_period=readiness_check_period,
-            upstreams=upstreams,
-            fallbacks=fallbacks,
+            upstream=upstream,
+            fallback=fallback,
         )
 
     return _make_task

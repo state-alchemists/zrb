@@ -30,28 +30,28 @@ class BaseTask(AnyTask):
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
-        inputs: list[AnyInput] | AnyInput | None = None,
-        envs: list[AnyEnv] | AnyEnv | None = None,
+        input: list[AnyInput] | AnyInput | None = None,
+        env: list[AnyEnv] | AnyEnv | None = None,
         action: str | Callable[[Context], Any] | None = None,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_checks: list[AnyTask] | AnyTask | None = None,
+        readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0,
         readiness_check_period: float = 0,
-        upstreams: list[AnyTask] | AnyTask | None = None,
-        fallbacks: list[AnyTask] | AnyTask | None = None,
+        upstream: list[AnyTask] | AnyTask | None = None,
+        fallback: list[AnyTask] | AnyTask | None = None,
     ):
         self._name = name
         self._color = color
         self._icon = icon
         self._description = description
-        self._inputs = inputs
-        self._envs = envs
+        self._inputs = input
+        self._envs = env
         self._retries = retries
         self._retry_period = retry_period
-        self._upstreams = upstreams
-        self._fallbacks = fallbacks
-        self._readiness_checks = readiness_checks
+        self._upstreams = upstream
+        self._fallbacks = fallback
+        self._readiness_checks = readiness_check
         self._readiness_check_delay = readiness_check_delay
         self._readiness_check_period = readiness_check_period
         self._action = action
@@ -138,7 +138,7 @@ class BaseTask(AnyTask):
         self._fill_shared_context_envs(shared_context)
         # Create state
         session = Session(shared_context=shared_context)
-        return await self.async_run_root_tasks(session)
+        return await self.async_exec_root_tasks(session)
 
     def _fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
@@ -156,60 +156,60 @@ class BaseTask(AnyTask):
             if task_input.get_name() not in shared_context.inputs:
                 task_input.update_shared_context(shared_context)
 
-    async def async_run_root_tasks(self, session: AnySession):
+    async def async_exec_root_tasks(self, session: AnySession):
         session.register_task(self)
         root_tasks = [
             task for task in session.get_tasks()
             if session.is_allowed_to_run(task)
         ]
         root_task_coros = [
-            root_task.async_run_chain(session)
+            root_task.async_exec_chain(session)
             for root_task in root_tasks
         ]
         await asyncio.gather(*root_task_coros)
         await session.wait_deffered_task_coroutines()
         return session.peek_task_xcom(self)
 
-    async def async_run_chain(self, session: AnySession):
+    async def async_exec_chain(self, session: AnySession):
         if not session.is_allowed_to_run(self):
             # Task is not allowed to run, skip it for now.
             # This will be triggered later
             return
-        await run_async(self._async_run_action_and_check_readiness, session)
+        await run_async(self._async_exec_action_and_check_readiness, session)
         # Get next tasks
         nexts = session.get_next_tasks(self)
         if len(nexts) == 0:
             return
         # Run next tasks asynchronously
         coros = [
-            next.async_run_chain(session)
+            next.async_exec_chain(session)
             for next in nexts
         ]
         await asyncio.gather(*coros)
 
-    async def _async_run_action_and_check_readiness(self, session: AnySession):
-        if self._readiness_checks is None or len(self._readiness_checks) == 0:
+    async def _async_exec_action_and_check_readiness(self, session: AnySession):
+        readiness_checks = self.get_readiness_checks()
+        if len(readiness_checks) == 0:
             # Task has no readiness check
             session.mark_task_as_started(self)
-            result = await self._async_run_action_and_retry(session)
+            result = await self._async_exec_action_and_retry(session)
             session.mark_task_as_completed(self)
             session.append_task_xcom(self, result)
             return result
-        # Start the task with its readiness checks
+        # Start the task along with the readiness checks
         session.mark_task_as_started(self)
-        coro = asyncio.create_task(self._async_run_action_and_retry(session))
-        readiness_checks = [
-            check.async_run_chain(session)
-            for check in self._readiness_checks
+        coro = asyncio.create_task(self._async_exec_action_and_retry(session))
+        readiness_check_coros = [
+            check.async_exec_chain(session) for check in readiness_checks
         ]
         # Only wait for readiness checks and mark the task as ready
-        result = await asyncio.gather(*readiness_checks)
+        result = await asyncio.gather(*readiness_check_coros)
         session.mark_task_as_ready(self)
         # Defer task's coroutines, will be waited later
         session.defer_task_coroutine(self, coro)
         return result
 
-    async def _async_run_action_and_retry(self, session: AnySession) -> Any:
+    async def _async_exec_action_and_retry(self, session: AnySession) -> Any:
         context = session.get_context(self)
         max_attempt = self._retries + 1
         context.set_max_attempt(max_attempt)
@@ -219,7 +219,7 @@ class BaseTask(AnyTask):
                 # apply retry period only if this is not the first attempt
                 await asyncio.sleep(self._retry_period)
             try:
-                return await self._async_run_action(context)
+                return await self._async_exec_action(context)
             except KeyboardInterrupt:
                 return
             except Exception as e:
@@ -227,18 +227,18 @@ class BaseTask(AnyTask):
                 if attempt < max_attempt - 1:
                     continue
                 session.mark_task_as_permanently_failed(self)
-                await self._async_run_fallbacks(session)
+                await self._async_exec_fallbacks(session)
                 raise e
 
-    async def _async_run_fallbacks(self, session: AnySession) -> Any:
+    async def _async_exec_fallbacks(self, session: AnySession) -> Any:
         fallbacks = self.get_fallbacks()
         fallback_coros = [
-            fallback.async_run_chain(session)
+            fallback.async_exec_chain(session)
             for fallback in fallbacks
         ]
         await asyncio.gather(*fallback_coros)
 
-    async def _async_run_action(self, context: Context) -> Any:
+    async def _async_exec_action(self, context: Context) -> Any:
         if self._action is None:
             return
         if isinstance(self._action, str):
