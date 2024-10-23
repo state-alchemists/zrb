@@ -8,7 +8,7 @@ from ..session.context import Context
 from ..session.any_session import AnySession
 from ..session.session import Session
 from ..util.run import run_async
-from ..util.cli.style import bold_red
+from ..util.cli.style import stylize_error
 from ..util.string.conversion import to_boolean
 from .any_task import AnyTask
 
@@ -233,7 +233,7 @@ class BaseTask(AnyTask):
             except KeyboardInterrupt:
                 return
             except Exception as e:
-                context.print(bold_red(f"{e}"))
+                context.print(stylize_error(f"{e}"))
                 if attempt < max_attempt - 1:
                     continue
                 session.mark_task_as_permanently_failed(self)
@@ -248,9 +248,9 @@ class BaseTask(AnyTask):
         ]
         await asyncio.gather(*fallback_coros)
 
-    async def _async_exec_action(self, context: Context) -> Any:
+    async def _async_exec_action(self, ctx: Context) -> Any:
         if self._action is None:
             return
         if isinstance(self._action, str):
-            return context.render(self._action)
-        return await run_async(self._action, context)
+            return ctx.render(self._action)
+        return await run_async(self._action, ctx)

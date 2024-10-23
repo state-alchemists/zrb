@@ -1,7 +1,7 @@
 from typing import Any
 from collections.abc import Mapping
 from ..config import VERSION
-from ..util.cli.style import section_header
+from ..util.cli.style import stylize_section_header
 from ..util.load import load_zrb_init
 from ..group.group import Group
 from ..task.any_task import AnyTask
@@ -66,11 +66,11 @@ class Cli(Group):
         description = task.get_description()
         inputs = task.get_inputs()
         if description != task.get_name() and description != "":
-            print(section_header("DESCRIPTION"))
+            print(stylize_section_header("DESCRIPTION"))
             print(description)
             print()
         if len(inputs) > 0:
-            print(section_header("INPUTS"))
+            print(stylize_section_header("INPUTS"))
             for task_input in inputs:
                 task_input_name = task_input.get_name().ljust(20)
                 print(f"  --{task_input_name}: {task_input.get_description()}")
@@ -85,17 +85,17 @@ class Cli(Group):
             print(banner)
             print()
         if description != group.get_name() and description != "":
-            print(section_header("DESCRIPTION"))
+            print(stylize_section_header("DESCRIPTION"))
             print(description)
             print()
         if len(sub_groups) > 0:
-            print(section_header("GROUPS"))
+            print(stylize_section_header("GROUPS"))
             for group_name, group in sub_groups.items():
                 group_name = group_name.ljust(20)
                 print(f"  {group_name}: {group.get_description()}")
             print()
         if len(sub_tasks) > 0:
-            print(section_header("TASKS"))
+            print(stylize_section_header("TASKS"))
             for alias, task in sub_tasks.items():
                 alias = alias.ljust(20)
                 print(f"  {alias}: {task.get_description()}")

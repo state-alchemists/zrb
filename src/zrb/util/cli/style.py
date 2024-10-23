@@ -62,11 +62,23 @@ def stylize(
     return text
 
 
-def section_header(text: str):
+def stylize_section_header(text: str):
     return stylize(
         f" {text} ", color=BLACK, background=BG_WHITE, style=UNDERLINE
     )
 
 
-def bold_red(text: str):
+def stylize_bold_red(text: str):
     return stylize(text, color=RED, style=BOLD)
+
+
+def stylize_log(text: str):
+    return stylize(text, style=FAINT)
+
+
+def stylize_warning(text: str):
+    return stylize(text, color=YELLOW, style=BOLD)
+
+
+def stylize_error(text: str):
+    return stylize_bold_red(text)

@@ -2,10 +2,10 @@ from typing import Any, TextIO
 from collections.abc import Mapping
 from .any_context import AnyContext
 from .shared_context import SharedContext
-from ..config import SHOW_TIME
-from ..util.cli.style import stylize
+from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
 
 import datetime
+import logging
 import sys
 
 
@@ -60,7 +60,7 @@ class Context(AnyContext):
         task_name = self._task_name
         padded_task_name = task_name.ljust(20)
         attempt_status = f"{self._attempt}/{self._max_attempt}"
-        if SHOW_TIME:
+        if self._shared_context.show_time():
             now = datetime.datetime.now()
             formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
             prefix = stylize(
@@ -71,3 +71,68 @@ class Context(AnyContext):
             prefix = stylize(f"{attempt_status} {icon} {padded_task_name}", color=color)
         message = sep.join([f"{value}" for value in values])
         print(f"{prefix} {message}", sep=sep, end=end, file=file, flush=flush)
+
+    def log_debug(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        if self._shared_context.get_logging_level() <= logging.DEBUG:
+            message = sep.join([f"{value}" for value in values])
+            stylized_message = stylize_log(f"[DEBUG] {message}")
+            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+
+    def log_info(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        if self._shared_context.get_logging_level() <= logging.INFO:
+            message = sep.join([f"{value}" for value in values])
+            stylized_message = stylize_log(f"[INFO] {message}")
+            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+
+    def log_warning(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        if self._shared_context.get_logging_level() <= logging.INFO:
+            message = sep.join([f"{value}" for value in values])
+            stylized_message = stylize_warning(f"[WARNING] {message}")
+            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+
+    def log_error(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        if self._shared_context.get_logging_level() <= logging.ERROR:
+            message = sep.join([f"{value}" for value in values])
+            stylized_message = stylize_error(f"[ERROR] {message}")
+            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
+
+    def log_critical(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        if self._shared_context.get_logging_level() <= logging.CRITICAL:
+            message = sep.join([f"{value}" for value in values])
+            stylized_message = stylize_error(f"[CRITICAL] {message}")
+            self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)

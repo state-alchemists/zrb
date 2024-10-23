@@ -112,7 +112,7 @@ cli.add_task(CmdTask(
     env=Env(env_vars={"FOO": "BAR"}),
     cmd=[
         "uname",
-        lambda ctx: f"From function: {ctx.env.FOO}",
-        "From template: {env.FOO}",
+        lambda ctx: f"echo From function: {ctx.env.FOO}",
+        "echo From template: {env.FOO}",
     ]
 ))

@@ -28,3 +28,59 @@ class AnyContext(ABC):
         flush: bool = True
     ):
         pass
+
+    @abstractmethod
+    def log_debug(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        pass
+
+    @abstractmethod
+    def log_info(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        pass
+
+    @abstractmethod
+    def log_warning(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        pass
+
+    @abstractmethod
+    def log_error(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        pass
+
+    @abstractmethod
+    def log_critical(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True
+    ):
+        pass
+

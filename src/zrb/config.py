@@ -1,6 +1,8 @@
-import importlib.metadata as metadata
-import os
 from .util.string.conversion import to_boolean
+
+import importlib.metadata as metadata
+import logging
+import os
 
 
 def _get_version() -> str:
@@ -20,6 +22,21 @@ def _get_default_tmp_dir() -> str:
     return os.path.expanduser(os.path.join("~", ".tmp"))
 
 
+def _get_log_level(level: str) -> int:
+    level = level.upper()
+    log_levels = {
+        "CRITICAL": logging.CRITICAL,  # 50
+        "ERROR": logging.ERROR,        # 40
+        "WARNING": logging.WARNING,    # 30
+        "INFO": logging.INFO,          # 20
+        "DEBUG": logging.DEBUG,        # 10
+        "NOTSET": logging.NOTSET       # 0
+    }
+    if level in log_levels:
+        return log_levels[level]
+    return logging.WARNING
+
+
 TMP_DIR = os.getenv("ZRB_TMP_DIR", _get_default_tmp_dir())
 DEFAULT_SHELL = os.getenv("ZRB_SHELL", _get_current_shell())
 DEFAULT_EDITOR = os.getenv("ZRB_EDITOR", "nano")
@@ -35,6 +52,7 @@ INIT_SCRIPTS = (
     if INIT_SCRIPTS_STR != ""
     else []
 )
+LOGGING_LEVEL = _get_log_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
 SHOULD_LOAD_BUILTIN = to_boolean(os.getenv("ZRB_SHOULD_LOAD_BUILTIN", "1"))
 ENV_PREFIX = os.getenv("ZRB_ENV", "")
 SHOW_ADVERTISEMENT = to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))

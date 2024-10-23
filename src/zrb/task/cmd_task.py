@@ -8,6 +8,7 @@ from ..input.any_input import AnyInput
 from ..session.context import Context
 from ..util.cmd.remote import get_remote_cmd_script
 
+import io
 import os
 import threading
 import subprocess
@@ -73,124 +74,129 @@ class CmdTask(BaseTask):
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
 
-    async def _async_exec_action(self, context: Context) -> CmdResult:
-        cmd_script = self.__get_local_or_remote_cmd_script(context)
-        context.print(f"Run script: {self.__get_multiline_repr(cmd_script)}")
-        cwd = self._get_cwd(context)
-        context.print(f"Working directory: {cwd}")
-        self._process = subprocess.Popen(
+    async def _async_exec_action(self, ctx: Context) -> CmdResult:
+        cmd_script = self.__get_local_or_remote_cmd_script(ctx)
+        ctx.log_debug(f"Run script: {self.__get_multiline_repr(cmd_script)}")
+        cwd = self._get_cwd(ctx)
+        ctx.log_debug(f"Working directory: {cwd}")
+        cmd_process = subprocess.Popen(
             cmd_script,
             cwd=cwd,
             stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env=self.__get_envs(context),
+            env=self.__get_envs(ctx),
             shell=True,
             text=True,
             executable=self._shell if self._shell is not None else DEFAULT_SHELL,
             bufsize=0,
         )
-        stdout_thread = threading.Thread(target=self.__read_stdout)
-        stderr_thread = threading.Thread(target=self.__read_stderr)
+        stdout, stderr = [], []
+        stdout_thread = threading.Thread(
+            target=self.__make_reader(
+                ctx, cmd_process.stdout, max_line=self._max_output_line, lines=stdout
+            )
+        )
+        stderr_thread = threading.Thread(
+            target=self.__make_reader(
+                ctx, cmd_process.stderr, max_line=self._max_output_line, lines=stderr
+            )
+        )
         stdout_thread.start()
         stderr_thread.start()
         try:
             process_error = None
             try:
-                self._process.wait()
+                cmd_process.wait()
             except Exception as e:
                 process_error = e
             stdout_thread.join()
             stderr_thread.join()
-            output = "\n".join(self._stdout)
-            error = "\n".join(self._stderr)
+            output = "\n".join(stdout)
+            error = "\n".join(stderr)
             # get return code
-            return_code = self._process.returncode
-            context.print(f"Exit status: {return_code}")
+            return_code = cmd_process.returncode
             if process_error is not None:
                 raise Exception(process_error)
             if return_code != 0:
+                ctx.log_error(f"Exit status: {return_code}")
                 raise Exception(f"Process {self._name} exited ({return_code}): {error}")
             return CmdResult(output, error)
         finally:
-            self.__terminate_process()
+            self.__terminate_process(ctx, cmd_process)
 
-    def __get_envs(self, context: Context) -> Mapping[str, str]:
-        envs = {key: val for key, val in context.env.items()}
+    def __get_envs(self, ctx: Context) -> Mapping[str, str]:
+        envs = {key: val for key, val in ctx.env.items()}
         if self._remote_password is not None:
-            envs["_ZRB_SSH_PASSWORD"] = context.render(self._remote_password)
+            envs["_ZRB_SSH_PASSWORD"] = ctx.render(self._remote_password)
 
-    def __read_stdout(self):
-        for line in self._process.stdout:
-            line = line.rstrip()
-            self.print_out(line)
-            self._stdout.append(line)
-            if len(self._stdout) > self._max_output_line:
-                self._stdout.pop(0)
+    def __make_reader(
+        self, ctx: Context, stream: io.TextIOWrapper, max_line: int, lines: list[str],
+    ) -> Callable:
+        def read_lines():
+            for line in stream:
+                line = line.rstrip()
+                ctx.print(line)
+                lines.append(line)
+                if len(lines) > max_line:
+                    lines.pop(0)
+        return read_lines
 
-    def __read_stderr(self):
-        for line in self._process.stderr:
-            line = line.rstrip()
-            self.print_out_dark(line)
-            self._stderr.append(line)
-            if len(self._stderr) > self._max_error_line:
-                self._stderr.pop(0)
-
-    def __terminate_process(self):
+    def __terminate_process(self, ctx: Context, cmd_process: subprocess.Popen[str]):
         """Terminate the shell script if it's still running."""
-        if self._process.poll() is None:  # If the process is still running
-            self._process.terminate()  # Gracefully terminate the process
+        if cmd_process.poll() is None:  # If the process is still running
+            cmd_process.terminate()  # Gracefully terminate the process
             try:
-                self.print_out_dark("Waiting for process termination")
-                self._process.wait(timeout=5)  # Give it time to terminate
+                ctx.log_info("Waiting for process termination")
+                cmd_process.wait(timeout=5)  # Give it time to terminate
             except subprocess.TimeoutExpired:
-                self.print_out_dark("Killing the process")
-                self._process.kill()  # Forcefully kill if not terminated
+                ctx.log_info("Killing the process")
+                cmd_process.kill()  # Forcefully kill if not terminated
 
-    def _get_cwd(self, context: Context):
+    def _get_cwd(self, ctx: Context):
         cwd = self._cwd
         if cwd is None:
             cwd = os.getcwd()
         if self._auto_render_cwd:
-            cwd = context.render(cwd)
+            cwd = ctx.render(cwd)
         return os.path.abspath(cwd)
 
-    def __get_local_or_remote_cmd_script(self, context: Context) -> str:
-        local_cmd_script = self._get_cmd_script(context)
+    def __get_local_or_remote_cmd_script(self, ctx: Context) -> str:
+        local_cmd_script = self._get_cmd_script(ctx)
         if self._remote_host is None:
             return local_cmd_script
         return get_remote_cmd_script(
             cmd_script=local_cmd_script,
-            host=context.render(self._remote_host),
-            port=context.render(self._remote_port),
-            user=context.render(self._remote_user),
+            host=ctx.render(self._remote_host),
+            port=ctx.render(self._remote_port),
+            user=ctx.render(self._remote_user),
             password="$_ZRB_SSH_PASSWORD",
-            use_password=context.render(self._remote_password) != "",
-            ssh_key=context.render(self._remote_ssh_key),
+            use_password=ctx.render(self._remote_password) != "",
+            ssh_key=ctx.render(self._remote_ssh_key),
         )
 
-    def _get_cmd_script(self, context: Context) -> str:
-        return self._render_cmd_val(context, self._cmd)
+    def _get_cmd_script(self, ctx: Context) -> str:
+        return self._render_cmd_val(ctx, self._cmd)
 
-    def _render_cmd_val(self, context: Context, cmd_val: CmdVal) -> str:
+    def _render_cmd_val(self, ctx: Context, cmd_val: CmdVal) -> str:
         if isinstance(cmd_val, list):
             return "\n".join([
-                self.__render_single_cmd_val(context, single_cmd_val)
+                self.__render_single_cmd_val(ctx, single_cmd_val)
                 for single_cmd_val in cmd_val
             ])
-        return self._render_cmd_val(context, cmd_val)
+        return self._render_cmd_val(ctx, cmd_val)
 
     def __render_single_cmd_val(
-        self, context: Context, single_cmd_val: SingleCmdVal
+        self, ctx: Context, single_cmd_val: SingleCmdVal
     ) -> str:
         if callable(single_cmd_val):
-            return single_cmd_val(context)
+            return single_cmd_val(ctx)
         if isinstance(single_cmd_val, CmdPath):
-            return single_cmd_val.read(context)
+            return single_cmd_val.read(ctx)
         if isinstance(single_cmd_val, Cmd):
-            return single_cmd_val.render(context)
+            return single_cmd_val.render(ctx)
         if self._auto_render_cmd:
-            return context.render(single_cmd_val)
+            return ctx.render(single_cmd_val)
         return single_cmd_val
 
     def __get_multiline_repr(self, text: str) -> str:
@@ -200,5 +206,5 @@ class CmdTask(BaseTask):
             return lines[0]
         for index, line in enumerate(lines):
             line_number_repr = str(index + 1).rjust(4, "0")
-            lines_repr.append(f" {line_number_repr} | {line}")
+            lines_repr.append(f"   {line_number_repr} | {line}")
         return "\n" + "\n".join(lines_repr)
