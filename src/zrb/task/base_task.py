@@ -8,6 +8,7 @@ from ..session.context import Context
 from ..session.any_session import AnySession
 from ..session.session import Session
 from ..util.cli.style import bold_red
+from ..util.string.conversion import to_boolean
 from .any_task import AnyTask
 
 import asyncio
@@ -33,6 +34,7 @@ class BaseTask(AnyTask):
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
         action: str | Callable[[Context], Any] | None = None,
+        execute_condition: bool | str | Callable[[Context], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
@@ -54,6 +56,7 @@ class BaseTask(AnyTask):
         self._readiness_checks = readiness_check
         self._readiness_check_delay = readiness_check_delay
         self._readiness_check_period = readiness_check_period
+        self._execute_condition = execute_condition
         self._action = action
 
     def __repr__(self):
@@ -175,7 +178,13 @@ class BaseTask(AnyTask):
             # Task is not allowed to run, skip it for now.
             # This will be triggered later
             return
-        await run_async(self._async_exec_action_and_check_readiness, session)
+        execute_condition = await self._check_execute_condition(session)
+        if not execute_condition:
+            # Skip the task
+            session.mark_task_as_skipped(self)
+        else:
+            # Wait for task to be ready
+            await run_async(self._async_exec_action_and_check_readiness, session)
         # Get next tasks
         nexts = session.get_next_tasks(self)
         if len(nexts) == 0:
@@ -186,6 +195,15 @@ class BaseTask(AnyTask):
             for next in nexts
         ]
         await asyncio.gather(*coros)
+
+    async def _check_execute_condition(self, session: Session) -> bool:
+        if callable(self._execute_condition):
+            context = session.get_context()
+            return await run_async(self._execute_condition, context)
+        if isinstance(self._execute_condition, str):
+            context = session.get_context()
+            return to_boolean(context.render(self._execute_condition))
+        return self._execute_condition
 
     async def _async_exec_action_and_check_readiness(self, session: AnySession):
         readiness_checks = self.get_readiness_checks()

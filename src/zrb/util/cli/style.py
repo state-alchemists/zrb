@@ -22,10 +22,19 @@ VALID_BACKGROUNDS = [
     BG_BLACK, BG_RED, BG_GREEN, BG_YELLOW, BG_BLUE, BG_MAGENTA, BG_CYAN, BG_WHITE
 ]
 
-BOLD = 1
-UNDERLINE = 4
-REVERSED = 7
-VALID_STYLES = [BOLD, UNDERLINE, REVERSED]
+BOLD = 1         # Bold or increased intensity
+FAINT = 2        # Faint, decreased intensity, or dim
+ITALIC = 3       # Italicized (not widely supported)
+UNDERLINE = 4    # Underline
+BLINK_SLOW = 5   # Slow blink (less than 150 per minute)
+BLINK_FAST = 6   # Rapid blink (MS-DOS style, not widely supported)
+REVERSED = 7     # Image negative, swap foreground and background colors
+HIDE = 8         # Conceal (not widely supported)
+CROSSED_OUT = 9  # Crossed-out or strike-through text
+
+VALID_STYLES = [
+    BOLD, FAINT, ITALIC, UNDERLINE, BLINK_SLOW, BLINK_FAST, REVERSED, HIDE, CROSSED_OUT
+]
 
 ICONS = [
     "🐶", "🐱", "🐭", "🐹", "🦊", "🐻", "🐨", "🐯", "🦁", "🐮", "🐷",

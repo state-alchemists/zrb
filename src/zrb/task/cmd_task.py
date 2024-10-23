@@ -42,10 +42,12 @@ class CmdTask(BaseTask):
         cmd: CmdVal = "",
         cmd_path: CmdVal = "",
         cwd: str | None = None,
+        auto_render_cmd: bool = True,
+        auto_render_cmd_path: bool = True,
         auto_render_cwd: bool = True,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        action: str | Callable[[Context], Any] | None = None,
+        execute_condition: bool | str | Callable[[Context], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
@@ -61,7 +63,7 @@ class CmdTask(BaseTask):
             description=description,
             input=input,
             env=env,
-            action=action,
+            execute_condition=execute_condition,
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
@@ -79,6 +81,8 @@ class CmdTask(BaseTask):
         self._cmd = cmd
         self._cmd_path = cmd_path
         self._cwd = cwd
+        self._auto_render_cmd = auto_render_cmd
+        self._auto_render_cmd_path = auto_render_cmd_path
         self._auto_render_cwd = auto_render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
@@ -189,16 +193,26 @@ class CmdTask(BaseTask):
     ) -> str:
         if not isinstance(cmd_path, str) or cmd_path != "":
             if callable(cmd_path):
-                return self.__get_rendered_cmd_path(cmd_path(*args, **kwargs))
-            return self.__get_rendered_cmd_path(cmd_path)
+                return self.__get_content_from_cmd_path(cmd_path(*args, **kwargs))
+            return self.__get_content_from_cmd_path(cmd_path)
         if callable(cmd):
             return self.__get_rendered_cmd(cmd(*args, **kwargs))
         return self.__get_rendered_cmd(cmd)
 
-    def __get_rendered_cmd_path(self, cmd_path: Union[str, Iterable[str]]) -> str:
+    def __get_content_from_cmd_path(self, context: Context, cmd_path: CmdVal) -> str:
         if isinstance(cmd_path, str):
             return self.render_file(cmd_path)
         return "\n".join([self.render_file(cmd_path_str) for cmd_path_str in cmd_path])
+
+    def __read_cmd_from_file(self, context: Context, file_name: str) -> str:
+        # TODO: only render if file_name is not a function
+        if self._auto_render_cmd_path:
+            file_name = context.render(file_name)
+        with open(file_name, "r") as f:
+            content = f.read()
+        if self._auto_render_cmd:
+            return context.render(content)
+        return content
 
     def __get_multiline_repr(self, text: str) -> str:
         lines_repr: list[str] = []
