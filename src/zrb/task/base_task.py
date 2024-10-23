@@ -7,21 +7,13 @@ from ..session.shared_context import SharedContext
 from ..session.context import Context
 from ..session.any_session import AnySession
 from ..session.session import Session
+from ..util.run import run_async
 from ..util.cli.style import bold_red
 from ..util.string.conversion import to_boolean
 from .any_task import AnyTask
 
 import asyncio
-import inspect
 import os
-
-
-async def run_async(fn: Callable, *args: Any, **kwargs: Any) -> Any:
-    if inspect.iscoroutinefunction(fn):
-        return await fn(*args, **kwargs)
-    coro = asyncio.to_thread(fn, *args, **kwargs)
-    task = asyncio.create_task(coro)
-    return await task
 
 
 class BaseTask(AnyTask):

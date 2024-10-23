@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from .any_context import AnyContext
 from .shared_context import SharedContext
 from ..config import SHOW_TIME
-from ..util.cli.style import style
+from ..util.cli.style import stylize
 
 import datetime
 import sys
@@ -63,11 +63,11 @@ class Context(AnyContext):
         if SHOW_TIME:
             now = datetime.datetime.now()
             formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
-            prefix = style(
+            prefix = stylize(
                 f"{formatted_time} {attempt_status} {icon} {padded_task_name}",
                 color=color
             )
         else:
-            prefix = style(f"{attempt_status} {icon} {padded_task_name}", color=color)
+            prefix = stylize(f"{attempt_status} {icon} {padded_task_name}", color=color)
         message = sep.join([f"{value}" for value in values])
         print(f"{prefix} {message}", sep=sep, end=end, file=file, flush=flush)

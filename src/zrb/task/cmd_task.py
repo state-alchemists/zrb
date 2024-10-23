@@ -1,7 +1,8 @@
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
 from .any_task import AnyTask
 from .base_task import BaseTask
+from .cmd_data import Cmd, CmdPath, CmdResult, CmdVal, SingleCmdVal
+from ..config import DEFAULT_SHELL
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 from ..session.context import Context
@@ -11,17 +12,6 @@ import os
 import threading
 import subprocess
 import sys
-
-CmdVal = str | list[str] | Callable[[Context], str | list[str]]
-
-
-class CmdResult:
-    def __init__(self, output: str, error: str):
-        self.output = output
-        self.error = error
-
-    def __str__(self) -> str:
-        return self.output
 
 
 class CmdTask(BaseTask):
@@ -33,7 +23,7 @@ class CmdTask(BaseTask):
         description: str | None = None,
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
-        executable: str | None = None,
+        shell: str | None = None,
         remote_host: str | None = None,
         remote_port: str | int | None = None,
         remote_user: str | None = None,
@@ -43,7 +33,6 @@ class CmdTask(BaseTask):
         cmd_path: CmdVal = "",
         cwd: str | None = None,
         auto_render_cmd: bool = True,
-        auto_render_cmd_path: bool = True,
         auto_render_cwd: bool = True,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
@@ -72,7 +61,7 @@ class CmdTask(BaseTask):
             upstream=upstream,
             fallback=fallback,
         )
-        self._executable = executable
+        self._shell = shell
         self._remote_host = remote_host
         self._remote_port = remote_port
         self._remote_user = remote_user
@@ -82,28 +71,25 @@ class CmdTask(BaseTask):
         self._cmd_path = cmd_path
         self._cwd = cwd
         self._auto_render_cmd = auto_render_cmd
-        self._auto_render_cmd_path = auto_render_cmd_path
         self._auto_render_cwd = auto_render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
 
     async def _async_exec_action(self, context: Context) -> CmdResult:
-        cmd_script = self.__get_local_or_remote_cmd_script(*args, **kwargs)
-        if self._should_show_cmd:
-            context.print(f"Run script: {self.__get_multiline_repr(cmd_script)}")
+        cmd_script = self.__get_local_or_remote_cmd_script(context)
+        context.print(f"Run script: {self.__get_multiline_repr(cmd_script)}")
         cwd = self._get_cwd(context)
-        if self._should_show_working_directory:
-            context.print(f"Working directory: {cwd}")
+        context.print(f"Working directory: {cwd}")
         self._process = subprocess.Popen(
             cmd_script,
             cwd=cwd,
             stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env=self.get_env_map(),
+            env=self.__get_envs(context),
             shell=True,
             text=True,
-            executable=self._executable,
+            executable=self.__shell if self.__shell is not None else DEFAULT_SHELL,
             bufsize=0,
         )
         stdout_thread = threading.Thread(target=self.__read_stdout)
@@ -130,6 +116,11 @@ class CmdTask(BaseTask):
             return CmdResult(output, error)
         finally:
             self.__terminate_process()
+
+    def __get_envs(self, context: Context) -> Mapping[str, str]:
+        envs = {key: val for key, val in context.envs}
+        if self._remote_password is not None:
+            envs["_ZRB_SSH_PASSWORD"] = context.render(self._remote_password)
 
     def __read_stdout(self):
         for line in self._process.stdout:
@@ -166,53 +157,43 @@ class CmdTask(BaseTask):
             cwd = context.render(cwd)
         return os.path.abspath(cwd)
 
-    def __get_local_or_remote_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        cmd_script = self.get_cmd_script(*args, **kwargs)
+    def __get_local_or_remote_cmd_script(self, context: Context) -> str:
+        local_cmd_script = self._get_cmd_script(context)
         if self._remote_host is None:
-            return cmd_script
+            return local_cmd_script
         return get_remote_cmd_script(
-            cmd_script=cmd_script,
-            host=self.render_str(self._remote_host),
-            port=self.render_str(self._remote_port),
-            user=self.render_str(self._remote_user),
+            cmd_script=local_cmd_script,
+            host=context.render(self._remote_host),
+            port=context.render(self._remote_port),
+            user=context.render(self._remote_user),
             password="$_ZRB_SSH_PASSWORD",
-            use_password=self.render_str(self._remote_password) != "",
-            ssh_key=self.render_str(self._remote_ssh_key),
+            use_password=context.render(self._remote_password) != "",
+            ssh_key=context.render(self._remote_ssh_key),
         )
 
-    def get_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        return self._create_cmd_script(self._cmd_path, self._cmd, *args, **kwargs)
+    def _get_cmd_script(self, context: Context) -> str:
+        return self._render_cmd_val(context, self._cmd)
 
-    def _create_cmd_script(self, *args: Any, **kwargs: Any) -> str:
-        return self.__create_local_cmd_script(
-            self._cmd_path, self._cmd, *args, **kwargs
-        )
+    def _render_cmd_val(self, context: Context, cmd_val: CmdVal) -> str:
+        if isinstance(cmd_val, list):
+            return "\n".join([
+                self.__render_single_cmd_val(context, single_cmd_val)
+                for single_cmd_val in cmd_val
+            ])
+        return self._render_cmd_val(context, cmd_val)
 
-    def __create_local_cmd_script(
-        self, cmd_path: CmdVal, cmd: CmdVal, *args: Any, **kwargs: Any
+    def __render_single_cmd_val(
+        self, context: Context, single_cmd_val: SingleCmdVal
     ) -> str:
-        if not isinstance(cmd_path, str) or cmd_path != "":
-            if callable(cmd_path):
-                return self.__get_content_from_cmd_path(cmd_path(*args, **kwargs))
-            return self.__get_content_from_cmd_path(cmd_path)
-        if callable(cmd):
-            return self.__get_rendered_cmd(cmd(*args, **kwargs))
-        return self.__get_rendered_cmd(cmd)
-
-    def __get_content_from_cmd_path(self, context: Context, cmd_path: CmdVal) -> str:
-        if isinstance(cmd_path, str):
-            return self.render_file(cmd_path)
-        return "\n".join([self.render_file(cmd_path_str) for cmd_path_str in cmd_path])
-
-    def __read_cmd_from_file(self, context: Context, file_name: str) -> str:
-        # TODO: only render if file_name is not a function
-        if self._auto_render_cmd_path:
-            file_name = context.render(file_name)
-        with open(file_name, "r") as f:
-            content = f.read()
+        if callable(single_cmd_val):
+            return single_cmd_val(context)
+        if isinstance(single_cmd_val, CmdPath):
+            return single_cmd_val.read(context)
+        if isinstance(single_cmd_val, Cmd):
+            return single_cmd_val.render(context)
         if self._auto_render_cmd:
-            return context.render(content)
-        return content
+            return context.render(single_cmd_val)
+        return single_cmd_val
 
     def __get_multiline_repr(self, text: str) -> str:
         lines_repr: list[str] = []

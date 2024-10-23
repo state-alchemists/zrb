@@ -42,7 +42,7 @@ ICONS = [
 ]
 
 
-def style(
+def stylize(
     text: str,
     color: int | None = None,
     background: int | None = None,
@@ -63,10 +63,10 @@ def style(
 
 
 def section_header(text: str):
-    return style(
+    return stylize(
         f" {text} ", color=BLACK, background=BG_WHITE, style=UNDERLINE
     )
 
 
 def bold_red(text: str):
-    return style(text, color=RED, style=BOLD)
+    return stylize(text, color=RED, style=BOLD)

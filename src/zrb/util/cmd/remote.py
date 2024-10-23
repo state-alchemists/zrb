@@ -4,7 +4,7 @@ import shlex
 def get_remote_cmd_script(
     cmd_script: str,
     host: str = "",
-    port: int = 22,
+    port: int | str = 22,
     user: str = "",
     password: str = "",
     use_password: bool = False,
