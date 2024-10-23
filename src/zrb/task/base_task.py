@@ -70,7 +70,7 @@ class BaseTask(AnyTask):
     def get_color(self) -> int | None:
         return self._color
 
-    def get_icon(self) -> int | None:
+    def get_icon(self) -> str | None:
         return self._icon
 
     def get_description(self) -> str:
