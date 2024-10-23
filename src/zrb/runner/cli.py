@@ -49,11 +49,11 @@ class Cli(Group):
         return node, residual_args
 
     def _run_task(self, task: AnyTask, args: list[str], options: list[str]):
-        session = SharedContext(inputs=options, args=args)
+        session = SharedContext(input=options, args=args)
         task_inputs = task.get_inputs()
         arg_index = 0
         for task_input in task_inputs:
-            if task_input.get_name() not in session.inputs:
+            if task_input.get_name() not in session.input:
                 if arg_index < len(args):
                     task_input.update_shared_context(session, args[arg_index])
                     arg_index += 1

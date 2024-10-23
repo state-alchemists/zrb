@@ -1,5 +1,5 @@
 from zrb import (
-    BaseTask, make_task, Context, IntInput, PasswordInput, StrInput, Group, cli
+    BaseTask, CmdTask, Env, make_task, Context, IntInput, PasswordInput, StrInput, Group, cli
 )
 import asyncio
 
@@ -86,14 +86,14 @@ def greetings(ctx: Context):
     upstream=[greetings]
 )
 def get_sys_info(ctx: Context):
-    ctx.print(ctx.envs.get("USER"))
+    ctx.print(ctx.env.get("USER"))
 
 
 cli.add_task(get_sys_info)
 
 
 @make_task(
-    name="create-something",
+    name="test-error",
     fallback=BaseTask(
         name="fallback-create-something",
         action=lambda ctx: ctx.print("cleaning up")
@@ -105,3 +105,14 @@ def create_something(ctx: Context):
 
 
 cli.add_task(create_something)
+
+
+cli.add_task(CmdTask(
+    name="test-cmd",
+    env=Env(env_vars={"FOO": "BAR"}),
+    cmd=[
+        "uname",
+        lambda ctx: f"From function: {ctx.env.FOO}",
+        "From template: {env.FOO}",
+    ]
+))

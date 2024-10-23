@@ -30,7 +30,6 @@ class CmdTask(BaseTask):
         remote_password: str | None = None,
         remote_ssh_key: str | None = None,
         cmd: CmdVal = "",
-        cmd_path: CmdVal = "",
         cwd: str | None = None,
         auto_render_cmd: bool = True,
         auto_render_cwd: bool = True,
@@ -68,7 +67,6 @@ class CmdTask(BaseTask):
         self._remote_password = remote_password
         self._remote_ssh_key = remote_ssh_key
         self._cmd = cmd
-        self._cmd_path = cmd_path
         self._cwd = cwd
         self._auto_render_cmd = auto_render_cmd
         self._auto_render_cwd = auto_render_cwd
@@ -89,7 +87,7 @@ class CmdTask(BaseTask):
             env=self.__get_envs(context),
             shell=True,
             text=True,
-            executable=self.__shell if self.__shell is not None else DEFAULT_SHELL,
+            executable=self._shell if self._shell is not None else DEFAULT_SHELL,
             bufsize=0,
         )
         stdout_thread = threading.Thread(target=self.__read_stdout)
@@ -118,7 +116,7 @@ class CmdTask(BaseTask):
             self.__terminate_process()
 
     def __get_envs(self, context: Context) -> Mapping[str, str]:
-        envs = {key: val for key, val in context.envs}
+        envs = {key: val for key, val in context.env.items()}
         if self._remote_password is not None:
             envs["_ZRB_SSH_PASSWORD"] = context.render(self._remote_password)
 

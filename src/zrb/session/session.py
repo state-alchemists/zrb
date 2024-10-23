@@ -87,20 +87,20 @@ class Session(AnySession):
     def peek_task_xcom(self, task: AnyBaseTask) -> Any:
         self._register_single_task(task)
         task_name = task.get_name()
-        if task_name not in self._shared_context.xcoms:
+        if task_name not in self._shared_context.xcom:
             return None
-        xcom = self._shared_context.xcoms[task_name]
+        xcom = self._shared_context.xcom[task_name]
         if len(xcom) > 0:
             return xcom[0]
         return None
 
     def append_task_xcom(self, task: AnyBaseTask, value: Any):
         self._register_single_task(task)
-        self._shared_context.xcoms[task.get_name()].append(value)
+        self._shared_context.xcom[task.get_name()].append(value)
 
     def _register_single_task(self, task: AnyBaseTask):
-        if task.get_name() not in self._shared_context.xcoms:
-            self._shared_context.xcoms[task.get_name()] = deque([])
+        if task.get_name() not in self._shared_context.xcom:
+            self._shared_context.xcom[task.get_name()] = deque([])
         if task not in self._context:
             self._context[task] = Context(
                 shared_context=self._shared_context,

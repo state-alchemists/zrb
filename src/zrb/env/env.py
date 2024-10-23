@@ -23,7 +23,7 @@ class Env(AnyEnv):
 
     def update_shared_context(self, shared_context: SharedContext) -> Mapping[str, str]:
         # Update session using file_path
-        file_path = self._get_file_path()
+        file_path = self._get_file_path(shared_context)
         if file_path is not None:
             file_env_map = dotenv_values(self._file_path)
             for var_name, value in file_env_map.items():
@@ -47,9 +47,9 @@ class Env(AnyEnv):
         if self._use_os_environ:
             os_var_name = self._get_prefixed_var_name(var_name)
             if os_var_name in os.environ:
-                shared_context.envs[var_name] = os.environ.get(os_var_name)
+                shared_context.env[var_name] = os.environ.get(os_var_name)
                 return
-        shared_context.envs[var_name] = value
+        shared_context.env[var_name] = value
 
     def _get_prefixed_var_name(self, name: str) -> str:
         if self._os_var_prefix is None:

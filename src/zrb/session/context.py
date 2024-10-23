@@ -18,10 +18,10 @@ class Context(AnyContext):
         icon: str
     ):
         self._shared_context = shared_context
-        self.inputs = shared_context.inputs
+        self.input = shared_context.input
         self.args = shared_context.args
-        self.envs = shared_context.envs
-        self.xcoms = shared_context.xcoms
+        self.env = shared_context.env
+        self.xcom = shared_context.xcom
         self._task_name = task_name
         self._color = color
         self._icon = icon
@@ -30,11 +30,11 @@ class Context(AnyContext):
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        inputs = self.inputs
+        input = self.input
         args = self.args
-        envs = self.envs
-        xcoms = self.xcoms
-        return f"<{class_name} inputs={inputs} args={args} envs={envs} xcoms={xcoms}>"
+        env = self.env
+        xcom = self.xcom
+        return f"<{class_name} input={input} arg={args} env={env} xcom={xcom}>"
 
     def set_attempt(self, attempt: int):
         self._attempt = attempt

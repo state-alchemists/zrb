@@ -80,9 +80,9 @@ class BaseTask(AnyTask):
         envs = []
         for upstream in self.get_upstreams():
             envs += upstream.get_envs()
-        if isinstance(self._inputs, AnyEnv):
+        if isinstance(self._envs, AnyEnv):
             envs.append(self._envs)
-        if self._envs is not None:
+        elif self._envs is not None:
             envs += self._envs
         return envs
 
@@ -92,21 +92,21 @@ class BaseTask(AnyTask):
             inputs += upstream.get_inputs()
         if isinstance(self._inputs, AnyInput):
             inputs.append(self._inputs)
-        if self._inputs is not None:
+        elif self._inputs is not None:
             inputs += self._inputs
         return inputs
 
     def get_fallbacks(self) -> list[AnyTask]:
         if self._fallbacks is None:
             return []
-        if isinstance(self._fallbacks, AnyTask):
+        elif isinstance(self._fallbacks, AnyTask):
             return [self._fallbacks]
         return self._fallbacks
 
     def get_upstreams(self) -> list[AnyTask]:
         if self._upstreams is None:
             return []
-        if isinstance(self._upstreams, AnyTask):
+        elif isinstance(self._upstreams, AnyTask):
             return [self._upstreams]
         return self._upstreams
 
@@ -118,7 +118,7 @@ class BaseTask(AnyTask):
     def get_readiness_checks(self) -> list[AnyTask]:
         if self._readiness_checks is None:
             return []
-        if isinstance(self._readiness_checks, AnyTask):
+        elif isinstance(self._readiness_checks, AnyTask):
             return [self._readiness_checks]
         return self._readiness_checks
 
@@ -139,16 +139,16 @@ class BaseTask(AnyTask):
         # Inject os environ
         os_env_map = {
             key: val for key, val in os.environ.items()
-            if key not in shared_context.envs
+            if key not in shared_context.env
         }
-        shared_context.envs.update(os_env_map)
+        shared_context.env.update(os_env_map)
         # Inject environment from task's envs
         for env in self.get_envs():
             env.update_shared_context(shared_context)
 
     def _fill_shared_context_inputs(self, shared_context: AnySharedContext):
         for task_input in self.get_inputs():
-            if task_input.get_name() not in shared_context.inputs:
+            if task_input.get_name() not in shared_context.input:
                 task_input.update_shared_context(shared_context)
 
     async def async_exec_root_tasks(self, session: AnySession):

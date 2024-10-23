@@ -41,7 +41,7 @@ class BaseInput(AnyInput):
     def update_shared_context(self, shared_context: SharedContext, value: Any = None):
         if value is None:
             value = self.get_default_value(shared_context)
-        shared_context.inputs[self.get_name()] = value
+        shared_context.input[self.get_name()] = value
 
     def prompt_cli(self, shared_context: SharedContext) -> Any:
         value = self._prompt_cli(shared_context)
