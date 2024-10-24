@@ -74,7 +74,15 @@ class CmdTask(BaseTask):
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
 
-    async def _async_exec_action(self, ctx: Context) -> CmdResult:
+    async def _exec_action(self, ctx: Context) -> CmdResult:
+        """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
+
+        Args:
+            session (AnySession): The shared session.
+
+        Returns:
+            Any: The result of the action execution.
+        """
         cmd_script = self.__get_local_or_remote_cmd_script(ctx)
         ctx.log_debug(f"Run script: {self.__get_multiline_repr(cmd_script)}")
         cwd = self._get_cwd(ctx)

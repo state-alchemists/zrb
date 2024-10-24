@@ -68,16 +68,24 @@ def stylize_section_header(text: str):
     )
 
 
+def stylize_bold_yellow(text: str):
+    return stylize(text, color=YELLOW, style=BOLD)
+
+
 def stylize_bold_red(text: str):
     return stylize(text, color=RED, style=BOLD)
 
 
-def stylize_log(text: str):
+def stylize_faint(text: str):
     return stylize(text, style=FAINT)
 
 
+def stylize_log(text: str):
+    return stylize_faint(text)
+
+
 def stylize_warning(text: str):
-    return stylize(text, color=YELLOW, style=BOLD)
+    return stylize_bold_yellow(text)
 
 
 def stylize_error(text: str):

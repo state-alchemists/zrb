@@ -15,7 +15,7 @@ _zrb_complete() {
     cmd_input="zrb shell autocomplete subcmd ${COMP_WORDS[@]:0:$COMP_CWORD}"
 
     # Fetch the subcommands dynamically
-    subcmd_output=$(eval "$cmd_input")
+    subcmd_output=$(eval "$cmd_input 2>/dev/null")
 
     # Split the output into an array of subcommands using whitespace
     IFS=' ' read -r -a subcommands <<< "$subcmd_output"

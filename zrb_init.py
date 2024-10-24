@@ -82,14 +82,15 @@ def greetings(ctx: Context):
 
 
 @make_task(
-    name="get-sys-info",
+    name="show-user-info",
     upstream=[greetings]
 )
-def get_sys_info(ctx: Context):
-    ctx.print(ctx.env.get("USER"))
+def show_user_info(ctx: Context):
+    ctx.print("Using ctx.env.USER", ctx.env.USER)
+    ctx.print('Using ctx.env.get("USER")', ctx.env.get("USER"))
 
 
-cli.add_task(get_sys_info)
+cli.add_task(show_user_info)
 
 
 @make_task(

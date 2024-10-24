@@ -13,7 +13,7 @@ _zrb_complete() {
     cmd_input="zrb shell autocomplete subcmd ${words[1,CURRENT-1]}"
 
     # Fetch the subcommands dynamically and store them in a variable
-    subcmd_output=$(eval "$cmd_input")
+    subcmd_output=$(eval "$cmd_input 2>/dev/null")
 
     # Split the output into an array using spaces or newlines as separators
     subcommands=(${=subcmd_output})

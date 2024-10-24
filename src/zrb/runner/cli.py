@@ -1,11 +1,12 @@
 from typing import Any
 from collections.abc import Mapping
 from ..config import VERSION
-from ..util.cli.style import stylize_section_header
+from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
 from ..group.group import Group
 from ..task.any_task import AnyTask
 from ..session.shared_context import SharedContext
+import sys
 
 
 class Cli(Group):
@@ -13,7 +14,7 @@ class Cli(Group):
     def run(self, args: list[str]):
         load_zrb_init()
         kwargs, args = self._extract_kwargs_from_args(args)
-        node, args = self._extract_node_from_args(args)
+        node, node_path, args = self._extract_node_from_args(args)
         if isinstance(node, Group):
             self._show_group_info(node)
             return
@@ -23,18 +24,39 @@ class Cli(Group):
         result = self._run_task(node, args, kwargs)
         if result is not None:
             print(result)
+        run_command = self._get_run_command(node_path, kwargs, args)
+        self._print_run_command(run_command)
         return result
+
+    def _print_run_command(self, run_command: str):
+        print(
+            stylize_faint("To run again:"),
+            stylize_bold_yellow(run_command),
+            file=sys.stderr
+        )
+
+    def _get_run_command(
+        self, node_path: list[str], kwargs: Mapping[str, Any], args: list[str]
+    ) -> str:
+        parts = [self.get_name()] + node_path
+        if len(kwargs) > 0:
+            parts += [f"--{key}={val}" for key, val in kwargs.items()]
+        if len(args) > 0:
+            parts += args
+        return " ".join(parts)
 
     def _extract_node_from_args(
         self, positional: list[str]
-    ) -> tuple[Group | AnyTask, list[str]]:
+    ) -> tuple[Group | AnyTask, list[str], list[str]]:
         node = self
+        node_path = []
         residual_args = []
         for index, name in enumerate(positional):
             task = node.get_task_by_alias(name)
             group = node.get_group_by_name(name)
             if task is None and group is None:
                 raise ValueError("Invalid command")
+            node_path.append(name)
             if group is not None:
                 if task is not None and index == len(positional) - 1:
                     node = task
@@ -46,7 +68,7 @@ class Cli(Group):
                 node = task
                 residual_args = positional[index+1:]
                 break
-        return node, residual_args
+        return node, node_path, residual_args
 
     def _run_task(self, task: AnyTask, args: list[str], options: list[str]):
         session = SharedContext(input=options, args=args)
