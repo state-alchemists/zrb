@@ -1,9 +1,10 @@
 from typing import Any
-from collections import deque
 from collections.abc import Mapping
 from .any_shared_context import AnySharedContext
 from .dict_to_object import DictToObject
+from .xcom import Xcom
 from ..config import LOGGING_LEVEL, SHOW_TIME
+from ..util.string.conversion import to_boolean
 
 import datetime
 import os
@@ -23,7 +24,7 @@ class SharedContext(AnySharedContext):
         input: Mapping[str, Any] = {},
         args: list[Any] = [],
         env: Mapping[str, str] = {},
-        xcom: Mapping[str, deque] = {},
+        xcom: Mapping[str, Xcom] = {},
         logging_level: int = LOGGING_LEVEL,
         show_time: bool = SHOW_TIME,
     ):
@@ -61,3 +62,12 @@ class SharedContext(AnySharedContext):
                 **additional_data,
             }
         )
+
+    def render_bool(self, template: str, additional_data: Mapping[str, Any] = {}) -> bool:
+        return to_boolean(template, additional_data)
+
+    def render_int(self, template: str, additional_data: Mapping[str, Any] = {}) -> int:
+        return int(template, additional_data)
+
+    def render_float(self, template: str, additional_data: Mapping[str, Any] = {}) -> float:
+        return float(template, additional_data)

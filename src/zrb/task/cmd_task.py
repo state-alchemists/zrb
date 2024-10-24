@@ -7,6 +7,7 @@ from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 from ..session.context import Context
 from ..util.cmd.remote import get_remote_cmd_script
+from .attr_data import StrAttr, IntAttr, get_str_attr, get_int_attr
 
 import io
 import os
@@ -24,15 +25,21 @@ class CmdTask(BaseTask):
         description: str | None = None,
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
-        shell: str | None = None,
-        remote_host: str | None = None,
-        remote_port: str | int | None = None,
-        remote_user: str | None = None,
-        remote_password: str | None = None,
-        remote_ssh_key: str | None = None,
+        shell: StrAttr | None = None,
+        auto_render_shell: bool = True,
+        remote_host: StrAttr | None = None,
+        auto_render_remote_host: bool = True,
+        remote_port: IntAttr | None = None,
+        auto_render_remote_port: bool = True,
+        remote_user: StrAttr | None = None,
+        auto_render_remote_user: bool = True,
+        remote_password: StrAttr | None = None,
+        auto_render_remote_password: bool = True,
+        remote_ssh_key: StrAttr | None = None,
+        auto_render_remote_ssh_key: bool = True,
         cmd: CmdVal = "",
-        cwd: str | None = None,
         auto_render_cmd: bool = True,
+        cwd: str | None = None,
         auto_render_cwd: bool = True,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
@@ -62,14 +69,20 @@ class CmdTask(BaseTask):
             fallback=fallback,
         )
         self._shell = shell
+        self._auto_render_shell = auto_render_shell
         self._remote_host = remote_host
+        self._auto_render_remote_host = auto_render_remote_host
         self._remote_port = remote_port
+        self._auto_render_remote_port = auto_render_remote_port
         self._remote_user = remote_user
+        self._auto_render_remote_user = auto_render_remote_user
         self._remote_password = remote_password
+        self._auto_render_remote_password = auto_render_remote_password
         self._remote_ssh_key = remote_ssh_key
+        self._auto_render_remote_ssh_key = auto_render_remote_ssh_key
         self._cmd = cmd
-        self._cwd = cwd
         self._auto_render_cmd = auto_render_cmd
+        self._cwd = cwd
         self._auto_render_cwd = auto_render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
@@ -84,8 +97,11 @@ class CmdTask(BaseTask):
             Any: The result of the action execution.
         """
         cmd_script = self.__get_local_or_remote_cmd_script(ctx)
-        ctx.log_debug(f"Run script: {self.__get_multiline_repr(cmd_script)}")
         cwd = self._get_cwd(ctx)
+        shell = self._get_shell(ctx)
+        ctx.log_info("Running script")
+        ctx.log_debug(f"Shell: {shell}")
+        ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         ctx.log_debug(f"Working directory: {cwd}")
         cmd_process = subprocess.Popen(
             cmd_script,
@@ -93,10 +109,10 @@ class CmdTask(BaseTask):
             stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env=self.__get_envs(ctx),
+            env=self.__get_env_map(ctx),
             shell=True,
             text=True,
-            executable=self._shell if self._shell is not None else DEFAULT_SHELL,
+            executable=shell,
             bufsize=0,
         )
         stdout, stderr = [], []
@@ -133,10 +149,10 @@ class CmdTask(BaseTask):
         finally:
             self.__terminate_process(ctx, cmd_process)
 
-    def __get_envs(self, ctx: Context) -> Mapping[str, str]:
+    def __get_env_map(self, ctx: Context) -> Mapping[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         if self._remote_password is not None:
-            envs["_ZRB_SSH_PASSWORD"] = ctx.render(self._remote_password)
+            envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
     def __make_reader(
         self, ctx: Context, stream: io.TextIOWrapper, max_line: int, lines: list[str],
@@ -161,12 +177,40 @@ class CmdTask(BaseTask):
                 ctx.log_info("Killing the process")
                 cmd_process.kill()  # Forcefully kill if not terminated
 
+    def _get_shell(self, ctx: Context):
+        get_str_attr(
+            ctx, self._shell, DEFAULT_SHELL, auto_render=self._auto_render_shell
+        )
+
+    def _get_remote_host(self, ctx: Context):
+        get_str_attr(
+            ctx, self._remote_host, None, auto_render=self._auto_render_remote_host
+        )
+
+    def _get_remote_port(self, ctx: Context):
+        get_int_attr(
+            ctx, self._remote_port, 22, auto_render=self._auto_render_remote_port
+        )
+
+    def _get_remote_user(self, ctx: Context):
+        get_str_attr(
+            ctx, self._remote_user, None, auto_render=self._auto_render_remote_user
+        )
+
+    def _get_remote_password(self, ctx: Context):
+        get_str_attr(
+            ctx, self._remote_password, None, auto_render=self._auto_render_remote_password
+        )
+
+    def _get_remote_ssh_key(self, ctx: Context):
+        get_str_attr(
+            ctx, self._remote_ssh_key, None, auto_render=self._auto_render_remote_ssh_key
+        )
+
     def _get_cwd(self, ctx: Context):
-        cwd = self._cwd
-        if cwd is None:
-            cwd = os.getcwd()
-        if self._auto_render_cwd:
-            cwd = ctx.render(cwd)
+        cwd = get_str_attr(
+            ctx, self._cwd, os.getcwd(), auto_render=self._auto_render_cwd
+        )
         return os.path.abspath(cwd)
 
     def __get_local_or_remote_cmd_script(self, ctx: Context) -> str:
@@ -175,12 +219,12 @@ class CmdTask(BaseTask):
             return local_cmd_script
         return get_remote_cmd_script(
             cmd_script=local_cmd_script,
-            host=ctx.render(self._remote_host),
-            port=ctx.render(self._remote_port),
-            user=ctx.render(self._remote_user),
+            host=self._get_remote_host(ctx),
+            port=self._get_remote_port(ctx),
+            user=self._get_remote_user(ctx),
             password="$_ZRB_SSH_PASSWORD",
-            use_password=ctx.render(self._remote_password) != "",
-            ssh_key=ctx.render(self._remote_ssh_key),
+            use_password=self._get_remote_password(ctx) != "",
+            ssh_key=self._get_remote_ssh_key(ctx),
         )
 
     def _get_cmd_script(self, ctx: Context) -> str:

@@ -42,8 +42,23 @@ class Context(AnyContext):
     def set_max_attempt(self, max_attempt: int):
         self._max_attempt = max_attempt
 
-    def render(self, template: str, additional_data: Mapping[str, Any] = {}):
+    def render(self, template: str, additional_data: Mapping[str, Any] = {}) -> str:
         return self._shared_context.render(
+            template=template, additional_data=additional_data
+        )
+
+    def render_bool(self, template: str, additional_data: Mapping[str, Any] = {}) -> bool:
+        return self._shared_context.render_bool(
+            template=template, additional_data=additional_data
+        )
+
+    def render_int(self, template: str, additional_data: Mapping[str, Any] = {}) -> int:
+        return self._shared_context.render_int(
+            template=template, additional_data=additional_data
+        )
+
+    def render_float(self, template: str, additional_data: Mapping[str, Any] = {}) -> float:
+        return self._shared_context.render_float(
             template=template, additional_data=additional_data
         )
 

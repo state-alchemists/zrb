@@ -249,7 +249,8 @@ class BaseTask(AnyTask):
         await asyncio.gather(*fallback_coros)
 
     async def _exec_action(self, ctx: Context) -> Any:
-        """Execute the main action of the task. By default will render and run the _action attribute.
+        """Execute the main action of the task.
+        By default will render and run the _action attribute.
 
         Override this method to define custom action.
 

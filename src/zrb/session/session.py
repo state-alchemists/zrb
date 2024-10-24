@@ -1,11 +1,11 @@
 from typing import Any, Coroutine
 from collections.abc import Mapping
-from collections import deque
 from .any_session import AnySession
 from .any_shared_context import AnySharedContext
 from .context import AnyContext
 from .context import Context
 from .task_status import TaskStatus
+from .xcom import Xcom
 from ..task.any_task import AnyTask
 from ..util.cli.style import GREEN, YELLOW, BLUE, MAGENTA, CYAN, ICONS
 
@@ -100,7 +100,7 @@ class Session(AnySession):
 
     def _register_single_task(self, task: AnyTask):
         if task.get_name() not in self._shared_context.xcom:
-            self._shared_context.xcom[task.get_name()] = deque([])
+            self._shared_context.xcom[task.get_name()] = Xcom([])
         if task not in self._context:
             self._context[task] = Context(
                 shared_context=self._shared_context,
