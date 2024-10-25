@@ -1,8 +1,6 @@
-from zrb.helper.cli import create_cli
-from zrb.helper.default_env import inject_default_env
+from .runner.cli import cli
+import sys
 
-inject_default_env()
-cli = create_cli()
 
-if __name__ == "__main__":
-    cli()
+def serve_cli():
+    cli.run(sys.argv[1:])

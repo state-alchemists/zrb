@@ -1,5 +1,0 @@
-services:
-  myapp_simple:
-    build: image
-    environment:
-      MY_MESSAGE: "Hello, Compose!"

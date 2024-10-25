@@ -1,1 +1,0 @@
-pulumi destroy --skip-preview

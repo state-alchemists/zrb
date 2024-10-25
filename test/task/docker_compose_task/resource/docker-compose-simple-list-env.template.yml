@@ -1,5 +1,0 @@
-services:
-  myapp_simple_list_env:
-    build: image
-    environment:
-      - MY_MESSAGE=${ZRB_TEST_DC_TASK_SIMPLE_LIST_MESSAGE:-Good morning}

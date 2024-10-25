@@ -1,147 +1,263 @@
+from collections.abc import Callable, Mapping
+from .any_task import AnyTask
+from .base_task import BaseTask
+from .cmd_data import Cmd, CmdPath, CmdResult, CmdVal, SingleCmdVal
+from ..config import DEFAULT_SHELL
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
+from ..session.context import Context
+from ..util.cmd.remote import get_remote_cmd_script
+from .attr_data import StrAttr, IntAttr, get_str_attr, get_int_attr
+
+import io
 import os
-import pathlib
-from collections.abc import Callable, Iterable
-from typing import Optional, Union
-
-from zrb.helper.accessories.color import colored
-from zrb.helper.log import logger
-from zrb.helper.typecheck import typechecked
-from zrb.helper.typing import JinjaTemplate
-from zrb.task.any_task import AnyTask
-from zrb.task.any_task_event_handler import (
-    OnFailed,
-    OnReady,
-    OnRetry,
-    OnSkipped,
-    OnStarted,
-    OnTriggered,
-    OnWaiting,
-)
-from zrb.task.base_cmd_task import BaseCmdTask, CmdResult, CmdVal
-from zrb.task_env.env import Env
-from zrb.task_env.env_file import EnvFile
-from zrb.task_group.group import Group
-from zrb.task_input.any_input import AnyInput
-
-logger.debug(colored("Loading zrb.task.cmd_task", attrs=["dark"]))
-assert CmdResult  # Need to be here so that it can be exported
-
-_CURRENT_DIR = os.path.dirname(__file__)
-_SHELL_SCRIPT_DIR = os.path.join(_CURRENT_DIR, "..", "shell-scripts")
-
-ensure_ssh_is_installed = BaseCmdTask(
-    name="ensure-ssh-is-installed",
-    cmd_path=[
-        os.path.join(_SHELL_SCRIPT_DIR, "_common-util.sh"),
-        os.path.join(_SHELL_SCRIPT_DIR, "ensure-ssh-is-installed.sh"),
-    ],
-    should_print_cmd_result=False,
-    should_show_cmd=False,
-    should_show_working_directory=False,
-)
+import threading
+import subprocess
+import sys
 
 
-@typechecked
-class CmdTask(BaseCmdTask):
-    """
-    Command Task.
-    You can use this task to run shell command.
-
-    Examples:
-        >>> from zrb import runner, CmdTask, StrInput, Env
-        >>> hello = CmdTask(
-        >>>     name='hello',
-        >>>     inputs=[StrInput(name='name', default='World')],
-        >>>     envs=[Env(name='HOME_DIR', os_name='HOME')],
-        >>>     cmd=[
-        >>>         'echo Hello {{ input.name }}',
-        >>>         'echo Home directory is: $HOME_DIR',
-        >>>     ]
-        >>> )
-        >>> runner.register(hello)
-    """
-
+class CmdTask(BaseTask):
     def __init__(
         self,
         name: str,
-        group: Optional[Group] = None,
-        inputs: Iterable[AnyInput] = [],
-        envs: Iterable[Env] = [],
-        env_files: Iterable[EnvFile] = [],
-        icon: Optional[str] = None,
-        color: Optional[str] = None,
-        description: str = "",
-        executable: Optional[str] = None,
-        remote_host: Optional[JinjaTemplate] = None,
-        remote_port: Union[JinjaTemplate, int] = 22,
-        remote_user: JinjaTemplate = "root",
-        remote_password: JinjaTemplate = "",
-        remote_ssh_key: JinjaTemplate = "",
+        color: int | None = None,
+        icon: str | None = None,
+        description: str | None = None,
+        input: list[AnyInput] | AnyInput | None = None,
+        env: list[AnyEnv] | AnyEnv | None = None,
+        shell: StrAttr | None = None,
+        auto_render_shell: bool = True,
+        remote_host: StrAttr | None = None,
+        auto_render_remote_host: bool = True,
+        remote_port: IntAttr | None = None,
+        auto_render_remote_port: bool = True,
+        remote_user: StrAttr | None = None,
+        auto_render_remote_user: bool = True,
+        remote_password: StrAttr | None = None,
+        auto_render_remote_password: bool = True,
+        remote_ssh_key: StrAttr | None = None,
+        auto_render_remote_ssh_key: bool = True,
         cmd: CmdVal = "",
-        cmd_path: CmdVal = "",
-        cwd: Optional[Union[JinjaTemplate, pathlib.Path]] = None,
-        should_render_cwd: bool = True,
-        upstreams: Iterable[AnyTask] = [],
-        fallbacks: Iterable[AnyTask] = [],
-        on_triggered: Optional[OnTriggered] = None,
-        on_waiting: Optional[OnWaiting] = None,
-        on_skipped: Optional[OnSkipped] = None,
-        on_started: Optional[OnStarted] = None,
-        on_ready: Optional[OnReady] = None,
-        on_retry: Optional[OnRetry] = None,
-        on_failed: Optional[OnFailed] = None,
-        checkers: Iterable[AnyTask] = [],
-        checking_interval: Union[float, int] = 0.05,
-        retry: int = 2,
-        retry_interval: Union[float, int] = 1,
+        auto_render_cmd: bool = True,
+        cwd: str | None = None,
+        auto_render_cwd: bool = True,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        should_execute: Union[bool, str, Callable[..., bool]] = True,
-        return_upstream_result: bool = False,
-        should_print_cmd_result: bool = True,
-        should_show_cmd: bool = True,
-        should_show_working_directory: bool = True,
+        execute_condition: bool | str | Callable[[Context], bool] = True,
+        retries: int = 2,
+        retry_period: float = 0,
+        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check_delay: float = 0,
+        readiness_check_period: float = 0,
+        upstream: list[AnyTask] | AnyTask | None = None,
+        fallback: list[AnyTask] | AnyTask | None = None,
     ):
-        BaseCmdTask.__init__(
-            self,
+        super().__init__(
             name=name,
-            group=group,
-            inputs=inputs,
-            envs=envs,
-            env_files=env_files,
-            icon=icon,
             color=color,
+            icon=icon,
             description=description,
-            executable=executable,
-            remote_host=remote_host,
-            remote_port=remote_port,
-            remote_user=remote_user,
-            remote_password=remote_password,
-            remote_ssh_key=remote_ssh_key,
-            cmd=cmd,
-            cmd_path=cmd_path,
-            cwd=cwd,
-            should_render_cwd=should_render_cwd,
-            upstreams=upstreams,
-            fallbacks=fallbacks,
-            on_triggered=on_triggered,
-            on_waiting=on_waiting,
-            on_skipped=on_skipped,
-            on_started=on_started,
-            on_ready=on_ready,
-            on_retry=on_retry,
-            on_failed=on_failed,
-            checkers=checkers,
-            checking_interval=checking_interval,
-            retry=retry,
-            retry_interval=retry_interval,
-            max_output_line=max_output_line,
-            max_error_line=max_error_line,
-            should_execute=should_execute,
-            return_upstream_result=return_upstream_result,
-            should_print_cmd_result=should_print_cmd_result,
-            should_show_cmd=should_show_cmd,
-            should_show_working_directory=should_show_working_directory,
+            input=input,
+            env=env,
+            execute_condition=execute_condition,
+            retries=retries,
+            retry_period=retry_period,
+            readiness_check=readiness_check,
+            readiness_check_delay=readiness_check_delay,
+            readiness_check_period=readiness_check_period,
+            upstream=upstream,
+            fallback=fallback,
         )
-        if self._remote_host is not None:
-            self.add_upstream(ensure_ssh_is_installed)
+        self._shell = shell
+        self._auto_render_shell = auto_render_shell
+        self._remote_host = remote_host
+        self._auto_render_remote_host = auto_render_remote_host
+        self._remote_port = remote_port
+        self._auto_render_remote_port = auto_render_remote_port
+        self._remote_user = remote_user
+        self._auto_render_remote_user = auto_render_remote_user
+        self._remote_password = remote_password
+        self._auto_render_remote_password = auto_render_remote_password
+        self._remote_ssh_key = remote_ssh_key
+        self._auto_render_remote_ssh_key = auto_render_remote_ssh_key
+        self._cmd = cmd
+        self._auto_render_cmd = auto_render_cmd
+        self._cwd = cwd
+        self._auto_render_cwd = auto_render_cwd
+        self._max_output_line = max_output_line
+        self._max_error_line = max_error_line
+
+    async def _exec_action(self, ctx: Context) -> CmdResult:
+        """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
+
+        Args:
+            session (AnySession): The shared session.
+
+        Returns:
+            Any: The result of the action execution.
+        """
+        cmd_script = self._get_local_or_remote_cmd_script(ctx)
+        cwd = self._get_cwd(ctx)
+        shell = self._get_shell(ctx)
+        ctx.log_info("Running script")
+        ctx.log_debug(f"Shell: {shell}")
+        ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
+        ctx.log_debug(f"Working directory: {cwd}")
+        cmd_process = subprocess.Popen(
+            cmd_script,
+            cwd=cwd,
+            stdin=sys.stdin if sys.stdin.isatty() else None,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=self.__get_env_map(ctx),
+            shell=True,
+            text=True,
+            executable=shell,
+            bufsize=0,
+        )
+        stdout, stderr = [], []
+        stdout_thread = threading.Thread(
+            target=self.__make_reader(
+                ctx, cmd_process.stdout, max_line=self._max_output_line, lines=stdout
+            )
+        )
+        stderr_thread = threading.Thread(
+            target=self.__make_reader(
+                ctx, cmd_process.stderr, max_line=self._max_output_line, lines=stderr
+            )
+        )
+        stdout_thread.start()
+        stderr_thread.start()
+        try:
+            process_error = None
+            try:
+                cmd_process.wait()
+            except Exception as e:
+                process_error = e
+            stdout_thread.join()
+            stderr_thread.join()
+            output = "\n".join(stdout)
+            error = "\n".join(stderr)
+            # get return code
+            return_code = cmd_process.returncode
+            if process_error is not None:
+                raise Exception(process_error)
+            if return_code != 0:
+                ctx.log_error(f"Exit status: {return_code}")
+                raise Exception(f"Process {self._name} exited ({return_code}): {error}")
+            return CmdResult(output, error)
+        finally:
+            self.__terminate_process(ctx, cmd_process)
+
+    def __get_env_map(self, ctx: Context) -> Mapping[str, str]:
+        envs = {key: val for key, val in ctx.env.items()}
+        envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
+
+    def __make_reader(
+        self, ctx: Context, stream: io.TextIOWrapper, max_line: int, lines: list[str],
+    ) -> Callable:
+        def read_lines():
+            for line in stream:
+                line = line.rstrip()
+                ctx.print(line)
+                lines.append(line)
+                if len(lines) > max_line:
+                    lines.pop(0)
+        return read_lines
+
+    def __terminate_process(self, ctx: Context, cmd_process: subprocess.Popen[str]):
+        """Terminate the shell script if it's still running."""
+        if cmd_process.poll() is None:  # If the process is still running
+            cmd_process.terminate()  # Gracefully terminate the process
+            try:
+                ctx.log_info("Waiting for process termination")
+                cmd_process.wait(timeout=5)  # Give it time to terminate
+            except subprocess.TimeoutExpired:
+                ctx.log_info("Killing the process")
+                cmd_process.kill()  # Forcefully kill if not terminated
+
+    def _get_shell(self, ctx: Context):
+        return get_str_attr(
+            ctx, self._shell, DEFAULT_SHELL, auto_render=self._auto_render_shell
+        )
+
+    def _get_remote_host(self, ctx: Context):
+        return get_str_attr(
+            ctx, self._remote_host, "", auto_render=self._auto_render_remote_host
+        )
+
+    def _get_remote_port(self, ctx: Context):
+        return get_int_attr(
+            ctx, self._remote_port, 22, auto_render=self._auto_render_remote_port
+        )
+
+    def _get_remote_user(self, ctx: Context):
+        return get_str_attr(
+            ctx, self._remote_user, "", auto_render=self._auto_render_remote_user
+        )
+
+    def _get_remote_password(self, ctx: Context) -> str:
+        return get_str_attr(
+            ctx, self._remote_password, "", auto_render=self._auto_render_remote_password
+        )
+
+    def _get_remote_ssh_key(self, ctx: Context):
+        return get_str_attr(
+            ctx, self._remote_ssh_key, None, auto_render=self._auto_render_remote_ssh_key
+        )
+
+    def _get_cwd(self, ctx: Context) -> str:
+        cwd = get_str_attr(
+            ctx, self._cwd, os.getcwd(), auto_render=self._auto_render_cwd
+        )
+        if cwd is None:
+            cwd = os.getcwd()
+        return os.path.abspath(cwd)
+
+    def _get_local_or_remote_cmd_script(self, ctx: Context) -> str:
+        local_cmd_script = self._get_local_cmd_script(ctx)
+        if self._remote_host is None:
+            return local_cmd_script
+        return get_remote_cmd_script(
+            cmd_script=local_cmd_script,
+            host=self._get_remote_host(ctx),
+            port=self._get_remote_port(ctx),
+            user=self._get_remote_user(ctx),
+            password="$_ZRB_SSH_PASSWORD",
+            use_password=self._get_remote_password(ctx) != "",
+            ssh_key=self._get_remote_ssh_key(ctx),
+        )
+
+    def _get_local_cmd_script(self, ctx: Context) -> str:
+        return self._render_cmd_val(ctx, self._cmd)
+
+    def _render_cmd_val(self, ctx: Context, cmd_val: CmdVal) -> str:
+        if isinstance(cmd_val, list):
+            return "\n".join([
+                self.__render_single_cmd_val(ctx, single_cmd_val)
+                for single_cmd_val in cmd_val
+            ])
+        return self._render_cmd_val(ctx, cmd_val)
+
+    def __render_single_cmd_val(
+        self, ctx: Context, single_cmd_val: SingleCmdVal
+    ) -> str:
+        if callable(single_cmd_val):
+            return single_cmd_val(ctx)
+        if isinstance(single_cmd_val, CmdPath):
+            return single_cmd_val.read(ctx)
+        if isinstance(single_cmd_val, Cmd):
+            return single_cmd_val.render(ctx)
+        if self._auto_render_cmd:
+            return ctx.render(single_cmd_val)
+        return single_cmd_val
+
+    def __get_multiline_repr(self, text: str) -> str:
+        lines_repr: list[str] = []
+        lines = text.split("\n")
+        if len(lines) == 1:
+            return lines[0]
+        for index, line in enumerate(lines):
+            line_number_repr = str(index + 1).rjust(4, "0")
+            lines_repr.append(f"   {line_number_repr} | {line}")
+        return "\n" + "\n".join(lines_repr)

@@ -1,3 +1,0 @@
-from .publish import publish_snake_zrb_package_name
-
-assert publish_snake_zrb_package_name
