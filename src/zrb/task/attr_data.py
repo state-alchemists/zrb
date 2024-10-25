@@ -10,13 +10,15 @@ FloatAttr = float | str | Callable[[Context], float]
 def get_str_attr(
     ctx: Context,
     attr: StrAttr | None,
-    default: StrAttr | None = None,
+    default: StrAttr,
     auto_render: bool = True
-) -> str | None:
+) -> str:
     if attr is None:
         if callable(default):
             return default(ctx)
         return default
+    if callable(attr):
+        return attr(ctx)
     if isinstance(attr, str) and auto_render:
         return ctx.render(attr)
     if isinstance(attr, str):
@@ -27,13 +29,15 @@ def get_str_attr(
 def get_bool_attr(
     ctx: Context,
     attr: BoolAttr | None,
-    default: BoolAttr | None = None,
+    default: BoolAttr,
     auto_render: bool = True
-) -> bool | None:
+) -> bool:
     if attr is None:
         if callable(default):
             return default(ctx)
         return default
+    if callable(attr):
+        return attr(ctx)
     if isinstance(attr, str) and auto_render:
         return ctx.render_bool(attr)
     if isinstance(attr, bool):
@@ -44,13 +48,15 @@ def get_bool_attr(
 def get_int_attr(
     ctx: Context,
     attr: IntAttr | None,
-    default: IntAttr | None = None,
+    default: IntAttr,
     auto_render: bool = True
-) -> int | None:
+) -> int:
     if attr is None:
         if callable(default):
             return default(ctx)
         return default
+    if callable(attr):
+        return attr(ctx)
     if isinstance(attr, str) and auto_render:
         return ctx.render_int(attr)
     if isinstance(attr, int):
@@ -61,14 +67,16 @@ def get_int_attr(
 def get_float_attr(
     ctx: Context,
     attr: FloatAttr | None,
-    default: FloatAttr | None = None,
+    default: FloatAttr,
     auto_render: bool = True
-) -> float | None:
+) -> float:
     if attr is None:
         if callable(default):
             return default(ctx)
         if isinstance(default, bool):
             return default
+    if callable(attr):
+        return attr(ctx)
     if isinstance(attr, str) and auto_render:
         return ctx.render_float(attr)
     if isinstance(attr, float):

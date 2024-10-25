@@ -96,7 +96,7 @@ class CmdTask(BaseTask):
         Returns:
             Any: The result of the action execution.
         """
-        cmd_script = self.__get_local_or_remote_cmd_script(ctx)
+        cmd_script = self._get_local_or_remote_cmd_script(ctx)
         cwd = self._get_cwd(ctx)
         shell = self._get_shell(ctx)
         ctx.log_info("Running script")
@@ -151,8 +151,7 @@ class CmdTask(BaseTask):
 
     def __get_env_map(self, ctx: Context) -> Mapping[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
-        if self._remote_password is not None:
-            envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
+        envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
     def __make_reader(
         self, ctx: Context, stream: io.TextIOWrapper, max_line: int, lines: list[str],
@@ -178,43 +177,45 @@ class CmdTask(BaseTask):
                 cmd_process.kill()  # Forcefully kill if not terminated
 
     def _get_shell(self, ctx: Context):
-        get_str_attr(
+        return get_str_attr(
             ctx, self._shell, DEFAULT_SHELL, auto_render=self._auto_render_shell
         )
 
     def _get_remote_host(self, ctx: Context):
-        get_str_attr(
-            ctx, self._remote_host, None, auto_render=self._auto_render_remote_host
+        return get_str_attr(
+            ctx, self._remote_host, "", auto_render=self._auto_render_remote_host
         )
 
     def _get_remote_port(self, ctx: Context):
-        get_int_attr(
+        return get_int_attr(
             ctx, self._remote_port, 22, auto_render=self._auto_render_remote_port
         )
 
     def _get_remote_user(self, ctx: Context):
-        get_str_attr(
-            ctx, self._remote_user, None, auto_render=self._auto_render_remote_user
+        return get_str_attr(
+            ctx, self._remote_user, "", auto_render=self._auto_render_remote_user
         )
 
-    def _get_remote_password(self, ctx: Context):
-        get_str_attr(
-            ctx, self._remote_password, None, auto_render=self._auto_render_remote_password
+    def _get_remote_password(self, ctx: Context) -> str:
+        return get_str_attr(
+            ctx, self._remote_password, "", auto_render=self._auto_render_remote_password
         )
 
     def _get_remote_ssh_key(self, ctx: Context):
-        get_str_attr(
+        return get_str_attr(
             ctx, self._remote_ssh_key, None, auto_render=self._auto_render_remote_ssh_key
         )
 
-    def _get_cwd(self, ctx: Context):
+    def _get_cwd(self, ctx: Context) -> str:
         cwd = get_str_attr(
             ctx, self._cwd, os.getcwd(), auto_render=self._auto_render_cwd
         )
+        if cwd is None:
+            cwd = os.getcwd()
         return os.path.abspath(cwd)
 
-    def __get_local_or_remote_cmd_script(self, ctx: Context) -> str:
-        local_cmd_script = self._get_cmd_script(ctx)
+    def _get_local_or_remote_cmd_script(self, ctx: Context) -> str:
+        local_cmd_script = self._get_local_cmd_script(ctx)
         if self._remote_host is None:
             return local_cmd_script
         return get_remote_cmd_script(
@@ -227,7 +228,7 @@ class CmdTask(BaseTask):
             ssh_key=self._get_remote_ssh_key(ctx),
         )
 
-    def _get_cmd_script(self, ctx: Context) -> str:
+    def _get_local_cmd_script(self, ctx: Context) -> str:
         return self._render_cmd_val(ctx, self._cmd)
 
     def _render_cmd_val(self, ctx: Context, cmd_val: CmdVal) -> str:
