@@ -1,6 +1,5 @@
 from collections.abc import Callable
 from .any_task import AnyTask
-from .cmd_data import CmdVal
 from .cmd_task import CmdTask
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
@@ -37,8 +36,6 @@ class RsyncTask(CmdTask):
         auto_render_local_source_path: bool = True,
         local_destination_path: StrAttr | None = None,
         auto_render_local_destination_path: bool = True,
-        cmd: CmdVal = "",
-        auto_render_cmd: bool = True,
         cwd: str | None = None,
         auto_render_cwd: bool = True,
         max_output_line: int = 1000,
@@ -71,8 +68,6 @@ class RsyncTask(CmdTask):
             auto_render_remote_password=auto_render_remote_password,
             remote_ssh_key=remote_ssh_key,
             auto_render_remote_ssh_key=auto_render_remote_ssh_key,
-            cmd=cmd,
-            auto_render_cmd=auto_render_cmd,
             cwd=cwd,
             auto_render_cwd=auto_render_cwd,
             max_output_line=max_output_line,

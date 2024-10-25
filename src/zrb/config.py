@@ -27,6 +27,7 @@ def _get_log_level(level: str) -> int:
     log_levels = {
         "CRITICAL": logging.CRITICAL,  # 50
         "ERROR": logging.ERROR,        # 40
+        "WARN": logging.WARNING,       # 30
         "WARNING": logging.WARNING,    # 30
         "INFO": logging.INFO,          # 20
         "DEBUG": logging.DEBUG,        # 10

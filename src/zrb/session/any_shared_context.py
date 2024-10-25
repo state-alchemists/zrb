@@ -6,8 +6,8 @@ from collections.abc import Mapping
 class AnySharedContext(ABC):
     """Abstract base class for shared context across tasks.
 
-    This class provides methods to manage shared settings and utilities, 
-    such as logging level configuration, time display preferences, and 
+    This class provides methods to manage shared settings and utilities,
+    such as logging level configuration, time display preferences, and
     rendering templates with additional data.
     """
 
@@ -16,8 +16,8 @@ class AnySharedContext(ABC):
         """Retrieves the current logging level.
 
         Returns:
-            int: The logging level to be used, typically corresponding to 
-            standard logging levels such as DEBUG, INFO, WARN, etc.
+            int: The logging level to be used, typically corresponding to
+            standard logging levels such as logging.DEBUG, loggin.INFO, logging.WARNING, etc.
         """
         pass
 
