@@ -1,8 +1,8 @@
 from __future__ import annotations  # Enables forward references
 from typing import Any, Coroutine, TYPE_CHECKING
 from abc import ABC, abstractmethod
-from .any_shared_context import AnySharedContext
-from .any_context import AnyContext
+from ..context.any_shared_context import AnySharedContext
+from ..context.any_context import AnyContext
 
 if TYPE_CHECKING:
     from ..task import any_task

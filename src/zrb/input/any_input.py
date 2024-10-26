@@ -1,6 +1,6 @@
 from typing import Any
 from abc import ABC, abstractmethod
-from ..session.shared_context import SharedContext
+from ..context.shared_context import SharedContext
 
 
 class AnyInput(ABC):
@@ -17,7 +17,7 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def get_default_value(self, shared_context: SharedContext) -> Any:
+    def get_default_value(self, shared_ctx: SharedContext) -> Any:
         pass
 
     @abstractmethod
@@ -25,9 +25,9 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def update_shared_context(self, shared_context: SharedContext, value: Any = None):
+    def update_shared_context(self, shared_ctx: SharedContext, value: Any = None):
         pass
 
     @abstractmethod
-    def prompt_cli(self, shared_context: SharedContext) -> Any:
+    def prompt_cli(self, shared_ctx: SharedContext) -> Any:
         pass

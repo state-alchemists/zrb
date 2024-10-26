@@ -1,7 +1,8 @@
 from typing import Any, TextIO
 from collections.abc import Mapping
 from .any_context import AnyContext
-from .shared_context import SharedContext
+from .any_shared_context import AnySharedContext
+from ..dict_to_object.dict_to_object import DictToObject
 from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
 
 import datetime
@@ -12,16 +13,12 @@ import sys
 class Context(AnyContext):
     def __init__(
         self,
-        shared_context: SharedContext,
+        shared_context: AnySharedContext,
         task_name: str,
         color: int,
         icon: str
     ):
-        self._shared_context = shared_context
-        self.input = shared_context.input
-        self.args = shared_context.args
-        self.env = shared_context.env
-        self.xcom = shared_context.xcom
+        self._shared_ctx = shared_context
         self._task_name = task_name
         self._color = color
         self._icon = icon
@@ -30,11 +27,23 @@ class Context(AnyContext):
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        input = self.input
-        args = self.args
-        env = self.env
-        xcom = self.xcom
-        return f"<{class_name} input={input} arg={args} env={env} xcom={xcom}>"
+        return f"<{class_name} shared_ctx={self._shared_ctx}>"
+
+    @property
+    def input(self) -> DictToObject:
+        return self._shared_ctx.input
+
+    @property
+    def env(self) -> DictToObject:
+        return self._shared_ctx.env
+
+    @property
+    def args(self) -> list[Any]:
+        return self._shared_ctx.args
+
+    @property
+    def xcom(self) -> DictToObject:
+        return self._shared_ctx.xcom
 
     def set_attempt(self, attempt: int):
         self._attempt = attempt
@@ -42,23 +51,23 @@ class Context(AnyContext):
     def set_max_attempt(self, max_attempt: int):
         self._max_attempt = max_attempt
 
+    def get_logging_level(self) -> int:
+        return self._shared_ctx.get_logging_level()
+
+    def should_show_time(self) -> bool:
+        return self._shared_ctx.should_show_time()
+
     def render(self, template: str, additional_data: Mapping[str, Any] = {}) -> str:
-        return self._shared_context.render(
-            template=template, additional_data=additional_data
-        )
+        return self._shared_ctx.render(template=template, additional_data=additional_data)
 
     def render_bool(self, template: str, additional_data: Mapping[str, Any] = {}) -> bool:
-        return self._shared_context.render_bool(
-            template=template, additional_data=additional_data
-        )
+        return self._shared_ctx.render_bool(template=template, additional_data=additional_data)
 
     def render_int(self, template: str, additional_data: Mapping[str, Any] = {}) -> int:
-        return self._shared_context.render_int(
-            template=template, additional_data=additional_data
-        )
+        return self._shared_ctx.render_int(template=template, additional_data=additional_data)
 
     def render_float(self, template: str, additional_data: Mapping[str, Any] = {}) -> float:
-        return self._shared_context.render_float(
+        return self._shared_ctx.render_float(
             template=template, additional_data=additional_data
         )
 
@@ -75,7 +84,7 @@ class Context(AnyContext):
         task_name = self._task_name
         padded_task_name = task_name.ljust(20)
         attempt_status = f"{self._attempt}/{self._max_attempt}"
-        if self._shared_context.show_time():
+        if self._shared_ctx.should_show_time():
             now = datetime.datetime.now()
             formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
             prefix = stylize(
@@ -95,7 +104,7 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
-        if self._shared_context.get_logging_level() <= logging.DEBUG:
+        if self._shared_ctx.get_logging_level() <= logging.DEBUG:
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_log(f"[DEBUG] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -108,7 +117,7 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
-        if self._shared_context.get_logging_level() <= logging.INFO:
+        if self._shared_ctx.get_logging_level() <= logging.INFO:
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_log(f"[INFO] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -121,7 +130,7 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
-        if self._shared_context.get_logging_level() <= logging.INFO:
+        if self._shared_ctx.get_logging_level() <= logging.INFO:
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_warning(f"[WARNING] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -134,7 +143,7 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
-        if self._shared_context.get_logging_level() <= logging.ERROR:
+        if self._shared_ctx.get_logging_level() <= logging.ERROR:
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_error(f"[ERROR] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -147,7 +156,7 @@ class Context(AnyContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True
     ):
-        if self._shared_context.get_logging_level() <= logging.CRITICAL:
+        if self._shared_ctx.get_logging_level() <= logging.CRITICAL:
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_error(f"[CRITICAL] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)

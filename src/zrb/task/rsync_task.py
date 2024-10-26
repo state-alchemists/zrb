@@ -1,10 +1,11 @@
 from collections.abc import Callable
 from .any_task import AnyTask
 from .cmd_task import CmdTask
+from ..attr.type import StrAttr, IntAttr
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..session.context import Context
-from .attr_data import StrAttr, IntAttr, get_str_attr
+from ..context.context import Context
+from ..util.attr import get_str_attr
 
 
 class RsyncTask(CmdTask):
@@ -134,7 +135,7 @@ class RsyncTask(CmdTask):
             auto_render=self._auto_render_local_destination_path
         )
 
-    def _get_local_or_remote_cmd_script(self, ctx: Context) -> str:
+    def _get_cmd_script(self, ctx: Context) -> str:
         port = self._get_remote_port(ctx)
         password = self._get_remote_password(ctx)
         key = self._get_remote_ssh_key(ctx)

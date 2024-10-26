@@ -2,9 +2,9 @@ from typing import Any
 from collections.abc import Callable
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..session.shared_context import AnySharedContext
-from ..session.shared_context import SharedContext
-from ..session.context import Context
+from ..context.shared_context import AnySharedContext
+from ..context.shared_context import SharedContext
+from ..context.context import Context
 from ..session.any_session import AnySession
 from ..session.session import Session
 from ..util.run import run_async
@@ -139,16 +139,16 @@ class BaseTask(AnyTask):
         # Inject os environ
         os_env_map = {
             key: val for key, val in os.environ.items()
-            if key not in shared_context.env
+            if key not in shared_context._env
         }
-        shared_context.env.update(os_env_map)
+        shared_context._env.update(os_env_map)
         # Inject environment from task's envs
         for env in self.get_envs():
             env.update_shared_context(shared_context)
 
     def _fill_shared_context_inputs(self, shared_context: AnySharedContext):
         for task_input in self.get_inputs():
-            if task_input.get_name() not in shared_context.input:
+            if task_input.get_name() not in shared_context._input:
                 task_input.update_shared_context(shared_context)
 
     async def exec_root_tasks(self, session: AnySession):

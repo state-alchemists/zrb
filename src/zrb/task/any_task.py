@@ -1,7 +1,7 @@
 from __future__ import annotations  # Enables forward references
 from typing import Any, TypeVar, TYPE_CHECKING
 from abc import ABC, abstractmethod
-from ..session.any_shared_context import AnySharedContext
+from ..context.any_shared_context import AnySharedContext
 from ..input.any_input import AnyInput
 from ..env.any_env import AnyEnv
 

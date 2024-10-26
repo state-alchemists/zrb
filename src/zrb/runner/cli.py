@@ -5,7 +5,7 @@ from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold
 from ..util.load import load_zrb_init
 from ..group.group import Group
 from ..task.any_task import AnyTask
-from ..session.shared_context import SharedContext
+from ..context.shared_context import SharedContext
 import sys
 
 
@@ -75,7 +75,7 @@ class Cli(Group):
         task_inputs = task.get_inputs()
         arg_index = 0
         for task_input in task_inputs:
-            if task_input.get_name() not in session.input:
+            if task_input.get_name() not in session._input:
                 if arg_index < len(args):
                     task_input.update_shared_context(session, args[arg_index])
                     arg_index += 1

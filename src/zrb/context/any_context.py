@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod
-from typing import Any, TextIO
-from collections.abc import Mapping
+from abc import abstractmethod
+from typing import TextIO
+from .any_shared_context import AnySharedContext
 import sys
 
 
-class AnyContext(ABC):
+class AnyContext(AnySharedContext):
     """Abstract base class for managing task contexts, logging, and rendering.
 
     This class provides methods for managing context-specific data such as
@@ -27,62 +27,6 @@ class AnyContext(ABC):
 
         Args:
             max_attempt (int): The maximum number of attempts allowed.
-        """
-        pass
-
-    @abstractmethod
-    def render(self, template: str, additional_data: Mapping[str, Any] = {}) -> str:
-        """Renders a template string with optional additional data.
-
-        Args:
-            template (str): The template string to be rendered.
-            additional_data (Mapping[str, Any], optional): Additional data 
-            to be merged into the template rendering context.
-
-        Returns:
-            str: The rendered template as a string.
-        """
-        pass
-
-    @abstractmethod
-    def render_bool(self, template: str, additional_data: Mapping[str, Any] = {}) -> bool:
-        """Renders a template string with optional additional data into boolean.
-
-        Args:
-            template (str): The template string to be rendered.
-            additional_data (Mapping[str, Any], optional): Additional data 
-            to be merged into the template rendering context.
-
-        Returns:
-            bool: The rendered template as a boolean.
-        """
-        pass
-
-    @abstractmethod
-    def render_int(self, template: str, additional_data: Mapping[str, Any] = {}) -> int:
-        """Renders a template string with optional additional data into integer.
-
-        Args:
-            template (str): The template string to be rendered.
-            additional_data (Mapping[str, Any], optional): Additional data 
-            to be merged into the template rendering context.
-
-        Returns:
-            int: The rendered template as a integer.
-        """
-        pass
-
-    @abstractmethod
-    def render_float(self, template: str, additional_data: Mapping[str, Any] = {}) -> float:
-        """Renders a template string with optional additional data into float.
-
-        Args:
-            template (str): The template string to be rendered.
-            additional_data (Mapping[str, Any], optional): Additional data 
-            to be merged into the template rendering context.
-
-        Returns:
-            float: The rendered template as a float.
         """
         pass
 

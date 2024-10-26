@@ -1,6 +1,6 @@
 from .str_input import StrInput
 from collections.abc import Callable
-from ..session.shared_context import SharedContext
+from ..context.shared_context import SharedContext
 import getpass
 
 
@@ -26,9 +26,9 @@ class PasswordInput(StrInput):
         )
         self._is_secret = True
 
-    def _prompt_cli(self, shared_context: SharedContext) -> str:
+    def _prompt_cli(self, shared_ctx: SharedContext) -> str:
         prompt_message = self.get_prompt_message()
-        default_value = self.get_default_value(shared_context)
+        default_value = self.get_default_value(shared_ctx)
         value = getpass.getpass(f"{prompt_message}: ")
         if value.strip() == "":
             value = default_value

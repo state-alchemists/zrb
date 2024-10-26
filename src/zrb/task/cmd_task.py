@@ -1,13 +1,15 @@
 from collections.abc import Callable, Mapping
 from .any_task import AnyTask
 from .base_task import BaseTask
-from .cmd_data import Cmd, CmdPath, CmdResult, CmdVal, SingleCmdVal
+from ..attr.type import StrAttr, IntAttr
+from ..cmd.cmd_result import CmdResult
+from ..cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
 from ..config import DEFAULT_SHELL
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..session.context import Context
+from ..context.context import Context
 from ..util.cmd.remote import get_remote_cmd_script
-from .attr_data import StrAttr, IntAttr, get_str_attr, get_int_attr
+from ..util.attr import get_str_attr, get_int_attr
 
 import io
 import os
@@ -96,7 +98,7 @@ class CmdTask(BaseTask):
         Returns:
             Any: The result of the action execution.
         """
-        cmd_script = self._get_local_or_remote_cmd_script(ctx)
+        cmd_script = self._get_cmd_script(ctx)
         cwd = self._get_cwd(ctx)
         shell = self._get_shell(ctx)
         ctx.log_info("Running script")
@@ -150,7 +152,7 @@ class CmdTask(BaseTask):
             self.__terminate_process(ctx, cmd_process)
 
     def __get_env_map(self, ctx: Context) -> Mapping[str, str]:
-        envs = {key: val for key, val in ctx.env.items()}
+        envs = {key: val for key, val in ctx._env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
     def __make_reader(
@@ -203,7 +205,7 @@ class CmdTask(BaseTask):
 
     def _get_remote_ssh_key(self, ctx: Context):
         return get_str_attr(
-            ctx, self._remote_ssh_key, None, auto_render=self._auto_render_remote_ssh_key
+            ctx, self._remote_ssh_key, "", auto_render=self._auto_render_remote_ssh_key
         )
 
     def _get_cwd(self, ctx: Context) -> str:
@@ -214,12 +216,14 @@ class CmdTask(BaseTask):
             cwd = os.getcwd()
         return os.path.abspath(cwd)
 
-    def _get_local_or_remote_cmd_script(self, ctx: Context) -> str:
-        local_cmd_script = self._get_local_cmd_script(ctx)
+    def _get_cmd_script(self, ctx: Context) -> str:
         if self._remote_host is None:
-            return local_cmd_script
+            return self._get_local_cmd_script(ctx)
+        return self._get_remote_cmd_script(ctx)
+
+    def _get_remote_cmd_script(self, ctx: Context) -> str:
         return get_remote_cmd_script(
-            cmd_script=local_cmd_script,
+            cmd_script=self._get_local_cmd_script(ctx),
             host=self._get_remote_host(ctx),
             port=self._get_remote_port(ctx),
             user=self._get_remote_user(ctx),
@@ -244,13 +248,12 @@ class CmdTask(BaseTask):
     ) -> str:
         if callable(single_cmd_val):
             return single_cmd_val(ctx)
-        if isinstance(single_cmd_val, CmdPath):
-            return single_cmd_val.read(ctx)
-        if isinstance(single_cmd_val, Cmd):
-            return single_cmd_val.render(ctx)
-        if self._auto_render_cmd:
-            return ctx.render(single_cmd_val)
-        return single_cmd_val
+        if isinstance(single_cmd_val, str):
+            if self._auto_render_cmd:
+                return ctx.render(single_cmd_val)
+            return single_cmd_val
+        if isinstance(single_cmd_val, AnyCmdVal):
+            return single_cmd_val.to_str(ctx)
 
     def __get_multiline_repr(self, text: str) -> str:
         lines_repr: list[str] = []

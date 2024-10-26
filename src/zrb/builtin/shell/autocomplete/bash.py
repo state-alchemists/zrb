@@ -1,4 +1,4 @@
-from ....session.context import Context
+from ....context.context import Context
 from ....task.make_task import make_task
 from ._group import shell_autocomplete_group
 

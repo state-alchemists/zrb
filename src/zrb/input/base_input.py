@@ -1,6 +1,6 @@
 from typing import Any
 from collections.abc import Callable
-from ..session.shared_context import SharedContext
+from ..context.shared_context import SharedContext
 from .any_input import AnyInput
 
 
@@ -38,10 +38,10 @@ class BaseInput(AnyInput):
     def allow_positional_argument(self) -> bool:
         return self._allow_positional_argument
 
-    def update_shared_context(self, shared_context: SharedContext, value: Any = None):
+    def update_shared_context(self, shared_ctx: SharedContext, value: Any = None):
         if value is None:
-            value = self.get_default_value(shared_context)
-        shared_context.input[self.get_name()] = value
+            value = self.get_default_value(shared_ctx)
+        shared_ctx._input[self.get_name()] = value
 
     def prompt_cli(self, shared_context: SharedContext) -> Any:
         value = self._prompt_cli(shared_context)
@@ -49,9 +49,9 @@ class BaseInput(AnyInput):
             value = self._prompt_cli(shared_context)
         return value
 
-    def _prompt_cli(self, shared_context: SharedContext) -> Any:
+    def _prompt_cli(self, shared_ctx: SharedContext) -> Any:
         prompt_message = self.get_prompt_message()
-        default_value = self.get_default_value(shared_context)
+        default_value = self.get_default_value(shared_ctx)
         if default_value is not None:
             prompt_message = f"{prompt_message} [{default_value}]"
         value = input(f"{prompt_message}: ")
@@ -59,9 +59,9 @@ class BaseInput(AnyInput):
             value = default_value
         return value
 
-    def get_default_value(self, shared_context: SharedContext) -> Any:
+    def get_default_value(self, shared_ctx: SharedContext) -> Any:
         if callable(self._default_value):
-            return self._default_value(shared_context)
+            return self._default_value(shared_ctx)
         if self._auto_render and isinstance(self._default_value, str):
-            return shared_context.render(self._default_value)
+            return shared_ctx.render(self._default_value)
         return self._default_value

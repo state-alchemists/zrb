@@ -1,7 +1,7 @@
 from typing import Any
 from .base_input import BaseInput
 from collections.abc import Callable
-from ..session.shared_context import SharedContext
+from ..context.shared_context import SharedContext
 
 
 class StrInput(BaseInput):

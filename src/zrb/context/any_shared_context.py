@@ -1,6 +1,7 @@
 from typing import Any
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from ..dict_to_object.dict_to_object import DictToObject
 
 
 class AnySharedContext(ABC):
@@ -10,6 +11,22 @@ class AnySharedContext(ABC):
     such as logging level configuration, time display preferences, and
     rendering templates with additional data.
     """
+
+    @property
+    def input(self) -> DictToObject:
+        pass
+
+    @property
+    def env(self) -> DictToObject:
+        pass
+
+    @property
+    def args(self) -> list[Any]:
+        pass
+
+    @property
+    def xcom(self) -> DictToObject:
+        pass
 
     @abstractmethod
     def get_logging_level(self) -> int:
@@ -22,7 +39,7 @@ class AnySharedContext(ABC):
         pass
 
     @abstractmethod
-    def show_time(self) -> bool:
+    def should_show_time(self) -> bool:
         """Indicates whether time should be displayed in logs or other outputs.
 
         Returns:

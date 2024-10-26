@@ -27,7 +27,9 @@ beta = Task(
 )
 gamma = Task(name="gamma", action=create_dummy_process("c", 1), upstream=[alpha, beta])
 delta = Task(name="delta", action=create_dummy_process("d", 2), upstream=[alpha, beta, gamma])
-epsilon = Task(name="epsilon", action=create_dummy_process("e", 3), upstream=[alpha, beta, gamma])
+epsilon = Task(
+    name="epsilon", action=create_dummy_process("e", 3), upstream=[alpha, beta, gamma]
+)
 phi = Task(name="phi", action=create_dummy_process("f", 1), upstream=[delta, epsilon])
 cli.add_task(beta)
 cli.add_task(phi)
@@ -86,8 +88,8 @@ def greetings(ctx: Context):
     upstream=[greetings]
 )
 def show_user_info(ctx: Context):
-    ctx.print("Using ctx.env.USER", ctx.env.USER)
-    ctx.print('Using ctx.env.get("USER")', ctx.env.get("USER"))
+    ctx.print("Using ctx.env.USER", ctx._env.USER)
+    ctx.print('Using ctx.env.get("USER")', ctx._env.get("USER"))
 
 
 cli.add_task(show_user_info)
@@ -110,10 +112,10 @@ cli.add_task(create_something)
 
 cli.add_task(CmdTask(
     name="test-cmd",
-    env=Env(env_vars={"FOO": "BAR"}),
+    env=Env("FOO", default="BAR"),
     cmd=[
         "uname",
-        lambda ctx: f"echo From function: {ctx.env.FOO}",
+        lambda ctx: f"echo From function: {ctx._env.FOO}",
         "echo From template: {env.FOO}",
     ]
 ))
