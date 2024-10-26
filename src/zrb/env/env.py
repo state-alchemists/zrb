@@ -26,7 +26,7 @@ class Env(AnyEnv):
             value = os.getenv(os_name, self._get_default_value())
         else:
             value = self._get_default_value()
-        shared_ctx._env[self._name] = value
+        shared_ctx.env[self._name] = value
 
     def _get_default_value(self, shared_ctx: AnySharedContext) -> str:
         return get_str_attr(shared_ctx, self._default, "", self._auto_render)

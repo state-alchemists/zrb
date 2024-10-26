@@ -29,6 +29,7 @@ class CmdTask(BaseTask):
         env: list[AnyEnv] | AnyEnv | None = None,
         shell: StrAttr | None = None,
         auto_render_shell: bool = True,
+        flag: str = "-c",
         remote_host: StrAttr | None = None,
         auto_render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
@@ -49,8 +50,6 @@ class CmdTask(BaseTask):
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float = 0,
-        readiness_check_period: float = 0,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
     ):
@@ -65,13 +64,12 @@ class CmdTask(BaseTask):
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
             upstream=upstream,
             fallback=fallback,
         )
         self._shell = shell
         self._auto_render_shell = auto_render_shell
+        self._shell_flag = flag
         self._remote_host = remote_host
         self._auto_render_remote_host = auto_render_remote_host
         self._remote_port = remote_port
@@ -106,15 +104,14 @@ class CmdTask(BaseTask):
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         ctx.log_debug(f"Working directory: {cwd}")
         cmd_process = subprocess.Popen(
-            cmd_script,
+            [shell, self._shell_flag, cmd_script],
             cwd=cwd,
             stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=self.__get_env_map(ctx),
-            shell=True,
+            shell=False,
             text=True,
-            executable=shell,
             bufsize=0,
         )
         stdout, stderr = [], []
@@ -152,7 +149,7 @@ class CmdTask(BaseTask):
             self.__terminate_process(ctx, cmd_process)
 
     def __get_env_map(self, ctx: Context) -> Mapping[str, str]:
-        envs = {key: val for key, val in ctx._env.items()}
+        envs = {key: val for key, val in ctx.env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
     def __make_reader(
@@ -241,7 +238,7 @@ class CmdTask(BaseTask):
                 self.__render_single_cmd_val(ctx, single_cmd_val)
                 for single_cmd_val in cmd_val
             ])
-        return self._render_cmd_val(ctx, cmd_val)
+        return self.__render_single_cmd_val(ctx, cmd_val)
 
     def __render_single_cmd_val(
         self, ctx: Context, single_cmd_val: SingleCmdVal

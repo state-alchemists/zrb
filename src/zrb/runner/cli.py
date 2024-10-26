@@ -70,19 +70,21 @@ class Cli(Group):
                 break
         return node, node_path, residual_args
 
-    def _run_task(self, task: AnyTask, args: list[str], options: list[str]):
-        session = SharedContext(input=options, args=args)
+    def _run_task(
+        self, task: AnyTask, args: list[str], options: list[str]
+    ) -> Any:
+        shared_ctx = SharedContext(input=options, args=args)
         task_inputs = task.get_inputs()
         arg_index = 0
         for task_input in task_inputs:
-            if task_input.get_name() not in session._input:
+            if task_input.get_name() not in shared_ctx._input:
                 if arg_index < len(args):
-                    task_input.update_shared_context(session, args[arg_index])
+                    task_input.update_shared_context(shared_ctx, args[arg_index])
                     arg_index += 1
                     continue
-                input_value = task_input.prompt_cli(session)
-                task_input.update_shared_context(session, input_value)
-        return task.run(session)
+                input_value = task_input.prompt_cli(shared_ctx)
+                task_input.update_shared_context(shared_ctx, input_value)
+        return task.run(shared_ctx)
 
     def _show_task_info(self, task: AnyTask):
         description = task.get_description()

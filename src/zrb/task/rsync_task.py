@@ -45,8 +45,6 @@ class RsyncTask(CmdTask):
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float = 0,
-        readiness_check_period: float = 0,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
     ):
@@ -77,8 +75,6 @@ class RsyncTask(CmdTask):
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
             upstream=upstream,
             fallback=fallback,
         )

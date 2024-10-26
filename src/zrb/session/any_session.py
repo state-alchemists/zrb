@@ -17,7 +17,7 @@ class AnySession(ABC):
     """
 
     @abstractmethod
-    def get_shared_context(self) -> AnySharedContext:
+    def get_shared_ctx(self) -> AnySharedContext:
         """Retrieves the shared context that is common across tasks in the session.
 
         Returns:
@@ -26,7 +26,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_context(self, task: any_task.AnyTask) -> AnyContext:
+    def get_ctx(self, task: any_task.AnyTask) -> AnyContext:
         """Retrieves the context for a specific task.
 
         Args:
@@ -40,6 +40,16 @@ class AnySession(ABC):
     @abstractmethod
     def defer_task_coroutine(self, task: any_task.AnyTask, coro: Coroutine):
         """Defers the execution of a task's coroutine for later processing.
+
+        Args:
+            task (AnyTask): The task associated with the coroutine.
+            coro (Coroutine): The coroutine to defer.
+        """
+        pass
+
+    @abstractmethod
+    def defer_monitoring_coroutine(self, task: any_task.AnyTask, coro: Coroutine):
+        """Defers the execution of a task's monitoring coroutine for later processing.
 
         Args:
             task (AnyTask): The task associated with the coroutine.
@@ -119,11 +129,29 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
+    def mark_task_as_failed(self, task: any_task.AnyTask):
+        """Marks the specified task as failed.
+
+        Args:
+            task (AnyTask): The task to mark as failed.
+        """
+        pass
+
+    @abstractmethod
     def mark_task_as_permanently_failed(self, task: any_task.AnyTask):
         """Marks the specified task as permanently failed.
 
         Args:
             task (AnyTask): The task to mark as permanently failed.
+        """
+        pass
+
+    @abstractmethod
+    def reset_task_status(self, task: any_task.AnyTask):
+        """Reset task status.
+
+        Args:
+            task (AnyTask): The task to status reset.
         """
         pass
 

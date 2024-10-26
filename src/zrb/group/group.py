@@ -6,7 +6,7 @@ from ..task.any_task import AnyTask
 class Group(AnyGroup):
 
     def __init__(
-        self, name: str, banner: str | None = None, description: str | None = None
+        self, name: str, description: str | None = None, banner: str | None = None
     ):
         self._name = name
         self._banner = banner

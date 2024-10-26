@@ -1,9 +1,9 @@
 from typing import Any, TextIO
-from collections.abc import Mapping
 from .any_context import AnyContext
 from .any_shared_context import AnySharedContext
 from ..dict_to_object.dict_to_object import DictToObject
 from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
+from ..util.string.conversion import to_boolean
 
 import datetime
 import logging
@@ -57,19 +57,23 @@ class Context(AnyContext):
     def should_show_time(self) -> bool:
         return self._shared_ctx.should_show_time()
 
-    def render(self, template: str, additional_data: Mapping[str, Any] = {}) -> str:
-        return self._shared_ctx.render(template=template, additional_data=additional_data)
+    def render(self, template: str) -> str:
+        return self._shared_ctx.render(template=template)
 
-    def render_bool(self, template: str, additional_data: Mapping[str, Any] = {}) -> bool:
-        return self._shared_ctx.render_bool(template=template, additional_data=additional_data)
+    def render_bool(self, template: str | bool) -> bool:
+        if isinstance(template, bool):
+            return template
+        return to_boolean(self.render(template))
 
-    def render_int(self, template: str, additional_data: Mapping[str, Any] = {}) -> int:
-        return self._shared_ctx.render_int(template=template, additional_data=additional_data)
+    def render_int(self, template: str | int) -> int:
+        if isinstance(template, int):
+            return template
+        return int(self.render(template))
 
-    def render_float(self, template: str, additional_data: Mapping[str, Any] = {}) -> float:
-        return self._shared_ctx.render_float(
-            template=template, additional_data=additional_data
-        )
+    def render_float(self, template: str) -> float:
+        if isinstance(template, float):
+            return template
+        return float(self.render(template))
 
     def print(
         self,

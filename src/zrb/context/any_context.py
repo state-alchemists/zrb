@@ -149,3 +149,39 @@ class AnyContext(AnySharedContext):
             flush (bool, optional): Whether to flush the output stream. Defaults to True.
         """
         pass
+
+    @abstractmethod
+    def render_bool(self, template: str | bool) -> bool:
+        """Renders a template string into boolean.
+
+        Args:
+            template (str | bool): The template string to be rendered or the value.
+
+        Returns:
+            bool: The rendered template as a boolean.
+        """
+        pass
+
+    @abstractmethod
+    def render_int(self, template: str | int) -> int:
+        """Renders a template string into integer.
+
+        Args:
+            template (str | int): The template string to be rendered or the value.
+
+        Returns:
+            int: The rendered template as a integer.
+        """
+        pass
+
+    @abstractmethod
+    def render_float(self, template: str | float) -> float:
+        """Renders a template string into float.
+
+        Args:
+            template (str | float): The template string to be rendered or the value.
+
+        Returns:
+            float: The rendered template as a float.
+        """
+        pass

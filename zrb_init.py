@@ -1,11 +1,47 @@
 from zrb import (
-    BaseTask, CmdTask, Env, make_task, Context, IntInput, PasswordInput, StrInput, Group, cli
+    AnyTask, BaseTask, Task, CmdTask, Env, make_task,
+    Context, IntInput, PasswordInput, StrInput, Group, cli
 )
 import asyncio
+import os
 
+_DIR = os.path.dirname(__file__)
 
-class Task(BaseTask):
-    pass
+test_group = cli.add_group(Group("test", description="Testing zrb"))
+
+run_test_docker_compose = CmdTask(
+    name="start-test-compose",
+    cwd=os.path.join(_DIR, "test", "_compose"),
+    cmd="docker compose up"
+)
+
+run_test = CmdTask(
+    name="run-test",
+    cwd=_DIR,
+    cmd="echo wkwkwk"
+)
+
+stop_test_docker_compose = CmdTask(
+    name="stop-test-compose",
+    cwd=os.path.join(_DIR, "test", "_compose"),
+    cmd="docker compose down"
+)
+
+run_test_docker_compose >> run_test >> stop_test_docker_compose
+test_group.add_task(stop_test_docker_compose, "run")
+
+cli.add_task(CmdTask(
+    name="print-python",
+    shell="python",
+    cmd="print(4 + 5)"
+))
+
+cli.add_task(CmdTask(
+    name="print-node",
+    shell="node",
+    flag="-e",
+    cmd="console.log(4 + 5)"
+))
 
 
 def create_dummy_process(name: str, delay: int):
@@ -75,8 +111,8 @@ cli.add_task(
 @make_task(
     name="greetings",
     input=[
-        StrInput("name", default="human"),
-        StrInput("address", default="{os.getcwd()}")
+        StrInput("name", default_str="human"),
+        StrInput("address", default_str="{os.getcwd()}")
     ]
 )
 def greetings(ctx: Context):

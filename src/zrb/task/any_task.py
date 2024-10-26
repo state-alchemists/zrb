@@ -97,8 +97,8 @@ class AnyTask(ABC):
         """Sets the upstream tasks that this task depends on.
 
         Args:
-            upstreams (TAnyTask | list[TAnyTask]): A single upstream task 
-            or a list of upstream tasks.
+            upstreams (TAnyTask | list[TAnyTask]): A single upstream task or
+                a list of upstream tasks.
         """
         pass
 
@@ -116,7 +116,8 @@ class AnyTask(ABC):
         """Runs the task synchronously.
 
         Args:
-            shared_context (AnySharedContext, optional): The shared context for the task execution.
+            shared_context (AnySharedContext, optional): The shared context
+                for the task execution.
 
         Returns:
             Any: The result of the task execution.
@@ -128,7 +129,8 @@ class AnyTask(ABC):
         """Runs the task asynchronously.
 
         Args:
-            shared_context (AnySharedContext, optional): The shared context for the task execution.
+            shared_context (AnySharedContext, optional): The shared context
+                for the task execution.
 
         Returns:
             Any: The result of the task execution.
@@ -137,7 +139,8 @@ class AnyTask(ABC):
 
     @abstractmethod
     async def exec_root_tasks(self, session: session.AnySession):
-        """Execute the root tasks along with the downstreams until the current task is ready.
+        """Execute the root tasks along with the downstreams until the current task
+        is ready.
 
         Args:
             session (AnySession): The shared session.
@@ -152,3 +155,13 @@ class AnyTask(ABC):
             session (AnySession): The shared session.
         """
         pass
+
+    @abstractmethod
+    async def exec(self, session: session.AnySession):
+        """Execute the task (without upstream or downstream).
+
+        Args:
+            session (AnySession): The shared session.
+        """
+        pass
+

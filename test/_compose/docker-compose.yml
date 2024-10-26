@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  ssh_server:
+    image: linuxserver/openssh-server
+    container_name: ssh_server
+    environment:
+      - PUID=1000                 # User ID (optional, change as needed)
+      - PGID=1000                 # Group ID (optional, change as needed)
+      - TZ=America/New_York       # Set timezone
+      - PASSWORD_ACCESS=true      # Allows password access
+      - USERNAME=myuser           # SSH username
+      - PASSWORD=mypassword       # SSH password (use secrets in production)
+    ports:
+      - "2222:2222"               # Map SSH port 2222 to the host
+    restart: unless-stopped

@@ -18,29 +18,40 @@ class Session(AnySession):
         self._upstreams: Mapping[AnyTask, list[AnyTask]] = {}
         self._downstreams: Mapping[AnyTask, list[AnyTask]] = {}
         self._context: Mapping[AnyTask, Context] = {}
-        self._shared_context = shared_context
-        self._long_run_coros: Mapping[AnyTask, Coroutine] = {}
+        self._shared_ctx = shared_context
+        self._task_coros: Mapping[AnyTask, Coroutine] = {}
+        self._monitoring_coros: Mapping[AnyTask, Coroutine] = {}
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
         self._icons = ICONS
         self._color_index = 0
         self._icon_index = 0
 
-    def get_shared_context(self) -> AnySharedContext:
-        return self._shared_context
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        return f"<{class_name} status={self._task_status}, shared_ctx={self._shared_ctx}>"
 
-    def get_context(self, task: AnyTask) -> AnyContext:
+    def get_shared_ctx(self) -> AnySharedContext:
+        return self._shared_ctx
+
+    def get_ctx(self, task: AnyTask) -> AnyContext:
         self._register_single_task(task)
         return self._context[task]
 
     def defer_task_coroutine(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
-        self._long_run_coros[task] = coro
+        self._task_coros[task] = coro
+
+    def defer_monitoring_coroutine(self, task: AnyTask, coro: Coroutine):
+        self._register_single_task(task)
+        self._monitoring_coros[task] = coro
 
     async def wait_deffered_task_coroutines(self):
-        if len(self._long_run_coros) == 0:
+        if len(self._task_coros) == 0:
             return
-        tasks = self._long_run_coros.keys()
-        coros = self._long_run_coros.values()
+        tasks = self._task_coros.keys()
+        task_coros = self._task_coros.values()
+        monitoring_coros = self._monitoring_coros.values()
+        coros = task_coros + monitoring_coros
         results = await asyncio.gather(*coros)
         for index, task in enumerate(tasks):
             self.mark_task_as_completed(task)
@@ -80,30 +91,38 @@ class Session(AnySession):
         self._register_single_task(task)
         self._task_status[task].mark_as_skipped()
 
+    def mark_task_as_failed(self, task: AnyTask):
+        self._register_single_task(task)
+        self._task_status[task].mark_as_failed()
+
     def mark_task_as_permanently_failed(self, task: AnyTask):
         self._register_single_task(task)
         self._task_status[task].mark_as_permanently_failed()
 
+    def reset_task_status(self, task: AnyTask):
+        self._register_single_task(task)
+        self._task_status[task].reset()
+
     def peek_task_xcom(self, task: AnyTask) -> Any:
         self._register_single_task(task)
         task_name = task.get_name()
-        if task_name not in self._shared_context._xcom:
+        if task_name not in self._shared_ctx._xcom:
             return None
-        xcom = self._shared_context._xcom[task_name]
+        xcom = self._shared_ctx._xcom[task_name]
         if len(xcom) > 0:
             return xcom[0]
         return None
 
     def append_task_xcom(self, task: AnyTask, value: Any):
         self._register_single_task(task)
-        self._shared_context._xcom[task.get_name()].append(value)
+        self._shared_ctx._xcom[task.get_name()].append(value)
 
     def _register_single_task(self, task: AnyTask):
-        if task.get_name() not in self._shared_context._xcom:
-            self._shared_context._xcom[task.get_name()] = Xcom([])
+        if task.get_name() not in self._shared_ctx._xcom:
+            self._shared_ctx._xcom[task.get_name()] = Xcom([])
         if task not in self._context:
             self._context[task] = Context(
-                shared_context=self._shared_context,
+                shared_context=self._shared_ctx,
                 task_name=task.get_name(),
                 color=self._get_color(task),
                 icon=self._get_icon(task),
@@ -136,10 +155,10 @@ class Session(AnySession):
     def is_allowed_to_run(self, task: AnyTask):
         self._register_single_task(task)
         task_status = self._task_status[task]
-        if task_status.is_started() or task_status.is_completed():
+        if task_status.is_started or task_status.is_completed:
             return False
         unfulfilled_upstreams = [
             upstream for upstream in self._upstreams[task]
-            if not self._task_status[upstream].allow_run_downstream()
+            if not self._task_status[upstream].allow_run_downstream
         ]
         return len(unfulfilled_upstreams) == 0

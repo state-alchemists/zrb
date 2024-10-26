@@ -4,10 +4,8 @@ from .any_shared_context import AnySharedContext
 from ..dict_to_object.dict_to_object import DictToObject
 from ..xcom.xcom import Xcom
 from ..config import LOGGING_LEVEL, SHOW_TIME
-from ..util.string.conversion import to_boolean
 
 import datetime
-import os
 
 
 def fstring_like_format(template: str, data: Mapping[str, Any]) -> str:
@@ -41,7 +39,7 @@ class SharedContext(AnySharedContext):
         args = self._args
         env = self._env
         xcom = self._xcom
-        return f"<{class_name} input={input} args={args} env={env} xcom={xcom}>"
+        return f"<{class_name} input={input} args={args} xcom={xcom} env={env}>"
 
     @property
     def input(self) -> DictToObject:
@@ -65,7 +63,7 @@ class SharedContext(AnySharedContext):
     def should_show_time(self) -> bool:
         return self.__show_time
 
-    def render(self, template: str, additional_data: Mapping[str, Any] = {}) -> str:
+    def render(self, template: str) -> str:
         return fstring_like_format(
             template=template,
             data={
@@ -73,17 +71,6 @@ class SharedContext(AnySharedContext):
                 "args": self._args,
                 "env": self._env,
                 "xcom": self._xcom,
-                "os": os,
                 "datetime": datetime,
-                **additional_data,
             }
         )
-
-    def render_bool(self, template: str, additional_data: Mapping[str, Any] = {}) -> bool:
-        return to_boolean(template, additional_data)
-
-    def render_int(self, template: str, additional_data: Mapping[str, Any] = {}) -> int:
-        return int(template, additional_data)
-
-    def render_float(self, template: str, additional_data: Mapping[str, Any] = {}) -> float:
-        return float(template, additional_data)

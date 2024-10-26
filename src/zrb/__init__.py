@@ -17,6 +17,7 @@ from .cmd.cmd_result import CmdResult
 from .task.cmd_task import CmdTask
 from .task.make_task import make_task
 from .task.rsync_task import RsyncTask
+from .task.task import Task
 from .context.context import Context
 from .context.shared_context import SharedContext
 from .session.session import Session
@@ -40,6 +41,7 @@ assert Group
 assert AnyTask
 assert BaseTask
 assert RsyncTask
+assert Task
 assert Session
 assert Context
 assert SharedContext

@@ -1,58 +1,85 @@
 import datetime
 
+TASK_STARTED = "started"
+TASK_READY = "ready"
+TASK_COMPLETED = "completed"
+TASK_SKIPPED = "skipped"
+TASK_FAILED = "failed"
+TASK_PERMANENTLY_FAILED = "permanently-failed"
+TASK_RESET = "reset"
+
 
 class TaskStatus():
     def __init__(self):
-        self._started_at: datetime.datetime | None = None
-        self._ready_at: datetime.datetime | None = None
-        self._completed_at: datetime.datetime | None = None
-        self._skipped_at: datetime.datetime | None = None
-        self._permanently_failed_at: datetime.datetime | None = None
+        self._history: list[tuple[str, datetime.datetime]] = []
+        self._is_started: bool = False
+        self._is_ready: bool = False
+        self._is_completed: bool = False
+        self._is_skipped: bool = False
+        self._is_failed: bool = False
+        self._is_permanently_failed: bool = False
 
     def __repr__(self):
-        return f"<TaskStatus {self.__get_status()}>"
+        return f"<TaskStatus {self._history}>"
 
-    def __get_status(self) -> str:
-        if self.is_permanently_failed():
-            return "Permanently failed"
-        if self.is_completed():
-            return "Completed"
-        if self.is_ready():
-            return "Ready"
-        if self.is_skipped():
-            return "Skipped"
-        if self.is_started():
-            return "Started"
+    def reset(self):
+        self._is_started = False
+        self._is_ready = False
+        self._is_completed = False
+        self._is_skipped = False
+        self._is_failed = False
+        self._is_permanently_failed = False
+        self._history.append((TASK_RESET, datetime.datetime.now()))
 
     def mark_as_started(self):
-        self._started_at = datetime.datetime.now()
+        self._is_failed = False
+        self._is_started = True
+        self._history.append((TASK_STARTED, datetime.datetime.now()))
+
+    def mark_as_failed(self):
+        self._is_started = True
+        self._history.append((TASK_FAILED, datetime.datetime.now()))
 
     def mark_as_ready(self):
-        self._ready_at = datetime.datetime.now()
+        self._is_ready = True
+        self._history.append((TASK_READY, datetime.datetime.now()))
 
     def mark_as_completed(self):
-        self._completed_at = datetime.datetime.now()
+        self._is_completed = True
+        self._history.append((TASK_COMPLETED, datetime.datetime.now()))
 
     def mark_as_skipped(self):
-        self._skipped_at = datetime.datetime.now()
+        self._is_skipped = True
+        self._history.append((TASK_SKIPPED, datetime.datetime.now()))
 
     def mark_as_permanently_failed(self):
-        self._permanently_failed_at = datetime.datetime.now()
+        self._is_permanently_failed = True
+        self._history.append((TASK_PERMANENTLY_FAILED, datetime.datetime.now()))
 
-    def is_started(self):
-        return self._started_at is not None
+    @property
+    def is_started(self) -> bool:
+        return self._is_started
 
-    def is_ready(self):
-        return self._ready_at is not None
+    @property
+    def is_ready(self) -> bool:
+        return self._is_ready
 
-    def is_completed(self):
-        return self._completed_at is not None
+    @property
+    def is_completed(self) -> bool:
+        return self._is_completed
 
-    def is_skipped(self):
-        return self._skipped_at is not None
+    @property
+    def is_skipped(self) -> bool:
+        return self._skipped_at
 
-    def is_permanently_failed(self):
-        return self._permanently_failed_at is not None
+    @property
+    def is_failed(self) -> bool:
+        return self._is_failed
 
+    @property
+    def is_permanently_failed(self) -> bool:
+        return self._is_permanently_failed
+
+    @property
     def allow_run_downstream(self):
-        return self.is_skipped() or self.is_started() or self.is_ready()
+        return self.is_skipped or self.is_started or self.is_ready

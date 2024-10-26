@@ -8,7 +8,6 @@ from ..context.context import Context
 from ..session.any_session import AnySession
 from ..session.session import Session
 from ..util.run import run_async
-from ..util.cli.style import stylize_error
 from ..util.string.conversion import to_boolean
 from .any_task import AnyTask
 
@@ -30,8 +29,6 @@ class BaseTask(AnyTask):
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float = 0,
-        readiness_check_period: float = 0,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
     ):
@@ -46,23 +43,23 @@ class BaseTask(AnyTask):
         self._upstreams = upstream
         self._fallbacks = fallback
         self._readiness_checks = readiness_check
-        self._readiness_check_delay = readiness_check_delay
-        self._readiness_check_period = readiness_check_period
         self._execute_condition = execute_condition
         self._action = action
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} name={self._name}>"
+        return f"<{self.__class__.__name__} name={self._name} upstreams={self._upstreams}>"
 
-    def __rshift__(self, other: AnyTask | list[AnyTask]):
+    def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
         if isinstance(other, AnyTask):
             other.set_upstreams(self)
-        if isinstance(other, list):
+        elif isinstance(other, list):
             for task in other:
                 task.set_upstreams(self)
+        return other
 
-    def __lshift__(self, other: AnyTask | list[AnyTask]):
+    def __lshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
         self.set_upstreams(other)
+        return self
 
     def get_name(self) -> str:
         return self._name
@@ -111,8 +108,11 @@ class BaseTask(AnyTask):
         return self._upstreams
 
     def set_upstreams(self, upstreams: AnyTask | list[AnyTask]):
+        if self._upstreams is None:
+            self._upstreams = []
         if isinstance(upstreams, AnyTask):
             self._upstreams.append(upstreams)
+            return
         self._upstreams += upstreams
 
     def get_readiness_checks(self) -> list[AnyTask]:
@@ -133,7 +133,11 @@ class BaseTask(AnyTask):
         self._fill_shared_context_envs(shared_context)
         # Create state
         session = Session(shared_context=shared_context)
-        return await run_async(self.exec_root_tasks, session)
+        try:
+            return await run_async(self.exec_root_tasks, session)
+        finally:
+            ctx = session.get_ctx(self)
+            ctx.log_debug(session)
 
     def _fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
@@ -170,30 +174,36 @@ class BaseTask(AnyTask):
             # Task is not allowed to run, skip it for now.
             # This will be triggered later
             return
-        execute_condition = await self._check_execute_condition(session)
-        if not execute_condition:
-            # Skip the task
-            session.mark_task_as_skipped(self)
-        else:
-            # Wait for task to be ready
-            await run_async(self._exec_action_until_ready, session)
+        await run_async(self.exec, session)
         # Get next tasks
         nexts = session.get_next_tasks(self)
         if len(nexts) == 0:
             return
         # Run next tasks asynchronously
-        coros = [
-            run_async(next.exec_chain, session)
-            for next in nexts
+        next_coros = [
+            run_async(next.exec_chain, session) for next in nexts
         ]
-        await asyncio.gather(*coros)
+        await asyncio.gather(*next_coros)
+
+    async def exec(self, session: AnySession):
+        if not session.is_allowed_to_run(self):
+            # Task is not allowed to run, skip it for now.
+            # This will be triggered later
+            return
+        execute_condition = await self._check_execute_condition(session)
+        if not execute_condition:
+            # Skip the task
+            session.mark_task_as_skipped(self)
+            return
+        # Wait for task to be ready
+        await run_async(self._exec_action_until_ready, session)
 
     async def _check_execute_condition(self, session: Session) -> bool:
         if callable(self._execute_condition):
-            context = session.get_context()
+            context = session.get_ctx()
             return await run_async(self._execute_condition, context)
         if isinstance(self._execute_condition, str):
-            context = session.get_context()
+            context = session.get_ctx()
             return to_boolean(context.render(self._execute_condition))
         return self._execute_condition
 
@@ -201,14 +211,12 @@ class BaseTask(AnyTask):
         readiness_checks = self.get_readiness_checks()
         if len(readiness_checks) == 0:
             # Task has no readiness check
-            session.mark_task_as_started(self)
             result = await run_async(self._exec_action_and_retry, session)
-            session.mark_task_as_completed(self)
+            session.mark_task_as_ready(self)
             session.append_task_xcom(self, result)
             return result
         # Start the task along with the readiness checks
-        session.mark_task_as_started(self)
-        coro = asyncio.create_task(run_async(self._exec_action_and_retry, session))
+        action_coro = asyncio.create_task(run_async(self._exec_action_and_retry, session))
         readiness_check_coros = [
             run_async(check.exec_chain, session) for check in readiness_checks
         ]
@@ -216,11 +224,11 @@ class BaseTask(AnyTask):
         result = await asyncio.gather(*readiness_check_coros)
         session.mark_task_as_ready(self)
         # Defer task's coroutines, will be waited later
-        session.defer_task_coroutine(self, coro)
+        session.defer_task_coroutine(self, action_coro)
         return result
 
     async def _exec_action_and_retry(self, session: AnySession) -> Any:
-        ctx = session.get_context(self)
+        ctx = session.get_ctx(self)
         max_attempt = self._retries + 1
         ctx.set_max_attempt(max_attempt)
         for attempt in range(max_attempt):
@@ -229,12 +237,17 @@ class BaseTask(AnyTask):
                 # apply retry period only if this is not the first attempt
                 await asyncio.sleep(self._retry_period)
             try:
-                return await run_async(self._exec_action, ctx)
+                session.mark_task_as_started(self)
+                result = await run_async(self._exec_action, ctx)
+                session.mark_task_as_completed(self)
+                return result
             except KeyboardInterrupt:
+                session.mark_task_as_completed(self)
                 return
             except Exception as e:
-                ctx.print(stylize_error(f"{e}"))
+                ctx.log_error(e)
                 if attempt < max_attempt - 1:
+                    session.mark_task_as_failed(self)
                     continue
                 session.mark_task_as_permanently_failed(self)
                 await run_async(self._exec_fallbacks, session)
