@@ -1,13 +1,13 @@
 from collections.abc import Callable, Mapping
 from .any_task import AnyTask
 from .base_task import BaseTask
-from ..attr.type import StrAttr, IntAttr
+from ..attr.type import BoolAttr, StrAttr, IntAttr
 from ..cmd.cmd_result import CmdResult
 from ..cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
 from ..config import DEFAULT_SHELL
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..context.context import Context
+from ..context.any_context import AnyContext
 from ..util.cmd.remote import get_remote_cmd_script
 from ..util.attr import get_str_attr, get_int_attr
 
@@ -33,7 +33,6 @@ class CmdTask(BaseTask):
         remote_host: StrAttr | None = None,
         auto_render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
-        auto_render_remote_port: bool = True,
         remote_user: StrAttr | None = None,
         auto_render_remote_user: bool = True,
         remote_password: StrAttr | None = None,
@@ -46,10 +45,14 @@ class CmdTask(BaseTask):
         auto_render_cwd: bool = True,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
-        execute_condition: bool | str | Callable[[Context], bool] = True,
+        execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check_period: float = 5,
+        readiness_failure_threshold: int = 1,
+        readiness_timeout: int = 60,
+        monitor_readiness: bool = False,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
     ):
@@ -64,6 +67,10 @@ class CmdTask(BaseTask):
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
+            readiness_check_period=readiness_check_period,
+            readiness_failure_threshold=readiness_failure_threshold,
+            readiness_timeout=readiness_timeout,
+            monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
         )
@@ -73,7 +80,6 @@ class CmdTask(BaseTask):
         self._remote_host = remote_host
         self._auto_render_remote_host = auto_render_remote_host
         self._remote_port = remote_port
-        self._auto_render_remote_port = auto_render_remote_port
         self._remote_user = remote_user
         self._auto_render_remote_user = auto_render_remote_user
         self._remote_password = remote_password
@@ -87,7 +93,7 @@ class CmdTask(BaseTask):
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
 
-    async def _exec_action(self, ctx: Context) -> CmdResult:
+    def _exec_action(self, ctx: AnyContext) -> CmdResult:
         """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
 
         Args:
@@ -130,7 +136,9 @@ class CmdTask(BaseTask):
         try:
             process_error = None
             try:
+                ctx.log_info("Waiting for script execution")
                 cmd_process.wait()
+                ctx.log_info("Script execution completed")
             except Exception as e:
                 process_error = e
             stdout_thread.join()
@@ -148,12 +156,12 @@ class CmdTask(BaseTask):
         finally:
             self.__terminate_process(ctx, cmd_process)
 
-    def __get_env_map(self, ctx: Context) -> Mapping[str, str]:
+    def __get_env_map(self, ctx: AnyContext) -> Mapping[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
     def __make_reader(
-        self, ctx: Context, stream: io.TextIOWrapper, max_line: int, lines: list[str],
+        self, ctx: AnyContext, stream: io.TextIOWrapper, max_line: int, lines: list[str],
     ) -> Callable:
         def read_lines():
             for line in stream:
@@ -164,7 +172,7 @@ class CmdTask(BaseTask):
                     lines.pop(0)
         return read_lines
 
-    def __terminate_process(self, ctx: Context, cmd_process: subprocess.Popen[str]):
+    def __terminate_process(self, ctx: AnyContext, cmd_process: subprocess.Popen[str]):
         """Terminate the shell script if it's still running."""
         if cmd_process.poll() is None:  # If the process is still running
             cmd_process.terminate()  # Gracefully terminate the process
@@ -175,37 +183,35 @@ class CmdTask(BaseTask):
                 ctx.log_info("Killing the process")
                 cmd_process.kill()  # Forcefully kill if not terminated
 
-    def _get_shell(self, ctx: Context):
+    def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx, self._shell, DEFAULT_SHELL, auto_render=self._auto_render_shell
         )
 
-    def _get_remote_host(self, ctx: Context):
+    def _get_remote_host(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx, self._remote_host, "", auto_render=self._auto_render_remote_host
         )
 
-    def _get_remote_port(self, ctx: Context):
-        return get_int_attr(
-            ctx, self._remote_port, 22, auto_render=self._auto_render_remote_port
-        )
+    def _get_remote_port(self, ctx: AnyContext) -> int:
+        return get_int_attr(ctx, self._remote_port, 22, auto_render=True)
 
-    def _get_remote_user(self, ctx: Context):
+    def _get_remote_user(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx, self._remote_user, "", auto_render=self._auto_render_remote_user
         )
 
-    def _get_remote_password(self, ctx: Context) -> str:
+    def _get_remote_password(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx, self._remote_password, "", auto_render=self._auto_render_remote_password
         )
 
-    def _get_remote_ssh_key(self, ctx: Context):
+    def _get_remote_ssh_key(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx, self._remote_ssh_key, "", auto_render=self._auto_render_remote_ssh_key
         )
 
-    def _get_cwd(self, ctx: Context) -> str:
+    def _get_cwd(self, ctx: AnyContext) -> str:
         cwd = get_str_attr(
             ctx, self._cwd, os.getcwd(), auto_render=self._auto_render_cwd
         )
@@ -213,12 +219,12 @@ class CmdTask(BaseTask):
             cwd = os.getcwd()
         return os.path.abspath(cwd)
 
-    def _get_cmd_script(self, ctx: Context) -> str:
+    def _get_cmd_script(self, ctx: AnyContext) -> str:
         if self._remote_host is None:
             return self._get_local_cmd_script(ctx)
         return self._get_remote_cmd_script(ctx)
 
-    def _get_remote_cmd_script(self, ctx: Context) -> str:
+    def _get_remote_cmd_script(self, ctx: AnyContext) -> str:
         return get_remote_cmd_script(
             cmd_script=self._get_local_cmd_script(ctx),
             host=self._get_remote_host(ctx),
@@ -229,10 +235,10 @@ class CmdTask(BaseTask):
             ssh_key=self._get_remote_ssh_key(ctx),
         )
 
-    def _get_local_cmd_script(self, ctx: Context) -> str:
+    def _get_local_cmd_script(self, ctx: AnyContext) -> str:
         return self._render_cmd_val(ctx, self._cmd)
 
-    def _render_cmd_val(self, ctx: Context, cmd_val: CmdVal) -> str:
+    def _render_cmd_val(self, ctx: AnyContext, cmd_val: CmdVal) -> str:
         if isinstance(cmd_val, list):
             return "\n".join([
                 self.__render_single_cmd_val(ctx, single_cmd_val)
@@ -241,7 +247,7 @@ class CmdTask(BaseTask):
         return self.__render_single_cmd_val(ctx, cmd_val)
 
     def __render_single_cmd_val(
-        self, ctx: Context, single_cmd_val: SingleCmdVal
+        self, ctx: AnyContext, single_cmd_val: SingleCmdVal
     ) -> str:
         if callable(single_cmd_val):
             return single_cmd_val(ctx)

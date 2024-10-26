@@ -15,9 +15,11 @@ from .task.base_task import BaseTask
 from .cmd.cmd_val import Cmd, CmdPath
 from .cmd.cmd_result import CmdResult
 from .task.cmd_task import CmdTask
+from .task.http_check import HttpCheck
 from .task.make_task import make_task
 from .task.rsync_task import RsyncTask
 from .task.task import Task
+from .task.tcp_check import TcpCheck
 from .context.context import Context
 from .context.shared_context import SharedContext
 from .session.session import Session
@@ -33,6 +35,8 @@ assert Cmd
 assert CmdPath
 assert CmdResult
 assert CmdTask
+assert HttpCheck
+assert TcpCheck
 assert IntInput
 assert PasswordInput
 assert StrInput

@@ -1,5 +1,5 @@
 from zrb import (
-    AnyTask, BaseTask, Task, CmdTask, Env, make_task,
+    BaseTask, Task, CmdTask, Env, make_task, TcpCheck,
     Context, IntInput, PasswordInput, StrInput, Group, cli
 )
 import asyncio
@@ -9,10 +9,14 @@ _DIR = os.path.dirname(__file__)
 
 test_group = cli.add_group(Group("test", description="Testing zrb"))
 
-run_test_docker_compose = CmdTask(
+start_test_docker_compose = CmdTask(
     name="start-test-compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
-    cmd="docker compose up"
+    cmd="docker compose down && docker compose up",
+    readiness_check=TcpCheck(
+        name="check-start-test-compose",
+        port=2222
+    )
 )
 
 run_test = CmdTask(
@@ -23,11 +27,12 @@ run_test = CmdTask(
 
 stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
+    description="Start docker compose for testing, run test, then remove the docker compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down"
 )
 
-run_test_docker_compose >> run_test >> stop_test_docker_compose
+start_test_docker_compose >> run_test >> stop_test_docker_compose
 test_group.add_task(stop_test_docker_compose, "run")
 
 cli.add_task(CmdTask(

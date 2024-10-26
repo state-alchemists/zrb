@@ -18,6 +18,10 @@ def make_task(
     retries: int = 2,
     retry_period: float = 0,
     readiness_check: list[AnyTask] | AnyTask | None = None,
+    readiness_check_period: float = 5,
+    readiness_failure_threshold: int = 1,
+    readiness_timeout: int = 60,
+    monitor_readiness: bool = False,
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,
 ) -> Callable[[Callable[[Context], Any]], AnyTask]:
@@ -35,6 +39,10 @@ def make_task(
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
+            readiness_check_period=readiness_check_period,
+            readiness_failure_threshold=readiness_failure_threshold,
+            readiness_timeout=readiness_timeout,
+            monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
         )

@@ -20,15 +20,22 @@ class Session(AnySession):
         self._context: Mapping[AnyTask, Context] = {}
         self._shared_ctx = shared_context
         self._task_coros: Mapping[AnyTask, Coroutine] = {}
-        self._monitoring_coros: Mapping[AnyTask, Coroutine] = {}
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
         self._icons = ICONS
         self._color_index = 0
         self._icon_index = 0
+        self._is_terminated = False
 
     def __repr__(self):
         class_name = self.__class__.__name__
         return f"<{class_name} status={self._task_status}, shared_ctx={self._shared_ctx}>"
+
+    def terminate(self):
+        self._is_terminated = True
+
+    @property
+    def is_terminated(self) -> bool:
+        return self._is_terminated
 
     def get_shared_ctx(self) -> AnySharedContext:
         return self._shared_ctx
@@ -41,18 +48,12 @@ class Session(AnySession):
         self._register_single_task(task)
         self._task_coros[task] = coro
 
-    def defer_monitoring_coroutine(self, task: AnyTask, coro: Coroutine):
-        self._register_single_task(task)
-        self._monitoring_coros[task] = coro
-
     async def wait_deffered_task_coroutines(self):
         if len(self._task_coros) == 0:
             return
         tasks = self._task_coros.keys()
         task_coros = self._task_coros.values()
-        monitoring_coros = self._monitoring_coros.values()
-        coros = task_coros + monitoring_coros
-        results = await asyncio.gather(*coros)
+        results = await asyncio.gather(*task_coros)
         for index, task in enumerate(tasks):
             self.mark_task_as_completed(task)
             self.append_task_xcom(task, results[index])
@@ -75,33 +76,9 @@ class Session(AnySession):
         self._register_single_task(task)
         return self._downstreams.get(task)
 
-    def mark_task_as_started(self, task: AnyTask):
+    def get_task_status(self, task: AnyTask) -> TaskStatus:
         self._register_single_task(task)
-        self._task_status[task].mark_as_started()
-
-    def mark_task_as_ready(self, task: AnyTask):
-        self._register_single_task(task)
-        self._task_status[task].mark_as_ready()
-
-    def mark_task_as_completed(self, task: AnyTask):
-        self._register_single_task(task)
-        self._task_status[task].mark_as_completed()
-
-    def mark_task_as_skipped(self, task: AnyTask):
-        self._register_single_task(task)
-        self._task_status[task].mark_as_skipped()
-
-    def mark_task_as_failed(self, task: AnyTask):
-        self._register_single_task(task)
-        self._task_status[task].mark_as_failed()
-
-    def mark_task_as_permanently_failed(self, task: AnyTask):
-        self._register_single_task(task)
-        self._task_status[task].mark_as_permanently_failed()
-
-    def reset_task_status(self, task: AnyTask):
-        self._register_single_task(task)
-        self._task_status[task].reset()
+        return self._task_status[task]
 
     def peek_task_xcom(self, task: AnyTask) -> Any:
         self._register_single_task(task)
@@ -153,6 +130,8 @@ class Session(AnySession):
         return chosen
 
     def is_allowed_to_run(self, task: AnyTask):
+        if self.is_terminated:
+            return False
         self._register_single_task(task)
         task_status = self._task_status[task]
         if task_status.is_started or task_status.is_completed:

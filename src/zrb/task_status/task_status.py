@@ -22,6 +22,9 @@ class TaskStatus():
     def __repr__(self):
         return f"<TaskStatus {self._history}>"
 
+    def reset_history(self):
+        self._history = []
+
     def reset(self):
         self._is_started = False
         self._is_ready = False
@@ -37,7 +40,7 @@ class TaskStatus():
         self._history.append((TASK_STARTED, datetime.datetime.now()))
 
     def mark_as_failed(self):
-        self._is_started = True
+        self._is_failed = True
         self._history.append((TASK_FAILED, datetime.datetime.now()))
 
     def mark_as_ready(self):
@@ -70,7 +73,7 @@ class TaskStatus():
 
     @property
     def is_skipped(self) -> bool:
-        return self._skipped_at
+        return self._is_skipped
 
     @property
     def is_failed(self) -> bool:
@@ -82,4 +85,6 @@ class TaskStatus():
 
     @property
     def allow_run_downstream(self):
+        if self.is_failed or self.is_permanently_failed:
+            return False
         return self.is_skipped or self.is_started or self.is_ready

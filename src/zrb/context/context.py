@@ -87,7 +87,10 @@ class Context(AnyContext):
         icon = self._icon
         task_name = self._task_name
         padded_task_name = task_name.ljust(20)
-        attempt_status = f"{self._attempt}/{self._max_attempt}"
+        if self._attempt == 0:
+            attempt_status = "".ljust(5)
+        else:
+            attempt_status = f"{self._attempt}/{self._max_attempt}".ljust(5)
         if self._shared_ctx.should_show_time():
             now = datetime.datetime.now()
             formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")

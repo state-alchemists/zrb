@@ -3,6 +3,7 @@ from typing import Any, Coroutine, TYPE_CHECKING
 from abc import ABC, abstractmethod
 from ..context.any_shared_context import AnySharedContext
 from ..context.any_context import AnyContext
+from ..task_status.task_status import TaskStatus
 
 if TYPE_CHECKING:
     from ..task import any_task
@@ -15,6 +16,18 @@ class AnySession(ABC):
     deferred task execution, and data exchange between tasks using
     XCom-like functionality.
     """
+
+    @abstractmethod
+    def terminate(self):
+        """Terminating session
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def is_terminated(self) -> bool:
+        """Whether session is terminated or not"""
+        pass
 
     @abstractmethod
     def get_shared_ctx(self) -> AnySharedContext:
@@ -40,16 +53,6 @@ class AnySession(ABC):
     @abstractmethod
     def defer_task_coroutine(self, task: any_task.AnyTask, coro: Coroutine):
         """Defers the execution of a task's coroutine for later processing.
-
-        Args:
-            task (AnyTask): The task associated with the coroutine.
-            coro (Coroutine): The coroutine to defer.
-        """
-        pass
-
-    @abstractmethod
-    def defer_monitoring_coroutine(self, task: any_task.AnyTask, coro: Coroutine):
-        """Defers the execution of a task's monitoring coroutine for later processing.
 
         Args:
             task (AnyTask): The task associated with the coroutine.
@@ -93,65 +96,14 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def mark_task_as_started(self, task: any_task.AnyTask):
-        """Marks the specified task as started.
+    def get_task_status(self, task: any_task.AnyTask) -> TaskStatus:
+        """Get tasks' status.
 
         Args:
             task (AnyTask): The task to mark as started.
-        """
-        pass
 
-    @abstractmethod
-    def mark_task_as_ready(self, task: any_task.AnyTask):
-        """Marks the specified task as ready to be executed.
-
-        Args:
-            task (AnyTask): The task to mark as ready.
-        """
-        pass
-
-    @abstractmethod
-    def mark_task_as_completed(self, task: any_task.AnyTask):
-        """Marks the specified task as completed.
-
-        Args:
-            task (AnyTask): The task to mark as completed.
-        """
-        pass
-
-    @abstractmethod
-    def mark_task_as_skipped(self, task: any_task.AnyTask):
-        """Marks the specified task as skipped.
-
-        Args:
-            task (AnyTask): The task to mark as skipped.
-        """
-        pass
-
-    @abstractmethod
-    def mark_task_as_failed(self, task: any_task.AnyTask):
-        """Marks the specified task as failed.
-
-        Args:
-            task (AnyTask): The task to mark as failed.
-        """
-        pass
-
-    @abstractmethod
-    def mark_task_as_permanently_failed(self, task: any_task.AnyTask):
-        """Marks the specified task as permanently failed.
-
-        Args:
-            task (AnyTask): The task to mark as permanently failed.
-        """
-        pass
-
-    @abstractmethod
-    def reset_task_status(self, task: any_task.AnyTask):
-        """Reset task status.
-
-        Args:
-            task (AnyTask): The task to status reset.
+        Returns:
+            TaskStatus: Task status object
         """
         pass
 
