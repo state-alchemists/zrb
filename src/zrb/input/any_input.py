@@ -1,19 +1,21 @@
-from typing import Any
 from abc import ABC, abstractmethod
 from ..context.shared_context import SharedContext
 
 
 class AnyInput(ABC):
+    @property
     @abstractmethod
-    def get_name(self) -> str:
+    def name(self) -> str:
         pass
 
+    @property
     @abstractmethod
-    def get_description(self) -> str:
+    def description(self) -> str:
         pass
 
+    @property
     @abstractmethod
-    def get_prompt_message(self) -> str:
+    def prompt_message(self) -> str:
         pass
 
     @abstractmethod

@@ -1,6 +1,5 @@
 from .base_input import BaseInput
 from ..attr.type import StrAttr
-from ..context.shared_context import SharedContext
 
 
 class FloatInput(BaseInput):
@@ -21,7 +20,6 @@ class FloatInput(BaseInput):
             auto_render=auto_render,
             allow_empty=allow_empty,
         )
- 
+
     def _parse_str_value(self, str_value: str) -> float:
         return float(str_value)
-   

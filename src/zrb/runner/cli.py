@@ -1,7 +1,7 @@
 from typing import Any
 from collections.abc import Mapping
 from .web import run_web_server
-from ..config import VERSION
+from ..config import BANNER, HTTP_PORT
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
 from ..group.group import Group
@@ -41,7 +41,7 @@ class Cli(Group):
     def _get_run_command(
         self, node_path: list[str], kwargs: Mapping[str, Any], args: list[str]
     ) -> str:
-        parts = [self.get_name()] + node_path
+        parts = [self.name] + node_path
         if len(kwargs) > 0:
             parts += [f"--{key}={val}" for key, val in kwargs.items()]
         if len(args) > 0:
@@ -58,7 +58,7 @@ class Cli(Group):
             task = node.get_task_by_alias(name)
             group = node.get_group_by_name(name)
             if task is None and group is None:
-                raise ValueError("Invalid command")
+                raise ValueError("Invalid zrb command")
             node_path.append(name)
             if group is not None:
                 if task is not None and index == len(positional) - 1:
@@ -77,10 +77,10 @@ class Cli(Group):
         self, task: AnyTask, args: list[str], options: list[str]
     ) -> Any:
         shared_ctx = SharedContext(input=options, args=args)
-        task_inputs = task.get_inputs()
+        task_inputs = task.inputs
         arg_index = 0
         for task_input in task_inputs:
-            task_input_name = task_input.get_name()
+            task_input_name = task_input.name
             if task_input_name in shared_ctx.input:
                 str_value = shared_ctx.input[task_input_name]
                 task_input.update_shared_context(shared_ctx, str_value)
@@ -94,42 +94,38 @@ class Cli(Group):
         return task.run(Session(shared_ctx=shared_ctx))
 
     def _show_task_info(self, task: AnyTask):
-        description = task.get_description()
-        inputs = task.get_inputs()
-        if description != task.get_name() and description != "":
+        description = task.description
+        inputs = task.inputs
+        if description != task.name and description != "":
             print(stylize_section_header("DESCRIPTION"))
             print(description)
             print()
         if len(inputs) > 0:
             print(stylize_section_header("INPUTS"))
             for task_input in inputs:
-                task_input_name = task_input.get_name().ljust(20)
-                print(f"  --{task_input_name}: {task_input.get_description()}")
+                task_input_name = task_input.name.ljust(20)
+                print(f"  --{task_input_name}: {task_input.description}")
             print()
 
     def _show_group_info(self, group: Group):
-        banner = group.get_banner()
-        description = group.get_description()
-        sub_groups = group.get_sub_groups()
-        sub_tasks = group.get_sub_tasks()
-        if banner != "":
-            print(banner)
+        if group.banner != "":
+            print(group.banner)
             print()
-        if description != group.get_name() and description != "":
+        if group.description != group.name and group.description != "":
             print(stylize_section_header("DESCRIPTION"))
-            print(description)
+            print(group.description)
             print()
-        if len(sub_groups) > 0:
+        if len(group.subgroups) > 0:
             print(stylize_section_header("GROUPS"))
-            for group_name, group in sub_groups.items():
-                group_name = group_name.ljust(20)
-                print(f"  {group_name}: {group.get_description()}")
-            print()
-        if len(sub_tasks) > 0:
-            print(stylize_section_header("TASKS"))
-            for alias, task in sub_tasks.items():
+            for alias, subgroup in group.subgroups.items():
                 alias = alias.ljust(20)
-                print(f"  {alias}: {task.get_description()}")
+                print(f"  {alias}: {subgroup.description}")
+            print()
+        if len(group.subtasks) > 0:
+            print(stylize_section_header("TASKS"))
+            for alias, subtask in group.subtasks.items():
+                alias = alias.ljust(20)
+                print(f"  {alias}: {subtask.description}")
             print()
 
     def _extract_kwargs_from_args(
@@ -165,30 +161,19 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-ZRB_BANNER = f"""
-                bb
-   zzzzz rr rr  bb
-     zz  rrr  r bbbbbb
-    zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION}
-   _ _ . .  . _ .  _ . . .
-
-Super framework for your super app.
-
-☕ Donate at: https://stalchmst.com/donation
-🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-🐤 Follow us at: https://twitter.com/zarubastalchmst
-"""
-
 cli = Cli(
     name="zrb",
     description="A Framework to Enhanche your workflow",
-    banner=ZRB_BANNER
+    banner=BANNER
 )
+
 cli.add_task(
     Task(
-        name="serve",
-        description="Serve HTTP Request",
-        action=lambda ctx: run_web_server(root_group=cli)
+        name="start-server",
+        description="Make tasks available via HTTP Requests",
+        action=lambda ctx: run_web_server(
+            ctx=ctx, root_group=cli, port=HTTP_PORT
+        ),
+        retries=0
     )
 )

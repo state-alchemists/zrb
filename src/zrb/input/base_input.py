@@ -25,20 +25,23 @@ class BaseInput(AnyInput):
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
 
-    def get_name(self) -> str:
+    @property
+    def name(self) -> str:
         return self._name
 
-    def get_description(self) -> str:
-        return self._description if self._description is not None else self.get_name()
+    @property
+    def description(self) -> str:
+        return self._description if self._description is not None else self.name
 
-    def get_prompt_message(self) -> str:
-        return self._prompt if self._prompt is not None else self.get_name()
+    @property
+    def prompt_message(self) -> str:
+        return self._prompt if self._prompt is not None else self.name
 
     def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
         if str_value is None:
             str_value = self._get_default_str()
-        shared_ctx.input[self.get_name()] = self._parse_str_value(str_value)
-    
+        shared_ctx.input[self.name] = self._parse_str_value(str_value)
+
     def _parse_str_value(self, str_value: str) -> Any:
         """Override this to transform str_value"""
         return str_value
@@ -50,7 +53,7 @@ class BaseInput(AnyInput):
         return value
 
     def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
-        prompt_message = self.get_prompt_message()
+        prompt_message = self.prompt_message
         default_value = self._get_default_str(shared_ctx)
         if default_value != "":
             prompt_message = f"{prompt_message} [{default_value}]"

@@ -59,5 +59,20 @@ ENV_PREFIX = os.getenv("ZRB_ENV", "")
 SHOW_ADVERTISEMENT = to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
 SHOW_PROMPT = to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
 SHOW_TIME = to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
+HTTP_PORT = int(os.getenv("ZRB_HTTP_PORT", "21213"))
 VERSION = _get_version()
-ENABLE_TYPE_CHECKING = to_boolean(os.getenv("ZRB_ENABLE_TYPE_CHECKING", "1"))
+
+BANNER = f"""
+                bb
+   zzzzz rr rr  bb
+     zz  rrr  r bbbbbb
+    zz   rr     bb   bb
+   zzzzz rr     bbbbbb   {VERSION}
+   _ _ . .  . _ .  _ . . .
+
+Super framework for your super app.
+
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+"""

@@ -71,9 +71,9 @@ class Session(AnySession):
 
     def register_task(self, task: AnyTask):
         self._register_single_task(task)
-        for readiness_check in task.get_readiness_checks():
+        for readiness_check in task.readiness_checks:
             self.register_task(readiness_check)
-        for upstream in task.get_upstreams():
+        for upstream in task.upstreams:
             self.register_task(upstream)
             if task not in self._downstreams[upstream]:
                 self._downstreams[upstream].append(task)
@@ -99,12 +99,12 @@ class Session(AnySession):
         return self._task_status[task]
 
     def _register_single_task(self, task: AnyTask):
-        if task.get_name() not in self._shared_ctx._xcom:
-            self._shared_ctx._xcom[task.get_name()] = Xcom([])
+        if task.name not in self._shared_ctx._xcom:
+            self._shared_ctx._xcom[task.name] = Xcom([])
         if task not in self._context:
             self._context[task] = Context(
                 shared_context=self._shared_ctx,
-                task_name=task.get_name(),
+                task_name=task.name,
                 color=self._get_color(task),
                 icon=self._get_icon(task),
             )
@@ -116,8 +116,8 @@ class Session(AnySession):
             self._upstreams[task] = []
 
     def _get_color(self, task: AnyTask) -> int:
-        if task.get_color() is not None:
-            return task.get_color()
+        if task.color is not None:
+            return task.color
         chosen = self._colors[self._color_index]
         self._color_index += 1
         if self._color_index >= len(self._colors):
@@ -125,8 +125,8 @@ class Session(AnySession):
         return chosen
 
     def _get_icon(self, task: AnyTask) -> int:
-        if task.get_icon() is not None:
-            return task.get_icon()
+        if task.icon is not None:
+            return task.icon
         chosen = self._icons[self._icon_index]
         self._icon_index += 1
         if self._icon_index >= len(self._icons):

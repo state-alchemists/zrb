@@ -15,22 +15,21 @@ def get_group_subcommands(
     previous_path: str = [],
     subcommands: list[SubCommand] = []
 ) -> list[SubCommand]:
-    group_name = group.get_name()
     nexts = []
-    for task_alias in group.get_sub_tasks():
+    for task_alias in group.subtasks:
         nexts.append(task_alias)
-    for subgroup_name, subgroup in group.get_sub_groups().items():
+    for subgroup_name, subgroup in group.subgroups.items():
         nexts.append(subgroup_name)
         # Recursively add subgroup
         get_group_subcommands(
             group=subgroup,
-            previous_path=previous_path + [group_name],
+            previous_path=previous_path + [group.name],
             subcommands=subcommands,
         )
     if len(nexts) > 0:
         subcommands.append(
             SubCommand(
-                paths=previous_path + [group_name],
+                paths=previous_path + [group.name],
                 nexts=nexts
             )
         )

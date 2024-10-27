@@ -1,7 +1,6 @@
 from __future__ import annotations  # Enables forward references
 from typing import Any, TypeVar, TYPE_CHECKING
 from abc import ABC, abstractmethod
-from ..context.any_shared_context import AnySharedContext
 from ..input.any_input import AnyInput
 from ..env.any_env import AnyEnv
 
@@ -20,94 +19,67 @@ class AnyTask(ABC):
     It also includes methods for running tasks synchronously or asynchronously.
     """
 
+    @property
     @abstractmethod
-    def get_name(self) -> str:
-        """Retrieves the name of the task.
+    def name(self) -> str:
+        """Task name"""
+        pass
 
-        Returns:
-            str: The name of the task.
-        """
+    @property
+    @abstractmethod
+    def color(self) -> int | None:
+        """Task color, if any."""
+        pass
+
+    @property
+    @abstractmethod
+    def icon(self) -> str | None:
+        """Task icon, if any."""
+        pass
+
+    @property
+    @abstractmethod
+    def description(self) -> str:
+        """Task description"""
+        pass
+
+    @property
+    @abstractmethod
+    def inputs(self) -> list[AnyInput]:
+        """Task inputs"""
+        pass
+
+    @property
+    @abstractmethod
+    def envs(self) -> list[AnyEnv]:
+        """Task envs"""
+        pass
+
+    @property
+    @abstractmethod
+    def upstreams(self) -> list[TAnyTask]:
+        """Task upstreams"""
+        pass
+
+    @property
+    @abstractmethod
+    def fallbacks(self) -> list[TAnyTask]:
+        """Task fallbacks"""
+        pass
+
+    @property
+    @abstractmethod
+    def readiness_checks(self) -> list[TAnyTask]:
+        """Task readiness checks"""
         pass
 
     @abstractmethod
-    def get_color(self) -> int | None:
-        """Retrieves the color associated with the task, if any.
-
-        Returns:
-            int | None: The color code representing the task, or None if no color is assigned.
-        """
-        pass
-
-    @abstractmethod
-    def get_icon(self) -> str | None:
-        """Retrieves the icon associated with the task, if any.
-
-        Returns:
-            str | None: The icon code representing the task, or None if no icon is assigned.
-        """
-        pass
-
-    @abstractmethod
-    def get_description(self) -> str:
-        """Retrieves the description of the task.
-
-        Returns:
-            str: A brief description of the task.
-        """
-        pass
-
-    @abstractmethod
-    def get_inputs(self) -> list[AnyInput]:
-        """Retrieves the list of inputs required by the task.
-
-        Returns:
-            list[AnyInput]: A list of inputs necessary for the task execution.
-        """
-        pass
-
-    @abstractmethod
-    def get_envs(self) -> list[AnyEnv]:
-        """Retrieves the list of environment variables required by the task.
-
-        Returns:
-            list[AnyEnv]: A list of environment variables used by the task.
-        """
-        pass
-
-    @abstractmethod
-    def get_upstreams(self) -> list[TAnyTask]:
-        """Retrieves the list of upstream tasks that this task depends on.
-
-        Returns:
-            list[TAnyTask]: A list of tasks that must be completed before this task.
-        """
-        pass
-
-    @abstractmethod
-    def get_fallbacks(self) -> list[TAnyTask]:
-        """Retrieves the list of fallback tasks in case this task fails.
-
-        Returns:
-            list[TAnyTask]: A list of fallback tasks to run if this task encounters an issue.
-        """
-        pass
-
-    @abstractmethod
-    def set_upstreams(self, upstreams: TAnyTask | list[TAnyTask]):
+    def append_upstreams(self, upstreams: TAnyTask | list[TAnyTask]):
         """Sets the upstream tasks that this task depends on.
 
         Args:
             upstreams (TAnyTask | list[TAnyTask]): A single upstream task or
                 a list of upstream tasks.
-        """
-        pass
-
-    @abstractmethod
-    def get_readiness_checks(self) -> list[TAnyTask]:
-        """Retrieves the readiness checks that must be satisfied before this task can run.
-
-        Returns:
-            list[TAnyTask]: A list of tasks that serve as readiness checks for this task.
         """
         pass
 

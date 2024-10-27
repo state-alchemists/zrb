@@ -63,76 +63,85 @@ class BaseTask(AnyTask):
 
     def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
         if isinstance(other, AnyTask):
-            other.set_upstreams(self)
+            other.append_upstreams(self)
         elif isinstance(other, list):
             for task in other:
-                task.set_upstreams(self)
+                task.append_upstreams(self)
         return other
 
     def __lshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
-        self.set_upstreams(other)
+        self.append_upstreams(other)
         return self
 
-    def get_name(self) -> str:
+    @property
+    def name(self) -> str:
         return self._name
 
-    def get_color(self) -> int | None:
+    @property
+    def color(self) -> int | None:
         return self._color
 
-    def get_icon(self) -> str | None:
+    @property
+    def icon(self) -> str | None:
         return self._icon
 
-    def get_description(self) -> str:
-        return self._description if self._description is not None else self.get_name()
+    @property
+    def description(self) -> str:
+        return self._description if self._description is not None else self.name
 
-    def get_envs(self) -> list[AnyEnv]:
+    @property
+    def envs(self) -> list[AnyEnv]:
         envs = []
-        for upstream in self.get_upstreams():
-            envs += upstream.get_envs()
+        for upstream in self.upstreams:
+            envs += upstream.envs
         if isinstance(self._envs, AnyEnv):
             envs.append(self._envs)
         elif self._envs is not None:
             envs += self._envs
         return envs
 
-    def get_inputs(self) -> list[AnyInput]:
+    @property
+    def inputs(self) -> list[AnyInput]:
         inputs = []
-        for upstream in self.get_upstreams():
-            inputs += upstream.get_inputs()
+        for upstream in self.upstreams:
+            inputs += upstream.inputs
         if isinstance(self._inputs, AnyInput):
             inputs.append(self._inputs)
         elif self._inputs is not None:
             inputs += self._inputs
         return inputs
 
-    def get_fallbacks(self) -> list[AnyTask]:
+    @property
+    def fallbacks(self) -> list[AnyTask]:
         if self._fallbacks is None:
             return []
         elif isinstance(self._fallbacks, AnyTask):
             return [self._fallbacks]
         return self._fallbacks
 
-    def get_upstreams(self) -> list[AnyTask]:
+    @property
+    def readiness_checks(self) -> list[AnyTask]:
+        if self._readiness_checks is None:
+            return []
+        elif isinstance(self._readiness_checks, AnyTask):
+            return [self._readiness_checks]
+        return self._readiness_checks
+
+    @property
+    def upstreams(self) -> list[AnyTask]:
         if self._upstreams is None:
             return []
         elif isinstance(self._upstreams, AnyTask):
             return [self._upstreams]
         return self._upstreams
 
-    def set_upstreams(self, upstreams: AnyTask | list[AnyTask]):
+    def append_upstreams(self, upstreams: AnyTask | list[AnyTask]):
         if self._upstreams is None:
             self._upstreams = []
         if isinstance(upstreams, AnyTask):
             self._upstreams.append(upstreams)
             return
         self._upstreams += upstreams
-
-    def get_readiness_checks(self) -> list[AnyTask]:
-        if self._readiness_checks is None:
-            return []
-        elif isinstance(self._readiness_checks, AnyTask):
-            return [self._readiness_checks]
-        return self._readiness_checks
 
     def run(self, session: AnySession | None = None) -> Any:
         try:
@@ -156,12 +165,12 @@ class BaseTask(AnyTask):
         }
         shared_context._env.update(os_env_map)
         # Inject environment from task's envs
-        for env in self.get_envs():
+        for env in self.envs:
             env.update_shared_context(shared_context)
 
     def _fill_shared_context_inputs(self, shared_context: AnySharedContext):
-        for task_input in self.get_inputs():
-            if task_input.get_name() not in shared_context._input:
+        for task_input in self.inputs:
+            if task_input.name not in shared_context._input:
                 task_input.update_shared_context(shared_context)
 
     async def exec_root_tasks(self, session: AnySession):
@@ -176,7 +185,7 @@ class BaseTask(AnyTask):
             await asyncio.gather(*root_task_coros)
             await session.wait_deferred_monitoring()
             await session.wait_deferred_action()
-            xcom: Xcom = session.get_ctx(self).xcom.get(self.get_name())
+            xcom: Xcom = session.get_ctx(self).xcom.get(self.name)
             return xcom.peek_value()
         except IndexError:
             return None
@@ -223,7 +232,7 @@ class BaseTask(AnyTask):
 
     async def _exec_action_until_ready(self, session: AnySession):
         ctx = session.get_ctx(self)
-        readiness_checks = self.get_readiness_checks()
+        readiness_checks = self.readiness_checks
         if len(readiness_checks) == 0:
             ctx.log_info("No readiness checks")
             # Task has no readiness check
@@ -254,7 +263,7 @@ class BaseTask(AnyTask):
         return result
 
     async def _exec_monitoring(self, session: AnySession, action_coro: asyncio.Task):
-        readiness_checks = self.get_readiness_checks()
+        readiness_checks = self.readiness_checks
         failure_count = 0
         ctx = session.get_ctx(self)
         while not session.is_terminated:
@@ -263,7 +272,7 @@ class BaseTask(AnyTask):
                 for readiness_check in readiness_checks:
                     session.get_task_status(readiness_check).reset_history()
                     session.get_task_status(readiness_check).reset()
-                    readiness_xcom: Xcom = ctx.xcom[self.get_name()]
+                    readiness_xcom: Xcom = ctx.xcom[self.name]
                     readiness_xcom.clear()
                 readiness_check_coros = [
                     check.exec_chain(session) for check in readiness_checks
@@ -310,7 +319,7 @@ class BaseTask(AnyTask):
                 ctx.log_info("Marked as completed")
                 session.get_task_status(self).mark_as_completed()
                 # Put result on xcom
-                task_xcom: Xcom = ctx.xcom.get(self.get_name())
+                task_xcom: Xcom = ctx.xcom.get(self.name)
                 task_xcom.push_value(result)
                 return result
             except (asyncio.CancelledError, KeyboardInterrupt):
@@ -329,7 +338,7 @@ class BaseTask(AnyTask):
                 raise e
 
     async def _exec_fallbacks(self, session: AnySession) -> Any:
-        fallbacks: list[AnyTask] = self.get_fallbacks()
+        fallbacks: list[AnyTask] = self.fallbacks
         fallback_coros = [
             run_async(fallback.exec_chain(session)) for fallback in fallbacks
         ]

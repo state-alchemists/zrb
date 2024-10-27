@@ -8,16 +8,34 @@ TGroup = TypeVar("TGroup", bound="AnyGroup")
 
 
 class AnyGroup(ABC):
+    @property
     @abstractmethod
-    def get_name(self) -> str:
+    def name(self) -> str:
+        """Group name"""
         pass
 
+    @property
     @abstractmethod
-    def get_banner(self) -> str:
+    def banner(self) -> str:
+        """Group banner"""
         pass
 
+    @property
     @abstractmethod
-    def get_description(self) -> str:
+    def description(self) -> str:
+        """Group description"""
+        pass
+
+    @property
+    @abstractmethod
+    def subtasks(self) -> Mapping[str, AnyTask]:
+        """Group subtasks"""
+        pass
+
+    @property
+    @abstractmethod
+    def subgroups(self) -> Mapping[str, TGroup]:
+        """Group subgroups"""
         pass
 
     @abstractmethod
@@ -29,15 +47,7 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
-    def get_sub_tasks(self) -> Mapping[str, AnyTask]:
-        pass
-
-    @abstractmethod
     def get_task_by_alias(self, alias: str) -> AnyTask | None:
-        pass
-
-    @abstractmethod
-    def get_sub_groups(self) -> Mapping[str, TGroup]:
         pass
 
     @abstractmethod
