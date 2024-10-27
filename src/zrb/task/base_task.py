@@ -31,6 +31,7 @@ class BaseTask(AnyTask):
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
         readiness_timeout: int = 60,
@@ -49,6 +50,7 @@ class BaseTask(AnyTask):
         self._upstreams = upstream
         self._fallbacks = fallback
         self._readiness_checks = readiness_check
+        self._readiness_check_delay = readiness_check_delay
         self._readiness_check_period = readiness_check_period
         self._readiness_failure_threshold = readiness_failure_threshold
         self._readiness_timeout = readiness_timeout
@@ -132,20 +134,19 @@ class BaseTask(AnyTask):
             return [self._readiness_checks]
         return self._readiness_checks
 
-    def run(self, shared_context: AnySharedContext | None = None) -> Any:
+    def run(self, session: AnySession | None = None) -> Any:
         try:
-            return asyncio.run(self.async_run(shared_context))
+            return asyncio.run(self.async_run(session))
         except KeyboardInterrupt:
             pass
 
-    async def async_run(self, shared_context: AnySharedContext | None = None) -> Any:
-        if shared_context is None:
-            shared_context = SharedContext()
+    async def async_run(self, session: AnySession | None = None) -> Any:
+        if session is None:
+            session = Session(shared_ctx=SharedContext())
         # Update session
-        self._fill_shared_context_inputs(shared_context)
-        self._fill_shared_context_envs(shared_context)
+        self._fill_shared_context_inputs(session.shared_ctx)
+        self._fill_shared_context_envs(session.shared_ctx)
         # Create state
-        session = Session(shared_context=shared_context)
         try:
             return await run_async(self.exec_root_tasks(session))
         except KeyboardInterrupt:
@@ -231,6 +232,7 @@ class BaseTask(AnyTask):
             return result
         # Start the task along with the readiness checks
         action_coro = asyncio.create_task(run_async(self._exec_action_and_retry(session)))
+        await asyncio.sleep(self._readiness_check_delay)
         readiness_check_coros = [
             run_async(check.exec_chain(session))
             for check in readiness_checks

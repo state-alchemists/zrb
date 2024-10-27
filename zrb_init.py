@@ -9,7 +9,7 @@ _DIR = os.path.dirname(__file__)
 
 test_group = cli.add_group(Group("test", description="Testing zrb"))
 
-start_test_docker_compose = CmdTask(
+_start_test_docker_compose = CmdTask(
     name="start-test-compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down && docker compose up",
@@ -19,21 +19,33 @@ start_test_docker_compose = CmdTask(
     )
 )
 
-run_test = CmdTask(
-    name="run-test",
+_run_integration_test = CmdTask(
+    name="run-integration-test",
+    input=StrInput(
+        name="test",
+        description="Specific test case (i.e., test/file.py::test_name)",
+        prompt="Test (i.e., test/file.py::test_name)",
+        default_str="",
+    ),
     cwd=_DIR,
-    cmd="echo wkwkwk"
+    cmd="./test.sh {ctx.input.test}",
+    retries=0,
 )
 
-stop_test_docker_compose = CmdTask(
+_stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
     description="Start docker compose for testing, run test, then remove the docker compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down"
 )
 
-start_test_docker_compose >> run_test >> stop_test_docker_compose
-test_group.add_task(stop_test_docker_compose, "run")
+run_test = Task(
+    name="run-test",
+    action=lambda ctx: ctx.xcom["run-integration-test"].pop_value()
+)
+
+_start_test_docker_compose >> _run_integration_test >> _stop_test_docker_compose >> run_test
+test_group.add_task(run_test, "run")
 
 ############################################################
 

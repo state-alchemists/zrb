@@ -17,17 +17,9 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def get_default_value(self, shared_ctx: SharedContext) -> Any:
+    def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
         pass
 
     @abstractmethod
-    def allow_positional_argument(self) -> bool:
-        pass
-
-    @abstractmethod
-    def update_shared_context(self, shared_ctx: SharedContext, value: Any = None):
-        pass
-
-    @abstractmethod
-    def prompt_cli(self, shared_ctx: SharedContext) -> Any:
+    def prompt_cli_str(self, shared_ctx: SharedContext) -> str:
         pass

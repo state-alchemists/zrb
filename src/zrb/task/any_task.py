@@ -112,12 +112,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def run(self, shared_context: AnySharedContext | None = None) -> Any:
+    def run(self, session: session.AnySession | None = None) -> Any:
         """Runs the task synchronously.
 
         Args:
-            shared_context (AnySharedContext, optional): The shared context
-                for the task execution.
+            session (AnySession): The shared session.
 
         Returns:
             Any: The result of the task execution.
@@ -125,12 +124,11 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def async_run(self, shared_context: AnySharedContext | None = None) -> Any:
+    async def async_run(self, session: session.AnySession | None = None) -> Any:
         """Runs the task asynchronously.
 
         Args:
-            shared_context (AnySharedContext, optional): The shared context
-                for the task execution.
+            session (AnySession): The shared session.
 
         Returns:
             Any: The result of the task execution.

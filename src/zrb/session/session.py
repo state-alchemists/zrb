@@ -13,12 +13,12 @@ import asyncio
 
 
 class Session(AnySession):
-    def __init__(self, shared_context: AnySharedContext):
+    def __init__(self, shared_ctx: AnySharedContext):
         self._task_status: Mapping[AnyTask, TaskStatus] = {}
         self._upstreams: Mapping[AnyTask, list[AnyTask]] = {}
         self._downstreams: Mapping[AnyTask, list[AnyTask]] = {}
         self._context: Mapping[AnyTask, Context] = {}
-        self._shared_ctx = shared_context
+        self._shared_ctx = shared_ctx
         self._action_coros: Mapping[AnyTask, Coroutine] = {}
         self._monitoring_coros: Mapping[AnyTask, Coroutine] = {}
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
@@ -30,6 +30,10 @@ class Session(AnySession):
     def __repr__(self):
         class_name = self.__class__.__name__
         return f"<{class_name} status={self._task_status}, shared_ctx={self._shared_ctx}>"
+
+    @property
+    def shared_ctx(self) -> AnySharedContext:
+        return self._shared_ctx
 
     def terminate(self):
         self._is_terminated = True

@@ -4,6 +4,8 @@ from ..config import VERSION
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
 from ..group.group import Group
+from ..session.any_session import AnySession
+from ..session.session import Session
 from ..task.any_task import AnyTask
 from ..context.shared_context import SharedContext
 import sys
@@ -11,7 +13,7 @@ import sys
 
 class Cli(Group):
 
-    def run(self, args: list[str]):
+    def run(self, args: list[str] = []):
         load_zrb_init()
         kwargs, args = self._extract_kwargs_from_args(args)
         node, node_path, args = self._extract_node_from_args(args)
@@ -77,14 +79,18 @@ class Cli(Group):
         task_inputs = task.get_inputs()
         arg_index = 0
         for task_input in task_inputs:
-            if task_input.get_name() not in shared_ctx._input:
-                if arg_index < len(args):
-                    task_input.update_shared_context(shared_ctx, args[arg_index])
-                    arg_index += 1
-                    continue
-                input_value = task_input.prompt_cli(shared_ctx)
-                task_input.update_shared_context(shared_ctx, input_value)
-        return task.run(shared_ctx)
+            task_input_name = task_input.get_name()
+            if task_input_name in shared_ctx.input:
+                str_value = shared_ctx.input[task_input_name]
+                task_input.update_shared_context(shared_ctx, str_value)
+                continue
+            if arg_index < len(args):
+                task_input.update_shared_context(shared_ctx, args[arg_index])
+                arg_index += 1
+                continue
+            str_value = task_input.prompt_cli_str(shared_ctx)
+            task_input.update_shared_context(shared_ctx, str_value)
+        return task.run(Session(shared_ctx=shared_ctx))
 
     def _show_task_info(self, task: AnyTask):
         description = task.get_description()

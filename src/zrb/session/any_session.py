@@ -2,6 +2,7 @@ from __future__ import annotations  # Enables forward references
 from typing import Coroutine, TYPE_CHECKING
 from abc import ABC, abstractmethod
 from ..context.any_context import AnyContext
+from ..context.any_shared_context import AnySharedContext
 from ..task_status.task_status import TaskStatus
 
 if TYPE_CHECKING:
@@ -16,10 +17,15 @@ class AnySession(ABC):
     XCom-like functionality.
     """
 
+    @property
+    @abstractmethod
+    def shared_ctx(self) -> AnySharedContext:
+        """Shared context for this session"""
+        pass
+
     @abstractmethod
     def terminate(self):
-        """Terminating session
-        """
+        """Terminating session"""
         pass
 
     @property

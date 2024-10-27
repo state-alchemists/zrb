@@ -13,7 +13,6 @@ class PasswordInput(BaseInput):
         default_str: str | Callable[[SharedContext], str] = "",
         auto_render: bool = True,
         allow_empty: bool = True,
-        allow_positional_argument: bool = True,
     ):
         super().__init__(
             name=name,
@@ -22,13 +21,12 @@ class PasswordInput(BaseInput):
             default_str=default_str,
             auto_render=auto_render,
             allow_empty=allow_empty,
-            allow_positional_argument=allow_positional_argument,
         )
         self._is_secret = True
 
-    def _prompt_cli_once(self, shared_ctx: SharedContext) -> str:
+    def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
         prompt_message = self.get_prompt_message()
-        default_value = self.get_default_value(shared_ctx)
+        default_value = self._get_default_str_value(shared_ctx)
         value = getpass.getpass(f"{prompt_message}: ")
         if value.strip() == "":
             value = default_value
