@@ -2,7 +2,7 @@ from zrb.runner.cli import Cli
 from zrb import Group, Task, StrInput, IntInput
 
 
-def test_cli_runner_show_info_for_existing_group():
+def test_show_info_for_existing_group():
     cli = Cli(name="zrb")
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
@@ -15,7 +15,7 @@ def test_cli_runner_show_info_for_existing_group():
     assert error is None
 
 
-def test_cli_runner_show_info_for_inexisting_group():
+def test_show_info_for_inexisting_group():
     cli = Cli(name="zrb")
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
@@ -28,7 +28,7 @@ def test_cli_runner_show_info_for_inexisting_group():
     assert error is not None
 
 
-def test_cli_runner_show_help_for_existing_task():
+def test_show_help_for_existing_task():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -45,7 +45,7 @@ def test_cli_runner_show_help_for_existing_task():
     assert error is None
 
 
-def test_cli_runner_run_existing_task():
+def test_run_existing_task():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -61,7 +61,7 @@ def test_cli_runner_run_existing_task():
     assert error is None
 
 
-def test_cli_runner_show_help_for_inexisting_task():
+def test_show_help_for_inexisting_task():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -77,7 +77,7 @@ def test_cli_runner_show_help_for_inexisting_task():
     assert error is not None
 
 
-def test_cli_runner_run_inexisting_task():
+def test_run_inexisting_task():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -93,7 +93,7 @@ def test_cli_runner_run_inexisting_task():
     assert error is not None
 
 
-def test_cli_runner_run_simple_task():
+def test_run_simple_task():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -105,7 +105,7 @@ def test_cli_runner_run_simple_task():
     assert result == "Hello world"
 
 
-def test_cli_runner_run_simple_task_with_keyword_arguments_as_inputs():
+def test_run_simple_task_with_keyword_arguments_as_inputs():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -121,7 +121,7 @@ def test_cli_runner_run_simple_task_with_keyword_arguments_as_inputs():
     assert result == "9"
 
 
-def test_cli_runner_run_simple_task_with_arguments_as_inputs():
+def test_run_simple_task_with_arguments_as_inputs():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(
@@ -137,7 +137,7 @@ def test_cli_runner_run_simple_task_with_arguments_as_inputs():
     assert result == "9"
 
 
-def test_cli_runner_run_simple_task_with_arguments():
+def test_run_simple_task_with_arguments():
     cli = Cli(name="zrb")
     cli.add_task(
         Task(

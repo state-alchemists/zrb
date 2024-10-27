@@ -1,12 +1,13 @@
 from typing import Any
 from collections.abc import Mapping
+from .web import run_web_server
 from ..config import VERSION
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
 from ..group.group import Group
-from ..session.any_session import AnySession
 from ..session.session import Session
 from ..task.any_task import AnyTask
+from ..task.task import Task
 from ..context.shared_context import SharedContext
 import sys
 
@@ -183,4 +184,11 @@ cli = Cli(
     name="zrb",
     description="A Framework to Enhanche your workflow",
     banner=ZRB_BANNER
+)
+cli.add_task(
+    Task(
+        name="serve",
+        description="Serve HTTP Request",
+        action=lambda ctx: run_web_server(root_group=cli)
+    )
 )

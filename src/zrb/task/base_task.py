@@ -146,16 +146,7 @@ class BaseTask(AnyTask):
         # Update session
         self._fill_shared_context_inputs(session.shared_ctx)
         self._fill_shared_context_envs(session.shared_ctx)
-        # Create state
-        try:
-            return await run_async(self.exec_root_tasks(session))
-        except KeyboardInterrupt:
-            ctx = session.get_ctx(self)
-            ctx.log_info("Terminating sesion because of keyboard interrupt")
-            session.terminate()
-        finally:
-            ctx = session.get_ctx(self)
-            ctx.log_debug(session)
+        return await run_async(self.exec_root_tasks(session))
 
     def _fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
@@ -181,11 +172,21 @@ class BaseTask(AnyTask):
         root_task_coros = [
             run_async(root_task.exec_chain(session)) for root_task in root_tasks
         ]
-        await asyncio.gather(*root_task_coros)
-        await session.wait_deferred_monitoring()
-        await session.wait_deferred_action()
-        xcom: Xcom = session.get_ctx(self).xcom.get(self.get_name())
-        return xcom.peek_value()
+        try:
+            await asyncio.gather(*root_task_coros)
+            await session.wait_deferred_monitoring()
+            await session.wait_deferred_action()
+            xcom: Xcom = session.get_ctx(self).xcom.get(self.get_name())
+            return xcom.peek_value()
+        except IndexError:
+            return None
+        except KeyboardInterrupt:
+            ctx = session.get_ctx(self)
+            ctx.log_info("Terminating sesion because of keyboard interrupt")
+            session.terminate()
+        finally:
+            ctx = session.get_ctx(self)
+            ctx.log_debug(session)
 
     async def exec_chain(self, session: AnySession):
         if session.is_terminated or not session.is_allowed_to_run(self):
