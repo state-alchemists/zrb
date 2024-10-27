@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from ..task.any_task import AnyTask
 
 
-TGroup = TypeVar("TGroup", bound="AnyGroup")
+TAnyGroup = TypeVar("TAnyGroup", bound="AnyGroup")
 
 
 class AnyGroup(ABC):
@@ -34,12 +34,17 @@ class AnyGroup(ABC):
 
     @property
     @abstractmethod
-    def subgroups(self) -> Mapping[str, TGroup]:
+    def subgroups(self) -> Mapping[str, TAnyGroup]:
         """Group subgroups"""
         pass
 
+    @property
     @abstractmethod
-    def add_group(self, group: TGroup) -> TGroup:
+    def contain_tasks(self) -> bool:
+        pass
+
+    @abstractmethod
+    def add_group(self, group: TAnyGroup) -> TAnyGroup:
         pass
 
     @abstractmethod
@@ -51,5 +56,5 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
-    def get_group_by_name(self, name: str) -> TGroup | None:
+    def get_group_by_alias(self, name: str) -> TAnyGroup | None:
         pass

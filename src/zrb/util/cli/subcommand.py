@@ -18,8 +18,10 @@ def get_group_subcommands(
     nexts = []
     for task_alias in group.subtasks:
         nexts.append(task_alias)
-    for subgroup_name, subgroup in group.subgroups.items():
-        nexts.append(subgroup_name)
+    for subgroup_alias, subgroup in group.subgroups.items():
+        if not subgroup.contain_tasks:
+            continue
+        nexts.append(subgroup_alias)
         # Recursively add subgroup
         get_group_subcommands(
             group=subgroup,

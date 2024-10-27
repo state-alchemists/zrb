@@ -1,5 +1,6 @@
 from typing import Any
 from collections.abc import Mapping
+from .util import InvalidCommandError, extract_node_from_args
 from .web import run_web_server
 from ..config import BANNER, HTTP_PORT
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
@@ -17,7 +18,7 @@ class Cli(Group):
     def run(self, args: list[str] = []):
         load_zrb_init()
         kwargs, args = self._extract_kwargs_from_args(args)
-        node, node_path, args = self._extract_node_from_args(args)
+        node, node_path, args = extract_node_from_args(self, args)
         if isinstance(node, Group):
             self._show_group_info(node)
             return
@@ -56,9 +57,14 @@ class Cli(Group):
         residual_args = []
         for index, name in enumerate(positional):
             task = node.get_task_by_alias(name)
-            group = node.get_group_by_name(name)
+            group = node.get_group_by_alias(name)
+            if group is not None and not group.contain_tasks:
+                # If group doesn't contain any task, then ignore its existence
+                group = None
             if task is None and group is None:
-                raise ValueError("Invalid zrb command")
+                raise InvalidCommandError(
+                    f"Invalid subcommand: {self.name} {' '.join(positional)}"
+                )
             node_path.append(name)
             if group is not None:
                 if task is not None and index == len(positional) - 1:
@@ -118,6 +124,8 @@ class Cli(Group):
         if len(group.subgroups) > 0:
             print(stylize_section_header("GROUPS"))
             for alias, subgroup in group.subgroups.items():
+                if not subgroup.contain_tasks:
+                    continue
                 alias = alias.ljust(20)
                 print(f"  {alias}: {subgroup.description}")
             print()
