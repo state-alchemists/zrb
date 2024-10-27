@@ -87,4 +87,4 @@ class TaskStatus():
     def allow_run_downstream(self):
         if self.is_failed or self.is_permanently_failed:
             return False
-        return self.is_skipped or self.is_started or self.is_ready
+        return self.is_skipped or self.is_ready

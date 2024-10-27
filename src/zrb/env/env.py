@@ -23,9 +23,9 @@ class Env(AnyEnv):
     def update_shared_context(self, shared_ctx: AnySharedContext):
         if self._link_to_os:
             os_name = self._name if self._os_name is None else self._os_name
-            value = os.getenv(os_name, self._get_default_value())
+            value = os.getenv(os_name, self._get_default_value(shared_ctx))
         else:
-            value = self._get_default_value()
+            value = self._get_default_value(shared_ctx)
         shared_ctx.env[self._name] = value
 
     def _get_default_value(self, shared_ctx: AnySharedContext) -> str:

@@ -44,18 +44,18 @@ class Session(AnySession):
         self._register_single_task(task)
         return self._context[task]
 
-    def defer_task_coroutine(self, task: AnyTask, coro: Coroutine):
+    def defer_action(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
         self._task_coros[task] = coro
 
-    async def wait_deffered_task_coroutines(self):
+    async def wait_deferred_action(self):
         if len(self._task_coros) == 0:
             return
         tasks = self._task_coros.keys()
         task_coros = self._task_coros.values()
         results = await asyncio.gather(*task_coros)
         for index, task in enumerate(tasks):
-            self.mark_task_as_completed(task)
+            self.get_task_status(task).mark_as_completed()
             self.append_task_xcom(task, results[index])
 
     def register_task(self, task: AnyTask):
@@ -69,8 +69,15 @@ class Session(AnySession):
             if upstream not in self._upstreams[task]:
                 self._upstreams[task].append(upstream)
 
-    def get_tasks(self) -> list[AnyTask]:
-        return list(self._task_status.keys())
+    def get_root_tasks(self, task: AnyTask) -> list[AnyTask]:
+        root_tasks = []
+        upstreams = self._upstreams[task]
+        if len(upstreams) == 0:
+            root_tasks.append(task)
+        else:
+            for upstream in upstreams:
+                root_tasks += self.get_root_tasks(upstream)
+        return list(set(root_tasks))
 
     def get_next_tasks(self, task: AnyTask) -> list[AnyTask]:
         self._register_single_task(task)
@@ -133,7 +140,7 @@ class Session(AnySession):
         if self.is_terminated:
             return False
         self._register_single_task(task)
-        task_status = self._task_status[task]
+        task_status = self.get_task_status(task)
         if task_status.is_started or task_status.is_completed:
             return False
         unfulfilled_upstreams = [

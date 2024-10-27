@@ -51,7 +51,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def defer_task_coroutine(self, task: any_task.AnyTask, coro: Coroutine):
+    def defer_action(self, task: any_task.AnyTask, coro: Coroutine):
         """Defers the execution of a task's coroutine for later processing.
 
         Args:
@@ -61,7 +61,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    async def wait_deffered_task_coroutines(self):
+    async def wait_deferred_action(self):
         """Asynchronously waits for all deferred task coroutines to complete."""
         pass
 
@@ -75,11 +75,15 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_tasks(self) -> list[any_task.AnyTask]:
-        """Returns the list of all tasks in the session.
+    def get_root_tasks(self, task: any_task.AnyTask) -> list[any_task.AnyTask]:
+        """Retrieves the list of root tasks that should be executed first
+        to run the given task.
+
+        Args:
+            task (AnyTask): The current task.
 
         Returns:
-            list[AnyTask]: A list of tasks registered in the session.
+            list[AnyTask]: A list of root tasks.
         """
         pass
 

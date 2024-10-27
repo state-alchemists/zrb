@@ -58,7 +58,12 @@ class HttpCheck(BaseTask):
         http_method = self._get_http_method(ctx)
         while True:
             try:
-                response = requests.request(http_method, url, timeout=self.timeout_seconds)
-                return response.status_code == 200
-            except Exception:
-                await asyncio.sleep(self._interval)
+                response = requests.request(http_method, url)
+                if response.status_code == 200:
+                    return True
+                ctx.log_info(f"HTTP Status code: {response.status_code}")
+            except asyncio.TimeoutError as e:
+                ctx.log_info(f"Timeout error {e}")
+            except Exception as e:
+                ctx.log_info(f"Error: {e}")
+            await asyncio.sleep(self._interval)

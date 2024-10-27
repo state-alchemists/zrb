@@ -1,5 +1,5 @@
 from zrb import (
-    BaseTask, Task, CmdTask, Env, make_task, TcpCheck,
+    BaseTask, Task, CmdTask, Env, make_task, TcpCheck, HttpCheck,
     Context, IntInput, PasswordInput, StrInput, Group, cli
 )
 import asyncio
@@ -35,17 +35,19 @@ stop_test_docker_compose = CmdTask(
 start_test_docker_compose >> run_test >> stop_test_docker_compose
 test_group.add_task(stop_test_docker_compose, "run")
 
-cli.add_task(CmdTask(
-    name="print-python",
-    shell="python",
-    cmd="print(4 + 5)"
-))
+############################################################
+
 
 cli.add_task(CmdTask(
-    name="print-node",
-    shell="node",
-    flag="-e",
-    cmd="console.log(4 + 5)"
+    name="run-server",
+    cwd=os.path.join(_DIR, "test"),
+    cmd="python server.py",
+    monitor_readiness=True,
+    readiness_check=HttpCheck(
+        name="check-server",
+        url="http://localhost:8080/health"
+    ),
+    retries=0
 ))
 
 
@@ -129,8 +131,8 @@ def greetings(ctx: Context):
     upstream=[greetings]
 )
 def show_user_info(ctx: Context):
-    ctx.print("Using ctx.env.USER", ctx._env.USER)
-    ctx.print('Using ctx.env.get("USER")', ctx._env.get("USER"))
+    ctx.print("Using ctx.env.USER", ctx.env.USER)
+    ctx.print('Using ctx.env.get("USER")', ctx.env.get("USER"))
 
 
 cli.add_task(show_user_info)
@@ -156,7 +158,8 @@ cli.add_task(CmdTask(
     env=Env("FOO", default="BAR"),
     cmd=[
         "uname",
-        lambda ctx: f"echo From function: {ctx._env.FOO}",
+        lambda ctx: f"echo From function: {ctx.env.FOO}",
         "echo From template: {env.FOO}",
+        "sudo -k apt update",
     ]
 ))

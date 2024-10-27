@@ -1,4 +1,4 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from .any_task import AnyTask
 from .base_task import BaseTask
 from ..attr.type import BoolAttr, StrAttr, IntAttr
@@ -11,10 +11,8 @@ from ..context.any_context import AnyContext
 from ..util.cmd.remote import get_remote_cmd_script
 from ..util.attr import get_str_attr, get_int_attr
 
-import io
+import asyncio
 import os
-import threading
-import subprocess
 import sys
 
 
@@ -76,7 +74,6 @@ class CmdTask(BaseTask):
         )
         self._shell = shell
         self._auto_render_shell = auto_render_shell
-        self._shell_flag = flag
         self._remote_host = remote_host
         self._auto_render_remote_host = auto_render_remote_host
         self._remote_port = remote_port
@@ -93,7 +90,7 @@ class CmdTask(BaseTask):
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
 
-    def _exec_action(self, ctx: AnyContext) -> CmdResult:
+    async def _exec_action(self, ctx: AnyContext) -> CmdResult:
         """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
 
         Args:
@@ -109,79 +106,49 @@ class CmdTask(BaseTask):
         ctx.log_debug(f"Shell: {shell}")
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         ctx.log_debug(f"Working directory: {cwd}")
-        cmd_process = subprocess.Popen(
-            [shell, self._shell_flag, cmd_script],
+        cmd_process = await asyncio.create_subprocess_exec(
+            shell,
+            "-c",
+            cmd_script,
             cwd=cwd,
             stdin=sys.stdin if sys.stdin.isatty() else None,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             env=self.__get_env_map(ctx),
-            shell=False,
-            text=True,
             bufsize=0,
         )
-        stdout, stderr = [], []
-        stdout_thread = threading.Thread(
-            target=self.__make_reader(
-                ctx, cmd_process.stdout, max_line=self._max_output_line, lines=stdout
-            )
+        stdout_task = asyncio.create_task(
+            self._read_stream(cmd_process.stdout, ctx.print, self._max_output_line)
         )
-        stderr_thread = threading.Thread(
-            target=self.__make_reader(
-                ctx, cmd_process.stderr, max_line=self._max_output_line, lines=stderr
-            )
+        stderr_task = asyncio.create_task(
+            self._read_stream(cmd_process.stderr, ctx.print, self._max_error_line)
         )
-        stdout_thread.start()
-        stderr_thread.start()
-        try:
-            process_error = None
-            try:
-                ctx.log_info("Waiting for script execution")
-                cmd_process.wait()
-                ctx.log_info("Script execution completed")
-            except Exception as e:
-                process_error = e
-            stdout_thread.join()
-            stderr_thread.join()
-            output = "\n".join(stdout)
-            error = "\n".join(stderr)
-            # get return code
-            return_code = cmd_process.returncode
-            if process_error is not None:
-                raise Exception(process_error)
-            if return_code != 0:
-                ctx.log_error(f"Exit status: {return_code}")
-                raise Exception(f"Process {self._name} exited ({return_code}): {error}")
-            return CmdResult(output, error)
-        finally:
-            self.__terminate_process(ctx, cmd_process)
+        # Wait for process to complete and gather stdout/stderr
+        return_code = await cmd_process.wait()
+        stdout = await stdout_task
+        stderr = await stderr_task
+        # Check for errors
+        if return_code != 0:
+            ctx.log_error(f"Exit status: {return_code}")
+            raise Exception(f"Process {self._name} exited ({return_code}): {stderr}")
+        return CmdResult(stdout, stderr)
 
     def __get_env_map(self, ctx: AnyContext) -> Mapping[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
-    def __make_reader(
-        self, ctx: AnyContext, stream: io.TextIOWrapper, max_line: int, lines: list[str],
-    ) -> Callable:
-        def read_lines():
-            for line in stream:
-                line = line.rstrip()
-                ctx.print(line)
-                lines.append(line)
-                if len(lines) > max_line:
-                    lines.pop(0)
-        return read_lines
-
-    def __terminate_process(self, ctx: AnyContext, cmd_process: subprocess.Popen[str]):
-        """Terminate the shell script if it's still running."""
-        if cmd_process.poll() is None:  # If the process is still running
-            cmd_process.terminate()  # Gracefully terminate the process
-            try:
-                ctx.log_info("Waiting for process termination")
-                cmd_process.wait(timeout=5)  # Give it time to terminate
-            except subprocess.TimeoutExpired:
-                ctx.log_info("Killing the process")
-                cmd_process.kill()  # Forcefully kill if not terminated
+    async def _read_stream(self, stream, log_method, max_lines):
+        lines = []
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            line = line.decode("utf-8").strip()
+            lines.append(line.strip())  # Already a string due to text=True
+            if len(lines) > max_lines:
+                lines.pop(0)  # Keep only the last max_lines
+            log_method(line.strip())
+        return "\n".join(lines)
 
     def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(

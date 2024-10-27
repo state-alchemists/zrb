@@ -1,4 +1,5 @@
 from collections.abc import Callable
+
 from .any_task import AnyTask
 from .base_task import BaseTask
 from ..attr.type import StrAttr, IntAttr
@@ -8,7 +9,6 @@ from ..context.any_context import AnyContext
 from ..context.context import Context
 from ..util.attr import get_str_attr, get_int_attr
 import asyncio
-import socket
 
 
 class TcpCheck(BaseTask):
@@ -55,14 +55,13 @@ class TcpCheck(BaseTask):
         host = self._get_host(ctx)
         port = self._get_port(ctx)
         while True:
-            await asyncio.sleep(1)
             try:
                 ctx.log_info(f"Checking TCP connection on {host}:{port}")
-                await asyncio.wait_for(asyncio.open_connection(host, port), timeout=1)
+                await asyncio.open_connection(host, port)
                 ctx.log_info(f"Connection to {host}:{port} established successfully")
                 return True
             except asyncio.TimeoutError as e:
-                ctx.log.info(f"Timeout error {e}")
+                ctx.log_info(f"Timeout error {e}")
             except Exception as e:
                 ctx.log_info(f"Error: {e}")
             await asyncio.sleep(self._interval)
