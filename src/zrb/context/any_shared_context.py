@@ -1,6 +1,7 @@
 from typing import Any
 from abc import ABC, abstractmethod
-from ..dict_to_object.dict_to_object import DictToObject
+from ..dot_dict.dot_dict import DotDict
+from ..xcom.xcom import Xcom
 
 
 class AnySharedContext(ABC):
@@ -12,11 +13,11 @@ class AnySharedContext(ABC):
     """
 
     @property
-    def input(self) -> DictToObject:
+    def input(self) -> DotDict:
         pass
 
     @property
-    def env(self) -> DictToObject:
+    def env(self) -> DotDict:
         pass
 
     @property
@@ -24,7 +25,7 @@ class AnySharedContext(ABC):
         pass
 
     @property
-    def xcom(self) -> DictToObject:
+    def xcom(self) -> DotDict[str, Xcom]:
         pass
 
     @abstractmethod

@@ -1,7 +1,7 @@
 from typing import Any, TextIO
 from .any_context import AnyContext
 from .any_shared_context import AnySharedContext
-from ..dict_to_object.dict_to_object import DictToObject
+from ..dot_dict.dot_dict import DotDict
 from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
 from ..util.string.conversion import to_boolean
 
@@ -30,11 +30,11 @@ class Context(AnyContext):
         return f"<{class_name} shared_ctx={self._shared_ctx}>"
 
     @property
-    def input(self) -> DictToObject:
+    def input(self) -> DotDict:
         return self._shared_ctx.input
 
     @property
-    def env(self) -> DictToObject:
+    def env(self) -> DotDict:
         return self._shared_ctx.env
 
     @property
@@ -42,7 +42,7 @@ class Context(AnyContext):
         return self._shared_ctx.args
 
     @property
-    def xcom(self) -> DictToObject:
+    def xcom(self) -> DotDict:
         return self._shared_ctx.xcom
 
     def set_attempt(self, attempt: int):

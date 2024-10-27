@@ -1,9 +1,12 @@
 from typing import Any
 from collections.abc import Mapping
 from .any_shared_context import AnySharedContext
-from ..dict_to_object.dict_to_object import DictToObject
+from ..dot_dict.dot_dict import DotDict
 from ..xcom.xcom import Xcom
 from ..config import LOGGING_LEVEL, SHOW_TIME
+from ..util.string.conversion import (
+    to_boolean, to_camel_case, to_human_case, to_kebab_case, to_pascal_case, to_snake_case
+)
 
 import datetime
 
@@ -28,10 +31,10 @@ class SharedContext(AnySharedContext):
     ):
         self.__logging_level = logging_level
         self.__show_time = show_time
-        self._input = DictToObject(input)
+        self._input = DotDict(input)
         self._args = args
-        self._env = DictToObject(env)
-        self._xcom = DictToObject(xcom)
+        self._env = DotDict(env)
+        self._xcom = DotDict(xcom)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -42,11 +45,11 @@ class SharedContext(AnySharedContext):
         return f"<{class_name} input={input} args={args} xcom={xcom} env={env}>"
 
     @property
-    def input(self) -> DictToObject:
+    def input(self) -> DotDict:
         return self._input
 
     @property
-    def env(self) -> DictToObject:
+    def env(self) -> DotDict:
         return self._env
 
     @property
@@ -54,7 +57,7 @@ class SharedContext(AnySharedContext):
         return self._args
 
     @property
-    def xcom(self) -> DictToObject:
+    def xcom(self) -> DotDict[str, Xcom]:
         return self._xcom
 
     def get_logging_level(self) -> int:
@@ -67,10 +70,14 @@ class SharedContext(AnySharedContext):
         return fstring_like_format(
             template=template,
             data={
-                "input": self._input,
-                "args": self._args,
-                "env": self._env,
-                "xcom": self._xcom,
+                "ctx": self,
                 "datetime": datetime,
+                "Xcom": Xcom,
+                "to_boolean": to_boolean,
+                "to_camel_case": to_camel_case,
+                "to_human_case": to_human_case,
+                "to_kebab_case": to_kebab_case,
+                "to_pascal_case": to_pascal_case,
+                "to_snake_case": to_snake_case
             }
         )

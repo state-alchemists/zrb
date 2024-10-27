@@ -10,6 +10,7 @@ from ..session.any_session import AnySession
 from ..session.session import Session
 from ..util.attr import get_bool_attr
 from ..util.run import run_async
+from ..xcom.xcom import Xcom
 from .any_task import AnyTask
 
 import asyncio
@@ -134,7 +135,7 @@ class BaseTask(AnyTask):
     def run(self, shared_context: AnySharedContext | None = None) -> Any:
         try:
             return asyncio.run(self.async_run(shared_context))
-        except (asyncio.CancelledError, KeyboardInterrupt):
+        except KeyboardInterrupt:
             pass
 
     async def async_run(self, shared_context: AnySharedContext | None = None) -> Any:
@@ -147,7 +148,9 @@ class BaseTask(AnyTask):
         session = Session(shared_context=shared_context)
         try:
             return await run_async(self.exec_root_tasks(session))
-        except (asyncio.CancelledError, KeyboardInterrupt):
+        except KeyboardInterrupt:
+            ctx = session.get_ctx(self)
+            ctx.log_info("Terminating sesion because of keyboard interrupt")
             session.terminate()
         finally:
             ctx = session.get_ctx(self)
@@ -178,8 +181,10 @@ class BaseTask(AnyTask):
             run_async(root_task.exec_chain(session)) for root_task in root_tasks
         ]
         await asyncio.gather(*root_task_coros)
+        await session.wait_deferred_monitoring()
         await session.wait_deferred_action()
-        return session.peek_task_xcom(self)
+        xcom: Xcom = session.get_ctx(self).xcom.get(self.get_name())
+        return xcom.peek_value()
 
     async def exec_chain(self, session: AnySession):
         if session.is_terminated or not session.is_allowed_to_run(self):
@@ -237,47 +242,54 @@ class BaseTask(AnyTask):
         ctx.log_info("Marked as ready")
         session.get_task_status(self).mark_as_ready()
         # Defer task's coroutines, will be waited later
+        session.defer_action(self, action_coro)
         if self._monitor_readiness:
             monitor_and_rerun_coro = asyncio.create_task(
-                run_async(self._exec_monitor_and_rerun_action(session, action_coro))
+                run_async(self._exec_monitoring(session, action_coro))
             )
-            session.defer_action(self, monitor_and_rerun_coro)
-        else:
-            session.defer_action(self, action_coro)
+            session.defer_monitoring(self, monitor_and_rerun_coro)
         return result
 
-    async def _exec_monitor_and_rerun_action(
-        self, session: AnySession, action_coro: asyncio.Task
-    ):
+    async def _exec_monitoring(self, session: AnySession, action_coro: asyncio.Task):
         readiness_checks = self.get_readiness_checks()
         failure_count = 0
         ctx = session.get_ctx(self)
-        while not session.is_terminated and failure_count < self._readiness_failure_threshold:
-            for readiness_check in readiness_checks:
-                session.get_task_status(readiness_check).reset_history()
-                session.get_task_status(readiness_check).reset()
+        while not session.is_terminated:
             await asyncio.sleep(self._readiness_check_period)
-            readiness_check_coros = [check.exec_chain(session) for check in readiness_checks]
-            try:
-                ctx.log_info("Checking")
-                await asyncio.wait_for(
-                    asyncio.gather(*readiness_check_coros), timeout=self._readiness_timeout
-                )
-                ctx.log_info("OK")
-            except (asyncio.CancelledError, KeyboardInterrupt):
-                session.terminate()
+            if failure_count < self._readiness_failure_threshold:
                 for readiness_check in readiness_checks:
-                    ctx.log_info("Marked as failed")
-                    session.get_task_status(readiness_check).mark_as_failed()
-            except asyncio.TimeoutError:
-                failure_count += 1
-                ctx.log_info("Detecting failure")
-                ctx.log_debug(f"Failure count: {failure_count}")
-        # Readiness check failed, rerun
-        action_coro.cancel()
-        session.get_task_status(self).reset()
-        new_action_coro = asyncio.create_task(run_async(self._exec_action_and_retry(session)))
-        await run_async(self._exec_monitor_and_rerun_action(session, new_action_coro))
+                    session.get_task_status(readiness_check).reset_history()
+                    session.get_task_status(readiness_check).reset()
+                    readiness_xcom: Xcom = ctx.xcom[self.get_name()]
+                    readiness_xcom.clear()
+                readiness_check_coros = [
+                    check.exec_chain(session) for check in readiness_checks
+                ]
+                try:
+                    ctx.log_info("Checking")
+                    await asyncio.wait_for(
+                        asyncio.gather(*readiness_check_coros), timeout=self._readiness_timeout
+                    )
+                    ctx.log_info("OK")
+                    continue
+                except (asyncio.CancelledError, KeyboardInterrupt):
+                    for readiness_check in readiness_checks:
+                        ctx.log_info("Marked as failed")
+                        session.get_task_status(readiness_check).mark_as_failed()
+                except asyncio.TimeoutError:
+                    failure_count += 1
+                    ctx.log_info("Detecting failure")
+                    ctx.log_debug(f"Failure count: {failure_count}")
+            # Readiness check failed, reset
+            ctx.log_info("Resetting")
+            action_coro.cancel()
+            session.get_task_status(self).reset()
+            # defer this action
+            ctx.log_info("Running")
+            action_coro = asyncio.create_task(run_async(self._exec_action_and_retry(session)))
+            session.defer_action(self, action_coro)
+            failure_count = 0
+            ctx.log_info("Continue monitoring")
 
     async def _exec_action_and_retry(self, session: AnySession) -> Any:
         ctx = session.get_ctx(self)
@@ -292,12 +304,13 @@ class BaseTask(AnyTask):
                 ctx.log_info("Marked as started")
                 session.get_task_status(self).mark_as_started()
                 result = await run_async(self._exec_action(ctx))
-                session.append_task_xcom(self, result)
                 ctx.log_info("Marked as completed")
                 session.get_task_status(self).mark_as_completed()
+                # Put result on xcom
+                task_xcom: Xcom = ctx.xcom.get(self.get_name())
+                task_xcom.push_value(result)
                 return result
             except (asyncio.CancelledError, KeyboardInterrupt):
-                session.terminate()
                 ctx.log_info("Marked as failed")
                 session.get_task_status(self).mark_as_failed()
                 return

@@ -1,7 +1,6 @@
 from __future__ import annotations  # Enables forward references
-from typing import Any, Coroutine, TYPE_CHECKING
+from typing import Coroutine, TYPE_CHECKING
 from abc import ABC, abstractmethod
-from ..context.any_shared_context import AnySharedContext
 from ..context.any_context import AnyContext
 from ..task_status.task_status import TaskStatus
 
@@ -30,15 +29,6 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_shared_ctx(self) -> AnySharedContext:
-        """Retrieves the shared context that is common across tasks in the session.
-
-        Returns:
-            AnySharedContext: The shared context object used across all tasks.
-        """
-        pass
-
-    @abstractmethod
     def get_ctx(self, task: any_task.AnyTask) -> AnyContext:
         """Retrieves the context for a specific task.
 
@@ -48,6 +38,21 @@ class AnySession(ABC):
         Returns:
             AnyContext: The context object specific to the provided task.
         """
+        pass
+
+    @abstractmethod
+    def defer_monitoring(self, task: any_task.AnyTask, coro: Coroutine):
+        """Defers the execution of a task's monitoring coroutine for later processing.
+
+        Args:
+            task (AnyTask): The task associated with the coroutine.
+            coro (Coroutine): The monitoring coroutine to defer.
+        """
+        pass
+
+    @abstractmethod
+    async def wait_deferred_monitoring(self):
+        """Asynchronously waits for all deferred monitoring coroutines to complete."""
         pass
 
     @abstractmethod
@@ -108,28 +113,6 @@ class AnySession(ABC):
 
         Returns:
             TaskStatus: Task status object
-        """
-        pass
-
-    @abstractmethod
-    def peek_task_xcom(self, task: any_task.AnyTask) -> Any:
-        """Retrieves the last value exchanged between tasks (XCom) for the given task.
-
-        Args:
-            task (AnyTask): The task for which to peek the XCom.
-
-        Returns:
-            Any: The last XCom value associated with the task.
-        """
-        pass
-
-    @abstractmethod
-    def append_task_xcom(self, task: any_task.AnyTask, value: Any):
-        """Appends a value to the XCom for the given task.
-
-        Args:
-            task (AnyTask): The task for which to append the XCom.
-            value (Any): The value to append to the XCom.
         """
         pass
 

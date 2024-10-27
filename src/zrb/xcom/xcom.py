@@ -7,13 +7,13 @@ class Xcom(deque):
         class_name = self.__class__.__name__
         return f"<{class_name} {list(self)}>"
 
-    def push(self, value):
+    def push_value(self, value):
         self.append(value)
 
-    def get(self):
+    def pop_value(self):
         return self.popleft()
 
-    def peek(self):
+    def peek_value(self):
         if len(self) > 0:
             return self[0]
         else:

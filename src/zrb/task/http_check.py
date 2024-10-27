@@ -60,7 +60,7 @@ class HttpCheck(BaseTask):
             try:
                 response = requests.request(http_method, url)
                 if response.status_code == 200:
-                    return True
+                    return response
                 ctx.log_info(f"HTTP Status code: {response.status_code}")
             except asyncio.TimeoutError as e:
                 ctx.log_info(f"Timeout error {e}")

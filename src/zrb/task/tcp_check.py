@@ -57,9 +57,9 @@ class TcpCheck(BaseTask):
         while True:
             try:
                 ctx.log_info(f"Checking TCP connection on {host}:{port}")
-                await asyncio.open_connection(host, port)
+                result = await asyncio.open_connection(host, port)
                 ctx.log_info(f"Connection to {host}:{port} established successfully")
-                return True
+                return result
             except asyncio.TimeoutError as e:
                 ctx.log_info(f"Timeout error {e}")
             except Exception as e:

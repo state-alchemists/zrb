@@ -37,6 +37,7 @@ test_group.add_task(stop_test_docker_compose, "run")
 
 ############################################################
 
+cli.add_task(HttpCheck(name="coba", url="https://google.com"))
 
 cli.add_task(CmdTask(
     name="run-server",
@@ -47,7 +48,9 @@ cli.add_task(CmdTask(
         name="check-server",
         url="http://localhost:8080/health"
     ),
-    retries=0
+    retries=0,
+    readiness_timeout=3,
+    readiness_check_period=1,
 ))
 
 
@@ -100,7 +103,7 @@ area = geometry.add_task(
             IntInput(name="height"),
         ],
         description="area of a square",
-        action="{input.width * input.height}"
+        action="{ctx.input.width * ctx.input.height}"
     )
 )
 
@@ -110,7 +113,7 @@ cli.add_task(
         name="input-password",
         input=[PasswordInput(name="password", prompt="Your password")],
         description="Try password",
-        action="Your password: {input.password}"
+        action="Your password: {ctx.input.password}"
     )
 )
 
@@ -123,7 +126,7 @@ cli.add_task(
     ]
 )
 def greetings(ctx: Context):
-    ctx.print(ctx.render("Hello {input.name} on {input.address}"))
+    ctx.print(ctx.render("Hello {ctx.input.name} on {ctx.input.address}"))
 
 
 @make_task(
@@ -159,7 +162,7 @@ cli.add_task(CmdTask(
     cmd=[
         "uname",
         lambda ctx: f"echo From function: {ctx.env.FOO}",
-        "echo From template: {env.FOO}",
+        "echo From template: {ctx.env.FOO}",
         "sudo -k apt update",
     ]
 ))

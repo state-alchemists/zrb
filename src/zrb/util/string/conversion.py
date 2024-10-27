@@ -46,18 +46,13 @@ def _to_alphanum(text: str | None) -> str:
     return NON_ALPHA_NUM.sub(" ", text)
 
 
-def to_human_readable(text: str | None) -> str:
+def to_human_case(text: str | None) -> str:
     text = str(text) if text is not None else ""
     return " ".join(
         [
-            x.lower() if x.upper() != x else x
-            for x in _to_space_separated(text).split(" ")
+            x.lower() if x.upper() != x else x for x in _to_space_separated(text).split(" ")
         ]
     )
-
-
-def to_capitalized_human_readable(text: str | None) -> str:
-    return to_human_readable(text).capitalize()
 
 
 def _to_space_separated(text: str | None) -> str:

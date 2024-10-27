@@ -1,4 +1,4 @@
-from typing import Any, Coroutine
+from typing import Coroutine
 from collections.abc import Mapping
 from .any_session import AnySession
 from ..context.any_shared_context import AnySharedContext
@@ -20,6 +20,7 @@ class Session(AnySession):
         self._context: Mapping[AnyTask, Context] = {}
         self._shared_ctx = shared_context
         self._action_coros: Mapping[AnyTask, Coroutine] = {}
+        self._monitoring_coros: Mapping[AnyTask, Coroutine] = {}
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
         self._icons = ICONS
         self._color_index = 0
@@ -37,12 +38,19 @@ class Session(AnySession):
     def is_terminated(self) -> bool:
         return self._is_terminated
 
-    def get_shared_ctx(self) -> AnySharedContext:
-        return self._shared_ctx
-
     def get_ctx(self, task: AnyTask) -> AnyContext:
         self._register_single_task(task)
         return self._context[task]
+
+    def defer_monitoring(self, task: AnyTask, coro: Coroutine):
+        self._register_single_task(task)
+        self._monitoring_coros[task] = coro
+
+    async def wait_deferred_monitoring(self):
+        if len(self._monitoring_coros) == 0:
+            return
+        task_coros = self._monitoring_coros.values()
+        await asyncio.gather(*task_coros)
 
     def defer_action(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
@@ -53,10 +61,9 @@ class Session(AnySession):
             return
         tasks = self._action_coros.keys()
         task_coros = self._action_coros.values()
-        results = await asyncio.gather(*task_coros)
-        for index, task in enumerate(tasks):
+        await asyncio.gather(*task_coros)
+        for task in tasks:
             self.get_task_status(task).mark_as_completed()
-            self.append_task_xcom(task, results[index])
 
     def register_task(self, task: AnyTask):
         self._register_single_task(task)
@@ -86,20 +93,6 @@ class Session(AnySession):
     def get_task_status(self, task: AnyTask) -> TaskStatus:
         self._register_single_task(task)
         return self._task_status[task]
-
-    def peek_task_xcom(self, task: AnyTask) -> Any:
-        self._register_single_task(task)
-        task_name = task.get_name()
-        if task_name not in self._shared_ctx._xcom:
-            return None
-        xcom = self._shared_ctx._xcom[task_name]
-        if len(xcom) > 0:
-            return xcom[0]
-        return None
-
-    def append_task_xcom(self, task: AnyTask, value: Any):
-        self._register_single_task(task)
-        self._shared_ctx._xcom[task.get_name()].append(value)
 
     def _register_single_task(self, task: AnyTask):
         if task.get_name() not in self._shared_ctx._xcom:
