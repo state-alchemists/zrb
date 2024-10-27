@@ -19,7 +19,7 @@ class Session(AnySession):
         self._downstreams: Mapping[AnyTask, list[AnyTask]] = {}
         self._context: Mapping[AnyTask, Context] = {}
         self._shared_ctx = shared_context
-        self._task_coros: Mapping[AnyTask, Coroutine] = {}
+        self._action_coros: Mapping[AnyTask, Coroutine] = {}
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
         self._icons = ICONS
         self._color_index = 0
@@ -46,13 +46,13 @@ class Session(AnySession):
 
     def defer_action(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
-        self._task_coros[task] = coro
+        self._action_coros[task] = coro
 
     async def wait_deferred_action(self):
-        if len(self._task_coros) == 0:
+        if len(self._action_coros) == 0:
             return
-        tasks = self._task_coros.keys()
-        task_coros = self._task_coros.values()
+        tasks = self._action_coros.keys()
+        task_coros = self._action_coros.values()
         results = await asyncio.gather(*task_coros)
         for index, task in enumerate(tasks):
             self.get_task_status(task).mark_as_completed()
