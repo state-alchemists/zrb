@@ -1,5 +1,4 @@
 from typing import TypeVar
-from collections.abc import Mapping
 from abc import ABC, abstractmethod
 from ..task.any_task import AnyTask
 
@@ -28,13 +27,13 @@ class AnyGroup(ABC):
 
     @property
     @abstractmethod
-    def subtasks(self) -> Mapping[str, AnyTask]:
+    def subtasks(self) -> dict[str, AnyTask]:
         """Group subtasks"""
         pass
 
     @property
     @abstractmethod
-    def subgroups(self) -> Mapping[str, TAnyGroup]:
+    def subgroups(self) -> dict[str, TAnyGroup]:
         """Group subgroups"""
         pass
 

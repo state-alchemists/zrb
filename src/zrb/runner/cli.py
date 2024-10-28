@@ -1,5 +1,4 @@
 from typing import Any
-from collections.abc import Mapping
 from .util import InvalidCommandError, extract_node_from_args
 from .web import run_web_server
 from ..config import BANNER, HTTP_PORT
@@ -40,7 +39,7 @@ class Cli(Group):
         )
 
     def _get_run_command(
-        self, node_path: list[str], kwargs: Mapping[str, Any], args: list[str]
+        self, node_path: list[str], kwargs: dict[str, Any], args: list[str]
     ) -> str:
         parts = [self.name] + node_path
         if len(kwargs) > 0:
@@ -138,7 +137,7 @@ class Cli(Group):
 
     def _extract_kwargs_from_args(
         self, args: list[str]
-    ) -> tuple[Mapping[str, Any], list[str]]:
+    ) -> tuple[dict[str, Any], list[str]]:
         residual_args = []  # To store positional arguments
         kwargs = {}     # To store options as a dictionary
         i = 0

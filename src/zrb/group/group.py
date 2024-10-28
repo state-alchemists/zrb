@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from .any_group import AnyGroup
 from ..task.any_task import AnyTask
 
@@ -11,8 +10,8 @@ class Group(AnyGroup):
         self._name = name
         self._banner = banner
         self._description = description
-        self._groups: Mapping[str, AnyGroup] = {}
-        self._tasks: Mapping[str, AnyTask] = {}
+        self._groups: dict[str, AnyGroup] = {}
+        self._tasks: dict[str, AnyTask] = {}
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
@@ -32,13 +31,13 @@ class Group(AnyGroup):
         return self._description if self._description is not None else self.name
 
     @property
-    def subgroups(self) -> Mapping[str, AnyGroup]:
+    def subgroups(self) -> dict[str, AnyGroup]:
         names = list(self._groups.keys())
         names.sort()
         return {name: self._groups.get(name) for name in names}
 
     @property
-    def subtasks(self) -> Mapping[str, AnyTask]:
+    def subtasks(self) -> dict[str, AnyTask]:
         alias = list(self._tasks.keys())
         alias.sort()
         return {name: self._tasks.get(name) for name in alias}

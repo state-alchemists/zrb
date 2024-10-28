@@ -8,5 +8,3 @@ pytest -vv \
     --cov-report="term" \
     --cov-report="term-missing" \
     "${1}"
-
-echo "Hello world"

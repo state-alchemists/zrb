@@ -1,4 +1,4 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from .any_env import AnyEnv
 from ..context.shared_context import SharedContext
 import os
@@ -7,7 +7,7 @@ import os
 class EnvMap(AnyEnv):
     def __init__(
         self,
-        vars: Mapping[str, str] | Callable[[SharedContext], Mapping[str, str]],
+        vars: dict[str, str] | Callable[[SharedContext], dict[str, str]],
         auto_render: bool = True,
         link_to_os: bool = True,
         os_prefix: str | None = None,
@@ -17,7 +17,7 @@ class EnvMap(AnyEnv):
         self._os_prefix = os_prefix
         self._auto_render = auto_render
 
-    def update_shared_context(self, shared_ctx: SharedContext) -> Mapping[str, str]:
+    def update_shared_context(self, shared_ctx: SharedContext) -> dict[str, str]:
         env_map = self._get_env_map(shared_ctx)
         for name, default_value in env_map.items():
             if self._link_to_os:
@@ -28,7 +28,7 @@ class EnvMap(AnyEnv):
                 value = default_value
             shared_ctx.env[self._name] = value
 
-    def _get_env_map(self, shared_ctx: SharedContext) -> Mapping[str, str]:
+    def _get_env_map(self, shared_ctx: SharedContext) -> dict[str, str]:
         if callable(self._env_map):
             return self._env_map(shared_ctx)
         return {

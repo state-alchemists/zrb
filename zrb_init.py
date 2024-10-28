@@ -9,6 +9,14 @@ _DIR = os.path.dirname(__file__)
 
 test_group = cli.add_group(Group("test", description="Testing zrb"))
 
+_clean_up_resources = CmdTask(
+    name="clean-up-resources",
+    cwd=os.path.join(_DIR, "test"),
+    cmd=[
+        "sudo rm -Rf task/scaffolder/test-generated"
+    ]
+)
+
 _start_test_docker_compose = CmdTask(
     name="start-test-compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
@@ -31,6 +39,8 @@ _run_integration_test = CmdTask(
     cmd="./test.sh {ctx.input.test}",
     retries=0,
 )
+_clean_up_resources >> _run_integration_test
+_start_test_docker_compose >> _run_integration_test
 
 _stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
@@ -38,13 +48,14 @@ _stop_test_docker_compose = CmdTask(
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down"
 )
+_run_integration_test >> _stop_test_docker_compose
 
 run_test = Task(
     name="run-test",
     action=lambda ctx: ctx.xcom["run-integration-test"].pop_value()
 )
+_stop_test_docker_compose >> run_test
 
-_start_test_docker_compose >> _run_integration_test >> _stop_test_docker_compose >> run_test
 test_group.add_task(run_test, "run")
 
 ############################################################

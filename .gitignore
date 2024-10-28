@@ -8,5 +8,6 @@ playground
 .cprofile.svg
 .env
 .venv
-docker/._docker-compose.*.runtime.yml
 htmlcov
+test-generated
+test-generated-*

@@ -1,5 +1,4 @@
 from typing import Coroutine
-from collections.abc import Mapping
 from .any_session import AnySession
 from ..context.any_shared_context import AnySharedContext
 from ..context.context import AnyContext
@@ -14,13 +13,13 @@ import asyncio
 
 class Session(AnySession):
     def __init__(self, shared_ctx: AnySharedContext):
-        self._task_status: Mapping[AnyTask, TaskStatus] = {}
-        self._upstreams: Mapping[AnyTask, list[AnyTask]] = {}
-        self._downstreams: Mapping[AnyTask, list[AnyTask]] = {}
-        self._context: Mapping[AnyTask, Context] = {}
+        self._task_status: dict[AnyTask, TaskStatus] = {}
+        self._upstreams: dict[AnyTask, list[AnyTask]] = {}
+        self._downstreams: dict[AnyTask, list[AnyTask]] = {}
+        self._context: dict[AnyTask, Context] = {}
         self._shared_ctx = shared_ctx
-        self._action_coros: Mapping[AnyTask, Coroutine] = {}
-        self._monitoring_coros: Mapping[AnyTask, Coroutine] = {}
+        self._action_coros: dict[AnyTask, Coroutine] = {}
+        self._monitoring_coros: dict[AnyTask, Coroutine] = {}
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
         self._icons = ICONS
         self._color_index = 0

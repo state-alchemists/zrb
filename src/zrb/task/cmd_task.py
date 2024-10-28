@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from .any_task import AnyTask
 from .base_task import BaseTask
 from ..attr.type import BoolAttr, StrAttr, IntAttr
@@ -119,10 +118,10 @@ class CmdTask(BaseTask):
             bufsize=0,
         )
         stdout_task = asyncio.create_task(
-            self._read_stream(cmd_process.stdout, ctx.print, self._max_output_line)
+            self.__read_stream(cmd_process.stdout, ctx.print, self._max_output_line)
         )
         stderr_task = asyncio.create_task(
-            self._read_stream(cmd_process.stderr, ctx.print, self._max_error_line)
+            self.__read_stream(cmd_process.stderr, ctx.print, self._max_error_line)
         )
         # Wait for process to complete and gather stdout/stderr
         return_code = await cmd_process.wait()
@@ -134,11 +133,11 @@ class CmdTask(BaseTask):
             raise Exception(f"Process {self._name} exited ({return_code}): {stderr}")
         return CmdResult(stdout, stderr)
 
-    def __get_env_map(self, ctx: AnyContext) -> Mapping[str, str]:
+    def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
 
-    async def _read_stream(self, stream, log_method, max_lines):
+    async def __read_stream(self, stream, log_method, max_lines):
         lines = []
         while True:
             line = await stream.readline()

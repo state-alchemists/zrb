@@ -134,4 +134,3 @@ class AnyTask(ABC):
             session (AnySession): The shared session.
         """
         pass
-

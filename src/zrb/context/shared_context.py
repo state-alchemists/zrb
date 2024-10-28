@@ -1,5 +1,4 @@
 from typing import Any
-from collections.abc import Mapping
 from .any_shared_context import AnySharedContext
 from ..dot_dict.dot_dict import DotDict
 from ..xcom.xcom import Xcom
@@ -11,7 +10,7 @@ from ..util.string.conversion import (
 import datetime
 
 
-def fstring_like_format(template: str, data: Mapping[str, Any]) -> str:
+def fstring_like_format(template: str, data: dict[str, Any]) -> str:
     # Safely evaluate the template as a Python expression
     try:
         return eval(f'f"""{template}"""', {}, data)
@@ -22,10 +21,10 @@ def fstring_like_format(template: str, data: Mapping[str, Any]) -> str:
 class SharedContext(AnySharedContext):
     def __init__(
         self,
-        input: Mapping[str, Any] = {},
+        input: dict[str, Any] = {},
         args: list[Any] = [],
-        env: Mapping[str, str] = {},
-        xcom: Mapping[str, Xcom] = {},
+        env: dict[str, str] = {},
+        xcom: dict[str, Xcom] = {},
         logging_level: int = LOGGING_LEVEL,
         show_time: bool = SHOW_TIME,
     ):

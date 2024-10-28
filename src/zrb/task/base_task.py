@@ -136,12 +136,19 @@ class BaseTask(AnyTask):
         return self._upstreams
 
     def append_upstreams(self, upstreams: AnyTask | list[AnyTask]):
+        upstream_list = [upstreams] if isinstance(upstreams, AnyTask) else upstreams
+        for upstream in upstream_list:
+            self.__append_upstream(upstream)
+
+    def __append_upstream(self, upstream: AnyTask):
+        # Make sure self._upstreams is a list
         if self._upstreams is None:
             self._upstreams = []
-        if isinstance(upstreams, AnyTask):
-            self._upstreams.append(upstreams)
-            return
-        self._upstreams += upstreams
+        elif isinstance(self._upstreams, AnyTask):
+            self._upstreams = [self._upstreams]
+        # Add upstream if it was not on self._upstreams
+        if upstream not in self._upstreams:
+            self._upstreams.append(upstream)
 
     def run(self, session: AnySession | None = None) -> Any:
         try:
@@ -153,11 +160,11 @@ class BaseTask(AnyTask):
         if session is None:
             session = Session(shared_ctx=SharedContext())
         # Update session
-        self._fill_shared_context_inputs(session.shared_ctx)
-        self._fill_shared_context_envs(session.shared_ctx)
+        self.__fill_shared_context_inputs(session.shared_ctx)
+        self.__fill_shared_context_envs(session.shared_ctx)
         return await run_async(self.exec_root_tasks(session))
 
-    def _fill_shared_context_envs(self, shared_context: AnySharedContext):
+    def __fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
         os_env_map = {
             key: val for key, val in os.environ.items()
@@ -168,7 +175,7 @@ class BaseTask(AnyTask):
         for env in self.envs:
             env.update_shared_context(shared_context)
 
-    def _fill_shared_context_inputs(self, shared_context: AnySharedContext):
+    def __fill_shared_context_inputs(self, shared_context: AnySharedContext):
         for task_input in self.inputs:
             if task_input.name not in shared_context._input:
                 task_input.update_shared_context(shared_context)
@@ -218,30 +225,30 @@ class BaseTask(AnyTask):
             # This will be triggered later
             ctx.log_info("Not allowed to run")
             return
-        if not self._get_execute_condition(session):
+        if not self.__get_execute_condition(session):
             # Skip the task
             ctx.log_info("Marked as skipped")
             session.get_task_status(self).mark_as_skipped()
             return
         # Wait for task to be ready
-        await run_async(self._exec_action_until_ready(session))
+        await run_async(self.__exec_action_until_ready(session))
 
-    def _get_execute_condition(self, session: Session) -> bool:
+    def __get_execute_condition(self, session: Session) -> bool:
         ctx = session.get_ctx(self)
         return get_bool_attr(ctx, self._execute_condition, True, auto_render=True)
 
-    async def _exec_action_until_ready(self, session: AnySession):
+    async def __exec_action_until_ready(self, session: AnySession):
         ctx = session.get_ctx(self)
         readiness_checks = self.readiness_checks
         if len(readiness_checks) == 0:
             ctx.log_info("No readiness checks")
             # Task has no readiness check
-            result = await run_async(self._exec_action_and_retry(session))
+            result = await run_async(self.__exec_action_and_retry(session))
             ctx.log_info("Marked as ready")
             session.get_task_status(self).mark_as_ready()
             return result
         # Start the task along with the readiness checks
-        action_coro = asyncio.create_task(run_async(self._exec_action_and_retry(session)))
+        action_coro = asyncio.create_task(run_async(self.__exec_action_and_retry(session)))
         await asyncio.sleep(self._readiness_check_delay)
         readiness_check_coros = [
             run_async(check.exec_chain(session))
@@ -257,12 +264,12 @@ class BaseTask(AnyTask):
         session.defer_action(self, action_coro)
         if self._monitor_readiness:
             monitor_and_rerun_coro = asyncio.create_task(
-                run_async(self._exec_monitoring(session, action_coro))
+                run_async(self.__exec_monitoring(session, action_coro))
             )
             session.defer_monitoring(self, monitor_and_rerun_coro)
         return result
 
-    async def _exec_monitoring(self, session: AnySession, action_coro: asyncio.Task):
+    async def __exec_monitoring(self, session: AnySession, action_coro: asyncio.Task):
         readiness_checks = self.readiness_checks
         failure_count = 0
         ctx = session.get_ctx(self)
@@ -298,12 +305,12 @@ class BaseTask(AnyTask):
             session.get_task_status(self).reset()
             # defer this action
             ctx.log_info("Running")
-            action_coro = asyncio.create_task(run_async(self._exec_action_and_retry(session)))
+            action_coro = asyncio.create_task(run_async(self.__exec_action_and_retry(session)))
             session.defer_action(self, action_coro)
             failure_count = 0
             ctx.log_info("Continue monitoring")
 
-    async def _exec_action_and_retry(self, session: AnySession) -> Any:
+    async def __exec_action_and_retry(self, session: AnySession) -> Any:
         ctx = session.get_ctx(self)
         max_attempt = self._retries + 1
         ctx.set_max_attempt(max_attempt)
@@ -334,10 +341,10 @@ class BaseTask(AnyTask):
                     continue
                 ctx.log_info("Marked as permanently failed")
                 session.get_task_status(self).mark_as_permanently_failed()
-                await run_async(self._exec_fallbacks(session))
+                await run_async(self.__exec_fallbacks(session))
                 raise e
 
-    async def _exec_fallbacks(self, session: AnySession) -> Any:
+    async def __exec_fallbacks(self, session: AnySession) -> Any:
         fallbacks: list[AnyTask] = self.fallbacks
         fallback_coros = [
             run_async(fallback.exec_chain(session)) for fallback in fallbacks

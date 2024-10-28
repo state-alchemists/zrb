@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from dotenv import dotenv_values
 from .env_map import EnvMap
 from ..attr.type import StrAttr
@@ -22,6 +21,6 @@ class EnvFile(EnvMap):
         )
         self._file_path = path
 
-    def _get_env_map(self, shared_ctx: SharedContext) -> Mapping[str, str]:
+    def _get_env_map(self, shared_ctx: SharedContext) -> dict[str, str]:
         file_path = get_str_attr(shared_ctx, self._file_path, ".env", self._auto_render)
         return dotenv_values(file_path)
