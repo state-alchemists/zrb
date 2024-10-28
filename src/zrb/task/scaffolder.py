@@ -12,7 +12,7 @@ from ..util.attr import get_str_attr
 import os
 import shutil
 
-TransformConfig = dict[str, str] | Callable[[AnyContext, str]]
+TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
 
 
 class Scaffolder(BaseTask):

@@ -20,6 +20,7 @@ from .task.cmd_task import CmdTask
 from .task.http_check import HttpCheck
 from .task.make_task import make_task
 from .task.rsync_task import RsyncTask
+from .task.scaffolder import Scaffolder
 from .task.task import Task
 from .task.tcp_check import TcpCheck
 from .transformer.any_transformer import AnyTransformer
@@ -54,6 +55,7 @@ assert SharedContext
 assert make_task
 assert AnyTransformer
 assert Transformer
+assert Scaffolder
 assert cli
 
 if SHOULD_LOAD_BUILTIN:
