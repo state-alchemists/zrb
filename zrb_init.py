@@ -62,8 +62,8 @@ test_group.add_task(run_test, "run")
 
 cli.add_task(Task(
     name="edit",
-    input=TextInput(name="text", default_str="\n".join(["abc", "def"])),
-    action="{ctx.input.text}"
+    input=TextInput(name="code", default_str="a = 5\nprint(a)", extension=".py"),
+    action="{ctx.input.code}",
 ))
 
 cli.add_task(HttpCheck(name="coba", url="https://google.com"))
