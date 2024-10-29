@@ -26,7 +26,7 @@ class PasswordInput(BaseInput):
 
     def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
         prompt_message = self.prompt_message
-        default_value = self._get_default_str_value(shared_ctx)
+        default_value = self._get_default_str(shared_ctx)
         value = getpass.getpass(f"{prompt_message}: ")
         if value.strip() == "":
             value = default_value

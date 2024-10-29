@@ -12,6 +12,7 @@ from .input.base_input import BaseInput
 from .input.int_input import IntInput
 from .input.password_input import PasswordInput
 from .input.str_input import StrInput
+from .input.text_input import TextInput
 from .task.any_task import AnyTask
 from .task.base_task import BaseTask
 from .cmd.cmd_result import CmdResult
@@ -43,6 +44,7 @@ assert TcpCheck
 assert IntInput
 assert PasswordInput
 assert StrInput
+assert TextInput
 assert AnyGroup
 assert Group
 assert AnyTask

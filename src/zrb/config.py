@@ -67,10 +67,10 @@ BANNER = f"""
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION}
+   zzzzz rr     bbbbbb   {VERSION} Janggala
    _ _ . .  . _ .  _ . . .
 
-Super framework for your super app.
+A Framework to Enhanche Your Workflow
 
 ☕ Donate at: https://stalchmst.com/donation
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb

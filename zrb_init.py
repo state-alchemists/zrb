@@ -1,6 +1,6 @@
 from zrb import (
     BaseTask, Task, CmdTask, Env, make_task, TcpCheck, HttpCheck,
-    Context, IntInput, PasswordInput, StrInput, Group, cli
+    Context, IntInput, PasswordInput, StrInput, TextInput, Group, cli
 )
 import asyncio
 import os
@@ -59,6 +59,12 @@ _stop_test_docker_compose >> run_test
 test_group.add_task(run_test, "run")
 
 ############################################################
+
+cli.add_task(Task(
+    name="edit",
+    input=TextInput(name="text", default_str="\n".join(["abc", "def"])),
+    action="{ctx.input.text}"
+))
 
 cli.add_task(HttpCheck(name="coba", url="https://google.com"))
 

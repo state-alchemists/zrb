@@ -1,5 +1,5 @@
 from zrb import Group
-from zrb.runner.web import WebRequestHandler
+from zrb.runner.web_server import WebRequestHandler
 from unittest.mock import MagicMock
 from io import BytesIO
 import json

@@ -1,6 +1,6 @@
 from typing import Any
 from .util import InvalidCommandError, extract_node_from_args
-from .web import run_web_server
+from .web_server import run_web_server
 from ..config import BANNER, HTTP_PORT
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
@@ -170,7 +170,7 @@ class Cli(Group):
 
 cli = Cli(
     name="zrb",
-    description="A Framework to Enhanche your workflow",
+    description="A framework to enhanche your workflow",
     banner=BANNER
 )
 

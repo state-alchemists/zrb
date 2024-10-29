@@ -3,19 +3,12 @@ from .any_shared_context import AnySharedContext
 from ..dot_dict.dot_dict import DotDict
 from ..xcom.xcom import Xcom
 from ..config import LOGGING_LEVEL, SHOW_TIME
+from ..util.string.format import fstring_format
 from ..util.string.conversion import (
     to_boolean, to_camel_case, to_human_case, to_kebab_case, to_pascal_case, to_snake_case
 )
 
 import datetime
-
-
-def fstring_like_format(template: str, data: dict[str, Any]) -> str:
-    # Safely evaluate the template as a Python expression
-    try:
-        return eval(f'f"""{template}"""', {}, data)
-    except Exception:
-        raise ValueError(f"Failed to parse template: {template}")
 
 
 class SharedContext(AnySharedContext):
@@ -66,7 +59,7 @@ class SharedContext(AnySharedContext):
         return self.__show_time
 
     def render(self, template: str) -> str:
-        return fstring_like_format(
+        return fstring_format(
             template=template,
             data={
                 "ctx": self,

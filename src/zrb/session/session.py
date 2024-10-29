@@ -6,6 +6,7 @@ from ..context.context import Context
 from ..task_status.task_status import TaskStatus
 from ..xcom.xcom import Xcom
 from ..task.any_task import AnyTask
+from ..util.string.name import get_random_name
 from ..util.cli.style import GREEN, YELLOW, BLUE, MAGENTA, CYAN, ICONS
 
 import asyncio
@@ -13,6 +14,7 @@ import asyncio
 
 class Session(AnySession):
     def __init__(self, shared_ctx: AnySharedContext):
+        self._name = get_random_name()
         self._task_status: dict[AnyTask, TaskStatus] = {}
         self._upstreams: dict[AnyTask, list[AnyTask]] = {}
         self._downstreams: dict[AnyTask, list[AnyTask]] = {}
@@ -28,7 +30,18 @@ class Session(AnySession):
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        return f"<{class_name} status={self._task_status}, shared_ctx={self._shared_ctx}>"
+        name = self.name
+        status = self.status
+        shared_ctx = self.shared_ctx
+        return f"<{class_name} name={name} status={status}, shared_ctx={shared_ctx}>"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def status(self) -> dict[AnyTask, TaskStatus]:
+        return self._task_status
 
     @property
     def shared_ctx(self) -> AnySharedContext:
