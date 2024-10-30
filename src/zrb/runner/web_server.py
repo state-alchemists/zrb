@@ -5,6 +5,7 @@ from ..context.any_context import AnyContext
 from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
 from .web_app.home_page.controller import handle_home_page
+from .web_app.group_info_ui.controller import handle_group_info_ui
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
@@ -12,6 +13,7 @@ import os
 import json
 
 _DIR = os.path.dirname(__file__)
+_STATIC_DIR = os.path.join(_DIR, "web_app", "static")
 
 
 class WebRequestHandler(BaseHTTPRequestHandler):
@@ -20,23 +22,20 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        if self.path == "/":
+        if self.path in ["/", "/ui", "/ui/"]:
             handle_home_page(self, self.root_group)
         elif self.path == "/pico.classless.min.css":
-            self.send_css_response(
-                os.path.join(_DIR, "web_app", "static", "pico.classless.min.css")
-            )
+            self.send_css_response(os.path.join(_STATIC_DIR, "pico.classless.min.css"))
         elif self.path == "/favicon-32x32.png":
-            self.send_image_response(
-                os.path.join(_DIR, "web_app", "static", "favicon-32x32.png")
-            )
+            self.send_image_response(os.path.join(_STATIC_DIR, "favicon-32x32.png"))
         elif self.path.startswith("/ui/"):
-            stripped_url = self.path[3:]
+            stripped_url = self.path[3:].rstrip("/")
             node, url = extract_node_from_url(self.root_group, stripped_url)
+            url = f"/ui{url}/"
             if isinstance(node, AnyTask):
                 self._handle_get_task(node)
             elif isinstance(node, AnyGroup):
-                self._handle_get_group(node)
+                handle_group_info_ui(self, self.root_group, node, url)
             else:
                 self.send_error(404, 'Not Found')
         elif self.path == '/example':
