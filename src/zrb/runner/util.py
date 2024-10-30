@@ -41,8 +41,8 @@ def extract_node_from_url(root_group: AnyGroup, url: str) -> tuple[AnyGroup | An
     stripped_url = url.strip("/")
     args = stripped_url.split("/")
     try:
-        node, node_path, _ = extract_node_from_args(root_group, args)
+        node, node_path, residual_args = extract_node_from_args(root_group, args)
         url = "/" + "/".join(node_path)
-        return node, url
+        return node, url, residual_args
     except InvalidCommandError:
-        return None, url
+        return None, url, []

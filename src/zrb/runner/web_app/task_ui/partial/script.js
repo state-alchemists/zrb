@@ -1,3 +1,8 @@
+window.addEventListener("load", function() {
+    console.log("Wohoo")
+});
+
+
 function submitForm(event, apiUrl) {
     // Prevent the form from submitting the traditional way
     event.preventDefault();
@@ -25,6 +30,8 @@ function submitForm(event, apiUrl) {
         response => response.json()
     ).then(data => {
         console.log('Success:', data);
+        const sessionId = data.session_id;
+        modifyUrl(`/${sessionId}`);
     }).catch((error) => {
         console.error('Error:', error);
     });

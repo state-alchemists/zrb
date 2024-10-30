@@ -20,7 +20,7 @@ with open(os.path.join(_DIR, "partial", "script.js")) as f:
 
 
 def handle_task_ui(
-    handler: AnyRequestHandler, root_group: AnyGroup, task: AnyTask, url: str
+    handler: AnyRequestHandler, root_group: AnyGroup, task: AnyTask, url: str, args: list[str]
 ):
     shared_ctx = SharedContext(env={key: val for key, val in os.environ.items()})
     session = Session(shared_ctx=shared_ctx)
@@ -38,6 +38,7 @@ def handle_task_ui(
         fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
         for task_input in task.inputs
     ])
+    session_name = args[0] if len(args) > 0 else None
     handler.send_html_response(fstring_format(
         _VIEW_TEMPLATE, {
             "name": task.name,
@@ -48,6 +49,7 @@ def handle_task_ui(
             "parent_url": parent_url,
             "task_inputs": task_inputs,
             "api_url": api_url,
-            "script": _SCRIPT
+            "script": _SCRIPT,
+            "session_name": session_name
         }
     ))

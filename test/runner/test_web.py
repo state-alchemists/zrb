@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import Mock
 from io import BytesIO
-import json
 
 from zrb.runner.web_server import WebRequestHandler
 from zrb import Group
@@ -29,6 +28,7 @@ class TestWebRequestHandler(unittest.TestCase):
         )
         # Mock the response methods and attributes
         self.handler.wfile = BytesIO()
+        self.handler.rfile = BytesIO()
         self.handler.send_response = Mock()
         self.handler.send_header = Mock()
         self.handler.end_headers = Mock()
@@ -45,17 +45,3 @@ class TestWebRequestHandler(unittest.TestCase):
         # Check the content of the response
         response: str = self.handler.wfile.getvalue().decode()
         self.assertTrue("RootGroup" in response)
-
-    def test_do_GET_example(self):
-        self.handler.path = "/example"
-        self.handler.do_GET()
-        # Check that a response was sent
-        self.handler.send_response.assert_called_once_with(200)
-        # Check that the correct headers were set
-        self.handler.send_header.assert_any_call("Content-type", "application/json")
-        # Check that headers were ended
-        self.handler.end_headers.assert_called_once()
-        # Check the content of the response
-        response = json.loads(self.handler.wfile.getvalue().decode())
-        expected_response = {"message": "GET group = RootGroup"}
-        self.assertEqual(response, expected_response)

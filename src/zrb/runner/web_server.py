@@ -1,20 +1,27 @@
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 from .util import extract_node_from_url
 from ..config import BANNER, HTTP_PORT
 from ..context.any_context import AnyContext
 from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
+from ..session.session import Session
+from ..context.shared_context import SharedContext
 from .web_app.home_page.controller import handle_home_page
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.task_ui.controller import handle_task_ui
-
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
+
+import asyncio
 import os
 import json
 
 _DIR = os.path.dirname(__file__)
 _STATIC_DIR = os.path.join(_DIR, "web_app", "static")
+executor = ThreadPoolExecutor()
+background_loop = asyncio.new_event_loop()
 
 
 class WebRequestHandler(BaseHTTPRequestHandler):
@@ -31,40 +38,34 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             self.send_image_response(os.path.join(_STATIC_DIR, "favicon-32x32.png"))
         elif self.path.startswith("/ui/"):
             stripped_url = self.path[3:].rstrip("/")
-            node, url = extract_node_from_url(self.root_group, stripped_url)
+            node, url, args = extract_node_from_url(self.root_group, stripped_url)
             url = f"/ui{url}/"
             if isinstance(node, AnyTask):
-                handle_task_ui(self, self.root_group, node, url)
+                handle_task_ui(self, self.root_group, node, url, args)
             elif isinstance(node, AnyGroup):
                 handle_group_info_ui(self, self.root_group, node, url)
             else:
-                self.send_error(404, 'Not Found')
-        elif self.path == '/example':
-            response = {'message': f"GET group = {self.root_group.name}"}
-            self.send_json_response(response)
+                self.send_error(404, "Not Found")
         else:
-            node, url = extract_node_from_url(self.root_group, self.path)
-            if isinstance(node, AnyTask):
-                self._handle_get_task(node)
-            elif isinstance(node, AnyGroup):
-                self._handle_get_group(node)
-            else:
-                self.send_error(404, 'Not Found')
-
-    def _handle_get_task(self, task: AnyTask):
-        self.send_html_response(f"Task: {task.name}")
-
-    def _handle_get_group(self, group: AnyGroup):
-        self.send_html_response(f"Group: {group.name}")
+            self.send_error(404, "Not Found")
 
     def do_POST(self):
-        if self.path == '/example':
-            data = self.read_json_request()
-            response = {
-                'received_data': data,
-                'message': f"POST group = {self.root_group.name}",
-            }
-            self.send_json_response(response)
+        if self.path.startswith("/api/"):
+            stripped_url = self.path[5:].rstrip("/")
+            task, _, args = extract_node_from_url(self.root_group, stripped_url)
+            session_id = args[0] if len(args) > 0 else None
+            if not isinstance(task, AnyTask):
+                self.send_error(404, "Not found")
+                return
+            if session_id is not None:
+                self.send_json_response({"session_id": "gacor"})
+            else:
+                task_input = self.read_json_request()
+                session = Session(shared_ctx=SharedContext(
+                    input=task_input, env=dict(os.environ))
+                )
+                asyncio.run_coroutine_threadsafe(task.async_run(session), background_loop)
+                self.send_json_response({"session_id": session.name})
         else:
             self.send_error(404, 'Not Found')
 
@@ -105,7 +106,11 @@ class WebRequestHandler(BaseHTTPRequestHandler):
     def read_json_request(self) -> Any:
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
-        return json.loads(post_data.decode())
+        try:
+            return json.loads(post_data.decode())
+        except json.JSONDecodeError:
+            self.send_json_response({"error": "Invalid JSON"}, http_status=400)
+            return None
 
 
 def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = HTTP_PORT):
@@ -116,4 +121,12 @@ def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = HTTP_PORT)
     banner_lines = BANNER.split("\n") + [f"Zrb Server running on http://localhost:{port}"]
     for line in banner_lines:
         ctx.print(line)
+    loop_thread = Thread(target=_start_background_loop, daemon=True)
+    loop_thread.start()
     httpd.serve_forever()
+    loop_thread.join()
+
+
+def _start_background_loop():
+    asyncio.set_event_loop(background_loop)
+    background_loop.run_forever()
