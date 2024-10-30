@@ -1,4 +1,5 @@
 from .base_input import BaseInput
+from ..context.shared_context import SharedContext
 from ..attr.type import StrAttr
 
 
@@ -20,6 +21,12 @@ class FloatInput(BaseInput):
             auto_render=auto_render,
             allow_empty=allow_empty,
         )
+
+    def to_html(self, ctx: SharedContext) -> str:
+        name = self.name
+        description = self.description
+        default = self._get_default_str(ctx)
+        return f'<input type="number" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
 
     def _parse_str_value(self, str_value: str) -> float:
         return float(str_value)

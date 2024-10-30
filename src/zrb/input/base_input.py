@@ -37,6 +37,12 @@ class BaseInput(AnyInput):
     def prompt_message(self) -> str:
         return self._prompt if self._prompt is not None else self.name
 
+    def to_html(self, ctx: SharedContext) -> str:
+        name = self.name
+        description = self.description
+        default = self._get_default_str(ctx)
+        return f'<input name="{name}" placeholder="{description}" value="{default}" />'
+
     def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
         if str_value is None:
             str_value = self._get_default_str()

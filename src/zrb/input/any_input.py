@@ -19,6 +19,10 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
+    def to_html(self, shared_ctx: SharedContext) -> str:
+        pass
+
+    @abstractmethod
     def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
         pass
 

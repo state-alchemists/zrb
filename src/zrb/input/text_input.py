@@ -51,6 +51,16 @@ class TextInput(BaseInput):
             return " -->"
         return ""
 
+    def to_html(self, ctx: SharedContext) -> str:
+        name = self.name
+        description = self.description
+        default = self._get_default_str(ctx)
+        return "\n".join([
+            f'<textarea name="{name}" placeholder="{description}">',
+            default,
+            "</textarea>",
+        ])
+
     def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
         prompt_message = f"{self.comment_start}{super().prompt_message}{self.comment_end}\n"
         default_value = self._get_default_str(shared_ctx)

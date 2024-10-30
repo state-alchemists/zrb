@@ -1,5 +1,6 @@
 from .base_input import BaseInput
 from ..attr.type import StrAttr
+from ..context.shared_context import SharedContext
 from ..util.string.conversion import to_boolean
 
 
@@ -21,6 +22,19 @@ class IntInput(BaseInput):
             auto_render=auto_render,
             allow_empty=allow_empty,
         )
+
+    def to_html(self, ctx: SharedContext) -> str:
+        name = self.name
+        description = self.description
+        default = to_boolean(self._get_default_str(ctx))
+        selected_true = 'selected' if default else ''
+        selected_false = 'selected' if not default else ''
+        return "\n".join([
+            f'<select name="{name}" placeholder="{description}">',
+            f'<option value="true" {selected_true}>true</option>',
+            f'<option value="false" {selected_false}>false</option>',
+            '</select>',
+        ])
 
     def _parse_str_value(self, str_value: str) -> bool:
         return to_boolean(str_value)

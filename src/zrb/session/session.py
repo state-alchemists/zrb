@@ -115,7 +115,7 @@ class Session(AnySession):
             self._shared_ctx._xcom[task.name] = Xcom([])
         if task not in self._context:
             self._context[task] = Context(
-                shared_context=self._shared_ctx,
+                shared_ctx=self._shared_ctx,
                 task_name=task.name,
                 color=self._get_color(task),
                 icon=self._get_icon(task),

@@ -24,6 +24,12 @@ class PasswordInput(BaseInput):
         )
         self._is_secret = True
 
+    def to_html(self, ctx: SharedContext) -> str:
+        name = self.name
+        description = self.description
+        default = self._get_default_str(ctx)
+        return f'<input type="password" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
+
     def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
         prompt_message = self.prompt_message
         default_value = self._get_default_str(shared_ctx)

@@ -13,12 +13,12 @@ import sys
 class Context(AnyContext):
     def __init__(
         self,
-        shared_context: AnySharedContext,
+        shared_ctx: AnySharedContext,
         task_name: str,
         color: int,
         icon: str
     ):
-        self._shared_ctx = shared_context
+        self._shared_ctx = shared_ctx
         self._task_name = task_name
         self._color = color
         self._icon = icon

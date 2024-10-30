@@ -6,6 +6,7 @@ from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
 from .web_app.home_page.controller import handle_home_page
 from .web_app.group_info_ui.controller import handle_group_info_ui
+from .web_app.task_ui.controller import handle_task_ui
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
@@ -33,7 +34,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             node, url = extract_node_from_url(self.root_group, stripped_url)
             url = f"/ui{url}/"
             if isinstance(node, AnyTask):
-                self._handle_get_task(node)
+                handle_task_ui(self, self.root_group, node, url)
             elif isinstance(node, AnyGroup):
                 handle_group_info_ui(self, self.root_group, node, url)
             else:

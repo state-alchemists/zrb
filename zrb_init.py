@@ -152,7 +152,7 @@ cli.add_task(
     name="greetings",
     input=[
         StrInput("name", default_str="human"),
-        StrInput("address", default_str="{os.getcwd()}")
+        StrInput("address", default_str=os.getcwd())
     ]
 )
 def greetings(ctx: Context):
