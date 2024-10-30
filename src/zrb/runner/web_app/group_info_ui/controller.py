@@ -26,8 +26,8 @@ def handle_group_info_ui(
     handler: AnyRequestHandler, root_group: AnyGroup, group: AnyGroup, url: str
 ):
     url_parts = url.split("/")
-    parent_url_parts = url_parts[:-2]
-    parent_url = "/".join(parent_url_parts + [""])
+    parent_url_parts = url_parts[:-2] + [""]
+    parent_url = "/".join(parent_url_parts)
     subgroups = {
         name: group for name, group in group.subgroups.items() if group.contain_tasks
     }

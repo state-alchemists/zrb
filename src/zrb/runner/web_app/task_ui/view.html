@@ -24,10 +24,13 @@
     <main>
         <h3>{name}</h3>
         <p>{description}</p>
-        <form>
+        <form id="submit-task-form" onsubmit="submitForm(event, '{api_url}')">
           {task_inputs}
           <button>Run</button>
         </form>
     </main>
   </body>
+  <script>
+    {script} 
+  </script>
 </html>

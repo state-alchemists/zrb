@@ -86,7 +86,7 @@ class Context(AnyContext):
         color = self._color
         icon = self._icon
         task_name = self._task_name
-        padded_task_name = task_name.ljust(20)
+        padded_task_name = task_name.rjust(20)
         if self._attempt == 0:
             attempt_status = "".ljust(5)
         else:

@@ -15,6 +15,9 @@ with open(os.path.join(_DIR, "view.html"), "r") as f:
 with open(os.path.join(_DIR, "partial", "input.html")) as f:
     _TASK_INPUT_TEMPLATE = f.read()
 
+with open(os.path.join(_DIR, "partial", "script.js")) as f:
+    _SCRIPT = f.read()
+
 
 def handle_task_ui(
     handler: AnyRequestHandler, root_group: AnyGroup, task: AnyTask, url: str
@@ -24,8 +27,13 @@ def handle_task_ui(
     session.register_task(task)
     ctx = session.get_ctx(task)
     url_parts = url.split("/")
-    parent_url_parts = url_parts[:-2]
-    parent_url = "/".join(parent_url_parts + [""])
+    # Assemble parent url
+    parent_url_parts = url_parts[:-2] + [""]
+    parent_url = "/".join(parent_url_parts)
+    # Assemble api url
+    api_url_parts = list(url_parts)
+    api_url_parts[1] = "api"
+    api_url = "/".join(api_url_parts)
     task_inputs = "\n".join([
         fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
         for task_input in task.inputs
@@ -39,5 +47,7 @@ def handle_task_ui(
             "url": url,
             "parent_url": parent_url,
             "task_inputs": task_inputs,
+            "api_url": api_url,
+            "script": _SCRIPT
         }
     ))
