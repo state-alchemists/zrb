@@ -1,63 +1,61 @@
-from zrb import Group
-from zrb.runner.web_server import WebRequestHandler
-from unittest.mock import MagicMock
+import unittest
+from unittest.mock import Mock
 from io import BytesIO
 import json
-import unittest
+
+from zrb.runner.web_server import WebRequestHandler
+from zrb import Group
 
 
-class TestSimpleRequestHandler(unittest.TestCase):
+class TestWebRequestHandler(unittest.TestCase):
+
     def setUp(self):
-        # Helper function to create a SimpleRequestHandler instance with mocks
-        self.handler = WebRequestHandler
+        self.root_group = Group(name="RootGroup")
+        # Create a mock request
+        self.mock_request = Mock()
+        self.mock_request.makefile.return_value = BytesIO()
+        # Create mock client address
+        self.client_address = ("127.0.0.1", 54321)
+        # Create a mock server
+        self.mock_server = Mock()
+        self.mock_server.server_name = "TestServer"
+        self.mock_server.server_port = 8000
+        # Create the handler instance
+        self.handler = WebRequestHandler(
+            request=self.mock_request,
+            client_address=self.client_address,
+            server=self.mock_server,
+            root_group=self.root_group
+        )
+        # Mock the response methods and attributes
         self.handler.wfile = BytesIO()
-        self.handler.rfile = BytesIO()
+        self.handler.send_response = Mock()
+        self.handler.send_header = Mock()
+        self.handler.end_headers = Mock()
 
-        # Mocking methods from BaseHTTPRequestHandler
-        self.handler.send_response = MagicMock()
-        self.handler.send_header = MagicMock()
-        self.handler.end_headers = MagicMock()
-        self.handler.root_group = Group(name="zrb-test")
+    def test_do_GET_home_page(self):
+        self.handler.path = "/"
+        self.handler.do_GET()
+        # Check that a response was sent
+        self.handler.send_response.assert_called_once_with(200)
+        # Check that the correct headers were set
+        self.handler.send_header.assert_any_call("Content-type", "text/html")
+        # Check that headers were ended
+        self.handler.end_headers.assert_called_once()
+        # Check the content of the response
+        response: str = self.handler.wfile.getvalue().decode()
+        self.assertTrue("RootGroup" in response)
 
-    def test_do_get_success(self):
-        # Set up a GET request to the path "/example"
-        self.handler.path = '/example'
-        self.handler.command = 'GET'
-
-        # Call do_GET method and capture output
-        self.handler.do_GET(self.handler)
-        self.handler.wfile.seek(0)  # Reset the pointer in BytesIO to read
-
-        # Check that send_response was called with 200 status
-        self.handler.send_response.assert_called_with(200)
-
-        # Parse and check the response JSON
-        response_data = json.loads(self.handler.wfile.read().decode())
-        self.assertEqual(
-            response_data,
-            {'message': 'GET group = zrb-test'}
-        )
-
-    def test_do_post_success(self):
-        # Set up a POST request to the path "/example"
-        self.handler.path = '/example'
-        self.handler.command = 'POST'
-
-        # Mock headers and body content for POST request
-        post_data = json.dumps({'key': 'value'}).encode()
-        self.handler.rfile = BytesIO(post_data)
-        self.handler.headers = {'Content-Length': str(len(post_data))}
-
-        # Call do_POST method and capture output
-        self.handler.do_POST(self.handler)
-        self.handler.wfile.seek(0)
-
-        # Check that send_response was called with 200 status
-        self.handler.send_response.assert_called_with(200)
-
-        # Parse and check the response JSON
-        response_data = json.loads(self.handler.wfile.read().decode())
-        self.assertEqual(
-            response_data,
-            {'received_data': {'key': 'value'}, 'message': 'POST group = zrb-test'}
-        )
+    def test_do_GET_example(self):
+        self.handler.path = "/example"
+        self.handler.do_GET()
+        # Check that a response was sent
+        self.handler.send_response.assert_called_once_with(200)
+        # Check that the correct headers were set
+        self.handler.send_header.assert_any_call("Content-type", "application/json")
+        # Check that headers were ended
+        self.handler.end_headers.assert_called_once()
+        # Check the content of the response
+        response = json.loads(self.handler.wfile.getvalue().decode())
+        expected_response = {"message": "GET group = RootGroup"}
+        self.assertEqual(response, expected_response)

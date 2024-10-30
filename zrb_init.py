@@ -7,6 +7,7 @@ import os
 
 _DIR = os.path.dirname(__file__)
 
+
 test_group = cli.add_group(Group("test", description="Testing zrb"))
 
 _clean_up_resources = CmdTask(
