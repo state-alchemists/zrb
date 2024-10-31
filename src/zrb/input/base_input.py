@@ -45,7 +45,7 @@ class BaseInput(AnyInput):
 
     def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
         if str_value is None:
-            str_value = self._get_default_str()
+            str_value = self._get_default_str(shared_ctx)
         shared_ctx.input[self.name] = self._parse_str_value(str_value)
 
     def _parse_str_value(self, str_value: str) -> Any:

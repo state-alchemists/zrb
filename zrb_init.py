@@ -137,6 +137,12 @@ area = geometry.add_task(
     )
 )
 
+cli.add_task(CmdTask(
+    name="list-dir",
+    input=StrInput("directory", description="directory to be listed", default_str="."),
+    cmd=["ls -al"]
+))
+
 
 cli.add_task(
     BaseTask(

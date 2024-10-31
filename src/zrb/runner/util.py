@@ -14,7 +14,7 @@ def extract_node_from_args(
     residual_args = []
     for index, name in enumerate(args):
         task = node.get_task_by_alias(name)
-        if web_only and task.cli_only:
+        if web_only and task is not None and task.cli_only:
             task = None
         group = node.get_group_by_alias(name)
         if group is not None and not group.contain_tasks:

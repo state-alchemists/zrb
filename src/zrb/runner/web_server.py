@@ -60,10 +60,11 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             if session_id is not None:
                 self.send_json_response({"session_id": "gacor"})
             else:
-                task_input = self.read_json_request()
-                session = Session(shared_ctx=SharedContext(
-                    input=task_input, env=dict(os.environ))
-                )
+                input_values = self.read_json_request()
+                shared_ctx = SharedContext(input=input_values, env=dict(os.environ))
+                for task_input in task.inputs:
+                    task_input.update_shared_context(shared_ctx)
+                session = Session(shared_ctx=shared_ctx)
                 asyncio.run_coroutine_threadsafe(task.async_run(session), background_loop)
                 self.send_json_response({"session_id": session.name})
         else:
