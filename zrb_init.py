@@ -118,8 +118,9 @@ dev = cli.add_group(Group(name="dev"))
 add = math.add_task(
     BaseTask(
         name="add",
-        description="add two numbers",
-        action=lambda t, s: t.print("adding")
+        description="add numbers",
+        action=lambda ctx: sum(ctx.args),
+        cli_only=True,
     )
 )
 
@@ -200,5 +201,6 @@ cli.add_task(CmdTask(
         lambda ctx: f"echo From function: {ctx.env.FOO}",
         "echo From template: {ctx.env.FOO}",
         "sudo -k apt update",
-    ]
+    ],
+    cli_only=True,
 ))

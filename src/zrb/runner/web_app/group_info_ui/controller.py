@@ -42,14 +42,17 @@ def handle_group_info_ui(
             ])
         }
     )
-    task_info = "" if len(group.subtasks) == 0 else fstring_format(
+    subtasks = {
+        name: task for name, task in group.subtasks.items() if not task.cli_only
+    }
+    task_info = "" if len(subtasks) == 0 else fstring_format(
         _TASK_INFO_TEMPLATE, {
            "task_li": "\n".join([
                 fstring_format(
                     _TASK_LI_TEMPLATE,
                     {"caption": name, "url": url, "description": task.description}
                 )
-                for name, task in group.subtasks.items()
+                for name, task in subtasks.items()
             ])
         }
     )
