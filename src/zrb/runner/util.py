@@ -7,13 +7,15 @@ class InvalidCommandError(ValueError):
 
 
 def extract_node_from_args(
-    root_group: AnyGroup, args: list[str]
+    root_group: AnyGroup, args: list[str], web_only: bool = False
 ) -> tuple[AnyGroup | AnyTask, list[str], list[str]]:
     node = root_group
     node_path = []
     residual_args = []
     for index, name in enumerate(args):
         task = node.get_task_by_alias(name)
+        if web_only and task.cli_only:
+            task = None
         group = node.get_group_by_alias(name)
         if group is not None and not group.contain_tasks:
             # If group doesn't contain any task, then ignore its existence
@@ -41,7 +43,9 @@ def extract_node_from_url(root_group: AnyGroup, url: str) -> tuple[AnyGroup | An
     stripped_url = url.strip("/")
     args = stripped_url.split("/")
     try:
-        node, node_path, residual_args = extract_node_from_args(root_group, args)
+        node, node_path, residual_args = extract_node_from_args(
+            root_group, args, web_only=True
+        )
         url = "/" + "/".join(node_path)
         return node, url, residual_args
     except InvalidCommandError:

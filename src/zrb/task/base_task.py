@@ -24,6 +24,7 @@ class BaseTask(AnyTask):
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
+        cli_only: bool = False,
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
         action: str | Callable[[AnyContext], Any] | None = None,
@@ -43,6 +44,7 @@ class BaseTask(AnyTask):
         self._color = color
         self._icon = icon
         self._description = description
+        self._cli_only = cli_only
         self._inputs = input
         self._envs = env
         self._retries = retries
@@ -88,6 +90,10 @@ class BaseTask(AnyTask):
     @property
     def description(self) -> str:
         return self._description if self._description is not None else self.name
+
+    @property
+    def cli_only(self) -> bool:
+        return self._cli_only
 
     @property
     def envs(self) -> list[AnyEnv]:

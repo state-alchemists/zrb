@@ -45,6 +45,12 @@ class AnyTask(ABC):
 
     @property
     @abstractmethod
+    def cli_only(self) -> bool:
+        """Whether the task is CLI only or not"""
+        pass
+
+    @property
+    @abstractmethod
     def inputs(self) -> list[AnyInput]:
         """Task inputs"""
         pass
