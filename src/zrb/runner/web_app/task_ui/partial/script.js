@@ -1,13 +1,16 @@
-window.addEventListener("load", function() {
+const CURRENT_URL = rstripSlash(window.location.href);
+let SESSION_NAME = null;
+
+window.addEventListener("load", async function() {
     console.log("Wohoo")
 });
 
 
-function submitForm(event, apiUrl) {
+async function submitForm(event) {
     // Prevent the form from submitting the traditional way
     event.preventDefault();
     // Select the form
-    const form = document.getElementById('submit-task-form');
+    const form = document.getElementById("submit-task-form");
     // Initialize an empty object to hold form data
     const formData = {};
     // Iterate through each input in the form
@@ -19,33 +22,66 @@ function submitForm(event, apiUrl) {
     });
     // Convert formData to JSON
     const jsonData = JSON.stringify(formData);
-    // Send the AJAX request
-    fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: jsonData
-    }).then(
-        response => response.json()
-    ).then(data => {
-        console.log('Success:', data);
-        const sessionId = data.session_id;
-        modifyUrl(`/${sessionId}`);
-    }).catch((error) => {
-        console.error('Error:', error);
-    });
+    try {
+        // Send the AJAX request
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: jsonData
+        });
+        const data = await response.json();
+        console.log("Success:", data);
+        SESSION_NAME = data.session_name;
+        history.pushState(null, "", `${CURRENT_URL}/${SESSION_NAME}`);
+        await pollSession();
+    } catch (error) {
+        console.error("Error:", error);
+    }
 }
 
 
-function modifyUrl(suffix) {
-    // Get the current URL
-    const currentURL = rstripSlash(window.location.href);
-    // Update the URL in the address bar
-    history.pushState(null, '', currentURL + suffix);
+async function pollSession() {
+    const logTextArea = document.getElementById("log-textarea");
+    let isFinished = false;
+    while (!isFinished) {
+        try {
+            const data = await getSession();
+            logTextArea.value = JSON.stringify(data, null, 2);
+            if (data.finished) {
+                isFinished = true;
+            } else {
+                await delay(500); // 2 seconds delay
+            }
+        } catch (error) {
+            console.error("Error fetching session status:", error);
+            break;
+        }
+    }
+}
+
+
+async function getSession() {
+    try {
+        const response = await fetch(`${API_URL}${SESSION_NAME}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Error:", error);
+    }
 }
 
 
 function rstripSlash(str) {
-    return str.replace(/\/+$/, '');  // Removes one or more trailing slashes
+    return str.replace(/\/+$/, "");  // Removes one or more trailing slashes
+}
+
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }

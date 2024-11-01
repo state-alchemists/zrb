@@ -1,7 +1,7 @@
 from typing import Any
 from .util import InvalidCommandError, extract_node_from_args
 from .web_server import run_web_server
-from ..config import BANNER, HTTP_PORT
+from ..config import BANNER, WEB_HTTP_PORT
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
 from ..group.group import Group
@@ -179,7 +179,7 @@ cli.add_task(
         name="start-server",
         description="Make tasks available via HTTP Requests",
         action=lambda ctx: run_web_server(
-            ctx=ctx, root_group=cli, port=HTTP_PORT
+            ctx=ctx, root_group=cli, port=WEB_HTTP_PORT
         ),
         retries=0
     )

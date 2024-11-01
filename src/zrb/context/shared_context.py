@@ -27,14 +27,17 @@ class SharedContext(AnySharedContext):
         self._args = args
         self._env = DotDict(env)
         self._xcom = DotDict(xcom)
+        self._final_result = None
+        self._log = []
 
     def __repr__(self):
         class_name = self.__class__.__name__
+        final_result = self._final_result
         input = self._input
         args = self._args
         env = self._env
         xcom = self._xcom
-        return f"<{class_name} input={input} args={args} xcom={xcom} env={env}>"
+        return f"<{class_name} final_result={final_result} input={input} args={args} xcom={xcom} env={env}>"  # noqa
 
     @property
     def input(self) -> DotDict:
@@ -51,6 +54,17 @@ class SharedContext(AnySharedContext):
     @property
     def xcom(self) -> DotDict[str, Xcom]:
         return self._xcom
+
+    @property
+    def shared_log(self) -> list[str]:
+        return self._log
+
+    @property
+    def final_result(self) -> Any:
+        return self._final_result
+
+    def set_final_result(self, final_result: Any):
+        self._final_result = final_result
 
     def get_logging_level(self) -> int:
         return self.__logging_level

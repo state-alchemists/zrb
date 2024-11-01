@@ -22,15 +22,18 @@
       </hgroup>
     </header>
     <main>
-        <h3>{name}</h3>
-        <p>{description}</p>
-        <form id="submit-task-form" onsubmit="submitForm(event, '{api_url}')">
-          {task_inputs}
-          <button>Run</button>
-        </form>
+      <h3>{name}</h3>
+      <p>{description}</p>
+      <form id="submit-task-form" onsubmit="submitForm(event)">
+        {task_inputs}
+        <button>Run</button>
+      </form>
+      <h4>Result</h4>
+      <textarea id="log-textarea" rows="50" readonly></textarea>
     </main>
   </body>
   <script>
+    const API_URL = '{api_url}';
     {script} 
   </script>
 </html>

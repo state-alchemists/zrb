@@ -88,3 +88,7 @@ class TaskStatus():
         if self.is_failed or self.is_permanently_failed:
             return False
         return self.is_skipped or self.is_ready
+
+    @property
+    def history(self):
+        return self._history

@@ -37,16 +37,3 @@ def extract_node_from_args(
             residual_args = args[index+1:]
             break
     return node, node_path, residual_args
-
-
-def extract_node_from_url(root_group: AnyGroup, url: str) -> tuple[AnyGroup | AnyTask, str]:
-    stripped_url = url.strip("/")
-    args = stripped_url.split("/")
-    try:
-        node, node_path, residual_args = extract_node_from_args(
-            root_group, args, web_only=True
-        )
-        url = "/" + "/".join(node_path)
-        return node, url, residual_args
-    except InvalidCommandError:
-        return None, url, []

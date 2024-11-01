@@ -16,10 +16,8 @@ def _get_current_shell() -> str:
     return "bash"
 
 
-def _get_default_tmp_dir() -> str:
-    if os.path.isdir("/tmp"):
-        return "/tmp"
-    return os.path.expanduser(os.path.join("~", ".tmp"))
+def _get_default_web_session_dir() -> str:
+    return os.path.expanduser(os.path.join("~", ".zrb-session"))
 
 
 def _get_log_level(level: str) -> int:
@@ -38,7 +36,6 @@ def _get_log_level(level: str) -> int:
     return logging.WARNING
 
 
-TMP_DIR = os.getenv("ZRB_TMP_DIR", _get_default_tmp_dir())
 DEFAULT_SHELL = os.getenv("ZRB_SHELL", _get_current_shell())
 DEFAULT_EDITOR = os.getenv("ZRB_EDITOR", "nano")
 INIT_MODULES_STR = os.getenv("ZRB_INIT_MODULES", "")
@@ -59,7 +56,8 @@ ENV_PREFIX = os.getenv("ZRB_ENV", "")
 SHOW_ADVERTISEMENT = to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
 SHOW_PROMPT = to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
 SHOW_TIME = to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
-HTTP_PORT = int(os.getenv("ZRB_HTTP_PORT", "21213"))
+WEB_HTTP_PORT = int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
+WEB_SESSION_DIR = os.getenv("ZRB_WEB_SESSION_DIR", _get_default_web_session_dir())
 VERSION = _get_version()
 
 BANNER = f"""

@@ -5,6 +5,10 @@ from threading import Thread
 from zrb.runner.web_server import WebRequestHandler
 from zrb import Group
 import asyncio
+import os
+
+_DIR = os.path.dirname(__file__)
+_SESSION_DIR = os.path.join(_DIR, "test-generated-session")
 
 
 def _start_event_loop(event_loop: asyncio.AbstractEventLoop):
@@ -38,6 +42,7 @@ class TestWebRequestHandler(unittest.TestCase):
             server=self.mock_server,
             root_group=self.root_group,
             event_loop=self.event_loop,
+            session_dir=_SESSION_DIR,
         )
         # Mock the response methods and attributes
         self.handler.wfile = BytesIO()

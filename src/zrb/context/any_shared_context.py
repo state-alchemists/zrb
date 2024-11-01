@@ -28,6 +28,18 @@ class AnySharedContext(ABC):
     def xcom(self) -> DotDict[str, Xcom]:
         pass
 
+    @property
+    def shared_log(self) -> list[str]:
+        pass
+
+    @property
+    def final_result(self) -> Any:
+        pass
+
+    @abstractmethod
+    def set_final_result(self, final_result: Any):
+        pass
+
     @abstractmethod
     def get_logging_level(self) -> int:
         """Retrieves the current logging level.

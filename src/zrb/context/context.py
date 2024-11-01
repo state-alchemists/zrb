@@ -45,6 +45,17 @@ class Context(AnyContext):
     def xcom(self) -> DotDict:
         return self._shared_ctx.xcom
 
+    @property
+    def shared_log(self) -> list[str]:
+        return self._shared_ctx.shared_log
+
+    @property
+    def final_result(self) -> Any:
+        return self._shared_ctx.final_result
+
+    def set_final_result(self, final_result: Any):
+        self._shared_ctx.set_final_result(final_result)
+
     def set_attempt(self, attempt: int):
         self._attempt = attempt
 
@@ -94,14 +105,13 @@ class Context(AnyContext):
         if self._shared_ctx.should_show_time():
             now = datetime.datetime.now()
             formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
-            prefix = stylize(
-                f"{formatted_time} {attempt_status} {icon} {padded_task_name}",
-                color=color
-            )
+            prefix = f"{formatted_time} {attempt_status} {icon} {padded_task_name}"
         else:
-            prefix = stylize(f"{attempt_status} {icon} {padded_task_name}", color=color)
+            prefix = f"{attempt_status} {icon} {padded_task_name}"
         message = sep.join([f"{value}" for value in values])
-        print(f"{prefix} {message}", sep=sep, end=end, file=file, flush=flush)
+        self.shared_log.append(f"{prefix} {message}")
+        stylized_prefix = stylize(prefix, color=color)
+        print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 
     def log_debug(
         self,

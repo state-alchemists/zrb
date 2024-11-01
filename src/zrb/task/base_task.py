@@ -199,7 +199,9 @@ class BaseTask(AnyTask):
             await session.wait_deferred_monitoring()
             await session.wait_deferred_action()
             xcom: Xcom = session.get_ctx(self).xcom.get(self.name)
-            return xcom.peek_value()
+            final_result = xcom.peek_value()
+            session.shared_ctx.set_final_result(final_result)
+            return final_result
         except IndexError:
             return None
         except KeyboardInterrupt:

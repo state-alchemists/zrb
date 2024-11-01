@@ -1,17 +1,21 @@
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
-from .util import extract_node_from_url
-from ..config import BANNER, HTTP_PORT
+from ..config import BANNER, WEB_HTTP_PORT, WEB_SESSION_DIR
 from ..context.any_context import AnyContext
 from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
-from ..session.any_session import AnySession
 from ..session.session import Session
 from ..context.shared_context import SharedContext
 from .web_app.home_page.controller import handle_home_page
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.task_ui.controller import handle_task_ui
+from .web_util import (
+    extract_node_from_url,
+    get_session_as_dict,
+    start_event_loop,
+    run_task_and_snapshot_session
+)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
 
@@ -24,30 +28,6 @@ _STATIC_DIR = os.path.join(_DIR, "web_app", "static")
 executor = ThreadPoolExecutor()
 
 
-def _start_event_loop(event_loop: asyncio.AbstractEventLoop):
-    asyncio.set_event_loop(event_loop)
-    event_loop.run_forever()
-
-
-async def _run_task_and_save_session(session: AnySession, task: AnyTask):
-    run_task = asyncio.create_task(task.async_run(session))
-    snapshot_session = asyncio.create_task(_snapshot_session(session, task))
-    result = await run_task
-    print(result)
-    await snapshot_session
-
-
-async def _snapshot_session(session: AnySession, task: AnyTask):
-    while True:
-        task_status = session.status.get(task, None)
-        if task_status is None:
-            await asyncio.sleep(0.1)
-            continue
-        if task_status.is_permanently_failed or task_status.is_completed:
-            break
-        await asyncio.sleep(0.1)
-
-
 class WebRequestHandler(BaseHTTPRequestHandler):
     def __init__(
         self,
@@ -55,10 +35,12 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         client_address: Any,
         server: Any,
         root_group: AnyGroup,
-        event_loop: asyncio.AbstractEventLoop
+        event_loop: asyncio.AbstractEventLoop,
+        session_dir: str,
     ):
         self._root_group = root_group
         self._event_loop = event_loop
+        self._session_dir = session_dir
         super().__init__(
             request=request,
             client_address=client_address,
@@ -82,6 +64,14 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 handle_group_info_ui(self, self._root_group, node, url)
             else:
                 self.send_error(404, "Not Found")
+        elif self.path.startswith("/api/"):
+            stripped_url = self.path[5:].rstrip("/")
+            node, _, args = extract_node_from_url(self._root_group, stripped_url)
+            if isinstance(node, AnyTask) and len(args) > 0:
+                session_name = args[0]
+                self.send_json_response(get_session_as_dict(self._session_dir, session_name))
+            else:
+                self.send_error(404, "Not Found")
         else:
             self.send_error(404, "Not Found")
 
@@ -89,19 +79,24 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/"):
             stripped_url = self.path[5:].rstrip("/")
             task, _, args = extract_node_from_url(self._root_group, stripped_url)
-            session_id = args[0] if len(args) > 0 else None
+            session_name = args[0] if len(args) > 0 else None
             if not isinstance(task, AnyTask):
                 self.send_error(404, "Not found")
-            elif session_id is None:
-                input_values = self.read_json_request()
+            elif session_name is None:
+                input_values: dict[str, str] = self.read_json_request()
                 shared_ctx = SharedContext(input=input_values, env=dict(os.environ))
+                # update shared_ctx's input
                 for task_input in task.inputs:
-                    task_input.update_shared_context(shared_ctx)
+                    task_input.update_shared_context(
+                        shared_ctx, input_values.get(task_input.name, "")
+                    )
                 session = Session(shared_ctx=shared_ctx)
                 asyncio.run_coroutine_threadsafe(
-                    _run_task_and_save_session(session, task), self._event_loop
+                    run_task_and_snapshot_session(
+                        session=session, session_dir=self._session_dir, task=task
+                    ), self._event_loop
                 )
-                self.send_json_response({"session_id": session.name})
+                self.send_json_response({"session_name": session.name})
         else:
             self.send_error(404, 'Not Found')
 
@@ -149,18 +144,21 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             return None
 
 
-def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = HTTP_PORT):
+def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     server_address = ('', port)
     event_loop = asyncio.new_event_loop()
     # Use functools.partial to bind the custom attribute
     handler_with_custom_attr = partial(
-        WebRequestHandler, root_group=root_group, event_loop=event_loop
+        WebRequestHandler,
+        root_group=root_group,
+        event_loop=event_loop,
+        session_dir=WEB_SESSION_DIR
     )
     httpd = ThreadingHTTPServer(server_address, handler_with_custom_attr)
     banner_lines = BANNER.split("\n") + [f"Zrb Server running on http://localhost:{port}"]
     for line in banner_lines:
         ctx.print(line)
-    loop_thread = Thread(target=_start_event_loop, args=[event_loop], daemon=True)
+    loop_thread = Thread(target=start_event_loop, args=[event_loop], daemon=True)
     loop_thread.start()
     httpd.serve_forever()
     loop_thread.join()
