@@ -97,6 +97,7 @@ class AnyTask(ABC):
 
         Args:
             session (AnySession): The shared session.
+            str_kwargs(dict[str, str]): The input string values.
 
         Returns:
             Any: The result of the task execution.
@@ -111,6 +112,7 @@ class AnyTask(ABC):
 
         Args:
             session (AnySession): The shared session.
+            str_kwargs(dict[str, str]): The input string values.
 
         Returns:
             Any: The result of the task execution.

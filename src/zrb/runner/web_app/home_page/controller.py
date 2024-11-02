@@ -1,6 +1,7 @@
 from ..any_request_handler import AnyRequestHandler
 from ....group.any_group import AnyGroup
 from ....util.string.format import fstring_format
+from ....util.group import get_non_empty_subgroups, get_subtasks
 
 import os
 
@@ -23,9 +24,7 @@ with open(os.path.join(_DIR, "partial", "task_li.html")) as f:
 
 
 def handle_home_page(handler: AnyRequestHandler, root_group: AnyGroup):
-    subgroups = {
-        name: group for name, group in root_group.subgroups.items() if group.contain_tasks
-    }
+    subgroups = get_non_empty_subgroups(root_group, web_only=True)
     group_info = "" if len(subgroups) == 0 else fstring_format(
         _GROUP_INFO_TEMPLATE, {
             "group_li": "\n".join([
@@ -37,14 +36,15 @@ def handle_home_page(handler: AnyRequestHandler, root_group: AnyGroup):
             ])
         }
     )
-    task_info = "" if len(root_group.subtasks) == 0 else fstring_format(
+    subtasks = get_subtasks(root_group, web_only=True)
+    task_info = "" if len(subtasks) == 0 else fstring_format(
         _TASK_INFO_TEMPLATE, {
            "task_li": "\n".join([
                 fstring_format(
                     _TASK_LI_TEMPLATE,
                     {"caption": name, "description": task.description}
                 )
-                for name, task in root_group.subtasks.items()
+                for name, task in subtasks.items()
             ])
         }
     )

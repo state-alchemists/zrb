@@ -1,8 +1,9 @@
 const CURRENT_URL = rstripSlash(window.location.href);
-let SESSION_NAME = null;
 
 window.addEventListener("load", async function() {
-    console.log("Wohoo")
+    if (SESSION_NAME != "") {
+        pollSession();
+    }
 });
 
 

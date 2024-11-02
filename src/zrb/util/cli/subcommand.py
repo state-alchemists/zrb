@@ -1,4 +1,5 @@
 from ...group.any_group import AnyGroup
+from ..group import get_non_empty_subgroups, get_subtasks
 
 
 class SubCommand():
@@ -16,11 +17,9 @@ def get_group_subcommands(
     subcommands: list[SubCommand] = []
 ) -> list[SubCommand]:
     nexts = []
-    for task_alias in group.subtasks:
+    for task_alias in get_subtasks(group):
         nexts.append(task_alias)
-    for subgroup_alias, subgroup in group.subgroups.items():
-        if not subgroup.contain_tasks:
-            continue
+    for subgroup_alias, subgroup in get_non_empty_subgroups(group):
         nexts.append(subgroup_alias)
         # Recursively add subgroup
         get_group_subcommands(
@@ -36,3 +35,4 @@ def get_group_subcommands(
             )
         )
     return subcommands
+

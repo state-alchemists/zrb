@@ -1,5 +1,6 @@
 from ..task.any_task import AnyTask
 from ..group.any_group import AnyGroup
+from ..util.group import get_all_subtasks
 
 
 class InvalidCommandError(ValueError):
@@ -17,7 +18,7 @@ def extract_node_from_args(
         if web_only and task is not None and task.cli_only:
             task = None
         group = node.get_group_by_alias(name)
-        if group is not None and not group.contain_tasks:
+        if group is not None and len(get_all_subtasks(group, web_only)) == 0:
             # If group doesn't contain any task, then ignore its existence
             group = None
         if task is None and group is None:

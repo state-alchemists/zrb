@@ -42,15 +42,6 @@ class Group(AnyGroup):
         alias.sort()
         return {name: self._tasks.get(name) for name in alias}
 
-    @property
-    def contain_tasks(self) -> bool:
-        if len(self.subtasks) > 0:
-            return True
-        for _, group in self.subgroups.items():
-            if group.contain_tasks:
-                return True
-        return False
-
     def add_group(self, group: AnyGroup, alias: str | None = None) -> AnyGroup:
         alias = alias if alias is not None else group.name
         self._groups[alias] = group

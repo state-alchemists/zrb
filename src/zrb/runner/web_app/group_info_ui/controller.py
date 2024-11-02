@@ -1,6 +1,7 @@
 from ..any_request_handler import AnyRequestHandler
 from ....group.any_group import AnyGroup
 from ....util.string.format import fstring_format
+from ....util.group import get_non_empty_subgroups, get_subtasks
 
 import os
 
@@ -28,9 +29,7 @@ def handle_group_info_ui(
     url_parts = url.split("/")
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)
-    subgroups = {
-        name: group for name, group in group.subgroups.items() if group.contain_tasks
-    }
+    subgroups = get_non_empty_subgroups(group, web_only=True)
     group_info = "" if len(subgroups) == 0 else fstring_format(
         _GROUP_INFO_TEMPLATE, {
             "group_li": "\n".join([
@@ -42,9 +41,7 @@ def handle_group_info_ui(
             ])
         }
     )
-    subtasks = {
-        name: task for name, task in group.subtasks.items() if not task.cli_only
-    }
+    subtasks = get_subtasks(group, web_only=True)
     task_info = "" if len(subtasks) == 0 else fstring_format(
         _TASK_INFO_TEMPLATE, {
            "task_li": "\n".join([

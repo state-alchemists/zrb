@@ -1,9 +1,10 @@
 from typing import Any
-from .util import InvalidCommandError, extract_node_from_args
+from .util import extract_node_from_args
 from .web_server import run_web_server
 from ..config import BANNER, WEB_HTTP_PORT
 from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
 from ..util.load import load_zrb_init
+from ..util.group import get_non_empty_subgroups, get_subtasks
 from ..group.group import Group
 from ..session.session import Session
 from ..task.any_task import AnyTask
@@ -48,36 +49,6 @@ class Cli(Group):
             parts += args
         return " ".join(parts)
 
-    def _extract_node_from_args(
-        self, positional: list[str]
-    ) -> tuple[Group | AnyTask, list[str], list[str]]:
-        node = self
-        node_path = []
-        residual_args = []
-        for index, name in enumerate(positional):
-            task = node.get_task_by_alias(name)
-            group = node.get_group_by_alias(name)
-            if group is not None and not group.contain_tasks:
-                # If group doesn't contain any task, then ignore its existence
-                group = None
-            if task is None and group is None:
-                raise InvalidCommandError(
-                    f"Invalid subcommand: {self.name} {' '.join(positional)}"
-                )
-            node_path.append(name)
-            if group is not None:
-                if task is not None and index == len(positional) - 1:
-                    node = task
-                    residual_args = positional[index+1:]
-                    break
-                node = group
-                continue
-            if task is not None:
-                node = task
-                residual_args = positional[index+1:]
-                break
-        return node, node_path, residual_args
-
     def _run_task(
         self, task: AnyTask, args: list[str], options: list[str]
     ) -> Any:
@@ -116,17 +87,17 @@ class Cli(Group):
             print(stylize_section_header("DESCRIPTION"))
             print(group.description)
             print()
-        if len(group.subgroups) > 0:
+        subgroups = get_non_empty_subgroups(group)
+        if len(subgroups) > 0:
             print(stylize_section_header("GROUPS"))
-            for alias, subgroup in group.subgroups.items():
-                if not subgroup.contain_tasks:
-                    continue
+            for alias, subgroup in subgroups.items():
                 alias = alias.ljust(20)
                 print(f"  {alias}: {subgroup.description}")
             print()
-        if len(group.subtasks) > 0:
+        subtasks = get_subtasks(group)
+        if len(subtasks) > 0:
             print(stylize_section_header("TASKS"))
-            for alias, subtask in group.subtasks.items():
+            for alias, subtask in subtasks.items():
                 alias = alias.ljust(20)
                 print(f"  {alias}: {subtask.description}")
             print()

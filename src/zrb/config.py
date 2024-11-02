@@ -68,7 +68,7 @@ BANNER = f"""
    zzzzz rr     bbbbbb   {VERSION} Janggala
    _ _ . .  . _ .  _ . . .
 
-A Framework to Enhanche Your Workflow
+A Framework to Enhance Your Workflow
 
 ☕ Donate at: https://stalchmst.com/donation
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb

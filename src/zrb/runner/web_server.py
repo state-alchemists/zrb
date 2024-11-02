@@ -12,7 +12,7 @@ from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.task_ui.controller import handle_task_ui
 from .web_util import (
     extract_node_from_url,
-    get_session_as_dict,
+    get_session_log_dict,
     start_event_loop,
     run_task_and_snapshot_session
 )
@@ -69,7 +69,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             node, _, args = extract_node_from_url(self._root_group, stripped_url)
             if isinstance(node, AnyTask) and len(args) > 0:
                 session_name = args[0]
-                self.send_json_response(get_session_as_dict(self._session_dir, session_name))
+                self.send_json_response(get_session_log_dict(self._session_dir, session_name))
             else:
                 self.send_error(404, "Not Found")
         else:

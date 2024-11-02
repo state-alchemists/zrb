@@ -37,11 +37,6 @@ class AnyGroup(ABC):
         """Group subgroups"""
         pass
 
-    @property
-    @abstractmethod
-    def contain_tasks(self) -> bool:
-        pass
-
     @abstractmethod
     def add_group(self, group: TAnyGroup) -> TAnyGroup:
         pass
