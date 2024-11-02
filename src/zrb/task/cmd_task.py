@@ -27,6 +27,8 @@ class CmdTask(BaseTask):
         env: list[AnyEnv] | AnyEnv | None = None,
         shell: StrAttr | None = None,
         auto_render_shell: bool = True,
+        shell_flag: StrAttr | None = None,
+        auto_render_shell_flag: bool = True,
         remote_host: StrAttr | None = None,
         auto_render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
@@ -76,6 +78,8 @@ class CmdTask(BaseTask):
         )
         self._shell = shell
         self._auto_render_shell = auto_render_shell
+        self._shell_flag = shell_flag
+        self._auto_render_shell_flag = auto_render_shell_flag
         self._remote_host = remote_host
         self._auto_render_remote_host = auto_render_remote_host
         self._remote_port = remote_port
@@ -104,13 +108,14 @@ class CmdTask(BaseTask):
         cmd_script = self._get_cmd_script(ctx)
         cwd = self._get_cwd(ctx)
         shell = self._get_shell(ctx)
+        shell_flag = self._get_shell_flag(ctx)
         ctx.log_info("Running script")
         ctx.log_debug(f"Shell: {shell}")
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         ctx.log_debug(f"Working directory: {cwd}")
         cmd_process = await asyncio.create_subprocess_exec(
             shell,
-            "-c",
+            shell_flag,
             cmd_script,
             cwd=cwd,
             stdin=sys.stdin if sys.stdin.isatty() else None,
@@ -145,16 +150,23 @@ class CmdTask(BaseTask):
             line = await stream.readline()
             if not line:
                 break
-            line = line.decode("utf-8").strip()
-            lines.append(line.strip())  # Already a string due to text=True
+            line = line.decode("utf-8").rstrip()
+            lines.append(line)
             if len(lines) > max_lines:
                 lines.pop(0)  # Keep only the last max_lines
-            log_method(line.strip())
+            log_method(line)
         return "\n".join(lines)
 
     def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx, self._shell, DEFAULT_SHELL, auto_render=self._auto_render_shell
+        )
+
+    def _get_shell_flag(self, ctx: AnyContext) -> str:
+        default_shell_flags = {"node": "-e", "ruby": "-e", "php": "-r"}
+        default_shell_flag = default_shell_flags.get(self._get_shell(ctx), "-c")
+        return get_str_attr(
+            ctx, self._shell_flag, default_shell_flag, auto_render=self._auto_render_shell_flag
         )
 
     def _get_remote_host(self, ctx: AnyContext) -> str:

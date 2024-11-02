@@ -33,7 +33,7 @@ async function submitForm(event) {
         const data = await response.json();
         console.log("Success:", data);
         SESSION_NAME = data.session_name;
-        history.pushState(null, "", `${CURRENT_URL}/${SESSION_NAME}`);
+        history.pushState(null, "", `${CURRENT_URL}${SESSION_NAME}`);
         await pollSession();
     } catch (error) {
         console.error("Error:", error);
@@ -45,6 +45,7 @@ async function pollSession() {
     const resultTextarea = document.getElementById("result-textarea");
     const logTextarea = document.getElementById("log-textarea");
     let isFinished = false;
+    let errorCount = 0;
     while (!isFinished) {
         try {
             const data = await getSession();
@@ -55,10 +56,15 @@ async function pollSession() {
             if (data.finished) {
                 isFinished = true;
             } else {
-                await delay(100);
+                await delay(200);
             }
         } catch (error) {
             console.error("Error fetching session status:", error);
+            errorCount++;
+            if (errorCount > 5) {
+                console.error("Exceeding maximum error count, quitting");
+                return;
+            }
             continue;
         }
     }
