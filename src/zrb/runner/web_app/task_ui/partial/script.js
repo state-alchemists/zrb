@@ -1,5 +1,3 @@
-const CURRENT_URL = rstripSlash(window.location.href);
-
 window.addEventListener("load", async function () {
     if (SESSION_NAME != "") {
         pollSession();

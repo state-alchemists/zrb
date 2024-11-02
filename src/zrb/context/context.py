@@ -9,6 +9,13 @@ import datetime
 import logging
 import sys
 
+import re
+
+
+def _remove_ansi_escape_sequences(text):
+    ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', text)
+
 
 class Context(AnyContext):
     def __init__(
@@ -109,7 +116,7 @@ class Context(AnyContext):
         else:
             prefix = f"{attempt_status} {icon} {padded_task_name}"
         message = sep.join([f"{value}" for value in values])
-        self.shared_log.append(f"{prefix} {message}")
+        self.shared_log.append(_remove_ansi_escape_sequences(f"{prefix} {message}"))
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 

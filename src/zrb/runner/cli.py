@@ -144,10 +144,11 @@ cli = Cli(
 cli.add_task(
     Task(
         name="start-server",
-        description="Make tasks available via HTTP Requests",
+        description="Make tasks available via HTTP Requests 📡",
         action=lambda ctx: run_web_server(
             ctx=ctx, root_group=cli, port=WEB_HTTP_PORT
         ),
+        cli_only=True,
         retries=0
     )
 )
