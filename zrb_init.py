@@ -14,7 +14,7 @@ _clean_up_resources = CmdTask(
     name="clean-up-resources",
     cwd=os.path.join(_DIR, "test"),
     cmd=[
-        "sudo rm -Rf task/scaffolder/test-generated"
+        "sudo -k rm -Rf task/scaffolder/test-generated"
     ]
 )
 
@@ -27,6 +27,7 @@ _start_test_docker_compose = CmdTask(
         port=2222
     )
 )
+_clean_up_resources >> _start_test_docker_compose
 
 _run_integration_test = CmdTask(
     name="run-integration-test",
@@ -40,7 +41,6 @@ _run_integration_test = CmdTask(
     cmd="./test.sh {ctx.input.test}",
     retries=0,
 )
-_clean_up_resources >> _run_integration_test
 _start_test_docker_compose >> _run_integration_test
 
 _stop_test_docker_compose = CmdTask(

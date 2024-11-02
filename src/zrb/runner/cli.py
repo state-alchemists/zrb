@@ -170,7 +170,7 @@ class Cli(Group):
 
 cli = Cli(
     name="zrb",
-    description="A framework to enhanche your workflow",
+    description="A framework to enhance your workflow",
     banner=BANNER
 )
 
