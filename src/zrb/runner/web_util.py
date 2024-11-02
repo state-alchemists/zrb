@@ -67,7 +67,7 @@ async def _snapshot_session_periodically(
         if snapshot_condition.should_stop:
             _save_session_log_as_json(session, session_dir, finished=True)
             break
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
 
 
 def _save_session_log_as_json(session: AnySession, session_dir: str, finished: bool = False):
@@ -87,10 +87,10 @@ def session_to_log_dict(session: AnySession) -> str:
     task_status_dict = {}
     for task, task_status in session.status.items():
         task_status_dict[task.name] = {
-            "history": {
-                status: time.strftime("%Y-%m-%d %H:%M:%S.%f")
+            "history": [
+                (status, time.strftime("%Y-%m-%d %H:%M:%S.%f"))
                 for status, time in task_status.history
-            },
+            ],
             "is_started": task_status.is_started,
             "is_ready": task_status.is_ready,
             "is_completed": task_status.is_completed,

@@ -50,8 +50,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ["/", "/ui", "/ui/"]:
             handle_home_page(self, self._root_group)
-        elif self.path == "/pico.classless.min.css":
-            self.send_css_response(os.path.join(_STATIC_DIR, "pico.classless.min.css"))
+        elif self.path == "/pico.min.css":
+            self.send_css_response(os.path.join(_STATIC_DIR, "pico.min.css"))
         elif self.path == "/favicon-32x32.png":
             self.send_image_response(os.path.join(_STATIC_DIR, "favicon-32x32.png"))
         elif self.path.startswith("/ui/"):

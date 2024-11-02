@@ -75,11 +75,8 @@ class Session(AnySession):
     async def wait_deferred_action(self):
         if len(self._action_coros) == 0:
             return
-        tasks = self._action_coros.keys()
         task_coros = self._action_coros.values()
         await asyncio.gather(*task_coros)
-        for task in tasks:
-            self.get_task_status(task).mark_as_completed()
 
     def register_task(self, task: AnyTask):
         self._register_single_task(task)

@@ -38,7 +38,7 @@ def handle_task_ui(
         fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
         for task_input in task.inputs
     ])
-    session_name = args[0] if len(args) > 0 else None
+    session_name = args[0] if len(args) > 0 else ""
     handler.send_html_response(fstring_format(
         _VIEW_TEMPLATE, {
             "name": task.name,

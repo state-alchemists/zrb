@@ -4,12 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <link rel="stylesheet" href="/pico.classless.min.css">
+    <link rel="stylesheet" href="/pico.min.css">
     <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
     <title>Zrb</title>
   </head>
   <body>
-    <header>
+    <header class="container">
       <hgroup>
         <h1>{root_name}</h1>
         <p>{root_description}</p>
@@ -21,15 +21,34 @@
         </nav>
       </hgroup>
     </header>
-    <main>
+    <main class="container">
       <h3>{name}</h3>
       <p>{description}</p>
       <form id="submit-task-form" onsubmit="submitForm(event)">
         {task_inputs}
         <button>Run</button>
       </form>
-      <h4>Result</h4>
-      <textarea id="log-textarea" rows="10" readonly></textarea>
+      <hr />
+      <div class="grid">
+        <div>
+          <label>
+            Result
+            <textarea id="result-textarea" rows="5" readonly style="font-family:monospace;">
+            </textarea>
+          </label>
+        </div>
+        <div>
+          <label>
+            Log
+            <textarea id="log-textarea" rows="5" readonly style="font-family:monospace;">
+            </textarea>
+          </label>
+        </div>
+      </div>
+      <label>
+        Timeline
+        <canvas id="history-canvas" height="100" width="1000" style="width: 100%;"></canvas>
+      </label>
     </main>
   </body>
   <script>
