@@ -156,19 +156,29 @@ class BaseTask(AnyTask):
         if upstream not in self._upstreams:
             self._upstreams.append(upstream)
 
-    def run(self, session: AnySession | None = None) -> Any:
+    def run(self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}) -> Any:
         try:
-            return asyncio.run(self.async_run(session))
+            return asyncio.run(self.async_run(session, str_kwargs))
         except KeyboardInterrupt:
             pass
 
-    async def async_run(self, session: AnySession | None = None) -> Any:
+    async def async_run(
+        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
+    ) -> Any:
         if session is None:
             session = Session(shared_ctx=SharedContext())
         # Update session
-        self.__fill_shared_context_inputs(session.shared_ctx)
+        self.__fill_shared_context_inputs(session.shared_ctx, str_kwargs)
         self.__fill_shared_context_envs(session.shared_ctx)
         return await run_async(self.exec_root_tasks(session))
+
+    def __fill_shared_context_inputs(
+        self, shared_context: AnySharedContext, str_kwargs: dict[str, str] = {}
+    ):
+        for task_input in self.inputs:
+            if task_input.name not in shared_context.input:
+                str_value = str_kwargs.get(task_input.name, None)
+                task_input.update_shared_context(shared_context, str_value)
 
     def __fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
@@ -180,11 +190,6 @@ class BaseTask(AnyTask):
         # Inject environment from task's envs
         for env in self.envs:
             env.update_shared_context(shared_context)
-
-    def __fill_shared_context_inputs(self, shared_context: AnySharedContext):
-        for task_input in self.inputs:
-            if task_input.name not in shared_context._input:
-                task_input.update_shared_context(shared_context)
 
     async def exec_root_tasks(self, session: AnySession):
         session.register_task(self)

@@ -90,7 +90,9 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def run(self, session: session.AnySession | None = None) -> Any:
+    def run(
+        self, session: session.AnySession | None = None, str_kwargs: dict[str, str] = {}
+    ) -> Any:
         """Runs the task synchronously.
 
         Args:
@@ -102,7 +104,9 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def async_run(self, session: session.AnySession | None = None) -> Any:
+    async def async_run(
+        self, session: session.AnySession | None = None, str_kwargs: dict[str, str] = {}
+    ) -> Any:
         """Runs the task asynchronously.
 
         Args:

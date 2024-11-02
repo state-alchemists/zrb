@@ -81,22 +81,18 @@ class Cli(Group):
     def _run_task(
         self, task: AnyTask, args: list[str], options: list[str]
     ) -> Any:
-        shared_ctx = SharedContext(input=options, args=args)
-        task_inputs = task.inputs
         arg_index = 0
-        for task_input in task_inputs:
-            task_input_name = task_input.name
-            if task_input_name in shared_ctx.input:
-                str_value = shared_ctx.input[task_input_name]
-                task_input.update_shared_context(shared_ctx, str_value)
+        str_kwargs = {key: val for key, val in options.items()}
+        shared_ctx = SharedContext(args=args)
+        for task_input in task.inputs:
+            if task_input.name in str_kwargs:
                 continue
             if arg_index < len(args):
-                task_input.update_shared_context(shared_ctx, args[arg_index])
+                str_kwargs[task_input.name] = args[arg_index]
                 arg_index += 1
                 continue
-            str_value = task_input.prompt_cli_str(shared_ctx)
-            task_input.update_shared_context(shared_ctx, str_value)
-        return task.run(Session(shared_ctx=shared_ctx))
+            str_kwargs[task_input.name] = task_input.prompt_cli_str(shared_ctx)
+        return task.run(Session(shared_ctx=shared_ctx), str_kwargs=str_kwargs)
 
     def _show_task_info(self, task: AnyTask):
         description = task.description

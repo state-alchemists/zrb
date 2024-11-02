@@ -53,7 +53,8 @@ _run_integration_test >> _stop_test_docker_compose
 
 run_test = Task(
     name="run-test",
-    action=lambda ctx: ctx.xcom["run-integration-test"].pop_value()
+    action=lambda ctx: ctx.xcom["run-integration-test"].pop_value(),
+    cli_only=True
 )
 _stop_test_docker_compose >> run_test
 

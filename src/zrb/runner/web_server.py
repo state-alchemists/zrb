@@ -83,17 +83,15 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             if not isinstance(task, AnyTask):
                 self.send_error(404, "Not found")
             elif session_name is None:
-                input_values: dict[str, str] = self.read_json_request()
-                shared_ctx = SharedContext(input=input_values, env=dict(os.environ))
-                # update shared_ctx's input
-                for task_input in task.inputs:
-                    task_input.update_shared_context(
-                        shared_ctx, input_values.get(task_input.name, "")
-                    )
+                str_kwargs: dict[str, str] = self.read_json_request()
+                shared_ctx = SharedContext(env=dict(os.environ))
                 session = Session(shared_ctx=shared_ctx)
                 asyncio.run_coroutine_threadsafe(
                     run_task_and_snapshot_session(
-                        session=session, session_dir=self._session_dir, task=task
+                        session=session,
+                        session_dir=self._session_dir,
+                        task=task,
+                        str_kwargs=str_kwargs
                     ), self._event_loop
                 )
                 self.send_json_response({"session_name": session.name})

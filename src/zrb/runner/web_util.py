@@ -39,9 +39,11 @@ def start_event_loop(event_loop: asyncio.AbstractEventLoop):
     event_loop.run_forever()
 
 
-async def run_task_and_snapshot_session(session: AnySession, session_dir: str, task: AnyTask):
+async def run_task_and_snapshot_session(
+    session: AnySession, session_dir: str, task: AnyTask, str_kwargs: dict[str, str]
+):
     snapshot_condition = SessionSnapshotCondition()
-    run_task = asyncio.create_task(task.async_run(session))
+    run_task = asyncio.create_task(task.async_run(session, str_kwargs))
     snapshot_session_periodically = asyncio.create_task(
         _snapshot_session_periodically(session, session_dir, snapshot_condition)
     )
