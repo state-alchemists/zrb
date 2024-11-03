@@ -103,4 +103,5 @@ def session_to_log_dict(session: AnySession) -> str:
         "final_result": f"{session.shared_ctx.final_result}",
         "log": session.shared_ctx.shared_log,
         "task_status": task_status_dict,
+        "input": session.shared_ctx.input,
     }

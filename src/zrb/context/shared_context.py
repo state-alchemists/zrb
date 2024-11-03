@@ -67,6 +67,14 @@ class SharedContext(AnySharedContext):
     def session(self) -> AnySession | None:
         return self._session
 
+    def append_to_shared_log(self, message: str):
+        self._log.append(message)
+        session = self.session
+        if session is not None:
+            session_parent: AnySession = session.parent
+            if session_parent is not None:
+                session_parent.shared_ctx.append_to_shared_log(message)
+
     def set_session(self, session: AnySession):
         self._session = session
 

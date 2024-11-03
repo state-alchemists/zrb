@@ -45,6 +45,10 @@ class AnySharedContext(ABC):
         pass
 
     @abstractmethod
+    def append_to_shared_log(self, message: str):
+        pass
+
+    @abstractmethod
     def set_session(self, session: any_session.AnySession):
         pass
 

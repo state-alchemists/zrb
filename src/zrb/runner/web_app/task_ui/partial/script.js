@@ -44,14 +44,26 @@ async function submitForm(event) {
 async function pollSession() {
     const resultTextarea = document.getElementById("result-textarea");
     const logTextarea = document.getElementById("log-textarea");
+    const submitTaskForm = document.getElementById("submit-task-form");
     let isFinished = false;
     let errorCount = 0;
     while (!isFinished) {
         try {
             const data = await getSession();
+            // update inputs
+            const dataInputs = data.input;
+            for (const inputName in dataInputs) {
+                const inputValue = dataInputs[inputName];
+                const input = submitTaskForm.querySelector(`[name="${inputName}"]`);
+                input.value = inputValue;
+            }
+            resultLineCount = data.final_result.split("\n").length;
+            resultTextarea.rows = resultLineCount <= 5 ? resultLineCount : 5;
+            // update text areas
             resultTextarea.value = data.final_result;
             logTextarea.value = data.log.join("\n");
             logTextarea.scrollTop = logTextarea.scrollHeight;
+            // visualize history
             visualizeHistory(data.task_status, data.finished);
             if (data.finished) {
                 isFinished = true;

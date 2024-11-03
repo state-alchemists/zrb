@@ -65,6 +65,9 @@ class Context(AnyContext):
     def session(self) -> AnySession | None:
         return self._shared_ctx._session
 
+    def append_to_shared_log(self, message: str):
+        self._shared_ctx.append_to_shared_log(message)
+
     def set_session(self, session: AnySession):
         self._shared_ctx.set_session(session)
 
@@ -108,21 +111,16 @@ class Context(AnyContext):
     ):
         color = self._color
         icon = self._icon
-        task_name = self._task_name
-        padded_task_name = task_name.rjust(20)
+        task_name = self._task_name.rjust(15)
         if self._attempt == 0:
             attempt_status = "".ljust(5)
         else:
             attempt_status = f"{self._attempt}/{self._max_attempt}".ljust(5)
         now = datetime.datetime.now()
-        formatted_time = now.isoformat(sep=' ', timespec='milliseconds')
-        session_name = self.session.name
-        prefix = f"{session_name} {formatted_time} {attempt_status} {icon} {padded_task_name}"
+        formatted_time = now.strftime("%y%m%d %H:%M:%S.%f")[:19]
+        prefix = f"{formatted_time} {attempt_status} {icon} {task_name}"
         message = sep.join([f"{value}" for value in values])
-        bare_log = _remove_ansi_escape_sequences(f"{prefix} {message}")
-        self.shared_log.append(bare_log)
-        if self.session.parent is not None:
-            self.session.parent.shared_ctx.shared_log.append(bare_log)
+        self.append_to_shared_log(_remove_ansi_escape_sequences(f"{prefix} {message}"))
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 
