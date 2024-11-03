@@ -13,6 +13,7 @@ from ..session.any_session import AnySession
 from ..session.session import Session
 from ..context.shared_context import SharedContext
 from ..xcom.xcom import Xcom
+from ..util.cli.style import CYAN
 
 import asyncio
 
@@ -45,8 +46,8 @@ class BaseTrigger(BaseTask):
     ):
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
+            color=color if color is not None else CYAN,
+            icon=icon if icon is not None else "✨",
             description=description,
             cli_only=cli_only,
             input=input,

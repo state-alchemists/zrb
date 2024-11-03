@@ -28,6 +28,7 @@ from .task.http_check import HttpCheck
 from .task.make_task import make_task
 from .task.rsync_task import RsyncTask
 from .task.scaffolder import Scaffolder
+from .task.scheduler import Scheduler
 from .task.task import Task
 from .task.tcp_check import TcpCheck
 from .transformer.any_transformer import AnyTransformer
@@ -77,6 +78,7 @@ assert make_task
 assert AnyTransformer
 assert Transformer
 assert Scaffolder
+assert Scheduler
 assert cli
 assert Xcom
 
