@@ -24,30 +24,21 @@
     <main class="container">
       <h3>{name}</h3>
       <p>{description}</p>
+      <canvas id="history-canvas" height="0" width="1000" style="width: 100%;"></canvas>
       <form id="submit-task-form" onsubmit="submitForm(event)">
         {task_inputs}
         <button>Run</button>
       </form>
       <hr />
-      <div class="grid">
-        <div>
-          <label>
-            Result
-            <textarea id="result-textarea" rows="5" readonly style="font-family:monospace;">
-            </textarea>
-          </label>
-        </div>
-        <div>
-          <label>
-            Log
-            <textarea id="log-textarea" rows="5" readonly style="font-family:monospace;">
-            </textarea>
-          </label>
-        </div>
-      </div>
       <label>
-        Timeline
-        <canvas id="history-canvas" height="100" width="1000" style="width: 100%;"></canvas>
+        Result
+        <textarea id="result-textarea" rows="5" readonly style="font-family:monospace;">
+        </textarea>
+      </label>
+      <label>
+        Log
+        <textarea id="log-textarea" rows="5" readonly style="font-family:monospace;">
+        </textarea>
       </label>
     </main>
   </body>

@@ -106,7 +106,9 @@ class BaseTrigger(BaseTask):
         coros = []
         for callback in self.callbacks:
             xcom_dict = DotDict({callback.queue_name: Xcom([data])})
-            callback_session = Session(shared_ctx=SharedContext(xcom=xcom_dict))
+            callback_session = Session(
+                shared_ctx=SharedContext(xcom=xcom_dict), parent=session
+            )
             coros.append(asyncio.create_task(callback.async_run(callback_session)))
         await asyncio.gather(*coros)
 

@@ -1,7 +1,7 @@
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
-from ..config import BANNER, WEB_HTTP_PORT, WEB_SESSION_DIR
+from ..config import BANNER, WEB_HTTP_PORT, SESSION_LOG_DIR
 from ..context.any_context import AnyContext
 from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
@@ -68,8 +68,13 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             stripped_url = self.path[5:].rstrip("/")
             node, _, args = extract_node_from_url(self._root_group, stripped_url)
             if isinstance(node, AnyTask) and len(args) > 0:
-                session_name = args[0]
-                self.send_json_response(get_session_log_dict(self._session_dir, session_name))
+                try:
+                    session_name = args[0]
+                    self.send_json_response(
+                        get_session_log_dict(self._session_dir, session_name)
+                    )
+                except Exception as e:
+                    self.send_json_response({"error": f"{e}"}, 500)
             else:
                 self.send_error(404, "Not Found")
         else:
@@ -150,7 +155,7 @@ def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_P
         WebRequestHandler,
         root_group=root_group,
         event_loop=event_loop,
-        session_dir=WEB_SESSION_DIR
+        session_dir=SESSION_LOG_DIR
     )
     httpd = ThreadingHTTPServer(server_address, handler_with_custom_attr)
     banner_lines = BANNER.split("\n") + [f"Zrb Server running on http://localhost:{port}"]

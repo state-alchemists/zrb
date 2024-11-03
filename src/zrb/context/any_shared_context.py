@@ -1,7 +1,11 @@
-from typing import Any
+from __future__ import annotations  # Enables forward references
+from typing import Any, TYPE_CHECKING
 from abc import ABC, abstractmethod
 from ..dot_dict.dot_dict import DotDict
 from ..xcom.xcom import Xcom
+
+if TYPE_CHECKING:
+    from ..session import any_session
 
 
 class AnySharedContext(ABC):
@@ -36,6 +40,14 @@ class AnySharedContext(ABC):
     def final_result(self) -> Any:
         pass
 
+    @property
+    def session(self) -> any_session.AnySession | None:
+        pass
+
+    @abstractmethod
+    def set_session(self, session: any_session.AnySession):
+        pass
+
     @abstractmethod
     def set_final_result(self, final_result: Any):
         pass
@@ -47,15 +59,6 @@ class AnySharedContext(ABC):
         Returns:
             int: The logging level to be used, typically corresponding to
             standard logging levels such as logging.DEBUG, loggin.INFO, logging.WARNING, etc.
-        """
-        pass
-
-    @abstractmethod
-    def should_show_time(self) -> bool:
-        """Indicates whether time should be displayed in logs or other outputs.
-
-        Returns:
-            bool: True if time should be displayed, False otherwise.
         """
         pass
 

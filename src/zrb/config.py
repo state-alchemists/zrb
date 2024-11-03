@@ -5,19 +5,11 @@ import logging
 import os
 
 
-def _get_version() -> str:
-    return metadata.version("zrb")
-
-
 def _get_current_shell() -> str:
     current_shell = os.getenv("SHELL", "")
     if current_shell.endswith("zsh"):
         return "zsh"
     return "bash"
-
-
-def _get_default_web_session_dir() -> str:
-    return os.path.expanduser(os.path.join("~", ".zrb-session"))
 
 
 def _get_log_level(level: str) -> int:
@@ -55,10 +47,11 @@ SHOULD_LOAD_BUILTIN = to_boolean(os.getenv("ZRB_SHOULD_LOAD_BUILTIN", "1"))
 ENV_PREFIX = os.getenv("ZRB_ENV", "")
 SHOW_ADVERTISEMENT = to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
 SHOW_PROMPT = to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
-SHOW_TIME = to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
+SESSION_LOG_DIR = os.getenv(
+    "ZRB_SESSION_LOG_DIR", os.path.expanduser(os.path.join("~", ".zrb-session"))
+)
+VERSION = metadata.version("zrb")
 WEB_HTTP_PORT = int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
-WEB_SESSION_DIR = os.getenv("ZRB_WEB_SESSION_DIR", _get_default_web_session_dir())
-VERSION = _get_version()
 
 BANNER = f"""
                 bb

@@ -1,12 +1,14 @@
 from __future__ import annotations  # Enables forward references
-from typing import Coroutine, TYPE_CHECKING
+from typing import Coroutine, TypeVar, TYPE_CHECKING
 from abc import ABC, abstractmethod
 from ..context.any_context import AnyContext
-from ..context.any_shared_context import AnySharedContext
 from ..task_status.task_status import TaskStatus
 
 if TYPE_CHECKING:
     from ..task import any_task
+    from ..context import any_shared_context
+
+TAnySession = TypeVar("TAnySession", bound="AnySession")
 
 
 class AnySession(ABC):
@@ -31,7 +33,7 @@ class AnySession(ABC):
 
     @property
     @abstractmethod
-    def shared_ctx(self) -> AnySharedContext:
+    def shared_ctx(self) -> any_shared_context.AnySharedContext:
         """Shared context for this session"""
         pass
 
@@ -44,6 +46,12 @@ class AnySession(ABC):
     @abstractmethod
     def is_terminated(self) -> bool:
         """Whether session is terminated or not"""
+        pass
+
+    @property
+    @abstractmethod
+    def parent(self) -> TAnySession | None:
+        """Parent session"""
         pass
 
     @abstractmethod

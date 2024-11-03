@@ -2,7 +2,8 @@ from typing import Any
 from .any_shared_context import AnySharedContext
 from ..dot_dict.dot_dict import DotDict
 from ..xcom.xcom import Xcom
-from ..config import LOGGING_LEVEL, SHOW_TIME
+from ..config import LOGGING_LEVEL
+from ..session.any_session import AnySession
 from ..util.string.format import fstring_format
 from ..util.string.conversion import (
     to_boolean, to_camel_case, to_human_case, to_kebab_case, to_pascal_case, to_snake_case
@@ -19,14 +20,13 @@ class SharedContext(AnySharedContext):
         env: dict[str, str] = {},
         xcom: dict[str, Xcom] = {},
         logging_level: int = LOGGING_LEVEL,
-        show_time: bool = SHOW_TIME,
     ):
         self.__logging_level = logging_level
-        self.__show_time = show_time
         self._input = DotDict(input)
         self._args = args
         self._env = DotDict(env)
         self._xcom = DotDict(xcom)
+        self._session: AnySession | None = None
         self._final_result = None
         self._log = []
 
@@ -63,14 +63,18 @@ class SharedContext(AnySharedContext):
     def final_result(self) -> Any:
         return self._final_result
 
+    @property
+    def session(self) -> AnySession | None:
+        return self._session
+
+    def set_session(self, session: AnySession):
+        self._session = session
+
     def set_final_result(self, final_result: Any):
         self._final_result = final_result
 
     def get_logging_level(self) -> int:
         return self.__logging_level
-
-    def should_show_time(self) -> bool:
-        return self.__show_time
 
     def render(self, template: str) -> str:
         return fstring_format(

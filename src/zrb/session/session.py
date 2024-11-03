@@ -13,13 +13,15 @@ import asyncio
 
 
 class Session(AnySession):
-    def __init__(self, shared_ctx: AnySharedContext):
+    def __init__(self, shared_ctx: AnySharedContext, parent: AnySession | None = None):
         self._name = get_random_name()
         self._task_status: dict[AnyTask, TaskStatus] = {}
         self._upstreams: dict[AnyTask, list[AnyTask]] = {}
         self._downstreams: dict[AnyTask, list[AnyTask]] = {}
         self._context: dict[AnyTask, Context] = {}
         self._shared_ctx = shared_ctx
+        self._shared_ctx.set_session(self)
+        self._parent = parent
         self._action_coros: dict[AnyTask, Coroutine] = {}
         self._monitoring_coros: dict[AnyTask, Coroutine] = {}
         self._coros: list[Coroutine] = []
@@ -54,6 +56,10 @@ class Session(AnySession):
     @property
     def is_terminated(self) -> bool:
         return self._is_terminated
+
+    @property
+    def parent(self) -> AnySession | None:
+        return self._parent
 
     def get_ctx(self, task: AnyTask) -> AnyContext:
         self._register_single_task(task)

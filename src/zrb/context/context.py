@@ -2,6 +2,7 @@ from typing import Any, TextIO
 from .any_context import AnyContext
 from .any_shared_context import AnySharedContext
 from ..dot_dict.dot_dict import DotDict
+from ..session.any_session import AnySession
 from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
 from ..util.string.conversion import to_boolean
 
@@ -60,6 +61,13 @@ class Context(AnyContext):
     def final_result(self) -> Any:
         return self._shared_ctx.final_result
 
+    @property
+    def session(self) -> AnySession | None:
+        return self._shared_ctx._session
+
+    def set_session(self, session: AnySession):
+        self._shared_ctx.set_session(session)
+
     def set_final_result(self, final_result: Any):
         self._shared_ctx.set_final_result(final_result)
 
@@ -71,9 +79,6 @@ class Context(AnyContext):
 
     def get_logging_level(self) -> int:
         return self._shared_ctx.get_logging_level()
-
-    def should_show_time(self) -> bool:
-        return self._shared_ctx.should_show_time()
 
     def render(self, template: str) -> str:
         return self._shared_ctx.render(template=template)
@@ -109,14 +114,15 @@ class Context(AnyContext):
             attempt_status = "".ljust(5)
         else:
             attempt_status = f"{self._attempt}/{self._max_attempt}".ljust(5)
-        if self._shared_ctx.should_show_time():
-            now = datetime.datetime.now()
-            formatted_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
-            prefix = f"{formatted_time} {attempt_status} {icon} {padded_task_name}"
-        else:
-            prefix = f"{attempt_status} {icon} {padded_task_name}"
+        now = datetime.datetime.now()
+        formatted_time = now.isoformat(sep=' ', timespec='milliseconds')
+        session_name = self.session.name
+        prefix = f"{session_name} {formatted_time} {attempt_status} {icon} {padded_task_name}"
         message = sep.join([f"{value}" for value in values])
-        self.shared_log.append(_remove_ansi_escape_sequences(f"{prefix} {message}"))
+        bare_log = _remove_ansi_escape_sequences(f"{prefix} {message}")
+        self.shared_log.append(bare_log)
+        if self.session.parent is not None:
+            self.session.parent.shared_ctx.shared_log.append(bare_log)
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 
