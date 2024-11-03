@@ -1,7 +1,20 @@
 from typing import Any
-from ..attr.type import AnyAttr, StrAttr, BoolAttr, IntAttr, FloatAttr
+from ..attr.type import AnyAttr, StrAttr, BoolAttr, IntAttr, FloatAttr, StrDictAttr
 from ..context.any_shared_context import AnySharedContext
 from ..util.string.conversion import to_boolean
+
+
+def get_str_dict_attr(
+    shared_ctx: AnySharedContext,
+    attr: StrDictAttr | None,
+    auto_render: bool = True
+) -> dict[str, Any]:
+    if callable(attr):
+        return attr(shared_ctx)
+    return {
+        key: get_str_attr(shared_ctx, val, "", auto_render)
+        for key, val in attr.items()
+    }
 
 
 def get_str_attr(

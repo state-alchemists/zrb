@@ -22,6 +22,7 @@ class Session(AnySession):
         self._shared_ctx = shared_ctx
         self._action_coros: dict[AnyTask, Coroutine] = {}
         self._monitoring_coros: dict[AnyTask, Coroutine] = {}
+        self._coros: list[Coroutine] = []
         self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
         self._icons = ICONS
         self._color_index = 0
@@ -62,20 +63,28 @@ class Session(AnySession):
         self._register_single_task(task)
         self._monitoring_coros[task] = coro
 
-    async def wait_deferred_monitoring(self):
-        if len(self._monitoring_coros) == 0:
-            return
-        task_coros = self._monitoring_coros.values()
-        await asyncio.gather(*task_coros)
-
     def defer_action(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
         self._action_coros[task] = coro
 
-    async def wait_deferred_action(self):
+    def defer_coro(self, coro: Coroutine):
+        self._coros.append(coro)
+
+    async def wait_deferred(self):
+        await self._wait_deferred_monitoring()
+        await self._wait_deferred_action()
+        await asyncio.gather(*self._coros)
+
+    async def _wait_deferred_action(self):
         if len(self._action_coros) == 0:
             return
         task_coros = self._action_coros.values()
+        await asyncio.gather(*task_coros)
+
+    async def _wait_deferred_monitoring(self):
+        if len(self._monitoring_coros) == 0:
+            return
+        task_coros = self._monitoring_coros.values()
         await asyncio.gather(*task_coros)
 
     def register_task(self, task: AnyTask):

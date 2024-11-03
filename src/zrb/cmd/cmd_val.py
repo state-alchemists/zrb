@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from abc import ABC, abstractmethod
+from ..attr.type import fstring
 from ..context.context import Context
 
 
@@ -31,5 +32,5 @@ class Cmd(AnyCmdVal):
         return ctx.render(self._cmd) if self._auto_render else self._cmd
 
 
-SingleCmdVal = AnyCmdVal | str | Callable[[Context], str]
+SingleCmdVal = AnyCmdVal | fstring | Callable[[Context], str]
 CmdVal = SingleCmdVal | list[SingleCmdVal]

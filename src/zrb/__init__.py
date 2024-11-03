@@ -1,5 +1,10 @@
+from .attr.type import fstring, AnyAttr, BoolAttr, IntAttr, FloatAttr, StrAttr, StrDictAttr
+from .callback.any_callback import AnyCallback
+from .callback.callback import Callback
 from .config import SHOULD_LOAD_BUILTIN
+from .context.any_context import AnyContext
 from .context.context import Context
+from .context.any_shared_context import AnySharedContext
 from .context.shared_context import SharedContext
 from .env.any_env import AnyEnv
 from .env.env import Env
@@ -14,9 +19,10 @@ from .input.password_input import PasswordInput
 from .input.str_input import StrInput
 from .input.text_input import TextInput
 from .task.any_task import AnyTask
-from .task.base_task import BaseTask
 from .cmd.cmd_result import CmdResult
 from .cmd.cmd_val import Cmd, CmdPath
+from .task.base_task import BaseTask
+from .task.base_trigger import BaseTrigger
 from .task.cmd_task import CmdTask
 from .task.http_check import HttpCheck
 from .task.make_task import make_task
@@ -28,7 +34,17 @@ from .transformer.any_transformer import AnyTransformer
 from .transformer.transformer import Transformer
 from .runner.cli import cli
 from .session.session import Session
+from .xcom.xcom import Xcom
 
+assert fstring
+assert AnyAttr
+assert BoolAttr
+assert IntAttr
+assert FloatAttr
+assert StrAttr
+assert StrDictAttr
+assert AnyCallback
+assert Callback
 assert AnyEnv
 assert Env
 assert EnvFile
@@ -49,16 +65,20 @@ assert AnyGroup
 assert Group
 assert AnyTask
 assert BaseTask
+assert BaseTrigger
 assert RsyncTask
 assert Task
 assert Session
+assert AnyContext
 assert Context
+assert AnySharedContext
 assert SharedContext
 assert make_task
 assert AnyTransformer
 assert Transformer
 assert Scaffolder
 assert cli
+assert Xcom
 
 if SHOULD_LOAD_BUILTIN:
     from . import builtin

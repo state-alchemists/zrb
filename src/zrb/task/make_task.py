@@ -4,7 +4,8 @@ from .any_task import AnyTask
 from .base_task import BaseTask
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..context.context import Context
+from ..context.any_shared_context import AnySharedContext
+from ..context.any_context import AnyContext
 
 
 def make_task(
@@ -15,7 +16,7 @@ def make_task(
     cli_only: bool = False,
     input: list[AnyInput] | AnyInput | None = None,
     env: list[AnyEnv] | AnyEnv | None = None,
-    execute_condition: bool | str | Callable[[Context], bool] = True,
+    execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
     retries: int = 2,
     retry_period: float = 0,
     readiness_check: list[AnyTask] | AnyTask | None = None,
@@ -26,9 +27,9 @@ def make_task(
     monitor_readiness: bool = False,
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,
-) -> Callable[[Callable[[Context], Any]], AnyTask]:
+) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
 
-    def _make_task(fn: Callable[[Context], Any]) -> BaseTask:
+    def _make_task(fn: Callable[[AnyContext], Any]) -> BaseTask:
         return BaseTask(
             name=name,
             color=color,

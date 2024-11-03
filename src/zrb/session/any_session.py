@@ -69,11 +69,6 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    async def wait_deferred_monitoring(self):
-        """Asynchronously waits for all deferred monitoring coroutines to complete."""
-        pass
-
-    @abstractmethod
     def defer_action(self, task: any_task.AnyTask, coro: Coroutine):
         """Defers the execution of a task's coroutine for later processing.
 
@@ -84,8 +79,17 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    async def wait_deferred_action(self):
-        """Asynchronously waits for all deferred task coroutines to complete."""
+    def defer_coro(self, coro: Coroutine):
+        """Defers the execution of a coroutine for later processing.
+
+        Args:
+            coro (Coroutine): The coroutine to defer.
+        """
+        pass
+
+    @abstractmethod
+    async def wait_deferred(self):
+        """Asynchronously waits for all deffered coroutines to complete"""
         pass
 
     @abstractmethod

@@ -1,6 +1,6 @@
 from typing import Any
 from collections.abc import Callable
-from ..attr.type import BoolAttr
+from ..attr.type import fstring, BoolAttr
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 from ..context.shared_context import AnySharedContext
@@ -27,7 +27,7 @@ class BaseTask(AnyTask):
         cli_only: bool = False,
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
-        action: str | Callable[[AnyContext], Any] | None = None,
+        action: fstring | Callable[[AnyContext], Any] | None = None,
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -209,10 +209,9 @@ class BaseTask(AnyTask):
         ]
         try:
             await asyncio.gather(*root_task_coros)
-            await session.wait_deferred_monitoring()
-            await session.wait_deferred_action()
+            await session.wait_deferred()
             xcom: Xcom = session.get_ctx(self).xcom.get(self.name)
-            final_result = xcom.peek_value()
+            final_result = xcom.peek()
             session.shared_ctx.set_final_result(final_result)
             return final_result
         except IndexError:
@@ -348,7 +347,7 @@ class BaseTask(AnyTask):
                 session.get_task_status(self).mark_as_completed()
                 # Put result on xcom
                 task_xcom: Xcom = ctx.xcom.get(self.name)
-                task_xcom.push_value(result)
+                task_xcom.push(result)
                 return result
             except (asyncio.CancelledError, KeyboardInterrupt):
                 ctx.log_info("Marked as failed")
