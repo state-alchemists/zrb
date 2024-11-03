@@ -75,6 +75,9 @@ class Session(AnySession):
 
     def defer_coro(self, coro: Coroutine):
         self._coros.append(coro)
+        self._coros = [
+            existing_coro for existing_coro in self._coros if not existing_coro.done()
+        ]
 
     async def wait_deferred(self):
         await self._wait_deferred_monitoring()
