@@ -77,6 +77,6 @@ class Scheduler(BaseTrigger):
             ctx.print(f"Current time: {now}")
             if match_cron(cron_pattern, now):
                 ctx.print(f"Matching {now} with pattern: {cron_pattern}")
-                xcom: Xcom = ctx.xcom[self.exchange_queue_name]
+                xcom: Xcom = ctx.xcom[self.queue_name]
                 xcom.push(now)
             await asyncio.sleep(60)

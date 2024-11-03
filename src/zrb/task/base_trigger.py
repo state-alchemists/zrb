@@ -66,14 +66,14 @@ class BaseTrigger(BaseTask):
             fallback=fallback,
         )
         self._callbacks = callback
-        self._exchange_queue_name = queue_name
+        self._queue_name = queue_name
         self._default_readiness_check = None
 
     @property
-    def exchange_queue_name(self) -> str:
-        if self._exchange_queue_name is None:
-            return f"exchange-{self.name}"
-        return self._exchange_queue_name
+    def queue_name(self) -> str:
+        if self._queue_name is None:
+            return f"{self.name}"
+        return self._queue_name
 
     @property
     def readiness_checks(self) -> list[AnyTask]:
@@ -106,7 +106,7 @@ class BaseTrigger(BaseTask):
         data = exchange_xcom.pop()
         coros = []
         for callback in self.callbacks:
-            xcom_dict = DotDict({callback.queue_name: Xcom([data])})
+            xcom_dict = DotDict({self.queue_name: Xcom([data])})
             callback_session = Session(
                 shared_ctx=SharedContext(xcom=xcom_dict), parent=session
             )
@@ -115,6 +115,6 @@ class BaseTrigger(BaseTask):
 
     def get_exchange_xcom(self, session: AnySession) -> Xcom:
         shared_ctx = session.shared_ctx
-        if self.exchange_queue_name not in shared_ctx.xcom:
-            shared_ctx.xcom[self.exchange_queue_name] = Xcom()
-        return shared_ctx.xcom[self.exchange_queue_name]
+        if self.queue_name not in shared_ctx.xcom:
+            shared_ctx.xcom[self.queue_name] = Xcom()
+        return shared_ctx.xcom[self.queue_name]
