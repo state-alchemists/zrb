@@ -35,4 +35,3 @@ def get_group_subcommands(
             )
         )
     return subcommands
-
