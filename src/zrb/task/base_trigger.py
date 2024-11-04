@@ -67,7 +67,6 @@ class BaseTrigger(BaseTask):
         )
         self._callbacks = callback
         self._queue_name = queue_name
-        self._default_readiness_check = None
 
     @property
     def queue_name(self) -> str:
@@ -80,11 +79,7 @@ class BaseTrigger(BaseTask):
         readiness_checks = super().readiness_checks
         if len(readiness_checks) > 0:
             return readiness_checks
-        if self._default_readiness_check is None:
-            self._default_readiness_check = BaseTask(
-                name=f"{self.name}-check", action=lambda _: True
-            )
-        return [self._default_readiness_check]
+        return [BaseTask(name=f"{self.name}-check", action=lambda _: True)]
 
     @property
     def callbacks(self) -> list[AnyCallback]:
