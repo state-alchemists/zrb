@@ -163,8 +163,8 @@ class CmdTask(BaseTask):
         )
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
-        default_shell_flags = {"node": "-e", "ruby": "-e", "php": "-r"}
-        default_shell_flag = default_shell_flags.get(self._get_shell(ctx), "-c")
+        default_shell_flags = {"node": "-e", "ruby": "-e", "php": "-r", "powershell": "/c"}
+        default_shell_flag = default_shell_flags.get(self._get_shell(ctx).lower(), "-c")
         return get_str_attr(
             ctx, self._shell_flag, default_shell_flag, auto_render=self._auto_render_shell_flag
         )

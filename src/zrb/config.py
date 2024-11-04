@@ -3,9 +3,12 @@ from .util.string.conversion import to_boolean
 import importlib.metadata as metadata
 import logging
 import os
+import platform
 
 
 def _get_current_shell() -> str:
+    if platform.system() == "Windows":
+        return "PowerShell"
     current_shell = os.getenv("SHELL", "")
     if current_shell.endswith("zsh"):
         return "zsh"
