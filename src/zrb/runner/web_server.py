@@ -13,11 +13,11 @@ from ..context.shared_context import SharedContext
 from ..group.any_group import AnyGroup
 from ..session.session import Session
 from ..task.any_task import AnyTask
+from ..util.group import extract_node_from_url
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.home_page.controller import handle_home_page
 from .web_app.task_ui.controller import handle_task_ui
 from .web_util import (
-    extract_node_from_url,
     get_session_log_dict,
     run_task_and_snapshot_session,
     start_event_loop,

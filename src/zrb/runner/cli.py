@@ -8,9 +8,8 @@ from ..session.session import Session
 from ..task.any_task import AnyTask
 from ..task.task import Task
 from ..util.cli.style import stylize_bold_yellow, stylize_faint, stylize_section_header
-from ..util.group import get_non_empty_subgroups, get_subtasks
+from ..util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
 from ..util.load import load_zrb_init
-from .util import extract_node_from_args
 from .web_server import run_web_server
 
 
