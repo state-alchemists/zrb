@@ -1,30 +1,25 @@
+import datetime
+import logging
+import re
+import sys
 from typing import Any, TextIO
-from .any_context import AnyContext
-from .any_shared_context import AnySharedContext
+
 from ..dot_dict.dot_dict import DotDict
 from ..session.any_session import AnySession
 from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
 from ..util.string.conversion import to_boolean
-
-import datetime
-import logging
-import sys
-
-import re
+from .any_context import AnyContext
+from .any_shared_context import AnySharedContext
 
 
 def _remove_ansi_escape_sequences(text):
-    ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
-    return ansi_escape.sub('', text)
+    ansi_escape = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+    return ansi_escape.sub("", text)
 
 
 class Context(AnyContext):
     def __init__(
-        self,
-        shared_ctx: AnySharedContext,
-        task_name: str,
-        color: int,
-        icon: str
+        self, shared_ctx: AnySharedContext, task_name: str, color: int, icon: str
     ):
         self._shared_ctx = shared_ctx
         self._task_name = task_name
@@ -107,7 +102,7 @@ class Context(AnyContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         color = self._color
         icon = self._icon
@@ -130,7 +125,7 @@ class Context(AnyContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.DEBUG:
             message = sep.join([f"{value}" for value in values])
@@ -143,7 +138,7 @@ class Context(AnyContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.INFO:
             message = sep.join([f"{value}" for value in values])
@@ -156,7 +151,7 @@ class Context(AnyContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.INFO:
             message = sep.join([f"{value}" for value in values])
@@ -169,7 +164,7 @@ class Context(AnyContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.ERROR:
             message = sep.join([f"{value}" for value in values])
@@ -182,7 +177,7 @@ class Context(AnyContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.CRITICAL:
             message = sep.join([f"{value}" for value in values])

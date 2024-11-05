@@ -1,9 +1,9 @@
-from ..any_request_handler import AnyRequestHandler
-from ....group.any_group import AnyGroup
-from ....util.string.format import fstring_format
-from ....util.group import get_non_empty_subgroups, get_subtasks
-
 import os
+
+from ....group.any_group import AnyGroup
+from ....util.group import get_non_empty_subgroups, get_subtasks
+from ....util.string.format import fstring_format
+from ..any_request_handler import AnyRequestHandler
 
 _DIR = os.path.dirname(__file__)
 
@@ -30,38 +30,63 @@ def handle_group_info_ui(
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)
     subgroups = get_non_empty_subgroups(group, web_only=True)
-    group_info = "" if len(subgroups) == 0 else fstring_format(
-        _GROUP_INFO_TEMPLATE, {
-            "group_li": "\n".join([
-                fstring_format(
-                    _GROUP_LI_TEMPLATE,
-                    {"caption": name, "url": url, "description": group.description}
+    group_info = (
+        ""
+        if len(subgroups) == 0
+        else fstring_format(
+            _GROUP_INFO_TEMPLATE,
+            {
+                "group_li": "\n".join(
+                    [
+                        fstring_format(
+                            _GROUP_LI_TEMPLATE,
+                            {
+                                "caption": name,
+                                "url": url,
+                                "description": group.description,
+                            },
+                        )
+                        for name, group in subgroups.items()
+                    ]
                 )
-                for name, group in subgroups.items()
-            ])
-        }
+            },
+        )
     )
     subtasks = get_subtasks(group, web_only=True)
-    task_info = "" if len(subtasks) == 0 else fstring_format(
-        _TASK_INFO_TEMPLATE, {
-           "task_li": "\n".join([
-                fstring_format(
-                    _TASK_LI_TEMPLATE,
-                    {"caption": name, "url": url, "description": task.description}
+    task_info = (
+        ""
+        if len(subtasks) == 0
+        else fstring_format(
+            _TASK_INFO_TEMPLATE,
+            {
+                "task_li": "\n".join(
+                    [
+                        fstring_format(
+                            _TASK_LI_TEMPLATE,
+                            {
+                                "caption": name,
+                                "url": url,
+                                "description": task.description,
+                            },
+                        )
+                        for name, task in subtasks.items()
+                    ]
                 )
-                for name, task in subtasks.items()
-            ])
-        }
+            },
+        )
     )
-    handler.send_html_response(fstring_format(
-        _VIEW_TEMPLATE, {
-            "group_info": group_info,
-            "task_info": task_info,
-            "name": group.name,
-            "description": group.description,
-            "root_name": root_group.name,
-            "root_description": root_group.description,
-            "url": url,
-            "parent_url": parent_url,
-        }
-    ))
+    handler.send_html_response(
+        fstring_format(
+            _VIEW_TEMPLATE,
+            {
+                "group_info": group_info,
+                "task_info": task_info,
+                "name": group.name,
+                "description": group.description,
+                "root_name": root_group.name,
+                "root_description": root_group.description,
+                "url": url,
+                "parent_url": parent_url,
+            },
+        )
+    )

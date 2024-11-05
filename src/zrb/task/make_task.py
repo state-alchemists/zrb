@@ -1,11 +1,13 @@
 from collections.abc import Callable
 from typing import Any
+
+from ..context.any_context import AnyContext
+from ..context.any_shared_context import AnySharedContext
+from ..env.any_env import AnyEnv
+from ..group.any_group import AnyGroup
+from ..input.any_input import AnyInput
 from .any_task import AnyTask
 from .base_task import BaseTask
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
-from ..context.any_shared_context import AnySharedContext
-from ..context.any_context import AnyContext
 
 
 def make_task(
@@ -27,10 +29,12 @@ def make_task(
     monitor_readiness: bool = False,
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,
+    group: AnyGroup | None = None,
+    alias: str | None = None,
 ) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
 
     def _make_task(fn: Callable[[AnyContext], Any]) -> BaseTask:
-        return BaseTask(
+        task = BaseTask(
             name=name,
             color=color,
             icon=icon,
@@ -51,5 +55,8 @@ def make_task(
             upstream=upstream,
             fallback=fallback,
         )
+        if group is not None:
+            return group.add_task(task, alias=alias)
+        return task
 
     return _make_task

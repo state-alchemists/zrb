@@ -1,9 +1,9 @@
-from .util.string.conversion import to_boolean
-
 import importlib.metadata as metadata
 import logging
 import os
 import platform
+
+from .util.string.conversion import to_boolean
 
 
 def _get_current_shell() -> str:
@@ -19,12 +19,12 @@ def _get_log_level(level: str) -> int:
     level = level.upper()
     log_levels = {
         "CRITICAL": logging.CRITICAL,  # 50
-        "ERROR": logging.ERROR,        # 40
-        "WARN": logging.WARNING,       # 30
-        "WARNING": logging.WARNING,    # 30
-        "INFO": logging.INFO,          # 20
-        "DEBUG": logging.DEBUG,        # 10
-        "NOTSET": logging.NOTSET       # 0
+        "ERROR": logging.ERROR,  # 40
+        "WARN": logging.WARNING,  # 30
+        "WARNING": logging.WARNING,  # 30
+        "INFO": logging.INFO,  # 20
+        "DEBUG": logging.DEBUG,  # 10
+        "NOTSET": logging.NOTSET,  # 0
     }
     if level in log_levels:
         return log_levels[level]

@@ -1,27 +1,27 @@
-from typing import Any
+import asyncio
+import json
+import os
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
-from ..config import BANNER, WEB_HTTP_PORT, SESSION_LOG_DIR
+from typing import Any
+
+from ..config import BANNER, SESSION_LOG_DIR, WEB_HTTP_PORT
 from ..context.any_context import AnyContext
-from ..group.any_group import AnyGroup
-from ..task.any_task import AnyTask
-from ..session.session import Session
 from ..context.shared_context import SharedContext
-from .web_app.home_page.controller import handle_home_page
+from ..group.any_group import AnyGroup
+from ..session.session import Session
+from ..task.any_task import AnyTask
 from .web_app.group_info_ui.controller import handle_group_info_ui
+from .web_app.home_page.controller import handle_home_page
 from .web_app.task_ui.controller import handle_task_ui
 from .web_util import (
     extract_node_from_url,
     get_session_log_dict,
+    run_task_and_snapshot_session,
     start_event_loop,
-    run_task_and_snapshot_session
 )
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from functools import partial
-
-import asyncio
-import os
-import json
 
 _DIR = os.path.dirname(__file__)
 _STATIC_DIR = os.path.join(_DIR, "web_app", "static")
@@ -41,11 +41,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         self._root_group = root_group
         self._event_loop = event_loop
         self._session_dir = session_dir
-        super().__init__(
-            request=request,
-            client_address=client_address,
-            server=server
-        )
+        super().__init__(request=request, client_address=client_address, server=server)
 
     def do_GET(self):
         if self.path in ["/", "/ui", "/ui/"]:
@@ -96,28 +92,29 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                         session=session,
                         session_dir=self._session_dir,
                         task=task,
-                        str_kwargs=str_kwargs
-                    ), self._event_loop
+                        str_kwargs=str_kwargs,
+                    ),
+                    self._event_loop,
                 )
                 self.send_json_response({"session_name": session.name})
         else:
-            self.send_error(404, 'Not Found')
+            self.send_error(404, "Not Found")
 
     def send_json_response(self, data: Any, http_status: int = 200):
         self.send_response(http_status)
-        self.send_header('Content-type', 'application/json')
+        self.send_header("Content-type", "application/json")
         self.end_headers()
         self.wfile.write(f"{json.dumps(data)}".encode())
 
     def send_html_response(self, html: str, http_status: int = 200):
         self.send_response(http_status)
-        self.send_header('Content-type', 'text/html')
+        self.send_header("Content-type", "text/html")
         self.end_headers()
         self.wfile.write(f"{html}".encode())
 
     def send_css_response(self, css_path: str):
         self.send_response(200)
-        self.send_header('Content-type', 'text/css')
+        self.send_header("Content-type", "text/css")
         self.end_headers()
         # If css_content is provided, send it; otherwise, you could read from a file here
         with open(css_path, "r") as f:
@@ -126,19 +123,19 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 
     def send_image_response(self, image_path: str):
         try:
-            with open(image_path, 'rb') as img:
+            with open(image_path, "rb") as img:
                 self.send_response(200)
-                if image_path.endswith('.png'):
-                    self.send_header('Content-type', 'image/png')
-                elif image_path.endswith('.jpg') or image_path.endswith('.jpeg'):
-                    self.send_header('Content-type', 'image/jpeg')
+                if image_path.endswith(".png"):
+                    self.send_header("Content-type", "image/png")
+                elif image_path.endswith(".jpg") or image_path.endswith(".jpeg"):
+                    self.send_header("Content-type", "image/jpeg")
                 self.end_headers()
                 self.wfile.write(img.read())
         except FileNotFoundError:
-            self.send_error(404, 'Image Not Found')
+            self.send_error(404, "Image Not Found")
 
     def read_json_request(self) -> Any:
-        content_length = int(self.headers['Content-Length'])
+        content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length)
         try:
             return json.loads(post_data.decode())
@@ -148,17 +145,19 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 
 
 def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT):
-    server_address = ('', port)
+    server_address = ("", port)
     event_loop = asyncio.new_event_loop()
     # Use functools.partial to bind the custom attribute
     handler_with_custom_attr = partial(
         WebRequestHandler,
         root_group=root_group,
         event_loop=event_loop,
-        session_dir=SESSION_LOG_DIR
+        session_dir=SESSION_LOG_DIR,
     )
     httpd = ThreadingHTTPServer(server_address, handler_with_custom_attr)
-    banner_lines = BANNER.split("\n") + [f"Zrb Server running on http://localhost:{port}"]
+    banner_lines = BANNER.split("\n") + [
+        f"Zrb Server running on http://localhost:{port}"
+    ]
     for line in banner_lines:
         ctx.print(line)
     loop_thread = Thread(target=start_event_loop, args=[event_loop], daemon=True)

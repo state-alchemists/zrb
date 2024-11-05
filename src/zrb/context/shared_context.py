@@ -1,15 +1,20 @@
-from typing import Any
-from .any_shared_context import AnySharedContext
-from ..dot_dict.dot_dict import DotDict
-from ..xcom.xcom import Xcom
-from ..config import LOGGING_LEVEL
-from ..session.any_session import AnySession
-from ..util.string.format import fstring_format
-from ..util.string.conversion import (
-    to_boolean, to_camel_case, to_human_case, to_kebab_case, to_pascal_case, to_snake_case
-)
-
 import datetime
+from typing import Any
+
+from ..config import LOGGING_LEVEL
+from ..dot_dict.dot_dict import DotDict
+from ..session.any_session import AnySession
+from ..util.string.conversion import (
+    to_boolean,
+    to_camel_case,
+    to_human_case,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
+)
+from ..util.string.format import fstring_format
+from ..xcom.xcom import Xcom
+from .any_shared_context import AnySharedContext
 
 
 class SharedContext(AnySharedContext):
@@ -96,6 +101,6 @@ class SharedContext(AnySharedContext):
                 "to_human_case": to_human_case,
                 "to_kebab_case": to_kebab_case,
                 "to_pascal_case": to_pascal_case,
-                "to_snake_case": to_snake_case
-            }
+                "to_snake_case": to_snake_case,
+            },
         )

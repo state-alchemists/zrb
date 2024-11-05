@@ -1,8 +1,10 @@
 from __future__ import annotations  # Enables forward references
-from typing import Any, TypeVar, TYPE_CHECKING
+
 from abc import ABC, abstractmethod
-from ..input.any_input import AnyInput
+from typing import TYPE_CHECKING, Any, TypeVar
+
 from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
 
 if TYPE_CHECKING:
     from ..session import session

@@ -1,7 +1,7 @@
-from typing import TypeVar
 from abc import ABC, abstractmethod
-from ..task.any_task import AnyTask
+from typing import TypeVar
 
+from ..task.any_task import AnyTask
 
 TAnyGroup = TypeVar("TAnyGroup", bound="AnyGroup")
 

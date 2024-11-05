@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from ..context.shared_context import SharedContext
 
 
@@ -23,7 +24,9 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
+    def update_shared_context(
+        self, shared_ctx: SharedContext, str_value: str | None = None
+    ):
         pass
 
     @abstractmethod

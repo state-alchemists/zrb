@@ -1,6 +1,6 @@
-from .base_input import BaseInput
-from ..context.shared_context import SharedContext
 from ..attr.type import StrAttr
+from ..context.shared_context import SharedContext
+from .base_input import BaseInput
 
 
 class IntInput(BaseInput):

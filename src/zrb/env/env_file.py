@@ -1,8 +1,9 @@
 from dotenv import dotenv_values
-from .env_map import EnvMap
+
 from ..attr.type import StrAttr
-from ..util.attr import get_str_attr
 from ..context.shared_context import SharedContext
+from ..util.attr import get_str_attr
+from .env_map import EnvMap
 
 
 class EnvFile(EnvMap):
@@ -14,10 +15,7 @@ class EnvFile(EnvMap):
         os_prefix: str | None = None,
     ):
         super().__init__(
-            vars={},
-            auto_render=auto_render,
-            link_to_os=link_to_os,
-            os_prefix=os_prefix
+            vars={}, auto_render=auto_render, link_to_os=link_to_os, os_prefix=os_prefix
         )
         self._file_path = path
 

@@ -1,5 +1,5 @@
-from .any_group import AnyGroup
 from ..task.any_task import AnyTask
+from .any_group import AnyGroup
 
 
 class Group(AnyGroup):

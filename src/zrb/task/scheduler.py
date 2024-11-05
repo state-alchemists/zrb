@@ -1,18 +1,19 @@
+import asyncio
+import datetime
 from collections.abc import Callable
-from zrb.attr.type import fstring, StrAttr
+
+from zrb.attr.type import StrAttr, fstring
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-from .base_trigger import BaseTrigger
-from ..util.cron import match_cron
-from ..util.attr import get_str_attr
-from ..xcom.xcom import Xcom
 
-import asyncio
-import datetime
+from ..util.attr import get_str_attr
+from ..util.cron import match_cron
+from ..xcom.xcom import Xcom
+from .base_trigger import BaseTrigger
 
 
 class Scheduler(BaseTrigger):
@@ -39,8 +40,7 @@ class Scheduler(BaseTrigger):
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
         upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None
-
+        fallback: list[AnyTask] | AnyTask | None = None,
     ):
         super().__init__(
             name=name,

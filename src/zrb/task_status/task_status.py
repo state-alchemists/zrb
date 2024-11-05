@@ -9,7 +9,7 @@ TASK_PERMANENTLY_FAILED = "permanently-failed"
 TASK_RESET = "reset"
 
 
-class TaskStatus():
+class TaskStatus:
     def __init__(self):
         self._history: list[tuple[str, datetime.datetime]] = []
         self._is_started: bool = False

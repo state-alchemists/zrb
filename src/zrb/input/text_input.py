@@ -1,9 +1,10 @@
-from .base_input import BaseInput
-from collections.abc import Callable
-from ..context.shared_context import SharedContext
-from ..config import DEFAULT_EDITOR
-import tempfile
 import subprocess
+import tempfile
+from collections.abc import Callable
+
+from ..config import DEFAULT_EDITOR
+from ..context.shared_context import SharedContext
+from .base_input import BaseInput
 
 
 class TextInput(BaseInput):
@@ -55,16 +56,22 @@ class TextInput(BaseInput):
         name = self.name
         description = self.description
         default = self._get_default_str(ctx)
-        return "\n".join([
-            f'<textarea name="{name}" placeholder="{description}">',
-            default,
-            "</textarea>",
-        ])
+        return "\n".join(
+            [
+                f'<textarea name="{name}" placeholder="{description}">',
+                default,
+                "</textarea>",
+            ]
+        )
 
     def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
-        prompt_message = f"{self.comment_start}{super().prompt_message}{self.comment_end}\n"
+        prompt_message = (
+            f"{self.comment_start}{super().prompt_message}{self.comment_end}\n"
+        )
         default_value = self._get_default_str(shared_ctx)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=self._extension) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=self._extension
+        ) as temp_file:
             temp_file_name = temp_file.name
             temp_file.write(prompt_message.encode())
             # Pre-fill with default content

@@ -1,11 +1,11 @@
-from ..any_request_handler import AnyRequestHandler
+import os
+
+from ....context.shared_context import SharedContext
 from ....group.any_group import AnyGroup
+from ....session.session import Session
 from ....task.any_task import AnyTask
 from ....util.string.format import fstring_format
-from ....context.shared_context import SharedContext
-from ....session.session import Session
-
-import os
+from ..any_request_handler import AnyRequestHandler
 
 _DIR = os.path.dirname(__file__)
 
@@ -20,7 +20,11 @@ with open(os.path.join(_DIR, "partial", "script.js")) as f:
 
 
 def handle_task_ui(
-    handler: AnyRequestHandler, root_group: AnyGroup, task: AnyTask, url: str, args: list[str]
+    handler: AnyRequestHandler,
+    root_group: AnyGroup,
+    task: AnyTask,
+    url: str,
+    args: list[str],
 ):
     shared_ctx = SharedContext(env={key: val for key, val in os.environ.items()})
     session = Session(shared_ctx=shared_ctx)
@@ -34,22 +38,27 @@ def handle_task_ui(
     api_url_parts = list(url_parts)
     api_url_parts[1] = "api"
     api_url = "/".join(api_url_parts)
-    task_inputs = "\n".join([
-        fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
-        for task_input in task.inputs
-    ])
+    task_inputs = "\n".join(
+        [
+            fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
+            for task_input in task.inputs
+        ]
+    )
     session_name = args[0] if len(args) > 0 else ""
-    handler.send_html_response(fstring_format(
-        _VIEW_TEMPLATE, {
-            "name": task.name,
-            "description": task.description,
-            "root_name": root_group.name,
-            "root_description": root_group.description,
-            "url": url,
-            "parent_url": parent_url,
-            "task_inputs": task_inputs,
-            "api_url": api_url,
-            "script": _SCRIPT,
-            "session_name": session_name
-        }
-    ))
+    handler.send_html_response(
+        fstring_format(
+            _VIEW_TEMPLATE,
+            {
+                "name": task.name,
+                "description": task.description,
+                "root_name": root_group.name,
+                "root_description": root_group.description,
+                "url": url,
+                "parent_url": parent_url,
+                "task_inputs": task_inputs,
+                "api_url": api_url,
+                "script": _SCRIPT,
+                "session_name": session_name,
+            },
+        )
+    )

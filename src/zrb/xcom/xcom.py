@@ -1,6 +1,6 @@
-from typing import Any
-from collections.abc import Callable
 from collections import deque
+from collections.abc import Callable
+from typing import Any
 
 
 class Xcom(deque):

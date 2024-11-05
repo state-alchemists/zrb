@@ -1,5 +1,5 @@
-from ....runner.cli import cli
 from ....context.context import Context
+from ....runner.cli import cli
 from ....task.make_task import make_task
 from ....util.cli.subcommand import get_group_subcommands
 from ._group import shell_autocomplete_group

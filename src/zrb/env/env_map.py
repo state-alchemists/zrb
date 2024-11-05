@@ -1,7 +1,8 @@
-from collections.abc import Callable
-from .any_env import AnyEnv
-from ..context.shared_context import SharedContext
 import os
+from collections.abc import Callable
+
+from ..context.shared_context import SharedContext
+from .any_env import AnyEnv
 
 
 class EnvMap(AnyEnv):
@@ -31,7 +32,4 @@ class EnvMap(AnyEnv):
     def _get_env_map(self, shared_ctx: SharedContext) -> dict[str, str]:
         if callable(self._env_map):
             return self._env_map(shared_ctx)
-        return {
-            key: shared_ctx.render(val)
-            for key, val in self._env_map.items()
-        }
+        return {key: shared_ctx.render(val) for key, val in self._env_map.items()}

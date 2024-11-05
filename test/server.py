@@ -1,5 +1,5 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -26,6 +26,7 @@ def run_server():
     httpd = HTTPServer(server_address, RequestHandler)
     print("Starting server on port 8080...")
     httpd.serve_forever()
+
 
 if __name__ == "__main__":
     run_server()

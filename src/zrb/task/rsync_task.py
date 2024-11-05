@@ -1,11 +1,12 @@
 from collections.abc import Callable
-from .any_task import AnyTask
-from .cmd_task import CmdTask
-from ..attr.type import StrAttr, IntAttr
+
+from ..attr.type import IntAttr, StrAttr
+from ..context.any_context import AnyContext
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..context.any_context import AnyContext
 from ..util.attr import get_str_attr
+from .any_task import AnyTask
+from .cmd_task import CmdTask
 
 
 class RsyncTask(CmdTask):
@@ -96,7 +97,7 @@ class RsyncTask(CmdTask):
         remote_source_path = self._get_remote_source_path(ctx)
         host = self._get_remote_host(ctx)
         user = self._get_remote_user(ctx)
-        return f"{user}@{host}:{remote_source_path}" 
+        return f"{user}@{host}:{remote_source_path}"
 
     def _get_destination_path(self, ctx: AnyContext) -> str:
         local_destination_path = self._get_local_destination_path(ctx)
@@ -109,7 +110,10 @@ class RsyncTask(CmdTask):
 
     def _get_remote_source_path(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._remote_source_path, "", auto_render=self._auto_render_remote_source_path
+            ctx,
+            self._remote_source_path,
+            "",
+            auto_render=self._auto_render_remote_source_path,
         )
 
     def _get_remote_destination_path(self, ctx: AnyContext) -> str:
@@ -117,12 +121,15 @@ class RsyncTask(CmdTask):
             ctx,
             self._remote_destination_path,
             "",
-            auto_render=self._auto_render_remote_destination_path
+            auto_render=self._auto_render_remote_destination_path,
         )
 
     def _get_local_source_path(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._local_source_path, "", auto_render=self._auto_render_local_source_path
+            ctx,
+            self._local_source_path,
+            "",
+            auto_render=self._auto_render_local_source_path,
         )
 
     def _get_local_destination_path(self, ctx: AnyContext) -> str:
@@ -130,7 +137,7 @@ class RsyncTask(CmdTask):
             ctx,
             self._local_destination_path,
             "",
-            auto_render=self._auto_render_local_destination_path
+            auto_render=self._auto_render_local_destination_path,
         )
 
     def _get_cmd_script(self, ctx: AnyContext) -> str:

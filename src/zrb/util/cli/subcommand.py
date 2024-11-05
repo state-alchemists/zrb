@@ -2,7 +2,7 @@ from ...group.any_group import AnyGroup
 from ..group import get_non_empty_subgroups, get_subtasks
 
 
-class SubCommand():
+class SubCommand:
     def __init__(self, paths: list[str] = [], nexts: list[str] = []):
         self.paths = paths
         self.nexts = nexts
@@ -12,9 +12,7 @@ class SubCommand():
 
 
 def get_group_subcommands(
-    group: AnyGroup,
-    previous_path: str = [],
-    subcommands: list[SubCommand] = []
+    group: AnyGroup, previous_path: str = [], subcommands: list[SubCommand] = []
 ) -> list[SubCommand]:
     nexts = []
     for task_alias in get_subtasks(group):
@@ -28,10 +26,5 @@ def get_group_subcommands(
             subcommands=subcommands,
         )
     if len(nexts) > 0:
-        subcommands.append(
-            SubCommand(
-                paths=previous_path + [group.name],
-                nexts=nexts
-            )
-        )
+        subcommands.append(SubCommand(paths=previous_path + [group.name], nexts=nexts))
     return subcommands

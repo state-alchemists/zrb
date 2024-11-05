@@ -1,5 +1,6 @@
-from collections.abc import Callable
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+
 from ..attr.type import fstring
 from ..context.context import Context
 
@@ -11,9 +12,7 @@ class AnyCmdVal(ABC):
 
 
 class CmdPath(AnyCmdVal):
-    def __init__(
-        self, path: str, auto_render: bool = True
-    ):
+    def __init__(self, path: str, auto_render: bool = True):
         self._path = path
         self._auto_render = auto_render
 

@@ -1,14 +1,14 @@
+import asyncio
 from collections.abc import Callable
 
-from .any_task import AnyTask
-from .base_task import BaseTask
-from ..attr.type import StrAttr, IntAttr
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
+from ..attr.type import IntAttr, StrAttr
 from ..context.any_context import AnyContext
 from ..context.context import Context
-from ..util.attr import get_str_attr, get_int_attr
-import asyncio
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
+from ..util.attr import get_int_attr, get_str_attr
+from .any_task import AnyTask
+from .base_task import BaseTask
 
 
 class TcpCheck(BaseTask):
@@ -48,7 +48,9 @@ class TcpCheck(BaseTask):
         self._interval = interval
 
     def _get_host(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._host, "localhost", auto_render=self._auto_render_host)
+        return get_str_attr(
+            ctx, self._host, "localhost", auto_render=self._auto_render_host
+        )
 
     def _get_port(self, ctx: AnyContext) -> str:
         return get_int_attr(ctx, self._port, 80, auto_render=True)

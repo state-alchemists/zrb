@@ -1,15 +1,15 @@
-from .util import extract_node_from_args, InvalidCommandError
-from ..task.any_task import AnyTask
-from ..group.any_group import AnyGroup
-from ..session.any_session import AnySession
-
 import asyncio
 import json
 import os
 import sys
 
+from ..group.any_group import AnyGroup
+from ..session.any_session import AnySession
+from ..task.any_task import AnyTask
+from .util import InvalidCommandError, extract_node_from_args
 
-class SessionSnapshotCondition():
+
+class SessionSnapshotCondition:
     def __init__(self):
         self._should_stop = False
 
@@ -21,7 +21,9 @@ class SessionSnapshotCondition():
         self._should_stop = True
 
 
-def extract_node_from_url(root_group: AnyGroup, url: str) -> tuple[AnyGroup | AnyTask, str]:
+def extract_node_from_url(
+    root_group: AnyGroup, url: str
+) -> tuple[AnyGroup | AnyTask, str]:
     stripped_url = url.strip("/")
     args = stripped_url.split("/")
     try:
@@ -70,7 +72,9 @@ async def _snapshot_session_periodically(
         await asyncio.sleep(0.1)
 
 
-def _save_session_log_as_json(session: AnySession, session_dir: str, finished: bool = False):
+def _save_session_log_as_json(
+    session: AnySession, session_dir: str, finished: bool = False
+):
     session_file_name = _get_session_log_file_name(session_dir, session.name)
     session_dict = session_to_log_dict(session)
     session_dict["finished"] = finished

@@ -1,9 +1,9 @@
-from typing import Any
 import importlib
 import importlib.util
 import os
 import re
 import sys
+from typing import Any
 
 pattern = re.compile("[^a-zA-Z0-9]")
 

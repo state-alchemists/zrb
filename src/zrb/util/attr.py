@@ -1,19 +1,17 @@
 from typing import Any
-from ..attr.type import AnyAttr, StrAttr, BoolAttr, IntAttr, FloatAttr, StrDictAttr
+
+from ..attr.type import AnyAttr, BoolAttr, FloatAttr, IntAttr, StrAttr, StrDictAttr
 from ..context.any_shared_context import AnySharedContext
 from ..util.string.conversion import to_boolean
 
 
 def get_str_dict_attr(
-    shared_ctx: AnySharedContext,
-    attr: StrDictAttr | None,
-    auto_render: bool = True
+    shared_ctx: AnySharedContext, attr: StrDictAttr | None, auto_render: bool = True
 ) -> dict[str, Any]:
     if callable(attr):
         return attr(shared_ctx)
     return {
-        key: get_str_attr(shared_ctx, val, "", auto_render)
-        for key, val in attr.items()
+        key: get_str_attr(shared_ctx, val, "", auto_render) for key, val in attr.items()
     }
 
 
@@ -21,7 +19,7 @@ def get_str_attr(
     shared_ctx: AnySharedContext,
     attr: StrAttr | None,
     default: StrAttr = "",
-    auto_render: bool = True
+    auto_render: bool = True,
 ) -> str:
     val = get_attr(shared_ctx, attr, default, auto_render)
     if not isinstance(val, str):
@@ -33,7 +31,7 @@ def get_bool_attr(
     shared_ctx: AnySharedContext,
     attr: BoolAttr | None,
     default: BoolAttr = False,
-    auto_render: bool = True
+    auto_render: bool = True,
 ) -> bool:
     val = get_attr(shared_ctx, attr, default, auto_render)
     if isinstance(val, str):
@@ -45,7 +43,7 @@ def get_int_attr(
     shared_ctx: AnySharedContext,
     attr: IntAttr | None,
     default: IntAttr = 0,
-    auto_render: bool = True
+    auto_render: bool = True,
 ) -> int:
     val = get_attr(shared_ctx, attr, default, auto_render)
     if isinstance(val, str):
@@ -57,7 +55,7 @@ def get_float_attr(
     shared_ctx: AnySharedContext,
     attr: FloatAttr | None,
     default: FloatAttr = 0.0,
-    auto_render: bool = True
+    auto_render: bool = True,
 ) -> str | None:
     val = get_attr(shared_ctx, attr, default, auto_render)
     if isinstance(val, str):

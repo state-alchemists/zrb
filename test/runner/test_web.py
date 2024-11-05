@@ -1,11 +1,12 @@
-import unittest
-from unittest.mock import Mock
-from io import BytesIO
-from threading import Thread
-from zrb.runner.web_server import WebRequestHandler
-from zrb import Group
 import asyncio
 import os
+import unittest
+from io import BytesIO
+from threading import Thread
+from unittest.mock import Mock
+
+from zrb import Group
+from zrb.runner.web_server import WebRequestHandler
 
 _DIR = os.path.dirname(__file__)
 _SESSION_DIR = os.path.join(_DIR, "test-generated-session")

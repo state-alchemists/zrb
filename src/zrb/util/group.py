@@ -1,8 +1,10 @@
-from ..task.any_task import AnyTask
 from ..group.any_group import AnyGroup
+from ..task.any_task import AnyTask
 
 
-def get_non_empty_subgroups(group: AnyGroup, web_only: bool = False) -> dict[str, AnyGroup]:
+def get_non_empty_subgroups(
+    group: AnyGroup, web_only: bool = False
+) -> dict[str, AnyGroup]:
     return {
         alias: subgroup
         for alias, subgroup in group.subgroups.items()

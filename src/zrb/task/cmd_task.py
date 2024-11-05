@@ -1,18 +1,18 @@
-from .any_task import AnyTask
-from .base_task import BaseTask
-from ..attr.type import BoolAttr, StrAttr, IntAttr
-from ..cmd.cmd_result import CmdResult
-from ..cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
-from ..config import DEFAULT_SHELL
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
-from ..context.any_context import AnyContext
-from ..util.cmd.remote import get_remote_cmd_script
-from ..util.attr import get_str_attr, get_int_attr
-
 import asyncio
 import os
 import sys
+
+from ..attr.type import BoolAttr, IntAttr, StrAttr
+from ..cmd.cmd_result import CmdResult
+from ..cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
+from ..config import DEFAULT_SHELL
+from ..context.any_context import AnyContext
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
+from ..util.attr import get_int_attr, get_str_attr
+from ..util.cmd.remote import get_remote_cmd_script
+from .any_task import AnyTask
+from .base_task import BaseTask
 
 
 class CmdTask(BaseTask):
@@ -163,10 +163,18 @@ class CmdTask(BaseTask):
         )
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
-        default_shell_flags = {"node": "-e", "ruby": "-e", "php": "-r", "powershell": "/c"}
+        default_shell_flags = {
+            "node": "-e",
+            "ruby": "-e",
+            "php": "-r",
+            "powershell": "/c",
+        }
         default_shell_flag = default_shell_flags.get(self._get_shell(ctx).lower(), "-c")
         return get_str_attr(
-            ctx, self._shell_flag, default_shell_flag, auto_render=self._auto_render_shell_flag
+            ctx,
+            self._shell_flag,
+            default_shell_flag,
+            auto_render=self._auto_render_shell_flag,
         )
 
     def _get_remote_host(self, ctx: AnyContext) -> str:
@@ -184,7 +192,10 @@ class CmdTask(BaseTask):
 
     def _get_remote_password(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._remote_password, "", auto_render=self._auto_render_remote_password
+            ctx,
+            self._remote_password,
+            "",
+            auto_render=self._auto_render_remote_password,
         )
 
     def _get_remote_ssh_key(self, ctx: AnyContext) -> str:
@@ -221,10 +232,12 @@ class CmdTask(BaseTask):
 
     def _render_cmd_val(self, ctx: AnyContext, cmd_val: CmdVal) -> str:
         if isinstance(cmd_val, list):
-            return "\n".join([
-                self.__render_single_cmd_val(ctx, single_cmd_val)
-                for single_cmd_val in cmd_val
-            ])
+            return "\n".join(
+                [
+                    self.__render_single_cmd_val(ctx, single_cmd_val)
+                    for single_cmd_val in cmd_val
+                ]
+            )
         return self.__render_single_cmd_val(ctx, cmd_val)
 
     def __render_single_cmd_val(

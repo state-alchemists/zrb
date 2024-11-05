@@ -1,7 +1,8 @@
+import sys
 from abc import abstractmethod
 from typing import TextIO
+
 from .any_shared_context import AnySharedContext
-import sys
 
 
 class AnyContext(AnySharedContext):

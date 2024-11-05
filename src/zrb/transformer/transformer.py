@@ -1,8 +1,9 @@
-from collections.abc import Callable
-from .any_transformer import AnyTransformer
-from ..context.any_context import AnyContext
 import fnmatch
 import re
+from collections.abc import Callable
+
+from ..context.any_context import AnyContext
+from .any_transformer import AnyTransformer
 
 
 class Transformer(AnyTransformer):

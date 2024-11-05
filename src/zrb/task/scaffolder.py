@@ -1,16 +1,16 @@
+import os
+import shutil
 from collections.abc import Callable
-from .any_task import AnyTask
-from .base_task import BaseTask
+
 from ..attr.type import BoolAttr, StrAttr
+from ..context.any_context import AnyContext
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..context.any_context import AnyContext
 from ..transformer.any_transformer import AnyTransformer
 from ..transformer.transformer import Transformer
 from ..util.attr import get_str_attr
-
-import os
-import shutil
+from .any_task import AnyTask
+from .base_task import BaseTask
 
 TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
 
@@ -71,7 +71,7 @@ class Scaffolder(BaseTask):
         self._path_transformer = rename_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._source_path, "", auto_render=True) 
+        return get_str_attr(ctx, self._source_path, "", auto_render=True)
 
     def _get_destination_path(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._destination_path, "", auto_render=True)
@@ -103,16 +103,21 @@ class Scaffolder(BaseTask):
         if os.path.isdir(source_path):
             for root, dirs, files in os.walk(source_path):
                 rel_root = os.path.relpath(root, source_path)
-                dest_dir = os.path.join(destination_path, self._transform_path(ctx, rel_root))
+                dest_dir = os.path.join(
+                    destination_path, self._transform_path(ctx, rel_root)
+                )
                 os.makedirs(dest_dir, exist_ok=True)
                 for file_name in files:
                     src_file = os.path.join(root, file_name)
-                    dest_file = os.path.join(dest_dir, self._transform_path(ctx, file_name))
+                    dest_file = os.path.join(
+                        dest_dir, self._transform_path(ctx, file_name)
+                    )
                     shutil.copy2(src_file, dest_file)
                     ctx.log_info(f"Copied and renamed {src_file} to {dest_file}")
         else:
             dest_file = os.path.join(
-                destination_path, self._transform_path(os.path.basename(ctx, source_path))
+                destination_path,
+                self._transform_path(os.path.basename(ctx, source_path)),
             )
             shutil.copy2(source_path, dest_file)
             ctx.log_info(f"Copied and renamed {source_path} to {dest_file}")

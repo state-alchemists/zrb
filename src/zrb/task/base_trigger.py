@@ -1,21 +1,22 @@
+import asyncio
 from collections.abc import Callable
 from typing import Any
+
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-from .base_task import BaseTask
+
 from ..attr.type import fstring
 from ..callback.any_callback import AnyCallback
+from ..context.shared_context import SharedContext
 from ..dot_dict.dot_dict import DotDict
 from ..session.any_session import AnySession
 from ..session.session import Session
-from ..context.shared_context import SharedContext
-from ..xcom.xcom import Xcom
 from ..util.cli.style import CYAN
-
-import asyncio
+from ..xcom.xcom import Xcom
+from .base_task import BaseTask
 
 
 class BaseTrigger(BaseTask):
@@ -42,7 +43,7 @@ class BaseTrigger(BaseTask):
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
         upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None
+        fallback: list[AnyTask] | AnyTask | None = None,
     ):
         super().__init__(
             name=name,

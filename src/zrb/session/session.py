@@ -1,15 +1,14 @@
-from typing import Coroutine
-from .any_session import AnySession
-from ..context.any_shared_context import AnySharedContext
-from ..context.context import AnyContext
-from ..context.context import Context
-from ..task_status.task_status import TaskStatus
-from ..xcom.xcom import Xcom
-from ..task.any_task import AnyTask
-from ..util.string.name import get_random_name
-from ..util.cli.style import GREEN, YELLOW, BLUE, MAGENTA, CYAN, ICONS
-
 import asyncio
+from typing import Coroutine
+
+from ..context.any_shared_context import AnySharedContext
+from ..context.context import AnyContext, Context
+from ..task.any_task import AnyTask
+from ..task_status.task_status import TaskStatus
+from ..util.cli.style import BLUE, CYAN, GREEN, ICONS, MAGENTA, YELLOW
+from ..util.string.name import get_random_name
+from ..xcom.xcom import Xcom
+from .any_session import AnySession
 
 
 class Session(AnySession):
@@ -168,7 +167,8 @@ class Session(AnySession):
         if task_status.is_started or task_status.is_completed:
             return False
         unfulfilled_upstreams = [
-            upstream for upstream in self._upstreams[task]
+            upstream
+            for upstream in self._upstreams[task]
             if not self._task_status[upstream].allow_run_downstream
         ]
         return len(unfulfilled_upstreams) == 0

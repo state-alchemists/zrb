@@ -1,4 +1,5 @@
 from typing import Any
+
 from ..attr.type import StrAttr
 from ..context.shared_context import SharedContext
 from ..util.attr import get_str_attr
@@ -43,7 +44,9 @@ class BaseInput(AnyInput):
         default = self._get_default_str(ctx)
         return f'<input name="{name}" placeholder="{description}" value="{default}" />'
 
-    def update_shared_context(self, shared_ctx: SharedContext, str_value: str | None = None):
+    def update_shared_context(
+        self, shared_ctx: SharedContext, str_value: str | None = None
+    ):
         if str_value is None:
             str_value = self._get_default_str(shared_ctx)
         shared_ctx.input[self.name] = self._parse_str_value(str_value)
@@ -69,4 +72,6 @@ class BaseInput(AnyInput):
         return value
 
     def _get_default_str(self, shared_ctx: SharedContext) -> str:
-        return get_str_attr(shared_ctx, self._default_str, auto_render=self._auto_render)
+        return get_str_attr(
+            shared_ctx, self._default_str, auto_render=self._auto_render
+        )

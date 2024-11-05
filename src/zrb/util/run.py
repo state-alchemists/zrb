@@ -1,7 +1,6 @@
-from typing import Any
-
 import asyncio
 import inspect
+from typing import Any
 
 
 async def run_async(value: Any) -> Any:

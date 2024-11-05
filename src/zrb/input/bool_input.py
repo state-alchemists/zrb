@@ -1,7 +1,7 @@
-from .base_input import BaseInput
 from ..attr.type import StrAttr
 from ..context.shared_context import SharedContext
 from ..util.string.conversion import to_boolean
+from .base_input import BaseInput
 
 
 class IntInput(BaseInput):
@@ -27,14 +27,16 @@ class IntInput(BaseInput):
         name = self.name
         description = self.description
         default = to_boolean(self._get_default_str(ctx))
-        selected_true = 'selected' if default else ''
-        selected_false = 'selected' if not default else ''
-        return "\n".join([
-            f'<select name="{name}" placeholder="{description}">',
-            f'<option value="true" {selected_true}>true</option>',
-            f'<option value="false" {selected_false}>false</option>',
-            '</select>',
-        ])
+        selected_true = "selected" if default else ""
+        selected_false = "selected" if not default else ""
+        return "\n".join(
+            [
+                f'<select name="{name}" placeholder="{description}">',
+                f'<option value="true" {selected_true}>true</option>',
+                f'<option value="false" {selected_false}>false</option>',
+                "</select>",
+            ]
+        )
 
     def _parse_str_value(self, str_value: str) -> bool:
         return to_boolean(str_value)

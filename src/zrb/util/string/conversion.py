@@ -50,7 +50,8 @@ def to_human_case(text: str | None) -> str:
     text = str(text) if text is not None else ""
     return " ".join(
         [
-            x.lower() if x.upper() != x else x for x in _to_space_separated(text).split(" ")
+            x.lower() if x.upper() != x else x
+            for x in _to_space_separated(text).split(" ")
         ]
     )
 

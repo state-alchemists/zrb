@@ -1,7 +1,8 @@
-from .base_input import BaseInput
-from collections.abc import Callable
-from ..context.shared_context import SharedContext
 import getpass
+from collections.abc import Callable
+
+from ..context.shared_context import SharedContext
+from .base_input import BaseInput
 
 
 class PasswordInput(BaseInput):

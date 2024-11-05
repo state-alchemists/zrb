@@ -1,5 +1,5 @@
-from ..task.any_task import AnyTask
 from ..group.any_group import AnyGroup
+from ..task.any_task import AnyTask
 from ..util.group import get_all_subtasks
 
 
@@ -29,12 +29,12 @@ def extract_node_from_args(
         if group is not None:
             if task is not None and index == len(args) - 1:
                 node = task
-                residual_args = args[index+1:]
+                residual_args = args[index + 1 :]
                 break
             node = group
             continue
         if task is not None:
             node = task
-            residual_args = args[index+1:]
+            residual_args = args[index + 1 :]
             break
     return node, node_path, residual_args

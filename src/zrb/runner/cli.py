@@ -1,16 +1,17 @@
+import sys
 from typing import Any
-from .util import extract_node_from_args
-from .web_server import run_web_server
+
 from ..config import BANNER, WEB_HTTP_PORT
-from ..util.cli.style import stylize_section_header, stylize_faint, stylize_bold_yellow
-from ..util.load import load_zrb_init
-from ..util.group import get_non_empty_subgroups, get_subtasks
+from ..context.shared_context import SharedContext
 from ..group.group import Group
 from ..session.session import Session
 from ..task.any_task import AnyTask
 from ..task.task import Task
-from ..context.shared_context import SharedContext
-import sys
+from ..util.cli.style import stylize_bold_yellow, stylize_faint, stylize_section_header
+from ..util.group import get_non_empty_subgroups, get_subtasks
+from ..util.load import load_zrb_init
+from .util import extract_node_from_args
+from .web_server import run_web_server
 
 
 class Cli(Group):
@@ -36,7 +37,7 @@ class Cli(Group):
         print(
             stylize_faint("To run again:"),
             stylize_bold_yellow(run_command),
-            file=sys.stderr
+            file=sys.stderr,
         )
 
     def _get_run_command(
@@ -49,9 +50,7 @@ class Cli(Group):
             parts += args
         return " ".join(parts)
 
-    def _run_task(
-        self, task: AnyTask, args: list[str], options: list[str]
-    ) -> Any:
+    def _run_task(self, task: AnyTask, args: list[str], options: list[str]) -> Any:
         arg_index = 0
         str_kwargs = {key: val for key, val in options.items()}
         shared_ctx = SharedContext(args=args)
@@ -106,25 +105,25 @@ class Cli(Group):
         self, args: list[str]
     ) -> tuple[dict[str, Any], list[str]]:
         residual_args = []  # To store positional arguments
-        kwargs = {}     # To store options as a dictionary
+        kwargs = {}  # To store options as a dictionary
         i = 0
         while i < len(args):
             arg = args[i]
-            if arg.startswith('--'):
+            if arg.startswith("--"):
                 # Handle key-value pairs like --keyword=value
-                if '=' in arg:
-                    key, value = arg[2:].split('=', 1)
+                if "=" in arg:
+                    key, value = arg[2:].split("=", 1)
                     kwargs[key] = value
                 else:
                     # Handle flags like --this followed by a value or set to True
                     key = arg[2:]
                     # Check if the next item is a value or another flag
-                    if i + 1 < len(args) and not args[i + 1].startswith('-'):
+                    if i + 1 < len(args) and not args[i + 1].startswith("-"):
                         kwargs[key] = args[i + 1]
                         i += 1  # Skip the next argument as it's a value
                     else:
                         kwargs[key] = True
-            elif arg.startswith('-'):
+            elif arg.startswith("-"):
                 # Handle short flags like -t or -n
                 key = arg[1:]
                 kwargs[key] = True
@@ -135,20 +134,14 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-cli = Cli(
-    name="zrb",
-    description="A framework to enhance your workflow",
-    banner=BANNER
-)
+cli = Cli(name="zrb", description="A framework to enhance your workflow", banner=BANNER)
 
 cli.add_task(
     Task(
         name="start-server",
-        description="Make tasks available via HTTP Requests 📡",
-        action=lambda ctx: run_web_server(
-            ctx=ctx, root_group=cli, port=WEB_HTTP_PORT
-        ),
+        description="Make tasks available via HTTP Requests 🚀",
+        action=lambda ctx: run_web_server(ctx=ctx, root_group=cli, port=WEB_HTTP_PORT),
         cli_only=True,
-        retries=0
+        retries=0,
     )
 )

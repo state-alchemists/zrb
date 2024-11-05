@@ -1,14 +1,16 @@
+import asyncio
 from collections.abc import Callable
-from .any_task import AnyTask
-from .base_task import BaseTask
+
+import requests
+
 from ..attr.type import StrAttr
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
 from ..context.any_context import AnyContext
 from ..context.context import Context
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
 from ..util.attr import get_str_attr
-import asyncio
-import requests
+from .any_task import AnyTask
+from .base_task import BaseTask
 
 
 class HttpCheck(BaseTask):
