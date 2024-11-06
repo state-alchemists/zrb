@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from ..session_state_log.session_state_log import SessionStateLog
 
 

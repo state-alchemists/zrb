@@ -1,7 +1,8 @@
-from .any_session_state_logger import AnySessionStateLogger
-from ..session_state_log.session_state_log import SessionStateLog
 import json
 import os
+
+from ..session_state_log.session_state_log import SessionStateLog
+from .any_session_state_logger import AnySessionStateLogger
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
@@ -32,7 +33,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         pass
 
     def _get_session_file_path(self, session_name: str) -> str:
-        return os.path.join(self._session_log_dir, f'{session_name}.json')
+        return os.path.join(self._session_log_dir, f"{session_name}.json")
 
     def _get_children_dir_path(self, session_parent_name: str):
         return os.path.join(self._session_log_dir, "children", session_parent_name)
@@ -44,7 +45,9 @@ class FileSessionStateLogger(AnySessionStateLogger):
             os.makedirs(os.path.join(children_dir_path, "0"), exist_ok=True)
             last_page = 0
         if self._get_child_count(children_dir_path, last_page) >= 5:
-            os.makedirs(os.path.join(children_dir_path, f"{last_page + 1}"), exist_ok=True)
+            os.makedirs(
+                os.path.join(children_dir_path, f"{last_page + 1}"), exist_ok=True
+            )
 
     def _get_child_count(self, children_dir_path: str, page: int) -> int:
         path = os.path.join(children_dir_path, str(page))
@@ -61,7 +64,8 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
     def _get_children_existing_last_page(self, children_dir_path: str) -> int | None:
         numeric_dirs = [
-            int(name) for name in os.listdir(children_dir_path)
+            int(name)
+            for name in os.listdir(children_dir_path)
             if os.path.isdir(os.path.join(children_dir_path, name)) and name.isdigit()
         ]
         return max(numeric_dirs, default=None)

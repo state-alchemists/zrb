@@ -4,11 +4,13 @@ from typing import Any, Coroutine
 from ..context.any_shared_context import AnySharedContext
 from ..context.context import AnyContext, Context
 from ..group.any_group import AnyGroup
-from ..task.any_task import AnyTask
-from ..task_status.task_status import TaskStatus
 from ..session_state_log.session_state_log import SessionStateLog, TaskStatusStateLog
 from ..session_state_logger.any_session_state_logger import AnySessionStateLogger
-from ..session_state_logger.default_session_state_logger import default_session_state_logger
+from ..session_state_logger.default_session_state_logger import (
+    default_session_state_logger,
+)
+from ..task.any_task import AnyTask
+from ..task_status.task_status import TaskStatus
 from ..util.cli.style import BLUE, CYAN, GREEN, ICONS, MAGENTA, YELLOW
 from ..util.group import get_node_path
 from ..util.string.name import get_random_name
@@ -113,18 +115,23 @@ class Session(AnySession):
                 "is_failed": task_status.is_failed,
                 "is_permanently_failed": task_status.is_permanently_failed,
                 "history": [
-                    {"status": status, "time": status_at.strftime("%Y-%m-%d %H:%M:%S.%f")}
+                    {
+                        "status": status,
+                        "time": status_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
+                    }
                     for status, status_at in task_status.history
-                ]
+                ],
             }
         return {
             "name": self.name,
             "path": self.task_path,
-            "final_result": f"{self.final_result}" if self.final_result is not None else "",
+            "final_result": (
+                f"{self.final_result}" if self.final_result is not None else ""
+            ),
             "finished": self.is_terminated,
             "log": self.shared_ctx.shared_log,
             "input": self.shared_ctx.input,
-            "task_status": task_status_log
+            "task_status": task_status_log,
         }
 
     def get_ctx(self, task: AnyTask) -> AnyContext:

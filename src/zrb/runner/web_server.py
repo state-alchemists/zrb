@@ -12,17 +12,15 @@ from ..context.any_context import AnyContext
 from ..context.shared_context import SharedContext
 from ..group.any_group import AnyGroup
 from ..session.session import Session
-from ..session_state_logger.default_session_state_logger import default_session_state_logger
+from ..session_state_logger.default_session_state_logger import (
+    default_session_state_logger,
+)
 from ..task.any_task import AnyTask
 from ..util.group import extract_node_from_args
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.home_page.controller import handle_home_page
 from .web_app.task_ui.controller import handle_task_ui
-from .web_util import (
-    node_path_to_url,
-    start_event_loop,
-    url_to_args,
-)
+from .web_util import node_path_to_url, start_event_loop, url_to_args
 
 _DIR = os.path.dirname(__file__)
 _STATIC_DIR = os.path.join(_DIR, "web_app", "static")
