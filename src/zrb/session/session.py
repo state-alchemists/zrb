@@ -6,6 +6,9 @@ from ..context.context import AnyContext, Context
 from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
 from ..task_status.task_status import TaskStatus
+from ..session_state_log.session_state_log import SessionStateLog, TaskStatusStateLog
+from ..session_state_logger.any_session_state_logger import AnySessionStateLogger
+from ..session_state_logger.default_session_state_logger import default_session_state_logger
 from ..util.cli.style import BLUE, CYAN, GREEN, ICONS, MAGENTA, YELLOW
 from ..util.group import get_node_path
 from ..util.string.name import get_random_name
@@ -19,9 +22,11 @@ class Session(AnySession):
         shared_ctx: AnySharedContext,
         parent: AnySession | None = None,
         root_group: AnyGroup | None = None,
+        state_logger: AnySessionStateLogger | None = None,
     ):
         self._name = get_random_name()
         self._root_group = root_group
+        self._state_logger = state_logger
         self._task_status: dict[AnyTask, TaskStatus] = {}
         self._upstreams: dict[AnyTask, list[AnyTask]] = {}
         self._downstreams: dict[AnyTask, list[AnyTask]] = {}
@@ -86,10 +91,41 @@ class Session(AnySession):
         except IndexError:
             return None
 
+    @property
+    def state_logger(self) -> AnySessionStateLogger:
+        if self._state_logger is None:
+            return default_session_state_logger
+        return self._state_logger
+
     def set_main_task(self, main_task: AnyTask):
         self.register_task(main_task)
         self._main_task = main_task
         self._main_task_path = get_node_path(self._root_group, main_task)
+
+    def as_state_log(self) -> SessionStateLog:
+        task_status_log: dict[str, TaskStatusStateLog] = {}
+        for task, task_status in self.status.items():
+            task_status_log[task.name] = {
+                "is_started": task_status.is_started,
+                "is_ready": task_status.is_ready,
+                "is_completed": task_status.is_completed,
+                "is_skipped": task_status.is_skipped,
+                "is_failed": task_status.is_failed,
+                "is_permanently_failed": task_status.is_permanently_failed,
+                "history": [
+                    {"status": status, "time": status_at.strftime("%Y-%m-%d %H:%M:%S.%f")}
+                    for status, status_at in task_status.history
+                ]
+            }
+        return {
+            "name": self.name,
+            "path": self.task_path,
+            "final_result": f"{self.final_result}" if self.final_result is not None else "",
+            "finished": self.is_terminated,
+            "log": self.shared_ctx.shared_log,
+            "input": self.shared_ctx.input,
+            "task_status": task_status_log
+        }
 
     def get_ctx(self, task: AnyTask) -> AnyContext:
         self._register_single_task(task)

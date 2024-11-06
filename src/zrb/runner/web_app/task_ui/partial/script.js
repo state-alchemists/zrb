@@ -128,11 +128,11 @@ function visualizeHistory(taskStatus, finished) {
         if (history.length == 0) {
             continue;
         }
-        let startTime = new Date(history[0][1]);
+        let startTime = new Date(history[0].time);
         if (minDateTime === null || minDateTime > startTime) {
             minDateTime = startTime;
         }
-        let lastTime = new Date(history[history.length - 1][1]);
+        let lastTime = new Date(history[history.length - 1].time);
         if (maxDateTime === null || maxDateTime < lastTime) {
             maxDateTime = lastTime;           
         }
@@ -160,7 +160,7 @@ function visualizeHistory(taskStatus, finished) {
         }
         // Get last status
         const finalStatus = getTaskFinalStatus(taskHistories, now);
-        const startDateTime = new Date(taskHistories[0][1]);
+        const startDateTime = new Date(taskHistories[0].time);
         const endDateTime = getTaskEndDateTime(taskHistories, finalStatus, now);
         const startX = 100 + (startDateTime - minDateTime) * timeScale;
         const barWidth = (endDateTime - startDateTime) * timeScale;
@@ -181,8 +181,8 @@ function visualizeHistory(taskStatus, finished) {
         // Combine captions if time overlap
         let labels = {};
         for (let taskHistory of taskHistories) {
-            let status = taskHistory[0];
-            let dateTime = new Date(taskHistory[1]);
+            let status = taskHistory.status;
+            let dateTime = new Date(taskHistory.time);
             let statusStartX = 100 + (dateTime - minDateTime) * timeScale;
             if (!(statusStartX in labels)) {
                 labels[statusStartX] = {dateTime: dateTime, caption: status};
@@ -207,7 +207,7 @@ function getTaskEndDateTime(taskHistories, finalStatus, now) {
     if (finalStatus != "completed") {
         return now;
     }
-    return new Date(taskHistories[taskHistories.length - 1][1]);
+    return new Date(taskHistories[taskHistories.length - 1].time);
 }
 
 
@@ -232,10 +232,10 @@ function getFinalColor(finalStatus) {
 
 
 function getTaskFinalStatus(taskHistories, now) {
-    let finalStatus = taskHistories[taskHistories.length - 1][0];
+    let finalStatus = taskHistories[taskHistories.length - 1].status;
     // If it was 'completed", then make it "completed"
     for (let history of taskHistories) {
-        if (history[0] == "completed") {
+        if (history.status == "completed") {
             finalStatus = "completed";
             break
         }

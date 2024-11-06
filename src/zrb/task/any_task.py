@@ -1,15 +1,13 @@
 from __future__ import annotations  # Enables forward references
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 
 if TYPE_CHECKING:
     from ..session import session
-
-TAnyTask = TypeVar("TAnyTask", bound="AnyTask")
 
 
 class AnyTask(ABC):
@@ -65,28 +63,28 @@ class AnyTask(ABC):
 
     @property
     @abstractmethod
-    def upstreams(self) -> list[TAnyTask]:
+    def upstreams(self) -> list["AnyTask"]:
         """Task upstreams"""
         pass
 
     @property
     @abstractmethod
-    def fallbacks(self) -> list[TAnyTask]:
+    def fallbacks(self) -> list["AnyTask"]:
         """Task fallbacks"""
         pass
 
     @property
     @abstractmethod
-    def readiness_checks(self) -> list[TAnyTask]:
+    def readiness_checks(self) -> list["AnyTask"]:
         """Task readiness checks"""
         pass
 
     @abstractmethod
-    def append_upstreams(self, upstreams: TAnyTask | list[TAnyTask]):
+    def append_upstreams(self, upstreams: "AnyTask" | list["AnyTask"]):
         """Sets the upstream tasks that this task depends on.
 
         Args:
-            upstreams (TAnyTask | list[TAnyTask]): A single upstream task or
+            upstreams (AnyTask | list[AnyTask]): A single upstream task or
                 a list of upstream tasks.
         """
         pass

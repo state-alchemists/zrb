@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any, Coroutine, TypeVar
 
 from ..context.any_context import AnyContext
 from ..group.any_group import AnyGroup
+from ..session_state_log.session_state_log import SessionStateLog
+from ..session_state_logger.any_session_state_logger import AnySessionStateLogger
 from ..task_status.task_status import TaskStatus
 
 if TYPE_CHECKING:
@@ -69,13 +71,24 @@ class AnySession(ABC):
         pass
 
     @property
+    @abstractmethod
     def final_result(self) -> Any:
         """Main task's result"""
+        pass
+
+    @property
+    @abstractmethod
+    def state_logger(self) -> AnySessionStateLogger:
+        """State logger"""
         pass
 
     @abstractmethod
     def set_main_task(self, main_task: any_task.AnyTask):
         """Set main task"""
+        pass
+
+    @abstractmethod
+    def as_state_log(self) -> SessionStateLog:
         pass
 
     @abstractmethod

@@ -1,9 +1,7 @@
+from typing import Optional
 from abc import ABC, abstractmethod
-from typing import TypeVar
 
 from ..task.any_task import AnyTask
-
-TAnyGroup = TypeVar("TAnyGroup", bound="AnyGroup")
 
 
 class AnyGroup(ABC):
@@ -33,12 +31,12 @@ class AnyGroup(ABC):
 
     @property
     @abstractmethod
-    def subgroups(self) -> dict[str, TAnyGroup]:
+    def subgroups(self) -> dict[str, "AnyGroup"]:
         """Group subgroups"""
         pass
 
     @abstractmethod
-    def add_group(self, group: TAnyGroup) -> TAnyGroup:
+    def add_group(self, group: "AnyGroup") -> "AnyGroup":
         pass
 
     @abstractmethod
@@ -50,5 +48,5 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
-    def get_group_by_alias(self, name: str) -> TAnyGroup | None:
+    def get_group_by_alias(self, name: str) -> Optional["AnyGroup"]:
         pass

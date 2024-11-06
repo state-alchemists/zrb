@@ -203,6 +203,7 @@ class BaseTask(AnyTask):
 
     async def exec_root_tasks(self, session: AnySession):
         session.set_main_task(self)
+        log_state = asyncio.create_task(self._log_session_state(session))
         root_tasks = [
             task
             for task in session.get_root_tasks(self)
@@ -214,6 +215,8 @@ class BaseTask(AnyTask):
         try:
             await asyncio.gather(*root_task_coros)
             await session.wait_deferred()
+            session.terminate()
+            await log_state
             return session.final_result
         except IndexError:
             return None
@@ -224,6 +227,14 @@ class BaseTask(AnyTask):
         finally:
             ctx = session.get_ctx(self)
             ctx.log_debug(session)
+
+    async def _log_session_state(self, session: AnySession):
+        parent_name = None if session.parent is None else session.parent.name
+        session.state_logger.write(session.as_state_log(), parent_name)
+        while not session.is_terminated:
+            await asyncio.sleep(0.1)
+            session.state_logger.write(session.as_state_log(), parent_name)
+        session.state_logger.write(session.as_state_log(), parent_name)
 
     async def exec_chain(self, session: AnySession):
         if session.is_terminated or not session.is_allowed_to_run(self):

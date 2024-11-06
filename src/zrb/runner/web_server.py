@@ -12,15 +12,14 @@ from ..context.any_context import AnyContext
 from ..context.shared_context import SharedContext
 from ..group.any_group import AnyGroup
 from ..session.session import Session
+from ..session_state_logger.default_session_state_logger import default_session_state_logger
 from ..task.any_task import AnyTask
 from ..util.group import extract_node_from_args
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.home_page.controller import handle_home_page
 from .web_app.task_ui.controller import handle_task_ui
 from .web_util import (
-    get_session_log_dict,
     node_path_to_url,
-    run_task_and_snapshot_session,
     start_event_loop,
     url_to_args,
 )
@@ -75,10 +74,11 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 try:
                     session_name = residual_args[0]
                     self.send_json_response(
-                        get_session_log_dict(self._session_dir, session_name)
+                        default_session_state_logger.read(session_name)
                     )
                 except Exception as e:
                     self.send_json_response({"error": f"{e}"}, 500)
+                    raise e
             else:
                 self.send_error(404, "Not Found")
         else:
@@ -96,12 +96,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 shared_ctx = SharedContext(env=dict(os.environ))
                 session = Session(shared_ctx=shared_ctx, root_group=self._root_group)
                 asyncio.run_coroutine_threadsafe(
-                    run_task_and_snapshot_session(
-                        session=session,
-                        session_dir=self._session_dir,
-                        task=task,
-                        str_kwargs=str_kwargs,
-                    ),
+                    task.async_run(session, str_kwargs=str_kwargs),
                     self._event_loop,
                 )
                 self.send_json_response({"session_name": session.name})
