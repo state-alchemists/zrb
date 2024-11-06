@@ -1,7 +1,7 @@
 from typing import Any
 
 from ..attr.type import StrAttr
-from ..context.shared_context import SharedContext
+from ..context.any_shared_context import AnySharedContext
 from ..util.attr import get_str_attr
 from .any_input import AnyInput
 
@@ -38,14 +38,14 @@ class BaseInput(AnyInput):
     def prompt_message(self) -> str:
         return self._prompt if self._prompt is not None else self.name
 
-    def to_html(self, ctx: SharedContext) -> str:
+    def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
         default = self._get_default_str(ctx)
         return f'<input name="{name}" placeholder="{description}" value="{default}" />'
 
     def update_shared_context(
-        self, shared_ctx: SharedContext, str_value: str | None = None
+        self, shared_ctx: AnySharedContext, str_value: str | None = None
     ):
         if str_value is None:
             str_value = self._get_default_str(shared_ctx)
@@ -55,13 +55,13 @@ class BaseInput(AnyInput):
         """Override this to transform str_value"""
         return str_value
 
-    def prompt_cli_str(self, shared_ctx: SharedContext) -> str:
+    def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         value = self._prompt_cli_str(shared_ctx)
         while not self._allow_empty and value == "":
             value = self._prompt_cli_str(shared_ctx)
         return value
 
-    def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
+    def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
         default_value = self._get_default_str(shared_ctx)
         if default_value != "":
@@ -71,7 +71,7 @@ class BaseInput(AnyInput):
             value = default_value
         return value
 
-    def _get_default_str(self, shared_ctx: SharedContext) -> str:
+    def _get_default_str(self, shared_ctx: AnySharedContext) -> str:
         return get_str_attr(
             shared_ctx, self._default_str, auto_render=self._auto_render
         )

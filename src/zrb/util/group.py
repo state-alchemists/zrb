@@ -6,21 +6,6 @@ class NodeNotFoundError(ValueError):
     pass
 
 
-def extract_node_from_url(
-    root_group: AnyGroup, url: str
-) -> tuple[AnyGroup | AnyTask, str]:
-    stripped_url = url.strip("/")
-    args = stripped_url.split("/")
-    try:
-        node, node_path, residual_args = extract_node_from_args(
-            root_group, args, web_only=True
-        )
-        url = "/" + "/".join(node_path)
-        return node, url, residual_args
-    except NodeNotFoundError:
-        return None, url, []
-
-
 def extract_node_from_args(
     root_group: AnyGroup, args: list[str], web_only: bool = False
 ) -> tuple[AnyGroup | AnyTask, list[str], list[str]]:
@@ -52,6 +37,22 @@ def extract_node_from_args(
             residual_args = args[index + 1 :]
             break
     return node, node_path, residual_args
+
+
+def get_node_path(group: AnyGroup, node: AnyGroup | AnyTask) -> list[str] | None:
+    if isinstance(node, AnyTask):
+        for alias, subtask in group.subtasks.items():
+            if subtask == node:
+                return [alias]
+    if isinstance(node, AnyGroup):
+        for alias, subgroup in group.subgroups.items():
+            if subgroup == node:
+                return [alias]
+    for alias, subgroup in group.subgroups.items():
+        result = get_node_path(subgroup, node)
+        if result is not None:
+            return [alias] + result
+    return None
 
 
 def get_non_empty_subgroups(

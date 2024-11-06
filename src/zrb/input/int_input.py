@@ -1,5 +1,5 @@
 from ..attr.type import StrAttr
-from ..context.shared_context import SharedContext
+from ..context.any_shared_context import AnySharedContext
 from .base_input import BaseInput
 
 
@@ -22,7 +22,7 @@ class IntInput(BaseInput):
             allow_empty=allow_empty,
         )
 
-    def to_html(self, ctx: SharedContext) -> str:
+    def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
         default = self._get_default_str(ctx)

@@ -39,10 +39,6 @@ class AnySharedContext(ABC):
         pass
 
     @property
-    def final_result(self) -> Any:
-        pass
-
-    @property
     def session(self) -> any_session.AnySession | None:
         pass
 
@@ -52,10 +48,6 @@ class AnySharedContext(ABC):
 
     @abstractmethod
     def set_session(self, session: any_session.AnySession):
-        pass
-
-    @abstractmethod
-    def set_final_result(self, final_result: Any):
         pass
 
     @abstractmethod

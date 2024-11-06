@@ -1,7 +1,7 @@
 import getpass
 from collections.abc import Callable
 
-from ..context.shared_context import SharedContext
+from ..context.any_shared_context import AnySharedContext
 from .base_input import BaseInput
 
 
@@ -11,7 +11,7 @@ class PasswordInput(BaseInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default_str: str | Callable[[SharedContext], str] = "",
+        default_str: str | Callable[[AnySharedContext], str] = "",
         auto_render: bool = True,
         allow_empty: bool = True,
     ):
@@ -25,13 +25,13 @@ class PasswordInput(BaseInput):
         )
         self._is_secret = True
 
-    def to_html(self, ctx: SharedContext) -> str:
+    def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
         default = self._get_default_str(ctx)
         return f'<input type="password" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
 
-    def _prompt_cli_str(self, shared_ctx: SharedContext) -> str:
+    def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
         default_value = self._get_default_str(shared_ctx)
         value = getpass.getpass(f"{prompt_message}: ")

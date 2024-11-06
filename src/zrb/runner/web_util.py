@@ -7,6 +7,17 @@ from ..session.any_session import AnySession
 from ..task.any_task import AnyTask
 
 
+def url_to_args(url: str) -> list[str]:
+    stripped_url = url.strip("/")
+    return [part for part in stripped_url.split("/") if part.strip() != ""]
+
+
+def node_path_to_url(args: list[str]) -> str:
+    pruned_args = [part for part in args if part.strip() != ""]
+    stripped_url = "/".join(pruned_args)
+    return f"/{stripped_url}/"
+
+
 class SessionSnapshotCondition:
     def __init__(self):
         self._should_stop = False
@@ -52,7 +63,7 @@ async def _snapshot_session_periodically(
         if snapshot_condition.should_stop:
             _save_session_log_as_json(session, session_dir, finished=True)
             break
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
 
 
 def _save_session_log_as_json(
@@ -87,7 +98,8 @@ def session_to_log_dict(session: AnySession) -> str:
         }
     return {
         "name": session.name,
-        "final_result": f"{session.shared_ctx.final_result}",
+        "path": session.task_path,
+        "final_result": f"{session.final_result}",
         "log": session.shared_ctx.shared_log,
         "task_status": task_status_dict,
         "input": session.shared_ctx.input,

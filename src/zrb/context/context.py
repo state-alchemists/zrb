@@ -53,10 +53,6 @@ class Context(AnyContext):
         return self._shared_ctx.shared_log
 
     @property
-    def final_result(self) -> Any:
-        return self._shared_ctx.final_result
-
-    @property
     def session(self) -> AnySession | None:
         return self._shared_ctx._session
 
@@ -65,9 +61,6 @@ class Context(AnyContext):
 
     def set_session(self, session: AnySession):
         self._shared_ctx.set_session(session)
-
-    def set_final_result(self, final_result: Any):
-        self._shared_ctx.set_final_result(final_result)
 
     def set_attempt(self, attempt: int):
         self._attempt = attempt

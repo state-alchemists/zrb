@@ -13,14 +13,16 @@ from ..context.shared_context import SharedContext
 from ..group.any_group import AnyGroup
 from ..session.session import Session
 from ..task.any_task import AnyTask
-from ..util.group import extract_node_from_url
+from ..util.group import extract_node_from_args
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.home_page.controller import handle_home_page
 from .web_app.task_ui.controller import handle_task_ui
 from .web_util import (
     get_session_log_dict,
+    node_path_to_url,
     run_task_and_snapshot_session,
     start_event_loop,
+    url_to_args,
 )
 
 _DIR = os.path.dirname(__file__)
@@ -51,21 +53,27 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/favicon-32x32.png":
             self.send_image_response(os.path.join(_STATIC_DIR, "favicon-32x32.png"))
         elif self.path.startswith("/ui/"):
-            stripped_url = self.path[3:].rstrip("/")
-            node, url, args = extract_node_from_url(self._root_group, stripped_url)
-            url = f"/ui{url}/"
+            args = url_to_args(self.path[3:])
+            node, node_path, residual_args = extract_node_from_args(
+                self._root_group, args
+            )
+            url = f"/ui{node_path_to_url(node_path)}"
             if isinstance(node, AnyTask):
-                handle_task_ui(self, self._root_group, node, url, args)
+                shared_ctx = SharedContext(env=dict(os.environ))
+                session = Session(shared_ctx=shared_ctx, root_group=self._root_group)
+                handle_task_ui(
+                    self, self._root_group, node, session, url, residual_args
+                )
             elif isinstance(node, AnyGroup):
                 handle_group_info_ui(self, self._root_group, node, url)
             else:
                 self.send_error(404, "Not Found")
         elif self.path.startswith("/api/"):
-            stripped_url = self.path[5:].rstrip("/")
-            node, _, args = extract_node_from_url(self._root_group, stripped_url)
-            if isinstance(node, AnyTask) and len(args) > 0:
+            args = url_to_args(self.path[5:])
+            node, _, residual_args = extract_node_from_args(self._root_group, args)
+            if isinstance(node, AnyTask) and len(residual_args) > 0:
                 try:
-                    session_name = args[0]
+                    session_name = residual_args[0]
                     self.send_json_response(
                         get_session_log_dict(self._session_dir, session_name)
                     )
@@ -78,15 +86,15 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path.startswith("/api/"):
-            stripped_url = self.path[5:].rstrip("/")
-            task, _, args = extract_node_from_url(self._root_group, stripped_url)
-            session_name = args[0] if len(args) > 0 else None
+            args = url_to_args(self.path[5:])
+            task, _, residual_args = extract_node_from_args(self._root_group, args)
+            session_name = residual_args[0] if len(residual_args) > 0 else None
             if not isinstance(task, AnyTask):
                 self.send_error(404, "Not found")
             elif session_name is None:
                 str_kwargs: dict[str, str] = self.read_json_request()
                 shared_ctx = SharedContext(env=dict(os.environ))
-                session = Session(shared_ctx=shared_ctx)
+                session = Session(shared_ctx=shared_ctx, root_group=self._root_group)
                 asyncio.run_coroutine_threadsafe(
                     run_task_and_snapshot_session(
                         session=session,

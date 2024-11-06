@@ -1,19 +1,27 @@
 import asyncio
-from typing import Coroutine
+from typing import Any, Coroutine
 
 from ..context.any_shared_context import AnySharedContext
 from ..context.context import AnyContext, Context
+from ..group.any_group import AnyGroup
 from ..task.any_task import AnyTask
 from ..task_status.task_status import TaskStatus
 from ..util.cli.style import BLUE, CYAN, GREEN, ICONS, MAGENTA, YELLOW
+from ..util.group import get_node_path
 from ..util.string.name import get_random_name
 from ..xcom.xcom import Xcom
 from .any_session import AnySession
 
 
 class Session(AnySession):
-    def __init__(self, shared_ctx: AnySharedContext, parent: AnySession | None = None):
+    def __init__(
+        self,
+        shared_ctx: AnySharedContext,
+        parent: AnySession | None = None,
+        root_group: AnyGroup | None = None,
+    ):
         self._name = get_random_name()
+        self._root_group = root_group
         self._task_status: dict[AnyTask, TaskStatus] = {}
         self._upstreams: dict[AnyTask, list[AnyTask]] = {}
         self._downstreams: dict[AnyTask, list[AnyTask]] = {}
@@ -29,6 +37,8 @@ class Session(AnySession):
         self._color_index = 0
         self._icon_index = 0
         self._is_terminated = False
+        self._main_task: AnyTask | None = None
+        self._main_task_path: list[str] = []
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -40,6 +50,10 @@ class Session(AnySession):
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def root_group(self) -> AnyGroup | None:
+        return self._root_group
 
     @property
     def status(self) -> dict[AnyTask, TaskStatus]:
@@ -59,6 +73,23 @@ class Session(AnySession):
     @property
     def parent(self) -> AnySession | None:
         return self._parent
+
+    @property
+    def task_path(self) -> str:
+        return self._main_task_path
+
+    @property
+    def final_result(self) -> Any:
+        xcom: Xcom = self.shared_ctx.xcom[self._main_task.name]
+        try:
+            return xcom.peek()
+        except IndexError:
+            return None
+
+    def set_main_task(self, main_task: AnyTask):
+        self.register_task(main_task)
+        self._main_task = main_task
+        self._main_task_path = get_node_path(self._root_group, main_task)
 
     def get_ctx(self, task: AnyTask) -> AnyContext:
         self._register_single_task(task)

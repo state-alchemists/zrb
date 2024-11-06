@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ..context.shared_context import SharedContext
+from ..context.any_shared_context import AnySharedContext
 
 
 class AnyInput(ABC):
@@ -20,15 +20,15 @@ class AnyInput(ABC):
         pass
 
     @abstractmethod
-    def to_html(self, shared_ctx: SharedContext) -> str:
+    def to_html(self, shared_ctx: AnySharedContext) -> str:
         pass
 
     @abstractmethod
     def update_shared_context(
-        self, shared_ctx: SharedContext, str_value: str | None = None
+        self, shared_ctx: AnySharedContext, str_value: str | None = None
     ):
         pass
 
     @abstractmethod
-    def prompt_cli_str(self, shared_ctx: SharedContext) -> str:
+    def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         pass

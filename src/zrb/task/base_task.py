@@ -202,7 +202,7 @@ class BaseTask(AnyTask):
             env.update_shared_context(shared_context)
 
     async def exec_root_tasks(self, session: AnySession):
-        session.register_task(self)
+        session.set_main_task(self)
         root_tasks = [
             task
             for task in session.get_root_tasks(self)
@@ -214,10 +214,7 @@ class BaseTask(AnyTask):
         try:
             await asyncio.gather(*root_task_coros)
             await session.wait_deferred()
-            xcom: Xcom = session.get_ctx(self).xcom.get(self.name)
-            final_result = xcom.peek()
-            session.shared_ctx.set_final_result(final_result)
-            return final_result
+            return session.final_result
         except IndexError:
             return None
         except KeyboardInterrupt:

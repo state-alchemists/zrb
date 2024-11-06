@@ -1,8 +1,7 @@
 import os
 
-from ....context.shared_context import SharedContext
 from ....group.any_group import AnyGroup
-from ....session.session import Session
+from ....session.any_session import AnySession
 from ....task.any_task import AnyTask
 from ....util.string.format import fstring_format
 from ..any_request_handler import AnyRequestHandler
@@ -23,11 +22,10 @@ def handle_task_ui(
     handler: AnyRequestHandler,
     root_group: AnyGroup,
     task: AnyTask,
+    session: AnySession,
     url: str,
     args: list[str],
 ):
-    shared_ctx = SharedContext(env={key: val for key, val in os.environ.items()})
-    session = Session(shared_ctx=shared_ctx)
     session.register_task(task)
     ctx = session.get_ctx(task)
     url_parts = url.split("/")

@@ -61,7 +61,9 @@ class Cli(Group):
                 arg_index += 1
                 continue
             str_kwargs[task_input.name] = task_input.prompt_cli_str(shared_ctx)
-        return task.run(Session(shared_ctx=shared_ctx), str_kwargs=str_kwargs)
+        return task.run(
+            Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=str_kwargs
+        )
 
     def _show_task_info(self, task: AnyTask):
         description = task.description

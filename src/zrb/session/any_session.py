@@ -1,9 +1,10 @@
 from __future__ import annotations  # Enables forward references
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Coroutine, TypeVar
+from typing import TYPE_CHECKING, Any, Coroutine, TypeVar
 
 from ..context.any_context import AnyContext
+from ..group.any_group import AnyGroup
 from ..task_status.task_status import TaskStatus
 
 if TYPE_CHECKING:
@@ -25,6 +26,12 @@ class AnySession(ABC):
     @abstractmethod
     def name(self) -> str:
         """Name this session"""
+        pass
+
+    @property
+    @abstractmethod
+    def root_group(self) -> AnyGroup | None:
+        """Session root group"""
         pass
 
     @property
@@ -54,6 +61,21 @@ class AnySession(ABC):
     @abstractmethod
     def parent(self) -> TAnySession | None:
         """Parent session"""
+        pass
+
+    @abstractmethod
+    def task_path(self) -> str:
+        """Main task's path"""
+        pass
+
+    @property
+    def final_result(self) -> Any:
+        """Main task's result"""
+        pass
+
+    @abstractmethod
+    def set_main_task(self, main_task: any_task.AnyTask):
+        """Set main task"""
         pass
 
     @abstractmethod
