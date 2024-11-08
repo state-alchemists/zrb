@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -6,6 +7,7 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from typing import Any
+from urllib.parse import urlparse, parse_qs
 
 from ..config import BANNER, SESSION_LOG_DIR, WEB_HTTP_PORT
 from ..context.any_context import AnyContext
@@ -16,7 +18,7 @@ from ..session_state_logger.default_session_state_logger import (
     default_session_state_logger,
 )
 from ..task.any_task import AnyTask
-from ..util.group import extract_node_from_args
+from ..util.group import extract_node_from_args, get_node_path
 from .web_app.group_info_ui.controller import handle_group_info_ui
 from .web_app.home_page.controller import handle_home_page
 from .web_app.task_ui.controller import handle_task_ui
@@ -43,14 +45,15 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         super().__init__(request=request, client_address=client_address, server=server)
 
     def do_GET(self):
-        if self.path in ["/", "/ui", "/ui/"]:
+        parsed_url = urlparse(self.path)
+        if parsed_url.path in ["/", "/ui", "/ui/"]:
             handle_home_page(self, self._root_group)
-        elif self.path == "/pico.min.css":
+        elif parsed_url.path == "/pico.min.css":
             self.send_css_response(os.path.join(_STATIC_DIR, "pico.min.css"))
-        elif self.path == "/favicon-32x32.png":
+        elif parsed_url.path == "/favicon-32x32.png":
             self.send_image_response(os.path.join(_STATIC_DIR, "favicon-32x32.png"))
-        elif self.path.startswith("/ui/"):
-            args = url_to_args(self.path[3:])
+        elif parsed_url.path.startswith("/ui/"):
+            args = url_to_args(parsed_url.path[3:])
             node, node_path, residual_args = extract_node_from_args(
                 self._root_group, args
             )
@@ -65,26 +68,25 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 handle_group_info_ui(self, self._root_group, node, url)
             else:
                 self.send_error(404, "Not Found")
-        elif self.path.startswith("/api/"):
-            args = url_to_args(self.path[5:])
+        elif parsed_url.path.startswith("/api/"):
+            args = url_to_args(parsed_url.path[5:])
             node, _, residual_args = extract_node_from_args(self._root_group, args)
             if isinstance(node, AnyTask) and len(residual_args) > 0:
-                try:
-                    session_name = residual_args[0]
-                    self.send_json_response(
-                        default_session_state_logger.read(session_name)
-                    )
-                except Exception as e:
-                    self.send_json_response({"error": f"{e}"}, 500)
-                    raise e
+                if residual_args[0] == "list":
+                    task_path = get_node_path(self._root_group, node)
+                    query_params = parse_qs(parsed_url.query)
+                    self.send_session_list_json_data(task_path, query_params)
+                else:
+                    self.send_session_json_data(residual_args[0])
             else:
                 self.send_error(404, "Not Found")
         else:
             self.send_error(404, "Not Found")
 
     def do_POST(self):
-        if self.path.startswith("/api/"):
-            args = url_to_args(self.path[5:])
+        parsed_url = urlparse(self.path)
+        if parsed_url.path.startswith("/api/"):
+            args = url_to_args(parsed_url.path[5:])
             task, _, residual_args = extract_node_from_args(self._root_group, args)
             session_name = residual_args[0] if len(residual_args) > 0 else None
             if not isinstance(task, AnyTask):
@@ -100,6 +102,47 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"session_name": session.name})
         else:
             self.send_error(404, "Not Found")
+
+    def send_session_list_json_data(
+        self, task_path: list[str], query_params: dict[str, list[Any]]
+    ):
+        print(query_params)
+        max_start_time = datetime.datetime.now()
+        if "to" in query_params and len(query_params["to"]) > 0:
+            max_start_time = datetime.datetime.strptime(
+                query_params["to"][0], "%Y-%m-%d %H:%M:%S"
+            )
+        min_start_time = max_start_time - datetime.timedelta(hours=1)
+        if "from" in query_params and len(query_params["from"]) > 0:
+            min_start_time = datetime.datetime.strptime(
+                query_params["from"][0], "%Y-%m-%d %H:%M:%S"
+            )
+        page = 0
+        if "page" in query_params and len(query_params["page"]) > 0:
+            page = int(query_params["page"][0])
+        limit = 10
+        if "limit" in query_params and len(query_params["limit"]) > 0:
+            limit = int(query_params["limit"][0])
+        try:
+            self.send_json_response(
+                default_session_state_logger.list(
+                    task_path,
+                    min_start_time=min_start_time,
+                    max_start_time=max_start_time,
+                    page=page,
+                    limit=limit
+                )
+            )
+        except Exception as e:
+            self.send_json_response({"error": f"{e}"}, 500)
+
+    def send_session_json_data(self, session_name: str):
+        try:
+            self.send_json_response(
+                default_session_state_logger.read(session_name)
+            )
+        except Exception as e:
+            self.send_json_response({"error": f"{e}"}, 500)
 
     def send_json_response(self, data: Any, http_status: int = 200):
         self.send_response(http_status)
