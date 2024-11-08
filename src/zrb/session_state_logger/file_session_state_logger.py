@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 
@@ -10,18 +11,16 @@ class FileSessionStateLogger(AnySessionStateLogger):
     def __init__(self, session_log_dir: str):
         self._session_log_dir = session_log_dir
 
-    def write(self, session_log: SessionStateLog, session_parent_name: str | None):
+    def write(self, session_log: SessionStateLog):
         session_file_path = self._get_session_file_path(session_log["name"])
         with open(session_file_path, "w") as f:
             f.write(json.dumps(session_log))
-        if session_parent_name is None:
+        start_time = self._get_start_time(session_log)
+        if start_time is None:
             return
-        relation_dir_path = self._get_children_dir_path(session_parent_name)
-        self._prepare_children_dir(relation_dir_path)
-        last_page = self._get_children_last_page(relation_dir_path)
-        last_page_dir_path = os.path.join(relation_dir_path, f"{last_page}")
-        os.makedirs(last_page_dir_path, exist_ok=True)
-        with open(os.path.join(last_page_dir_path, session_log["name"]), "w"):
+        timeline_dir_path = self._get_timeline_dir_path(session_log, start_time)
+        os.makedirs(timeline_dir_path, exist_ok=True)
+        with open(os.path.join(timeline_dir_path, session_log["name"]), "w"):
             pass
 
     def read(self, session_name: str) -> SessionStateLog:
@@ -29,43 +28,69 @@ class FileSessionStateLogger(AnySessionStateLogger):
         with open(session_file_path, "r") as f:
             return json.loads(f.read())
 
-    def read_children(self, session_name: str, page: int) -> list[SessionStateLog]:
-        pass
+    def list(
+        self,
+        task_path: list[str],
+        min_start_time: datetime.datetime,
+        max_start_time: datetime.datetime,
+        page: int = 0,
+        limit: int = 10,
+    ) -> list[SessionStateLog]:
+        matching_sessions = []
+        # Traverse the timeline directory and filter sessions
+        timeline_dir = os.path.join(self._session_log_dir, "_timeline", *task_path)
+        if not os.path.exists(timeline_dir):
+            return []
+        for root, _, files in os.walk(timeline_dir):
+            for file_name in files:
+                session_name = os.path.splitext(file_name)[0]
+                # Read the session and retrieve start time
+                session_log = self.read(session_name)
+                start_time = self._get_start_time(session_log)
+                # Filter sessions based on start time
+                if start_time and min_start_time <= start_time <= max_start_time:
+                    matching_sessions.append((start_time, session_log))
+        # Sort sessions by start time
+        matching_sessions.sort(key=lambda x: x[0])
+        # Apply pagination
+        start_index = page * limit
+        end_index = start_index + limit
+        paginated_sessions = matching_sessions[start_index:end_index]
+        # Extract session logs from the sorted list of tuples
+        return [session_log for _, session_log in paginated_sessions]
 
     def _get_session_file_path(self, session_name: str) -> str:
         return os.path.join(self._session_log_dir, f"{session_name}.json")
 
-    def _get_children_dir_path(self, session_parent_name: str):
-        return os.path.join(self._session_log_dir, "children", session_parent_name)
-
-    def _prepare_children_dir(self, children_dir_path: str):
-        os.makedirs(children_dir_path, exist_ok=True)
-        last_page = self._get_children_last_page(children_dir_path)
-        if last_page is None:
-            os.makedirs(os.path.join(children_dir_path, "0"), exist_ok=True)
-            last_page = 0
-        if self._get_child_count(children_dir_path, last_page) >= 5:
-            os.makedirs(
-                os.path.join(children_dir_path, f"{last_page + 1}"), exist_ok=True
-            )
-
-    def _get_child_count(self, children_dir_path: str, page: int) -> int:
-        path = os.path.join(children_dir_path, str(page))
-        return sum(
-            1 for entry in os.listdir(path) if os.path.isfile(os.path.join(path, entry))
-        )
-
-    def _get_children_last_page(self, children_dir_path: str) -> int:
-        last_page = self._get_children_existing_last_page(children_dir_path)
-        if last_page is None:
-            os.makedirs(os.path.join(children_dir_path, "0"), exist_ok=True)
-            last_page = 0
-        return last_page
-
-    def _get_children_existing_last_page(self, children_dir_path: str) -> int | None:
-        numeric_dirs = [
-            int(name)
-            for name in os.listdir(children_dir_path)
-            if os.path.isdir(os.path.join(children_dir_path, name)) and name.isdigit()
+    def _get_timeline_dir_path(
+        self, session_log: SessionStateLog, start_time: datetime.datetime
+    ) -> str:
+        year = start_time.year
+        month = start_time.month
+        day = start_time.day
+        hour = start_time.hour
+        minute = start_time.minute
+        second = start_time.second
+        paths = session_log["path"] + [
+            f"{year}",
+            f"{month}",
+            f"{day}",
+            f"{hour}",
+            f"{minute}",
+            f"{second}",
         ]
-        return max(numeric_dirs, default=None)
+        return os.path.join(self._session_log_dir, "_timeline", *paths)
+
+    def _get_start_time(self, session_log: SessionStateLog) -> datetime.datetime:
+        result: datetime.datetime | None = None
+        for task_status in session_log["task_status"].values():
+            histories = task_status["history"]
+            if len(histories) == 0:
+                continue
+            first_history = histories[0]
+            first_time = datetime.datetime.strptime(
+                first_history["time"], "%Y-%m-%d %H:%M:%S.%f"
+            )
+            if result is None or first_time < result:
+                result = first_time
+        return result

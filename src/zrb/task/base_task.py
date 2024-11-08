@@ -229,12 +229,11 @@ class BaseTask(AnyTask):
             ctx.log_debug(session)
 
     async def _log_session_state(self, session: AnySession):
-        parent_name = None if session.parent is None else session.parent.name
-        session.state_logger.write(session.as_state_log(), parent_name)
+        session.state_logger.write(session.as_state_log())
         while not session.is_terminated:
             await asyncio.sleep(0.1)
-            session.state_logger.write(session.as_state_log(), parent_name)
-        session.state_logger.write(session.as_state_log(), parent_name)
+            session.state_logger.write(session.as_state_log())
+        session.state_logger.write(session.as_state_log())
 
     async def exec_chain(self, session: AnySession):
         if session.is_terminated or not session.is_allowed_to_run(self):
