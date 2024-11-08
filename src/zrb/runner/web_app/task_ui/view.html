@@ -15,8 +15,10 @@
         <p>{root_description}</p>
         <nav>
           <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="{parent_url}">Parent</a></li>
+            <li><a href="/">🏠 Home</a></li>
+            <li><a href="{parent_url}">🔙 Parent</a></li>
+            <li><a href="{ui_url}">🆕 New Session</a></li>
+            <li><a href="{ui_url}">📂 Existing Session</a></li>
           </ul>
         </nav>
       </hgroup>
@@ -28,7 +30,7 @@
       <hr />
       <form id="submit-task-form" onsubmit="submitForm(event)">
         {task_inputs}
-        <button>Run</button>
+        <button>🚀 Run</button>
       </form>
       <hr />
       <label>

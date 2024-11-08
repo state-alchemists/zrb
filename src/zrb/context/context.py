@@ -106,7 +106,7 @@ class Context(AnyContext):
             attempt_status = f"{self._attempt}/{self._max_attempt}".ljust(5)
         now = datetime.datetime.now()
         formatted_time = now.strftime("%y%m%d %H:%M:%S.%f")[:19]
-        prefix = f"{formatted_time} {attempt_status} {icon} {task_name}"
+        prefix = f"{formatted_time} {attempt_status} {icon} {task_name} ⬤ "
         message = sep.join([f"{value}" for value in values])
         self.append_to_shared_log(_remove_ansi_escape_sequences(f"{prefix} {message}"))
         stylized_prefix = stylize(prefix, color=color)

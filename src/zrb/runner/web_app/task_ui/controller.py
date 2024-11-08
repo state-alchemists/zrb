@@ -36,6 +36,10 @@ def handle_task_ui(
     api_url_parts = list(url_parts)
     api_url_parts[1] = "api"
     api_url = "/".join(api_url_parts)
+    # Assemble ui url
+    ui_url_parts = list(api_url_parts)
+    ui_url_parts[1] = "ui"
+    ui_url = "/".join(ui_url_parts)
     task_inputs = "\n".join(
         [
             fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
@@ -55,6 +59,7 @@ def handle_task_ui(
                 "parent_url": parent_url,
                 "task_inputs": task_inputs,
                 "api_url": api_url,
+                "ui_url": ui_url,
                 "script": _SCRIPT,
                 "session_name": session_name,
             },
