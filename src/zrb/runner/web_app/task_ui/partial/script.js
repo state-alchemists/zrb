@@ -1,29 +1,151 @@
 window.addEventListener("load", async function () {
+    // Get current session
+    if (SESSION_NAME != "") {
+        pollSession();
+    }
     // set maxStartDate to today
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);  // Move to the next day
     tomorrow.setHours(0, 0, 0, 0);
-    const formattedTomorrow = formatLocalDate(tomorrow);
+    const formattedTomorrow = toLocalDateInputValue(tomorrow);
     const maxStartAtInput = document.getElementById("max-start-at-input");
     maxStartAtInput.value = formattedTomorrow;
     // set minStartDate to yesterday
     const today = new Date();
     today.setHours(0, 0, 0, 0);  // Set time to 00:00:00
-    const formattedToday = formatLocalDate(today);
+    const formattedToday = toLocalDateInputValue(today);
     const minStartAtInput = document.getElementById("min-start-at-input");
     minStartAtInput.value = formattedToday;
-    if (SESSION_NAME != "") {
-        pollSession();
-    }
+    // Update session
+    getExistingSessions(0);
 });
 
-function formatLocalDate(date) {
+
+async function getExistingSessions(page) {
+    const minStartAtInput = document.getElementById("min-start-at-input");
+    const minStartAt = formatDate(minStartAtInput.value);
+    const maxStartAtInput = document.getElementById("max-start-at-input");
+    const maxStartAt = formatDate(maxStartAtInput.value);
+    console.log(minStartAt);
+    const queryString = new URLSearchParams({
+        page: page,
+        from: minStartAt,
+        to: maxStartAt,
+    }).toString();
+    try {
+        // Send the AJAX request
+        const response = await fetch(`${API_URL}list?${queryString}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+        });
+        const {total, data} = await response.json();
+        const ul = document.getElementById("session-history-ul");
+        ul.innerHTML = '';  // Clear existing content
+        data.forEach(item => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.textContent = `${item.name} - ${item.start_time}`;
+            a.target = '_blank';
+            a.href = `${UI_URL}${item.name}`;
+            li.appendChild(a);
+            ul.appendChild(li);
+        }); 
+        const paginationUl = document.getElementById("session-history-pagination-ul");
+        paginationUl.innerHTML = '';  // Clear previous pagination
+
+        const totalPages = Math.ceil(total / 10);  // Calculate total pages based on page size
+        const maxPagesToShow = 5;  // Number of pages to display around the current page
+        const halfMaxPages = Math.floor(maxPagesToShow / 2);
+        
+        // Add first page and previous controls
+        if (page > 0) {
+            paginationUl.appendChild(createPageLink("⟪", 0));  // Go to first page
+            paginationUl.appendChild(createPageLink("⟨", page - 1));  // Go to previous page
+        }
+
+        let startPage = Math.max(0, page - halfMaxPages);
+        let endPage = Math.min(totalPages - 1, page + halfMaxPages);
+
+        if (page <= halfMaxPages) {
+            endPage = Math.min(totalPages - 1, maxPagesToShow - 1);
+        } else if (page + halfMaxPages >= totalPages) {
+            startPage = Math.max(0, totalPages - maxPagesToShow);
+        }
+
+        if (startPage > 1) {
+            paginationUl.appendChild(createEllipsis());
+        }
+
+        // Add page links within the calculated range
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === page) {
+                const pageLi = document.createElement('li');
+                pageLi.textContent = i + 1;
+                paginationUl.append(pageLi)
+            } else {
+                paginationUl.appendChild(createPageLink(i + 1, i))
+            }
+        }
+
+        // Add ellipsis after the end page if needed
+        if (endPage < totalPages - 2) {
+            paginationUl.appendChild(createEllipsis());
+        }
+
+        // Add next and last page controls
+        if (page < totalPages - 1) {
+            paginationUl.appendChild(createPageLink("⟩", page + 1));  // Go to next page
+            paginationUl.appendChild(createPageLink("⟫", totalPages - 1));  // Go to last page
+        }
+
+        console.log("Success:", data);
+    } catch (error) {
+        console.error("Error:", error);
+    }
+}
+
+
+function createPageLink(text, page) {
+    const li = document.createElement('li');
+    const link = document.createElement('a');
+    link.textContent = text;
+    link.href = '#';
+    link.onclick = (e) => {
+        e.preventDefault();
+        getExistingSessions(page);
+    };
+    li.appendChild(link);
+    return li;
+}
+
+function createEllipsis() {
+    const li = document.createElement('li');
+    li.textContent = '...';
+    return li;
+}
+
+
+function toLocalDateInputValue(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');  // Months are 0-indexed
   const day = String(date.getDate()).padStart(2, '0');
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 function openDialog(event) {
@@ -69,6 +191,7 @@ async function submitForm(event) {
         console.log("Success:", data);
         SESSION_NAME = data.session_name;
         history.pushState(null, "", `${CURRENT_URL}${SESSION_NAME}`);
+        getExistingSessions(0);
         await pollSession();
     } catch (error) {
         console.error("Error:", error);

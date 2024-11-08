@@ -2,7 +2,7 @@ import datetime
 import json
 import os
 
-from ..session_state_log.session_state_log import SessionStateLog
+from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogs
 from .any_session_state_logger import AnySessionStateLogger
 
 
@@ -35,12 +35,12 @@ class FileSessionStateLogger(AnySessionStateLogger):
         max_start_time: datetime.datetime,
         page: int = 0,
         limit: int = 10,
-    ) -> list[SessionStateLog]:
+    ) -> SessionStateLogs:
         matching_sessions = []
         # Traverse the timeline directory and filter sessions
         timeline_dir = os.path.join(self._session_log_dir, "_timeline", *task_path)
         if not os.path.exists(timeline_dir):
-            return []
+            return {"total": 0, "data": []}
         for root, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]
@@ -52,12 +52,14 @@ class FileSessionStateLogger(AnySessionStateLogger):
                     matching_sessions.append((start_time, session_log))
         # Sort sessions by start time, descending
         matching_sessions.sort(key=lambda x: x[0], reverse=True)
+        total = len(matching_sessions)
         # Apply pagination
         start_index = page * limit
         end_index = start_index + limit
         paginated_sessions = matching_sessions[start_index:end_index]
         # Extract session logs from the sorted list of tuples
-        return [session_log for _, session_log in paginated_sessions]
+        data = [session_log for _, session_log in paginated_sessions]
+        return {"total": total, "data": data}
 
     def _get_session_file_path(self, session_name: str) -> str:
         return os.path.join(self._session_log_dir, f"{session_name}.json")

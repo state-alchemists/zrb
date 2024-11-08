@@ -18,9 +18,15 @@ class TaskStatusStateLog(TypedDict):
 
 class SessionStateLog(TypedDict):
     name: str
+    start_time: str
     path: list[str]
     input: dict[str, Any]
     final_result: str
     finished: bool
     log: list[str]
     task_status: dict[str, TaskStatusStateLog]
+
+
+class SessionStateLogs(TypedDict):
+    total: int
+    data: list[SessionStateLog]

@@ -135,7 +135,7 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-cli = Cli(name="zrb", description="A framework to enhance your workflow", banner=BANNER)
+cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=BANNER)
 
 cli.add_task(
     Task(

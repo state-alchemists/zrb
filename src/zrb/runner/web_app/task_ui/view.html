@@ -33,20 +33,20 @@
             <strong>📂 Existing Session</strong>
           </p>
         </header>
-        <form>
-          <fieldset class="grid">
-            <input type="datetime-local" id="min-start-at-input" placeholder="Minimum Start Time" aria-label="Minimum Start Time" />
-            <input type="datetime-local" id="max-start-at-input" placeholder="Maximum Start Time" aria-label="Maximum Start Time" />
-          </fieldset>
-        </form>
-        <p>
-          Thank you for signing up for a membership!
-          Please review the membership details below:
-        </p>
-        <ul>
-          <li>Membership: Individual</li>
-          <li>Price: $10</li>
-        </ul>
+        <main>
+          <form>
+            <fieldset class="grid">
+              <input type="datetime-local" id="min-start-at-input" placeholder="Minimum Start Time" aria-label="Minimum Start Time" />
+              <input type="datetime-local" id="max-start-at-input" placeholder="Maximum Start Time" aria-label="Maximum Start Time" />
+            </fieldset>
+          </form>
+          <ul id="session-history-ul" style="font-family:monospace;"></ul>
+        </main>
+        <footer>
+          <nav>
+            <ul id="session-history-pagination-ul"></ul>
+          </nav>
+        </footer>
       </article>
     </dialog>
 
@@ -74,8 +74,9 @@
 
   </body>
   <script>
-    const CURRENT_URL = '{url}'
+    const CURRENT_URL = '{url}';
     const API_URL = '{api_url}';
+    const UI_URL = `{ui_url}`;
     let SESSION_NAME = '{session_name}';
     {script} 
   </script>

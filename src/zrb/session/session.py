@@ -122,8 +122,13 @@ class Session(AnySession):
                     for status, status_at in task_status.history
                 ],
             }
+        start_time = ""
+        histories = self.status[self._main_task].history
+        if len(histories) > 0:
+            start_time = histories[0][1].strftime("%Y-%m-%d %H:%M:%S.%f")
         return {
             "name": self.name,
+            "start_time": start_time,
             "path": self.task_path,
             "final_result": (
                 f"{self.final_result}" if self.final_result is not None else ""
