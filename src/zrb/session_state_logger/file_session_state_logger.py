@@ -50,8 +50,8 @@ class FileSessionStateLogger(AnySessionStateLogger):
                 # Filter sessions based on start time
                 if start_time and min_start_time <= start_time <= max_start_time:
                     matching_sessions.append((start_time, session_log))
-        # Sort sessions by start time
-        matching_sessions.sort(key=lambda x: x[0])
+        # Sort sessions by start time, descending
+        matching_sessions.sort(key=lambda x: x[0], reverse=True)
         # Apply pagination
         start_index = page * limit
         end_index = start_index + limit

@@ -9,6 +9,7 @@
     <title>Zrb</title>
   </head>
   <body>
+
     <header class="container">
       <hgroup>
         <h1>{root_name}</h1>
@@ -18,11 +19,37 @@
             <li><a href="/">🏠 Home</a></li>
             <li><a href="{parent_url}">🔙 Parent</a></li>
             <li><a href="{ui_url}">🆕 New Session</a></li>
-            <li><a href="{ui_url}">📂 Existing Session</a></li>
+            <li><a href="#" onclick="openDialog(event)">📂 Existing Session</a></li>
           </ul>
         </nav>
       </hgroup>
     </header>
+
+    <dialog id="session-history-dialog">
+      <article>
+        <header>
+          <button aria-label="Close" rel="prev" onclick="closeDialog(event)"></button>
+          <p>
+            <strong>📂 Existing Session</strong>
+          </p>
+        </header>
+        <form>
+          <fieldset class="grid">
+            <input type="datetime-local" id="min-start-at-input" placeholder="Minimum Start Time" aria-label="Minimum Start Time" />
+            <input type="datetime-local" id="max-start-at-input" placeholder="Maximum Start Time" aria-label="Maximum Start Time" />
+          </fieldset>
+        </form>
+        <p>
+          Thank you for signing up for a membership!
+          Please review the membership details below:
+        </p>
+        <ul>
+          <li>Membership: Individual</li>
+          <li>Price: $10</li>
+        </ul>
+      </article>
+    </dialog>
+
     <main class="container">
       <h3>{name}</h3>
       <p>{description}</p>
@@ -44,6 +71,7 @@
         </textarea>
       </label>
     </main>
+
   </body>
   <script>
     const CURRENT_URL = '{url}'

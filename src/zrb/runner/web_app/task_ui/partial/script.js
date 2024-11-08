@@ -1,8 +1,43 @@
 window.addEventListener("load", async function () {
+    // set maxStartDate to today
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);  // Move to the next day
+    tomorrow.setHours(0, 0, 0, 0);
+    const formattedTomorrow = formatLocalDate(tomorrow);
+    const maxStartAtInput = document.getElementById("max-start-at-input");
+    maxStartAtInput.value = formattedTomorrow;
+    // set minStartDate to yesterday
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);  // Set time to 00:00:00
+    const formattedToday = formatLocalDate(today);
+    const minStartAtInput = document.getElementById("min-start-at-input");
+    minStartAtInput.value = formattedToday;
     if (SESSION_NAME != "") {
         pollSession();
     }
 });
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');  // Months are 0-indexed
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function openDialog(event) {
+    event.preventDefault();
+    const dialog = document.getElementById("session-history-dialog")
+    dialog.showModal();
+}
+
+
+function closeDialog(event) {
+    event.preventDefault();
+    const dialog = document.getElementById("session-history-dialog")
+    dialog.close();
+}
 
 
 async function submitForm(event) {
