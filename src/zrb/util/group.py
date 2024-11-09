@@ -40,6 +40,8 @@ def extract_node_from_args(
 
 
 def get_node_path(group: AnyGroup, node: AnyGroup | AnyTask) -> list[str] | None:
+    if group is None:
+        return []
     if isinstance(node, AnyTask):
         for alias, subtask in group.subtasks.items():
             if subtask == node:

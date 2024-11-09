@@ -1,10 +1,6 @@
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-
-[🫰 Installation](https://github.com/state-alchemists/zrb/blob/main/docs/installation.md) | [📖 Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [🏁 Getting Started](https://github.com/state-alchemists/zrb/blob/main/docs/getting-started.md) | [💃 Common Mistakes](https://github.com/state-alchemists/zrb/blob/main/docs/common-mistakes/README.md) | [❓ FAQ](https://github.com/state-alchemists/zrb/blob/main/docs/faq/README.md)
-
-
-# 🤖 Zrb: A Framework to Enhance Your Workflow
+# 🤖 Zrb: Your Automation Powerhouse
 
 Zrb is a [CLI-based](https://en.wikipedia.org/wiki/Command-line_interface) automation [tool](https://en.wikipedia.org/wiki/Programming_tool) and [low-code](https://en.wikipedia.org/wiki/Low-code_development_platform) platform. Zrb can help you to:
 
