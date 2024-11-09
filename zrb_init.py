@@ -8,7 +8,7 @@ _DIR = os.path.dirname(__file__)
 
 test_group = cli.add_group(Group("test", description="Testing zrb"))
 
-_clean_up_resources = CmdTask(
+clean_up_resources = CmdTask(
     name="clean-up-resources",
     cwd=os.path.join(_DIR, "test"),
     cmd=[
@@ -16,7 +16,7 @@ _clean_up_resources = CmdTask(
     ]
 )
 
-_start_test_docker_compose = CmdTask(
+start_test_docker_compose = CmdTask(
     name="start-test-compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down && docker compose up",
@@ -25,9 +25,9 @@ _start_test_docker_compose = CmdTask(
         port=2222
     )
 )
-_clean_up_resources >> _start_test_docker_compose
+clean_up_resources >> start_test_docker_compose
 
-_run_integration_test = CmdTask(
+run_test = CmdTask(
     name="run-integration-test",
     input=StrInput(
         name="test",
@@ -39,24 +39,24 @@ _run_integration_test = CmdTask(
     cmd="./zrb-test.sh {ctx.input.test}",
     retries=0,
 )
-_start_test_docker_compose >> _run_integration_test
+start_test_docker_compose >> run_test
 
-_stop_test_docker_compose = CmdTask(
+stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
     description="Start docker compose for testing, run test, then remove the docker compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down"
 )
-_run_integration_test >> _stop_test_docker_compose
+run_test >> stop_test_docker_compose
 
-run_test = Task(
+prepare_and_run_test = Task(
     name="run-test",
     action=lambda ctx: ctx.xcom["run-integration-test"].pop_value(),
     cli_only=True
 )
-_stop_test_docker_compose >> run_test
+stop_test_docker_compose >> prepare_and_run_test
 
-test_group.add_task(run_test, "run")
+test_group.add_task(prepare_and_run_test, "run")
 
 # FORMAT ============================================================================
 
@@ -70,3 +70,13 @@ cli.add_task(CmdTask(
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
     load_file(playground_zrb_init_path)
+
+# Publish ===========================================================================
+
+
+cli.add_task(CmdTask(
+    name="publish",
+    description="Publish Zrb",
+    cwd=_DIR,
+    cmd=CmdPath(os.path.join(_DIR, "zrb-publish.sh"))
+))

@@ -70,8 +70,11 @@ zrb start-server
 
 Result (you need to access `http://localhost:21213`)
 
-![](https://raw.githubusercontent.com/state-alchemists/zrb/1.0.0/_images/web.png)
+![](https://raw.githubusercontent.com/state-alchemists/zrb/refs/heads/1.0.0/_images/web.png)
 
+__More:__
+
+[![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
 
 # 🫰 Installing Zrb
@@ -79,7 +82,7 @@ Result (you need to access `http://localhost:21213`)
 You can install Zrb as a pip package by invoking the following command:
 
 ```bash
-pip install zrb
+pip install --pre zrb
 ```
 
 Alternatively, you can also use our installation script to install Zrb along with some prerequisites:
