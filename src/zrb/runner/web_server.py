@@ -7,7 +7,7 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from typing import Any
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 from ..config import BANNER, SESSION_LOG_DIR, WEB_HTTP_PORT
 from ..context.any_context import AnyContext
@@ -130,7 +130,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                     min_start_time=min_start_time,
                     max_start_time=max_start_time,
                     page=page,
-                    limit=limit
+                    limit=limit,
                 )
             )
         except Exception as e:
@@ -138,9 +138,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 
     def send_session_json_data(self, session_name: str):
         try:
-            self.send_json_response(
-                default_session_state_logger.read(session_name)
-            )
+            self.send_json_response(default_session_state_logger.read(session_name))
         except Exception as e:
             self.send_json_response({"error": f"{e}"}, 500)
 

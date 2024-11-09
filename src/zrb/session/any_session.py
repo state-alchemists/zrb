@@ -38,12 +38,6 @@ class AnySession(ABC):
 
     @property
     @abstractmethod
-    def status(self) -> dict[any_task.AnyTask, TaskStatus]:
-        """Global task status of this session"""
-        pass
-
-    @property
-    @abstractmethod
     def shared_ctx(self) -> any_shared_context.AnySharedContext:
         """Shared context for this session"""
         pass

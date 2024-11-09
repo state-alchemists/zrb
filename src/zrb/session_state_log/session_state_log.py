@@ -14,11 +14,13 @@ class TaskStatusStateLog(TypedDict):
     is_skipped: bool
     is_failed: bool
     is_permanently_failed: bool
+    is_terminated: bool
 
 
 class SessionStateLog(TypedDict):
     name: str
     start_time: str
+    main_task_name: str
     path: list[str]
     input: dict[str, Any]
     final_result: str
@@ -27,6 +29,6 @@ class SessionStateLog(TypedDict):
     task_status: dict[str, TaskStatusStateLog]
 
 
-class SessionStateLogs(TypedDict):
+class SessionStateLogList(TypedDict):
     total: int
     data: list[SessionStateLog]

@@ -2,7 +2,7 @@ import datetime
 import json
 import os
 
-from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogs
+from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from .any_session_state_logger import AnySessionStateLogger
 
 
@@ -35,7 +35,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         max_start_time: datetime.datetime,
         page: int = 0,
         limit: int = 10,
-    ) -> SessionStateLogs:
+    ) -> SessionStateLogList:
         matching_sessions = []
         # Traverse the timeline directory and filter sessions
         timeline_dir = os.path.join(self._session_log_dir, "_timeline", *task_path)

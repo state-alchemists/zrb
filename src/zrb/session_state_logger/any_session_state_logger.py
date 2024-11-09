@@ -1,7 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod
 
-from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogs
+from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 
 
 class AnySessionStateLogger(ABC):
@@ -22,5 +22,5 @@ class AnySessionStateLogger(ABC):
         max_start_time: datetime.datetime,
         page: int = 0,
         limit: int = 10,
-    ) -> SessionStateLogs:
+    ) -> SessionStateLogList:
         pass

@@ -14,8 +14,14 @@ with open(os.path.join(_DIR, "view.html"), "r") as f:
 with open(os.path.join(_DIR, "partial", "input.html")) as f:
     _TASK_INPUT_TEMPLATE = f.read()
 
-with open(os.path.join(_DIR, "partial", "script.js")) as f:
-    _SCRIPT = f.read()
+with open(os.path.join(_DIR, "partial", "main.js")) as f:
+    _MAIN_SCRIPT = f.read()
+
+with open(os.path.join(_DIR, "partial", "show-existing-session.js")) as f:
+    _SHOW_EXISTING_SESSION_SCRIPT = f.read()
+
+with open(os.path.join(_DIR, "partial", "visualize-history.js")) as f:
+    _VISUALIZE_HISTORY_SCRIPT = f.read()
 
 
 def handle_task_ui(
@@ -60,7 +66,9 @@ def handle_task_ui(
                 "task_inputs": task_inputs,
                 "api_url": api_url,
                 "ui_url": ui_url,
-                "script": _SCRIPT,
+                "main_script": _MAIN_SCRIPT,
+                "show_existing_session_script": _SHOW_EXISTING_SESSION_SCRIPT,
+                "visualize_history_script": _VISUALIZE_HISTORY_SCRIPT,
                 "session_name": session_name,
             },
         )

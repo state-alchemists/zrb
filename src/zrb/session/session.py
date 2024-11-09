@@ -63,15 +63,13 @@ class Session(AnySession):
         return self._root_group
 
     @property
-    def status(self) -> dict[AnyTask, TaskStatus]:
-        return self._task_status
-
-    @property
     def shared_ctx(self) -> AnySharedContext:
         return self._shared_ctx
 
     def terminate(self):
         self._is_terminated = True
+        for task_status in self._task_status.values():
+            task_status.mark_as_terminated()
 
     @property
     def is_terminated(self) -> bool:
@@ -106,7 +104,7 @@ class Session(AnySession):
 
     def as_state_log(self) -> SessionStateLog:
         task_status_log: dict[str, TaskStatusStateLog] = {}
-        for task, task_status in self.status.items():
+        for task, task_status in self._task_status.items():
             task_status_log[task.name] = {
                 "is_started": task_status.is_started,
                 "is_ready": task_status.is_ready,
@@ -114,6 +112,7 @@ class Session(AnySession):
                 "is_skipped": task_status.is_skipped,
                 "is_failed": task_status.is_failed,
                 "is_permanently_failed": task_status.is_permanently_failed,
+                "is_terminated": task_status.is_terminated,
                 "history": [
                     {
                         "status": status,
@@ -122,13 +121,9 @@ class Session(AnySession):
                     for status, status_at in task_status.history
                 ],
             }
-        start_time = ""
-        histories = self.status[self._main_task].history
-        if len(histories) > 0:
-            start_time = histories[0][1].strftime("%Y-%m-%d %H:%M:%S.%f")
         return {
             "name": self.name,
-            "start_time": start_time,
+            "main_task_name": self._main_task.name,
             "path": self.task_path,
             "final_result": (
                 f"{self.final_result}" if self.final_result is not None else ""

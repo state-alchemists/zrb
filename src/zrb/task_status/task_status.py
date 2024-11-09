@@ -6,6 +6,7 @@ TASK_COMPLETED = "completed"
 TASK_SKIPPED = "skipped"
 TASK_FAILED = "failed"
 TASK_PERMANENTLY_FAILED = "permanently-failed"
+TASK_TERMINATED = "terminated"
 TASK_RESET = "reset"
 
 
@@ -18,6 +19,7 @@ class TaskStatus:
         self._is_skipped: bool = False
         self._is_failed: bool = False
         self._is_permanently_failed: bool = False
+        self._is_terminated: bool = False
 
     def __repr__(self):
         return f"<TaskStatus {self._history}>"
@@ -59,6 +61,11 @@ class TaskStatus:
         self._is_permanently_failed = True
         self._history.append((TASK_PERMANENTLY_FAILED, datetime.datetime.now()))
 
+    def mark_as_terminated(self):
+        self._is_terminated = True
+        if not self.is_completed and not self.is_permanently_failed:
+            self._history.append((TASK_TERMINATED, datetime.datetime.now()))
+
     @property
     def is_started(self) -> bool:
         return self._is_started
@@ -84,8 +91,12 @@ class TaskStatus:
         return self._is_permanently_failed
 
     @property
+    def is_terminated(self) -> bool:
+        return self._is_terminated
+
+    @property
     def allow_run_downstream(self):
-        if self.is_failed or self.is_permanently_failed:
+        if self.is_failed or self.is_permanently_failed or self.is_terminated:
             return False
         return self.is_skipped or self.is_ready
 
