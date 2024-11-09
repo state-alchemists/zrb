@@ -166,11 +166,7 @@ class BaseTask(AnyTask):
     def run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
-        try:
-            return asyncio.run(self.async_run(session, str_kwargs))
-        except KeyboardInterrupt:
-            ctx = session.get_ctx(self)
-            ctx.log_info("Terminating sesion because of keyboard interrupt")
+        return asyncio.run(self.async_run(session, str_kwargs))
 
     async def async_run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
@@ -204,6 +200,7 @@ class BaseTask(AnyTask):
 
     async def exec_root_tasks(self, session: AnySession):
         session.set_main_task(self)
+        session.state_logger.write(session.as_state_log())
         log_state = asyncio.create_task(self._log_session_state(session))
         root_tasks = [
             task
@@ -222,11 +219,11 @@ class BaseTask(AnyTask):
         except IndexError:
             return None
         except asyncio.CancelledError:
-            session.terminate()
-            session.state_logger.write(session.as_state_log())
             ctx = session.get_ctx(self)
             ctx.log_info("Session terminated")
         finally:
+            session.terminate()
+            session.state_logger.write(session.as_state_log())
             ctx = session.get_ctx(self)
             ctx.log_debug(session)
 

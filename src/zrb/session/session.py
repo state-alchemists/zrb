@@ -50,7 +50,7 @@ class Session(AnySession):
     def __repr__(self):
         class_name = self.__class__.__name__
         name = self.name
-        status = self.status
+        status = self._task_status
         shared_ctx = self.shared_ctx
         return f"<{class_name} name={name} status={status}, shared_ctx={shared_ctx}>"
 
