@@ -143,6 +143,7 @@ class CmdTask(BaseTask):
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
+        return envs
 
     async def __read_stream(self, stream, log_method, max_lines):
         lines = []

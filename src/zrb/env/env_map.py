@@ -27,7 +27,7 @@ class EnvMap(AnyEnv):
                 value = os.getenv(os_name, default_value)
             else:
                 value = default_value
-            shared_ctx.env[self._name] = value
+            shared_ctx.env[name] = value
 
     def _get_env_map(self, shared_ctx: SharedContext) -> dict[str, str]:
         if callable(self._env_map):
