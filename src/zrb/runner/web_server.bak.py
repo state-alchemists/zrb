@@ -38,12 +38,10 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         root_group: AnyGroup,
         event_loop: asyncio.AbstractEventLoop,
         session_dir: str,
-        coros: list,
     ):
         self._root_group = root_group
         self._event_loop = event_loop
         self._session_dir = session_dir
-        self._coros = coros
         super().__init__(request=request, client_address=client_address, server=server)
 
     def do_GET(self):
@@ -97,12 +95,10 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 str_kwargs: dict[str, str] = self.read_json_request()
                 shared_ctx = SharedContext(env=dict(os.environ))
                 session = Session(shared_ctx=shared_ctx, root_group=self._root_group)
-                coro = asyncio.run_coroutine_threadsafe(
+                asyncio.run_coroutine_threadsafe(
                     task.async_run(session, str_kwargs=str_kwargs),
                     self._event_loop,
                 )
-                self._coros.append(coro)
-                coro.add_done_callback(lambda coro: self._coros.remove(coro))
                 self.send_json_response({"session_name": session.name})
         else:
             self.send_error(404, "Not Found")
@@ -193,16 +189,14 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     server_address = ("", port)
     event_loop = asyncio.new_event_loop()
-    coros = []
     # Use functools.partial to bind the custom attribute
-    handler = partial(
+    handler_with_custom_attr = partial(
         WebRequestHandler,
         root_group=root_group,
         event_loop=event_loop,
         session_dir=SESSION_LOG_DIR,
-        coros=coros,
     )
-    httpd = ThreadingHTTPServer(server_address, handler)
+    httpd = ThreadingHTTPServer(server_address, handler_with_custom_attr)
     banner_lines = BANNER.split("\n") + [
         f"Zrb Server running on http://localhost:{port}"
     ]
@@ -210,15 +204,5 @@ def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_P
         ctx.print(line)
     loop_thread = Thread(target=start_event_loop, args=[event_loop], daemon=True)
     loop_thread.start()
-    try:
-        httpd.serve_forever()
-    finally:
-        for coro in coros:
-            coro.cancel()
-        httpd.shutdown()
-        httpd.server_close()
-        # Cancel all tasks
-        for task in asyncio.all_tasks(event_loop):
-            task.cancel()
-        event_loop.call_soon_threadsafe(event_loop.stop)
-        loop_thread.join()
+    httpd.serve_forever()
+    loop_thread.join()

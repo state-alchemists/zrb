@@ -21,6 +21,7 @@ class TestWebRequestHandler(unittest.TestCase):
 
     def setUp(self):
         self.root_group = Group(name="RootGroup")
+        self.coros = []
         # Create a mock request
         self.mock_request = Mock()
         self.mock_request.makefile.return_value = BytesIO()
@@ -44,6 +45,7 @@ class TestWebRequestHandler(unittest.TestCase):
             root_group=self.root_group,
             event_loop=self.event_loop,
             session_dir=_SESSION_DIR,
+            coros=self.coros,
         )
         # Mock the response methods and attributes
         self.handler.wfile = BytesIO()

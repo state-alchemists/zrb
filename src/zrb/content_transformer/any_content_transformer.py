@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from ..context.any_context import AnyContext
 
 
-class AnyTransformer(ABC):
+class AnyContentTransformer(ABC):
     @abstractmethod
     def match(self, ctx: AnyContext, file_path: str) -> bool:
         """

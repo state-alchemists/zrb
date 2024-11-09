@@ -10,8 +10,8 @@ def test_generate_with_basic_config():
         name="scaffold",
         source_path=os.path.join(_DIR, "template"),
         destination_path=os.path.join(_DIR, "test-generated-basic"),
-        rename_path={"project_name": "test_app"},
-        transformer={
+        transform_path={"project_name": "test_app"},
+        transform_content={
             "Project Name": "Test App",
             "Project description": "A fancy test application",
         },

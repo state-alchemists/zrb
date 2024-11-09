@@ -3,10 +3,10 @@ import re
 from collections.abc import Callable
 
 from ..context.any_context import AnyContext
-from .any_transformer import AnyTransformer
+from .any_content_transformer import AnyContentTransformer
 
 
-class Transformer(AnyTransformer):
+class ContentTransformer(AnyContentTransformer):
 
     def __init__(
         self,

@@ -12,6 +12,8 @@ from .callback.callback import Callback
 from .cmd.cmd_result import CmdResult
 from .cmd.cmd_val import Cmd, CmdPath
 from .config import SHOULD_LOAD_BUILTIN
+from .content_transformer.any_content_transformer import AnyContentTransformer
+from .content_transformer.content_transformer import ContentTransformer
 from .context.any_context import AnyContext
 from .context.any_shared_context import AnySharedContext
 from .context.context import Context
@@ -41,8 +43,6 @@ from .task.scaffolder import Scaffolder
 from .task.scheduler import Scheduler
 from .task.task import Task
 from .task.tcp_check import TcpCheck
-from .transformer.any_transformer import AnyTransformer
-from .transformer.transformer import Transformer
 from .xcom.xcom import Xcom
 
 assert fstring
@@ -83,8 +83,8 @@ assert Context
 assert AnySharedContext
 assert SharedContext
 assert make_task
-assert AnyTransformer
-assert Transformer
+assert AnyContentTransformer
+assert ContentTransformer
 assert Scaffolder
 assert Scheduler
 assert cli

@@ -3,11 +3,11 @@ import shutil
 from collections.abc import Callable
 
 from ..attr.type import BoolAttr, StrAttr
+from ..content_transformer.any_content_transformer import AnyContentTransformer
+from ..content_transformer.content_transformer import ContentTransformer
 from ..context.any_context import AnyContext
 from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
-from ..transformer.any_transformer import AnyTransformer
-from ..transformer.transformer import Transformer
 from ..util.attr import get_str_attr
 from .any_task import AnyTask
 from .base_task import BaseTask
@@ -29,8 +29,10 @@ class Scaffolder(BaseTask):
         auto_render_source_path: bool = True,
         destination_path: StrAttr | None = None,
         auto_render_destination_path: bool = True,
-        rename_path: TransformConfig = {},
-        transformer: list[AnyTransformer] | AnyTransformer | TransformConfig = [],
+        transform_path: TransformConfig = {},
+        transform_content: (
+            list[AnyContentTransformer] | AnyContentTransformer | TransformConfig
+        ) = [],
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -67,8 +69,8 @@ class Scaffolder(BaseTask):
         self._auto_render_source_path = auto_render_source_path
         self._destination_path = destination_path
         self._auto_render_destination_path = auto_render_destination_path
-        self._content_transformers = transformer
-        self._path_transformer = rename_path
+        self._content_transformers = transform_content
+        self._path_transformer = transform_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._source_path, "", auto_render=True)
@@ -76,12 +78,12 @@ class Scaffolder(BaseTask):
     def _get_destination_path(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._destination_path, "", auto_render=True)
 
-    def _get_content_transformers(self) -> list[AnyTransformer]:
+    def _get_content_transformers(self) -> list[AnyContentTransformer]:
         if callable(self._content_transformers):
-            return [Transformer(match="*", transform=self._content_transformers)]
+            return [ContentTransformer(match="*", transform=self._content_transformers)]
         if isinstance(self._content_transformers, dict):
-            return [Transformer(match="*", transform=self._content_transformers)]
-        if isinstance(self._content_transformers, AnyTransformer):
+            return [ContentTransformer(match="*", transform=self._content_transformers)]
+        if isinstance(self._content_transformers, AnyContentTransformer):
             return [self._content_transformers]
         return self._content_transformers
 
