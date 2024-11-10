@@ -1,4 +1,7 @@
-from zrb import Task, CmdTask, CmdPath, Env, TcpCheck, StrInput, Group, cli
+from zrb import (
+    AnyContext, Task, CmdTask, CmdPath, Env, TcpCheck, StrInput, Group, cli, make_task
+)
+from zrb.builtin.project import create_project, create_fastapp
 from zrb.util.load import load_file
 import os
 
@@ -6,9 +9,9 @@ _DIR = os.path.dirname(__file__)
 
 # TEST ==============================================================================
 
-test_group = cli.add_group(Group("test", description="Testing zrb"))
+test_group = cli.add_group(Group("test", description="🔍 Testing zrb codebase"))
 
-clean_up_resources = CmdTask(
+clean_up_test_resources = CmdTask(
     name="clean-up-resources",
     cwd=os.path.join(_DIR, "test"),
     cmd=[
@@ -25,7 +28,7 @@ start_test_docker_compose = CmdTask(
         port=2222
     )
 )
-clean_up_resources >> start_test_docker_compose
+clean_up_test_resources >> start_test_docker_compose
 
 run_test = CmdTask(
     name="run-integration-test",
@@ -63,7 +66,7 @@ stop_test_docker_compose >> prepare_and_run_test
 
 # CODE ===============================================================================
 
-code_group = cli.add_group(Group("code", description="Code related command"))
+code_group = cli.add_group(Group("code", description="📜 Code related command"))
 
 format_code = code_group.add_task(
     CmdTask(
@@ -78,7 +81,7 @@ format_code = code_group.add_task(
 
 # GIT ===============================================================================
 
-git_group = cli.add_group(Group("git", description="git related command"))
+git_group = cli.add_group(Group(name="git", description="🌱 Git related command"))
 
 push_git = git_group.add_task(
     CmdTask(
@@ -102,9 +105,9 @@ push_git = git_group.add_task(
 format_code >> push_git
 
 
-# PIP ================================================================================
+# PIP ===============================================================================
 
-pip_group = cli.add_group(Group("pip", description="Pip related command"))
+pip_group = cli.add_group(Group(name="pip", description="📦 Pip related command"))
 
 publish_pip = pip_group.add_task(
     CmdTask(
@@ -116,6 +119,39 @@ publish_pip = pip_group.add_task(
     alias="publish"
 )
 format_code >> publish_pip
+
+# GENERATOR TEST ====================================================================
+
+clean_up_test_generator_resources = CmdTask(
+    name="clean-up-resources",
+    cmd=f"rm -Rf {os.path.join(_DIR, 'playground', 'project')}",
+    auto_render_cmd=False
+)
+
+
+@make_task(
+    name="test-generator",
+    group=test_group,
+    alias="generator"
+)
+async def test_generator(ctx: AnyContext):
+    # Test create project
+    project_dir = os.path.join(_DIR, "playground", "project")
+    project_name = "Coba"
+    await create_project.async_run(
+        str_kwargs={"project-dir": project_dir, "project-name": project_name}
+    )
+    assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
+    # Test create fastapp
+    app_dir = "fastapp"
+    await create_fastapp.async_run(
+        str_kwargs={"project-dir": project_dir, "app-dir": app_dir}
+    )
+    assert os.path.isdir(os.path.join(project_dir, app_dir))
+
+
+clean_up_test_generator_resources >> test_generator
+
 
 # PLAYGROUND ========================================================================
 

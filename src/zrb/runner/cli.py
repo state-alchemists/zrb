@@ -55,16 +55,18 @@ class Cli(Group):
         shared_ctx = SharedContext(args=args)
         for task_input in task.inputs:
             if task_input.name in str_kwargs:
+                task_input.update_shared_context(
+                    shared_ctx, str_kwargs[task_input.name]
+                )
                 continue
             if arg_index < len(args):
-                str_kwargs[task_input.name] = args[arg_index]
+                task_input.update_shared_context(shared_ctx, args[arg_index])
                 arg_index += 1
                 continue
-            str_kwargs[task_input.name] = task_input.prompt_cli_str(shared_ctx)
+            str_value = task_input.prompt_cli_str(shared_ctx)
+            task_input.update_shared_context(shared_ctx, str_value)
         try:
-            return task.run(
-                Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=str_kwargs
-            )
+            return task.run(Session(shared_ctx=shared_ctx, root_group=self))
         except KeyboardInterrupt:
             pass
 
@@ -139,11 +141,11 @@ class Cli(Group):
 
 
 cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=BANNER)
-server = cli.add_group(Group(name="server", description="Server related command"))
+server = cli.add_group(Group(name="server", description="🌐 Server related command"))
 server.add_task(
     Task(
         name="start-server",
-        description="Make tasks available via HTTP Requests 🚀",
+        description="🚀 Start Zrb Web Server",
         action=lambda ctx: run_web_server(ctx=ctx, root_group=cli, port=WEB_HTTP_PORT),
         cli_only=True,
         retries=0,

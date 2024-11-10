@@ -1,3 +1,4 @@
-from . import shell
+from . import project, shell
 
 assert shell
+assert project

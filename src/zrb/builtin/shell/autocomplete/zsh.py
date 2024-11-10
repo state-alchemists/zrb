@@ -1,6 +1,6 @@
 from ....context.context import Context
 from ....task.make_task import make_task
-from ._group import shell_autocomplete_group
+from ...group import shell_autocomplete_group
 
 _COMPLETION_SCRIPT = """
 # Zsh dynamic completion script

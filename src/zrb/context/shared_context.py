@@ -86,7 +86,6 @@ class SharedContext(AnySharedContext):
             data={
                 "ctx": self,
                 "datetime": datetime,
-                "Xcom": Xcom,
                 "to_boolean": to_boolean,
                 "to_camel_case": to_camel_case,
                 "to_human_case": to_human_case,

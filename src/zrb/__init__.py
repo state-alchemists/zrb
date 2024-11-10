@@ -7,6 +7,7 @@ from .attr.type import (
     StrDictAttr,
     fstring,
 )
+from .builtin.group import project_group, shell_autocomplete_group, shell_group
 from .callback.any_callback import AnyCallback
 from .callback.callback import Callback
 from .cmd.cmd_result import CmdResult
@@ -45,6 +46,9 @@ from .task.task import Task
 from .task.tcp_check import TcpCheck
 from .xcom.xcom import Xcom
 
+assert project_group
+assert shell_autocomplete_group
+assert shell_group
 assert fstring
 assert AnyAttr
 assert BoolAttr

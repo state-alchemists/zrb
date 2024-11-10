@@ -4,7 +4,7 @@ from zrb import (
 )
 import asyncio
 
-math = cli.add_group(Group("math", description="Math tools"))
+math = cli.add_group(Group("math", description="➕ Math tools"))
 math.add_task(Task(
     name="add",
     input=[
