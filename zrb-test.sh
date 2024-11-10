@@ -1,4 +1,10 @@
 set -e
+
+if [ -z "$TEST" ]
+then
+    TEST="$1"
+fi
+
 pytest -vv \
     --ignore-glob="**/template/**" \
     --ignore="playground" \
@@ -7,4 +13,4 @@ pytest -vv \
     --cov-report="html" \
     --cov-report="term" \
     --cov-report="term-missing" \
-    "${1}"
+    "$TEST"

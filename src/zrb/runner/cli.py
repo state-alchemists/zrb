@@ -139,13 +139,14 @@ class Cli(Group):
 
 
 cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=BANNER)
-
-cli.add_task(
+server = cli.add_group(Group(name="server", description="Server related command"))
+server.add_task(
     Task(
         name="start-server",
         description="Make tasks available via HTTP Requests 🚀",
         action=lambda ctx: run_web_server(ctx=ctx, root_group=cli, port=WEB_HTTP_PORT),
         cli_only=True,
         retries=0,
-    )
+    ),
+    alias="start",
 )

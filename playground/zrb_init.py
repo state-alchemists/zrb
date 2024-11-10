@@ -63,33 +63,28 @@ figlet = cli.add_task(CmdTask(
 
 
 async def trigger_action(ctx: Context):
-    for i in range(1000):
+    for i in range(2):
         await asyncio.sleep(0.001)
         xcom: Xcom = ctx.xcom["exchange"]
         xcom.push(i)
-
-
-cli.add_task(BaseTrigger(
-    name="trigger",
-    queue_name="exchange",
-    action=trigger_action,
-    callback=Callback(
-        task=Task(
-            name="print",
-            input=IntInput(name="number"),
-            action=lambda ctx: ctx.print(ctx.input.number)
-        ),
-        input_mapping={
-            "number": "{ctx.xcom['exchange'].pop()}"
-        }
-    )
-))
 
 
 print_message = cli.add_task(Task(
     name="print",
     input=StrInput(name="message"),
     action=lambda ctx: ctx.print(ctx.input.message)
+))
+
+cli.add_task(BaseTrigger(
+    name="trigger",
+    queue_name="exchange",
+    action=trigger_action,
+    callback=Callback(
+        task=print_message,
+        input_mapping={
+            "message": "{ctx.xcom['exchange'].pop()}"
+        }
+    )
 ))
 
 cli.add_task(Scheduler(

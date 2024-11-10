@@ -22,6 +22,7 @@ class Context(AnyContext):
         self, shared_ctx: AnySharedContext, task_name: str, color: int, icon: str
     ):
         self._shared_ctx = shared_ctx
+        self._env = shared_ctx.env.copy()
         self._task_name = task_name
         self._color = color
         self._icon = icon
@@ -38,7 +39,7 @@ class Context(AnyContext):
 
     @property
     def env(self) -> DotDict:
-        return self._shared_ctx.env
+        return self._env
 
     @property
     def args(self) -> list[Any]:
@@ -55,6 +56,9 @@ class Context(AnyContext):
     @property
     def session(self) -> AnySession | None:
         return self._shared_ctx._session
+
+    def update_task_env(self, task_env: dict[str, str]):
+        self._env.update(task_env)
 
     def append_to_shared_log(self, message: str):
         self._shared_ctx.append_to_shared_log(message)

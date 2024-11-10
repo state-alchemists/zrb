@@ -17,11 +17,18 @@ window.addEventListener("load", async function () {
     const minStartAtInput = document.getElementById("min-start-at-input");
     minStartAtInput.value = formattedToday;
     // Update session
-    getExistingSessions(0);
+    pollExistingSessions(PAGE);
 });
 
+async function pollExistingSessions() {
+    while (true) {
+        await getExistingSessions(PAGE);
+        await delay(5000);
+    }
+}
 
 async function getExistingSessions(page) {
+    PAGE=page
     const minStartAtInput = document.getElementById("min-start-at-input");
     const minStartAt = formatDate(minStartAtInput.value);
     const maxStartAtInput = document.getElementById("max-start-at-input");
@@ -41,7 +48,7 @@ async function getExistingSessions(page) {
             },
         });
         const {total, data} = await response.json();
-        showExistingSession(total, data);
+        showExistingSession(page, total, data);
         console.log("Success:", data);
     } catch (error) {
         console.error("Error:", error);

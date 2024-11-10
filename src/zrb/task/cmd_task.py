@@ -105,14 +105,16 @@ class CmdTask(BaseTask):
         Returns:
             Any: The result of the action execution.
         """
-        cmd_script = self._get_cmd_script(ctx)
-        cwd = self._get_cwd(ctx)
-        shell = self._get_shell(ctx)
-        shell_flag = self._get_shell_flag(ctx)
         ctx.log_info("Running script")
-        ctx.log_debug(f"Shell: {shell}")
+        cmd_script = self._get_cmd_script(ctx)
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
+        shell = self._get_shell(ctx)
+        ctx.log_debug(f"Shell: {shell}")
+        shell_flag = self._get_shell_flag(ctx)
+        cwd = self._get_cwd(ctx)
         ctx.log_debug(f"Working directory: {cwd}")
+        env_map = self.__get_env_map(ctx)
+        ctx.log_debug(f"Environment map: {env_map}")
         cmd_process = await asyncio.create_subprocess_exec(
             shell,
             shell_flag,
@@ -121,7 +123,7 @@ class CmdTask(BaseTask):
             stdin=sys.stdin if sys.stdin.isatty() else None,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=self.__get_env_map(ctx),
+            env=env_map,
             bufsize=0,
         )
         stdout_task = asyncio.create_task(

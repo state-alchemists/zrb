@@ -100,7 +100,8 @@ class Session(AnySession):
     def set_main_task(self, main_task: AnyTask):
         self.register_task(main_task)
         self._main_task = main_task
-        self._main_task_path = get_node_path(self._root_group, main_task)
+        main_task_path = get_node_path(self._root_group, main_task)
+        self._main_task_path = [] if main_task_path is None else main_task_path
 
     def as_state_log(self) -> SessionStateLog:
         task_status_log: dict[str, TaskStatusStateLog] = {}

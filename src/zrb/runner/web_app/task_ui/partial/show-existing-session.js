@@ -1,16 +1,31 @@
-function showExistingSession(total, data) {
+function showExistingSession(page, total, data) {
     const ul = document.getElementById("session-history-ul");
     ul.innerHTML = '';  // Clear existing content
     data.forEach(item => {
-        const task_status = item.task_status[item.main_task_name];
-        const task_histories = task_status.history;
-        const task_start_time = task_histories.length > 0 ? task_histories[0].time : ""
+        const taskStatus = item.task_status[item.main_task_name];
+        const finalStatus = getFinalTaskStatus(taskStatus);
+        const finalColor = getFinalColor(finalStatus);
+        const taskHistories = taskStatus.history;
+        const taskStartTime = taskHistories.length > 0 ? taskHistories[0].time : ""
         const li = document.createElement('li');
         const a = document.createElement('a');
-        a.textContent = `${item.name} - ${task_start_time}`;
+        const dateSpan = document.createElement('span');
+        const statusSpan = document.createElement('span');
+        a.textContent = item.name;
         a.target = '_blank';
         a.href = `${UI_URL}${item.name}`;
         li.appendChild(a);
+        statusSpan.style.marginLeft = "10px";
+        statusSpan.style.display = 'inline-block';
+        statusSpan.style.width = '15px';
+        statusSpan.style.height = '15px';
+        statusSpan.style.borderRadius = '50%';
+        statusSpan.style.border = '2px solid black';
+        statusSpan.style.backgroundColor = finalColor;
+        li.appendChild(statusSpan);
+        dateSpan.style.marginLeft = "10px";
+        dateSpan.textContent = taskStartTime;
+        li.appendChild(dateSpan);
         ul.appendChild(li);
     }); 
     const paginationUl = document.getElementById("session-history-pagination-ul");

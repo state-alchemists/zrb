@@ -7,6 +7,7 @@ from ..env.any_env import AnyEnv
 from ..input.any_input import AnyInput
 
 if TYPE_CHECKING:
+    from ..context import any_context
     from ..session import session
 
 
@@ -87,6 +88,10 @@ class AnyTask(ABC):
             upstreams (AnyTask | list[AnyTask]): A single upstream task or
                 a list of upstream tasks.
         """
+        pass
+
+    @abstractmethod
+    def get_ctx(self, session: session.AnySession) -> any_context.AnyContext:
         pass
 
     @abstractmethod

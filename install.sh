@@ -111,7 +111,7 @@ install_poetry() {
 
 install_zrb() {
     log_info "Installing Zrb"
-    eval pip install zrb
+    eval pip install --pre zrb
 }
 
 

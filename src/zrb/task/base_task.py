@@ -163,6 +163,13 @@ class BaseTask(AnyTask):
         if upstream not in self._upstreams:
             self._upstreams.append(upstream)
 
+    def get_ctx(self, session: AnySession) -> AnyContext:
+        ctx = session.get_ctx(self)
+        # Enhance session ctx with current task env
+        for env in self.envs:
+            env.update_context(ctx)
+        return ctx
+
     def run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
@@ -194,9 +201,6 @@ class BaseTask(AnyTask):
             if key not in shared_context._env
         }
         shared_context._env.update(os_env_map)
-        # Inject environment from task's envs
-        for env in self.envs:
-            env.update_shared_context(shared_context)
 
     async def exec_root_tasks(self, session: AnySession):
         session.set_main_task(self)
@@ -219,12 +223,12 @@ class BaseTask(AnyTask):
         except IndexError:
             return None
         except asyncio.CancelledError:
-            ctx = session.get_ctx(self)
+            ctx = self.get_ctx(session)
             ctx.log_info("Session terminated")
         finally:
             session.terminate()
             session.state_logger.write(session.as_state_log())
-            ctx = session.get_ctx(self)
+            ctx = self.get_ctx(session)
             ctx.log_debug(session)
 
     async def _log_session_state(self, session: AnySession):
@@ -247,7 +251,7 @@ class BaseTask(AnyTask):
         return await asyncio.gather(*next_coros)
 
     async def exec(self, session: AnySession):
-        ctx = session.get_ctx(self)
+        ctx = self.get_ctx(session)
         if not session.is_allowed_to_run(self):
             # Task is not allowed to run, skip it for now.
             # This will be triggered later
@@ -262,11 +266,11 @@ class BaseTask(AnyTask):
         await run_async(self.__exec_action_until_ready(session))
 
     def __get_execute_condition(self, session: Session) -> bool:
-        ctx = session.get_ctx(self)
+        ctx = self.get_ctx(session)
         return get_bool_attr(ctx, self._execute_condition, True, auto_render=True)
 
     async def __exec_action_until_ready(self, session: AnySession):
-        ctx = session.get_ctx(self)
+        ctx = self.get_ctx(session)
         readiness_checks = self.readiness_checks
         if len(readiness_checks) == 0:
             ctx.log_info("No readiness checks")
@@ -301,7 +305,7 @@ class BaseTask(AnyTask):
     async def __exec_monitoring(self, session: AnySession, action_coro: asyncio.Task):
         readiness_checks = self.readiness_checks
         failure_count = 0
-        ctx = session.get_ctx(self)
+        ctx = self.get_ctx(session)
         while not session.is_terminated:
             await asyncio.sleep(self._readiness_check_period)
             if failure_count < self._readiness_failure_threshold:
@@ -343,7 +347,7 @@ class BaseTask(AnyTask):
             ctx.log_info("Continue monitoring")
 
     async def __exec_action_and_retry(self, session: AnySession) -> Any:
-        ctx = session.get_ctx(self)
+        ctx = self.get_ctx(session)
         max_attempt = self._retries + 1
         ctx.set_max_attempt(max_attempt)
         for attempt in range(max_attempt):

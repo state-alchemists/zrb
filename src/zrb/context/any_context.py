@@ -32,6 +32,10 @@ class AnyContext(AnySharedContext):
         pass
 
     @abstractmethod
+    def update_task_env(self, task_env: dict[str, str]):
+        pass
+
+    @abstractmethod
     def print(
         self,
         *values: object,

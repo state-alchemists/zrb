@@ -23,6 +23,9 @@ with open(os.path.join(_DIR, "partial", "show-existing-session.js")) as f:
 with open(os.path.join(_DIR, "partial", "visualize-history.js")) as f:
     _VISUALIZE_HISTORY_SCRIPT = f.read()
 
+with open(os.path.join(_DIR, "partial", "common-util.js")) as f:
+    _COMMON_UTIL_SCRIPT = f.read()
+
 
 def handle_task_ui(
     handler: AnyRequestHandler,
@@ -33,7 +36,7 @@ def handle_task_ui(
     args: list[str],
 ):
     session.register_task(task)
-    ctx = session.get_ctx(task)
+    ctx = task.get_ctx(session)
     url_parts = url.split("/")
     # Assemble parent url
     parent_url_parts = url_parts[:-2] + [""]
@@ -69,6 +72,7 @@ def handle_task_ui(
                 "main_script": _MAIN_SCRIPT,
                 "show_existing_session_script": _SHOW_EXISTING_SESSION_SCRIPT,
                 "visualize_history_script": _VISUALIZE_HISTORY_SCRIPT,
+                "common_util_script": _COMMON_UTIL_SCRIPT,
                 "session_name": session_name,
             },
         )
