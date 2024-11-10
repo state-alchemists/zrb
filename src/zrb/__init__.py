@@ -44,11 +44,14 @@ from .task.scaffolder import Scaffolder
 from .task.scheduler import Scheduler
 from .task.task import Task
 from .task.tcp_check import TcpCheck
+from .util.load import load_file, load_module
 from .xcom.xcom import Xcom
 
 assert project_group
 assert shell_autocomplete_group
 assert shell_group
+assert load_file
+assert load_module
 assert fstring
 assert AnyAttr
 assert BoolAttr
