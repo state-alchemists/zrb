@@ -6,6 +6,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession
 from zrb.util.string.conversion import (
+    double_quote,
     to_boolean,
     to_camel_case,
     to_human_case,
@@ -92,5 +93,6 @@ class SharedContext(AnySharedContext):
                 "to_kebab_case": to_kebab_case,
                 "to_pascal_case": to_pascal_case,
                 "to_snake_case": to_snake_case,
+                "double_quote": double_quote,
             },
         )

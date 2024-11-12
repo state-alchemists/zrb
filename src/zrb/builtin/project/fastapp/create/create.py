@@ -7,6 +7,7 @@ from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.task.scaffolder import Scaffolder
 from zrb.task.task import Task
+from zrb.util.string.conversion import double_quote
 from zrb.util.string.name import get_random_name
 
 _DIR = os.path.dirname(__file__)
@@ -48,9 +49,11 @@ def register_fastapp_automation(ctx: AnyContext):
     project_dir_path = ctx.input["project-dir"]
     zrb_init_path = os.path.join(project_dir_path, "zrb_init.py")
     app_dir_path = ctx.input["app-dir"]
-    app_automation_file_path = os.path.join(app_dir_path, "_zrb", "init.py")
+    app_automation_file_part = ", ".join(
+        [double_quote(part) for part in [app_dir_path, "_zrb", "init.py"]]
+    )
     with open(zrb_init_path, "+a") as f:
-        f.write(f'load_file(os.path.join(_DIR, "{app_automation_file_path}"))\n')
+        f.write(f"load_file(os.path.join(_DIR, {app_automation_file_part}))\n")
 
 
 scaffold_fastapp >> register_fastapp_automation
