@@ -30,9 +30,8 @@ compdef _zrb_complete zrb
 @make_task(
     name="make-zsh-autocomplete",
     description="Create Zrb autocomplete script for zsh",
+    group=shell_autocomplete_group,
+    alias="zsh",
 )
 def make_zsh_autocomplete(ctx: Context):
     return _COMPLETION_SCRIPT
-
-
-shell_autocomplete_group.add_task(make_zsh_autocomplete, "zsh")

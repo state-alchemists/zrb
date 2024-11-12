@@ -13,6 +13,10 @@ project_group = cli.add_group(
     Group(name="project", description="📁 Project related commands")
 )
 
-fastapp_group = project_group.add_group(
-    Group(name="fastapp", description="🚀 FastApp related commands")
+add_to_project_group = project_group.add_group(
+    Group(name="add", description="➕ Add things to project")
+)
+
+add_fastapp_to_project_group = add_to_project_group.add_group(
+    Group(name="fastapp", description="🚀 Add Fastapp resources")
 )

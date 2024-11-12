@@ -31,11 +31,11 @@ scaffold_project = Scaffolder(
     retries=0,
 )
 
-project_group.add_task(
+create_project = project_group.add_task(
     Task(
         name="create-project",
         description="🌟 Create project",
     ),
     alias="create",
 )
-scaffold_project >> project_group
+scaffold_project >> create_project

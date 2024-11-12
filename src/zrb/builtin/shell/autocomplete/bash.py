@@ -33,9 +33,8 @@ complete -F _zrb_complete zrb
 @make_task(
     name="make-bash-autocomplete",
     description="Create Zrb autocomplete script for bash",
+    group=shell_autocomplete_group,
+    alias="bash",
 )
 def make_bash_autocomplete(ctx: Context):
     return _COMPLETION_SCRIPT
-
-
-shell_autocomplete_group.add_task(make_bash_autocomplete, "bash")

@@ -1,6 +1,6 @@
 import os
 
-from zrb.builtin.group import fastapp_group
+from zrb.builtin.group import add_fastapp_to_project_group
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.str_input import StrInput
@@ -43,7 +43,6 @@ scaffold_fastapp = Scaffolder(
 
 @make_task(
     name="register-fastapp-automation",
-    description="🌟 Create FastApp",
 )
 def register_fastapp_automation(ctx: AnyContext):
     project_dir_path = ctx.input["project-dir"]
@@ -58,11 +57,11 @@ def register_fastapp_automation(ctx: AnyContext):
 
 scaffold_fastapp >> register_fastapp_automation
 
-create_fastapp = fastapp_group.add_task(
+add_fastapp_to_project = add_fastapp_to_project_group.add_task(
     Task(
-        name="create-fastapp",
-        description="🌟 Create FastApp",
+        name="add-fastapp-app",
+        description="🌟 Create FastApp Application",
     ),
-    alias="create",
+    alias="application",
 )
-create_fastapp << [scaffold_fastapp]
+add_fastapp_to_project << [scaffold_fastapp]
