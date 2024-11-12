@@ -1,9 +1,9 @@
 from typing import Any
 
-from ..attr.type import StrAttr
-from ..context.any_shared_context import AnySharedContext
-from ..util.attr import get_str_attr
-from .any_input import AnyInput
+from zrb.attr.type import StrAttr
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.any_input import AnyInput
+from zrb.util.attr import get_str_attr
 
 
 class BaseInput(AnyInput):

@@ -1,5 +1,5 @@
-from ...group.any_group import AnyGroup
-from ..group import get_non_empty_subgroups, get_subtasks
+from zrb.group.any_group import AnyGroup
+from zrb.util.group import get_non_empty_subgroups, get_subtasks
 
 
 class SubCommand:

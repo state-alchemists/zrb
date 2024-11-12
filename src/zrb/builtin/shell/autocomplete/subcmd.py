@@ -1,8 +1,8 @@
-from ....context.context import Context
-from ....runner.cli import cli
-from ....task.make_task import make_task
-from ....util.cli.subcommand import get_group_subcommands
-from ...group import shell_autocomplete_group
+from zrb.builtin.group import shell_autocomplete_group
+from zrb.context.context import Context
+from zrb.runner.cli import cli
+from zrb.task.make_task import make_task
+from zrb.util.cli.subcommand import get_group_subcommands
 
 
 @make_task(

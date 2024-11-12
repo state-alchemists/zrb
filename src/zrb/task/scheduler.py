@@ -9,11 +9,10 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-
-from ..util.attr import get_str_attr
-from ..util.cron import match_cron
-from ..xcom.xcom import Xcom
-from .base_trigger import BaseTrigger
+from zrb.task.base_trigger import BaseTrigger
+from zrb.util.attr import get_str_attr
+from zrb.util.cron import match_cron
+from zrb.xcom.xcom import Xcom
 
 
 class Scheduler(BaseTrigger):

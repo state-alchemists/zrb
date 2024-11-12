@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ..context.any_shared_context import AnySharedContext
+from zrb.context.any_shared_context import AnySharedContext
 
 
 class AnyCallback(ABC):

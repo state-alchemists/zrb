@@ -1,7 +1,7 @@
 from zrb import (
     AnyContext, Task, CmdTask, CmdPath, Env, TcpCheck, StrInput, Group, cli, make_task
 )
-from zrb.builtin.project import create_project, create_fastapp
+from zrb.builtin.project import scaffold_project, register_fastapp_automation
 from zrb.util.load import load_file
 import os
 
@@ -138,13 +138,13 @@ async def test_generator(ctx: AnyContext):
     # Test create project
     project_dir = os.path.join(_DIR, "playground", "project")
     project_name = "Coba"
-    await create_project.async_run(
+    await scaffold_project.async_run(
         str_kwargs={"project-dir": project_dir, "project-name": project_name}
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Test create fastapp
     app_dir = "fastapp"
-    await create_fastapp.async_run(
+    await register_fastapp_automation.async_run(
         str_kwargs={"project-dir": project_dir, "app-dir": app_dir}
     )
     assert os.path.isdir(os.path.join(project_dir, app_dir))

@@ -2,8 +2,8 @@ import fnmatch
 import re
 from collections.abc import Callable
 
-from ..context.any_context import AnyContext
-from .any_content_transformer import AnyContentTransformer
+from zrb.content_transformer.any_content_transformer import AnyContentTransformer
+from zrb.context.any_context import AnyContext
 
 
 class ContentTransformer(AnyContentTransformer):

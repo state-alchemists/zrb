@@ -4,12 +4,12 @@ import re
 import sys
 from typing import Any, TextIO
 
-from ..dot_dict.dot_dict import DotDict
-from ..session.any_session import AnySession
-from ..util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
-from ..util.string.conversion import to_boolean
-from .any_context import AnyContext
-from .any_shared_context import AnySharedContext
+from zrb.context.any_context import AnyContext
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.dot_dict.dot_dict import DotDict
+from zrb.session.any_session import AnySession
+from zrb.util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
+from zrb.util.string.conversion import to_boolean
 
 
 def _remove_ansi_escape_sequences(text):

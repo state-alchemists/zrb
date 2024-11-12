@@ -1,12 +1,13 @@
 import os
 
-from .....context.any_context import AnyContext
-from .....context.any_shared_context import AnySharedContext
-from .....input.str_input import StrInput
-from .....task.make_task import make_task
-from .....task.scaffolder import Scaffolder
-from .....util.string.name import get_random_name
-from ....group import fastapp_group
+from zrb.builtin.group import fastapp_group
+from zrb.context.any_context import AnyContext
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.str_input import StrInput
+from zrb.task.make_task import make_task
+from zrb.task.scaffolder import Scaffolder
+from zrb.task.task import Task
+from zrb.util.string.name import get_random_name
 
 _DIR = os.path.dirname(__file__)
 
@@ -15,7 +16,7 @@ def _get_destination_path(ctx: AnySharedContext):
     return os.path.join(ctx.input["project-dir"], ctx.input["app-dir"])
 
 
-scaffold = Scaffolder(
+scaffold_fastapp = Scaffolder(
     name="scaffold-fastapp",
     input=[
         StrInput(
@@ -42,10 +43,8 @@ scaffold = Scaffolder(
 @make_task(
     name="register-fastapp-automation",
     description="🌟 Create FastApp",
-    group=fastapp_group,
-    alias="create",
 )
-def create_fastapp(ctx: AnyContext):
+def register_fastapp_automation(ctx: AnyContext):
     project_dir_path = ctx.input["project-dir"]
     zrb_init_path = os.path.join(project_dir_path, "zrb_init.py")
     app_dir_path = ctx.input["app-dir"]
@@ -54,4 +53,13 @@ def create_fastapp(ctx: AnyContext):
         f.write(f'load_file(os.path.join(_DIR, "{app_automation_file_path}"))\n')
 
 
-scaffold >> create_fastapp
+scaffold_fastapp >> register_fastapp_automation
+
+create_fastapp = fastapp_group.add_task(
+    Task(
+        name="create-fastapp",
+        description="🌟 Create FastApp",
+    ),
+    alias="create",
+)
+create_fastapp << [scaffold_fastapp]

@@ -1,14 +1,14 @@
 import asyncio
 from collections.abc import Callable
 
-from ..attr.type import IntAttr, StrAttr
-from ..context.any_context import AnyContext
-from ..context.context import Context
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
-from ..util.attr import get_int_attr, get_str_attr
-from .any_task import AnyTask
-from .base_task import BaseTask
+from zrb.attr.type import IntAttr, StrAttr
+from zrb.context.any_context import AnyContext
+from zrb.context.context import Context
+from zrb.env.any_env import AnyEnv
+from zrb.input.any_input import AnyInput
+from zrb.task.any_task import AnyTask
+from zrb.task.base_task import BaseTask
+from zrb.util.attr import get_int_attr, get_str_attr
 
 
 class TcpCheck(BaseTask):

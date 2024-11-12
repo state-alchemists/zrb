@@ -1,4 +1,4 @@
-from .base_input import BaseInput
+from zrb.input.base_input import BaseInput
 
 
 class StrInput(BaseInput):

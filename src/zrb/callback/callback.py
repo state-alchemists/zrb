@@ -1,10 +1,10 @@
 from typing import Any
 
-from ..attr.type import StrDictAttr
-from ..session.any_session import AnySession
-from ..task.any_task import AnyTask
-from ..util.attr import get_str_dict_attr
-from .any_callback import AnyCallback
+from zrb.attr.type import StrDictAttr
+from zrb.callback.any_callback import AnyCallback
+from zrb.session.any_session import AnySession
+from zrb.task.any_task import AnyTask
+from zrb.util.attr import get_str_dict_attr
 
 
 class Callback(AnyCallback):

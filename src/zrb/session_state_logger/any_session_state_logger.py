@@ -1,7 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod
 
-from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogList
+from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 
 
 class AnySessionStateLogger(ABC):

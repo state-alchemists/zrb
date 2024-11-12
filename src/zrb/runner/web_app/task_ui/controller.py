@@ -1,10 +1,10 @@
 import os
 
-from ....group.any_group import AnyGroup
-from ....session.any_session import AnySession
-from ....task.any_task import AnyTask
-from ....util.string.format import fstring_format
-from ..any_request_handler import AnyRequestHandler
+from zrb.group.any_group import AnyGroup
+from zrb.runner.web_app.any_request_handler import AnyRequestHandler
+from zrb.session.any_session import AnySession
+from zrb.task.any_task import AnyTask
+from zrb.util.string.format import fstring_format
 
 _DIR = os.path.dirname(__file__)
 

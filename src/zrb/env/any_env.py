@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ..context.any_shared_context import AnySharedContext
+from zrb.context.any_shared_context import AnySharedContext
 
 
 class AnyEnv(ABC):

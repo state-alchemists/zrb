@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ..context.any_context import AnyContext
+from zrb.context.any_context import AnyContext
 
 
 class AnyContentTransformer(ABC):
