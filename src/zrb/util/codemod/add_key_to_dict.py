@@ -49,17 +49,3 @@ def add_key_to_dict(
         )
     # Return the modified code
     return modified_module.code
-
-
-# Example usage
-# original_code = '''
-# my_dict = {"existing_key": "existing_value"}
-# '''
-
-# new_key = "new_key"
-# new_value = "new_value"
-
-# new_code = add_key_to_dict(
-#     original_code, 'my_dict', new_key, new_value
-# )
-# print(new_code)

@@ -53,15 +53,3 @@ def add_property_to_class(
         raise ValueError(f"Class {class_name} not found in the provided code.")
     # Return the modified code
     return modified_module.code
-
-
-# Example usage
-# original_code = '''
-# class MyClass:
-#     some_other_property = "default"
-# '''
-
-# new_code = add_property_to_class(
-#     original_code, 'MyClass', 'new_property', 'int', '100'
-# )
-# print(new_code)

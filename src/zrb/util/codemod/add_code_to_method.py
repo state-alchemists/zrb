@@ -53,20 +53,3 @@ def add_code_to_method(
         raise ValueError(f"Method {function_name} not found in class {class_name}.")
     # Return the modified code
     return modified_module.code
-
-
-# Example usage
-# original_code = '''
-# class MyClass:
-#     def existing_method(self):
-#         print("This is the existing method")
-# '''
-
-# new_code = '''
-# print("This is new code inside the method")
-# '''
-
-# modified_code = add_code_to_method(
-#     original_code, 'MyClass', 'existing_method', new_code
-# )
-# print(modified_code)

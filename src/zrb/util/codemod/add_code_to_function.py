@@ -34,19 +34,3 @@ def add_code_to_function(original_code: str, function_name: str, new_code: str) 
         raise ValueError(f"Function {function_name} not found.")
     # Return the modified code
     return modified_module.code
-
-
-# Example usage
-# original_code = '''
-# def existing_function(self):
-#     print("This is the existing method")
-# '''
-
-# new_code = '''
-# print("This is new code inside the method")
-# '''
-
-# modified_code = add_code_to_function(
-#     original_code, 'existing_function', new_code
-# )
-# print(modified_code)
