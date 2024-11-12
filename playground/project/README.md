@@ -1,3 +1,0 @@
-# Coba
-
-Welcome to Coba

@@ -1,0 +1,2 @@
+fastapi[standard]==0.115.4
+libcst==1.5.0

@@ -96,7 +96,10 @@ class Scaffolder(BaseTask):
         for file_path in file_paths:
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
-                    transformer.transform_file(ctx, file_path)
+                    try:
+                        transformer.transform_file(ctx, file_path)
+                    except UnicodeDecodeError:
+                        pass
 
     def _copy_path(self, ctx: AnyContext, source_path: str, destination_path: str):
         """

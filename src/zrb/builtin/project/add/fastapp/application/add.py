@@ -2,7 +2,6 @@ import os
 
 from zrb.builtin.group import add_fastapp_to_project_group
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.task.scaffolder import Scaffolder
@@ -11,10 +10,6 @@ from zrb.util.string.conversion import double_quote
 from zrb.util.string.name import get_random_name
 
 _DIR = os.path.dirname(__file__)
-
-
-def _get_destination_path(ctx: AnySharedContext):
-    return os.path.join(ctx.input["project-dir"], ctx.input["app-dir"])
 
 
 scaffold_fastapp = Scaffolder(
@@ -27,16 +22,22 @@ scaffold_fastapp = Scaffolder(
             default_str=lambda _: os.getcwd(),
         ),
         StrInput(
-            name="app-dir",
-            description="App directory",
-            prompt="App directory",
+            name="app-name",
+            description="App name",
+            prompt="App name",
             default_str=lambda _: get_random_name(separator="_"),
         ),
     ],
     source_path=os.path.join(_DIR, "fastapp-template"),
     auto_render_source_path=False,
-    destination_path=_get_destination_path,
-    transform_content={"App Name": "{ctx.input['app-dir'].title()}"},
+    destination_path=lambda ctx: os.path.join(
+        ctx.input["project-dir"], ctx.input["app-name"]
+    ),
+    transform_content={
+        "App Name": "{ctx.input['app-name'].title()}",
+        "App name": "{ctx.input['app-name'].capitalize()}",
+        "app-name": "{to_kebab_case(ctx.input['app-name'])}",
+    },
     retries=0,
 )
 
@@ -47,9 +48,9 @@ scaffold_fastapp = Scaffolder(
 def register_fastapp_automation(ctx: AnyContext):
     project_dir_path = ctx.input["project-dir"]
     zrb_init_path = os.path.join(project_dir_path, "zrb_init.py")
-    app_dir_path = ctx.input["app-dir"]
+    app_dir_path = ctx.input["app-name"]
     app_automation_file_part = ", ".join(
-        [double_quote(part) for part in [app_dir_path, "_zrb", "init.py"]]
+        [double_quote(part) for part in [app_dir_path, "_zrb", "zrb_init.py"]]
     )
     with open(zrb_init_path, "+a") as f:
         f.write(f"load_file(os.path.join(_DIR, {app_automation_file_part}))\n")
@@ -64,4 +65,4 @@ add_fastapp_to_project = add_fastapp_to_project_group.add_task(
     ),
     alias="application",
 )
-add_fastapp_to_project << [scaffold_fastapp]
+add_fastapp_to_project << [register_fastapp_automation]

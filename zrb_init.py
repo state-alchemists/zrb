@@ -125,7 +125,7 @@ format_code >> publish_pip
 
 clean_up_test_generator_resources = CmdTask(
     name="clean-up-resources",
-    cmd=f"rm -Rf {os.path.join(_DIR, 'playground', 'project')}",
+    cmd=f"rm -Rf {os.path.join(_DIR, 'amalgam')}",
     auto_render_cmd=False
 )
 
@@ -138,19 +138,19 @@ clean_up_test_generator_resources = CmdTask(
 async def test_generator(ctx: AnyContext):
     # Test create project
     ctx.print("Create project")
-    project_dir = os.path.join(_DIR, "playground", "project")
-    project_name = "Coba"
+    project_dir = os.path.join(_DIR, "amalgam")
+    project_name = "Amalgam"
     await create_project.async_run(
         str_kwargs={"project-dir": project_dir, "project-name": project_name}
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Test create fastapp
     ctx.print("Add fastapp")
-    app_dir = "fastapp"
+    app_name = "fastapp"
     await add_fastapp_to_project.async_run(
-        str_kwargs={"project-dir": project_dir, "app-dir": app_dir}
+        str_kwargs={"project-dir": project_dir, "app-name": app_name}
     )
-    assert os.path.isdir(os.path.join(project_dir, app_dir))
+    assert os.path.isdir(os.path.join(project_dir, app_name))
     # Done
     ctx.print("Done")
 
@@ -163,3 +163,9 @@ clean_up_test_generator_resources >> test_generator
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
     load_file(playground_zrb_init_path)
+
+# AMALGAM ===========================================================================
+
+amalgam_zrb_init_path = os.path.join(_DIR, "amalgam", "zrb_init.py")
+if os.path.isfile(amalgam_zrb_init_path):
+    load_file(amalgam_zrb_init_path)
