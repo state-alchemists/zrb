@@ -1,5 +1,5 @@
-from module.library.client.base_client import BaseClient
 import httpx
+from module.library.client.base_client import BaseClient
 
 
 class ApiClient(BaseClient):

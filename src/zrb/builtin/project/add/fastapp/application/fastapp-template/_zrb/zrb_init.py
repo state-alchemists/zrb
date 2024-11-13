@@ -21,10 +21,10 @@ run_as_monolith = app_monolith_group.add_task(
         description="▶️ Run App Name as a monolith",
         env=[
             EnvFile(path=os.path.join(_APP_DIR, "template.env")),
-            Env(name="FASTAPP_APP_MODE", default="monolith"),
+            Env(name="APP_NAME_MODE", default="monolith"),
         ],
         cwd=_APP_DIR,
-        cmd='fastapi dev main.py --port "${FASTAPP_APP_PORT}"',
+        cmd='fastapi dev main.py --port "${APP_NAME_PORT}"',
         auto_render_cmd=False,
         retries=0,
     ),
@@ -55,15 +55,15 @@ run_gateway = app_group.add_task(
             EnvFile(path=os.path.join(_APP_DIR, "template.env")),
             EnvMap(
                 vars={
-                    "FASTAPP_APP_MODE": "microservices",
-                    "FASTAPP_APP_PORT": "3001",
-                    "FASTAPP_APP_MODULES": "gateway",
-                    "FASTAPP_APP_LIBRARY_BASE_URL": "http://localhost:3002",
+                    "APP_NAME_MODE": "microservices",
+                    "APP_NAME_PORT": "3001",
+                    "APP_NAME_MODULES": "gateway",
+                    "APP_NAME_LIBRARY_BASE_URL": "http://localhost:3002",
                 }
             ),
         ],
         cwd=_APP_DIR,
-        cmd='fastapi dev main.py --port "${FASTAPP_APP_PORT}"',
+        cmd='fastapi dev main.py --port "${APP_NAME_PORT}"',
         auto_render_cmd=False,
         retries=0,
     )
@@ -78,15 +78,15 @@ run_library = app_group.add_task(
             EnvFile(path=os.path.join(_APP_DIR, "template.env")),
             EnvMap(
                 vars={
-                    "FASTAPP_APP_MODE": "microservices",
-                    "FASTAPP_APP_PORT": "3002",
-                    "FASTAPP_APP_MODULES": "library",
-                    "FASTAPP_APP_LIBRARY_BASE_URL": "http://localhost:3002",
+                    "APP_NAME_MODE": "microservices",
+                    "APP_NAME_PORT": "3002",
+                    "APP_NAME_MODULES": "library",
+                    "APP_NAME_LIBRARY_BASE_URL": "http://localhost:3002",
                 }
             ),
         ],
         cwd=_APP_DIR,
-        cmd='fastapi dev main.py --port "${FASTAPP_APP_PORT}"',
+        cmd='fastapi dev main.py --port "${APP_NAME_PORT}"',
         auto_render_cmd=False,
         retries=0,
     )

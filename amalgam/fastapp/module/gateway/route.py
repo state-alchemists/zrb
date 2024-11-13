@@ -1,7 +1,7 @@
-from config import APP_MODE, APP_MODULES
 from common.app import app
-from module.library.client.factory import client
+from config import APP_MODE, APP_MODULES
 from fastapi.responses import PlainTextResponse
+from module.library.client.factory import client
 
 if APP_MODE == "monolith" or "gateway" in APP_MODULES:
 

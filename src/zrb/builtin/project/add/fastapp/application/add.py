@@ -37,6 +37,7 @@ scaffold_fastapp = Scaffolder(
         "App Name": "{ctx.input['app-name'].title()}",
         "App name": "{ctx.input['app-name'].capitalize()}",
         "app-name": "{to_kebab_case(ctx.input['app-name'])}",
+        "APP_NAME": "{to_snake_case(ctx.input['app-name']).upper()}",
     },
     retries=0,
 )
