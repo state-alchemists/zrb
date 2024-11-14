@@ -1,6 +1,6 @@
-from zrb.builtin.group import shell_autocomplete_group
-from zrb.context.context import Context
-from zrb.task.make_task import make_task
+from ....context.context import Context
+from ....task.make_task import make_task
+from ...group import shell_autocomplete_group
 
 _COMPLETION_SCRIPT = """
 # Bash dynamic completion script

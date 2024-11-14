@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
-from zrb.attr.type import fstring
-from zrb.context.context import Context
+from ..attr.type import fstring
+from ..context.context import Context
 
 
 class AnyCmdVal(ABC):

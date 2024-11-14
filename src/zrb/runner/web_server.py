@@ -9,20 +9,20 @@ from threading import Thread
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from zrb.config import BANNER, SESSION_LOG_DIR, WEB_HTTP_PORT
-from zrb.context.any_context import AnyContext
-from zrb.context.shared_context import SharedContext
-from zrb.group.any_group import AnyGroup
-from zrb.runner.web_app.group_info_ui.controller import handle_group_info_ui
-from zrb.runner.web_app.home_page.controller import handle_home_page
-from zrb.runner.web_app.task_ui.controller import handle_task_ui
-from zrb.runner.web_util import node_path_to_url, start_event_loop, url_to_args
-from zrb.session.session import Session
-from zrb.session_state_logger.default_session_state_logger import (
+from ..config import BANNER, SESSION_LOG_DIR, WEB_HTTP_PORT
+from ..context.any_context import AnyContext
+from ..context.shared_context import SharedContext
+from ..group.any_group import AnyGroup
+from ..session.session import Session
+from ..session_state_logger.default_session_state_logger import (
     default_session_state_logger,
 )
-from zrb.task.any_task import AnyTask
-from zrb.util.group import extract_node_from_args, get_node_path
+from ..task.any_task import AnyTask
+from ..util.group import extract_node_from_args, get_node_path
+from .web_app.group_info_ui.controller import handle_group_info_ui
+from .web_app.home_page.controller import handle_home_page
+from .web_app.task_ui.controller import handle_task_ui
+from .web_util import node_path_to_url, start_event_loop, url_to_args
 
 _DIR = os.path.dirname(__file__)
 _STATIC_DIR = os.path.join(_DIR, "web_app", "static")

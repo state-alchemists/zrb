@@ -2,9 +2,9 @@ import subprocess
 import tempfile
 from collections.abc import Callable
 
-from zrb.config import DEFAULT_EDITOR
-from zrb.context.any_shared_context import AnySharedContext
-from zrb.input.base_input import BaseInput
+from ..config import DEFAULT_EDITOR
+from ..context.any_shared_context import AnySharedContext
+from .base_input import BaseInput
 
 
 class TextInput(BaseInput):

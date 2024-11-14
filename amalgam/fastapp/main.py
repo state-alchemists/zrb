@@ -1,11 +1,11 @@
 from typing import Union
 
-from common.app import app
-from module.gateway import route as gateway_route
-from module.library import route as library_route
+from .common.app import app
+from .module.auth import route as auth_route
+from .module.gateway import route as gateway_route
 
 assert gateway_route
-assert library_route
+assert auth_route
 
 
 @app.get("/items/{item_id}")

@@ -3,7 +3,7 @@ import logging
 import os
 import platform
 
-from zrb.util.string.conversion import to_boolean
+from .util.string.conversion import to_boolean
 
 
 def _get_current_shell() -> str:

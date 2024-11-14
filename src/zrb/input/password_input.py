@@ -1,8 +1,8 @@
 import getpass
 from collections.abc import Callable
 
-from zrb.context.any_shared_context import AnySharedContext
-from zrb.input.base_input import BaseInput
+from ..context.any_shared_context import AnySharedContext
+from .base_input import BaseInput
 
 
 class PasswordInput(BaseInput):

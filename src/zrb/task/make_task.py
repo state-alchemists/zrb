@@ -1,13 +1,13 @@
 from collections.abc import Callable
 from typing import Any
 
-from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
-from zrb.env.any_env import AnyEnv
-from zrb.group.any_group import AnyGroup
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from ..context.any_context import AnyContext
+from ..context.any_shared_context import AnySharedContext
+from ..env.any_env import AnyEnv
+from ..group.any_group import AnyGroup
+from ..input.any_input import AnyInput
+from .any_task import AnyTask
+from .base_task import BaseTask
 
 
 def make_task(

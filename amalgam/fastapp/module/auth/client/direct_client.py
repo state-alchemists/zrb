@@ -1,5 +1,5 @@
-from module.library.client.base_client import BaseClient
-from module.library.usecase import Usecase
+from ..usecase import Usecase
+from .base_client import BaseClient
 
 
 class DirectClient(BaseClient):

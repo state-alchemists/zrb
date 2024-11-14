@@ -1,9 +1,9 @@
 from dotenv import dotenv_values
 
-from zrb.attr.type import StrAttr
-from zrb.context.shared_context import SharedContext
-from zrb.env.env_map import EnvMap
-from zrb.util.attr import get_str_attr
+from ..attr.type import StrAttr
+from ..context.shared_context import SharedContext
+from ..util.attr import get_str_attr
+from .env_map import EnvMap
 
 
 class EnvFile(EnvMap):

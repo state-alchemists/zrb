@@ -1,8 +1,8 @@
 from typing import Any
 
-from zrb.attr.type import AnyAttr, BoolAttr, FloatAttr, IntAttr, StrAttr, StrDictAttr
-from zrb.context.any_shared_context import AnySharedContext
-from zrb.util.string.conversion import to_boolean
+from ..attr.type import AnyAttr, BoolAttr, FloatAttr, IntAttr, StrAttr, StrDictAttr
+from ..context.any_shared_context import AnySharedContext
+from .string.conversion import to_boolean
 
 
 def get_str_dict_attr(

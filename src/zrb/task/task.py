@@ -1,4 +1,4 @@
-from zrb.task.base_task import BaseTask
+from .base_task import BaseTask
 
 
 class Task(BaseTask):

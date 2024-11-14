@@ -2,17 +2,17 @@ import asyncio
 import os
 import sys
 
-from zrb.attr.type import BoolAttr, IntAttr, StrAttr
-from zrb.cmd.cmd_result import CmdResult
-from zrb.cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
-from zrb.config import DEFAULT_SHELL
-from zrb.context.any_context import AnyContext
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
-from zrb.util.attr import get_int_attr, get_str_attr
-from zrb.util.cmd.remote import get_remote_cmd_script
+from ..attr.type import BoolAttr, IntAttr, StrAttr
+from ..cmd.cmd_result import CmdResult
+from ..cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
+from ..config import DEFAULT_SHELL
+from ..context.any_context import AnyContext
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
+from ..util.attr import get_int_attr, get_str_attr
+from ..util.cmd.remote import get_remote_cmd_script
+from .any_task import AnyTask
+from .base_task import BaseTask
 
 
 class CmdTask(BaseTask):

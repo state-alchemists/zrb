@@ -1,4 +1,4 @@
-from zrb.config import SESSION_LOG_DIR
-from zrb.session_state_logger.file_session_state_logger import FileSessionStateLogger
+from ..config import SESSION_LOG_DIR
+from .file_session_state_logger import FileSessionStateLogger
 
 default_session_state_logger = FileSessionStateLogger(SESSION_LOG_DIR)

@@ -1,5 +1,5 @@
-from zrb.group.any_group import AnyGroup
-from zrb.task.any_task import AnyTask
+from ..group.any_group import AnyGroup
+from ..task.any_task import AnyTask
 
 
 class NodeNotFoundError(ValueError):

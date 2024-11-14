@@ -3,11 +3,11 @@ from __future__ import annotations  # Enables forward references
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from zrb.dot_dict.dot_dict import DotDict
-from zrb.xcom.xcom import Xcom
+from ..dot_dict.dot_dict import DotDict
+from ..xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from zrb.session import any_session
+    from ..session import any_session
 
 
 class AnySharedContext(ABC):

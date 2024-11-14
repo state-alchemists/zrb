@@ -1,9 +1,9 @@
 import os
 
-from zrb.builtin.group import project_group
-from zrb.input.str_input import StrInput
-from zrb.task.scaffolder import Scaffolder
-from zrb.task.task import Task
+from ....input.str_input import StrInput
+from ....task.scaffolder import Scaffolder
+from ....task.task import Task
+from ...group import project_group
 
 _DIR = os.path.dirname(__file__)
 

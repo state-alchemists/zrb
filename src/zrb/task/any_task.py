@@ -3,12 +3,12 @@ from __future__ import annotations  # Enables forward references
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
 
 if TYPE_CHECKING:
-    from zrb.context import any_context
-    from zrb.session import session
+    from ..context import any_context
+    from ..session import session
 
 
 class AnyTask(ABC):

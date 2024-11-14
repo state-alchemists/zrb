@@ -1,6 +1,6 @@
-from zrb.attr.type import StrAttr
-from zrb.context.any_shared_context import AnySharedContext
-from zrb.input.base_input import BaseInput
+from ..attr.type import StrAttr
+from ..context.any_shared_context import AnySharedContext
+from .base_input import BaseInput
 
 
 class IntInput(BaseInput):

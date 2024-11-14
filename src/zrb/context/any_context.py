@@ -2,7 +2,7 @@ import sys
 from abc import abstractmethod
 from typing import TextIO
 
-from zrb.context.any_shared_context import AnySharedContext
+from .any_shared_context import AnySharedContext
 
 
 class AnyContext(AnySharedContext):

@@ -1,5 +1,5 @@
-from zrb.group.group import Group
-from zrb.runner.cli import cli
+from ..group import Group
+from ..runner.cli import cli
 
 shell_group = cli.add_group(
     Group(name="shell", description="💬 Shell related commands")

@@ -1,12 +1,12 @@
 from collections.abc import Callable
 
-from zrb.attr.type import IntAttr, StrAttr
-from zrb.context.any_context import AnyContext
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
-from zrb.task.cmd_task import CmdTask
-from zrb.util.attr import get_str_attr
+from ..attr.type import IntAttr, StrAttr
+from ..context.any_context import AnyContext
+from ..env.any_env import AnyEnv
+from ..input.any_input import AnyInput
+from ..util.attr import get_str_attr
+from .any_task import AnyTask
+from .cmd_task import CmdTask
 
 
 class RsyncTask(CmdTask):

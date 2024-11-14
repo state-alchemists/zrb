@@ -1,13 +1,13 @@
 import os
 
-from zrb.builtin.group import add_fastapp_to_project_group
-from zrb.context.any_context import AnyContext
-from zrb.input.str_input import StrInput
-from zrb.task.make_task import make_task
-from zrb.task.scaffolder import Scaffolder
-from zrb.task.task import Task
-from zrb.util.string.conversion import double_quote
-from zrb.util.string.name import get_random_name
+from ......context.any_context import AnyContext
+from ......input.str_input import StrInput
+from ......task.make_task import make_task
+from ......task.scaffolder import Scaffolder
+from ......task.task import Task
+from ......util.string.conversion import double_quote
+from ......util.string.name import get_random_name
+from .....group import add_fastapp_to_project_group
 
 _DIR = os.path.dirname(__file__)
 

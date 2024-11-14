@@ -11,6 +11,4 @@ APP_PORT = int(os.getenv("FASTAPP_PORT", "3000"))
 APP_COMMUNICATION = os.getenv(
     "FASTAPP_COMMUNICATION", "direct" if APP_MODE == "monolith" else "api"
 )
-APP_LIBRARY_BASE_URL = os.getenv(
-    "FASTAPP_LIBRARY_BASE_URL", "http://localhost:3001"
-)
+APP_LIBRARY_BASE_URL = os.getenv("FASTAPP_LIBRARY_BASE_URL", "http://localhost:3001")
