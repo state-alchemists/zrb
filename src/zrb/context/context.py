@@ -103,7 +103,8 @@ class Context(AnyContext):
     ):
         color = self._color
         icon = self._icon
-        task_name = self._task_name.rjust(15)
+        max_name_length = max(len(name) for name in self.session.task_names)
+        task_name = self._task_name.rjust(max_name_length + 1)
         if self._attempt == 0:
             attempt_status = "".ljust(5)
         else:

@@ -51,7 +51,7 @@ def register_fastapp_automation(ctx: AnyContext):
     zrb_init_path = os.path.join(project_dir_path, "zrb_init.py")
     app_dir_path = ctx.input["app-name"]
     app_automation_file_part = ", ".join(
-        [double_quote(part) for part in [app_dir_path, "_zrb", "zrb_init.py"]]
+        [double_quote(part) for part in [app_dir_path, "_zrb_init.py"]]
     )
     with open(zrb_init_path, "+a") as f:
         f.write(f"load_file(os.path.join(_DIR, {app_automation_file_part}))\n")

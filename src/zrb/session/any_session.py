@@ -38,6 +38,12 @@ class AnySession(ABC):
 
     @property
     @abstractmethod
+    def task_names(self) -> list[str]:
+        """Task names in this session"""
+        pass
+
+    @property
+    @abstractmethod
     def shared_ctx(self) -> any_shared_context.AnySharedContext:
         """Shared context for this session"""
         pass

@@ -11,7 +11,19 @@ from ..session_state_logger.default_session_state_logger import (
 )
 from ..task.any_task import AnyTask
 from ..task_status.task_status import TaskStatus
-from ..util.cli.style import BLUE, CYAN, GREEN, ICONS, MAGENTA, YELLOW
+from ..util.cli.style import (
+    BLUE,
+    BRIGHT_BLUE,
+    BRIGHT_CYAN,
+    BRIGHT_GREEN,
+    BRIGHT_MAGENTA,
+    BRIGHT_YELLOW,
+    CYAN,
+    GREEN,
+    ICONS,
+    MAGENTA,
+    YELLOW,
+)
 from ..util.group import get_node_path
 from ..util.string.name import get_random_name
 from ..xcom.xcom import Xcom
@@ -39,7 +51,18 @@ class Session(AnySession):
         self._action_coros: dict[AnyTask, Coroutine] = {}
         self._monitoring_coros: dict[AnyTask, Coroutine] = {}
         self._coros: list[Coroutine] = []
-        self._colors = [GREEN, YELLOW, BLUE, MAGENTA, CYAN]
+        self._colors = [
+            GREEN,
+            YELLOW,
+            BLUE,
+            MAGENTA,
+            CYAN,
+            BRIGHT_GREEN,
+            BRIGHT_YELLOW,
+            BRIGHT_BLUE,
+            BRIGHT_MAGENTA,
+            BRIGHT_CYAN,
+        ]
         self._icons = ICONS
         self._color_index = 0
         self._icon_index = 0
@@ -61,6 +84,10 @@ class Session(AnySession):
     @property
     def root_group(self) -> AnyGroup | None:
         return self._root_group
+
+    @property
+    def task_names(self) -> list[str]:
+        return [task.name for task in self._task_status.keys()]
 
     @property
     def shared_ctx(self) -> AnySharedContext:
