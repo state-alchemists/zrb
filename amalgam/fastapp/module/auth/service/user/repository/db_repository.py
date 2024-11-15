@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from sqlalchemy import String, delete, update
 from sqlalchemy.future import select
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from ......schema.user import NewUserData, UpdateUserData, UserData
 from .repository import UserRepository
@@ -39,7 +39,7 @@ class UserDBRepository(UserRepository):
         self.session_maker = session_maker
 
     async def create_user(self, new_user_data: NewUserData) -> UserData:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             user_model = create_user_model(new_user_data)
             session.add(user_model)
             await session.commit()
@@ -47,7 +47,7 @@ class UserDBRepository(UserRepository):
             return get_user_data(user_model)
 
     async def get_user_by_id(self, user_id: str) -> UserData | None:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             result = await session.execute(select(UserModel).filter_by(id=user_id))
             user_model = result.scalar_one_or_none()
             if user_model:
@@ -55,7 +55,7 @@ class UserDBRepository(UserRepository):
             return None
 
     async def get_all_users(self) -> list[UserData]:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             result = await session.execute(select(UserModel))
             user_models = result.scalars().all()
             return [get_user_data(user_model) for user_model in user_models]
@@ -63,7 +63,7 @@ class UserDBRepository(UserRepository):
     async def update_user(
         self, user_id: str, update_user_data: UpdateUserData
     ) -> UserData | None:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             stmt = (
                 update(UserModel)
                 .where(UserModel.id == user_id)
@@ -75,7 +75,7 @@ class UserDBRepository(UserRepository):
             return await self.get_user_by_id(user_id)
 
     async def delete_user(self, user_id: str) -> None:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             stmt = delete(UserModel).where(UserModel.id == user_id)
             await session.execute(stmt)
             await session.commit()
@@ -83,14 +83,14 @@ class UserDBRepository(UserRepository):
     async def create_users_bulk(
         self, new_users_data: list[NewUserData]
     ) -> list[UserData]:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             user_models = [create_user_model(user_data) for user_data in new_users_data]
             session.add_all(user_models)
             await session.commit()
             return [get_user_data(user_model) for user_model in user_models]
 
     async def get_user_by_username(self, username: str) -> UserData | None:
-        with self.session_maker() as session:
+        async with self.session_maker() as session:
             result = await session.execute(
                 select(UserModel).filter_by(username=username)
             )

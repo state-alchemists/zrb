@@ -68,7 +68,7 @@ run_as_microservices = app_microservices_group.add_task(
     ),
     alias="run",
 )
-prepare_venv >> run_as_microservices >> run_all
+run_as_microservices >> run_all
 
 
 def run_microservices(name: str, port: int, module: str) -> Task:
@@ -102,6 +102,6 @@ def run_microservices(name: str, port: int, module: str) -> Task:
 run_gateway = app_microservices_group.add_task(
     run_microservices("gateway", 3001, "gateway")
 )
-run_gateway >> run_as_microservices
+prepare_venv >> run_gateway >> run_as_microservices
 run_auth = app_microservices_group.add_task(run_microservices("auth", 3002, "auth"))
-run_auth >> run_as_microservices
+prepare_venv >> run_auth >> run_as_microservices
