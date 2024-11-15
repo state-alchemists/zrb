@@ -70,57 +70,38 @@ run_as_microservices = app_microservices_group.add_task(
 )
 prepare_venv >> run_as_microservices >> run_all
 
-microservices_env_vars = {
-    "FASTAPP_MODE": "microservices",
-    "FASTAPP_AUTH_BASE_URL": "http://localhost:3002",
-}
+
+def run_microservices(name: str, port: int, module: str) -> Task:
+    microservices_env_vars = {
+        "FASTAPP_MODE": "microservices",
+        "FASTAPP_AUTH_BASE_URL": "http://localhost:3002",
+    }
+    return CmdTask(
+        name=f"run-{name}",
+        description="🟢 Run Fastapp {name.capitalize()}",
+        env=[
+            EnvFile(path=os.path.join(APP_DIR, "template.env")),
+            EnvMap(
+                vars={
+                    **microservices_env_vars,
+                    "FASTAPP_PORT": f"{port}",
+                    "FASTAPP_MODULES": f"{module}",
+                }
+            ),
+        ],
+        cwd=APP_DIR,
+        cmd=[
+            ACTIVATE_VENV_SCRIPT,
+            'fastapi dev main.py --port "${FASTAPP_PORT}"',
+        ],
+        auto_render_cmd=False,
+        retries=0,
+    )
+
 
 run_gateway = app_microservices_group.add_task(
-    CmdTask(
-        name="run-gateway",
-        description="🟢 Run Fastapp Gateway",
-        env=[
-            EnvFile(path=os.path.join(APP_DIR, "template.env")),
-            EnvMap(
-                vars={
-                    **microservices_env_vars,
-                    "FASTAPP_PORT": "3001",
-                    "FASTAPP_MODULES": "gateway",
-                }
-            ),
-        ],
-        cwd=APP_DIR,
-        cmd=[
-            ACTIVATE_VENV_SCRIPT,
-            'fastapi dev main.py --port "${FASTAPP_PORT}"',
-        ],
-        auto_render_cmd=False,
-        retries=0,
-    )
+    run_microservices("gateway", 3001, "gateway")
 )
-prepare_venv >> run_gateway >> run_as_microservices
-
-run_auth = app_microservices_group.add_task(
-    CmdTask(
-        name="run-auth",
-        description="🟢 Run Fastapp Auth",
-        env=[
-            EnvFile(path=os.path.join(APP_DIR, "template.env")),
-            EnvMap(
-                vars={
-                    **microservices_env_vars,
-                    "FASTAPP_PORT": "3001",
-                    "FASTAPP_MODULES": "auth",
-                }
-            ),
-        ],
-        cwd=APP_DIR,
-        cmd=[
-            ACTIVATE_VENV_SCRIPT,
-            'fastapi dev main.py --port "${FASTAPP_PORT}"',
-        ],
-        auto_render_cmd=False,
-        retries=0,
-    )
-)
-prepare_venv >> run_auth >> run_as_microservices
+run_gateway >> run_as_microservices
+run_auth = app_microservices_group.add_task(run_microservices("auth", 3002, "auth"))
+run_auth >> run_as_microservices

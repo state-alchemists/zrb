@@ -77,7 +77,7 @@ def run_microservices(name: str, port: int, module: str) -> Task:
         "APP_NAME_AUTH_BASE_URL": "http://localhost:3002",
     }
     return CmdTask(
-        name="run-{name}",
+        name=f"run-{name}",
         description="🟢 Run App Name {name.capitalize()}",
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),
@@ -85,7 +85,7 @@ def run_microservices(name: str, port: int, module: str) -> Task:
                 vars={
                     **microservices_env_vars,
                     "APP_NAME_PORT": f"{port}",
-                    "APP_NAME_MODULES": "{module}",
+                    "APP_NAME_MODULES": f"{module}",
                 }
             ),
         ],
@@ -102,6 +102,6 @@ def run_microservices(name: str, port: int, module: str) -> Task:
 run_gateway = app_microservices_group.add_task(
     run_microservices("gateway", 3001, "gateway")
 )
-run_gateway >> run_microservices
+run_gateway >> run_as_microservices
 run_auth = app_microservices_group.add_task(run_microservices("auth", 3002, "auth"))
-run_auth >> run_microservices
+run_auth >> run_as_microservices

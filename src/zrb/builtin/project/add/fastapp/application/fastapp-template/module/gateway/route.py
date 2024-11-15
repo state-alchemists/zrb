@@ -1,8 +1,7 @@
-from fastapi.responses import PlainTextResponse
-
 from ...common.app import app
 from ...common.schema import BasicResponse
 from ...config import APP_MODE, APP_MODULES
+from ...schema.user import NewUserData, UserData
 from ..auth.client.factory import client as auth_client
 
 if APP_MODE == "monolith" or "gateway" in APP_MODULES:
@@ -15,6 +14,10 @@ if APP_MODE == "monolith" or "gateway" in APP_MODULES:
     async def readiness():
         return BasicResponse(message="ok")
 
-    @app.get("/", response_class=PlainTextResponse)
-    async def read_root():
-        return await auth_client.greet("world")
+    @app.get("/api/v1/users", response_class=list[UserData])
+    async def auth_get_all_users():
+        return await auth_client.get_all_users()
+
+    @app.post("/api/v1/users", response_class=UserData)
+    async def auth_create_user(data: NewUserData):
+        return await auth_client.create_user(data)

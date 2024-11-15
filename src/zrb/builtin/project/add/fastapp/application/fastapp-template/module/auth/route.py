@@ -1,7 +1,8 @@
 from ...common.app import app
 from ...common.schema import BasicResponse
 from ...config import APP_MODE, APP_MODULES
-from .user.usecase import user_usecase
+from ...schema.user import NewUserData, UserData
+from .service.user.usecase import user_usecase
 
 if APP_MODE == "microservices" and "auth" in APP_MODULES:
 
@@ -13,6 +14,10 @@ if APP_MODE == "microservices" and "auth" in APP_MODULES:
     async def readiness():
         return BasicResponse(message="ok")
 
-    @app.get("/user/greeting")
-    def greet(name: str) -> str:
-        return user_usecase.greet(name)
+    @app.post("/api/v1/users", response_class=UserData)
+    async def create_user(data: NewUserData) -> UserData:
+        return await user_usecase.create_user(data)
+
+    @app.get("/api/v1/users", response_class=list[UserData])
+    async def get_all_users() -> list[UserData]:
+        return await user_usecase.get_all_users()
