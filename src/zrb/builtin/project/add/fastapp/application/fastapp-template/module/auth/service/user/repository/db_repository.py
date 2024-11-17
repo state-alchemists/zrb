@@ -2,14 +2,11 @@ from uuid import uuid4
 
 from sqlalchemy import String, delete, update
 from sqlalchemy.future import select
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
 
 from ......schema.user import NewUserData, UpdateUserData, UserData
+from ....db.baseclass import Base
 from .repository import UserRepository
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 class UserModel(Base):

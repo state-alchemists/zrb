@@ -103,15 +103,16 @@ class Context(AnyContext):
     ):
         color = self._color
         icon = self._icon
-        max_name_length = max(len(name) for name in self.session.task_names)
-        task_name = self._task_name.rjust(max_name_length + 1)
+        max_name_length = max(len(name) + len(icon) for name in self.session.task_names)
+        styled_task_name = f"{icon} {self._task_name}"
+        padded_styled_task_name = styled_task_name.rjust(max_name_length + 1)
         if self._attempt == 0:
             attempt_status = "".ljust(5)
         else:
             attempt_status = f"{self._attempt}/{self._max_attempt}".ljust(5)
         now = datetime.datetime.now()
         formatted_time = now.strftime("%y%m%d %H:%M:%S.%f")[:19]
-        prefix = f"{formatted_time} {attempt_status} {icon} {task_name} ⬤ "
+        prefix = f"{formatted_time} {attempt_status} {padded_styled_task_name} ⬤ "
         message = sep.join([f"{value}" for value in values])
         self.append_to_shared_log(_remove_ansi_escape_sequences(f"{prefix} {message}"))
         stylized_prefix = stylize(prefix, color=color)

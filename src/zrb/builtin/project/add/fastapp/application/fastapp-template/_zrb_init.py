@@ -4,6 +4,7 @@ import platform
 from zrb import CmdTask, Env, EnvFile, EnvMap, Group, Task, project_group
 
 APP_DIR = os.path.dirname(__file__)
+APP_MODULE_NAME = os.path.basename(APP_DIR)
 
 if platform.system() == "Windows":
     ACTIVATE_VENV_SCRIPT = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; . .venv\Scripts\Activate"  # noqa
@@ -41,6 +42,32 @@ run_all = app_group.add_task(
     alias="run",
 )
 
+migrate_all = app_group.add_task(
+    Task(name="migrate-app-name", description="📤 Run App Name migration"),
+    alias="migrate",
+)
+
+
+migrate_monolith = app_monolith_group.add_task(
+    CmdTask(
+        name="run-app-name-migration",
+        description="📤 Run App Name migration",
+        env=[
+            EnvFile(path=os.path.join(APP_DIR, "template.env")),
+            Env(name="APP_NAME_MODE", default="monolith"),
+        ],
+        cwd=APP_DIR,
+        cmd=[
+            ACTIVATE_VENV_SCRIPT,
+            f"python -m {APP_MODULE_NAME}.migrate",
+        ],
+        auto_render_cmd=False,
+        retries=0,
+    ),
+    alias="migrate",
+)
+prepare_venv >> migrate_monolith >> migrate_all
+
 run_as_monolith = app_monolith_group.add_task(
     CmdTask(
         name="run-app-name-as-monolith",
@@ -59,7 +86,15 @@ run_as_monolith = app_monolith_group.add_task(
     ),
     alias="run",
 )
-prepare_venv >> run_as_monolith >> run_all
+migrate_monolith >> run_as_monolith >> run_all
+
+migrate_microservices = app_microservices_group.add_task(
+    Task(
+        name="migrate-app-name-microservices", description="📤 Run App Name migration"
+    ),
+    alias="migrate",
+)
+migrate_microservices >> migrate_all
 
 run_as_microservices = app_microservices_group.add_task(
     Task(
@@ -71,19 +106,44 @@ run_as_microservices = app_microservices_group.add_task(
 run_as_microservices >> run_all
 
 
-def run_microservices(name: str, port: int, module: str) -> Task:
-    microservices_env_vars = {
-        "APP_NAME_MODE": "microservices",
-        "APP_NAME_AUTH_BASE_URL": "http://localhost:3002",
-    }
+MICROSERVICES_ENV_VARS = {
+    "APP_NAME_MODE": "microservices",
+    "APP_NAME_AUTH_BASE_URL": "http://localhost:3002",
+}
+
+
+def migrate_microservice(name: str, module: str) -> Task:
     return CmdTask(
-        name=f"run-{name}",
-        description="🟢 Run App Name {name.capitalize()}",
+        name=f"migrate-{name}",
+        description=f"📤 Run App Name {name.capitalize()} migration",
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),
             EnvMap(
                 vars={
-                    **microservices_env_vars,
+                    **MICROSERVICES_ENV_VARS,
+                    "APP_NAME_MODULES": f"{module}",
+                }
+            ),
+        ],
+        cwd=APP_DIR,
+        cmd=[
+            ACTIVATE_VENV_SCRIPT,
+            f"python -m {APP_MODULE_NAME}.migrate",
+        ],
+        auto_render_cmd=False,
+        retries=0,
+    )
+
+
+def run_microservice(name: str, port: int, module: str) -> Task:
+    return CmdTask(
+        name=f"run-{name}",
+        description=f"🟢 Run App Name {name.capitalize()}",
+        env=[
+            EnvFile(path=os.path.join(APP_DIR, "template.env")),
+            EnvMap(
+                vars={
+                    **MICROSERVICES_ENV_VARS,
                     "APP_NAME_PORT": f"{port}",
                     "APP_NAME_MODULES": f"{module}",
                 }
@@ -100,8 +160,11 @@ def run_microservices(name: str, port: int, module: str) -> Task:
 
 
 run_gateway = app_microservices_group.add_task(
-    run_microservices("gateway", 3001, "gateway")
+    run_microservice("gateway", 3001, "gateway")
 )
 prepare_venv >> run_gateway >> run_as_microservices
-run_auth = app_microservices_group.add_task(run_microservices("auth", 3002, "auth"))
-prepare_venv >> run_auth >> run_as_microservices
+
+migrate_auth = app_microservices_group.add_task(migrate_microservice("auth", "auth"))
+prepare_venv >> migrate_auth >> migrate_microservices
+run_auth = app_microservices_group.add_task(run_microservice("auth", 3002, "auth"))
+migrate_auth >> run_auth >> run_as_microservices

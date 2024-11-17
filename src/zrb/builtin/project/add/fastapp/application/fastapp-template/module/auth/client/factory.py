@@ -1,8 +1,9 @@
-from ....config import APP_COMMUNICATION, APP_LIBRARY_BASE_URL
-from ..service.user.usecase import user_usecase
+from ....config import APP_COMMUNICATION
+from .api_client import APIClient
 from .base_client import BaseClient
+from .direct_client import DirectClient
 
 if APP_COMMUNICATION == "direct":
-    client: BaseClient = user_usecase.as_direct_client()
+    client: BaseClient = DirectClient()
 elif APP_COMMUNICATION == "api":
-    client: BaseClient = user_usecase.as_api_client(base_url=APP_LIBRARY_BASE_URL)
+    client: BaseClient = APIClient()

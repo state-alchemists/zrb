@@ -115,32 +115,38 @@ class CmdTask(BaseTask):
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
         ctx.log_debug(f"Environment map: {env_map}")
-        cmd_process = await asyncio.create_subprocess_exec(
-            shell,
-            shell_flag,
-            cmd_script,
-            cwd=cwd,
-            stdin=sys.stdin if sys.stdin.isatty() else None,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env_map,
-            bufsize=0,
-        )
-        stdout_task = asyncio.create_task(
-            self.__read_stream(cmd_process.stdout, ctx.print, self._max_output_line)
-        )
-        stderr_task = asyncio.create_task(
-            self.__read_stream(cmd_process.stderr, ctx.print, self._max_error_line)
-        )
-        # Wait for process to complete and gather stdout/stderr
-        return_code = await cmd_process.wait()
-        stdout = await stdout_task
-        stderr = await stderr_task
-        # Check for errors
-        if return_code != 0:
-            ctx.log_error(f"Exit status: {return_code}")
-            raise Exception(f"Process {self._name} exited ({return_code}): {stderr}")
-        return CmdResult(stdout, stderr)
+        try:
+            cmd_process = await asyncio.create_subprocess_exec(
+                shell,
+                shell_flag,
+                cmd_script,
+                cwd=cwd,
+                stdin=sys.stdin if sys.stdin.isatty() else None,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env_map,
+                bufsize=0,
+            )
+            stdout_task = asyncio.create_task(
+                self.__read_stream(cmd_process.stdout, ctx.print, self._max_output_line)
+            )
+            stderr_task = asyncio.create_task(
+                self.__read_stream(cmd_process.stderr, ctx.print, self._max_error_line)
+            )
+            # Wait for process to complete and gather stdout/stderr
+            return_code = await cmd_process.wait()
+            stdout = await stdout_task
+            stderr = await stderr_task
+            # Check for errors
+            if return_code != 0:
+                ctx.log_error(f"Exit status: {return_code}")
+                raise Exception(
+                    f"Process {self._name} exited ({return_code}): {stderr}"
+                )
+            return CmdResult(stdout, stderr)
+        finally:
+            if cmd_process.returncode is None:
+                cmd_process.terminate()
 
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
