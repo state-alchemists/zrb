@@ -155,7 +155,7 @@ class BaseUsecase:
         # Dynamically generate methods
         for name, details in methods.items():
 
-            async def method(self, _func=details.func, *args, **kwargs):
+            async def method(self, _func=details["func"], *args, **kwargs):
                 return await _func(self.usecase, *args, **kwargs)
 
             setattr(DirectClient, name, method)
