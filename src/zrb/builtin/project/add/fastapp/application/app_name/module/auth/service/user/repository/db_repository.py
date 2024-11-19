@@ -2,8 +2,7 @@ from common.db_repository import BaseDBRepository
 from module.auth.service.user.repository.repository import UserRepository
 from passlib.context import CryptContext
 from schema.user import User, UserCreate, UserResponse, UserUpdate
-from sqlalchemy import Engine
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session, select
 
 # Password hashing context
@@ -17,10 +16,11 @@ def hash_password(password: str) -> str:
 class UserDBRepository(
     BaseDBRepository[User, UserResponse, UserCreate, UserUpdate], UserRepository
 ):
-    def __init__(self, engine: Engine | AsyncEngine):
-        super().__init__(
-            engine=engine, column_preprocessors={"password": hash_password}
-        )
+    db_model = User
+    response_model = UserResponse
+    create_model = UserCreate
+    update_model = UserUpdate
+    column_preprocessors = {"password": hash_password}
 
     async def get_by_credentials(
         self, username: str, password: str

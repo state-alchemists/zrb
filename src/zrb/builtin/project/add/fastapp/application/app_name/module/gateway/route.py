@@ -22,6 +22,6 @@ if APP_MODE == "monolith" or "gateway" in APP_MODULES:
     async def auth_get_all_users() -> UserResponse:
         return await auth_client.get_all_users()
 
-    @app.post("/api/v1/users", response_model=UserCreate | list[UserCreate])
-    async def auth_create_user(data: UserResponse | list[UserResponse]):
+    @app.post("/api/v1/users", response_model=UserResponse | list[UserResponse])
+    async def auth_create_user(data: UserCreate | list[UserCreate]):
         return await auth_client.create_user(data)
