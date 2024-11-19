@@ -59,12 +59,12 @@ migrate_monolith = app_monolith_group.add_task(
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            f"python -m {APP_MODULE_NAME}.migrate",
+            # f"python -m {APP_MODULE_NAME}.migrate",
         ],
         auto_render_cmd=False,
         retries=0,
     ),
-    alias="migrate"
+    alias="migrate",
 )
 prepare_venv >> migrate_monolith >> migrate_all
 
@@ -128,7 +128,7 @@ def migrate_microservice(name: str, module: str) -> Task:
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            f"python -m {APP_MODULE_NAME}.migrate",
+            # f"python -m {APP_MODULE_NAME}.migrate",
         ],
         auto_render_cmd=False,
         retries=0,

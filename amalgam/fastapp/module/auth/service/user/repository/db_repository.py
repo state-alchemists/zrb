@@ -1,97 +1,37 @@
-from uuid import uuid4
+from common.db_repository import BaseDBRepository
+from module.auth.service.user.repository.repository import UserRepository
+from passlib.context import CryptContext
+from schema.user import User, UserCreate, UserResponse, UserUpdate
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session, select
 
-from sqlalchemy import String, delete, update
-from sqlalchemy.future import select
-from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
-
-from ......schema.user import NewUserData, UpdateUserData, UserData
-from ....db.baseclass import Base
-from .repository import UserRepository
-
-
-class UserModel(Base):
-    __tablename__ = "users"
-    id: Mapped[str] = mapped_column(String(30), primary_key=True)
-    username: Mapped[str] = mapped_column(String(50))
-    password: Mapped[str] = mapped_column(String(50))
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_user_model(new_user_data: NewUserData) -> UserModel:
-    return UserModel(
-        id=str(uuid4()),
-        username=new_user_data.username,
-        password=new_user_data.password,
-    )
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
 
 
-def get_user_data(user_model: UserModel) -> UserData:
-    return UserData(
-        id=user_model.id,
-        username=user_model.username,
-    )
+class UserDBRepository(
+    BaseDBRepository[User, UserResponse, UserCreate, UserUpdate], UserRepository
+):
+    db_model = User
+    response_model = UserResponse
+    create_model = UserCreate
+    update_model = UserUpdate
+    column_preprocessors = {"password": hash_password}
 
-
-class UserDBRepository(UserRepository):
-    def __init__(self, session_maker: sessionmaker[Session]):
-        self.session_maker = session_maker
-
-    async def create_user(self, new_user_data: NewUserData) -> UserData:
-        async with self.session_maker() as session:
-            user_model = create_user_model(new_user_data)
-            session.add(user_model)
-            await session.commit()
-            await session.refresh(user_model)
-            return get_user_data(user_model)
-
-    async def get_user_by_id(self, user_id: str) -> UserData | None:
-        async with self.session_maker() as session:
-            result = await session.execute(select(UserModel).filter_by(id=user_id))
-            user_model = result.scalar_one_or_none()
-            if user_model:
-                return get_user_data(user_model)
+    async def get_by_credentials(
+        self, username: str, password: str
+    ) -> UserResponse | None:
+        statement = select(User).where(User.username == username)
+        if self.is_async:
+            async with AsyncSession(self.engine) as session:
+                user = await session.exec(statement).first
+        else:
+            with Session(self.engine) as session:
+                user = session.exec(statement).first()
+        if not user or not pwd_context.verify(password, user.hashed_password):
             return None
-
-    async def get_all_users(self) -> list[UserData]:
-        async with self.session_maker() as session:
-            result = await session.execute(select(UserModel))
-            user_models = result.scalars().all()
-            return [get_user_data(user_model) for user_model in user_models]
-
-    async def update_user(
-        self, user_id: str, update_user_data: UpdateUserData
-    ) -> UserData | None:
-        async with self.session_maker() as session:
-            stmt = (
-                update(UserModel)
-                .where(UserModel.id == user_id)
-                .values(username=update_user_data.username)
-                .execution_options(synchronize_session="fetch")
-            )
-            await session.execute(stmt)
-            await session.commit()
-            return await self.get_user_by_id(user_id)
-
-    async def delete_user(self, user_id: str) -> None:
-        async with self.session_maker() as session:
-            stmt = delete(UserModel).where(UserModel.id == user_id)
-            await session.execute(stmt)
-            await session.commit()
-
-    async def create_users_bulk(
-        self, new_users_data: list[NewUserData]
-    ) -> list[UserData]:
-        async with self.session_maker() as session:
-            user_models = [create_user_model(user_data) for user_data in new_users_data]
-            session.add_all(user_models)
-            await session.commit()
-            return [get_user_data(user_model) for user_model in user_models]
-
-    async def get_user_by_username(self, username: str) -> UserData | None:
-        async with self.session_maker() as session:
-            result = await session.execute(
-                select(UserModel).filter_by(username=username)
-            )
-            user_model = result.scalar_one_or_none()
-            if user_model:
-                return get_user_data(user_model)
-            return None
+        return self._to_response(user)

@@ -12,13 +12,10 @@ APP_COMMUNICATION = os.getenv(
 )
 APP_REPOSITORY_TYPE = os.getenv("APP_REPOSITORY_TYPE", "db")
 
-_DEFAULT_ASYNC_DB_URL = "sqlite+aiosqlite:///monolith.db"
-_DEFAULT_SYNC_DB_URL = "sqlite:///monolith.db"
+_DEFAULT_DB_URL = "sqlite:///monolith.db"
 if APP_MODE != "monolith":
-    _DEFAULT_ASYNC_DB_URL = "sqlite+aiosqlite:///microservices.db"
-    _DEFAULT_SYNC_DB_URL = "sqlite:///microservices.db"
-APP_DB_URL = os.getenv("APP_DB_URL", _DEFAULT_ASYNC_DB_URL)
-APP_DB_MIGRATION_URL = os.getenv("APP_DB_MIGRATION_URL", _DEFAULT_SYNC_DB_URL)
+    _DEFAULT_DB_URL = "sqlite:///microservices.db"
+APP_DB_URL = os.getenv("APP_DB_URL", _DEFAULT_DB_URL)
 
 _DEFAULT_MIGRATION_TABLE = "migration_table"
 if APP_MODE != "monolith" and len(APP_MODULES) > 0:

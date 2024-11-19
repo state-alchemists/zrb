@@ -1,41 +1,45 @@
-from .....common.base_usecase import BaseUsecase
-from .....schema.user import NewUserData, UpdateUserData, UserData
-from .repository.factory import user_repository
+from common.usecase import BaseUsecase
+from module.auth.service.user.repository.factory import user_repository
+from schema.user import UserCreate, UserResponse, UserUpdate
 
 
 class UserUsecase(BaseUsecase):
 
     @BaseUsecase.route(
-        "/api/v1/users/{user_id}", methods=["get"], response_model=UserData
+        "/api/v1/users/{user_id}", methods=["get"], response_model=UserResponse
     )
-    async def get_user_by_id(self, user_id: str) -> UserData:
-        return await user_repository.get_user_by_id(user_id)
-
-    @BaseUsecase.route("/api/v1/users", methods=["get"], response_model=list[UserData])
-    async def get_all_users(self) -> list[UserData]:
-        return await user_repository.get_all_users()
+    async def get_user_by_id(self, user_id: str) -> UserResponse:
+        return await user_repository.get_by_id(user_id)
 
     @BaseUsecase.route(
-        "/api/v1/users", methods=["post"], response_model=UserData | list[UserData]
+        "/api/v1/users", methods=["get"], response_model=list[UserResponse]
+    )
+    async def get_all_users(self) -> list[UserResponse]:
+        return await user_repository.get_all()
+
+    @BaseUsecase.route(
+        "/api/v1/users",
+        methods=["post"],
+        response_model=UserResponse | list[UserResponse],
     )
     async def create_user(
-        self, data: NewUserData | list[NewUserData]
-    ) -> UserData | list[UserData]:
-        if isinstance(data, NewUserData):
-            return await user_repository.create_user(data)
-        return await user_repository.create_users_bulk(data)
+        self, data: UserCreate | list[UserCreate]
+    ) -> UserResponse | list[UserResponse]:
+        if isinstance(data, UserCreate):
+            return await user_repository.create(data)
+        return await user_repository.create_bulk(data)
 
     @BaseUsecase.route(
-        "/api/v1/users/{user_id}", methods=["put"], response_model=UserData
+        "/api/v1/users/{user_id}", methods=["put"], response_model=UserResponse
     )
-    async def update_user(self, user_id: str, data: UpdateUserData) -> UserData:
-        return await user_repository.update_user(user_id, data)
+    async def update_user(self, user_id: str, data: UserUpdate) -> UserResponse:
+        return await user_repository.update(user_id, data)
 
     @BaseUsecase.route(
-        "/api/v1/users/{user_id}", methods=["delete"], response_model=UserData
+        "/api/v1/users/{user_id}", methods=["delete"], response_model=UserResponse
     )
-    async def delete_user(self, user_id: str) -> UserData:
-        return await user_repository.delete_user(user_id)
+    async def delete_user(self, user_id: str) -> UserResponse:
+        return await user_repository.delete(user_id)
 
 
 user_usecase = UserUsecase()

@@ -1,38 +1,36 @@
 from abc import ABC, abstractmethod
 
-from ......schema.user import NewUserData, UpdateUserData, UserData
+from schema.user import User, UserCreate, UserResponse, UserUpdate
 
 
 class UserRepository(ABC):
 
     @abstractmethod
-    async def create_user(self, new_user_data: NewUserData) -> UserData:
+    async def create(self, user_data: UserCreate) -> UserResponse:
         pass
 
     @abstractmethod
-    async def get_user_by_id(self, user_id: str) -> UserData | None:
+    async def get_by_id(self, user_id: str) -> User | None:
         pass
 
     @abstractmethod
-    async def get_all_users(self) -> list[UserData]:
+    async def get_all(self) -> list[User]:
         pass
 
     @abstractmethod
-    async def update_user(
-        self, user_id: str, update_user_data: UpdateUserData
-    ) -> UserData | None:
+    async def update(self, user_id: str, user_data: UserUpdate) -> User | None:
         pass
 
     @abstractmethod
-    async def delete_user(self, user_id: str) -> None:
+    async def delete(self, user_id: str) -> User | None:
         pass
 
     @abstractmethod
-    async def create_users_bulk(
-        self, new_users_data: list[NewUserData]
-    ) -> list[UserData]:
+    async def create_bulk(self, user_data_list: list[UserCreate]) -> list[UserResponse]:
         pass
 
     @abstractmethod
-    async def get_user_by_username(self, username: str) -> UserData | None:
+    async def get_by_credentials(
+        self, username: str, password: str
+    ) -> UserResponse | None:
         pass

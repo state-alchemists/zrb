@@ -1,7 +1,7 @@
-from ...common.app_factory import app
-from ...common.schema import BasicResponse
-from ...config import APP_MODE, APP_MODULES
-from .service.user.usecase import user_usecase
+from common.app import app
+from common.schema import BasicResponse
+from config import APP_MODE, APP_MODULES
+from module.auth.service.user.usecase import user_usecase
 
 if APP_MODE == "microservices" and "auth" in APP_MODULES:
 
