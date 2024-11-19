@@ -1,0 +1,37 @@
+from common.db_repository import BaseDBRepository
+from module.auth.service.user.repository.repository import UserRepository
+from passlib.context import CryptContext
+from schema.user import User, UserCreate, UserResponse, UserUpdate
+from sqlalchemy import Engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlmodel import Session, select
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+class UserDBRepository(
+    BaseDBRepository[User, UserResponse, UserCreate, UserUpdate], UserRepository
+):
+    def __init__(self, engine: Engine | AsyncEngine):
+        super().__init__(
+            engine=engine, column_preprocessors={"password": hash_password}
+        )
+
+    async def get_by_credentials(
+        self, username: str, password: str
+    ) -> UserResponse | None:
+        statement = select(User).where(User.username == username)
+        if self.is_async:
+            async with AsyncSession(self.engine) as session:
+                user = await session.exec(statement).first
+        else:
+            with Session(self.engine) as session:
+                user = session.exec(statement).first()
+        if not user or not pwd_context.verify(password, user.hashed_password):
+            return None
+        return self._to_response(user)

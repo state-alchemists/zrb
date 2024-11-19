@@ -1,8 +1,8 @@
-from ...common.app_factory import app
-from ...common.schema import BasicResponse
-from ...config import APP_MODE, APP_MODULES
-from ...schema.user import NewUserData, UserData
-from ..auth.client.factory import client as auth_client
+from common.app import app
+from common.schema import BasicResponse
+from config import APP_MODE, APP_MODULES
+from module.auth.client.factory import client as auth_client
+from schema.user import UserCreate, UserResponse
 
 if APP_MODE == "monolith" or "gateway" in APP_MODULES:
 
@@ -18,10 +18,10 @@ if APP_MODE == "monolith" or "gateway" in APP_MODULES:
         async def readiness():
             return BasicResponse(message="ok")
 
-    @app.get("/api/v1/users", response_model=list[UserData])
-    async def auth_get_all_users():
+    @app.get("/api/v1/users", response_model=list[UserResponse])
+    async def auth_get_all_users() -> UserResponse:
         return await auth_client.get_all_users()
 
-    @app.post("/api/v1/users", response_model=NewUserData | list[NewUserData])
-    async def auth_create_user(data: UserData | list[UserData]):
+    @app.post("/api/v1/users", response_model=UserCreate | list[UserCreate])
+    async def auth_create_user(data: UserResponse | list[UserResponse]):
         return await auth_client.create_user(data)

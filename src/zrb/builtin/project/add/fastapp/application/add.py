@@ -28,7 +28,7 @@ scaffold_fastapp = Scaffolder(
             default_str=lambda _: get_random_name(separator="_"),
         ),
     ],
-    source_path=os.path.join(_DIR, "fastapp-template"),
+    source_path=os.path.join(_DIR, "app_name"),
     auto_render_source_path=False,
     destination_path=lambda ctx: os.path.join(
         ctx.input["project-dir"], ctx.input["app-name"]
@@ -37,6 +37,7 @@ scaffold_fastapp = Scaffolder(
         "App Name": "{ctx.input['app-name'].title()}",
         "App name": "{ctx.input['app-name'].capitalize()}",
         "app-name": "{to_kebab_case(ctx.input['app-name'])}",
+        "app_name": "{to_snake_case(ctx.input['app-name'])}",
         "APP_NAME": "{to_snake_case(ctx.input['app-name']).upper()}",
     },
     retries=0,
