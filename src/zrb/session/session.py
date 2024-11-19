@@ -1,17 +1,18 @@
 import asyncio
 from typing import Any, Coroutine
 
-from ..context.any_shared_context import AnySharedContext
-from ..context.context import AnyContext, Context
-from ..group.any_group import AnyGroup
-from ..session_state_log.session_state_log import SessionStateLog, TaskStatusStateLog
-from ..session_state_logger.any_session_state_logger import AnySessionStateLogger
-from ..session_state_logger.default_session_state_logger import (
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.context.context import AnyContext, Context
+from zrb.group.any_group import AnyGroup
+from zrb.session.any_session import AnySession
+from zrb.session_state_log.session_state_log import SessionStateLog, TaskStatusStateLog
+from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
+from zrb.session_state_logger.default_session_state_logger import (
     default_session_state_logger,
 )
-from ..task.any_task import AnyTask
-from ..task_status.task_status import TaskStatus
-from ..util.cli.style import (
+from zrb.task.any_task import AnyTask
+from zrb.task_status.task_status import TaskStatus
+from zrb.util.cli.style import (
     BLUE,
     BRIGHT_BLUE,
     BRIGHT_CYAN,
@@ -24,10 +25,9 @@ from ..util.cli.style import (
     MAGENTA,
     YELLOW,
 )
-from ..util.group import get_node_path
-from ..util.string.name import get_random_name
-from ..xcom.xcom import Xcom
-from .any_session import AnySession
+from zrb.util.group import get_node_path
+from zrb.util.string.name import get_random_name
+from zrb.xcom.xcom import Xcom
 
 
 class Session(AnySession):

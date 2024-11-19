@@ -2,8 +2,8 @@ import datetime
 import json
 import os
 
-from ..session_state_log.session_state_log import SessionStateLog, SessionStateLogList
-from .any_session_state_logger import AnySessionStateLogger
+from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
+from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 
 
 class FileSessionStateLogger(AnySessionStateLogger):

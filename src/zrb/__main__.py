@@ -1,8 +1,8 @@
 import sys
 
-from .runner.cli import cli
-from .util.cli.style import stylize_error
-from .util.group import NodeNotFoundError
+from zrb.runner.cli import cli
+from zrb.util.cli.style import stylize_error
+from zrb.util.group import NodeNotFoundError
 
 
 def serve_cli():

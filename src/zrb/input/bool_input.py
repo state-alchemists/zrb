@@ -1,7 +1,7 @@
-from ..attr.type import StrAttr
-from ..context.any_shared_context import AnySharedContext
-from ..util.string.conversion import to_boolean
-from .base_input import BaseInput
+from zrb.attr.type import StrAttr
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.base_input import BaseInput
+from zrb.util.string.conversion import to_boolean
 
 
 class IntInput(BaseInput):

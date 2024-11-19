@@ -2,15 +2,15 @@ import os
 import shutil
 from collections.abc import Callable
 
-from ..attr.type import BoolAttr, StrAttr
-from ..content_transformer.any_content_transformer import AnyContentTransformer
-from ..content_transformer.content_transformer import ContentTransformer
-from ..context.any_context import AnyContext
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
-from ..util.attr import get_str_attr
-from .any_task import AnyTask
-from .base_task import BaseTask
+from zrb.attr.type import BoolAttr, StrAttr
+from zrb.content_transformer.any_content_transformer import AnyContentTransformer
+from zrb.content_transformer.content_transformer import ContentTransformer
+from zrb.context.any_context import AnyContext
+from zrb.env.any_env import AnyEnv
+from zrb.input.any_input import AnyInput
+from zrb.task.any_task import AnyTask
+from zrb.task.base_task import BaseTask
+from zrb.util.attr import get_str_attr
 
 TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
 

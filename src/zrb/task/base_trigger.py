@@ -2,20 +2,20 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-from ..attr.type import fstring
-from ..callback.any_callback import AnyCallback
-from ..context.any_context import AnyContext
-from ..context.any_shared_context import AnySharedContext
-from ..context.shared_context import SharedContext
-from ..dot_dict.dot_dict import DotDict
-from ..env.any_env import AnyEnv
-from ..input.any_input import AnyInput
-from ..session.any_session import AnySession
-from ..session.session import Session
-from ..util.cli.style import CYAN
-from ..xcom.xcom import Xcom
-from .any_task import AnyTask
-from .base_task import BaseTask
+from zrb.attr.type import fstring
+from zrb.callback.any_callback import AnyCallback
+from zrb.context.any_context import AnyContext
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.context.shared_context import SharedContext
+from zrb.dot_dict.dot_dict import DotDict
+from zrb.env.any_env import AnyEnv
+from zrb.input.any_input import AnyInput
+from zrb.session.any_session import AnySession
+from zrb.session.session import Session
+from zrb.task.any_task import AnyTask
+from zrb.task.base_task import BaseTask
+from zrb.util.cli.style import CYAN
+from zrb.xcom.xcom import Xcom
 
 
 class BaseTrigger(BaseTask):

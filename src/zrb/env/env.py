@@ -1,9 +1,9 @@
 import os
 
-from ..attr.type import StrAttr
-from ..context.any_shared_context import AnySharedContext
-from ..util.attr import get_str_attr
-from .any_env import AnyEnv
+from zrb.attr.type import StrAttr
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.env.any_env import AnyEnv
+from zrb.util.attr import get_str_attr
 
 
 class Env(AnyEnv):

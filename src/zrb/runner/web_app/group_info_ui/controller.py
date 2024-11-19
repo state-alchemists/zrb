@@ -1,9 +1,9 @@
 import os
 
-from ....group.any_group import AnyGroup
-from ....util.group import get_non_empty_subgroups, get_subtasks
-from ....util.string.format import fstring_format
-from ..any_request_handler import AnyRequestHandler
+from zrb.group.any_group import AnyGroup
+from zrb.runner.web_app.any_request_handler import AnyRequestHandler
+from zrb.util.group import get_non_empty_subgroups, get_subtasks
+from zrb.util.string.format import fstring_format
 
 _DIR = os.path.dirname(__file__)
 

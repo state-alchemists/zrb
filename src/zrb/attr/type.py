@@ -1,6 +1,6 @@
 from typing import Any, Callable
 
-from ..context.any_shared_context import AnySharedContext
+from zrb.context.any_shared_context import AnySharedContext
 
 fstring = str
 AnyAttr = Any | fstring | Callable[[AnySharedContext], Any]

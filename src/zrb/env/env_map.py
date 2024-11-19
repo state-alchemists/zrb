@@ -1,8 +1,8 @@
 import os
 from collections.abc import Callable
 
-from ..context.shared_context import SharedContext
-from .any_env import AnyEnv
+from zrb.context.shared_context import SharedContext
+from zrb.env.any_env import AnyEnv
 
 
 class EnvMap(AnyEnv):

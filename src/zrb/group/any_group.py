@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ..task.any_task import AnyTask
+from zrb.task.any_task import AnyTask
 
 
 class AnyGroup(ABC):

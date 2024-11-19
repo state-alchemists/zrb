@@ -1,10 +1,11 @@
 import datetime
 from typing import Any
 
-from ..config import LOGGING_LEVEL
-from ..dot_dict.dot_dict import DotDict
-from ..session.any_session import AnySession
-from ..util.string.conversion import (
+from zrb.config import LOGGING_LEVEL
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.dot_dict.dot_dict import DotDict
+from zrb.session.any_session import AnySession
+from zrb.util.string.conversion import (
     double_quote,
     to_boolean,
     to_camel_case,
@@ -13,9 +14,8 @@ from ..util.string.conversion import (
     to_pascal_case,
     to_snake_case,
 )
-from ..util.string.format import fstring_format
-from ..xcom.xcom import Xcom
-from .any_shared_context import AnySharedContext
+from zrb.util.string.format import fstring_format
+from zrb.xcom.xcom import Xcom
 
 
 class SharedContext(AnySharedContext):
