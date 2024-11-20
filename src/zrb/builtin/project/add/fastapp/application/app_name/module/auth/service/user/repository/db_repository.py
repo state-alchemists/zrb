@@ -1,4 +1,5 @@
 from common.db_repository import BaseDBRepository
+from common.error import NotFoundError
 from module.auth.service.user.repository.repository import UserRepository
 from passlib.context import CryptContext
 from schema.user import User, UserCreate, UserResponse, UserUpdate
@@ -20,11 +21,10 @@ class UserDBRepository(
     response_model = UserResponse
     create_model = UserCreate
     update_model = UserUpdate
+    entity_name = "user"
     column_preprocessors = {"password": hash_password}
 
-    async def get_by_credentials(
-        self, username: str, password: str
-    ) -> UserResponse | None:
+    async def get_by_credentials(self, username: str, password: str) -> UserResponse:
         statement = select(User).where(User.username == username)
         if self.is_async:
             async with AsyncSession(self.engine) as session:
@@ -33,5 +33,5 @@ class UserDBRepository(
             with Session(self.engine) as session:
                 user = session.exec(statement).first()
         if not user or not pwd_context.verify(password, user.hashed_password):
-            return None
+            raise NotFoundError(f"{self.entity_name} not found")
         return self._to_response(user)

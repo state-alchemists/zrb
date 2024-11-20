@@ -115,6 +115,7 @@ class CmdTask(BaseTask):
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
         ctx.log_debug(f"Environment map: {env_map}")
+        cmd_process = None
         try:
             cmd_process = await asyncio.create_subprocess_exec(
                 shell,
@@ -145,7 +146,7 @@ class CmdTask(BaseTask):
                 )
             return CmdResult(stdout, stderr)
         finally:
-            if cmd_process.returncode is None:
+            if cmd_process is not None and cmd_process.returncode is None:
                 cmd_process.terminate()
 
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
