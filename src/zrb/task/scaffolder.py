@@ -122,7 +122,7 @@ class Scaffolder(BaseTask):
         else:
             dest_file = os.path.join(
                 destination_path,
-                self._transform_path(os.path.basename(ctx, source_path)),
+                self._transform_path(ctx, os.path.basename(source_path)),
             )
             shutil.copy2(source_path, dest_file)
             ctx.log_info(f"Copied and renamed {source_path} to {dest_file}")

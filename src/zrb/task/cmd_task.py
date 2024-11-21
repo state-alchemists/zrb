@@ -144,6 +144,7 @@ class CmdTask(BaseTask):
                 raise Exception(
                     f"Process {self._name} exited ({return_code}): {stderr}"
                 )
+            ctx.log_info(f"Exit status: {return_code}")
             return CmdResult(stdout, stderr)
         finally:
             if cmd_process is not None and cmd_process.returncode is None:
@@ -152,6 +153,7 @@ class CmdTask(BaseTask):
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
+        envs["PYTHONBUFFERED"] = "1"
         return envs
 
     async def __read_stream(self, stream, log_method, max_lines):

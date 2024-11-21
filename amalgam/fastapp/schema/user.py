@@ -1,6 +1,5 @@
-from typing import Optional
-
 import ulid
+import datetime
 from sqlmodel import Field, SQLModel
 
 
@@ -13,8 +12,8 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(SQLModel):
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
 
 
 class UserResponse(UserBase):
@@ -23,5 +22,9 @@ class UserResponse(UserBase):
 
 class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
+    created_at: datetime.datetime
+    created_by: str
+    updated_at: datetime.datetime
+    updated_by: str
     username: str
     password: str

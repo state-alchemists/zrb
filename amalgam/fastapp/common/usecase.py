@@ -10,7 +10,7 @@ from fastapi.utils import generate_unique_id
 from starlette.responses import JSONResponse, Response
 
 
-class ApiRouteParam:
+class RouteParam:
     def __init__(
         self,
         path: str,
@@ -65,7 +65,7 @@ class ApiRouteParam:
 
 
 class BaseUsecase:
-    _methods: dict[str, ApiRouteParam] = {}
+    _route_params: dict[str, RouteParam] = {}
 
     @classmethod
     def route(
@@ -100,9 +100,7 @@ class BaseUsecase:
         """
 
         def decorator(func: Callable):
-            if not hasattr(cls, "_methods"):
-                cls._methods = {}
-            cls._methods[func.__name__] = ApiRouteParam(
+            cls._route_params[func.__name__] = RouteParam(
                 path=path,
                 response_model=response_model,
                 status_code=status_code,
@@ -141,7 +139,7 @@ class BaseUsecase:
         """
         Dynamically create a direct client class.
         """
-        _methods = self._methods
+        _methods = self._route_params
         DirectClient = create_client_class("DirectClient")
         for name, details in _methods.items():
             func = details.func
@@ -153,7 +151,7 @@ class BaseUsecase:
         """
         Dynamically create an API client class.
         """
-        _methods = self._methods
+        _methods = self._route_params
         APIClient = create_client_class("APIClient")
         # Dynamically generate methods
         for name, param in _methods.items():
@@ -165,7 +163,7 @@ class BaseUsecase:
         """
         Dynamically add routes to FastAPI.
         """
-        for _, route_param in self._methods.items():
+        for _, route_param in self._route_params.items():
             bound_func = partial(route_param.func, self)
             bound_func.__name__ = route_param.func.__name__
             bound_func.__doc__ = route_param.func.__doc__
@@ -212,7 +210,7 @@ def create_direct_client_method(func: Callable, usecase: BaseUsecase):
     return client_method
 
 
-def create_api_client_method(param: ApiRouteParam, base_url: str):
+def create_api_client_method(param: RouteParam, base_url: str):
     _url = param.path
     _methods = [method.lower() for method in param.methods]
 

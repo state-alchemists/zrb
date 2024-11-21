@@ -63,16 +63,22 @@ class BaseTask(AnyTask):
         return f"<{self.__class__.__name__} name={self._name}>"
 
     def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
-        if isinstance(other, AnyTask):
-            other.append_upstreams(self)
-        elif isinstance(other, list):
-            for task in other:
-                task.append_upstreams(self)
-        return other
+        try:
+            if isinstance(other, AnyTask):
+                other.append_upstreams(self)
+            elif isinstance(other, list):
+                for task in other:
+                    task.append_upstreams(self)
+            return other
+        except Exception as e:
+            raise ValueError(f"Invalid operation {self} >> {other}: {e}")
 
     def __lshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
-        self.append_upstreams(other)
-        return self
+        try:
+            self.append_upstreams(other)
+            return self
+        except Exception as e:
+            raise ValueError(f"Invalid operation {self} << {other}: {e}")
 
     @property
     def name(self) -> str:

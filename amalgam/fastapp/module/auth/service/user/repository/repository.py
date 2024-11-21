@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from schema.user import User, UserCreate, UserResponse, UserUpdate
+from fastapp.schema.user import User, UserCreate, UserResponse, UserUpdate
 
 
 class UserRepository(ABC):
@@ -10,7 +10,7 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, user_id: str) -> User | None:
+    async def get_by_id(self, user_id: str) -> User:
         pass
 
     @abstractmethod
@@ -18,11 +18,11 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, user_id: str, user_data: UserUpdate) -> User | None:
+    async def update(self, user_id: str, user_data: UserUpdate) -> User:
         pass
 
     @abstractmethod
-    async def delete(self, user_id: str) -> User | None:
+    async def delete(self, user_id: str) -> User:
         pass
 
     @abstractmethod
@@ -30,7 +30,5 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_credentials(
-        self, username: str, password: str
-    ) -> UserResponse | None:
+    async def get_by_credentials(self, username: str, password: str) -> UserResponse:
         pass

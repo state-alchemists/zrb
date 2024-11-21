@@ -2,7 +2,7 @@ from zrb import (
     AnyContext, Task, CmdTask, CmdPath, Env, TcpCheck, StrInput, Group, cli, make_task
 )
 from zrb.builtin.project.create.create import create_project
-from zrb.builtin.project.add.fastapp.application.add import add_fastapp_to_project
+from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.util.load import load_file
 import os
 

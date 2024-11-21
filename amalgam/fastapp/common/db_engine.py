@@ -1,4 +1,4 @@
-from config import APP_DB_URL
+from fastapp.config import APP_DB_URL
 from sqlmodel import create_engine
 
 connect_args = {"check_same_thread": False}

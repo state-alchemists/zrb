@@ -1,8 +1,8 @@
-from common.app import app
-from common.schema import BasicResponse
-from config import APP_MODE, APP_MODULES
-from module.auth.client.factory import client as auth_client
-from schema.user import UserCreate, UserResponse
+from fastapp.common.app import app
+from fastapp.common.schema import BasicResponse
+from fastapp.config import APP_MODE, APP_MODULES
+from fastapp.module.auth.client.factory import client as auth_client
+from fastapp.schema.user import UserCreate, UserResponse
 
 if APP_MODE == "monolith" or "gateway" in APP_MODULES:
 

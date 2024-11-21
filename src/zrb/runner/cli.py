@@ -83,8 +83,9 @@ class Cli(Group):
             print()
         if len(inputs) > 0:
             print(stylize_section_header("INPUTS"))
+            max_input_name_length = max(len(s) for s in inputs)
             for task_input in inputs:
-                task_input_name = task_input.name.ljust(20)
+                task_input_name = task_input.name.ljust(max_input_name_length + 1)
                 print(f"  --{task_input_name}: {task_input.description}")
             print()
 
@@ -99,15 +100,17 @@ class Cli(Group):
         subgroups = get_non_empty_subgroups(group)
         if len(subgroups) > 0:
             print(stylize_section_header("GROUPS"))
+            max_subgroup_alias_length = max(len(s) for s in subgroups)
             for alias, subgroup in subgroups.items():
-                alias = alias.ljust(20)
+                alias = alias.ljust(max_subgroup_alias_length + 1)
                 print(f"  {alias}: {subgroup.description}")
             print()
         subtasks = get_subtasks(group)
         if len(subtasks) > 0:
             print(stylize_section_header("TASKS"))
+            max_subtask_alias_length = max(len(s) for s in subtasks)
             for alias, subtask in subtasks.items():
-                alias = alias.ljust(20)
+                alias = alias.ljust(max_subtask_alias_length + 1)
                 print(f"  {alias}: {subtask.description}")
             print()
 

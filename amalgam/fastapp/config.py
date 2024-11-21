@@ -1,5 +1,7 @@
 import os
 
+APP_PATH = os.path.dirname(__file__)
+
 APP_MODE = os.getenv("FASTAPP_MODE", "monolith")
 APP_MODULES = [
     module.strip()
@@ -11,15 +13,15 @@ APP_COMMUNICATION = os.getenv(
     "FASTAPP_COMMUNICATION", "direct" if APP_MODE == "monolith" else "api"
 )
 APP_REPOSITORY_TYPE = os.getenv("APP_REPOSITORY_TYPE", "db")
-
-_DEFAULT_DB_URL = "sqlite:///monolith.db"
-if APP_MODE != "monolith":
-    _DEFAULT_DB_URL = "sqlite:///microservices.db"
-APP_DB_URL = os.getenv("APP_DB_URL", _DEFAULT_DB_URL)
-
-_DEFAULT_MIGRATION_TABLE = "migration_table"
-if APP_MODE != "monolith" and len(APP_MODULES) > 0:
-    _DEFAULT_MIGRATION_TABLE = f"{APP_MODULES[0]}_{_DEFAULT_MIGRATION_TABLE}"
-APP_DB_MIGRATION_TABLE = os.getenv("APP_DB_MIGRATION_TABLE", _DEFAULT_MIGRATION_TABLE)
+APP_DB_URL = os.getenv(
+    "APP_DB_URL",
+    (
+        f"sqlite:///{APP_PATH}/monolith.db"
+        if APP_MODE == "monolith" or len(APP_MODULES) == 0
+        else f"sqlite:///{APP_PATH}/{APP_MODULES[0]}_microservices.db"
+    ),
+)
+APP_AUTH_SUPER_USER = os.getenv("FASTAPP_AUTH_SUPER_USER", "admin")
+APP_AUTH_SUPER_USER_PASSWORD = os.getenv("FASTAPP_AUTH_SUPER_USER_PASSWORD", "<function <lambda> at 0x7fdfca368d30>")
 
 APP_AUTH_BASE_URL = os.getenv("FASTAPP_AUTH_BASE_URL", "http://localhost:3001")

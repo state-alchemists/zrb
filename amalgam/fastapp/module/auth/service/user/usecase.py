@@ -1,6 +1,6 @@
-from common.usecase import BaseUsecase
-from module.auth.service.user.repository.factory import user_repository
-from schema.user import UserCreate, UserResponse, UserUpdate
+from fastapp.common.usecase import BaseUsecase
+from fastapp.module.auth.service.user.repository.factory import user_repository
+from fastapp.schema.user import UserCreate, UserResponse, UserUpdate
 
 
 class UserUsecase(BaseUsecase):

@@ -1,4 +1,4 @@
-from zrb.builtin.project.add.fastapp.application.add import add_fastapp_to_project
+from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands

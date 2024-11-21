@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from schema.user import UserCreate, UserResponse, UserUpdate
+from fastapp.schema.user import UserCreate, UserResponse, UserUpdate
 
 
 class BaseClient(ABC):
