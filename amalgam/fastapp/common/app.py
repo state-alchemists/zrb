@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI
 from fastapp.common.db_engine import engine
 from fastapp.config import APP_MODE, APP_MODULES
-from fastapi import FastAPI
 from sqlmodel import SQLModel
 
 

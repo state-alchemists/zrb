@@ -83,7 +83,7 @@ class Cli(Group):
             print()
         if len(inputs) > 0:
             print(stylize_section_header("INPUTS"))
-            max_input_name_length = max(len(s) for s in inputs)
+            max_input_name_length = max(len(task_input.name) for task_input in inputs)
             for task_input in inputs:
                 task_input_name = task_input.name.ljust(max_input_name_length + 1)
                 print(f"  --{task_input_name}: {task_input.description}")

@@ -1,5 +1,6 @@
-import ulid
 import datetime
+
+import ulid
 from sqlmodel import Field, SQLModel
 
 

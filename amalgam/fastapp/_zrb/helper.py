@@ -1,9 +1,13 @@
 import os
 
-from zrb import Cmd, CmdTask, EnvFile, EnvMap, Task, StrInput
 from fastapp._zrb.config import (
-    APP_DIR, MICROSERVICES_ENV_VARS, MONOLITH_ENV_VARS, ACTIVATE_VENV_SCRIPT
+    ACTIVATE_VENV_SCRIPT,
+    APP_DIR,
+    MICROSERVICES_ENV_VARS,
+    MONOLITH_ENV_VARS,
 )
+
+from zrb import Cmd, CmdTask, EnvFile, EnvMap, StrInput, Task
 
 
 def create_migration(name: str, module: str) -> Task:
@@ -32,7 +36,7 @@ def create_migration(name: str, module: str) -> Task:
             "alembic upgrade head",
             Cmd(
                 "alembic revision --autogenerate -m {double_quote(ctx.input.message)}",
-                auto_render=True
+                auto_render=True,
             ),
         ],
         auto_render_cmd=False,
@@ -43,7 +47,11 @@ def create_migration(name: str, module: str) -> Task:
 def migrate_module(name: str, module: str, as_microservices: bool) -> Task:
     env_vars = MICROSERVICES_ENV_VARS if as_microservices else MONOLITH_ENV_VARS
     return CmdTask(
-        name=f"migrate-fastapp-{name}" if as_microservices else f"migrate-{name}-on-monolith",
+        name=(
+            f"migrate-fastapp-{name}"
+            if as_microservices
+            else f"migrate-{name}-on-monolith"
+        ),
         description=f"🧩 Run Fastapp {name.capitalize()} DB migration",
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),

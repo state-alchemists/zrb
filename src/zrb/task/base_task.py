@@ -109,7 +109,7 @@ class BaseTask(AnyTask):
             envs.append(self._envs)
         elif self._envs is not None:
             envs += self._envs
-        return envs
+        return [env for env in envs if env is not None]
 
     @property
     def inputs(self) -> list[AnyInput]:
@@ -118,7 +118,7 @@ class BaseTask(AnyTask):
             self.__combine_inputs(inputs, upstream.inputs)
         if self._inputs is not None:
             self.__combine_inputs(inputs, self._inputs)
-        return inputs
+        return [task_input for task_input in inputs if task_input is not None]
 
     def __combine_inputs(
         self, inputs: list[AnyInput], other_inputs: list[AnyInput] | AnyInput
@@ -126,7 +126,11 @@ class BaseTask(AnyTask):
         input_names = [task_input.name for task_input in inputs]
         if isinstance(other_inputs, AnyInput):
             other_inputs = [other_inputs]
+        elif other_inputs is None:
+            other_inputs = []
         for task_input in other_inputs:
+            if task_input is None:
+                continue
             if task_input.name not in input_names:
                 inputs.append(task_input)
 
