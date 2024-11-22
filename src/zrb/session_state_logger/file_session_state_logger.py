@@ -13,6 +13,9 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
     def write(self, session_log: SessionStateLog):
         session_file_path = self._get_session_file_path(session_log["name"])
+        session_dir_path = os.path.dirname(session_file_path)
+        if not os.path.isdir(session_dir_path):
+            os.makedirs(session_dir_path, exist_ok=True)
         with open(session_file_path, "w") as f:
             f.write(json.dumps(session_log))
         start_time = self._get_start_time(session_log)
