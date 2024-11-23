@@ -11,6 +11,9 @@ git_subtree_group = git_group.add_group(
 )
 llm_group = cli.add_group(Group(name="llm", description="🤖 LLM operations"))
 md5_group = cli.add_group(Group(name="md5", description="🔢 Md5 operations"))
+python_group = cli.add_group(
+    Group(name="python", description="🐍 Python related commands")
+)
 todo_group = cli.add_group(Group(name="todo", description="✅ Todo management"))
 
 shell_group = cli.add_group(

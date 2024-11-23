@@ -10,6 +10,7 @@ from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_
 from zrb.builtin.md5 import hash_md5, sum_md5
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
+from zrb.builtin.python import format_python_code
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 from zrb.builtin.shell.autocomplete.zsh import make_zsh_autocomplete
@@ -25,6 +26,7 @@ assert hash_md5
 assert sum_md5
 assert get_git_diff
 assert prune_local_branches
+assert format_python_code
 assert git_commit
 assert git_pull
 assert git_push

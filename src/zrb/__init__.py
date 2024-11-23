@@ -7,7 +7,6 @@ from zrb.attr.type import (
     StrDictAttr,
     fstring,
 )
-from zrb.builtin.group import project_group, shell_autocomplete_group, shell_group
 from zrb.callback.any_callback import AnyCallback
 from zrb.callback.callback import Callback
 from zrb.cmd.cmd_result import CmdResult
@@ -49,9 +48,6 @@ from zrb.task.tcp_check import TcpCheck
 from zrb.util.load import load_file, load_module
 from zrb.xcom.xcom import Xcom
 
-assert project_group
-assert shell_autocomplete_group
-assert shell_group
 assert load_file
 assert load_module
 assert fstring
