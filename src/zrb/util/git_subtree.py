@@ -30,10 +30,12 @@ def save_config(config: SubTreeConfig):
         f.write(config.model_dump_json(indent=2))
 
 
-def add_subtree(name, repo_url, branch, prefix) -> bool:
+def add_subtree(name: str, repo_url: str, branch: str, prefix: str):
     config = load_config()
+    if os.path.isdir(prefix):
+        raise ValueError(f"Directory exists: {prefix}")
     if name in config.data:
-        return False
+        raise ValueError(f"Subtree config already exists: {name}")
     result = subprocess.run(
         ["git", "subtree", "add", "--prefix", prefix, repo_url, branch],
         stdout=subprocess.PIPE,
@@ -41,18 +43,18 @@ def add_subtree(name, repo_url, branch, prefix) -> bool:
         text=True,
         check=True,
     )
-    if result.returncode == 0:
-        config.data[name] = SingleSubTreeConfig(
-            repo_url=repo_url, branch=branch, prefix=prefix
-        )
-        save_config(config)
-    return True
+    if result.returncode != 0:
+        raise Exception(f"Cannot add subtree, exit code: {result.returncode}")
+    config.data[name] = SingleSubTreeConfig(
+        repo_url=repo_url, branch=branch, prefix=prefix
+    )
+    save_config(config)
 
 
-def pull_all_subtrees() -> bool:
+def pull_all_subtrees():
     config = load_config()
     if not config.data:
-        return False
+        raise ValueError(f"No subtree config found")
     for _, details in config.items():
         subprocess.run(
             [
@@ -68,13 +70,12 @@ def pull_all_subtrees() -> bool:
             text=True,
             check=True,
         )
-    return True
 
 
-def push_all_subtrees() -> bool:
+def push_all_subtrees():
     config = load_config()
     if not config.data:
-        return False
+        raise ValueError(f"Subtree config already exists: {name}")
     for _, details in config.items():
         subprocess.run(
             [
@@ -90,4 +91,3 @@ def push_all_subtrees() -> bool:
             text=True,
             check=True,
         )
-    return True

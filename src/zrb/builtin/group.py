@@ -4,7 +4,10 @@ from zrb.runner.cli import cli
 base64_group = cli.add_group(Group(name="base64", description="📄 Base64 operations"))
 git_group = cli.add_group(Group(name="git", description="🌱 Git related commands"))
 git_branch_group = git_group.add_group(
-    Group(name="branch", description="🌿 Git branch related command")
+    Group(name="branch", description="🌿 Git branch related commands")
+)
+git_subtree_group = git_group.add_group(
+    Group(name="subtree", description="🌳 Git subtree related commands")
 )
 llm_group = cli.add_group(Group(name="llm", description="🤖 LLM operations"))
 md5_group = cli.add_group(Group(name="md5", description="🔢 Md5 operations"))

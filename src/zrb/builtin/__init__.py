@@ -1,5 +1,12 @@
 from zrb.builtin.base64 import decode_base64, encode_base64
-from zrb.builtin.git import get_git_diff, prune_local_branches
+from zrb.builtin.git import (
+    get_git_diff,
+    git_commit,
+    git_pull,
+    git_push,
+    prune_local_branches,
+)
+from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_subtree
 from zrb.builtin.md5 import hash_md5, sum_md5
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
@@ -18,3 +25,9 @@ assert hash_md5
 assert sum_md5
 assert get_git_diff
 assert prune_local_branches
+assert git_commit
+assert git_pull
+assert git_push
+assert git_add_subtree
+assert git_pull_subtree
+assert git_push_subtree
