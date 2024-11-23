@@ -5,7 +5,11 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
-from zrb.session_state_log.session_state_log import SessionStateLog, TaskStatusStateLog
+from zrb.session_state_log.session_state_log import (
+    SessionStateLog,
+    TaskStatusHistoryStateLog,
+    TaskStatusStateLog,
+)
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.session_state_logger.default_session_state_logger import (
     default_session_state_logger,
@@ -132,35 +136,42 @@ class Session(AnySession):
 
     def as_state_log(self) -> SessionStateLog:
         task_status_log: dict[str, TaskStatusStateLog] = {}
+        log_start_time = ""
         for task, task_status in self._task_status.items():
-            task_status_log[task.name] = {
-                "is_started": task_status.is_started,
-                "is_ready": task_status.is_ready,
-                "is_completed": task_status.is_completed,
-                "is_skipped": task_status.is_skipped,
-                "is_failed": task_status.is_failed,
-                "is_permanently_failed": task_status.is_permanently_failed,
-                "is_terminated": task_status.is_terminated,
-                "history": [
-                    {
-                        "status": status,
-                        "time": status_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
-                    }
-                    for status, status_at in task_status.history
-                ],
-            }
-        return {
-            "name": self.name,
-            "main_task_name": self._main_task.name,
-            "path": self.task_path,
-            "final_result": (
+            history_log = [
+                TaskStatusHistoryStateLog(
+                    status=status,
+                    time=status_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
+                )
+                for status, status_at in task_status.history
+            ]
+            if len(history_log) > 0 and (
+                log_start_time == "" or history_log[0].time < log_start_time
+            ):
+                log_start_time = history_log[0].time
+            task_status_log[task.name] = TaskStatusStateLog(
+                is_started=task_status.is_started,
+                is_ready=task_status.is_ready,
+                is_completed=task_status.is_completed,
+                is_skipped=task_status.is_skipped,
+                is_failed=task_status.is_failed,
+                is_permanently_failed=task_status.is_permanently_failed,
+                is_terminated=task_status.is_terminated,
+                history=history_log,
+            )
+        return SessionStateLog(
+            name=self.name,
+            start_time=log_start_time,
+            main_task_name=self._main_task.name,
+            path=self.task_path,
+            final_result=(
                 f"{self.final_result}" if self.final_result is not None else ""
             ),
-            "finished": self.is_terminated,
-            "log": self.shared_ctx.shared_log,
-            "input": self.shared_ctx.input,
-            "task_status": task_status_log,
-        }
+            finished=self.is_terminated,
+            log=self.shared_ctx.shared_log,
+            input=self.shared_ctx.input,
+            task_status=task_status_log,
+        )
 
     def get_ctx(self, task: AnyTask) -> AnyContext:
         self._register_single_task(task)

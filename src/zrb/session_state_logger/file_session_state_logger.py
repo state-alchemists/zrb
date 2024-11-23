@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
@@ -12,24 +11,24 @@ class FileSessionStateLogger(AnySessionStateLogger):
         self._session_log_dir = session_log_dir
 
     def write(self, session_log: SessionStateLog):
-        session_file_path = self._get_session_file_path(session_log["name"])
+        session_file_path = self._get_session_file_path(session_log.name)
         session_dir_path = os.path.dirname(session_file_path)
         if not os.path.isdir(session_dir_path):
             os.makedirs(session_dir_path, exist_ok=True)
         with open(session_file_path, "w") as f:
-            f.write(json.dumps(session_log))
-        start_time = self._get_start_time(session_log)
-        if start_time is None:
+            f.write(session_log.model_dump_json())
+        start_time = session_log.start_time
+        if start_time == "":
             return
-        timeline_dir_path = self._get_timeline_dir_path(session_log, start_time)
+        timeline_dir_path = self._get_timeline_dir_path(session_log)
         os.makedirs(timeline_dir_path, exist_ok=True)
-        with open(os.path.join(timeline_dir_path, session_log["name"]), "w"):
+        with open(os.path.join(timeline_dir_path, session_log.name), "w"):
             pass
 
     def read(self, session_name: str) -> SessionStateLog:
         session_file_path = self._get_session_file_path(session_name)
         with open(session_file_path, "r") as f:
-            return json.loads(f.read())
+            return SessionStateLog.model_validate_json(f.read())
 
     def list(
         self,
@@ -62,21 +61,20 @@ class FileSessionStateLogger(AnySessionStateLogger):
         paginated_sessions = matching_sessions[start_index:end_index]
         # Extract session logs from the sorted list of tuples
         data = [session_log for _, session_log in paginated_sessions]
-        return {"total": total, "data": data}
+        return SessionStateLogList(total=total, data=data)
 
     def _get_session_file_path(self, session_name: str) -> str:
         return os.path.join(self._session_log_dir, f"{session_name}.json")
 
-    def _get_timeline_dir_path(
-        self, session_log: SessionStateLog, start_time: datetime.datetime
-    ) -> str:
+    def _get_timeline_dir_path(self, session_log: SessionStateLog) -> str:
+        start_time = self._get_session_file_path(session_log)
         year = start_time.year
         month = start_time.month
         day = start_time.day
         hour = start_time.hour
         minute = start_time.minute
         second = start_time.second
-        paths = session_log["path"] + [
+        paths = session_log.path + [
             f"{year}",
             f"{month}",
             f"{day}",
@@ -87,15 +85,6 @@ class FileSessionStateLogger(AnySessionStateLogger):
         return os.path.join(self._session_log_dir, "_timeline", *paths)
 
     def _get_start_time(self, session_log: SessionStateLog) -> datetime.datetime:
-        result: datetime.datetime | None = None
-        for task_status in session_log["task_status"].values():
-            histories = task_status["history"]
-            if len(histories) == 0:
-                continue
-            first_history = histories[0]
-            first_time = datetime.datetime.strptime(
-                first_history["time"], "%Y-%m-%d %H:%M:%S.%f"
-            )
-            if result is None or first_time < result:
-                result = first_time
-        return result
+        return datetime.datetime.strptime(
+            session_log.start_time, "%Y-%m-%d %H:%M:%S.%f"
+        )

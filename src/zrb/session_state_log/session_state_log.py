@@ -1,12 +1,14 @@
-from typing import Any, TypedDict
+from typing import Any
+
+from pydantic import BaseModel
 
 
-class TaskStatusHistoryStateLog(TypedDict):
+class TaskStatusHistoryStateLog(BaseModel):
     status: str
     time: str
 
 
-class TaskStatusStateLog(TypedDict):
+class TaskStatusStateLog(BaseModel):
     history: list[TaskStatusHistoryStateLog]
     is_started: bool
     is_ready: bool
@@ -17,7 +19,7 @@ class TaskStatusStateLog(TypedDict):
     is_terminated: bool
 
 
-class SessionStateLog(TypedDict):
+class SessionStateLog(BaseModel):
     name: str
     start_time: str
     main_task_name: str
@@ -29,6 +31,6 @@ class SessionStateLog(TypedDict):
     task_status: dict[str, TaskStatusStateLog]
 
 
-class SessionStateLogList(TypedDict):
+class SessionStateLogList(BaseModel):
     total: int
     data: list[SessionStateLog]

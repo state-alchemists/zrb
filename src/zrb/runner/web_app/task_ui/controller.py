@@ -1,7 +1,8 @@
 import os
 
+from fastapi.responses import HTMLResponse
+
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_app.any_request_handler import AnyRequestHandler
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.string.format import fstring_format
@@ -28,12 +29,7 @@ with open(os.path.join(_DIR, "partial", "common-util.js")) as f:
 
 
 def handle_task_ui(
-    handler: AnyRequestHandler,
-    root_group: AnyGroup,
-    task: AnyTask,
-    session: AnySession,
-    url: str,
-    args: list[str],
+    root_group: AnyGroup, task: AnyTask, session: AnySession, url: str, args: list[str]
 ):
     session.register_task(task)
     ctx = task.get_ctx(session)
@@ -56,7 +52,7 @@ def handle_task_ui(
         ]
     )
     session_name = args[0] if len(args) > 0 else ""
-    handler.send_html_response(
+    return HTMLResponse(
         fstring_format(
             _VIEW_TEMPLATE,
             {

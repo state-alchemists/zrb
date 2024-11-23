@@ -2,12 +2,13 @@ import sys
 from typing import Any
 
 from zrb.config import BANNER, WEB_HTTP_PORT
+from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.group import Group
 from zrb.runner.web_server import run_web_server
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.task.task import Task
+from zrb.task.make_task import make_task
 from zrb.util.cli.style import (
     stylize_bold_yellow,
     stylize_faint,
@@ -148,14 +149,18 @@ class Cli(Group):
 
 
 cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=BANNER)
-server = cli.add_group(Group(name="server", description="🌐 Server related command"))
-server.add_task(
-    Task(
-        name="start-server",
-        description="🚀 Start Zrb Web Server",
-        action=lambda ctx: run_web_server(ctx=ctx, root_group=cli, port=WEB_HTTP_PORT),
-        cli_only=True,
-        retries=0,
-    ),
+server_group = cli.add_group(
+    Group(name="server", description="🌐 Server related command")
+)
+
+
+@make_task(
+    name="start-server",
+    description="🚀 Start Zrb Web Server",
+    cli_only=True,
+    retries=0,
+    group=server_group,
     alias="start",
 )
+async def run(ctx: AnyContext):
+    await run_web_server(web_server_ctx=ctx, root_group=cli, port=WEB_HTTP_PORT)

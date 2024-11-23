@@ -1,7 +1,8 @@
 import os
 
+from fastapi.responses import HTMLResponse
+
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_app.any_request_handler import AnyRequestHandler
 from zrb.util.group import get_non_empty_subgroups, get_subtasks
 from zrb.util.string.format import fstring_format
 
@@ -23,9 +24,7 @@ with open(os.path.join(_DIR, "partial", "task_li.html")) as f:
     _TASK_LI_TEMPLATE = f.read()
 
 
-def handle_group_info_ui(
-    handler: AnyRequestHandler, root_group: AnyGroup, group: AnyGroup, url: str
-):
+def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):
     url_parts = url.split("/")
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)
@@ -75,7 +74,7 @@ def handle_group_info_ui(
             },
         )
     )
-    handler.send_html_response(
+    return HTMLResponse(
         fstring_format(
             _VIEW_TEMPLATE,
             {

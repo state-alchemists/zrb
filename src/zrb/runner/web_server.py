@@ -1,224 +1,131 @@
 import asyncio
-import datetime
-import json
 import os
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Thread
-from typing import Any
-from urllib.parse import parse_qs, urlparse
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
-from zrb.config import BANNER, SESSION_LOG_DIR, WEB_HTTP_PORT
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from uvicorn import Config, Server
+
+from zrb.config import BANNER, WEB_HTTP_PORT
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_app.group_info_ui.controller import handle_group_info_ui
 from zrb.runner.web_app.home_page.controller import handle_home_page
 from zrb.runner.web_app.task_ui.controller import handle_task_ui
-from zrb.runner.web_util import node_path_to_url, start_event_loop, url_to_args
 from zrb.session.session import Session
+from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.default_session_state_logger import (
     default_session_state_logger,
 )
 from zrb.task.any_task import AnyTask
 from zrb.util.group import extract_node_from_args, get_node_path
 
-_DIR = os.path.dirname(__file__)
-_STATIC_DIR = os.path.join(_DIR, "web_app", "static")
-executor = ThreadPoolExecutor()
 
+async def run_web_server(
+    web_server_ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT
+):
 
-class WebRequestHandler(BaseHTTPRequestHandler):
-    def __init__(
-        self,
-        request: Any,
-        client_address: Any,
-        server: Any,
-        root_group: AnyGroup,
-        event_loop: asyncio.AbstractEventLoop,
-        session_dir: str,
-        coros: list,
-    ):
-        self._root_group = root_group
-        self._event_loop = event_loop
-        self._session_dir = session_dir
-        self._coros = coros
-        super().__init__(request=request, client_address=client_address, server=server)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Print the banner on startup
+        for line in BANNER.split("\n") + [
+            f"Zrb Server running on http://localhost:{WEB_HTTP_PORT}"
+        ]:
+            web_server_ctx.print(line)
+        yield
 
-    def do_GET(self):
-        parsed_url = urlparse(self.path)
-        if parsed_url.path in ["/", "/ui", "/ui/"]:
-            handle_home_page(self, self._root_group)
-        elif parsed_url.path == "/pico.min.css":
-            self.send_css_response(os.path.join(_STATIC_DIR, "pico.min.css"))
-        elif parsed_url.path == "/favicon-32x32.png":
-            self.send_image_response(os.path.join(_STATIC_DIR, "favicon-32x32.png"))
-        elif parsed_url.path.startswith("/ui/"):
-            args = url_to_args(parsed_url.path[3:])
-            node, node_path, residual_args = extract_node_from_args(
-                self._root_group, args
-            )
-            url = f"/ui{node_path_to_url(node_path)}"
-            if isinstance(node, AnyTask):
-                shared_ctx = SharedContext(env=dict(os.environ))
-                session = Session(shared_ctx=shared_ctx, root_group=self._root_group)
-                handle_task_ui(
-                    self, self._root_group, node, session, url, residual_args
-                )
-            elif isinstance(node, AnyGroup):
-                handle_group_info_ui(self, self._root_group, node, url)
+    app = FastAPI(title="zrb", lifespan=lifespan)
+    _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_app", "static")
+
+    # Serve static files
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+    @app.get("/", response_class=HTMLResponse)
+    @app.get("/ui", response_class=HTMLResponse)
+    async def home_page():
+        return handle_home_page(root_group)
+
+    @app.get("/static/{file_path:path}")
+    async def static_files(file_path: str):
+        full_path = os.path.join(_STATIC_DIR, file_path)
+        if os.path.isfile(full_path):
+            return FileResponse(full_path)
+        raise HTTPException(status_code=404, detail="File not found")
+
+    @app.get("/ui/{path:path}")
+    async def ui_page(path: str):
+        args = path.split("/")
+        node, node_path, residual_args = extract_node_from_args(root_group, args)
+        url = f"/ui/{'/'.join(node_path)}/"
+        if isinstance(node, AnyTask):
+            shared_ctx = SharedContext(env=dict(os.environ))
+            session = Session(shared_ctx=shared_ctx, root_group=root_group)
+            return handle_task_ui(root_group, node, session, url, residual_args)
+        elif isinstance(node, AnyGroup):
+            return handle_group_info_ui(root_group, node, url)
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    @app.get("/api/{path:path}", response_model=SessionStateLog | SessionStateLogList)
+    async def get_session(path: str, query_params: Dict[str, Any] = {}):
+        args = path.split("/")
+        node, _, residual_args = extract_node_from_args(root_group, args)
+        if isinstance(node, AnyTask) and residual_args:
+            if residual_args[0] == "list":
+                task_path = get_node_path(root_group, node)
+                return list_sessions(task_path, query_params)
             else:
-                self.send_error(404, "Not Found")
-        elif parsed_url.path.startswith("/api/"):
-            args = url_to_args(parsed_url.path[5:])
-            node, _, residual_args = extract_node_from_args(self._root_group, args)
-            if isinstance(node, AnyTask) and len(residual_args) > 0:
-                if residual_args[0] == "list":
-                    task_path = get_node_path(self._root_group, node)
-                    query_params = parse_qs(parsed_url.query)
-                    self.send_session_list_json_data(task_path, query_params)
-                else:
-                    self.send_session_json_data(residual_args[0])
-            else:
-                self.send_error(404, "Not Found")
-        else:
-            self.send_error(404, "Not Found")
+                return read_session(residual_args[0])
+        raise HTTPException(status_code=404, detail="Not Found")
 
-    def do_POST(self):
-        parsed_url = urlparse(self.path)
-        if parsed_url.path.startswith("/api/"):
-            args = url_to_args(parsed_url.path[5:])
-            task, _, residual_args = extract_node_from_args(self._root_group, args)
-            session_name = residual_args[0] if len(residual_args) > 0 else None
-            if not isinstance(task, AnyTask):
-                self.send_error(404, "Not found")
-            elif session_name is None:
-                str_kwargs: dict[str, str] = self.read_json_request()
+    @app.post("/api/{path:path}")
+    async def create_new_session(path: str, request: Request = None):
+        args = path.split("/")
+        node, _, residual_args = extract_node_from_args(root_group, args)
+        if isinstance(node, AnyTask):
+            session_name = residual_args[0] if residual_args else None
+            if not session_name:
+                body = await request.json()
                 shared_ctx = SharedContext(env=dict(os.environ))
-                session = Session(shared_ctx=shared_ctx, root_group=self._root_group)
-                coro = asyncio.run_coroutine_threadsafe(
-                    task.async_run(session, str_kwargs=str_kwargs),
-                    self._event_loop,
-                )
-                self._coros.append(coro)
-                coro.add_done_callback(lambda coro: self._coros.remove(coro))
-                self.send_json_response({"session_name": session.name})
-        else:
-            self.send_error(404, "Not Found")
+                session = Session(shared_ctx=shared_ctx, root_group=root_group)
+                asyncio.create_task(node.async_run(session, str_kwargs=body))
+                return {"session_name": session.name}
+        raise HTTPException(status_code=404, detail="Not Found")
 
-    def send_session_list_json_data(
-        self, task_path: list[str], query_params: dict[str, list[Any]]
-    ):
-        print(query_params)
-        max_start_time = datetime.datetime.now()
-        if "to" in query_params and len(query_params["to"]) > 0:
-            max_start_time = datetime.datetime.strptime(
-                query_params["to"][0], "%Y-%m-%d %H:%M:%S"
+    def list_sessions(
+        task_path: List[str], query_params: Dict[str, Any]
+    ) -> SessionStateLogList:
+        max_start_time = datetime.now()
+        if "to" in query_params:
+            max_start_time = datetime.strptime(query_params["to"], "%Y-%m-%d %H:%M:%S")
+        min_start_time = max_start_time - timedelta(hours=1)
+        if "from" in query_params:
+            min_start_time = datetime.strptime(
+                query_params["from"], "%Y-%m-%d %H:%M:%S"
             )
-        min_start_time = max_start_time - datetime.timedelta(hours=1)
-        if "from" in query_params and len(query_params["from"]) > 0:
-            min_start_time = datetime.datetime.strptime(
-                query_params["from"][0], "%Y-%m-%d %H:%M:%S"
-            )
-        page = 0
-        if "page" in query_params and len(query_params["page"]) > 0:
-            page = int(query_params["page"][0])
-        limit = 10
-        if "limit" in query_params and len(query_params["limit"]) > 0:
-            limit = int(query_params["limit"][0])
+        page = int(query_params.get("page", 0))
+        limit = int(query_params.get("limit", 10))
         try:
-            self.send_json_response(
-                default_session_state_logger.list(
-                    task_path,
-                    min_start_time=min_start_time,
-                    max_start_time=max_start_time,
-                    page=page,
-                    limit=limit,
-                )
+            return default_session_state_logger.list(
+                task_path,
+                min_start_time=min_start_time,
+                max_start_time=max_start_time,
+                page=page,
+                limit=limit,
             )
         except Exception as e:
-            self.send_json_response({"error": f"{e}"}, 500)
+            raise HTTPException(status_code=500, detail=str(e))
 
-    def send_session_json_data(self, session_name: str):
+    def read_session(session_name: str) -> SessionStateLog:
         try:
-            self.send_json_response(default_session_state_logger.read(session_name))
+            return default_session_state_logger.read(session_name)
         except Exception as e:
-            self.send_json_response({"error": f"{e}"}, 500)
+            raise HTTPException(status_code=500, detail=str(e))
 
-    def send_json_response(self, data: Any, http_status: int = 200):
-        self.send_response(http_status)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
-        self.wfile.write(f"{json.dumps(data)}".encode())
-
-    def send_html_response(self, html: str, http_status: int = 200):
-        self.send_response(http_status)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(f"{html}".encode())
-
-    def send_css_response(self, css_path: str):
-        self.send_response(200)
-        self.send_header("Content-type", "text/css")
-        self.end_headers()
-        # If css_content is provided, send it; otherwise, you could read from a file here
-        with open(css_path, "r") as f:
-            css_content = f.read()
-        self.wfile.write(css_content.encode())
-
-    def send_image_response(self, image_path: str):
-        try:
-            with open(image_path, "rb") as img:
-                self.send_response(200)
-                if image_path.endswith(".png"):
-                    self.send_header("Content-type", "image/png")
-                elif image_path.endswith(".jpg") or image_path.endswith(".jpeg"):
-                    self.send_header("Content-type", "image/jpeg")
-                self.end_headers()
-                self.wfile.write(img.read())
-        except FileNotFoundError:
-            self.send_error(404, "Image Not Found")
-
-    def read_json_request(self) -> Any:
-        content_length = int(self.headers["Content-Length"])
-        post_data = self.rfile.read(content_length)
-        try:
-            return json.loads(post_data.decode())
-        except json.JSONDecodeError:
-            self.send_json_response({"error": "Invalid JSON"}, http_status=400)
-            return None
-
-
-def run_web_server(ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT):
-    server_address = ("", port)
-    event_loop = asyncio.new_event_loop()
-    coros = []
-    # Use functools.partial to bind the custom attribute
-    handler = partial(
-        WebRequestHandler,
-        root_group=root_group,
-        event_loop=event_loop,
-        session_dir=SESSION_LOG_DIR,
-        coros=coros,
-    )
-    httpd = ThreadingHTTPServer(server_address, handler)
-    banner_lines = BANNER.split("\n") + [
-        f"Zrb Server running on http://localhost:{port}"
-    ]
-    for line in banner_lines:
-        ctx.print(line)
-    loop_thread = Thread(target=start_event_loop, args=[event_loop], daemon=True)
-    loop_thread.start()
-    try:
-        httpd.serve_forever()
-    finally:
-        for coro in coros:
-            coro.cancel()
-        httpd.shutdown()
-        httpd.server_close()
-        # Cancel all tasks
-        for task in asyncio.all_tasks(event_loop):
-            task.cancel()
-        event_loop.call_soon_threadsafe(event_loop.stop)
-        loop_thread.join()
+    config = Config(app=app, host="0.0.0.0", port=port, loop="asyncio")
+    server = Server(config)
+    # Run the server
+    await server.serve()
