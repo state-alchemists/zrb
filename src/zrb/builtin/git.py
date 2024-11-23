@@ -63,15 +63,15 @@ def get_git_diff(ctx: AnyContext):
     diff = get_diff(ctx.input.source, ctx.input.current)
     result = []
     decorated = []
-    if ctx.input.created:
+    if ctx.input.created and diff.created:
         decorated.append(stylize_section_header("Created"))
         decorated += [stylize_green(f"++{name}") for name in diff.created]
         result += diff.created
-    if ctx.input.updated:
+    if ctx.input.updated and diff.updated:
         decorated.append(stylize_section_header("Updated"))
         decorated += [stylize_yellow(f"+-{name}") for name in diff.updated]
         result += diff.updated
-    if ctx.input.removed:
+    if ctx.input.removed and diff.removed:
         decorated.append(stylize_section_header("Removed"))
         decorated += [stylize_red(f"--{name}") for name in diff.removed]
         result += diff.removed
