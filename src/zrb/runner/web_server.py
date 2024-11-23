@@ -16,6 +16,7 @@ from zrb.group.any_group import AnyGroup
 from zrb.runner.web_app.group_info_ui.controller import handle_group_info_ui
 from zrb.runner.web_app.home_page.controller import handle_home_page
 from zrb.runner.web_app.task_ui.controller import handle_task_ui
+from zrb.runner.web_util import NewSessionResponse
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.default_session_state_logger import (
@@ -28,18 +29,21 @@ from zrb.util.group import extract_node_from_args, get_node_path
 async def run_web_server(
     web_server_ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT
 ):
+    _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_app", "static")
+    _COROS = []
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # Print the banner on startup
         for line in BANNER.split("\n") + [
             f"Zrb Server running on http://localhost:{WEB_HTTP_PORT}"
         ]:
             web_server_ctx.print(line)
         yield
+        for coro in _COROS:
+            coro.cancel()
+        asyncio.gather(*_COROS)
 
     app = FastAPI(title="zrb", lifespan=lifespan)
-    _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_app", "static")
 
     # Serve static files
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
@@ -82,7 +86,9 @@ async def run_web_server(
         raise HTTPException(status_code=404, detail="Not Found")
 
     @app.post("/api/{path:path}")
-    async def create_new_session(path: str, request: Request = None):
+    async def create_new_session(
+        path: str, request: Request = None
+    ) -> NewSessionResponse:
         args = path.split("/")
         node, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(node, AnyTask):
@@ -91,8 +97,10 @@ async def run_web_server(
                 body = await request.json()
                 shared_ctx = SharedContext(env=dict(os.environ))
                 session = Session(shared_ctx=shared_ctx, root_group=root_group)
-                asyncio.create_task(node.async_run(session, str_kwargs=body))
-                return {"session_name": session.name}
+                coro = asyncio.create_task(node.async_run(session, str_kwargs=body))
+                _COROS.append(coro)
+                coro.add_done_callback(lambda coro: _COROS.remove(coro))
+                return NewSessionResponse(session_name=session.name)
         raise HTTPException(status_code=404, detail="Not Found")
 
     def list_sessions(
