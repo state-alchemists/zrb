@@ -67,7 +67,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         return os.path.join(self._session_log_dir, f"{session_name}.json")
 
     def _get_timeline_dir_path(self, session_log: SessionStateLog) -> str:
-        start_time = self._get_session_file_path(session_log)
+        start_time = self._get_start_time(session_log)
         year = start_time.year
         month = start_time.month
         day = start_time.day
