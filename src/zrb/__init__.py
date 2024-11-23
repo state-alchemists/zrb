@@ -27,7 +27,9 @@ from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 from zrb.input.any_input import AnyInput
 from zrb.input.base_input import BaseInput
+from zrb.input.bool_input import BoolInput
 from zrb.input.int_input import IntInput
+from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
@@ -67,6 +69,7 @@ assert EnvFile
 assert EnvMap
 assert AnyInput
 assert BaseInput
+assert BoolInput
 assert Cmd
 assert CmdPath
 assert CmdResult
@@ -74,6 +77,7 @@ assert CmdTask
 assert HttpCheck
 assert TcpCheck
 assert IntInput
+assert OptionInput
 assert PasswordInput
 assert StrInput
 assert TextInput

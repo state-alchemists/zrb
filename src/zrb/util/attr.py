@@ -1,8 +1,24 @@
 from typing import Any
 
-from zrb.attr.type import AnyAttr, BoolAttr, FloatAttr, IntAttr, StrAttr, StrDictAttr
+from zrb.attr.type import (
+    AnyAttr,
+    BoolAttr,
+    FloatAttr,
+    IntAttr,
+    StrAttr,
+    StrDictAttr,
+    StrListAttr,
+)
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.util.string.conversion import to_boolean
+
+
+def get_str_list_attr(
+    shared_ctx: AnySharedContext, attr: StrListAttr | None, auto_render: bool = True
+) -> list[str]:
+    if callable(attr):
+        return attr(shared_ctx)
+    return {get_str_attr(shared_ctx, val, "", auto_render) for val in attr}
 
 
 def get_str_dict_attr(

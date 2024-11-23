@@ -142,6 +142,22 @@ def stylize_section_header(text: str):
     return stylize(f" {text} ", color=BLACK, background=BG_WHITE, style=UNDERLINE)
 
 
+def stylize_green(text: str):
+    return stylize(text, color=GREEN)
+
+
+def stylize_yellow(text: str):
+    return stylize(text, color=YELLOW)
+
+
+def stylize_red(text: str):
+    return stylize(text, color=RED)
+
+
+def stylize_bold_green(text: str):
+    return stylize(text, color=GREEN, style=BOLD)
+
+
 def stylize_bold_yellow(text: str):
     return stylize(text, color=YELLOW, style=BOLD)
 

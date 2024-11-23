@@ -79,12 +79,7 @@ format_code = code_group.add_task(
     alias="format"
 )
 
-
-# GIT ===============================================================================
-
-git_group = cli.add_group(Group(name="git", description="🌱 Git related command"))
-
-push_git = git_group.add_task(
+push_git = code_group.add_task(
     CmdTask(
         name="push-git",
         input=StrInput(

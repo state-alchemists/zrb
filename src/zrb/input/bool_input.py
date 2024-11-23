@@ -4,7 +4,7 @@ from zrb.input.base_input import BaseInput
 from zrb.util.string.conversion import to_boolean
 
 
-class IntInput(BaseInput):
+class BoolInput(BaseInput):
     def __init__(
         self,
         name: str,
