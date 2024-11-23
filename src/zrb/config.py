@@ -53,6 +53,7 @@ SHOW_PROMPT = to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
 SESSION_LOG_DIR = os.getenv(
     "ZRB_SESSION_LOG_DIR", os.path.expanduser(os.path.join("~", ".zrb-session"))
 )
+TODO_DIR = os.getenv("ZRB_TODO_DIR", os.path.expanduser(os.path.join("~", "todo")))
 VERSION = metadata.version("zrb")
 WEB_HTTP_PORT = int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
 

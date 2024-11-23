@@ -1,4 +1,4 @@
-from zrb.builtin.group import git_group, git_branch_group
+from zrb.builtin.group import git_branch_group, git_group
 from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
@@ -10,7 +10,14 @@ from zrb.util.cli.style import (
     stylize_yellow,
 )
 from zrb.util.git import (
-    get_diff, get_branches, get_current_branch, delete_branch, add, commit, pull, push
+    add,
+    commit,
+    delete_branch,
+    get_branches,
+    get_current_branch,
+    get_diff,
+    pull,
+    push,
 )
 
 
@@ -97,11 +104,11 @@ def prune_local_branches(ctx: AnyContext):
         name="message",
         description="Commit message",
         prompt="Commit message",
-        default_str="Add feature/fix bug"
+        default_str="Add feature/fix bug",
     ),
     description="📝 Commit changes",
     group=git_group,
-    alias="commit"
+    alias="commit",
 )
 def git_commit(ctx: AnyContext):
     ctx.print("Add changes to staging")
@@ -117,16 +124,16 @@ def git_commit(ctx: AnyContext):
         name="remote",
         description="Remote name",
         prompt="Remote name",
-        default_str="origin"
+        default_str="origin",
     ),
     upstream=git_commit,
     group=git_group,
-    alias="pull"
+    alias="pull",
 )
 def git_pull(ctx: AnyContext):
     remote = ctx.input.remote
     current_branch = get_current_branch()
-    ctx.print("Pulling from {remote}/{current_branch}")
+    ctx.print(f"Pulling from {remote}/{current_branch}")
     pull(remote, current_branch)
 
 
@@ -137,14 +144,14 @@ def git_pull(ctx: AnyContext):
         name="remote",
         description="Remote name",
         prompt="Remote name",
-        default_str="origin"
+        default_str="origin",
     ),
     upstream=git_commit,
     group=git_group,
-    alias="push"
+    alias="push",
 )
 def git_push(ctx: AnyContext):
     remote = ctx.input.remote
     current_branch = get_current_branch()
-    ctx.print("Pushing to {remote}/{current_branch}")
+    ctx.print(f"Pushing to {remote}/{current_branch}")
     push(remote, current_branch)

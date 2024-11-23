@@ -3,6 +3,7 @@ from zrb import (
 )
 from zrb.builtin.project.create.create import create_project
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
+from zrb.builtin.git import git_commit
 from zrb.util.load import load_file
 import os
 
@@ -78,27 +79,7 @@ format_code = code_group.add_task(
     ),
     alias="format"
 )
-
-push_git = code_group.add_task(
-    CmdTask(
-        name="push-git",
-        input=StrInput(
-            name="message",
-            description="Commit message",
-            prompt="Commit message (i.e., Adding some new feature, Fixing some bug)",
-            default_str="Adding some new feature",
-        ),
-        description="Push Zrb code",
-        cwd=_DIR,
-        cmd=[
-            "git add . -A",
-            "git commit -m '{ctx.input.message}'",
-            "git push -u origin HEAD",
-        ]
-    ),
-    alias="push"
-)
-format_code >> push_git
+format_code >> git_commit
 
 
 # PIP ===============================================================================
