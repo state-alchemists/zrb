@@ -48,6 +48,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
     async def home_page():
         return handle_home_page(root_group)
 
