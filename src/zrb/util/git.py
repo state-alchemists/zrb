@@ -113,7 +113,7 @@ def pull(remote: str, branch: str) -> str:
 
 def push(remote: str, branch: str) -> str:
     result = subprocess.run(
-        ['git', 'push', '-U', remote, branch],
+        ['git', 'push', '-u', remote, branch],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
