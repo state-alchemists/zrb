@@ -5,7 +5,7 @@ from zrb.config import BANNER, WEB_HTTP_PORT
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.group import Group
-from zrb.runner.web_server import run_web_server
+from zrb.runner.web_server import create_app, run_web_server
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
@@ -162,5 +162,6 @@ server_group = cli.add_group(
     group=server_group,
     alias="start",
 )
-async def run(ctx: AnyContext):
-    await run_web_server(web_server_ctx=ctx, root_group=cli, port=WEB_HTTP_PORT)
+async def run(_: AnyContext):
+    app = create_app(cli, WEB_HTTP_PORT)
+    await run_web_server(app, WEB_HTTP_PORT)

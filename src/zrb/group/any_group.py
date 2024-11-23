@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 from zrb.task.any_task import AnyTask
 
@@ -36,7 +36,7 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
-    def add_group(self, group: "AnyGroup") -> "AnyGroup":
+    def add_group(self, group: Union["AnyGroup", str]) -> "AnyGroup":
         pass
 
     @abstractmethod

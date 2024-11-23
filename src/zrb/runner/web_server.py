@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
@@ -10,7 +11,6 @@ from fastapi.staticfiles import StaticFiles
 from uvicorn import Config, Server
 
 from zrb.config import BANNER, WEB_HTTP_PORT
-from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_app.group_info_ui.controller import handle_group_info_ui
@@ -26,18 +26,16 @@ from zrb.task.any_task import AnyTask
 from zrb.util.group import extract_node_from_args, get_node_path
 
 
-async def run_web_server(
-    web_server_ctx: AnyContext, root_group: AnyGroup, port: int = WEB_HTTP_PORT
-):
+def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_app", "static")
     _COROS = []
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         for line in BANNER.split("\n") + [
-            f"Zrb Server running on http://localhost:{WEB_HTTP_PORT}"
+            f"Zrb Server running on http://localhost:{port}"
         ]:
-            web_server_ctx.print(line)
+            print(line, file=sys.stderr)
         yield
         for coro in _COROS:
             coro.cancel()
@@ -48,20 +46,23 @@ async def run_web_server(
     # Serve static files
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
-    @app.get("/", response_class=HTMLResponse)
-    @app.get("/ui", response_class=HTMLResponse)
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
     async def home_page():
         return handle_home_page(root_group)
 
-    @app.get("/static/{file_path:path}")
+    @app.get("/static/{file_path:path}", include_in_schema=False)
     async def static_files(file_path: str):
         full_path = os.path.join(_STATIC_DIR, file_path)
         if os.path.isfile(full_path):
             return FileResponse(full_path)
         raise HTTPException(status_code=404, detail="File not found")
 
-    @app.get("/ui/{path:path}")
+    @app.get("/ui/{path:path}", include_in_schema=False)
     async def ui_page(path: str):
+        # Avoid capturing '/ui' itself
+        if not path:
+            raise HTTPException(status_code=404, detail="Not Found")
         args = path.split("/")
         node, node_path, residual_args = extract_node_from_args(root_group, args)
         url = f"/ui/{'/'.join(node_path)}/"
@@ -73,22 +74,13 @@ async def run_web_server(
             return handle_group_info_ui(root_group, node, url)
         raise HTTPException(status_code=404, detail="Not Found")
 
-    @app.get("/api/{path:path}", response_model=SessionStateLog | SessionStateLogList)
-    async def get_session(path: str, query_params: Dict[str, Any] = {}):
-        args = path.split("/")
-        node, _, residual_args = extract_node_from_args(root_group, args)
-        if isinstance(node, AnyTask) and residual_args:
-            if residual_args[0] == "list":
-                task_path = get_node_path(root_group, node)
-                return list_sessions(task_path, query_params)
-            else:
-                return read_session(residual_args[0])
-        raise HTTPException(status_code=404, detail="Not Found")
-
     @app.post("/api/{path:path}")
     async def create_new_session(
         path: str, request: Request = None
     ) -> NewSessionResponse:
+        """
+        Creating new session
+        """
         args = path.split("/")
         node, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(node, AnyTask):
@@ -101,6 +93,21 @@ async def run_web_server(
                 _COROS.append(coro)
                 coro.add_done_callback(lambda coro: _COROS.remove(coro))
                 return NewSessionResponse(session_name=session.name)
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    @app.get("/api/{path:path}", response_model=SessionStateLog | SessionStateLogList)
+    async def get_session(path: str, query_params: Dict[str, Any] = {}):
+        """
+        Getting existing session or sessions
+        """
+        args = path.split("/")
+        node, _, residual_args = extract_node_from_args(root_group, args)
+        if isinstance(node, AnyTask) and residual_args:
+            if residual_args[0] == "list":
+                task_path = get_node_path(root_group, node)
+                return list_sessions(task_path, query_params)
+            else:
+                return read_session(residual_args[0])
         raise HTTPException(status_code=404, detail="Not Found")
 
     def list_sessions(
@@ -133,7 +140,10 @@ async def run_web_server(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    return app
+
+
+async def run_web_server(app: FastAPI, port: int = WEB_HTTP_PORT):
     config = Config(app=app, host="0.0.0.0", port=port, loop="asyncio")
     server = Server(config)
-    # Run the server
     await server.serve()

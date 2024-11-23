@@ -42,10 +42,11 @@ class Group(AnyGroup):
         alias.sort()
         return {name: self._tasks.get(name) for name in alias}
 
-    def add_group(self, group: AnyGroup, alias: str | None = None) -> AnyGroup:
-        alias = alias if alias is not None else group.name
-        self._groups[alias] = group
-        return group
+    def add_group(self, group: AnyGroup | str, alias: str | None = None) -> AnyGroup:
+        real_group = Group(group) if isinstance(group, str) else group
+        alias = alias if alias is not None else real_group.name
+        self._groups[alias] = real_group
+        return real_group
 
     def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
         alias = alias if alias is not None else task.name

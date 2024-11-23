@@ -1,72 +1,83 @@
 import asyncio
-import os
 import unittest
-from io import BytesIO
-from threading import Thread
-from unittest.mock import Mock
 
-from zrb import Group
-from zrb.runner.web_server import WebRequestHandler
+from fastapi.testclient import TestClient
 
-_DIR = os.path.dirname(__file__)
-_SESSION_DIR = os.path.join(_DIR, "test-generated-session")
+from zrb.group.group import Group
+from zrb.input.int_input import IntInput
+from zrb.runner.web_server import create_app, run_web_server
+from zrb.task.task import Task
 
 
-def _start_event_loop(event_loop: asyncio.AbstractEventLoop):
-    asyncio.set_event_loop(event_loop)
-    event_loop.run_forever()
-
-
-class TestWebRequestHandler(unittest.TestCase):
-
-    def setUp(self):
-        self.root_group = Group(name="RootGroup")
-        self.coros = []
-        # Create a mock request
-        self.mock_request = Mock()
-        self.mock_request.makefile.return_value = BytesIO()
-        # Create mock client address
-        self.client_address = ("127.0.0.1", 54321)
-        # Create and start event_loop in a loop_thread
-        self.event_loop = asyncio.new_event_loop()
-        self.loop_thread = Thread(
-            target=_start_event_loop, args=[self.event_loop], daemon=True
+class TestRunWebServer(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root_group = Group(name="root")
+        math_group = cls.root_group.add_group(Group("math"))
+        math_group.add_task(
+            Task(
+                name="add",
+                input=[IntInput(name="first_num"), IntInput(name="second_num")],
+                action="{ctx.input.first_num + ctx.input.second_num}",
+            )
         )
-        self.loop_thread.start()  # we will join the thread on tearDown
-        # Create a mock server
-        self.mock_server = Mock()
-        self.mock_server.server_name = "TestServer"
-        self.mock_server.server_port = 8000
-        # Create the handler instance
-        self.handler = WebRequestHandler(
-            request=self.mock_request,
-            client_address=self.client_address,
-            server=self.mock_server,
-            root_group=self.root_group,
-            event_loop=self.event_loop,
-            session_dir=_SESSION_DIR,
-            coros=self.coros,
+        geometry_group = math_group.add_group(Group("geometry"))
+        geometry_group.add_task(
+            Task(
+                name="area",
+                input=[IntInput(name="w"), IntInput(name="l")],
+                action="{ctx.input.w * ctx.input.l}",
+            )
         )
-        # Mock the response methods and attributes
-        self.handler.wfile = BytesIO()
-        self.handler.rfile = BytesIO()
-        self.handler.send_response = Mock()
-        self.handler.send_header = Mock()
-        self.handler.end_headers = Mock()
+        cls.port = 8080
+        cls.app = create_app(cls.root_group, port=cls.port)
+        cls.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cls.loop)
+        # Start the server in the background
+        cls.server_task = cls.loop.create_task(
+            run_web_server(app=cls.app, port=cls.port)
+        )
 
-    def tearDown(self):
-        self.event_loop.call_soon_threadsafe(self.event_loop.stop)
-        self.loop_thread.join()
+    @classmethod
+    def tearDownClass(cls):
+        # Stop the event loop and server
+        cls.server_task.cancel()
+        cls.loop.run_until_complete(cls.loop.shutdown_asyncgens())
+        cls.loop.close()
 
-    def test_do_GET_home_page(self):
-        self.handler.path = "/"
-        self.handler.do_GET()
-        # Check that a response was sent
-        self.handler.send_response.assert_called_once_with(200)
-        # Check that the correct headers were set
-        self.handler.send_header.assert_any_call("Content-type", "text/html")
-        # Check that headers were ended
-        self.handler.end_headers.assert_called_once()
-        # Check the content of the response
-        response: str = self.handler.wfile.getvalue().decode()
-        self.assertTrue("RootGroup" in response)
+    def test_home_page(self):
+        with TestClient(self.app) as client:
+            response = client.get("/")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("root", response.text)
+
+    def test_ui_home_page(self):
+        with TestClient(self.app) as client:
+            response = client.get("/ui")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("root", response.text)
+
+    def test_static_found(self):
+        with TestClient(self.app) as client:
+            response = client.get("/static/pico.min.css")
+            self.assertEqual(response.status_code, 200)
+
+    def test_static_not_found(self):
+        with TestClient(self.app) as client:
+            response = client.get("/static/nano.css")
+            self.assertEqual(response.status_code, 404)
+
+    def test_ui_group(self):
+        with TestClient(self.app) as client:
+            response = client.get("/ui/math")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("geometry", response.text)
+            self.assertIn("add", response.text)
+
+    def test_ui_task(self):
+        with TestClient(self.app) as client:
+            response = client.get("/ui/math/add")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("add", response.text)
+            self.assertIn("first_num", response.text)
+            self.assertIn("second_num", response.text)
