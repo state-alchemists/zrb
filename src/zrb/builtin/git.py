@@ -114,7 +114,10 @@ def git_commit(ctx: AnyContext):
     ctx.print("Add changes to staging")
     add()
     ctx.print("Commit changes")
-    commit(ctx.input.message)
+    try:
+        commit(ctx.input.message)
+    except Exception as e:
+        ctx.log_error(e)
 
 
 @make_task(
