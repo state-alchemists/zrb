@@ -146,5 +146,5 @@ def git_pull(ctx: AnyContext):
 def git_push(ctx: AnyContext):
     remote = ctx.input.remote
     current_branch = get_current_branch()
-    ctx.print("Pulling from {remote}/{current_branch}")
+    ctx.print("Pushing to {remote}/{current_branch}")
     push(remote, current_branch)
