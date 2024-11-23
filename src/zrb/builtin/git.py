@@ -1,4 +1,4 @@
-from zrb.builtin.group import git_group
+from zrb.builtin.group import git_group, git_branch_group
 from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
@@ -9,7 +9,9 @@ from zrb.util.cli.style import (
     stylize_section_header,
     stylize_yellow,
 )
-from zrb.util.git import get_diff
+from zrb.util.git import (
+    get_diff, get_branches, get_current_branch, delete_branch, add, commit, pull, push
+)
 
 
 @make_task(
@@ -68,3 +70,81 @@ def get_git_diff(ctx: AnyContext):
         result += diff.removed
     ctx.print("\n" + "\n".join((f"  {decorated_line}" for decorated_line in decorated)))
     return "\n".join(result)
+
+
+@make_task(
+    name="prune-local-git-branches",
+    description="🧹 Prune local branches",
+    group=git_branch_group,
+    alias="prune",
+)
+def prune_local_branches(ctx: AnyContext):
+    branches = get_branches()
+    current_branch = get_current_branch()
+    for branch in branches:
+        if branch == current_branch or branch == "main" or branch == "master":
+            continue
+        ctx.print(stylize_yellow(f"Removing local branch: {branch}"))
+        try:
+            delete_branch(branch)
+        except Exception as e:
+            ctx.log_error(e)
+
+
+@make_task(
+    name="git-commit",
+    input=StrInput(
+        name="message",
+        description="Commit message",
+        prompt="Commit message",
+        default_str="Add feature/fix bug"
+    ),
+    description="📝 Commit changes",
+    group=git_group,
+    alias="commit"
+)
+def git_commit(ctx: AnyContext):
+    ctx.print("Add changes to staging")
+    add()
+    ctx.print("Commit changes")
+    commit(ctx.input.message)
+
+
+@make_task(
+    name="git-pull",
+    description="📥 Pull changes from remote repository",
+    input=StrInput(
+        name="remote",
+        description="Remote name",
+        prompt="Remote name",
+        default_str="origin"
+    ),
+    upstream=git_commit,
+    group=git_group,
+    alias="pull"
+)
+def git_pull(ctx: AnyContext):
+    remote = ctx.input.remote
+    current_branch = get_current_branch()
+    ctx.print("Pulling from {remote}/{current_branch}")
+    pull(remote, current_branch)
+
+
+@make_task(
+    name="git-push",
+    description="📤 Push changes to remote repository",
+    input=StrInput(
+        name="remote",
+        description="Remote name",
+        prompt="Remote name",
+        default_str="origin"
+    ),
+    upstream=git_commit,
+    group=git_group,
+    alias="push"
+)
+def git_push(ctx: AnyContext):
+    remote = ctx.input.remote
+    current_branch = get_current_branch()
+    ctx.print("Pulling from {remote}/{current_branch}")
+    push(remote, current_branch)

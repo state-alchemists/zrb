@@ -1,6 +1,5 @@
-import subprocess
-
 from pydantic import BaseModel
+import subprocess
 
 
 class DiffResult(BaseModel):
@@ -40,5 +39,84 @@ def get_diff(source_commit: str, current_commit: str) -> DiffResult:
         ],
         updated=[
             file for file, state in diff.items() if state["plus"] and state["minus"]
-        ],
+        ]
     )
+
+
+def get_current_branch() -> str:
+    result = subprocess.run(
+        ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return result.stdout.strip()
+
+
+def get_branches() -> list[str]:
+    result = subprocess.run(
+        ['git', 'branch'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return [
+        branch.lstrip("*").strip() for branch in result.stdout.strip().split("\n")
+    ]
+
+
+def delete_branch(branch_name: str) -> str:
+    result = subprocess.run(
+        ['git', 'branch', '-D', branch_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return result.stdout.strip()
+
+
+def add() -> str:
+    result = subprocess.run(
+        ['git', 'add', '.', "-A"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return result
+
+
+def commit(message: str) -> str:
+    result = subprocess.run(
+        ['git', 'commit', '-m', message],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return result
+
+
+def pull(remote: str, branch: str) -> str:
+    result = subprocess.run(
+        ['git', 'pull', remote, branch],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return result
+
+
+def push(remote: str, branch: str) -> str:
+    result = subprocess.run(
+        ['git', 'push', '-U', remote, branch],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True
+    )
+    return result
