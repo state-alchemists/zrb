@@ -60,7 +60,7 @@ def git_pull_subtree(ctx: AnyContext):
             if first_err is None:
                 first_err = e
             ctx.log_error(e)
-    if first_err != None:
+    if first_err is not None:
         raise first_err
 
 
@@ -84,5 +84,5 @@ def git_push_subtree(ctx: AnyContext):
             if first_err is None:
                 first_err = e
             ctx.log_error(e)
-    if first_err != None:
+    if first_err is not None:
         raise first_err

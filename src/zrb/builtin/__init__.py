@@ -7,6 +7,7 @@ from zrb.builtin.git import (
     prune_local_branches,
 )
 from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_subtree
+from zrb.builtin.llm import llm_chat
 from zrb.builtin.md5 import hash_md5, sum_md5
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
@@ -23,6 +24,7 @@ assert make_bash_autocomplete
 assert make_zsh_autocomplete
 assert encode_base64
 assert decode_base64
+assert llm_chat
 assert hash_md5
 assert sum_md5
 assert get_git_diff
