@@ -146,6 +146,18 @@ def stylize_green(text: str):
     return stylize(text, color=GREEN)
 
 
+def stylize_blue(text: str):
+    return stylize(text, color=BLUE)
+
+
+def stylize_cyan(text: str):
+    return stylize(text, color=CYAN)
+
+
+def stylize_magenta(text: str):
+    return stylize(text, color=MAGENTA)
+
+
 def stylize_yellow(text: str):
     return stylize(text, color=YELLOW)
 

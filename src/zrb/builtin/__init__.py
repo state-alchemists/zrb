@@ -14,6 +14,7 @@ from zrb.builtin.python import format_python_code
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 from zrb.builtin.shell.autocomplete.zsh import make_zsh_autocomplete
+from zrb.builtin.todo import todo_list
 
 assert create_project
 assert add_fastapp_to_project
@@ -33,3 +34,4 @@ assert git_push
 assert git_add_subtree
 assert git_pull_subtree
 assert git_push_subtree
+assert todo_list

@@ -1,11 +1,21 @@
-from zrb import (
-    AnyContext, Task, CmdTask, CmdPath, Env, TcpCheck, StrInput, Group, cli, make_task
-)
-from zrb.builtin.project.create.create import create_project
-from zrb.builtin.project.add.fastapp import add_fastapp_to_project
-from zrb.builtin.git import git_commit
-from zrb.util.load import load_file
 import os
+
+from zrb import (
+    AnyContext,
+    CmdPath,
+    CmdTask,
+    Env,
+    Group,
+    StrInput,
+    Task,
+    TcpCheck,
+    cli,
+    make_task,
+)
+from zrb.builtin.git import git_commit
+from zrb.builtin.project.add.fastapp import add_fastapp_to_project
+from zrb.builtin.project.create.create import create_project
+from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
 
@@ -16,19 +26,14 @@ test_group = cli.add_group(Group("test", description="🔍 Testing zrb codebase"
 clean_up_test_resources = CmdTask(
     name="clean-up-resources",
     cwd=os.path.join(_DIR, "test"),
-    cmd=[
-        "sudo -k rm -Rf task/scaffolder/test-generated"
-    ]
+    cmd=["sudo -k rm -Rf task/scaffolder/test-generated"],
 )
 
 start_test_docker_compose = CmdTask(
     name="start-test-compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down && docker compose up",
-    readiness_check=TcpCheck(
-        name="check-start-test-compose",
-        port=2222
-    )
+    readiness_check=TcpCheck(name="check-start-test-compose", port=2222),
 )
 clean_up_test_resources >> start_test_docker_compose
 
@@ -51,7 +56,7 @@ stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
     description="Start docker compose for testing, run test, then remove the docker compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
-    cmd="docker compose down"
+    cmd="docker compose down",
 )
 run_test >> stop_test_docker_compose
 
@@ -59,9 +64,9 @@ prepare_and_run_test = test_group.add_task(
     Task(
         name="run-test",
         action=lambda ctx: ctx.xcom["run-integration-test"].pop(),
-        cli_only=True
+        cli_only=True,
     ),
-    alias="run"
+    alias="run",
 )
 stop_test_docker_compose >> prepare_and_run_test
 
@@ -75,9 +80,9 @@ format_code = code_group.add_task(
         name="format-code",
         description="Format Zrb code",
         cwd=_DIR,
-        cmd=CmdPath(os.path.join(_DIR, "zrb-format-code.sh"))
+        cmd=CmdPath(os.path.join(_DIR, "zrb-format-code.sh")),
     ),
-    alias="format"
+    alias="format",
 )
 format_code >> git_commit
 
@@ -91,9 +96,9 @@ publish_pip = pip_group.add_task(
         name="publish-pip",
         description="Publish Zrb",
         cwd=_DIR,
-        cmd=CmdPath(os.path.join(_DIR, "zrb-publish.sh"))
+        cmd=CmdPath(os.path.join(_DIR, "zrb-publish.sh")),
     ),
-    alias="publish"
+    alias="publish",
 )
 format_code >> publish_pip
 
@@ -102,15 +107,11 @@ format_code >> publish_pip
 clean_up_test_generator_resources = CmdTask(
     name="clean-up-resources",
     cmd=f"rm -Rf {os.path.join(_DIR, 'amalgam')}",
-    auto_render_cmd=False
+    auto_render_cmd=False,
 )
 
 
-@make_task(
-    name="test-generator",
-    group=test_group,
-    alias="generator"
-)
+@make_task(name="test-generator", group=test_group, alias="generator")
 async def test_generator(ctx: AnyContext):
     # Test create project
     ctx.print("Create project")
