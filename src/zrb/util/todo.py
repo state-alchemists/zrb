@@ -47,7 +47,7 @@ def read_todo_from_file(todo_file_path: str) -> list[TodoTask]:
         key=lambda task: (
             task.completed,
             task.priority if task.priority else "Z",
-            task.projects[0] if task.projects else "ZZZ",
+            task.projects[0] if task.projects else "zzz",
             task.creation_date if task.creation_date else datetime.date.max,
         )
     )

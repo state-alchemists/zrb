@@ -153,8 +153,8 @@ def _get_visual_todo_list() -> str:
         creation_date = stylize_cyan(_date_to_str(todo_task.creation_date))
         description = todo_task.description.ljust(max_desc_name_length)
         additions = ", ".join(
-            [stylize_yellow(f"@{project}") for project in todo_task.projects]
-            + [stylize_cyan(f"+{context}") for context in todo_task.contexts]
+            [stylize_yellow(f"+{project}") for project in todo_task.projects]
+            + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
             + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
         )
         results.append(
