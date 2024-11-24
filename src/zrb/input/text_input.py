@@ -1,3 +1,4 @@
+import os
 import subprocess
 import tempfile
 from collections.abc import Callable
@@ -66,14 +67,15 @@ class TextInput(BaseInput):
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = (
-            f"{self.comment_start}{super().prompt_message}{self.comment_end}\n"
+            f"{self.comment_start}{super().prompt_message}{self.comment_end}"
         )
+        prompt_message_eol = f"{prompt_message}\n"
         default_value = self._get_default_str(shared_ctx)
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=self._extension
         ) as temp_file:
             temp_file_name = temp_file.name
-            temp_file.write(prompt_message.encode())
+            temp_file.write(prompt_message_eol.encode())
             # Pre-fill with default content
             if default_value:
                 temp_file.write(default_value.encode())
@@ -82,8 +84,8 @@ class TextInput(BaseInput):
         subprocess.call([self._editor, temp_file_name])
         # Read the edited content
         with open(temp_file_name, "r") as temp_file:
-            edited_content = temp_file.read().strip()
-            parts = edited_content.split(prompt_message)
-            if len(parts) == 2 and parts[0].strip() == "":
-                edited_content = parts[1]
-        return edited_content.strip() if edited_content.strip() else default_value
+            edited_content = temp_file.read()
+            parts = [text.strip() for text in edited_content.split(prompt_message, 1)]
+            edited_content = "\n".join(parts).lstrip()
+        os.remove(temp_file_name)
+        return edited_content

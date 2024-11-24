@@ -34,6 +34,32 @@ TODO_TXT_PATTERN = re.compile(
 )
 
 
+def read_todo_from_file(todo_file_path: str) -> list[TodoTask]:
+    with open(todo_file_path, "r") as f:
+        todo_lines = f.read().strip().split("\n")
+    todo_tasks: list[TodoTask] = []
+    for todo_line in todo_lines:
+        todo_line = todo_line.strip()
+        if todo_line == "":
+            continue
+        todo_tasks.append(parse_todo_line(todo_line))
+    todo_tasks.sort(
+        key=lambda task: (
+            task.completed,
+            task.priority if task.priority else "Z",
+            task.projects[0] if task.projects else "ZZZ",
+            task.creation_date if task.creation_date else datetime.date.max,
+        )
+    )
+    return todo_tasks
+
+
+def write_todo_to_file(todo_file_path: str, todo_task_list: list[TodoTask]):
+    with open(todo_file_path, "w") as f:
+        for todo_task in todo_task_list:
+            f.write(todo_task_to_line(todo_task))
+
+
 def parse_todo_line(line: str) -> TodoTask:
     """Parses a single todo.txt line into a TodoTask model."""
     match = TODO_TXT_PATTERN.match(line)
@@ -58,8 +84,7 @@ def parse_todo_line(line: str) -> TodoTask:
     contexts = re.findall(r"@(\S+)", raw_description)
     keyval = {}
     for keyval_str in re.findall(r"(\S+:\S+)", raw_description):
-        print(keyval_str)
-        key, val = keyval_str.split(":")
+        key, val = keyval_str.split(":", 1)
         keyval[key] = val
     description = re.sub(r"\s*\+\S+|\s*@\S+|\s*\S+:\S+", "", raw_description).strip()
     return TodoTask(
@@ -103,5 +128,8 @@ def todo_task_to_line(task: TodoTask) -> str:
     # Append contexts
     for context in task.contexts:
         parts.append(f"@{context}")
+    # Append keyval
+    for key, val in task.keyval.items():
+        parts.append(f"{key}:{val}")
     # Join all parts with a space
     return " ".join(parts)
