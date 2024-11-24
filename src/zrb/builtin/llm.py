@@ -1,5 +1,3 @@
-from litellm import completion
-
 from zrb.builtin.group import llm_group
 from zrb.config import LLM_MODEL
 from zrb.context.any_context import AnyContext
@@ -20,6 +18,8 @@ from zrb.task.make_task import make_task
     alias="chat",
 )
 def llm_chat(ctx: AnyContext):
+    from litellm import completion
+
     tools = [
         {
             "type": "function",
