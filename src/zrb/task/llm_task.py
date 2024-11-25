@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.attr.type import StrAttr
+from zrb.config import LLM_MODEL, LLM_SYSTEM_PROMPT
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
@@ -13,6 +14,11 @@ from zrb.util.attr import get_str_attr
 from zrb.util.llm.tool import callable_to_tool_schema
 
 DictList = list[dict[str, Any]]
+
+
+def scratchpad(thought: str) -> str:
+    """Use this tool to note your thought and planning"""
+    return thought
 
 
 class LLMTask(BaseTask):
@@ -26,14 +32,14 @@ class LLMTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        model: StrAttr | None = None,
-        system_prompt: StrAttr | None = None,
+        model: StrAttr | None = LLM_MODEL,
+        system_prompt: StrAttr | None = LLM_SYSTEM_PROMPT,
         message: StrAttr | None = None,
         tools: (
             dict[str, Callable] | Callable[[AnySharedContext], dict[str, Callable]]
         ) = {},
-        tool_schema: DictList | Callable[[AnySharedContext], DictList] = {},
-        history: DictList | Callable[[AnySharedContext], DictList] = {},
+        tool_schema: DictList | Callable[[AnySharedContext], DictList] = [],
+        history: DictList | Callable[[AnySharedContext], DictList] = [],
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -76,12 +82,19 @@ class LLMTask(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> Any:
         from litellm import completion
 
+        system_prompt = self._get_system_prompt(ctx)
+        ctx.log_debug("SYSTEM PROMPT", system_prompt)
+        history = self._get_history(ctx)
+        ctx.log_debug("HISTORY PROMPT", history)
+        user_message = self._get_message(ctx)
+        ctx.log_debug("USER MESSAGE", user_message)
         messages = (
-            [{"role": "system", "content": self._get_system_prompt(ctx)}]
-            + self._get_history(ctx)
-            + [{"role": "user", "content": self._get_message(ctx)}]
+            [{"role": "system", "content": system_prompt}]
+            + history
+            + [{"role": "user", "content": user_message}]
         )
         available_tools = self._get_tools(ctx)
+        available_tools["scratchpad"] = scratchpad
         tool_schema = self._get_tool_schema(ctx)
         for tool_name, tool in available_tools.items():
             matched_tool_schema = [
@@ -93,30 +106,32 @@ class LLMTask(BaseTask):
             ]
             if len(matched_tool_schema) == 0:
                 tool_schema.append(callable_to_tool_schema(tool))
+        ctx.log_debug("TOOL SCHEMA", tool_schema)
         while True:
             response = completion(
                 model=self._get_model(ctx), messages=messages, tools=tool_schema
             )
             response_message = response.choices[0].message
+            ctx.print(response_message)
             messages.append(response_message)
             tool_calls = response_message.tool_calls
             if tool_calls:
-                # Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
+                # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
                 for tool_call in tool_calls:
                     function_name = tool_call.function.name
                     function_to_call = available_tools[function_name]
                     function_kwargs = json.loads(tool_call.function.arguments)
                     function_response = function_to_call(**function_kwargs)
-                    messages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": function_name,
-                            "content": function_response,
-                        }
-                    )
+                    tool_call_message = {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": function_response,
+                    }
+                    ctx.print(tool_call_message)
+                    messages.append(tool_call_message)
                 continue
-            return response
+            return response_message.content
 
     def _get_model(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._model, "ollama_chat/llama3.1", auto_render=True)
@@ -139,7 +154,7 @@ class LLMTask(BaseTask):
             return self._tool_schema(ctx)
         return self._tool_schema
 
-    async def _get_history(self, ctx: AnyContext) -> DictList:
+    def _get_history(self, ctx: AnyContext) -> DictList:
         if callable(self._history):
             return self._history(ctx)
         return self._history

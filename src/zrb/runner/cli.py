@@ -31,12 +31,15 @@ class Cli(Group):
         if "h" in kwargs or "help" in kwargs:
             self._show_task_info(node)
             return
-        result, rerun_kwargs = self._run_task(node, args, kwargs)
-        if result is not None:
-            print(result)
-        run_command = self._get_run_command(node_path, rerun_kwargs)
-        self._print_run_command(run_command)
-        return result
+        run_kwargs = self._get_run_kwargs(node, args, kwargs)
+        try:
+            result = self._run_task(node, args, run_kwargs)
+            if result is not None:
+                print(result)
+            return result
+        finally:
+            run_command = self._get_run_command(node_path, run_kwargs)
+            self._print_run_command(run_command)
 
     def _print_run_command(self, run_command: str):
         print(
@@ -45,49 +48,51 @@ class Cli(Group):
             file=sys.stderr,
         )
 
-    def _get_run_command(
-        self, node_path: list[str], rerun_kwargs: dict[str, str]
-    ) -> str:
+    def _get_run_command(self, node_path: list[str], run_kwargs: dict[str, str]) -> str:
         parts = [self.name] + node_path
-        if len(rerun_kwargs) > 0:
+        if len(run_kwargs) > 0:
             parts += [
-                self._get_rerun_param(key, val) for key, val in rerun_kwargs.items()
+                self._get_run_command_param(key, val) for key, val in run_kwargs.items()
             ]
         return " ".join(parts)
 
-    def _get_rerun_param(self, key: str, val: str) -> str:
+    def _get_run_command_param(self, key: str, val: str) -> str:
         if '"' in val or "'" in val or " " in val:
             return f"--{key} {double_quote(val)}"
         return f"--{key} {val}"
 
     def _run_task(
+        self, task: AnyTask, args: list[str], run_kwargs: dict[str, str]
+    ) -> tuple[Any]:
+        shared_ctx = SharedContext(args=args)
+        for task_input in task.inputs:
+            if task_input.name in run_kwargs:
+                task_input.update_shared_context(
+                    shared_ctx, run_kwargs[task_input.name]
+                )
+                continue
+        try:
+            return task.run(Session(shared_ctx=shared_ctx, root_group=self))
+        except KeyboardInterrupt:
+            pass
+
+    def _get_run_kwargs(
         self, task: AnyTask, args: list[str], kwargs: dict[str, str]
     ) -> tuple[Any]:
         arg_index = 0
         str_kwargs = {key: val for key, val in kwargs.items()}
-        rerun_kwargs = {**str_kwargs}
+        run_kwargs = {**str_kwargs}
         shared_ctx = SharedContext(args=args)
         for task_input in task.inputs:
             if task_input.name in str_kwargs:
-                task_input.update_shared_context(
-                    shared_ctx, str_kwargs[task_input.name]
-                )
                 continue
             if arg_index < len(args):
-                task_input.update_shared_context(shared_ctx, args[arg_index])
-                rerun_kwargs[task_input.name] = args[arg_index]
+                run_kwargs[task_input.name] = args[arg_index]
                 arg_index += 1
                 continue
             str_value = task_input.prompt_cli_str(shared_ctx)
-            rerun_kwargs[task_input.name] = str_value
-            task_input.update_shared_context(shared_ctx, str_value)
-        try:
-            return (
-                task.run(Session(shared_ctx=shared_ctx, root_group=self)),
-                rerun_kwargs,
-            )
-        except KeyboardInterrupt:
-            pass
+            run_kwargs[task_input.name] = str_value
+        return run_kwargs
 
     def _show_task_info(self, task: AnyTask):
         description = task.description
