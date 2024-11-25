@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -9,7 +10,7 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
-from zrb.util.run import run_async
+from zrb.util.llm.tool import callable_to_tool_schema
 
 DictList = list[dict[str, Any]]
 
@@ -75,16 +76,47 @@ class LLMTask(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> Any:
         from litellm import completion
 
-        messages = self._get_history(ctx) + [
-            {"role": "user", "content": self._get_message(ctx)}
-        ]
-        tools = self._get_tools(ctx)
-        tool_schema = self._get_tool_schema(ctx)
-        response = completion(
-            model=self._get_model(ctx), messages=messages, tools=tool_schema
+        messages = (
+            [{"role": "system", "content": self._get_system_prompt(ctx)}]
+            + self._get_history(ctx)
+            + [{"role": "user", "content": self._get_message(ctx)}]
         )
-        # TODO: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
-        return response
+        available_tools = self._get_tools(ctx)
+        tool_schema = self._get_tool_schema(ctx)
+        for tool_name, tool in available_tools.items():
+            matched_tool_schema = [
+                schema
+                for schema in tool_schema
+                if "function" in schema
+                and "name" in schema["function"]
+                and schema["function"]["name"] == tool_name
+            ]
+            if len(matched_tool_schema) == 0:
+                tool_schema.append(callable_to_tool_schema(tool))
+        while True:
+            response = completion(
+                model=self._get_model(ctx), messages=messages, tools=tool_schema
+            )
+            response_message = response.choices[0].message
+            messages.append(response_message)
+            tool_calls = response_message.tool_calls
+            if tool_calls:
+                # Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
+                for tool_call in tool_calls:
+                    function_name = tool_call.function.name
+                    function_to_call = available_tools[function_name]
+                    function_kwargs = json.loads(tool_call.function.arguments)
+                    function_response = function_to_call(**function_kwargs)
+                    messages.append(
+                        {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                        }
+                    )
+                continue
+            return response
 
     def _get_model(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._model, "ollama_chat/llama3.1", auto_render=True)
