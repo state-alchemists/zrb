@@ -78,7 +78,7 @@ class LLMTask(BaseTask):
         self._history = history
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from litellm import completion
+        from litellm import acompletion
 
         system_prompt = self._get_system_prompt(ctx)
         ctx.log_debug("SYSTEM PROMPT", system_prompt)
@@ -99,7 +99,7 @@ class LLMTask(BaseTask):
         ]
         ctx.log_debug("TOOL SCHEMA", tool_schema)
         while True:
-            response = completion(
+            response = await acompletion(
                 model=self._get_model(ctx), messages=messages, tools=tool_schema
             )
             response_message = response.choices[0].message
