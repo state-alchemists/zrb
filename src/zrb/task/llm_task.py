@@ -38,7 +38,6 @@ class LLMTask(BaseTask):
         tools: (
             dict[str, Callable] | Callable[[AnySharedContext], dict[str, Callable]]
         ) = {},
-        tool_schema: DictList | Callable[[AnySharedContext], DictList] = [],
         history: DictList | Callable[[AnySharedContext], DictList] = [],
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
@@ -76,7 +75,6 @@ class LLMTask(BaseTask):
         self._system_prompt = system_prompt
         self._message = message
         self._tools = tools
-        self._tool_schema = tool_schema
         self._history = history
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
@@ -95,17 +93,10 @@ class LLMTask(BaseTask):
         )
         available_tools = self._get_tools(ctx)
         available_tools["scratchpad"] = scratchpad
-        tool_schema = self._get_tool_schema(ctx)
-        for tool_name, tool in available_tools.items():
-            matched_tool_schema = [
-                schema
-                for schema in tool_schema
-                if "function" in schema
-                and "name" in schema["function"]
-                and schema["function"]["name"] == tool_name
-            ]
-            if len(matched_tool_schema) == 0:
-                tool_schema.append(callable_to_tool_schema(tool))
+        tool_schema = [
+            callable_to_tool_schema(tool, name)
+            for name, tool in available_tools.items()
+        ]
         ctx.log_debug("TOOL SCHEMA", tool_schema)
         while True:
             response = completion(
@@ -148,11 +139,6 @@ class LLMTask(BaseTask):
         if callable(self._tools):
             return self._tools(ctx)
         return self._tools
-
-    def _get_tool_schema(self, ctx: AnyContext) -> DictList:
-        if callable(self._tool_schema):
-            return self._tool_schema(ctx)
-        return self._tool_schema
 
     def _get_history(self, ctx: AnyContext) -> DictList:
         if callable(self._history):
