@@ -1,7 +1,5 @@
 import os
 
-from fastapi.responses import HTMLResponse
-
 from zrb.group.any_group import AnyGroup
 from zrb.util.group import get_non_empty_subgroups, get_subtasks
 from zrb.util.string.format import fstring_format
@@ -24,11 +22,10 @@ with open(os.path.join(_DIR, "partial", "task_li.html")) as f:
     _TASK_LI_TEMPLATE = f.read()
 
 
-def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):
-    url_parts = url.split("/")
-    parent_url_parts = url_parts[:-2] + [""]
-    parent_url = "/".join(parent_url_parts)
-    subgroups = get_non_empty_subgroups(group, web_only=True)
+def handle_home_page(root_group: AnyGroup):
+    from fastapi.responses import HTMLResponse
+
+    subgroups = get_non_empty_subgroups(root_group, web_only=True)
     group_info = (
         ""
         if len(subgroups) == 0
@@ -39,11 +36,7 @@ def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):
                     [
                         fstring_format(
                             _GROUP_LI_TEMPLATE,
-                            {
-                                "caption": name,
-                                "url": url,
-                                "description": group.description,
-                            },
+                            {"caption": name, "description": group.description},
                         )
                         for name, group in subgroups.items()
                     ]
@@ -51,7 +44,7 @@ def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):
             },
         )
     )
-    subtasks = get_subtasks(group, web_only=True)
+    subtasks = get_subtasks(root_group, web_only=True)
     task_info = (
         ""
         if len(subtasks) == 0
@@ -62,11 +55,7 @@ def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):
                     [
                         fstring_format(
                             _TASK_LI_TEMPLATE,
-                            {
-                                "caption": name,
-                                "url": url,
-                                "description": task.description,
-                            },
+                            {"caption": name, "description": task.description},
                         )
                         for name, task in subtasks.items()
                     ]
@@ -80,12 +69,8 @@ def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):
             {
                 "group_info": group_info,
                 "task_info": task_info,
-                "name": group.name,
-                "description": group.description,
-                "root_name": root_group.name,
-                "root_description": root_group.description,
-                "url": url,
-                "parent_url": parent_url,
+                "name": root_group.name,
+                "description": root_group.description,
             },
         )
     )

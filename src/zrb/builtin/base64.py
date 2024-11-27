@@ -1,5 +1,3 @@
-import base64
-
 from zrb.builtin.group import base64_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
@@ -14,6 +12,8 @@ from zrb.task.make_task import make_task
     alias="encode",
 )
 def encode_base64(ctx: AnyContext) -> str:
+    import base64
+
     result = base64.b64encode(ctx.input.text.encode()).decode()
     ctx.print(result)
     return result
@@ -27,6 +27,8 @@ def encode_base64(ctx: AnyContext) -> str:
     alias="decode",
 )
 def decode_base64(ctx: AnyContext) -> str:
+    import base64
+
     result = base64.b64decode(ctx.input.text.encode()).decode()
     ctx.print(result)
     return result

@@ -1,21 +1,15 @@
 import asyncio
 import os
 import sys
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
-
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from uvicorn import Config, Server
 
 from zrb.config import BANNER, WEB_HTTP_PORT
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_app.group_info_ui.controller import handle_group_info_ui
-from zrb.runner.web_app.home_page.controller import handle_home_page
-from zrb.runner.web_app.task_ui.controller import handle_task_ui
+from zrb.runner.web_controller.group_info_ui.controller import handle_group_info_ui
+from zrb.runner.web_controller.home_page.controller import handle_home_page
+from zrb.runner.web_controller.task_ui.controller import handle_task_ui
 from zrb.runner.web_util import NewSessionResponse
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
@@ -27,6 +21,12 @@ from zrb.util.group import extract_node_from_args, get_node_path
 
 
 def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
+    from contextlib import asynccontextmanager
+
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.responses import FileResponse, HTMLResponse
+    from fastapi.staticfiles import StaticFiles
+
     _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_app", "static")
     _COROS = []
 
@@ -144,7 +144,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     return app
 
 
-async def run_web_server(app: FastAPI, port: int = WEB_HTTP_PORT):
-    config = Config(app=app, host="0.0.0.0", port=port, loop="asyncio")
-    server = Server(config)
-    await server.serve()
+# async def run_web_server(app: FastAPI, port: int = WEB_HTTP_PORT):
+#     config = Config(app=app, host="0.0.0.0", port=port, loop="asyncio")
+#     server = Server(config)
+#     await server.serve()

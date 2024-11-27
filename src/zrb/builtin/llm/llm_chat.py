@@ -1,7 +1,6 @@
 from zrb.builtin.group import llm_group
-from zrb.builtin.llm.tool.open_web_page import open_web_page
-from zrb.builtin.llm.tool.query_internet import query_internet
-from zrb.builtin.llm.tool.run_shell_command import run_shell_command
+from zrb.builtin.llm.tool.cli import run_shell_command
+from zrb.builtin.llm.tool.web import open_web_page, query_internet
 from zrb.config import (
     LLM_ALLOW_ACCESS_SHELL,
     LLM_ALLOW_ACCESS_WEB,

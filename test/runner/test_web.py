@@ -1,12 +1,20 @@
 import asyncio
 import unittest
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from uvicorn import Config, Server
 
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
-from zrb.runner.web_server import create_app, run_web_server
+from zrb.runner.web_app import create_app
 from zrb.task.task import Task
+
+
+async def run_web_server(app: FastAPI, port: int):
+    config = Config(app=app, host="0.0.0.0", port=port, loop="asyncio")
+    server = Server(config)
+    await server.serve()
 
 
 class TestRunWebServer(unittest.TestCase):

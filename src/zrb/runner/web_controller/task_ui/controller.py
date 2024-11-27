@@ -1,7 +1,5 @@
 import os
 
-from fastapi.responses import HTMLResponse
-
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
@@ -31,6 +29,8 @@ with open(os.path.join(_DIR, "partial", "common-util.js")) as f:
 def handle_task_ui(
     root_group: AnyGroup, task: AnyTask, session: AnySession, url: str, args: list[str]
 ):
+    from fastapi.responses import HTMLResponse
+
     session.register_task(task)
     ctx = task.get_ctx(session)
     url_parts = url.split("/")

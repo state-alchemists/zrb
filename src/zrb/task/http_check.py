@@ -1,8 +1,6 @@
 import asyncio
 from collections.abc import Callable
 
-import requests
-
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
@@ -58,6 +56,8 @@ class HttpCheck(BaseTask):
         return get_str_attr(ctx, self._http_method, "GET", auto_render=True).upper()
 
     async def _exec_action(self, ctx: AnyContext) -> bool:
+        import requests
+
         url = self._get_url(ctx)
         http_method = self._get_http_method(ctx)
         while True:
