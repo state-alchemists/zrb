@@ -9,11 +9,13 @@ from zrb.input.text_input import TextInput
 from zrb.task.make_task import make_task
 from zrb.util.todo import (
     TodoTaskModel,
+    add_durations,
     cascade_todo_task,
     get_visual_todo_list,
     line_to_todo_task,
     load_todo_list,
     save_todo_list,
+    select_todo_task,
     todo_task_to_line,
 )
 
@@ -49,12 +51,12 @@ from zrb.util.todo import (
 )
 def todo_add(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
-    todo_tasks: list[TodoTaskModel] = []
+    todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
-        todo_tasks = load_todo_list(todo_file_path)
+        todo_list = load_todo_list(todo_file_path)
     else:
         os.makedirs(TODO_DIR, exist_ok=True)
-    todo_tasks.append(
+    todo_list.append(
         cascade_todo_task(
             TodoTaskModel(
                 priority=ctx.input.priority.upper(),
@@ -72,8 +74,8 @@ def todo_add(ctx: AnyContext):
             )
         )
     )
-    save_todo_list(todo_file_path, todo_tasks)
-    return get_visual_todo_list(todo_tasks)
+    save_todo_list(todo_file_path, todo_list)
+    return get_visual_todo_list(todo_list)
 
 
 @make_task(name="todo-list", description="📋 List todo", group=todo_group, alias="list")
@@ -83,6 +85,78 @@ def todo_list(ctx: AnyContext):
     if os.path.isfile(todo_file_path):
         todo_tasks = load_todo_list(todo_file_path)
     return get_visual_todo_list(todo_tasks)
+
+
+@make_task(
+    name="todo-complete",
+    input=StrInput(name="keyword", prompt="Task keyword", description="Task Keyword"),
+    description="✅ Complete todo",
+    group=todo_group,
+    alias="complete",
+)
+def todo_complete(ctx: AnyContext):
+    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_list: list[TodoTaskModel] = []
+    if os.path.isfile(todo_file_path):
+        todo_list = load_todo_list(todo_file_path)
+    # Get todo task
+    todo_task = select_todo_task(todo_list, ctx.input.keyword)
+    if todo_task is None:
+        raise Exception("Task not found")
+    # Update todo task
+    if todo_task.creation_date is not None:
+        todo_task.completion_date = datetime.date.today()
+    todo_task.completed = True
+    # Save todo list
+    save_todo_list(todo_list)
+    return get_visual_todo_list(todo_list)
+
+
+@make_task(
+    name="todo-log",
+    input=[
+        StrInput(name="keyword", prompt="Task keyword", description="Task Keyword"),
+        StrInput(
+            name="start",
+            prompt="Working start time (%Y-%m-%d %H:%M:%S)",
+            description="Working start time",
+            default_str=lambda _: _get_default_start(),
+        ),
+        StrInput(
+            name="duration",
+            prompt="Working duration",
+            description="Working duration",
+            default_str="30m",
+        ),
+        StrInput(
+            name="log",
+            prompt="Working log",
+            description="Working log",
+        ),
+    ],
+    description="🕒 Log work todo",
+    group=todo_group,
+    alias="log",
+)
+def todo_log(ctx: AnyContext):
+    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_list: list[TodoTaskModel] = []
+    if os.path.isfile(todo_file_path):
+        todo_list = load_todo_list(todo_file_path)
+    # Get todo task
+    todo_task = select_todo_task(todo_list, ctx.input.keyword)
+    if todo_task is None:
+        raise Exception("Task not found")
+    # Update todo task
+    current_duration = todo_task.keyval.get("duration", "0")
+    todo_task.keyval["duration"] = add_durations(current_duration, ctx.input.duration)
+    # Save todo list
+    save_todo_list(todo_list)
+    return get_visual_todo_list(todo_list)
+
+
+def _get_default_start() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 @make_task(
@@ -100,17 +174,17 @@ def todo_list(ctx: AnyContext):
     alias="edit",
 )
 def todo_edit(ctx: AnyContext):
-    todo_tasks = [
+    todo_list = [
         cascade_todo_task(line_to_todo_task(line))
         for line in ctx.input.text.split("\n")
         if line.strip() != ""
     ]
-    new_content = "\n".join(todo_task_to_line(todo_task) for todo_task in todo_tasks)
+    new_content = "\n".join(todo_task_to_line(todo_task) for todo_task in todo_list)
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     with open(todo_file_path, "w") as f:
         f.write(new_content)
-    todo_tasks = load_todo_list(todo_file_path)
-    return get_visual_todo_list(todo_tasks)
+    todo_list = load_todo_list(todo_file_path)
+    return get_visual_todo_list(todo_list)
 
 
 def _get_todo_txt_content() -> str:

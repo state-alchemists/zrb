@@ -50,6 +50,28 @@ def cascade_todo_task(todo_task: TodoTaskModel):
     return todo_task
 
 
+def select_todo_task(
+    todo_list: list[TodoTaskModel], keyword: str
+) -> TodoTaskModel | None:
+    for todo_task in todo_list:
+        id = todo_task.keyval.get("id", "")
+        if keyword.lower().strip() == id.lower.strip():
+            return todo_task
+    for todo_task in todo_list:
+        description = todo_task.description
+        if keyword.lower().strip() == description.lower.strip():
+            return todo_task
+    for todo_task in todo_list:
+        id = todo_task.keyval.get("id", "")
+        if keyword.lower().strip() in id.lower.strip():
+            return todo_task
+    for todo_task in todo_list:
+        description = todo_task.description
+        if keyword.lower().strip() in description.lower.strip():
+            return todo_task
+    return None
+
+
 def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
     with open(todo_file_path, "r") as f:
         todo_lines = f.read().strip().split("\n")
@@ -202,3 +224,36 @@ def _date_to_str(date: datetime.date | None) -> str:
     if date is None:
         return "".ljust(14)
     return date.strftime("%a %Y-%m-%d")
+
+
+def add_durations(duration1: str, duration2: str) -> str:
+    total_seconds = _parse_duration(duration1) + _parse_duration(duration2)
+    # Format and return the result
+    return _format_duration(total_seconds)
+
+
+def _parse_duration(duration: str) -> int:
+    """Parse a duration string into total seconds."""
+    units = {"M": 2592000, "w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1}
+    total_seconds = 0
+    match = re.findall(r"(\d+)([Mwdhms])", duration)
+    for value, unit in match:
+        total_seconds += int(value) * units[unit]
+    return total_seconds
+
+
+def _format_duration(total_seconds: int) -> str:
+    """Format total seconds into a duration string."""
+    units = [
+        ("w", 604800),  # 7 days in a week
+        ("d", 86400),  # 24 hours in a day
+        ("h", 3600),  # 60 minutes in an hour
+        ("m", 60),  # 60 seconds in a minute
+        ("s", 1),  # seconds
+    ]
+    result = []
+    for unit, value_in_seconds in units:
+        if total_seconds >= value_in_seconds:
+            amount, total_seconds = divmod(total_seconds, value_in_seconds)
+            result.append(f"{amount}{unit}")
+    return " ".join(result) if result else "0s"
