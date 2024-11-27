@@ -87,10 +87,10 @@ class LLMTask(BaseTask):
         self._additional_tools: list[AdditionalTool] = []
 
     def add_tool(
-        tool: Callable, name: str | None = None, description: str | None = None
+        self, tool: Callable, name: str | None = None, description: str | None = None
     ):
         self._additional_tools.append(
-            AdditionalTool(tool=tool, name=name, description=description)
+            AdditionalTool(fn=tool, name=name, description=description)
         )
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
