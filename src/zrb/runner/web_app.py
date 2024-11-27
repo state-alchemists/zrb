@@ -142,9 +142,3 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
             raise HTTPException(status_code=500, detail=str(e))
 
     return app
-
-
-# async def run_web_server(app: FastAPI, port: int = WEB_HTTP_PORT):
-#     config = Config(app=app, host="0.0.0.0", port=port, loop="asyncio")
-#     server = Server(config)
-#     await server.serve()
