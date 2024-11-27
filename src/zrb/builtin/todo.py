@@ -102,13 +102,15 @@ def todo_complete(ctx: AnyContext):
     # Get todo task
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
-        raise Exception("Task not found")
+        ctx.log_error("Task not found")
+        return get_visual_todo_list(todo_list)
     # Update todo task
+    todo_task = cascade_todo_task(todo_task)
     if todo_task.creation_date is not None:
         todo_task.completion_date = datetime.date.today()
     todo_task.completed = True
     # Save todo list
-    save_todo_list(todo_list)
+    save_todo_list(todo_file_path, todo_list)
     return get_visual_todo_list(todo_list)
 
 
@@ -146,12 +148,16 @@ def todo_log(ctx: AnyContext):
     # Get todo task
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
-        raise Exception("Task not found")
+        ctx.log_error("Task not found")
+        return get_visual_todo_list(todo_list)
     # Update todo task
+    todo_task = cascade_todo_task(todo_task)
     current_duration = todo_task.keyval.get("duration", "0")
     todo_task.keyval["duration"] = add_durations(current_duration, ctx.input.duration)
     # Save todo list
-    save_todo_list(todo_list)
+    save_todo_list(todo_file_path, todo_list)
+    # Add log work
+    # TODO
     return get_visual_todo_list(todo_list)
 
 

@@ -55,19 +55,19 @@ def select_todo_task(
 ) -> TodoTaskModel | None:
     for todo_task in todo_list:
         id = todo_task.keyval.get("id", "")
-        if keyword.lower().strip() == id.lower.strip():
+        if keyword.lower().strip() == id.lower().strip():
             return todo_task
     for todo_task in todo_list:
         description = todo_task.description
-        if keyword.lower().strip() == description.lower.strip():
+        if keyword.lower().strip() == description.lower().strip():
             return todo_task
     for todo_task in todo_list:
         id = todo_task.keyval.get("id", "")
-        if keyword.lower().strip() in id.lower.strip():
+        if keyword.lower().strip() in id.lower().strip():
             return todo_task
     for todo_task in todo_list:
         description = todo_task.description
-        if keyword.lower().strip() in description.lower.strip():
+        if keyword.lower().strip() in description.lower().strip():
             return todo_task
     return None
 
@@ -95,7 +95,7 @@ def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
 def save_todo_list(todo_file_path: str, todo_list: list[TodoTaskModel]):
     with open(todo_file_path, "w") as f:
         for todo_task in todo_list:
-            f.write(todo_task_to_line(todo_task))
+            f.write(todo_task_to_line(todo_task) + "\n")
 
 
 def line_to_todo_task(line: str) -> TodoTaskModel:
