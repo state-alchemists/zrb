@@ -27,7 +27,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     from fastapi.responses import FileResponse, HTMLResponse
     from fastapi.staticfiles import StaticFiles
 
-    _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_app", "static")
+    _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_controller", "static")
     _COROS = []
 
     @asynccontextmanager
