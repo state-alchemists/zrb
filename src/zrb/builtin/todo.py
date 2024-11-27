@@ -1,5 +1,7 @@
 import datetime
+import json
 import os
+from typing import Any
 
 from zrb.builtin.group import todo_group
 from zrb.config import TODO_DIR
@@ -154,10 +156,26 @@ def todo_log(ctx: AnyContext):
     todo_task = cascade_todo_task(todo_task)
     current_duration = todo_task.keyval.get("duration", "0")
     todo_task.keyval["duration"] = add_durations(current_duration, ctx.input.duration)
+    print(current_duration, todo_task.keyval)
     # Save todo list
     save_todo_list(todo_file_path, todo_list)
     # Add log work
-    # TODO
+    log_work_dir = os.path.join(TODO_DIR, "log-work")
+    os.makedirs(log_work_dir, exist_ok=True)
+    log_work_file_path = os.path.join(
+        log_work_dir, f"{todo_task.keyval.get('id')}.json"
+    )
+    if os.path.isfile(log_work_file_path):
+        with open(log_work_file_path, "r") as f:
+            log_work_json = f.read()
+    else:
+        log_work_json = "[]"
+    log_work: list[dict[str, Any]] = json.loads(log_work_json)
+    log_work.append(
+        {"log": ctx.input.log, "duration": ctx.input.duration, "start": ctx.input.start}
+    )
+    with open(log_work_file_path, "w") as f:
+        f.write(json.dumps(log_work, indent=2))
     return get_visual_todo_list(todo_list)
 
 

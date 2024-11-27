@@ -57,7 +57,7 @@ class Cli(Group):
         return " ".join(parts)
 
     def _get_run_command_param(self, key: str, val: str) -> str:
-        if '"' in val or "'" in val or " " in val:
+        if '"' in val or "'" in val or " " in val or val == "":
             return f"--{key} {double_quote(val)}"
         return f"--{key} {val}"
 
@@ -71,10 +71,7 @@ class Cli(Group):
                     shared_ctx, run_kwargs[task_input.name]
                 )
                 continue
-        try:
-            return task.run(Session(shared_ctx=shared_ctx, root_group=self))
-        except KeyboardInterrupt:
-            pass
+        return task.run(Session(shared_ctx=shared_ctx, root_group=self))
 
     def _get_run_kwargs(
         self, task: AnyTask, args: list[str], kwargs: dict[str, str]

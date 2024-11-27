@@ -256,4 +256,4 @@ def _format_duration(total_seconds: int) -> str:
         if total_seconds >= value_in_seconds:
             amount, total_seconds = divmod(total_seconds, value_in_seconds)
             result.append(f"{amount}{unit}")
-    return " ".join(result) if result else "0s"
+    return "".join(result) if result else "0s"
