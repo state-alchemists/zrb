@@ -3,8 +3,16 @@ import re
 
 from pydantic import BaseModel, Field, model_validator
 
+from zrb.util.cli.style import (
+    stylize_bold_green,
+    stylize_cyan,
+    stylize_magenta,
+    stylize_yellow,
+)
+from zrb.util.string.name import get_random_name
 
-class TodoTask(BaseModel):
+
+class TodoTaskModel(BaseModel):
     priority: str | None = Field("D", pattern=r"^[A-Z]$")  # Priority like A, B, ...
     completed: bool = False  # True if completed, False otherwise
     description: str  # Main task description
@@ -34,16 +42,24 @@ TODO_TXT_PATTERN = re.compile(
 )
 
 
-def read_todo_from_file(todo_file_path: str) -> list[TodoTask]:
+def cascade_todo_task(todo_task: TodoTaskModel):
+    if todo_task.creation_date is None:
+        todo_task.creation_date = datetime.date.today()
+    if "id" not in todo_task.keyval:
+        todo_task.keyval["id"] = get_random_name()
+    return todo_task
+
+
+def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
     with open(todo_file_path, "r") as f:
         todo_lines = f.read().strip().split("\n")
-    todo_tasks: list[TodoTask] = []
+    todo_list: list[TodoTaskModel] = []
     for todo_line in todo_lines:
         todo_line = todo_line.strip()
         if todo_line == "":
             continue
-        todo_tasks.append(parse_todo_line(todo_line))
-    todo_tasks.sort(
+        todo_list.append(line_to_todo_task(todo_line))
+    todo_list.sort(
         key=lambda task: (
             task.completed,
             task.priority if task.priority else "Z",
@@ -51,16 +67,16 @@ def read_todo_from_file(todo_file_path: str) -> list[TodoTask]:
             task.creation_date if task.creation_date else datetime.date.max,
         )
     )
-    return todo_tasks
+    return todo_list
 
 
-def write_todo_to_file(todo_file_path: str, todo_task_list: list[TodoTask]):
+def save_todo_list(todo_file_path: str, todo_list: list[TodoTaskModel]):
     with open(todo_file_path, "w") as f:
-        for todo_task in todo_task_list:
+        for todo_task in todo_list:
             f.write(todo_task_to_line(todo_task))
 
 
-def parse_todo_line(line: str) -> TodoTask:
+def line_to_todo_task(line: str) -> TodoTaskModel:
     """Parses a single todo.txt line into a TodoTask model."""
     match = TODO_TXT_PATTERN.match(line)
     if not match:
@@ -69,8 +85,8 @@ def parse_todo_line(line: str) -> TodoTask:
     # Extract completion status
     is_completed = groups["status"] == "x"
     # Extract dates
-    date1 = parse_date(groups["date1"])
-    date2 = parse_date(groups["date2"])
+    date1 = _parse_date(groups["date1"])
+    date2 = _parse_date(groups["date2"])
     # Determine creation_date and completion_date
     completion_date, creation_date = None, None
     if date2 is None:
@@ -87,7 +103,7 @@ def parse_todo_line(line: str) -> TodoTask:
         key, val = keyval_str.split(":", 1)
         keyval[key] = val
     description = re.sub(r"\s*\+\S+|\s*@\S+|\s*\S+:\S+", "", raw_description).strip()
-    return TodoTask(
+    return TodoTaskModel(
         priority=groups["priority"],
         completed=is_completed,
         description=description,
@@ -99,14 +115,14 @@ def parse_todo_line(line: str) -> TodoTask:
     )
 
 
-def parse_date(date_str: str | None) -> datetime.date | None:
+def _parse_date(date_str: str | None) -> datetime.date | None:
     """Parses a date string in the format YYYY-MM-DD."""
     if date_str:
         return datetime.date.fromisoformat(date_str)
     return None
 
 
-def todo_task_to_line(task: TodoTask) -> str:
+def todo_task_to_line(task: TodoTaskModel) -> str:
     """Converts a TodoTask instance back into a todo.txt formatted line."""
     parts = []
     # Add completion mark if task is completed
@@ -133,3 +149,56 @@ def todo_task_to_line(task: TodoTask) -> str:
         parts.append(f"{key}:{val}")
     # Join all parts with a space
     return " ".join(parts)
+
+
+def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
+    if len(todo_list) == 0:
+        return "\n".join(["", "  Empty todo list... 🌵🦖", ""])
+    max_desc_name_length = max(len(todo_task.description) for todo_task in todo_list)
+    if max_desc_name_length < len("DESCRIPTION"):
+        max_desc_name_length = len("DESCRIPTION")
+    # Headers
+    results = [
+        stylize_bold_green(
+            "  ".join(
+                [
+                    "".ljust(3),  # priority
+                    "".ljust(3),  # completed
+                    "COMPLETED AT".rjust(14),  # completed date
+                    "CREATED AT".rjust(14),  # completed date
+                    "DESCRIPTION".ljust(max_desc_name_length),
+                    "PROJECT/CONTEXT/OTHERS",
+                ]
+            )
+        )
+    ]
+    for todo_task in todo_list:
+        completed = "[x]" if todo_task.completed else "[ ]"
+        priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
+        completion_date = stylize_yellow(_date_to_str(todo_task.completion_date))
+        creation_date = stylize_cyan(_date_to_str(todo_task.creation_date))
+        description = todo_task.description.ljust(max_desc_name_length)
+        additions = ", ".join(
+            [stylize_yellow(f"+{project}") for project in todo_task.projects]
+            + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
+            + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
+        )
+        results.append(
+            "  ".join(
+                [
+                    completed,
+                    priority,
+                    completion_date,
+                    creation_date,
+                    description,
+                    additions,
+                ]
+            )
+        )
+    return "\n".join(results)
+
+
+def _date_to_str(date: datetime.date | None) -> str:
+    if date is None:
+        return "".ljust(14)
+    return date.strftime("%a %Y-%m-%d")
