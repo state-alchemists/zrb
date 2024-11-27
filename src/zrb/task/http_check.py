@@ -24,7 +24,7 @@ class HttpCheck(BaseTask):
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
         url: StrAttr = "http://localhost",
-        auto_render_url: bool = True,
+        render_url: bool = True,
         http_method: StrAttr = "GET",
         interval: int = 5,
         execute_condition: bool | str | Callable[[Context], bool] = True,
@@ -45,13 +45,13 @@ class HttpCheck(BaseTask):
             fallback=fallback,
         )
         self._url = url
-        self._auto_render_url = auto_render_url
+        self._render_url = render_url
         self._http_method = http_method
         self._interval = interval
 
     def _get_url(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._url, "http://localhost", auto_render=self._auto_render_url
+            ctx, self._url, "http://localhost", auto_render=self._render_url
         )
 
     def _get_http_method(self, ctx: AnyContext) -> str:

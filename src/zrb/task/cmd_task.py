@@ -26,22 +26,22 @@ class CmdTask(BaseTask):
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
         shell: StrAttr | None = None,
-        auto_render_shell: bool = True,
+        render_shell: bool = True,
         shell_flag: StrAttr | None = None,
-        auto_render_shell_flag: bool = True,
+        render_shell_flag: bool = True,
         remote_host: StrAttr | None = None,
-        auto_render_remote_host: bool = True,
+        render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
         remote_user: StrAttr | None = None,
-        auto_render_remote_user: bool = True,
+        render_remote_user: bool = True,
         remote_password: StrAttr | None = None,
-        auto_render_remote_password: bool = True,
+        render_remote_password: bool = True,
         remote_ssh_key: StrAttr | None = None,
-        auto_render_remote_ssh_key: bool = True,
+        render_remote_ssh_key: bool = True,
         cmd: CmdVal = "",
-        auto_render_cmd: bool = True,
+        render_cmd: bool = True,
         cwd: str | None = None,
-        auto_render_cwd: bool = True,
+        render_cwd: bool = True,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         execute_condition: BoolAttr = True,
@@ -77,22 +77,22 @@ class CmdTask(BaseTask):
             fallback=fallback,
         )
         self._shell = shell
-        self._auto_render_shell = auto_render_shell
+        self._render_shell = render_shell
         self._shell_flag = shell_flag
-        self._auto_render_shell_flag = auto_render_shell_flag
+        self._render_shell_flag = render_shell_flag
         self._remote_host = remote_host
-        self._auto_render_remote_host = auto_render_remote_host
+        self._render_remote_host = render_remote_host
         self._remote_port = remote_port
         self._remote_user = remote_user
-        self._auto_render_remote_user = auto_render_remote_user
+        self._render_remote_user = render_remote_user
         self._remote_password = remote_password
-        self._auto_render_remote_password = auto_render_remote_password
+        self._render_remote_password = render_remote_password
         self._remote_ssh_key = remote_ssh_key
-        self._auto_render_remote_ssh_key = auto_render_remote_ssh_key
+        self._render_remote_ssh_key = render_remote_ssh_key
         self._cmd = cmd
-        self._auto_render_cmd = auto_render_cmd
+        self._render_cmd = render_cmd
         self._cwd = cwd
-        self._auto_render_cwd = auto_render_cwd
+        self._render_cwd = render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
 
@@ -171,7 +171,7 @@ class CmdTask(BaseTask):
 
     def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._shell, DEFAULT_SHELL, auto_render=self._auto_render_shell
+            ctx, self._shell, DEFAULT_SHELL, auto_render=self._render_shell
         )
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
@@ -186,12 +186,12 @@ class CmdTask(BaseTask):
             ctx,
             self._shell_flag,
             default_shell_flag,
-            auto_render=self._auto_render_shell_flag,
+            auto_render=self._render_shell_flag,
         )
 
     def _get_remote_host(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._remote_host, "", auto_render=self._auto_render_remote_host
+            ctx, self._remote_host, "", auto_render=self._render_remote_host
         )
 
     def _get_remote_port(self, ctx: AnyContext) -> int:
@@ -199,7 +199,7 @@ class CmdTask(BaseTask):
 
     def _get_remote_user(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._remote_user, "", auto_render=self._auto_render_remote_user
+            ctx, self._remote_user, "", auto_render=self._render_remote_user
         )
 
     def _get_remote_password(self, ctx: AnyContext) -> str:
@@ -207,18 +207,16 @@ class CmdTask(BaseTask):
             ctx,
             self._remote_password,
             "",
-            auto_render=self._auto_render_remote_password,
+            auto_render=self._render_remote_password,
         )
 
     def _get_remote_ssh_key(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._remote_ssh_key, "", auto_render=self._auto_render_remote_ssh_key
+            ctx, self._remote_ssh_key, "", auto_render=self._render_remote_ssh_key
         )
 
     def _get_cwd(self, ctx: AnyContext) -> str:
-        cwd = get_str_attr(
-            ctx, self._cwd, os.getcwd(), auto_render=self._auto_render_cwd
-        )
+        cwd = get_str_attr(ctx, self._cwd, os.getcwd(), auto_render=self._render_cwd)
         if cwd is None:
             cwd = os.getcwd()
         return os.path.abspath(cwd)
@@ -258,7 +256,7 @@ class CmdTask(BaseTask):
         if callable(single_cmd_val):
             return single_cmd_val(ctx)
         if isinstance(single_cmd_val, str):
-            if self._auto_render_cmd:
+            if self._render_cmd:
                 return ctx.render(single_cmd_val)
             return single_cmd_val
         if isinstance(single_cmd_val, AnyCmdVal):

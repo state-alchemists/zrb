@@ -29,7 +29,7 @@ scaffold_fastapp = Scaffolder(
         ),
     ],
     source_path=os.path.join(_DIR, "fastapp_template"),
-    auto_render_source_path=False,
+    render_source_path=False,
     destination_path=lambda ctx: os.path.join(
         ctx.input["project-dir"], ctx.input["app-name"]
     ),

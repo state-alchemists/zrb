@@ -32,13 +32,13 @@ class RsyncTask(CmdTask):
         remote_ssh_key: StrAttr | None = None,
         auto_render_remote_ssh_key: bool = True,
         remote_source_path: StrAttr | None = None,
-        auto_render_remote_source_path: bool = True,
+        render_remote_source_path: bool = True,
         remote_destination_path: StrAttr | None = None,
-        auto_render_remote_destination_path: bool = True,
+        render_remote_destination_path: bool = True,
         local_source_path: StrAttr | None = None,
-        auto_render_local_source_path: bool = True,
+        render_local_source_path: bool = True,
         local_destination_path: StrAttr | None = None,
-        auto_render_local_destination_path: bool = True,
+        render_local_destination_path: bool = True,
         cwd: str | None = None,
         auto_render_cwd: bool = True,
         max_output_line: int = 1000,
@@ -59,19 +59,19 @@ class RsyncTask(CmdTask):
             input=input,
             env=env,
             shell=shell,
-            auto_render_shell=auto_render_shell,
+            render_shell=auto_render_shell,
             remote_host=remote_host,
-            auto_render_remote_host=auto_render_remote_host,
+            render_remote_host=auto_render_remote_host,
             remote_port=remote_port,
             auto_render_remote_port=auto_render_remote_port,
             remote_user=remote_user,
-            auto_render_remote_user=auto_render_remote_user,
+            render_remote_user=auto_render_remote_user,
             remote_password=remote_password,
-            auto_render_remote_password=auto_render_remote_password,
+            render_remote_password=auto_render_remote_password,
             remote_ssh_key=remote_ssh_key,
-            auto_render_remote_ssh_key=auto_render_remote_ssh_key,
+            render_remote_ssh_key=auto_render_remote_ssh_key,
             cwd=cwd,
-            auto_render_cwd=auto_render_cwd,
+            render_cwd=auto_render_cwd,
             max_output_line=max_output_line,
             max_error_line=max_error_line,
             execute_condition=execute_condition,
@@ -82,13 +82,13 @@ class RsyncTask(CmdTask):
             fallback=fallback,
         )
         self._remote_source_path = remote_source_path
-        self._auto_render_remote_source_path = auto_render_remote_source_path
+        self._render_remote_source_path = render_remote_source_path
         self._remote_destination_path = remote_destination_path
-        self._auto_render_remote_destination_path = auto_render_remote_destination_path
+        self._render_remote_destination_path = render_remote_destination_path
         self._local_source_path = local_source_path
-        self._auto_render_local_source_path = auto_render_local_source_path
+        self._render_local_source_path = render_local_source_path
         self._local_destination_path = local_destination_path
-        self._auto_render_local_destination_path = auto_render_local_destination_path
+        self._render_local_destination_path = render_local_destination_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:
         local_source_path = self._get_local_source_path(ctx)
@@ -113,7 +113,7 @@ class RsyncTask(CmdTask):
             ctx,
             self._remote_source_path,
             "",
-            auto_render=self._auto_render_remote_source_path,
+            auto_render=self._render_remote_source_path,
         )
 
     def _get_remote_destination_path(self, ctx: AnyContext) -> str:
@@ -121,7 +121,7 @@ class RsyncTask(CmdTask):
             ctx,
             self._remote_destination_path,
             "",
-            auto_render=self._auto_render_remote_destination_path,
+            auto_render=self._render_remote_destination_path,
         )
 
     def _get_local_source_path(self, ctx: AnyContext) -> str:
@@ -129,7 +129,7 @@ class RsyncTask(CmdTask):
             ctx,
             self._local_source_path,
             "",
-            auto_render=self._auto_render_local_source_path,
+            auto_render=self._render_local_source_path,
         )
 
     def _get_local_destination_path(self, ctx: AnyContext) -> str:
@@ -137,7 +137,7 @@ class RsyncTask(CmdTask):
             ctx,
             self._local_destination_path,
             "",
-            auto_render=self._auto_render_local_destination_path,
+            auto_render=self._render_local_destination_path,
         )
 
     def _get_cmd_script(self, ctx: AnyContext) -> str:

@@ -26,9 +26,9 @@ class Scaffolder(BaseTask):
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
         source_path: StrAttr | None = None,
-        auto_render_source_path: bool = True,
+        render_source_path: bool = True,
         destination_path: StrAttr | None = None,
-        auto_render_destination_path: bool = True,
+        render_destination_path: bool = True,
         transform_path: TransformConfig = {},
         transform_content: (
             list[AnyContentTransformer] | AnyContentTransformer | TransformConfig
@@ -66,9 +66,9 @@ class Scaffolder(BaseTask):
             fallback=fallback,
         )
         self._source_path = source_path
-        self._auto_render_source_path = auto_render_source_path
+        self._render_source_path = render_source_path
         self._destination_path = destination_path
-        self._auto_render_destination_path = auto_render_destination_path
+        self._render_destination_path = render_destination_path
         self._content_transformers = transform_content
         self._path_transformer = transform_path
 

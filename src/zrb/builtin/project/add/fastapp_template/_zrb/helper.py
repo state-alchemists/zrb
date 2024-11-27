@@ -39,7 +39,7 @@ def create_migration(name: str, module: str) -> Task:
                 auto_render=True,
             ),
         ],
-        auto_render_cmd=False,
+        render_cmd=False,
         retries=2,
     )
 
@@ -68,7 +68,7 @@ def migrate_module(name: str, module: str, as_microservices: bool) -> Task:
             f"cd {os.path.join(APP_DIR, 'module', module)}",
             "alembic upgrade head",
         ],
-        auto_render_cmd=False,
+        render_cmd=False,
         retries=2,
     )
 
@@ -92,6 +92,6 @@ def run_microservice(name: str, port: int, module: str) -> Task:
             ACTIVATE_VENV_SCRIPT,
             'fastapi dev main.py --port "${APP_NAME_PORT}"',
         ],
-        auto_render_cmd=False,
+        render_cmd=False,
         retries=2,
     )

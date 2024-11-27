@@ -22,7 +22,7 @@ class TcpCheck(BaseTask):
         input: list[AnyInput] | AnyInput | None = None,
         env: list[AnyEnv] | AnyEnv | None = None,
         host: StrAttr = "localhost",
-        auto_render_host: bool = True,
+        render_host: bool = True,
         port: IntAttr = 80,
         interval: int = 5,
         execute_condition: bool | str | Callable[[Context], bool] = True,
@@ -43,14 +43,12 @@ class TcpCheck(BaseTask):
             fallback=fallback,
         )
         self._host = host
-        self._auto_render_host = auto_render_host
+        self._render_host = render_host
         self._port = port
         self._interval = interval
 
     def _get_host(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._host, "localhost", auto_render=self._auto_render_host
-        )
+        return get_str_attr(ctx, self._host, "localhost", auto_render=self._render_host)
 
     def _get_port(self, ctx: AnyContext) -> str:
         return get_int_attr(ctx, self._port, 80, auto_render=True)

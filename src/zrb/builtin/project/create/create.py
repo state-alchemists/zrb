@@ -25,7 +25,7 @@ scaffold_project = Scaffolder(
         ),
     ],
     source_path=os.path.join(_DIR, "project-template"),
-    auto_render_source_path=False,
+    render_source_path=False,
     destination_path="{ctx.input['project-dir']}",
     transform_content={"Project Name": "{ctx.input['project-name'].title()}"},
     retries=0,

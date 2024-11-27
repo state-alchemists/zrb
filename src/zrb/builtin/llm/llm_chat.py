@@ -1,19 +1,17 @@
-import subprocess
-
 from zrb.builtin.group import llm_group
-from zrb.config import LLM_MODEL, LLM_SYSTEM_PROMPT
+from zrb.builtin.llm.tool.open_web_page import open_web_page
+from zrb.builtin.llm.tool.query_internet import query_internet
+from zrb.builtin.llm.tool.run_shell_command import run_shell_command
+from zrb.config import (
+    LLM_ALLOW_ACCESS_SHELL,
+    LLM_ALLOW_ACCESS_WEB,
+    LLM_HISTORY_FILE,
+    LLM_MODEL,
+    LLM_SYSTEM_PROMPT,
+)
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.llm_task import LLMTask
-
-
-def run_shell_command(command: str) -> str:
-    """Running a shell command"""
-    output = subprocess.check_output(
-        command, shell=True, stderr=subprocess.STDOUT, text=True
-    )
-    return output
-
 
 llm_chat: LLMTask = llm_group.add_task(
     LLMTask(
@@ -33,6 +31,7 @@ llm_chat: LLMTask = llm_group.add_task(
             ),
             TextInput("message", description="User message", prompt="Your message"),
         ],
+        history_file=LLM_HISTORY_FILE,
         description="Chat with LLM",
         model="{ctx.input.model}",
         system_prompt="{ctx.input['system-prompt']}",
@@ -41,4 +40,9 @@ llm_chat: LLMTask = llm_group.add_task(
     alias="chat",
 )
 
-llm_chat.add_tool(run_shell_command)
+if LLM_ALLOW_ACCESS_SHELL:
+    llm_chat.add_tool(run_shell_command)
+
+if LLM_ALLOW_ACCESS_WEB:
+    llm_chat.add_tool(open_web_page)
+    llm_chat.add_tool(query_internet)

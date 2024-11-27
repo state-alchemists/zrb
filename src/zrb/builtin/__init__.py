@@ -7,7 +7,7 @@ from zrb.builtin.git import (
     prune_local_branches,
 )
 from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_subtree
-from zrb.builtin.llm import llm_chat
+from zrb.builtin.llm.llm_chat import llm_chat
 from zrb.builtin.md5 import hash_md5, sum_md5
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project

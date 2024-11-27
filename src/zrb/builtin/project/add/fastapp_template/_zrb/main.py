@@ -54,7 +54,7 @@ run_monolith = app_run_group.add_task(
             ACTIVATE_VENV_SCRIPT,
             'fastapi dev main.py --port "${APP_NAME_PORT}"',
         ],
-        auto_render_cmd=False,
+        render_cmd=False,
         retries=2,
     ),
     alias="monolith",

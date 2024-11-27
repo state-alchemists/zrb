@@ -107,7 +107,7 @@ format_code >> publish_pip
 clean_up_test_generator_resources = CmdTask(
     name="clean-up-resources",
     cmd=f"rm -Rf {os.path.join(_DIR, 'amalgam')}",
-    auto_render_cmd=False,
+    render_cmd=False,
 )
 
 
