@@ -46,9 +46,8 @@ INIT_SCRIPTS = (
     else []
 )
 LOGGING_LEVEL = _get_log_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
-SHOULD_LOAD_BUILTIN = to_boolean(os.getenv("ZRB_SHOULD_LOAD_BUILTIN", "1"))
+LOAD_BUILTIN = to_boolean(os.getenv("ZRB_LOAD_BUILTIN", "1"))
 ENV_PREFIX = os.getenv("ZRB_ENV", "")
-SHOW_ADVERTISEMENT = to_boolean(os.getenv("ZRB_SHOW_ADVERTISEMENT", "1"))
 SHOW_PROMPT = to_boolean(os.getenv("ZRB_SHOW_PROMPT", "1"))
 SESSION_LOG_DIR = os.getenv(
     "ZRB_SESSION_LOG_DIR", os.path.expanduser(os.path.join("~", ".zrb-session"))

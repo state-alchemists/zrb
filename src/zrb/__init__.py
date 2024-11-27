@@ -11,7 +11,7 @@ from zrb.callback.any_callback import AnyCallback
 from zrb.callback.callback import Callback
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import Cmd, CmdPath
-from zrb.config import SHOULD_LOAD_BUILTIN
+from zrb.config import LOAD_BUILTIN
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
@@ -99,7 +99,7 @@ assert Scheduler
 assert cli
 assert Xcom
 
-if SHOULD_LOAD_BUILTIN:
+if LOAD_BUILTIN:
     from zrb import builtin
 
     assert builtin
