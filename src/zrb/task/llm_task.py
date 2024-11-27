@@ -2,6 +2,8 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from pydantic import BaseModel
+
 from zrb.attr.type import StrAttr
 from zrb.config import LLM_MODEL, LLM_SYSTEM_PROMPT
 from zrb.context.any_context import AnyContext
@@ -14,6 +16,12 @@ from zrb.util.attr import get_str_attr
 from zrb.util.llm.tool import callable_to_tool_schema
 
 DictList = list[dict[str, Any]]
+
+
+class AdditionalTool(BaseModel):
+    fn: Callable
+    name: str | None
+    description: str | None
 
 
 def scratchpad(thought: str) -> str:
@@ -76,6 +84,14 @@ class LLMTask(BaseTask):
         self._message = message
         self._tools = tools
         self._history = history
+        self._additional_tools: list[AdditionalTool] = []
+
+    def add_tool(
+        tool: Callable, name: str | None = None, description: str | None = None
+    ):
+        self._additional_tools.append(
+            AdditionalTool(tool=tool, name=name, description=description)
+        )
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         from litellm import acompletion
@@ -97,6 +113,16 @@ class LLMTask(BaseTask):
             callable_to_tool_schema(tool, name)
             for name, tool in available_tools.items()
         ]
+        for additional_tool in self._additional_tools:
+            fn = additional_tool.fn
+            tool_name = additional_tool.name or fn.__name__
+            tool_description = additional_tool.description
+            available_tools[tool_name] = additional_tool.fn
+            tool_schema.append(
+                callable_to_tool_schema(
+                    fn, name=tool_name, description=tool_description
+                )
+            )
         ctx.log_debug("TOOL SCHEMA", tool_schema)
         while True:
             response = await acompletion(
