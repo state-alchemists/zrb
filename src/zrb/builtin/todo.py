@@ -156,7 +156,6 @@ def todo_log(ctx: AnyContext):
     todo_task = cascade_todo_task(todo_task)
     current_duration = todo_task.keyval.get("duration", "0")
     todo_task.keyval["duration"] = add_durations(current_duration, ctx.input.duration)
-    print(current_duration, todo_task.keyval)
     # Save todo list
     save_todo_list(todo_file_path, todo_list)
     # Add log work
