@@ -87,8 +87,8 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def append_fallbacks(self, fallbacks: "AnyTask" | list["AnyTask"]):
-        """Add the fallback tasks that this task depends on.
+    def append_fallback(self, fallbacks: "AnyTask" | list["AnyTask"]):
+        """Add the fallback tasks.
 
         Args:
             fallbacks (AnyTask | list[AnyTask]): A single fallback task or
@@ -97,8 +97,8 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def append_successors(self, successors: "AnyTask" | list["AnyTask"]):
-        """Add the successor tasks that this task depends on.
+    def append_successor(self, successors: "AnyTask" | list["AnyTask"]):
+        """Add the successor tasks.
 
         Args:
             successors (AnyTask | list[AnyTask]): A single successor task or
@@ -107,8 +107,8 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def append_readiness_checks(self, readiness_checks: "AnyTask" | list["AnyTask"]):
-        """Add the readiness_check tasks that this task depends on.
+    def append_readiness_check(self, readiness_checks: "AnyTask" | list["AnyTask"]):
+        """Add the readiness_check tasks.
 
         Args:
             readiness_checks (AnyTask | list[AnyTask]): A single readiness_check task or
@@ -117,7 +117,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def append_upstreams(self, upstreams: "AnyTask" | list["AnyTask"]):
+    def append_upstream(self, upstreams: "AnyTask" | list["AnyTask"]):
         """Add the upstream tasks that this task depends on.
 
         Args:

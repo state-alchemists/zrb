@@ -67,17 +67,17 @@ class BaseTask(AnyTask):
     def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
         try:
             if isinstance(other, AnyTask):
-                other.append_upstreams(self)
+                other.append_upstream(self)
             elif isinstance(other, list):
                 for task in other:
-                    task.append_upstreams(self)
+                    task.append_upstream(self)
             return other
         except Exception as e:
             raise ValueError(f"Invalid operation {self} >> {other}: {e}")
 
     def __lshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
         try:
-            self.append_upstreams(other)
+            self.append_upstream(other)
             return self
         except Exception as e:
             raise ValueError(f"Invalid operation {self} << {other}: {e}")
@@ -144,7 +144,7 @@ class BaseTask(AnyTask):
             return [self._fallbacks]
         return self._fallbacks
 
-    def append_fallbacks(self, fallbacks: AnyTask | list[AnyTask]):
+    def append_fallback(self, fallbacks: AnyTask | list[AnyTask]):
         fallback_list = [fallbacks] if isinstance(fallbacks, AnyTask) else fallbacks
         for fallback in fallback_list:
             self.__append_fallback(fallback)
@@ -167,7 +167,7 @@ class BaseTask(AnyTask):
             return [self._successors]
         return self._successors
 
-    def append_successors(self, successors: AnyTask | list[AnyTask]):
+    def append_successor(self, successors: AnyTask | list[AnyTask]):
         successor_list = [successors] if isinstance(successors, AnyTask) else successors
         for successor in successor_list:
             self.__append_successor(successor)
@@ -190,7 +190,7 @@ class BaseTask(AnyTask):
             return [self._readiness_checks]
         return self._readiness_checks
 
-    def append_readiness_checks(self, readiness_checks: AnyTask | list[AnyTask]):
+    def append_readiness_check(self, readiness_checks: AnyTask | list[AnyTask]):
         readiness_check_list = (
             [readiness_checks]
             if isinstance(readiness_checks, AnyTask)
@@ -217,7 +217,7 @@ class BaseTask(AnyTask):
             return [self._upstreams]
         return self._upstreams
 
-    def append_upstreams(self, upstreams: AnyTask | list[AnyTask]):
+    def append_upstream(self, upstreams: AnyTask | list[AnyTask]):
         upstream_list = [upstreams] if isinstance(upstreams, AnyTask) else upstreams
         for upstream in upstream_list:
             self.__append_upstream(upstream)
