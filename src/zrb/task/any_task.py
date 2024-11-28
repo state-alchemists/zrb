@@ -76,13 +76,49 @@ class AnyTask(ABC):
 
     @property
     @abstractmethod
+    def successors(self) -> list["AnyTask"]:
+        """Task successors"""
+        pass
+
+    @property
+    @abstractmethod
     def readiness_checks(self) -> list["AnyTask"]:
         """Task readiness checks"""
         pass
 
     @abstractmethod
+    def append_fallbacks(self, fallbacks: "AnyTask" | list["AnyTask"]):
+        """Add the fallback tasks that this task depends on.
+
+        Args:
+            fallbacks (AnyTask | list[AnyTask]): A single fallback task or
+                a list of fallback tasks.
+        """
+        pass
+
+    @abstractmethod
+    def append_successors(self, successors: "AnyTask" | list["AnyTask"]):
+        """Add the successor tasks that this task depends on.
+
+        Args:
+            successors (AnyTask | list[AnyTask]): A single successor task or
+                a list of successor tasks.
+        """
+        pass
+
+    @abstractmethod
+    def append_readiness_checks(self, readiness_checks: "AnyTask" | list["AnyTask"]):
+        """Add the readiness_check tasks that this task depends on.
+
+        Args:
+            readiness_checks (AnyTask | list[AnyTask]): A single readiness_check task or
+                a list of readiness_check tasks.
+        """
+        pass
+
+    @abstractmethod
     def append_upstreams(self, upstreams: "AnyTask" | list["AnyTask"]):
-        """Sets the upstream tasks that this task depends on.
+        """Add the upstream tasks that this task depends on.
 
         Args:
             upstreams (AnyTask | list[AnyTask]): A single upstream task or
