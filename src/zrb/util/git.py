@@ -155,12 +155,13 @@ def pull(repo_dir: str, remote: str, branch: str) -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-def push(remote: str, branch: str) -> str:
+def push(repo_dir: str, remote: str, branch: str) -> str:
     try:
         subprocess.run(
             ["git", "push", "-u", remote, branch],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )
