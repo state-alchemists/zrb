@@ -3,6 +3,7 @@ from zrb.builtin.group import git_subtree_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
+from zrb.util.git import get_repo_dir
 from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_subtree
 
 
@@ -32,7 +33,9 @@ from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_su
     alias="add",
 )
 def git_add_subtree(ctx: AnyContext):
+    repo_dir = get_repo_dir()
     add_subtree(
+        repo_dir=repo_dir,
         name=ctx.input.name,
         repo_url=ctx.input["repo-url"],
         branch=ctx.input["repo-branch"],
@@ -48,14 +51,20 @@ def git_add_subtree(ctx: AnyContext):
     alias="pull",
 )
 def git_pull_subtree(ctx: AnyContext):
-    config = load_config()
+    repo_dir = get_repo_dir()
+    config = load_config(repo_dir)
     if not config.data:
         raise ValueError("No subtree config found")
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
             ctx.print(f"Pull from subtree {name}")
-            pull_subtree(detail.prefix, detail.repo_url, detail.branch)
+            pull_subtree(
+                repo_dir=repo_dir,
+                prefix=detail.prefix,
+                repo_url=detail.repo_url,
+                branch=detail.branch,
+            )
         except Exception as e:
             if first_err is None:
                 first_err = e
@@ -72,14 +81,20 @@ def git_pull_subtree(ctx: AnyContext):
     alias="push",
 )
 def git_push_subtree(ctx: AnyContext):
-    config = load_config()
+    repo_dir = get_repo_dir()
+    config = load_config(repo_dir)
     if not config.data:
         raise ValueError("No subtree config found")
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
             ctx.print(f"Push to subtree {name}")
-            push_subtree(detail.prefix, detail.repo_url, detail.branch)
+            push_subtree(
+                repo_dir=repo_dir,
+                prefix=detail.prefix,
+                repo_url=detail.repo_url,
+                branch=detail.branch,
+            )
         except Exception as e:
             if first_err is None:
                 first_err = e

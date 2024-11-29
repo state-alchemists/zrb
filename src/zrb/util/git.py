@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 from pydantic import BaseModel
@@ -9,14 +10,19 @@ class DiffResult(BaseModel):
     updated: list[str]
 
 
-def get_diff(source_commit: str, current_commit: str) -> DiffResult:
-    # git show b176b5a main
-    exit_status, output = subprocess.getstatusoutput(
-        f"git diff {source_commit} {current_commit}"
-    )
-    if exit_status != 0:
-        raise Exception(output)
-    lines = output.split("\n")
+def get_diff(repo_dir: str, source_commit: str, current_commit: str) -> DiffResult:
+    try:
+        result = subprocess.run(
+            ["git", "diff", source_commit, current_commit],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=repo_dir,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise Exception(e.stderr or e.stdout)
+    lines = result.stdout.strip().split("\n")
     diff: dict[str, dict[str, bool]] = {}
     for line in lines:
         if not line.startswith("---") and not line.startswith("+++"):
@@ -55,17 +61,18 @@ def get_repo_dir() -> str:
             check=True,
         )
         # Return the directory path
-        return result.stdout.strip()
+        return os.path.abspath(result.stdout.strip())
     except subprocess.CalledProcessError as e:
         raise Exception(e.stderr or e.stdout)
 
 
-def get_current_branch() -> str:
+def get_current_branch(repo_dir: str) -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )
@@ -74,12 +81,13 @@ def get_current_branch() -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-def get_branches() -> list[str]:
+def get_branches(repo_dir: str) -> list[str]:
     try:
         result = subprocess.run(
             ["git", "branch"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )
@@ -90,12 +98,13 @@ def get_branches() -> list[str]:
         raise Exception(e.stderr or e.stdout)
 
 
-def delete_branch(branch_name: str) -> str:
+def delete_branch(repo_dir: str, branch_name: str) -> str:
     try:
         result = subprocess.run(
             ["git", "branch", "-D", branch_name],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )
@@ -104,12 +113,13 @@ def delete_branch(branch_name: str) -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-def add() -> str:
+def add(repo_dir: str) -> str:
     try:
         subprocess.run(
             ["git", "add", ".", "-A"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )
@@ -117,12 +127,13 @@ def add() -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-def commit(message: str) -> str:
+def commit(repo_dir: str, message: str) -> str:
     try:
         subprocess.run(
             ["git", "commit", "-m", message],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )
@@ -130,12 +141,13 @@ def commit(message: str) -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-def pull(remote: str, branch: str) -> str:
+def pull(repo_dir: str, remote: str, branch: str) -> str:
     try:
         subprocess.run(
             ["git", "pull", remote, branch],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            cwd=repo_dir,
             text=True,
             check=True,
         )

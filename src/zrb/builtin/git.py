@@ -11,6 +11,7 @@ from zrb.util.git import (
     get_branches,
     get_current_branch,
     get_diff,
+    get_repo_dir,
     pull,
     push,
 )
@@ -55,7 +56,8 @@ from zrb.util.git import (
     alias="diff",
 )
 def get_git_diff(ctx: AnyContext):
-    diff = get_diff(ctx.input.source, ctx.input.current)
+    repo_dir = get_repo_dir()
+    diff = get_diff(repo_dir, ctx.input.source, ctx.input.current)
     result = []
     decorated = []
     if ctx.input.created and diff.created:
@@ -82,14 +84,15 @@ def get_git_diff(ctx: AnyContext):
     alias="prune",
 )
 def prune_local_branches(ctx: AnyContext):
-    branches = get_branches()
-    current_branch = get_current_branch()
+    repo_dir = get_repo_dir()
+    branches = get_branches(repo_dir)
+    current_branch = get_current_branch(repo_dir)
     for branch in branches:
         if branch == current_branch or branch == "main" or branch == "master":
             continue
         ctx.print(stylize_yellow(f"Removing local branch: {branch}"))
         try:
-            delete_branch(branch)
+            delete_branch(repo_dir, branch)
         except Exception as e:
             ctx.log_error(e)
 
@@ -107,11 +110,12 @@ def prune_local_branches(ctx: AnyContext):
     alias="commit",
 )
 def git_commit(ctx: AnyContext):
+    repo_dir = get_repo_dir()
     ctx.print("Add changes to staging")
-    add()
+    add(repo_dir)
     ctx.print("Commit changes")
     try:
-        commit(ctx.input.message)
+        commit(repo_dir, ctx.input.message)
     except Exception as e:
         ctx.log_error(e)
 
@@ -130,10 +134,11 @@ def git_commit(ctx: AnyContext):
     alias="pull",
 )
 def git_pull(ctx: AnyContext):
+    repo_dir = get_repo_dir()
     remote = ctx.input.remote
-    current_branch = get_current_branch()
+    current_branch = get_current_branch(repo_dir)
     ctx.print(f"Pulling from {remote}/{current_branch}")
-    pull(remote, current_branch)
+    pull(repo_dir, remote, current_branch)
 
 
 @make_task(
@@ -150,7 +155,8 @@ def git_pull(ctx: AnyContext):
     alias="push",
 )
 def git_push(ctx: AnyContext):
+    repo_dir = get_repo_dir()
     remote = ctx.input.remote
-    current_branch = get_current_branch()
+    current_branch = get_current_branch(repo_dir)
     ctx.print(f"Pushing to {remote}/{current_branch}")
-    push(remote, current_branch)
+    push(repo_dir, remote, current_branch)
