@@ -130,7 +130,7 @@ def add(repo_dir: str) -> str:
 def commit(repo_dir: str, message: str) -> str:
     result = None
     try:
-        result = subprocess.run(
+        subprocess.run(
             ["git", "commit", "-m", message],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -138,12 +138,13 @@ def commit(repo_dir: str, message: str) -> str:
             text=True,
             check=True,
         )
-    except subprocess.CalledProcessError:
-        print(
-            result.stderr, "nothing to commit, working tree clean" not in result.stderr
-        )
-        if "nothing to commit, working tree clean" not in result.stderr:
-            raise Exception(result.stderr or result.stdout)
+    except subprocess.CalledProcessError as e:
+        ignored_error_message = "nothing to commit, working tree clean"
+        if (
+            ignored_error_message not in e.stderr
+            and ignored_error_message not in e.stdout
+        ):
+            raise Exception(e.stderr or e.stdout)
 
 
 def pull(repo_dir: str, remote: str, branch: str) -> str:
