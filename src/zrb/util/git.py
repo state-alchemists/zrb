@@ -138,6 +138,7 @@ def commit(repo_dir: str, message: str) -> str:
             check=True,
         )
     except subprocess.CalledProcessError as e:
+        print(e.stderr, "nothing to commit, working tree clean" not in e.stderr)
         if "nothing to commit, working tree clean" not in e.stderr:
             raise Exception(e.stderr or e.stdout)
 
