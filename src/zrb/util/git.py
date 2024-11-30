@@ -128,6 +128,7 @@ def add(repo_dir: str) -> str:
 
 
 def commit(repo_dir: str, message: str) -> str:
+    result = None
     try:
         result = subprocess.run(
             ["git", "commit", "-m", message],
