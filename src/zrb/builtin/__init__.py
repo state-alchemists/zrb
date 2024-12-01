@@ -13,6 +13,7 @@ from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
 from zrb.builtin.python import format_python_code
 from zrb.builtin.setup.dev.asdf import setup_asdf
+from zrb.builtin.setup.dev.tmux import setup_tmux
 from zrb.builtin.setup.system.latex.ubuntu import setup_latex_on_ubuntu
 from zrb.builtin.setup.system.ubuntu import setup_ubuntu
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
@@ -47,3 +48,4 @@ assert log_todo
 assert setup_ubuntu
 assert setup_latex_on_ubuntu
 assert setup_asdf
+assert setup_tmux
