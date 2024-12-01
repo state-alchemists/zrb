@@ -51,7 +51,7 @@ from zrb.util.todo import (
     group=todo_group,
     alias="add",
 )
-def todo_add(ctx: AnyContext):
+def add_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -81,7 +81,7 @@ def todo_add(ctx: AnyContext):
 
 
 @make_task(name="todo-list", description="📋 List todo", group=todo_group, alias="list")
-def todo_list(ctx: AnyContext):
+def list_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     todo_tasks: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -96,7 +96,7 @@ def todo_list(ctx: AnyContext):
     group=todo_group,
     alias="complete",
 )
-def todo_complete(ctx: AnyContext):
+def complete_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -142,7 +142,7 @@ def todo_complete(ctx: AnyContext):
     group=todo_group,
     alias="log",
 )
-def todo_log(ctx: AnyContext):
+def log_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -196,7 +196,7 @@ def _get_default_start() -> str:
     group=todo_group,
     alias="edit",
 )
-def todo_edit(ctx: AnyContext):
+def edit_todo(ctx: AnyContext):
     todo_list = [
         cascade_todo_task(line_to_todo_task(line))
         for line in ctx.input.text.split("\n")

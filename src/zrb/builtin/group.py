@@ -33,7 +33,7 @@ add_fastapp_to_project_group = add_to_project_group.add_group(
     Group(name="fastapp", description="🚀 Add Fastapp resources")
 )
 
-setup_group = cli.add_group(Group(name="setup", description="🛠️ Setup"))
+setup_group = cli.add_group(Group(name="setup", description="🔧 Setup"))
 setup_system_group = setup_group.add_group(
     Group(name="system", description="🔧 Setup system")
 )
