@@ -1,7 +1,7 @@
 import asyncio
 import os
 from collections.abc import Callable
-from typing import Any, Self
+from typing import Any
 
 from zrb.attr.type import BoolAttr, fstring
 from zrb.context.any_context import AnyContext
@@ -75,7 +75,7 @@ class BaseTask(AnyTask):
         except Exception as e:
             raise ValueError(f"Invalid operation {self} >> {other}: {e}")
 
-    def __lshift__(self, other: AnyTask | list[AnyTask]) -> Self:
+    def __lshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
         try:
             self.append_upstream(other)
             return self

@@ -116,12 +116,7 @@ class CmdTask(BaseTask):
         env_map = self.__get_env_map(ctx)
         ctx.log_debug(f"Environment map: {env_map}")
         cmd_process = None
-        if "bash" in shell or "zsh" in shell:
-            unrecommended_commands = check_unrecommended_commands(cmd_script)
-            if unrecommended_commands:
-                ctx.log_warning("The script contains unrecommended commands")
-            for command, reason in unrecommended_commands.items():
-                ctx.log_warning(f"- {command}: {reason}")
+        self.__warn_unrecommended_commands(ctx, shell, cmd_script)
         try:
             ctx.log_info("Running script")
             cmd_process = await asyncio.create_subprocess_exec(
@@ -156,6 +151,16 @@ class CmdTask(BaseTask):
         finally:
             if cmd_process is not None and cmd_process.returncode is None:
                 cmd_process.terminate()
+
+    def __warn_unrecommended_commands(
+        self, ctx: AnyContext, shell: str, cmd_script: str
+    ):
+        if "bash" in shell or "zsh" in shell:
+            unrecommended_commands = check_unrecommended_commands(cmd_script)
+            if unrecommended_commands:
+                ctx.log_warning("The script contains unrecommended commands")
+            for command, reason in unrecommended_commands.items():
+                ctx.log_warning(f"- {command}: {reason}")
 
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
