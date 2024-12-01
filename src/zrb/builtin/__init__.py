@@ -12,6 +12,9 @@ from zrb.builtin.md5 import hash_md5, sum_md5
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
 from zrb.builtin.python import format_python_code
+from zrb.builtin.setup.dev.asdf import setup_asdf
+from zrb.builtin.setup.system.latex.ubuntu import setup_latex_on_ubuntu
+from zrb.builtin.setup.system.ubuntu import setup_ubuntu
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 from zrb.builtin.shell.autocomplete.zsh import make_zsh_autocomplete
@@ -41,3 +44,6 @@ assert todo_add
 assert todo_edit
 assert todo_complete
 assert todo_log
+assert setup_ubuntu
+assert setup_latex_on_ubuntu
+assert setup_asdf

@@ -5,7 +5,7 @@ import sys
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
-from zrb.config import DEFAULT_SHELL
+from zrb.config import DEFAULT_SHELL, WARN_UNRECOMMENDED_COMMAND
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -33,6 +33,7 @@ class CmdTask(BaseTask):
         remote_host: StrAttr | None = None,
         render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
+        render_remote_port: bool = True,
         remote_user: StrAttr | None = None,
         render_remote_user: bool = True,
         remote_password: StrAttr | None = None,
@@ -43,6 +44,7 @@ class CmdTask(BaseTask):
         render_cmd: bool = True,
         cwd: str | None = None,
         render_cwd: bool = True,
+        warn_unrecommended_command: bool | None = None,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
         execute_condition: BoolAttr = True,
@@ -84,6 +86,7 @@ class CmdTask(BaseTask):
         self._remote_host = remote_host
         self._render_remote_host = render_remote_host
         self._remote_port = remote_port
+        self._render_remote_port = render_remote_port
         self._remote_user = remote_user
         self._render_remote_user = render_remote_user
         self._remote_password = remote_password
@@ -96,6 +99,7 @@ class CmdTask(BaseTask):
         self._render_cwd = render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
+        self._should_warn_unrecommended_command = warn_unrecommended_command
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
         """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
@@ -116,7 +120,8 @@ class CmdTask(BaseTask):
         env_map = self.__get_env_map(ctx)
         ctx.log_debug(f"Environment map: {env_map}")
         cmd_process = None
-        self.__warn_unrecommended_commands(ctx, shell, cmd_script)
+        if self._get_should_warn_unrecommended_commands():
+            self._check_unrecommended_commands(ctx, shell, cmd_script)
         try:
             ctx.log_info("Running script")
             cmd_process = await asyncio.create_subprocess_exec(
@@ -152,10 +157,15 @@ class CmdTask(BaseTask):
             if cmd_process is not None and cmd_process.returncode is None:
                 cmd_process.terminate()
 
-    def __warn_unrecommended_commands(
+    def _get_should_warn_unrecommended_commands(self):
+        if self._should_warn_unrecommended_command is None:
+            return WARN_UNRECOMMENDED_COMMAND
+        return self._should_warn_unrecommended_command
+
+    def _check_unrecommended_commands(
         self, ctx: AnyContext, shell: str, cmd_script: str
     ):
-        if "bash" in shell or "zsh" in shell:
+        if shell.endswith("bash") or shell.endswith("zsh"):
             unrecommended_commands = check_unrecommended_commands(cmd_script)
             if unrecommended_commands:
                 ctx.log_warning("The script contains unrecommended commands")
@@ -207,7 +217,9 @@ class CmdTask(BaseTask):
         )
 
     def _get_remote_port(self, ctx: AnyContext) -> int:
-        return get_int_attr(ctx, self._remote_port, 22, auto_render=True)
+        return get_int_attr(
+            ctx, self._remote_port, 22, auto_render=self._render_remote_port
+        )
 
     def _get_remote_user(self, ctx: AnyContext) -> str:
         return get_str_attr(
