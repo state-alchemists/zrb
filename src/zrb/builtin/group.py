@@ -34,15 +34,6 @@ add_fastapp_to_project_group = add_to_project_group.add_group(
 )
 
 setup_group = cli.add_group(Group(name="setup", description="🔧 Setup"))
-setup_system_group = setup_group.add_group(
-    Group(name="system", description="🔧 Setup system")
-)
-setup_latex_group = setup_system_group.add_group(
+setup_latex_group = setup_group.add_group(
     Group(name="latex", description="✍️ Setup LaTeX")
-)
-setup_dev_group = setup_group.add_group(
-    Group(name="dev", description="💻 Setup developer tools")
-)
-setup_service_group = setup_group.add_group(
-    Group(name="services", description="🌐 Setup services")
 )

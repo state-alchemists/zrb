@@ -1,4 +1,4 @@
-from zrb.builtin.group import setup_system_group
+from zrb.builtin.group import setup_group
 from zrb.task.cmd_task import CmdTask
 
 update_ubuntu = CmdTask(name="update-ubuntu", cmd="sudo apt update", render_cmd=False)
@@ -8,7 +8,7 @@ upgrade_todo = CmdTask(
 )
 update_ubuntu >> upgrade_todo
 
-setup_ubuntu = setup_system_group.add_task(
+setup_ubuntu = setup_group.add_task(
     CmdTask(
         name="setup-ubuntu",
         description="🐧 Setup ubuntu",

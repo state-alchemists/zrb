@@ -1,6 +1,6 @@
 import os
 
-from zrb.builtin.group import setup_dev_group
+from zrb.builtin.group import setup_group
 from zrb.builtin.setup.common_input import (
     package_manager_input,
     setup_bash_input,
@@ -71,7 +71,7 @@ def setup_asdf_on_powershell(ctx: AnyContext):
 @make_task(
     name="setup-asdf",
     description="🧰 Setup `asdf`.",
-    group=setup_dev_group,
+    group=setup_group,
     alias="asdf",
 )
 def setup_asdf(ctx: AnyContext):
