@@ -15,8 +15,8 @@ class ParentClassAdder(cst.CSTTransformer):
             self.class_found = True
             # Add the parent class to the existing bases
             new_bases = (
-                *updated_node.bases,
                 cst.Arg(value=cst.Name(self.parent_class_name)),
+                *updated_node.bases,
             )
             return updated_node.with_changes(bases=new_bases)
         return updated_node
