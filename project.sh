@@ -50,26 +50,27 @@ reload() {
     log_info 'Loading project configuration (.env)'
     source "${PROJECT_DIR}/.env"
 
-    # if [ "$_IS_TERMUX" = "1" ]
-    # then
-    #     log_info 'Updating Build Flags'
-    #     _OLD_CFLAGS="$CFLAGS"
-    #     GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
-    #     GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1
-    #     GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1
-    #     GRPC_PYTHON_BUILD_SYSTEM_CARES=1
-    #     CFLAGS+=" -U__ANDROID_API__ -D__ANDROID_API__=30 -include unistd.h" LDFLAGS+=" -llog"
-    #     # export CFLAGS="$_OLD_CFLAGS -Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
-    # fi
+    if [ "$_IS_TERMUX" = "1" ]
+    then
+        log_info 'Updating Build Flags'
+        _OLD_CFLAGS="$CFLAGS"
+        GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1
+        GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1
+        GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1
+        GRPC_PYTHON_BUILD_SYSTEM_CARES=1
+        CFLAGS+=" -U__ANDROID_API__ -D__ANDROID_API__=30 -include unistd.h -Wno-incompatible-function-pointer-types"
+        LDFLAGS+=" -llog"
+        # export CFLAGS="$_OLD_CFLAGS -Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
+    fi
 
     log_info 'Install'
     poetry check && poetry install -E rag --no-root
 
-    # if [ "$_IS_TERMUX" = "1" ]
-    # then
-    #     log_info 'Restoring Build Flags'
-    #     export CFLAGS="$_OLD_CFLAGS"
-    # fi
+    if [ "$_IS_TERMUX" = "1" ]
+    then
+        log_info 'Restoring Build Flags'
+        export CFLAGS="$_OLD_CFLAGS"
+    fi
 
     case $(ps -p $$ | awk 'NR==2 {print $4}') in
     *zsh)
