@@ -12,6 +12,7 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_int_attr, get_str_attr
+from zrb.util.cmd.command import check_unrecommended_commands
 from zrb.util.cmd.remote import get_remote_cmd_script
 
 
@@ -105,7 +106,6 @@ class CmdTask(BaseTask):
         Returns:
             Any: The result of the action execution.
         """
-        ctx.log_info("Running script")
         cmd_script = self._get_cmd_script(ctx)
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         shell = self._get_shell(ctx)
@@ -116,7 +116,14 @@ class CmdTask(BaseTask):
         env_map = self.__get_env_map(ctx)
         ctx.log_debug(f"Environment map: {env_map}")
         cmd_process = None
+        if "bash" in shell or "zsh" in shell:
+            unrecommended_commands = check_unrecommended_commands(cmd_script)
+            if unrecommended_commands:
+                ctx.log_warning("The script contains unrecommended commands")
+            for command, reason in unrecommended_commands.items():
+                ctx.log_warning(f"- {command}: {reason}")
         try:
+            ctx.log_info("Running script")
             cmd_process = await asyncio.create_subprocess_exec(
                 shell,
                 shell_flag,

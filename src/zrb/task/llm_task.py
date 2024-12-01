@@ -108,8 +108,13 @@ class LLMTask(BaseTask):
         )
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from litellm import acompletion
+        from litellm import acompletion, supports_function_calling
 
+        model = self._get_model(ctx)
+        try:
+            allow_function_call = supports_function_calling(model=model)
+        except Exception:
+            allow_function_call = False
         model_kwargs = self._get_model_kwargs(ctx)
         ctx.log_debug("MODEL KWARGS", model_kwargs)
         system_prompt = self._get_system_prompt(ctx)
@@ -121,27 +126,28 @@ class LLMTask(BaseTask):
         messages = history + [user_message]
         available_tools = self._get_tools(ctx)
         available_tools["scratchpad"] = scratchpad
-        tool_schema = [
-            callable_to_tool_schema(tool, name)
-            for name, tool in available_tools.items()
-        ]
-        for additional_tool in self._additional_tools:
-            fn = additional_tool.fn
-            tool_name = additional_tool.name or fn.__name__
-            tool_description = additional_tool.description
-            available_tools[tool_name] = additional_tool.fn
-            tool_schema.append(
-                callable_to_tool_schema(
-                    fn, name=tool_name, description=tool_description
+        if allow_function_call:
+            tool_schema = [
+                callable_to_tool_schema(tool, name)
+                for name, tool in available_tools.items()
+            ]
+            for additional_tool in self._additional_tools:
+                fn = additional_tool.fn
+                tool_name = additional_tool.name or fn.__name__
+                tool_description = additional_tool.description
+                available_tools[tool_name] = additional_tool.fn
+                tool_schema.append(
+                    callable_to_tool_schema(
+                        fn, name=tool_name, description=tool_description
+                    )
                 )
-            )
-        ctx.log_debug("TOOL SCHEMA", tool_schema)
+            model_kwargs["tools"] = tool_schema
+            ctx.log_debug("TOOL SCHEMA", tool_schema)
         history_file = self._get_history_file(ctx)
         while True:
             response = await acompletion(
-                model=self._get_model(ctx),
+                model=model,
                 messages=[{"role": "system", "content": system_prompt}] + messages,
-                tools=tool_schema,
                 **model_kwargs,
             )
             response_message = response.choices[0].message
@@ -189,7 +195,7 @@ class LLMTask(BaseTask):
     def _get_model_kwargs(self, ctx: AnyContext) -> dict[str, Callable]:
         if callable(self._model_kwargs):
             return self._model_kwargs(ctx)
-        return self._model_kwargs
+        return {**self._model_kwargs}
 
     def _get_tools(self, ctx: AnyContext) -> dict[str, Callable]:
         if callable(self._tools):
