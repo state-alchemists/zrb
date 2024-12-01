@@ -19,7 +19,7 @@ from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
 
-# TEST ==============================================================================
+# TEST =======================================================================
 
 test_group = cli.add_group(Group("test", description="🔍 Testing zrb codebase"))
 
@@ -54,7 +54,6 @@ start_test_docker_compose >> run_test
 
 stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
-    description="Start docker compose for testing, run test, then remove the docker compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down",
 )
@@ -71,7 +70,7 @@ prepare_and_run_test = test_group.add_task(
 stop_test_docker_compose >> prepare_and_run_test
 
 
-# CODE ===============================================================================
+# CODE ========================================================================
 
 code_group = cli.add_group(Group("code", description="📜 Code related command"))
 
@@ -87,9 +86,11 @@ format_code = code_group.add_task(
 format_code >> git_commit
 
 
-# PIP ===============================================================================
+# PIP =========================================================================
 
-pip_group = cli.add_group(Group(name="pip", description="📦 Pip related command"))
+pip_group = cli.add_group(
+    Group(name="pip", description="📦 Pip related command")
+)
 
 publish_pip = pip_group.add_task(
     CmdTask(
@@ -102,7 +103,7 @@ publish_pip = pip_group.add_task(
 )
 format_code >> publish_pip
 
-# GENERATOR TEST ====================================================================
+# GENERATOR TEST ==============================================================
 
 clean_up_test_generator_resources = CmdTask(
     name="clean-up-resources",
@@ -135,13 +136,13 @@ async def test_generator(ctx: AnyContext):
 clean_up_test_generator_resources >> test_generator
 
 
-# PLAYGROUND ========================================================================
+# PLAYGROUND ==================================================================
 
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
     load_file(playground_zrb_init_path)
 
-# AMALGAM ===========================================================================
+# AMALGAM =====================================================================
 
 amalgam_zrb_init_path = os.path.join(_DIR, "amalgam", "zrb_init.py")
 if os.path.isfile(amalgam_zrb_init_path):
