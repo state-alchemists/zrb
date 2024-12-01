@@ -2,7 +2,7 @@ import os
 
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.common_input import package_manager_input, use_sudo_input
-from zrb.builtin.setup.dev.tmux_helper import get_install_tmux_cmd
+from zrb.builtin.setup.tmux.tmux_helper import get_install_tmux_cmd
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.cmd_task import CmdTask

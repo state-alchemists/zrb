@@ -1,5 +1,5 @@
 from zrb.builtin.group import setup_latex_group
-from zrb.builtin.setup.system.ubuntu import setup_ubuntu
+from zrb.builtin.setup.ubuntu import setup_ubuntu
 from zrb.task.cmd_task import CmdTask
 
 setup_latex_on_ubuntu = setup_latex_group.add_task(
