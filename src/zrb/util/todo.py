@@ -220,6 +220,22 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
     return "\n".join(results)
 
 
+def get_visual_todo_header(screen_width: int, max_desc_name_length: int) -> str:
+    priority = "".ljust(3)
+    completed = "".ljust(3)
+    completed_at = "COMPLETED AT".rjust(14)
+    created_at = "CREATED_AT".ljust(max_desc_name_length)
+    description = "DESCRIPTION".ljust(min(max_desc_name_length, 70))
+    addition = "PROJECT/CONTEXT/OTHERS"
+    if screen_width <= 80:
+        return "  ".join([priority, completed, description])
+    if screen_width <= 100:
+        return "  ".join([priority, completed, description, addition])
+    return "  ".join(
+        [priority, completed, completed_at, created_at, description, addition]
+    )
+
+
 def _date_to_str(date: datetime.date | None) -> str:
     if date is None:
         return "".ljust(14)
