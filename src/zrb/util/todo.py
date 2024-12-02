@@ -1,5 +1,6 @@
 import datetime
 import re
+import shutil
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -179,20 +180,10 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
     max_desc_name_length = max(len(todo_task.description) for todo_task in todo_list)
     if max_desc_name_length < len("DESCRIPTION"):
         max_desc_name_length = len("DESCRIPTION")
+    screen_width = shutil.get_screen_width()
     # Headers
     results = [
-        stylize_bold_green(
-            "  ".join(
-                [
-                    "".ljust(3),  # priority
-                    "".ljust(3),  # completed
-                    "COMPLETED AT".rjust(14),  # completed date
-                    "CREATED AT".rjust(14),  # completed date
-                    "DESCRIPTION".ljust(max_desc_name_length),
-                    "PROJECT/CONTEXT/OTHERS",
-                ]
-            )
-        )
+        stylize_bold_green(get_visual_todo_header(screen_width, max_desc_name_length))
     ]
     for todo_task in todo_list:
         completed = "[x]" if todo_task.completed else "[ ]"
