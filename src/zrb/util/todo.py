@@ -33,6 +33,16 @@ class TodoTaskModel(BaseModel):
             )
         return values
 
+    def get_additional_info_length(self):
+        results = []
+        for project in self.projects:
+            results.append(f"@{project}")
+        for context in self.contexts:
+            results.append(f"+{context}")
+        for key, val in self.keyval.items():
+            results.append(f"{key}:{val}")
+        return len(", ".join(results))
+
 
 TODO_TXT_PATTERN = re.compile(
     r"^(?P<status>x)?\s*"  # Optional completion mark ('x')
@@ -180,26 +190,44 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
     max_desc_length = max(len(todo_task.description) for todo_task in todo_list)
     if max_desc_length < len("DESCRIPTION"):
         max_desc_length = len("DESCRIPTION")
+    if max_desc_length > 70:
+        max_desc_length = 70
+    max_additional_info_length = max(
+        todo_task.get_additional_info_length() for todo_task in todo_list
+    )
+    if max_additional_info_length < len("PROJECT/CONTEXT/OTHERS"):
+        max_additional_info_length = len("PROJECT/CONTEXT/OTHERS")
     terminal_width, _ = shutil.get_terminal_size()
+    print(terminal_width, max_desc_length, max_additional_info_length)
     # Headers
     results = [
-        stylize_bold_green(get_visual_todo_header(terminal_width, max_desc_length))
+        stylize_bold_green(
+            get_visual_todo_header(
+                terminal_width, max_desc_length, max_additional_info_length
+            )
+        )
     ]
     for todo_task in todo_list:
-        results.append(get_visual_todo_line(terminal_width, max_desc_length, todo_task))
+        results.append(
+            get_visual_todo_line(
+                terminal_width, max_desc_length, max_additional_info_length, todo_task
+            )
+        )
     return "\n".join(results)
 
 
-def get_visual_todo_header(terminal_width: int, max_desc_name: int) -> str:
+def get_visual_todo_header(
+    terminal_width: int, max_desc_length: int, max_additional_info_length: int
+) -> str:
     priority = "".ljust(3)
     completed = "".ljust(3)
     completed_at = "COMPLETED AT".rjust(14)
     created_at = "CREATED_AT".ljust(14)
-    description = "DESCRIPTION".ljust(min(max_desc_name, 70))
+    description = "DESCRIPTION".ljust(min(max_desc_length, 70))
     addition = "PROJECT/CONTEXT/OTHERS"
-    if terminal_width <= 80:
+    if terminal_width <= 14 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description])
-    if terminal_width <= 100:
+    if terminal_width <= 36 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description, addition])
     return "  ".join(
         [priority, completed, completed_at, created_at, description, addition]
@@ -207,23 +235,27 @@ def get_visual_todo_header(terminal_width: int, max_desc_name: int) -> str:
 
 
 def get_visual_todo_line(
-    terminal_width: int, max_desc_length: int, todo_task: TodoTaskModel
+    terminal_width: int,
+    max_desc_length: int,
+    max_additional_info_length: int,
+    todo_task: TodoTaskModel,
 ) -> str:
     completed = "[x]" if todo_task.completed else "[ ]"
     priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
     completed_at = stylize_yellow(_date_to_str(todo_task.completion_date))
     created_at = stylize_cyan(_date_to_str(todo_task.creation_date))
-    truncated_max_desc_length = min(max_desc_length, 70)
-    description = todo_task.description.ljust(truncated_max_desc_length)
-    description = description[:truncated_max_desc_length]
+    description = todo_task.description.ljust(max_desc_length)
+    if len(description) > max_desc_length:
+        description = description[: max_desc_length - 4] + " ..."
+    description = description[:max_desc_length]
     addition = ", ".join(
         [stylize_yellow(f"+{project}") for project in todo_task.projects]
         + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
         + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
     )
-    if terminal_width <= 80:
+    if terminal_width <= 14 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description])
-    if terminal_width <= 100:
+    if terminal_width <= 36 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description, addition])
     return "  ".join(
         [priority, completed, completed_at, created_at, description, addition]

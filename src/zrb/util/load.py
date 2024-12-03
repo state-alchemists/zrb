@@ -3,6 +3,7 @@ import importlib.util
 import os
 import re
 import sys
+from functools import lru_cache
 from typing import Any
 
 pattern = re.compile("[^a-zA-Z0-9]")
@@ -13,7 +14,7 @@ def load_zrb_init(dir_path: str | None = None):
         dir_path = os.getcwd()
     script_path = os.path.join(dir_path, "zrb_init.py")
     if os.path.isfile(script_path):
-        load_file(script_path)
+        load_file(script_path, -1)
         return
     new_dir_path = os.path.dirname(dir_path)
     if new_dir_path == dir_path:
@@ -21,6 +22,7 @@ def load_zrb_init(dir_path: str | None = None):
     load_zrb_init(new_dir_path)
 
 
+@lru_cache()
 def load_file(script_path: str, sys_path_index: int = 0):
     if not os.path.isfile(script_path):
         return
@@ -45,6 +47,7 @@ def _get_new_python_path(dir_path: str) -> str:
     return ":".join([current_python_path, dir_path])
 
 
+@lru_cache()
 def load_module(module_name: str) -> Any:
     module = importlib.import_module(module_name)
     return module
