@@ -13,7 +13,7 @@ class OptionInput(BaseInput):
         options: StrListAttr = [],
         default_str: StrAttr = "",
         auto_render: bool = True,
-        allow_empty: bool = True,
+        allow_empty: bool = False,
     ):
         super().__init__(
             name=name,

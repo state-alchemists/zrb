@@ -13,7 +13,7 @@ class PasswordInput(BaseInput):
         prompt: str | None = None,
         default_str: str | Callable[[AnySharedContext], str] = "",
         auto_render: bool = True,
-        allow_empty: bool = True,
+        allow_empty: bool = False,
     ):
         super().__init__(
             name=name,

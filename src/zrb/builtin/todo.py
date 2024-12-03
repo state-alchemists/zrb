@@ -23,7 +23,7 @@ from zrb.util.todo import (
 
 
 @make_task(
-    name="todo-add",
+    name="add-todo",
     input=[
         StrInput(
             name="description",
@@ -80,7 +80,7 @@ def add_todo(ctx: AnyContext):
     return get_visual_todo_list(todo_list)
 
 
-@make_task(name="todo-list", description="📋 List todo", group=todo_group, alias="list")
+@make_task(name="list-todo", description="📋 List todo", group=todo_group, alias="list")
 def list_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     todo_tasks: list[TodoTaskModel] = []
@@ -90,7 +90,7 @@ def list_todo(ctx: AnyContext):
 
 
 @make_task(
-    name="todo-complete",
+    name="complete-todo",
     input=StrInput(name="keyword", prompt="Task keyword", description="Task Keyword"),
     description="✅ Complete todo",
     group=todo_group,
@@ -117,7 +117,38 @@ def complete_todo(ctx: AnyContext):
 
 
 @make_task(
-    name="todo-log",
+    name="archive-todo",
+    description="📚 Archive todo",
+    group=todo_group,
+    alias="log",
+)
+def archive_todo(ctx: AnyContext):
+    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_list: list[TodoTaskModel] = []
+    if os.path.isfile(todo_file_path):
+        todo_list = load_todo_list(todo_file_path)
+    working_todo_list = [
+        todo_task for todo_task in todo_list if not todo_task.completed
+    ]
+    new_archived_todo_list = [
+        todo_task for todo_task in todo_list if todo_task.completed
+    ]
+    if len(new_archived_todo_list) == 0:
+        ctx.print("No completed task to archive")
+        return
+    archive_file_path = os.path.join(TODO_DIR, "archive.txt")
+    if not os.path.isdir(TODO_DIR):
+        os.make_dirs(TODO_DIR, exist_ok=True)
+    archived_todo_list = []
+    if os.path.isfile(archive_file_path):
+        archived_todo_list = load_todo_list(archive_file_path)
+    archived_todo_list += new_archived_todo_list
+    save_todo_list(archive_file_path, archived_todo_list)
+    save_todo_list(todo_file_path, working_todo_list)
+
+
+@make_task(
+    name="log-todo",
     input=[
         StrInput(name="keyword", prompt="Task keyword", description="Task Keyword"),
         StrInput(
@@ -183,7 +214,7 @@ def _get_default_start() -> str:
 
 
 @make_task(
-    name="todo-edit",
+    name="edit-todo",
     input=[
         TextInput(
             name="text",

@@ -19,7 +19,14 @@ from zrb.builtin.setup.ubuntu import setup_ubuntu
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 from zrb.builtin.shell.autocomplete.zsh import make_zsh_autocomplete
-from zrb.builtin.todo import add_todo, complete_todo, edit_todo, list_todo, log_todo
+from zrb.builtin.todo import (
+    add_todo,
+    archive_todo,
+    complete_todo,
+    edit_todo,
+    list_todo,
+    log_todo,
+)
 
 assert create_project
 assert add_fastapp_to_project
@@ -42,6 +49,7 @@ assert git_pull_subtree
 assert git_push_subtree
 assert list_todo
 assert add_todo
+assert archive_todo
 assert edit_todo
 assert complete_todo
 assert log_todo

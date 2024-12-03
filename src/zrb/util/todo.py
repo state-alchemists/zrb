@@ -198,7 +198,6 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
     if max_additional_info_length < len("PROJECT/CONTEXT/OTHERS"):
         max_additional_info_length = len("PROJECT/CONTEXT/OTHERS")
     terminal_width, _ = shutil.get_terminal_size()
-    print(terminal_width, max_desc_length, max_additional_info_length)
     # Headers
     results = [
         stylize_bold_green(

@@ -14,7 +14,7 @@ class BaseInput(AnyInput):
         prompt: str | None = None,
         default_str: StrAttr = "",
         auto_render: bool = True,
-        allow_empty: bool = True,
+        allow_empty: bool = False,
     ):
         self._name = name
         self._description = description
