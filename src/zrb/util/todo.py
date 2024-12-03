@@ -177,50 +177,53 @@ def todo_task_to_line(task: TodoTaskModel) -> str:
 def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
     if len(todo_list) == 0:
         return "\n".join(["", "  Empty todo list... 🌵🦖", ""])
-    max_desc_name_length = max(len(todo_task.description) for todo_task in todo_list)
-    if max_desc_name_length < len("DESCRIPTION"):
-        max_desc_name_length = len("DESCRIPTION")
-    screen_width = shutil.get_screen_width()
+    max_desc_length = max(len(todo_task.description) for todo_task in todo_list)
+    if max_desc_length < len("DESCRIPTION"):
+        max_desc_length = len("DESCRIPTION")
+    terminal_width, _ = shutil.get_terminal_size()
     # Headers
     results = [
-        stylize_bold_green(get_visual_todo_header(screen_width, max_desc_name_length))
+        stylize_bold_green(get_visual_todo_header(terminal_width, max_desc_length))
     ]
     for todo_task in todo_list:
-        completed = "[x]" if todo_task.completed else "[ ]"
-        priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
-        completion_date = stylize_yellow(_date_to_str(todo_task.completion_date))
-        creation_date = stylize_cyan(_date_to_str(todo_task.creation_date))
-        description = todo_task.description.ljust(max_desc_name_length)
-        additions = ", ".join(
-            [stylize_yellow(f"+{project}") for project in todo_task.projects]
-            + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
-            + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
-        )
-        results.append(
-            "  ".join(
-                [
-                    completed,
-                    priority,
-                    completion_date,
-                    creation_date,
-                    description,
-                    additions,
-                ]
-            )
-        )
+        results.append(get_visual_todo_line(terminal_width, max_desc_length, todo_task))
     return "\n".join(results)
 
 
-def get_visual_todo_header(screen_width: int, max_desc_name_length: int) -> str:
+def get_visual_todo_header(terminal_width: int, max_desc_name: int) -> str:
     priority = "".ljust(3)
     completed = "".ljust(3)
     completed_at = "COMPLETED AT".rjust(14)
-    created_at = "CREATED_AT".ljust(max_desc_name_length)
-    description = "DESCRIPTION".ljust(min(max_desc_name_length, 70))
+    created_at = "CREATED_AT".ljust(14)
+    description = "DESCRIPTION".ljust(min(max_desc_name, 70))
     addition = "PROJECT/CONTEXT/OTHERS"
-    if screen_width <= 80:
+    if terminal_width <= 80:
         return "  ".join([priority, completed, description])
-    if screen_width <= 100:
+    if terminal_width <= 100:
+        return "  ".join([priority, completed, description, addition])
+    return "  ".join(
+        [priority, completed, completed_at, created_at, description, addition]
+    )
+
+
+def get_visual_todo_line(
+    terminal_width: int, max_desc_length: int, todo_task: TodoTaskModel
+) -> str:
+    completed = "[x]" if todo_task.completed else "[ ]"
+    priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
+    completed_at = stylize_yellow(_date_to_str(todo_task.completion_date))
+    created_at = stylize_cyan(_date_to_str(todo_task.creation_date))
+    truncated_max_desc_length = min(max_desc_length, 70)
+    description = todo_task.description.ljust(truncated_max_desc_length)
+    description = description[:truncated_max_desc_length]
+    addition = ", ".join(
+        [stylize_yellow(f"+{project}") for project in todo_task.projects]
+        + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
+        + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
+    )
+    if terminal_width <= 80:
+        return "  ".join([priority, completed, description])
+    if terminal_width <= 100:
         return "  ".join([priority, completed, description, addition])
     return "  ".join(
         [priority, completed, completed_at, created_at, description, addition]
