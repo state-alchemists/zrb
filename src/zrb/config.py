@@ -56,6 +56,7 @@ SESSION_LOG_DIR = os.getenv(
     "ZRB_SESSION_LOG_DIR", os.path.expanduser(os.path.join("~", ".zrb-session"))
 )
 TODO_DIR = os.getenv("ZRB_TODO_DIR", os.path.expanduser(os.path.join("~", "todo")))
+TODO_VISUAL_FILTER = os.getenv("ZRB_TODO_FILTER", "")
 VERSION = metadata.version("zrb")
 WEB_HTTP_PORT = int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")

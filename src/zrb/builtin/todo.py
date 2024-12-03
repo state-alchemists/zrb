@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 from zrb.builtin.group import todo_group
-from zrb.config import TODO_DIR
+from zrb.config import TODO_DIR, TODO_VISUAL_FILTER
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
@@ -77,16 +77,16 @@ def add_todo(ctx: AnyContext):
         )
     )
     save_todo_list(todo_file_path, todo_list)
-    return get_visual_todo_list(todo_list)
+    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
 
 @make_task(name="list-todo", description="📋 List todo", group=todo_group, alias="list")
 def list_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
-    todo_tasks: list[TodoTaskModel] = []
+    todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
-        todo_tasks = load_todo_list(todo_file_path)
-    return get_visual_todo_list(todo_tasks)
+        todo_list = load_todo_list(todo_file_path)
+    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
 
 @make_task(
@@ -105,7 +105,10 @@ def complete_todo(ctx: AnyContext):
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
-        return get_visual_todo_list(todo_list)
+        return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
+    if todo_task.completed:
+        ctx.log_error("Task already completed")
+        return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
     # Update todo task
     todo_task = cascade_todo_task(todo_task)
     if todo_task.creation_date is not None:
@@ -113,14 +116,14 @@ def complete_todo(ctx: AnyContext):
     todo_task.completed = True
     # Save todo list
     save_todo_list(todo_file_path, todo_list)
-    return get_visual_todo_list(todo_list)
+    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
 
 @make_task(
     name="archive-todo",
     description="📚 Archive todo",
     group=todo_group,
-    alias="log",
+    alias="archive",
 )
 def archive_todo(ctx: AnyContext):
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
@@ -135,7 +138,7 @@ def archive_todo(ctx: AnyContext):
     ]
     if len(new_archived_todo_list) == 0:
         ctx.print("No completed task to archive")
-        return
+        return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
     archive_file_path = os.path.join(TODO_DIR, "archive.txt")
     if not os.path.isdir(TODO_DIR):
         os.make_dirs(TODO_DIR, exist_ok=True)
@@ -145,6 +148,7 @@ def archive_todo(ctx: AnyContext):
     archived_todo_list += new_archived_todo_list
     save_todo_list(archive_file_path, archived_todo_list)
     save_todo_list(todo_file_path, working_todo_list)
+    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
 
 @make_task(
@@ -182,7 +186,7 @@ def log_todo(ctx: AnyContext):
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
-        return get_visual_todo_list(todo_list)
+        return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
     # Update todo task
     todo_task = cascade_todo_task(todo_task)
     current_duration = todo_task.keyval.get("duration", "0")
@@ -206,7 +210,7 @@ def log_todo(ctx: AnyContext):
     )
     with open(log_work_file_path, "w") as f:
         f.write(json.dumps(log_work, indent=2))
-    return get_visual_todo_list(todo_list)
+    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
 
 def _get_default_start() -> str:
@@ -238,7 +242,7 @@ def edit_todo(ctx: AnyContext):
     with open(todo_file_path, "w") as f:
         f.write(new_content)
     todo_list = load_todo_list(todo_file_path)
-    return get_visual_todo_list(todo_list)
+    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
 
 def _get_todo_txt_content() -> str:

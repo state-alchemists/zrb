@@ -91,7 +91,8 @@ def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
         todo_line = todo_line.strip()
         if todo_line == "":
             continue
-        todo_list.append(line_to_todo_task(todo_line))
+        todo_task = line_to_todo_task(todo_line)
+        todo_list.append(todo_task)
     todo_list.sort(
         key=lambda task: (
             task.completed,
@@ -184,16 +185,37 @@ def todo_task_to_line(task: TodoTaskModel) -> str:
     return " ".join(parts)
 
 
-def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
-    if len(todo_list) == 0:
+def get_visual_todo_list(todo_list: list[TodoTaskModel], filter: str) -> str:
+    todo_filter = line_to_todo_task(filter)
+    filtered_todo_list = []
+    for todo_task in todo_list:
+        filter_description = todo_filter.description.lower().strip()
+        if (
+            filter_description != ""
+            and filter_description not in todo_task.description.lower()
+        ):
+            continue
+        if not all(context in todo_task.contexts for context in todo_filter.contexts):
+            continue
+        if not all(project in todo_task.projects for project in todo_filter.projects):
+            continue
+        if not all(
+            key in todo_task.keyval and todo_task.keyval[key] == val
+            for key, val in todo_filter.keyval.items()
+        ):
+            continue
+        filtered_todo_list.append(todo_task)
+    if len(filtered_todo_list) == 0:
         return "\n".join(["", "  Empty todo list... 🌵🦖", ""])
-    max_desc_length = max(len(todo_task.description) for todo_task in todo_list)
+    max_desc_length = max(
+        len(todo_task.description) for todo_task in filtered_todo_list
+    )
     if max_desc_length < len("DESCRIPTION"):
         max_desc_length = len("DESCRIPTION")
     if max_desc_length > 70:
         max_desc_length = 70
     max_additional_info_length = max(
-        todo_task.get_additional_info_length() for todo_task in todo_list
+        todo_task.get_additional_info_length() for todo_task in filtered_todo_list
     )
     if max_additional_info_length < len("PROJECT/CONTEXT/OTHERS"):
         max_additional_info_length = len("PROJECT/CONTEXT/OTHERS")
@@ -206,7 +228,7 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel]) -> str:
             )
         )
     ]
-    for todo_task in todo_list:
+    for todo_task in filtered_todo_list:
         results.append(
             get_visual_todo_line(
                 terminal_width, max_desc_length, max_additional_info_length, todo_task
@@ -223,13 +245,13 @@ def get_visual_todo_header(
     completed_at = "COMPLETED AT".rjust(14)
     created_at = "CREATED_AT".ljust(14)
     description = "DESCRIPTION".ljust(min(max_desc_length, 70))
-    addition = "PROJECT/CONTEXT/OTHERS"
+    additional_info = "PROJECT/CONTEXT/OTHERS"
     if terminal_width <= 14 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description])
     if terminal_width <= 36 + max_desc_length + max_additional_info_length:
-        return "  ".join([priority, completed, description, addition])
+        return "  ".join([priority, completed, description, additional_info])
     return "  ".join(
-        [priority, completed, completed_at, created_at, description, addition]
+        [priority, completed, completed_at, created_at, description, additional_info]
     )
 
 
@@ -247,7 +269,7 @@ def get_visual_todo_line(
     if len(description) > max_desc_length:
         description = description[: max_desc_length - 4] + " ..."
     description = description[:max_desc_length]
-    addition = ", ".join(
+    additional_info = ", ".join(
         [stylize_yellow(f"+{project}") for project in todo_task.projects]
         + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
         + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
@@ -255,9 +277,9 @@ def get_visual_todo_line(
     if terminal_width <= 14 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description])
     if terminal_width <= 36 + max_desc_length + max_additional_info_length:
-        return "  ".join([priority, completed, description, addition])
+        return "  ".join([priority, completed, description, additional_info])
     return "  ".join(
-        [priority, completed, completed_at, created_at, description, addition]
+        [priority, completed, completed_at, created_at, description, additional_info]
     )
 
 
