@@ -2,7 +2,7 @@ import asyncio
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from zrb.config import BANNER, WEB_HTTP_PORT
 from zrb.context.shared_context import SharedContext
@@ -23,7 +23,7 @@ from zrb.util.group import extract_node_from_args, get_node_path
 def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     from contextlib import asynccontextmanager
 
-    from fastapi import FastAPI, HTTPException, Request
+    from fastapi import FastAPI, HTTPException, Query, Request
     from fastapi.responses import FileResponse, HTMLResponse
     from fastapi.staticfiles import StaticFiles
 
@@ -97,7 +97,13 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         raise HTTPException(status_code=404, detail="Not Found")
 
     @app.get("/api/{path:path}", response_model=SessionStateLog | SessionStateLogList)
-    async def get_session(path: str, query_params: Dict[str, Any] = {}):
+    async def get_session(
+        path: str,
+        min_start_query: str = Query(default=None, alias="from"),
+        max_start_query: str = Query(default=None, alias="to"),
+        page: int = Query(default=0, alias="page"),
+        limit: int = Query(default=10, alias="limit"),
+    ):
         """
         Getting existing session or sessions
         """
@@ -106,24 +112,30 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         if isinstance(node, AnyTask) and residual_args:
             if residual_args[0] == "list":
                 task_path = get_node_path(root_group, node)
-                return list_sessions(task_path, query_params)
+                max_start_time = (
+                    datetime.now()
+                    if max_start_query is None
+                    else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
+                )
+                min_start_time = (
+                    max_start_time - timedelta(hours=1)
+                    if min_start_query is None
+                    else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
+                )
+                return list_sessions(
+                    task_path, min_start_time, max_start_time, page, limit
+                )
             else:
                 return read_session(residual_args[0])
         raise HTTPException(status_code=404, detail="Not Found")
 
     def list_sessions(
-        task_path: List[str], query_params: Dict[str, Any]
+        task_path: list[str],
+        min_start_time: datetime,
+        max_start_time: datetime,
+        page: int,
+        limit: int,
     ) -> SessionStateLogList:
-        max_start_time = datetime.now()
-        if "to" in query_params:
-            max_start_time = datetime.strptime(query_params["to"], "%Y-%m-%d %H:%M:%S")
-        min_start_time = max_start_time - timedelta(hours=1)
-        if "from" in query_params:
-            min_start_time = datetime.strptime(
-                query_params["from"], "%Y-%m-%d %H:%M:%S"
-            )
-        page = int(query_params.get("page", 0))
-        limit = int(query_params.get("limit", 10))
         try:
             return default_session_state_logger.list(
                 task_path,

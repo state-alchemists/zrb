@@ -88,9 +88,7 @@ format_code >> git_commit
 
 # PIP =========================================================================
 
-pip_group = cli.add_group(
-    Group(name="pip", description="📦 Pip related command")
-)
+pip_group = cli.add_group(Group(name="pip", description="📦 Pip related command"))
 
 publish_pip = pip_group.add_task(
     CmdTask(
