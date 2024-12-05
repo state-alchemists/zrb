@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field, model_validator
 
 from zrb.util.cli.style import (
     stylize_bold_green,
+    stylize_bold_yellow,
     stylize_cyan,
+    stylize_faint,
     stylize_magenta,
     stylize_yellow,
 )
@@ -265,10 +267,15 @@ def get_visual_todo_line(
     priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
     completed_at = stylize_yellow(_date_to_str(todo_task.completion_date))
     created_at = stylize_cyan(_date_to_str(todo_task.creation_date))
-    description = todo_task.description.ljust(max_desc_length)
+    description = todo_task.description
     if len(description) > max_desc_length:
         description = description[: max_desc_length - 4] + " ..."
+    description = description.ljust(max_desc_length)
     description = description[:max_desc_length]
+    if todo_task.completed:
+        description = stylize_faint(description)
+    elif "duration" in todo_task.keyval:
+        description = stylize_bold_yellow(description)
     additional_info = ", ".join(
         [stylize_yellow(f"+{project}") for project in todo_task.projects]
         + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
