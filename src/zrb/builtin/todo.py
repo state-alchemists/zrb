@@ -118,7 +118,7 @@ def show_todo(ctx: AnyContext):
     log_work_list = []
     if os.path.isfile(log_work_path):
         with open(log_work_path, "r") as f:
-            log_work_list = json.load(f.read())
+            log_work_list = json.loads(f.read())
     return get_visual_todo_card(todo_task, log_work_list)
 
 
