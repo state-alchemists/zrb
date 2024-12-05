@@ -26,6 +26,7 @@ from zrb.builtin.todo import (
     edit_todo,
     list_todo,
     log_todo,
+    show_todo,
 )
 
 assert create_project
@@ -53,6 +54,7 @@ assert archive_todo
 assert edit_todo
 assert complete_todo
 assert log_todo
+assert show_todo
 assert setup_ubuntu
 assert setup_latex_on_ubuntu
 assert setup_asdf

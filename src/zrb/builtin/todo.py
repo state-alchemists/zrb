@@ -13,6 +13,7 @@ from zrb.util.todo import (
     TodoTaskModel,
     add_durations,
     cascade_todo_task,
+    get_visual_todo_card,
     get_visual_todo_list,
     line_to_todo_task,
     load_todo_list,
@@ -87,6 +88,38 @@ def list_todo(ctx: AnyContext):
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
     return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
+
+
+@make_task(
+    name="show-todo",
+    input=StrInput(name="keyword", prompt="Task keyword", description="Task Keyword"),
+    description="🔍 Show todo",
+    group=todo_group,
+    alias="show",
+)
+def show_todo(ctx: AnyContext):
+    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_list: list[TodoTaskModel] = []
+    todo_list: list[TodoTaskModel] = []
+    if os.path.isfile(todo_file_path):
+        todo_list = load_todo_list(todo_file_path)
+    # Get todo task
+    todo_task = select_todo_task(todo_list, ctx.input.keyword)
+    if todo_task is None:
+        ctx.log_error("Task not found")
+        return
+    if todo_task.completed:
+        ctx.log_error("Task already completed")
+        return
+    # Update todo task
+    todo_task = cascade_todo_task(todo_task)
+    task_id = todo_task.keyval.get("id", "")
+    log_work_path = os.path.join(TODO_DIR, "log-work", f"{task_id}.json")
+    log_work_list = []
+    if os.path.isfile(log_work_path):
+        with open(log_work_path, "r") as f:
+            log_work_list = json.load(f.read())
+    return get_visual_todo_card(todo_task, log_work_list)
 
 
 @make_task(
@@ -250,4 +283,5 @@ def _get_todo_txt_content() -> str:
     if not os.path.isfile(todo_file_path):
         return ""
     with open(todo_file_path, "r") as f:
+        return f.read()
         return f.read()

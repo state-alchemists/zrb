@@ -1,6 +1,7 @@
 import datetime
 import re
 import shutil
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -254,6 +255,48 @@ def get_visual_todo_header(
         return "  ".join([priority, completed, description, additional_info])
     return "  ".join(
         [priority, completed, completed_at, created_at, description, additional_info]
+    )
+
+
+def get_visual_todo_card(
+    todo_task: TodoTaskModel, log_work_list: list[dict[str, str]]
+) -> str:
+    description = todo_task.description
+    status = "TODO"
+    if todo_task.completed:
+        status = "DONE"
+    elif "duration" in todo_task.keyval:
+        status = "DOING"
+    priority = todo_task.priority
+    completed_at = (
+        _date_to_str(todo_task.completion_date)
+        if todo_task.completion_date is not None
+        else ""
+    )
+    created_at = (
+        _date_to_str(todo_task.creation_date)
+        if todo_task.creation_date is not None
+        else ""
+    )
+    log_work_str = [
+        " ".join(
+            [
+                log_work.get("start", "").ljust(20),
+                log_work.get("duration", "").ljust(12),
+                log_work.get("log", ""),
+            ]
+        )
+        for log_work in log_work_list
+    ]
+    return "\n".join(
+        [
+            f"Description: {description}",
+            f"Priority: {priority}",
+            f"Status: {status}",
+            f"Created at: {created_at}",
+            f"Completed at: {completed_at}",
+            "\n".join(log_work_str),
+        ]
     )
 
 
