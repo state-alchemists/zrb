@@ -64,7 +64,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         # Avoid capturing '/ui' itself
         if not path:
             raise HTTPException(status_code=404, detail="Not Found")
-        args = path.split("/")
+        args = path.strip("/").split("/")
         node, node_path, residual_args = extract_node_from_args(root_group, args)
         url = f"/ui/{'/'.join(node_path)}/"
         if isinstance(node, AnyTask):
@@ -82,7 +82,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         """
         Creating new session
         """
-        args = path.split("/")
+        args = path.strip("/").split("/")
         node, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(node, AnyTask):
             session_name = residual_args[0] if residual_args else None
@@ -107,7 +107,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         """
         Getting existing session or sessions
         """
-        args = path.split("/")
+        args = path.strip("/").split("/")
         node, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(node, AnyTask) and residual_args:
             if residual_args[0] == "list":
