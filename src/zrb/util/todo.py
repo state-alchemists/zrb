@@ -315,8 +315,8 @@ def get_visual_todo_card(
         [
             "  ".join(
                 [
-                    log_work.get("duration", "").strip().rjust(12),
-                    log_work.get("start", "").strip().rjust(20),
+                    stylize_magenta(log_work.get("duration", "").strip().rjust(12)),
+                    stylize_cyan(log_work.get("start", "").strip().rjust(20)),
                     log_work.get("log", "").strip(),
                 ]
             )

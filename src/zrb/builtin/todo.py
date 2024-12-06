@@ -175,10 +175,12 @@ def archive_todo(ctx: AnyContext):
     archive_file_path = os.path.join(TODO_DIR, "archive.txt")
     if not os.path.isdir(TODO_DIR):
         os.make_dirs(TODO_DIR, exist_ok=True)
+    # Get archived todo list
     archived_todo_list = []
     if os.path.isfile(archive_file_path):
         archived_todo_list = load_todo_list(archive_file_path)
     archived_todo_list += new_archived_todo_list
+    # Save the new todo list and add the archived ones
     save_todo_list(archive_file_path, archived_todo_list)
     save_todo_list(todo_file_path, working_todo_list)
     return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
@@ -241,9 +243,23 @@ def log_todo(ctx: AnyContext):
     log_work.append(
         {"log": ctx.input.log, "duration": ctx.input.duration, "start": ctx.input.start}
     )
+    # save todo with log work
     with open(log_work_file_path, "w") as f:
         f.write(json.dumps(log_work, indent=2))
-    return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
+    # get log work list
+    task_id = todo_task.keyval.get("id", "")
+    log_work_path = os.path.join(TODO_DIR, "log-work", f"{task_id}.json")
+    log_work_list = []
+    if os.path.isfile(log_work_path):
+        with open(log_work_path, "r") as f:
+            log_work_list = json.loads(f.read())
+    return "\n".join(
+        [
+            get_visual_todo_list(todo_list, TODO_VISUAL_FILTER),
+            "",
+            get_visual_todo_card(todo_task, log_work_list),
+        ]
+    )
 
 
 def _get_default_start() -> str:
@@ -283,5 +299,4 @@ def _get_todo_txt_content() -> str:
     if not os.path.isfile(todo_file_path):
         return ""
     with open(todo_file_path, "r") as f:
-        return f.read()
         return f.read()
