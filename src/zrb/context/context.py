@@ -1,6 +1,5 @@
 import datetime
 import logging
-import re
 import sys
 from typing import Any, TextIO
 
@@ -8,13 +7,14 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession
-from zrb.util.cli.style import stylize, stylize_error, stylize_log, stylize_warning
+from zrb.util.cli.style import (
+    remove_style,
+    stylize,
+    stylize_error,
+    stylize_log,
+    stylize_warning,
+)
 from zrb.util.string.conversion import to_boolean
-
-
-def _remove_ansi_escape_sequences(text):
-    ansi_escape = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
-    return ansi_escape.sub("", text)
 
 
 class Context(AnyContext):
@@ -114,7 +114,7 @@ class Context(AnyContext):
         formatted_time = now.strftime("%y%m%d %H:%M:%S.%f")[:19]
         prefix = f"{formatted_time} {attempt_status} {padded_styled_task_name} ⬤ "
         message = sep.join([f"{value}" for value in values])
-        self.append_to_shared_log(_remove_ansi_escape_sequences(f"{prefix} {message}"))
+        self.append_to_shared_log(remove_style(f"{prefix} {message}"))
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 

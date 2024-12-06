@@ -28,6 +28,7 @@ from zrb.util.cli.style import (
     ICONS,
     MAGENTA,
     YELLOW,
+    remove_style,
 )
 from zrb.util.group import get_node_path
 from zrb.util.string.name import get_random_name
@@ -165,7 +166,9 @@ class Session(AnySession):
             main_task_name=self._main_task.name,
             path=self.task_path,
             final_result=(
-                f"{self.final_result}" if self.final_result is not None else ""
+                remove_style(f"{self.final_result}")
+                if self.final_result is not None
+                else ""
             ),
             finished=self.is_terminated,
             log=self.shared_ctx.shared_log,

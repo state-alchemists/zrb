@@ -1,3 +1,5 @@
+import re
+
 BLACK = 30
 RED = 31
 GREEN = 32
@@ -116,6 +118,11 @@ ICONS = [
     "🍒",
     "🍑",
 ]
+
+
+def remove_style(text):
+    ansi_escape = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+    return ansi_escape.sub("", text)
 
 
 def stylize(
