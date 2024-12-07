@@ -18,4 +18,3 @@ app_create_group = app_group.add_group(
 app_create_migration_group = app_create_group.add_group(
     Group(name="migration", description="📦 Create Fastapp DB migration")
 )
-

@@ -1,7 +1,6 @@
 import os
 
 from fastapp._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
-from fastapp._zrb.group import app_group
 
 from zrb import CmdTask
 
@@ -18,5 +17,5 @@ prepare_venv = CmdTask(
     cwd=APP_DIR,
 )
 create_venv >> prepare_venv
+print(ACTIVATE_VENV_SCRIPT)
 
-app_group.add_task(create_venv, alias="prepare")
