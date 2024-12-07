@@ -1,4 +1,4 @@
-from fastapp_template.common.usecase import BaseUsecase
+from fastapp_template.common.base_usecase import BaseUsecase
 from fastapp_template.module.auth.service.user.repository.factory import user_repository
 from fastapp_template.schema.user import UserCreate, UserResponse, UserUpdate
 

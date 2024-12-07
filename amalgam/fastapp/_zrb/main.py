@@ -4,7 +4,6 @@ from fastapp._zrb.column.create_column_task import create_column
 from fastapp._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from fastapp._zrb.entity.create_entity_task import create_entity
 from fastapp._zrb.group import (
-    app_create_group,
     app_create_migration_group,
     app_migrate_group,
     app_run_group,

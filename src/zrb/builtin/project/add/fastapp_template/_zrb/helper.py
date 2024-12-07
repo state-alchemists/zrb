@@ -95,3 +95,9 @@ def run_microservice(name: str, port: int, module: str) -> Task:
         render_cmd=False,
         retries=2,
     )
+
+
+def get_existing_module_names() -> list[str]:
+    app_dir_path = os.path.dirname(os.path.dirname(__file__))
+    module_dir_path = os.path.join(app_dir_path, "module")
+    return [entry.name for entry in os.scandir(module_dir_path) if entry.is_dir()]

@@ -17,4 +17,3 @@ prepare_venv = CmdTask(
     cwd=APP_DIR,
 )
 create_venv >> prepare_venv
-print(ACTIVATE_VENV_SCRIPT)

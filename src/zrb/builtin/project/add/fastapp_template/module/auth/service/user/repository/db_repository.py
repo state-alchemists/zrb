@@ -1,4 +1,4 @@
-from fastapp_template.common.db_repository import BaseDBRepository
+from fastapp_template.common.base_db_repository import BaseDBRepository
 from fastapp_template.common.error import NotFoundError
 from fastapp_template.module.auth.service.user.repository.repository import (
     UserRepository,

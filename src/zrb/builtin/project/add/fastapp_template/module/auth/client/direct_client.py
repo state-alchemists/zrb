@@ -1,4 +1,4 @@
-from fastapp_template.module.auth.client.base_client import BaseClient
+from fastapp_template.module.auth.client.any_client import BaseClient
 from fastapp_template.module.auth.service.user.usecase import user_usecase
 
 
