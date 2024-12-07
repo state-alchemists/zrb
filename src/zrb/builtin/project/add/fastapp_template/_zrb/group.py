@@ -14,3 +14,7 @@ app_migrate_group = app_group.add_group(
 app_create_group = app_group.add_group(
     Group(name="create", description="✨ Create resources for App Name")
 )
+
+app_create_migration_group = app_create_group.add_group(
+    Group(name="migration", description="📦 Create App Name DB migration")
+)

@@ -5,6 +5,7 @@ from fastapp_template._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from fastapp_template._zrb.entity.create_entity_task import create_entity
 from fastapp_template._zrb.group import (
     app_create_group,
+    app_create_migration_group,
     app_migrate_group,
     app_run_group,
 )
@@ -39,11 +40,11 @@ migrate_all = app_migrate_group.add_task(
     alias="all",
 )
 
-create_all_migration = app_create_group.add_task(
+create_all_migration = app_create_migration_group.add_task(
     Task(
         name="create-app-name-migration", description="📦 Create App Name DB migration"
     ),
-    alias="migration",
+    alias="all",
 )
 
 # 🗿 Run/Migrate Monolith =====================================================
@@ -104,8 +105,8 @@ run_gateway = app_run_group.add_task(
 )
 prepare_venv >> run_gateway >> run_microservices
 
-create_gateway_migration = app_create_group.add_task(
-    create_migration("gateway", "gateway"), alias="gateway-migration"
+create_gateway_migration = app_create_migration_group.add_task(
+    create_migration("gateway", "gateway"), alias="gateway"
 )
 prepare_venv >> create_gateway_migration >> create_all_migration
 
@@ -125,8 +126,8 @@ run_auth = app_run_group.add_task(
 )
 prepare_venv >> run_auth >> run_microservices
 
-create_auth_migration = app_create_group.add_task(
-    create_migration("auth", "auth"), alias="auth-migration"
+create_auth_migration = app_create_migration_group.add_task(
+    create_migration("auth", "auth"), alias="auth"
 )
 prepare_venv >> create_auth_migration >> create_all_migration
 
