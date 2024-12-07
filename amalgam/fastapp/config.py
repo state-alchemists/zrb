@@ -23,7 +23,7 @@ APP_DB_URL = os.getenv(
 )
 APP_AUTH_SUPER_USER = os.getenv("FASTAPP_AUTH_SUPER_USER", "admin")
 APP_AUTH_SUPER_USER_PASSWORD = os.getenv(
-    "FASTAPP_AUTH_SUPER_USER_PASSWORD", "soft-bone-2938"
+    "FASTAPP_AUTH_SUPER_USER_PASSWORD", "weak-foam-9072"
 )
 
 APP_AUTH_BASE_URL = os.getenv("FASTAPP_AUTH_BASE_URL", "http://localhost:3001")

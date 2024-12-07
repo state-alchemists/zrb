@@ -98,6 +98,14 @@ def run_microservice(name: str, port: int, module: str) -> Task:
 
 
 def get_existing_module_names() -> list[str]:
-    app_dir_path = os.path.dirname(os.path.dirname(__file__))
-    module_dir_path = os.path.join(app_dir_path, "module")
+    module_dir_path = os.path.join(APP_DIR, "module")
     return [entry.name for entry in os.scandir(module_dir_path) if entry.is_dir()]
+
+
+def get_existing_schema_names() -> list[str]:
+    module_dir_path = os.path.join(APP_DIR, "schema")
+    return [
+        os.path.splitext(entry.name)[0]
+        for entry in os.scandir(module_dir_path)
+        if entry.is_file() and entry.name.endswith('.py')
+    ]

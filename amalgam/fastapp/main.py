@@ -6,5 +6,4 @@ from fastapp.module.gateway import route as gateway_route
 assert app
 assert gateway_route
 assert auth_route
-
 assert anu_route

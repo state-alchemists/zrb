@@ -137,3 +137,25 @@ migrate_microservices_auth = app_migrate_group.add_task(
     migrate_module("auth", "auth", as_microservices=True), alias="microservices-auth"
 )
 prepare_venv >> migrate_microservices_auth >> [migrate_microservices, run_auth]
+
+
+# 🔐 Run/Migrate My Module ==========================================================
+
+run_anu = app_run_group.add_task(
+    run_microservice("anu", 3002, "anu"), alias="microservices-anu"
+)
+prepare_venv >> run_anu >> run_microservices
+
+create_anu_migration = app_create_migration_group.add_task(
+    create_migration("anu", "anu"), alias="anu"
+)
+prepare_venv >> create_anu_migration >> create_all_migration
+
+migrate_monolith_anu = migrate_module("anu", "anu", as_microservices=False)
+prepare_venv >> migrate_monolith_anu >> [migrate_monolith, run_monolith]
+
+migrate_microservices_anu = app_migrate_group.add_task(
+    migrate_module("anu", "anu", as_microservices=True), alias="microservices-anu"
+)
+prepare_venv >> migrate_microservices_anu >> [migrate_microservices, run_anu]
+

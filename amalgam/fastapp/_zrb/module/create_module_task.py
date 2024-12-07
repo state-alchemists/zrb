@@ -3,9 +3,10 @@ import os
 from fastapp._zrb.group import app_create_group
 from fastapp._zrb.helper import get_existing_module_names
 from fastapp._zrb.input import new_module_input
+from fastapp._zrb.config import APP_DIR
 
 from zrb import AnyContext, Scaffolder, Task, make_task
-from zrb.util.string.conversion import to_snake_case
+from zrb.util.string.conversion import to_snake_case, to_kebab_case
 
 _DIR = os.path.dirname(__file__)
 
@@ -32,11 +33,7 @@ scaffold_fastapp_module = Scaffolder(
     ),
     transform_content={
         "module_template": "{to_snake_case(ctx.input.module)}",
-        "Module Name": "{ctx.input.module.title()}",
-        "Module name": "{ctx.input.module.capitalize()}",
-        "module-name": "{to_kebab_case(ctx.input.module)}",
-        "module_name": "{to_snake_case(ctx.input.module)}",
-        "MODULE_NAME": "{to_snake_case(ctx.input.module).upper()}",
+        "MY_MODULE_NAME": "{to_snake_case(ctx.input.module).upper()}",
     },
     retries=0,
     upstream=validate_create_fastapp_module,
@@ -47,6 +44,7 @@ scaffold_fastapp_module = Scaffolder(
     name="register-fastapp-module-config",
     input=new_module_input,
     upstream=validate_create_fastapp_module,
+    retries=0,
 )
 def register_fastapp_module_config(ctx: AnyContext):
     """Registering module to config.py"""
@@ -59,12 +57,11 @@ def register_fastapp_module_config(ctx: AnyContext):
         ]
     )
     module_base_url = f"http://localhost:{module_port}"
-    config_file_name = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.py"
-    )
+    config_file_name = os.path.join(APP_DIR, "config.py")
     upper_module_name = to_snake_case(ctx.input.module).upper()
     config_name = f"APP_{upper_module_name}_BASE_URL"
     env_name = f"FASTAPP_{upper_module_name}_BASE_URL"
+    # TODO: check before write
     with open(config_file_name, "a") as f:
         f.write(f'{config_name} = os.getenv("{env_name}", "{module_base_url}")\n')
 
@@ -73,28 +70,80 @@ def register_fastapp_module_config(ctx: AnyContext):
     name="register-fastapp-module",
     input=new_module_input,
     upstream=validate_create_fastapp_module,
+    retries=0,
 )
 def register_fastapp_module(ctx: AnyContext):
-    """Registering module to main.py"""
-    main_file_name = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "main.py"
-    )
+    """Registering module to application's main.py"""
+    app_main_file_name = os.path.join(APP_DIR, "main.py")
     module_name = to_snake_case(ctx.input.module)
     import_code = f"from fastapp.module.{module_name} import route as {module_name}_route"  # noqa
     assert_code = f"assert {module_name}_route"
-    with open(main_file_name, "r") as f:
+    with open(app_main_file_name, "r") as f:
         code = f.read()
-    new_code = "\n".join([import_code, code, assert_code])
-    with open(main_file_name, "w") as f:
+    new_code = "\n".join([import_code, code.strip(), assert_code, ""])
+    # TODO: check before write
+    with open(app_main_file_name, "w") as f:
+        f.write(new_code)
+
+
+MODULE_RUNNER_SCRIPT = '''
+# 🔐 Run/Migrate My Module ==========================================================
+
+run_my_module = app_run_group.add_task(
+    run_microservice("my-module", 3002, "my_module"), alias="microservices-my_module"
+)
+prepare_venv >> run_my_module >> run_microservices
+
+create_my_module_migration = app_create_migration_group.add_task(
+    create_migration("my-module", "my_module"), alias="my_module"
+)
+prepare_venv >> create_my_module_migration >> create_all_migration
+
+migrate_monolith_my_module = migrate_module("my_module", "my_module", as_microservices=False)
+prepare_venv >> migrate_monolith_my_module >> [migrate_monolith, run_monolith]
+
+migrate_microservices_my_module = app_migrate_group.add_task(
+    migrate_module("my-module", "my_module", as_microservices=True), alias="microservices-my-module"
+)
+prepare_venv >> migrate_microservices_my_module >> [migrate_microservices, run_my_module]
+'''
+
+
+@make_task(
+    name="register-fastapp-module-runner",
+    input=new_module_input,
+    upstream=validate_create_fastapp_module,
+    retries=0,
+)
+def register_fastapp_module_runner(ctx: AnyContext):
+    """Registering module to _zrb's main.py"""
+    task_main_file_name = os.path.join(APP_DIR, "_zrb", "main.py")
+    module_name = to_snake_case(ctx.input.module)
+    module_title = to_kebab_case(ctx.input.module)
+    module_runner_code = MODULE_RUNNER_SCRIPT.replace(
+        "my_module", module_name
+    ).replace(
+        "my-module", module_title
+    )
+    with open(task_main_file_name, "r") as f:
+        code = f.read()
+    new_code = "\n".join([code.strip(), "", module_runner_code, ""])
+    # TODO: check before write
+    with open(task_main_file_name, "w") as f:
         f.write(new_code)
 
 
 create_module = app_create_group.add_task(
-    Task(name="create-fastapp-module", description="🧩 Create new module on Fastapp"),
+    Task(
+        name="create-fastapp-module",
+        description="🧩 Create new module on Fastapp",
+        retries=0
+    ),
     alias="module",
 )
 create_module << [
     scaffold_fastapp_module,
     register_fastapp_module,
     register_fastapp_module_config,
+    register_fastapp_module_runner
 ]

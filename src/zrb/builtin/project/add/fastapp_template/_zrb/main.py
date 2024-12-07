@@ -26,22 +26,22 @@ assert create_column
 
 run_all = app_run_group.add_task(
     Task(
-        name="run-app-name", description="🟢 Run App Name as monolith and microservices"
+        name="run-my-app-name", description="🟢 Run My App Name as monolith and microservices"
     ),
     alias="all",
 )
 
 migrate_all = app_migrate_group.add_task(
     Task(
-        name="migrate-app-name",
-        description="📦 Run App Name DB migration for monolith and microservices",
+        name="migrate-my-app-name",
+        description="📦 Run My App Name DB migration for monolith and microservices",
     ),
     alias="all",
 )
 
 create_all_migration = app_create_migration_group.add_task(
     Task(
-        name="create-app-name-migration", description="📦 Create App Name DB migration"
+        name="create-my-app-name-migration", description="📦 Create My App Name DB migration"
     ),
     alias="all",
 )
@@ -50,16 +50,16 @@ create_all_migration = app_create_migration_group.add_task(
 
 run_monolith = app_run_group.add_task(
     CmdTask(
-        name="run-monolith-app-name",
-        description="🗿 Run App Name as a monolith",
+        name="run-monolith-my-app-name",
+        description="🗿 Run My App Name as a monolith",
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),
-            Env(name="APP_NAME_MODE", default="monolith"),
+            Env(name="MY_APP_NAME_MODE", default="monolith"),
         ],
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            'fastapi dev main.py --port "${APP_NAME_PORT}"',
+            'fastapi dev main.py --port "${MY_APP_NAME_PORT}"',
         ],
         render_cmd=False,
         retries=2,
@@ -70,8 +70,8 @@ prepare_venv >> run_monolith >> run_all
 
 migrate_monolith = app_migrate_group.add_task(
     Task(
-        name="migrate-monolith-app-name",
-        description="🗿 Run App Name DB migration for monolith",
+        name="migrate-monolith-my-app-name",
+        description="🗿 Run My App Name DB migration for monolith",
     ),
     alias="monolith",
 )
@@ -81,8 +81,8 @@ migrate_monolith >> migrate_all
 
 run_microservices = app_run_group.add_task(
     Task(
-        name="run-microservices-app-name",
-        description="🌐 Run App Name as microservices",
+        name="run-microservices-my-app-name",
+        description="🌐 Run My App Name as microservices",
     ),
     alias="microservices",
 )
@@ -90,8 +90,8 @@ run_microservices >> run_all
 
 migrate_microservices = app_migrate_group.add_task(
     Task(
-        name="migrate-microservices-app-name",
-        description="🌐 Run App Name DB migration for microservices",
+        name="migrate-microservices-my-app-name",
+        description="🌐 Run My App Name DB migration for microservices",
     ),
     alias="microservices",
 )
