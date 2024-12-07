@@ -1,0 +1,6 @@
+fastapi[standard]==0.115.4
+aiosqlite==0.20.0
+alembic==1.14.0
+sqlmodel==0.0.22
+ulid-py==1.1.0
+passlib==1.7.4

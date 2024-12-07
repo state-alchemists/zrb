@@ -11,7 +11,10 @@ class ContentTransformer(AnyContentTransformer):
     def __init__(
         self,
         match: list[str] | str | Callable[[AnyContext, str], bool],
-        transform: dict[str, str] | Callable[[AnyContext, str], str],
+        transform: (
+            dict[str, str | Callable[[AnyContext], str]]
+            | Callable[[AnyContext, str], str]
+        ),
         auto_render: bool = True,
     ):
         self._match = match
@@ -34,7 +37,7 @@ class ContentTransformer(AnyContentTransformer):
         if callable(self._transform_file):
             return self._transform_file(ctx, file_path)
         transform_map = {
-            keyword: ctx.render(replacement) if self._auto_render else replacement
+            keyword: self._get_str_replacement(ctx, replacement)
             for keyword, replacement in self._transform_file.items()
         }
         with open(file_path, "r") as f:
@@ -43,3 +46,12 @@ class ContentTransformer(AnyContentTransformer):
             content = content.replace(keyword, replacement)
         with open(file_path, "w") as f:
             f.write(content)
+
+    def _get_str_replacement(
+        self, ctx: AnyContext, replacement: str | Callable[[AnyContext], str]
+    ) -> str:
+        if callable(replacement):
+            return replacement(ctx)
+        if self._auto_render:
+            return ctx.render(replacement)
+        return replacement

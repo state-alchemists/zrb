@@ -1,0 +1,3 @@
+# Amalgam
+
+Welcome to Amalgam

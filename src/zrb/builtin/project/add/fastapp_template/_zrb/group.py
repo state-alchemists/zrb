@@ -1,5 +1,5 @@
 from zrb import Group
-from zrb.builtin import project_group
+from zrb.builtin.group import project_group
 
 app_group = project_group.add_group(
     Group(name="app-name", description="🚀 Managing App Name")

@@ -1,20 +1,20 @@
 import os
 
-from fastapp_template._zrb.column.create_column_task import create_column
-from fastapp_template._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
-from fastapp_template._zrb.entity.create_entity_task import create_entity
-from fastapp_template._zrb.group import (
+from fastapp._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
+from fastapp._zrb.group import (
     app_create_group,
     app_migrate_group,
     app_run_group,
 )
-from fastapp_template._zrb.helper import (
+from fastapp._zrb.helper import (
     create_migration,
     migrate_module,
     run_microservice,
 )
-from fastapp_template._zrb.module.create_module_task import create_module
-from fastapp_template._zrb.venv_task import prepare_venv
+from fastapp._zrb.venv_task import prepare_venv
+from fastapp._zrb.entity.create_entity_task import create_entity
+from fastapp._zrb.module.create_module_task import create_module
+from fastapp._zrb.column.create_column_task import create_column
 
 from zrb import CmdTask, Env, EnvFile, Task
 
@@ -26,22 +26,22 @@ assert create_column
 
 run_all = app_run_group.add_task(
     Task(
-        name="run-app-name", description="🟢 Run App Name as monolith and microservices"
+        name="run-fastapp", description="🟢 Run Fastapp as monolith and microservices"
     ),
     alias="all",
 )
 
 migrate_all = app_migrate_group.add_task(
     Task(
-        name="migrate-app-name",
-        description="📦 Run App Name DB migration for monolith and microservices",
+        name="migrate-fastapp",
+        description="📦 Run Fastapp DB migration for monolith and microservices",
     ),
     alias="all",
 )
 
 create_all_migration = app_create_group.add_task(
     Task(
-        name="create-app-name-migration", description="📦 Create App Name DB migration"
+        name="create-fastapp-migration", description="📦 Create Fastapp DB migration"
     ),
     alias="migration",
 )
@@ -50,16 +50,16 @@ create_all_migration = app_create_group.add_task(
 
 run_monolith = app_run_group.add_task(
     CmdTask(
-        name="run-monolith-app-name",
-        description="🗿 Run App Name as a monolith",
+        name="run-monolith-fastapp",
+        description="🗿 Run Fastapp as a monolith",
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),
-            Env(name="APP_NAME_MODE", default="monolith"),
+            Env(name="FASTAPP_MODE", default="monolith"),
         ],
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            'fastapi dev main.py --port "${APP_NAME_PORT}"',
+            'fastapi dev main.py --port "${FASTAPP_PORT}"',
         ],
         render_cmd=False,
         retries=2,
@@ -70,8 +70,8 @@ prepare_venv >> run_monolith >> run_all
 
 migrate_monolith = app_migrate_group.add_task(
     Task(
-        name="migrate-monolith-app-name",
-        description="🗿 Run App Name DB migration for monolith",
+        name="migrate-monolith-fastapp",
+        description="🗿 Run Fastapp DB migration for monolith",
     ),
     alias="monolith",
 )
@@ -81,8 +81,8 @@ migrate_monolith >> migrate_all
 
 run_microservices = app_run_group.add_task(
     Task(
-        name="run-microservices-app-name",
-        description="🌐 Run App Name as microservices",
+        name="run-microservices-fastapp",
+        description="🌐 Run Fastapp as microservices",
     ),
     alias="microservices",
 )
@@ -90,8 +90,8 @@ run_microservices >> run_all
 
 migrate_microservices = app_migrate_group.add_task(
     Task(
-        name="migrate-microservices-app-name",
-        description="🌐 Run App Name DB migration for microservices",
+        name="migrate-microservices-fastapp",
+        description="🌐 Run Fastapp DB migration for microservices",
     ),
     alias="microservices",
 )
