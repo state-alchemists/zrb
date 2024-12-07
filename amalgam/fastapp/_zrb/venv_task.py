@@ -18,4 +18,3 @@ prepare_venv = CmdTask(
 )
 create_venv >> prepare_venv
 print(ACTIVATE_VENV_SCRIPT)
-
