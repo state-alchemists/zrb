@@ -1,5 +1,6 @@
 import os
 
+from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
@@ -45,12 +46,13 @@ def handle_task_ui(
     ui_url_parts = list(api_url_parts)
     ui_url_parts[1] = "ui"
     ui_url = "/".join(ui_url_parts)
-    task_inputs = "\n".join(
-        [
+    # Assemble task inputs
+    input_html_list = []
+    for task_input in task.inputs:
+        task_input.update_shared_context(ctx)
+        input_html_list.append(
             fstring_format(_TASK_INPUT_TEMPLATE, {"task_input": task_input, "ctx": ctx})
-            for task_input in task.inputs
-        ]
-    )
+        )
     session_name = args[0] if len(args) > 0 else ""
     return HTMLResponse(
         fstring_format(
@@ -62,7 +64,7 @@ def handle_task_ui(
                 "root_description": root_group.description,
                 "url": url,
                 "parent_url": parent_url,
-                "task_inputs": task_inputs,
+                "task_inputs": "\n".join(input_html_list),
                 "api_url": api_url,
                 "ui_url": ui_url,
                 "main_script": _MAIN_SCRIPT,

@@ -35,12 +35,11 @@ scaffold_fastapp = Scaffolder(
     ),
     transform_content={
         "fastapp_template": "{to_snake_case(ctx.input['app-name'])}",
-        "App Name": "{ctx.input['app-name'].title()}",
-        "App name": "{ctx.input['app-name'].capitalize()}",
-        "app-name": "{to_kebab_case(ctx.input['app-name'])}",
-        "app_name": "{to_snake_case(ctx.input['app-name'])}",
-        "APP_NAME": "{to_snake_case(ctx.input['app-name']).upper()}",
-        "secure-password": lambda _: get_random_name(),
+        "My App Name": "{ctx.input['app-name'].title()}",
+        "my-app-name": "{to_kebab_case(ctx.input['app-name'])}",
+        "my_app_name": "{to_snake_case(ctx.input['app-name'])}",
+        "MY_APP_NAME": "{to_snake_case(ctx.input['app-name']).upper()}",
+        "my-secure-password": lambda _: get_random_name(),
     },
     retries=0,
 )
@@ -48,6 +47,7 @@ scaffold_fastapp = Scaffolder(
 
 @make_task(
     name="register-fastapp-automation",
+    retries=0,
 )
 def register_fastapp_automation(ctx: AnyContext):
     project_dir_path = ctx.input["project-dir"]
@@ -66,6 +66,7 @@ add_fastapp_to_project = add_to_project_group.add_task(
     Task(
         name="add-fastapp",
         description="🚀 Add FastApp to project",
+        retries=0,
     ),
     alias="fastapp",
 )

@@ -5,16 +5,15 @@ from fastapp_template._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from zrb import CmdTask
 
 create_venv = CmdTask(
-    name="create-app-name-venv",
+    name="create-my-app-name-venv",
     cwd=APP_DIR,
     cmd="python -m venv .venv",
     execute_condition=lambda _: not os.path.isdir(os.path.join(APP_DIR, ".venv")),
 )
 
 prepare_venv = CmdTask(
-    name="prepare-app-name-venv",
+    name="prepare-my-app-name-venv",
     cmd=[ACTIVATE_VENV_SCRIPT, "pip install -r requirements.txt"],
     cwd=APP_DIR,
 )
 create_venv >> prepare_venv
-print(ACTIVATE_VENV_SCRIPT)

@@ -1,7 +1,7 @@
 from fastapp_template.common.app import app
 from fastapp_template.common.schema import BasicResponse
 from fastapp_template.config import APP_MODE, APP_MODULES
-from fastapp_template.module.auth.service.user.usecase import user_usecase
+from fastapp_template.module.auth.service.user.user_usecase import user_usecase
 
 if APP_MODE == "microservices" and "auth" in APP_MODULES:
 

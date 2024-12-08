@@ -82,13 +82,24 @@ class Cli(Group):
         shared_ctx = SharedContext(args=args)
         for task_input in task.inputs:
             if task_input.name in str_kwargs:
-                continue
-            if arg_index < len(args):
+                # Update shared context for next input default value
+                task_input.update_shared_context(
+                    shared_ctx, str_kwargs[task_input.name]
+                )
+            elif arg_index < len(args):
                 run_kwargs[task_input.name] = args[arg_index]
+                # Update shared context for next input default value
+                task_input.update_shared_context(
+                    shared_ctx, run_kwargs[task_input.name]
+                )
                 arg_index += 1
-                continue
-            str_value = task_input.prompt_cli_str(shared_ctx)
-            run_kwargs[task_input.name] = str_value
+            else:
+                str_value = task_input.prompt_cli_str(shared_ctx)
+                run_kwargs[task_input.name] = str_value
+                # Update shared context for next input default value
+                task_input.update_shared_context(
+                    shared_ctx, run_kwargs[task_input.name]
+                )
         return run_kwargs
 
     def _show_task_info(self, task: AnyTask):

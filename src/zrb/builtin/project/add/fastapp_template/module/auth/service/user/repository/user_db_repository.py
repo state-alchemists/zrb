@@ -1,9 +1,9 @@
-from fastapp.common.db_repository import BaseDBRepository
-from fastapp.common.error import NotFoundError
-from fastapp.module.auth.service.user.repository.repository import (
+from fastapp_template.common.base_db_repository import BaseDBRepository
+from fastapp_template.common.error import NotFoundError
+from fastapp_template.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
-from fastapp.schema.user import User, UserCreate, UserResponse, UserUpdate
+from fastapp_template.schema.user import User, UserCreate, UserResponse, UserUpdate
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session, select

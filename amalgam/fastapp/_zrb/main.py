@@ -1,10 +1,9 @@
 import os
 
-from fastapp._zrb.column.create_column_task import create_column
+from fastapp._zrb.column.create_column_task import create_fastapp_column
 from fastapp._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
-from fastapp._zrb.entity.create_entity_task import create_entity
+from fastapp._zrb.entity.create_entity_task import create_fastapp_entity
 from fastapp._zrb.group import (
-    app_create_group,
     app_create_migration_group,
     app_migrate_group,
     app_run_group,
@@ -14,14 +13,14 @@ from fastapp._zrb.helper import (
     migrate_module,
     run_microservice,
 )
-from fastapp._zrb.module.create_module_task import create_module
+from fastapp._zrb.module.create_module_task import create_fastapp_module
 from fastapp._zrb.venv_task import prepare_venv
 
 from zrb import CmdTask, Env, EnvFile, Task
 
-assert create_entity
-assert create_module
-assert create_column
+assert create_fastapp_entity
+assert create_fastapp_module
+assert create_fastapp_column
 
 # 🚀 Run/Migrate All ===========================================================
 
@@ -138,3 +137,24 @@ migrate_microservices_auth = app_migrate_group.add_task(
     migrate_module("auth", "auth", as_microservices=True), alias="microservices-auth"
 )
 prepare_venv >> migrate_microservices_auth >> [migrate_microservices, run_auth]
+
+# 🔐 Run/Migrate My Module ==========================================================
+
+run_anu = app_run_group.add_task(
+    run_microservice("anu", 3002, "anu"), alias="microservices-anu"
+)
+prepare_venv >> run_anu >> run_microservices
+
+create_anu_migration = app_create_migration_group.add_task(
+    create_migration("anu", "anu"), alias="anu"
+)
+prepare_venv >> create_anu_migration >> create_all_migration
+
+migrate_monolith_anu = migrate_module("anu", "anu", as_microservices=False)
+prepare_venv >> migrate_monolith_anu >> [migrate_monolith, run_monolith]
+
+migrate_microservices_anu = app_migrate_group.add_task(
+    migrate_module("anu", "anu", as_microservices=True),
+    alias="microservices-anu"
+)
+prepare_venv >> migrate_microservices_anu >> [migrate_microservices, run_anu]
