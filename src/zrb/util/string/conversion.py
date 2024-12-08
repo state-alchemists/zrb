@@ -63,6 +63,58 @@ def to_human_case(text: str | None) -> str:
     )
 
 
+def pluralize(noun: str) -> str:
+    """
+    Pluralize a given noun.
+
+    Args:
+        noun (str): The singular noun.
+
+    Returns:
+        str: The plural form of the noun.
+    """
+    # Irregular plural forms
+    irregulars = {
+        "foot": "feet",
+        "tooth": "teeth",
+        "child": "children",
+        "person": "people",
+        "man": "men",
+        "woman": "women",
+        "mouse": "mice",
+        "goose": "geese",
+        "ox": "oxen",
+        "cactus": "cacti",
+        "focus": "foci",
+        "fungus": "fungi",
+        "nucleus": "nuclei",
+        "syllabus": "syllabi",
+        "analysis": "analyses",
+        "diagnosis": "diagnoses",
+        "thesis": "theses",
+        "crisis": "crises",
+        "phenomenon": "phenomena",
+        "criterion": "criteria",
+    }
+
+    # Handle irregular nouns
+    if noun.lower() in irregulars:
+        return irregulars[noun.lower()]
+    # Handle words ending in 'y' preceded by a consonant
+    if noun.endswith("y") and not re.match(r"[aeiou]y$", noun):
+        return re.sub(r"y$", "ies", noun)
+    # Handle words ending in 's', 'x', 'z', 'ch', or 'sh'
+    if re.search(r"(s|x|z|ch|sh)$", noun):
+        return noun + "es"
+    # Handle words ending in 'f' or 'fe'
+    if re.search(r"f$|fe$", noun):
+        if noun.endswith("fe"):
+            return re.sub(r"fe$", "ves", noun)
+        return re.sub(r"f$", "ves", noun)
+    # Handle general case for regular plurals
+    return noun + "s"
+
+
 def _to_space_separated(text: str | None) -> str:
     text = str(text) if text is not None else ""
     text = text.replace("-", " ").replace("_", " ")

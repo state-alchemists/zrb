@@ -1,14 +1,12 @@
 import os
 
+from fastapp_template._zrb.config import APP_DIR
 from fastapp_template._zrb.group import app_create_group
 from fastapp_template._zrb.helper import get_existing_module_names
 from fastapp_template._zrb.input import new_module_input
-from fastapp_template._zrb.config import APP_DIR
 
 from zrb import AnyContext, Scaffolder, Task, make_task
-from zrb.util.string.conversion import to_snake_case, to_kebab_case
-
-_DIR = os.path.dirname(__file__)
+from zrb.util.string.conversion import to_kebab_case, to_snake_case
 
 
 @make_task(
@@ -24,10 +22,10 @@ def validate_create_my_app_name_module(ctx: AnyContext):
 scaffold_my_app_name_module = Scaffolder(
     name="scaffold-my-app-name-module",
     input=new_module_input,
-    source_path=os.path.join(_DIR, "module_template"),
+    source_path=os.path.join(os.path.dirname(__file__), "module_template"),
     render_source_path=False,
     destination_path=lambda ctx: os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        APP_DIR,
         "module",
         to_snake_case(ctx.input.module),
     ),
@@ -86,30 +84,6 @@ def register_my_app_name_module(ctx: AnyContext):
         f.write(new_code)
 
 
-MODULE_RUNNER_SCRIPT = '''
-# 🔐 Run/Migrate My Module ==========================================================
-
-run_my_module = app_run_group.add_task(
-    run_microservice("my-module", my-module-port, "my_module"), alias="microservices-my_module"
-)
-prepare_venv >> run_my_module >> run_microservices
-
-create_my_module_migration = app_create_migration_group.add_task(
-    create_migration("my-module", "my_module"), alias="my_module"
-)
-prepare_venv >> create_my_module_migration >> create_all_migration
-
-migrate_monolith_my_module = migrate_module("my_module", "my_module", as_microservices=False)
-prepare_venv >> migrate_monolith_my_module >> [migrate_monolith, run_monolith]
-
-migrate_microservices_my_module = app_migrate_group.add_task(
-    migrate_module("my-module", "my_module", as_microservices=True),
-    alias="microservices-my-module"
-)
-prepare_venv >> migrate_microservices_my_module >> [migrate_microservices, run_my_module]
-'''
-
-
 @make_task(
     name="register-my-app-name-module-runner",
     input=new_module_input,
@@ -129,13 +103,13 @@ def register_my_app_name_module_runner(ctx: AnyContext):
     )
     module_name = to_snake_case(ctx.input.module)
     module_title = to_kebab_case(ctx.input.module)
-    module_runner_code = MODULE_RUNNER_SCRIPT.replace(
-        "my_module", module_name
-    ).replace(
-        "my-module", module_title
-    ).replace(
-        "my-module-port", module_port
-    )
+    with open(os.path.join(os.path.dirname(__file__), "run_module.template.py")) as f:
+        module_runner_code = (
+            f.read()
+            .replace("my_module", module_name)
+            .replace("my-module", module_title)
+            .replace("3000", f"{module_port}")
+        )
     with open(task_main_file_name, "r") as f:
         code = f.read()
     new_code = "\n".join([code.strip(), "", module_runner_code, ""])
@@ -144,15 +118,15 @@ def register_my_app_name_module_runner(ctx: AnyContext):
         f.write(new_code)
 
 
-create_module = app_create_group.add_task(
+create_my_app_name_module = app_create_group.add_task(
     Task(
         name="create-my-app-name-module",
         description="🧩 Create new module on My App Name",
-        retries=0
+        retries=0,
     ),
     alias="module",
 )
-create_module << [
+create_my_app_name_module << [
     scaffold_my_app_name_module,
     register_my_app_name_module,
     register_my_app_name_module_config,

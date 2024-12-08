@@ -92,8 +92,8 @@ class Scaffolder(BaseTask):
         destination_path = self._get_destination_path(ctx)
         self._copy_path(ctx, source_path, destination_path)
         transformers = self._get_content_transformers()
-        file_paths = self._get_all_file_paths(destination_path)
-        for file_path in file_paths:
+        file_path_list = self._get_all_file_paths(destination_path)
+        for file_path in file_path_list:
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
                     try:
@@ -118,14 +118,10 @@ class Scaffolder(BaseTask):
                         dest_dir, self._transform_path(ctx, file_name)
                     )
                     shutil.copy2(src_file, dest_file)
-                    ctx.log_info(f"Copied and renamed {src_file} to {dest_file}")
+                    ctx.log_info(f"Copied {src_file} to {dest_file}")
         else:
-            dest_file = os.path.join(
-                destination_path,
-                self._transform_path(ctx, os.path.basename(source_path)),
-            )
-            shutil.copy2(source_path, dest_file)
-            ctx.log_info(f"Copied and renamed {source_path} to {dest_file}")
+            shutil.copy2(source_path, destination_path)
+            ctx.log_info(f"Copied {source_path} to {destination_path}")
 
     def _transform_path(self, ctx: AnyContext, file_path: str):
         if callable(self._path_transformer):
@@ -139,6 +135,8 @@ class Scaffolder(BaseTask):
         """
         Returns a list of absolute file paths for all files in the given path, recursively.
         """
+        if os.path.isfile(path):
+            return [os.path.abspath(path)]
         file_paths = []
         for root, _, files in os.walk(path):
             for file in files:

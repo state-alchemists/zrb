@@ -1,8 +1,8 @@
 import os
 
-from fastapp_template._zrb.column.create_column_task import create_column
+from fastapp_template._zrb.column.create_column_task import create_my_app_name_column
 from fastapp_template._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
-from fastapp_template._zrb.entity.create_entity_task import create_entity
+from fastapp_template._zrb.entity.create_entity_task import create_my_app_name_entity
 from fastapp_template._zrb.group import (
     app_create_migration_group,
     app_migrate_group,
@@ -13,20 +13,21 @@ from fastapp_template._zrb.helper import (
     migrate_module,
     run_microservice,
 )
-from fastapp_template._zrb.module.create_module_task import create_module
+from fastapp_template._zrb.module.create_module_task import create_my_app_name_module
 from fastapp_template._zrb.venv_task import prepare_venv
 
 from zrb import CmdTask, Env, EnvFile, Task
 
-assert create_entity
-assert create_module
-assert create_column
+assert create_my_app_name_entity
+assert create_my_app_name_module
+assert create_my_app_name_column
 
 # 🚀 Run/Migrate All ===========================================================
 
 run_all = app_run_group.add_task(
     Task(
-        name="run-my-app-name", description="🟢 Run My App Name as monolith and microservices"
+        name="run-my-app-name",
+        description="🟢 Run My App Name as monolith and microservices",
     ),
     alias="all",
 )
@@ -41,7 +42,8 @@ migrate_all = app_migrate_group.add_task(
 
 create_all_migration = app_create_migration_group.add_task(
     Task(
-        name="create-my-app-name-migration", description="📦 Create My App Name DB migration"
+        name="create-my-app-name-migration",
+        description="📦 Create My App Name DB migration",
     ),
     alias="all",
 )

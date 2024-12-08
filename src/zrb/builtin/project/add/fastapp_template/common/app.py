@@ -13,6 +13,8 @@ async def lifespan(app: FastAPI):
 
 
 app_title = (
-    "My App Name" if APP_MODE == "monolith" else f"My App Name - {', '.join(APP_MODULES)}"
+    "My App Name"
+    if APP_MODE == "monolith"
+    else f"My App Name - {', '.join(APP_MODULES)}"
 )
 app = FastAPI(title=app_title, lifespan=lifespan)

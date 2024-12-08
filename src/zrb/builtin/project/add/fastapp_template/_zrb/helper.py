@@ -107,5 +107,5 @@ def get_existing_schema_names() -> list[str]:
     return [
         os.path.splitext(entry.name)[0]
         for entry in os.scandir(module_dir_path)
-        if entry.is_file() and entry.name.endswith('.py')
+        if entry.is_file() and entry.name.endswith(".py")
     ]
