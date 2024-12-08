@@ -9,21 +9,20 @@ from typing import Any
 pattern = re.compile("[^a-zA-Z0-9]")
 
 
-def load_zrb_init(dir_path: str | None = None):
+def load_zrb_init(dir_path: str | None = None) -> Any | None:
     if dir_path is None:
         dir_path = os.getcwd()
     script_path = os.path.join(dir_path, "zrb_init.py")
     if os.path.isfile(script_path):
-        load_file(script_path, -1)
-        return
+        return load_file(script_path, -1)
     new_dir_path = os.path.dirname(dir_path)
     if new_dir_path == dir_path:
         return
-    load_zrb_init(new_dir_path)
+    return load_zrb_init(new_dir_path)
 
 
 @lru_cache()
-def load_file(script_path: str, sys_path_index: int = 0):
+def load_file(script_path: str, sys_path_index: int = 0) -> Any:
     if not os.path.isfile(script_path):
         return
     # Append script dir path
@@ -36,6 +35,7 @@ def load_file(script_path: str, sys_path_index: int = 0):
     spec = importlib.util.spec_from_file_location(module_name, script_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    return module
 
 
 def _get_new_python_path(dir_path: str) -> str:

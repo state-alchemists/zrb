@@ -18,7 +18,7 @@ scaffold_project = Scaffolder(
             default_str=lambda _: os.getcwd(),
         ),
         StrInput(
-            name="project-name",
+            name="project",
             description="Project name",
             prompt="Project name",
             default_str=lambda ctx: os.path.basename(ctx.input["project-dir"]),
@@ -27,7 +27,7 @@ scaffold_project = Scaffolder(
     source_path=os.path.join(_DIR, "project-template"),
     render_source_path=False,
     destination_path="{ctx.input['project-dir']}",
-    transform_content={"Project Name": "{ctx.input['project-name'].title()}"},
+    transform_content={"Project Name": "{ctx.input.project.title()}"},
     retries=0,
 )
 

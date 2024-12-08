@@ -1,4 +1,5 @@
 import os
+import traceback
 
 from zrb import (
     AnyContext,
@@ -16,6 +17,7 @@ from zrb.builtin.git import git_commit
 from zrb.builtin.project.add.fastapp import add_fastapp_to_project
 from zrb.builtin.project.create.create import create_project
 from zrb.util.load import load_file
+from zrb.util.cli.style import stylize_error
 
 _DIR = os.path.dirname(__file__)
 
@@ -88,7 +90,9 @@ format_code >> git_commit
 
 # PIP =========================================================================
 
-pip_group = cli.add_group(Group(name="pip", description="📦 Pip related command"))
+pip_group = cli.add_group(
+    Group(name="pip", description="📦 Pip related command")
+)
 
 publish_pip = pip_group.add_task(
     CmdTask(
@@ -103,35 +107,43 @@ format_code >> publish_pip
 
 # GENERATOR TEST ==============================================================
 
-clean_up_test_generator_resources = CmdTask(
-    name="clean-up-resources",
-    cmd=f"rm -Rf {os.path.join(_DIR, 'amalgam')}",
-    render_cmd=False,
+remove_generated = cli.add_task(
+    CmdTask(
+        name="remove-generated",
+        description="🔄 Remove generated resources",
+        cmd=f"rm -Rf {os.path.join(_DIR, 'playground', 'test-generated')}",
+        render_cmd=False,
+    )
 )
 
 
-@make_task(name="test-generator", group=test_group, alias="generator")
-async def test_generator(ctx: AnyContext):
+@make_task(
+    name="test-generate-fastapp",
+    description="🔨 Test generate fastapp",
+    group=test_group,
+    alias="generate"
+)
+async def test_generate(ctx: AnyContext):
     # Test create project
     ctx.print("Create project")
-    project_dir = os.path.join(_DIR, "amalgam")
+    project_dir = os.path.join(_DIR, "playground", "test-generated")
     project_name = "Amalgam"
     await create_project.async_run(
-        str_kwargs={"project-dir": project_dir, "project-name": project_name}
+        str_kwargs={"project-dir": project_dir, "project": project_name}
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Test create fastapp
     ctx.print("Add fastapp")
     app_name = "fastapp"
     await add_fastapp_to_project.async_run(
-        str_kwargs={"project-dir": project_dir, "app-name": app_name}
+        str_kwargs={"project-dir": project_dir, "app": app_name}
     )
     assert os.path.isdir(os.path.join(project_dir, app_name))
     # Done
     ctx.print("Done")
 
 
-clean_up_test_generator_resources >> test_generator
+remove_generated >> test_generate
 
 
 # PLAYGROUND ==================================================================
@@ -140,8 +152,49 @@ playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
     load_file(playground_zrb_init_path)
 
-# AMALGAM =====================================================================
+# GENERATED ===================================================================
 
-amalgam_zrb_init_path = os.path.join(_DIR, "amalgam", "zrb_init.py")
-if os.path.isfile(amalgam_zrb_init_path):
-    load_file(amalgam_zrb_init_path)
+generated_path = os.path.join(_DIR, "playground", "test-generated")
+generated_zrb_init_path = os.path.join(generated_path, "zrb_init.py")
+if os.path.isfile(generated_zrb_init_path):
+    try:
+        module = load_file(generated_zrb_init_path)
+
+        @make_task(
+            name="test-fastapp",
+            description="🧪 Test fastapp",
+            group=test_group,
+            alias="fastapp",
+        )
+        async def test_fastapp(ctx: AnyContext):
+            fastapp = module.fastapp
+            # First test: create module
+            ctx.print("Create module")
+            create_fastapp_module = fastapp.create_fastapp_module
+            await create_fastapp_module.async_run(
+                str_kwargs={"module": "library"}
+            )
+            assert os.path.isdir(
+                os.path.join(generated_path, "fastapp", "module", "library")
+            )
+            # Second test: create entity
+            ctx.print("Create entity")
+            create_fastapp_entity = fastapp.create_fastapp_entity
+            await create_fastapp_entity.async_run(
+                str_kwargs={
+                    "module": "library",
+                    "entity": "book",
+                    "plural": "books",
+                    "column": "title"
+                }
+            )
+            assert os.path.isfile(
+                os.path.join(generated_path, "fastapp", "schema", "book")
+            )
+            # Done
+            ctx.print("Done")
+
+        test_generate >> test_fastapp
+
+    except Exception:
+        print(stylize_error(traceback.format_exc()))

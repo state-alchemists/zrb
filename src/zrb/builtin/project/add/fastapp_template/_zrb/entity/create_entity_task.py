@@ -14,7 +14,8 @@ from fastapp_template._zrb.input import (
 )
 
 from zrb import AnyContext, Scaffolder, Task, make_task
-from zrb.util.string.conversion import to_kebab_case, to_snake_case
+from zrb.util.codemod.add_parent_to_class import add_parent_to_class
+from zrb.util.string.conversion import to_snake_case
 
 
 @make_task(
@@ -83,6 +84,17 @@ scaffold_my_app_name_module_entity = Scaffolder(
     upstream=validate_create_my_app_name_entity,
 )
 
+
+@make_task(name="register-my-app-name-api-client", input=new_entity_input)
+def register_my_app_name_api_client(ctx: AnyContext):
+    pass
+
+
+@make_task(name="register-my-app-name-direct-client", input=new_entity_input)
+def register_my_app_name_direct_client(ctx: AnyContext):
+    pass
+
+
 create_my_app_name_entity = app_create_group.add_task(
     Task(
         name="create-my-app-name-entity",
@@ -94,4 +106,6 @@ create_my_app_name_entity = app_create_group.add_task(
 create_my_app_name_entity << [
     scaffold_my_app_name_schema,
     scaffold_my_app_name_module_entity,
+    register_my_app_name_api_client,
+    register_my_app_name_direct_client,
 ]
