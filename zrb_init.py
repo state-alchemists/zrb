@@ -194,10 +194,10 @@ if os.path.isfile(generated_zrb_init_path):
             )
             # Create migration
             ctx.print("Create migration")
-            create_library_migration = fastapp.create_library_migration
-            await create_library_migration.async_run(
-                str_kwargs={"message": "create book table"}
-            )
+            # create_library_migration = fastapp.create_library_migration
+            # await create_library_migration.async_run(
+            #     str_kwargs={"message": "create book table"}
+            # )
             # Start microservices
             ctx.print("Run microservices")
             run_microservices = fastapp.run_microservices

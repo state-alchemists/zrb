@@ -165,8 +165,8 @@ async def register_my_app_name_direct_client(ctx: AnyContext):
     )
     new_code = add_parent_to_class(
         original_code=new_code,
-        class_name="directClient",
-        parent_class_name="user_direct_client()",
+        class_name="DirectClient",
+        parent_class_name="user_direct_client",
     )
     app_name = os.path.basename(APP_DIR)
     entity_name = to_snake_case(ctx.input.entity)
