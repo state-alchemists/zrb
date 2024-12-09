@@ -66,7 +66,7 @@ class BaseInput(AnyInput):
         default_value = self._get_default_str(shared_ctx)
         if default_value != "":
             prompt_message = f"{prompt_message} [{default_value}]"
-        print(f"{prompt_message}: ")
+        print(f"{prompt_message}: ", end="")
         value = input()
         if value.strip() == "":
             value = default_value
