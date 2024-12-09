@@ -1,5 +1,5 @@
 import os
-import sys
+from typing import Any
 
 from zrb import (
     AnyContext,
@@ -14,8 +14,8 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.builtin.project.add.fastapp import add_fastapp_to_project
-from zrb.builtin.project.create.create import create_project
+from zrb.cmd.cmd_val import CmdVal
+from zrb.util.cli.style import WHITE
 from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
@@ -80,7 +80,14 @@ format_code = code_group.add_task(
         name="format-code",
         description="Format Zrb code",
         cwd=_DIR,
-        cmd=CmdPath(os.path.join(_DIR, "zrb-format-code.sh")),
+        cmd=[
+            "isort src",
+            "black src",
+            "isort test",
+            "black test",
+            "isort zrb_init.py",
+            "black zrb_init.py",
+        ],
     ),
     alias="format",
 )
@@ -89,16 +96,14 @@ format_code >> git_commit
 
 # PIP =========================================================================
 
-pip_group = cli.add_group(
-    Group(name="pip", description="📦 Pip related command")
-)
+pip_group = cli.add_group(Group(name="pip", description="📦 Pip related command"))
 
 publish_pip = pip_group.add_task(
     CmdTask(
         name="publish-pip",
         description="Publish Zrb",
         cwd=_DIR,
-        cmd=CmdPath(os.path.join(_DIR, "zrb-publish.sh")),
+        cmd="poetry publish --build",
     ),
     alias="publish",
 )
@@ -120,69 +125,46 @@ remove_generated = cli.add_task(
     name="test-generate-fastapp",
     description="🔨 Test generate fastapp",
     group=test_group,
-    alias="generate"
+    alias="generate",
 )
 async def test_generate(ctx: AnyContext):
     # Create project
-    ctx.print("Create project")
     project_dir = os.path.join(_DIR, "playground", "generated")
     project_name = "Amalgam"
-    await create_project.async_run(
-        str_kwargs={"project-dir": project_dir, "project": project_name}
+    await run_cmd_test(
+        name="create-project",
+        cmd=f"zrb project create --project-dir {project_dir} --project {project_name}",
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
-
     # Create fastapp
-    ctx.print("Add fastapp")
     app_name = "fastapp"
-    await add_fastapp_to_project.async_run(
-        str_kwargs={"project-dir": project_dir, "app": app_name}
+    await run_cmd_test(
+        name="create-fastapp",
+        cmd=f"zrb project add fastapp --project-dir {project_dir} --app {app_name}",
     )
     assert os.path.isdir(os.path.join(project_dir, app_name))
-
-    # Get fastapp task path
-    app_dir_path = os.path.join(project_dir, app_name)
-    app_task_path = os.path.join(app_dir_path, "_zrb", "main.py")
-
-    # Load fastapp task
-    ctx.print("Load fastapp tasks")
-    assert os.path.isfile(app_task_path)
-    sys.path.insert(0, os.path.dirname(app_dir_path))
-    app_task = load_file(app_task_path)
-
     # Create module
-    ctx.print("Create module")
-    create_fastapp_module = app_task.create_fastapp_module
-    await create_fastapp_module.async_run(str_kwargs={"module": "library"})
+    app_dir_path = os.path.join(project_dir, app_name)
+    await run_cmd_test(
+        name="create-module", cmd="zrb project fastapp create module --module library"
+    )
     assert os.path.isdir(os.path.join(app_dir_path, "module", "library"))
-    # Second test: create entity
-    ctx.print("Create entity")
-    create_fastapp_entity = app_task.create_fastapp_entity
-    await create_fastapp_entity.async_run(
-        str_kwargs={
-            "module": "library",
-            "entity": "book",
-            "plural": "books",
-            "column": "title"
-        }
+    # Create entity
+    await run_cmd_test(
+        name="create-entity",
+        cmd="zrb project fastapp create entity --module library --entity book --plural books --column title",  # noqa
     )
     assert os.path.isfile(os.path.join(app_dir_path, "schema", "book.py"))
-
-    # Reload module
-    ctx.print("Reload fastapp tasks")
-    app_task = load_file(app_task_path, reload=True)
-
     # Create migration
-    ctx.print("Create migration")
-    create_library_migration = app_task.create_library_migration
-    await create_library_migration.async_run(
-        str_kwargs={"message": "create book table"}
+    await run_cmd_test(
+        name="create-migration",
+        cmd='zrb project fastapp create migration library --message "create book"',
     )
-
     # Start microservices
-    ctx.print("Run microservices")
-    run_microservices = app_task.run_microservices
-    await run_microservices.async_run()
+    await run_cmd_test(
+        name="run-microservices",
+        cmd="zrb project fastapp run microservices",
+    )
 
 
 remove_generated >> test_generate
@@ -193,3 +175,20 @@ remove_generated >> test_generate
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
     load_file(playground_zrb_init_path)
+
+# GENERATED ===================================================================
+
+generated_zrb_init_path = os.path.join(_DIR, "playground", "generated", "zrb_init.py")
+if os.path.isfile(generated_zrb_init_path):
+    load_file(generated_zrb_init_path)
+
+
+async def run_cmd_test(name: str, cmd: CmdVal) -> Any:
+    return await CmdTask(
+        name=name,
+        icon="🧪",
+        color=WHITE,
+        retries=0,
+        env=Env("ZRB_SHOW_TIME", "False", link_to_os=False),
+        cmd=cmd,
+    ).async_run()

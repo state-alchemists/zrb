@@ -6,7 +6,7 @@ from fastapp_template._zrb.helper import get_existing_module_names
 from fastapp_template._zrb.input import new_module_input
 
 from zrb import AnyContext, Scaffolder, Task, make_task
-from zrb.util.string.conversion import to_kebab_case, to_snake_case
+from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 
 
 @make_task(
@@ -47,7 +47,7 @@ scaffold_my_app_name_module = Scaffolder(
 async def register_my_app_name_module_config(ctx: AnyContext):
     """Registering module to config.py"""
     existing_module_names = get_existing_module_names()
-    module_port = 3001 + len(
+    module_port = 3000 + len(
         [
             module_name
             for module_name in existing_module_names
@@ -94,20 +94,22 @@ async def register_my_app_name_module_runner(ctx: AnyContext):
     """Registering module to _zrb's main.py"""
     task_main_file_name = os.path.join(APP_DIR, "_zrb", "main.py")
     existing_module_names = get_existing_module_names()
-    module_port = 3000 + len(
+    module_port = 3001 + len(
         [
             module_name
             for module_name in existing_module_names
             if module_name != to_snake_case(ctx.input.module)
         ]
     )
-    module_name = to_snake_case(ctx.input.module)
-    module_title = to_kebab_case(ctx.input.module)
+    module_snake_name = to_snake_case(ctx.input.module)
+    module_kebab_name = to_kebab_case(ctx.input.module)
+    module_pascal_name = to_pascal_case(ctx.input.module)
     with open(os.path.join(os.path.dirname(__file__), "run_module.template.py")) as f:
         module_runner_code = (
             f.read()
-            .replace("my_module", module_name)
-            .replace("my-module", module_title)
+            .replace("my_module", module_snake_name)
+            .replace("my-module", module_kebab_name)
+            .replace("My Module", module_pascal_name)
             .replace("3000", f"{module_port}")
         )
     with open(task_main_file_name, "r") as f:

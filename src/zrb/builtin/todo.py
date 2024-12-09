@@ -41,11 +41,13 @@ from zrb.util.todo import (
             name="project",
             description="Task project",
             prompt="Task project (space separated)",
+            allow_empty=True,
         ),
         StrInput(
             name="context",
             description="Task context",
             prompt="Task context (space separated)",
+            allow_empty=True,
         ),
     ],
     description="➕ Add todo",
