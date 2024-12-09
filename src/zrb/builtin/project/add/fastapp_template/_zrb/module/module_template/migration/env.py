@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from fastapp_template.config import APP_DB_URL
-from fastapp_template.module.auth.migration_metadata import metadata
+from fastapp_template.module.my_module.migration_metadata import metadata
 from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object, which provides
@@ -10,7 +10,7 @@ from sqlalchemy import engine_from_config, pool
 config = context.config
 
 # 🔥 FastApp Modification
-MIGRATION_TABLE = "_migration_auth"
+MIGRATION_TABLE = "_migration_my_module"
 # 🔥 FastApp Modification
 config.set_section_option(config.config_ini_section, "sqlalchemy.url", APP_DB_URL)
 

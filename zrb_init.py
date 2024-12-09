@@ -165,6 +165,7 @@ if os.path.isfile(generated_zrb_init_path):
             description="🧪 Test fastapp",
             group=test_group,
             alias="fastapp",
+            retries=0,
         )
         async def test_fastapp(ctx: AnyContext):
             fastapp = module.fastapp
@@ -189,10 +190,18 @@ if os.path.isfile(generated_zrb_init_path):
                 }
             )
             assert os.path.isfile(
-                os.path.join(generated_path, "fastapp", "schema", "book")
+                os.path.join(generated_path, "fastapp", "schema", "book.py")
             )
-            # Done
-            ctx.print("Done")
+            # Create migration
+            ctx.print("Create migration")
+            create_library_migration = fastapp.create_library_migration
+            await create_library_migration.async_run(
+                str_kwargs={"message": "create book table"}
+            )
+            # Start microservices
+            ctx.print("Run microservices")
+            run_microservices = fastapp.run_microservices
+            await run_microservices.async_run()
 
         test_generate >> test_fastapp
 

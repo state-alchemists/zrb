@@ -14,8 +14,9 @@ from fastapp_template._zrb.input import (
 )
 
 from zrb import AnyContext, Scaffolder, Task, make_task
+from zrb.util.codemod.add_code_to_module import add_code_to_module
 from zrb.util.codemod.add_parent_to_class import add_parent_to_class
-from zrb.util.string.conversion import to_snake_case
+from zrb.util.string.conversion import to_pascal_case, to_snake_case
 
 
 @make_task(
@@ -28,7 +29,7 @@ from zrb.util.string.conversion import to_snake_case
     ],
     retries=0,
 )
-def validate_create_my_app_name_entity(ctx: AnyContext):
+async def validate_create_my_app_name_entity(ctx: AnyContext):
     module_name = to_snake_case(ctx.input.module)
     if module_name not in get_existing_module_names():
         raise ValueError(f"Module not exist: {module_name}")
@@ -85,14 +86,98 @@ scaffold_my_app_name_module_entity = Scaffolder(
 )
 
 
-@make_task(name="register-my-app-name-api-client", input=new_entity_input)
-def register_my_app_name_api_client(ctx: AnyContext):
-    pass
+@make_task(
+    name="register-my-app-name-migration",
+    input=[existing_module_input, new_entity_input],
+    retries=0,
+    upstream=validate_create_my_app_name_entity,
+)
+async def register_my_app_name_migration(ctx: AnyContext):
+    migration_metadata_file_path = os.path.join(
+        APP_DIR, "module", to_snake_case(ctx.input.module), "migration_metadata.py"
+    )
+    app_name = os.path.basename(APP_DIR)
+    with open(migration_metadata_file_path, "r") as f:
+        file_content = f.read()
+    entity_name = to_snake_case(ctx.input.entity)
+    entity_class = to_pascal_case(ctx.input.entity)
+    new_file_content_list = (
+        [f"from {app_name}.schema.{entity_name} import {entity_class}"]
+        + file_content.strip()
+        + [
+            f"{entity_class}.metadata = metadata",
+            f"{entity_class}.__table__.tometadata(metadata)",
+            "",
+        ]
+    )
+    with open(migration_metadata_file_path, "w") as f:
+        f.write("\n".join(new_file_content_list))
 
 
-@make_task(name="register-my-app-name-direct-client", input=new_entity_input)
-def register_my_app_name_direct_client(ctx: AnyContext):
-    pass
+@make_task(
+    name="register-my-app-name-api-client",
+    input=[existing_module_input, new_entity_input],
+    retries=0,
+    upstream=validate_create_my_app_name_entity,
+)
+async def register_my_app_name_api_client(ctx: AnyContext):
+    api_client_file_path = os.path.join(
+        APP_DIR, "module", to_snake_case(ctx.input.module), "client", "api_client.py"
+    )
+    with open(api_client_file_path, "r") as f:
+        file_content = f.read()
+    module_config_name = to_snake_case(ctx.input.module).upper()
+    new_code = add_code_to_module(
+        file_content,
+        f"user_api_client = user_usecase.as_api_client(base_url=APP_{module_config_name}_BASE_URL)",  # noqa
+    )
+    new_code = add_parent_to_class(
+        original_code=new_code,
+        class_name="APIClient",
+        parent_class_name="user_api_client",
+    )
+    app_name = os.path.basename(APP_DIR)
+    entity_name = to_snake_case(ctx.input.entity)
+    module_name = to_snake_case(ctx.input.module)
+    new_file_content_list = [
+        f"from {app_name}.module.{module_name}.service.{entity_name} import {entity_name}_usecase",  # noqa
+        new_code.strip(),
+        "",
+    ]
+    with open(api_client_file_path, "w") as f:
+        f.write("\n".join(new_file_content_list))
+
+
+@make_task(
+    name="register-my-app-name-direct-client",
+    input=[existing_module_input, new_entity_input],
+    retries=0,
+    upstream=validate_create_my_app_name_entity,
+)
+async def register_my_app_name_direct_client(ctx: AnyContext):
+    direct_client_file_path = os.path.join(
+        APP_DIR, "module", to_snake_case(ctx.input.module), "client", "direct_client.py"
+    )
+    with open(direct_client_file_path, "r") as f:
+        file_content = f.read()
+    new_code = add_code_to_module(
+        file_content, "user_direct_client = user_usecase.as_direct_client()"
+    )
+    new_code = add_parent_to_class(
+        original_code=new_code,
+        class_name="directClient",
+        parent_class_name="user_direct_client()",
+    )
+    app_name = os.path.basename(APP_DIR)
+    entity_name = to_snake_case(ctx.input.entity)
+    module_name = to_snake_case(ctx.input.module)
+    new_file_content_list = [
+        f"from {app_name}.module.{module_name}.service.{entity_name} import {entity_name}_usecase",  # noqa
+        new_code.strip(),
+        "",
+    ]
+    with open(direct_client_file_path, "w") as f:
+        f.write("\n".join(new_file_content_list))
 
 
 create_my_app_name_entity = app_create_group.add_task(

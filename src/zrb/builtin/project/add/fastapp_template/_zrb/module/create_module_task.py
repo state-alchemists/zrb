@@ -14,7 +14,7 @@ from zrb.util.string.conversion import to_kebab_case, to_snake_case
     input=new_module_input,
     retries=0,
 )
-def validate_create_my_app_name_module(ctx: AnyContext):
+async def validate_create_my_app_name_module(ctx: AnyContext):
     if ctx.input.module in get_existing_module_names():
         raise ValueError(f"Module already exists: {ctx.input.module}")
 
@@ -44,10 +44,10 @@ scaffold_my_app_name_module = Scaffolder(
     upstream=validate_create_my_app_name_module,
     retries=0,
 )
-def register_my_app_name_module_config(ctx: AnyContext):
+async def register_my_app_name_module_config(ctx: AnyContext):
     """Registering module to config.py"""
     existing_module_names = get_existing_module_names()
-    module_port = 3000 + len(
+    module_port = 3001 + len(
         [
             module_name
             for module_name in existing_module_names
@@ -70,7 +70,7 @@ def register_my_app_name_module_config(ctx: AnyContext):
     upstream=validate_create_my_app_name_module,
     retries=0,
 )
-def register_my_app_name_module(ctx: AnyContext):
+async def register_my_app_name_module(ctx: AnyContext):
     """Registering module to application's main.py"""
     app_main_file_name = os.path.join(APP_DIR, "main.py")
     module_name = to_snake_case(ctx.input.module)
@@ -90,7 +90,7 @@ def register_my_app_name_module(ctx: AnyContext):
     upstream=validate_create_my_app_name_module,
     retries=0,
 )
-def register_my_app_name_module_runner(ctx: AnyContext):
+async def register_my_app_name_module_runner(ctx: AnyContext):
     """Registering module to _zrb's main.py"""
     task_main_file_name = os.path.join(APP_DIR, "_zrb", "main.py")
     existing_module_names = get_existing_module_names()
