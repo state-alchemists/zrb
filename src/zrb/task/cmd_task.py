@@ -1,6 +1,4 @@
-import asyncio
 import os
-import sys
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.cmd.cmd_result import CmdResult
@@ -12,7 +10,7 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_int_attr, get_str_attr
-from zrb.util.cmd.command import check_unrecommended_commands
+from zrb.util.cmd.command import check_unrecommended_commands, run_command
 from zrb.util.cmd.remote import get_remote_cmd_script
 
 
@@ -119,43 +117,25 @@ class CmdTask(BaseTask):
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
         ctx.log_debug(f"Environment map: {env_map}")
-        cmd_process = None
         if self._get_should_warn_unrecommended_commands():
             self._check_unrecommended_commands(ctx, shell, cmd_script)
-        try:
-            ctx.log_info("Running script")
-            cmd_process = await asyncio.create_subprocess_exec(
-                shell,
-                shell_flag,
-                cmd_script,
-                cwd=cwd,
-                stdin=sys.stdin if sys.stdin.isatty() else None,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env_map,
-                bufsize=0,
+        ctx.log_info("Running script")
+        cmd_result, return_code = await run_command(
+            cmd=[shell, shell_flag, cmd_script],
+            cwd=cwd,
+            env_map=env_map,
+            log_method=ctx.print,
+            max_output_line=self._max_output_line,
+            max_error_line=self._max_error_line,
+        )
+        # Check for errors
+        if return_code != 0:
+            ctx.log_error(f"Exit status: {return_code}")
+            raise Exception(
+                f"Process {self._name} exited ({return_code}): {cmd_result.stderr}"
             )
-            stdout_task = asyncio.create_task(
-                self.__read_stream(cmd_process.stdout, ctx.print, self._max_output_line)
-            )
-            stderr_task = asyncio.create_task(
-                self.__read_stream(cmd_process.stderr, ctx.print, self._max_error_line)
-            )
-            # Wait for process to complete and gather stdout/stderr
-            return_code = await cmd_process.wait()
-            stdout = await stdout_task
-            stderr = await stderr_task
-            # Check for errors
-            if return_code != 0:
-                ctx.log_error(f"Exit status: {return_code}")
-                raise Exception(
-                    f"Process {self._name} exited ({return_code}): {stderr}"
-                )
-            ctx.log_info(f"Exit status: {return_code}")
-            return CmdResult(stdout, stderr)
-        finally:
-            if cmd_process is not None and cmd_process.returncode is None:
-                cmd_process.terminate()
+        ctx.log_info(f"Exit status: {return_code}")
+        return cmd_result
 
     def _get_should_warn_unrecommended_commands(self):
         if self._should_warn_unrecommended_command is None:
@@ -177,19 +157,6 @@ class CmdTask(BaseTask):
         envs["_ZRB_SSH_PASSWORD"] = self._get_remote_password(ctx)
         envs["PYTHONBUFFERED"] = "1"
         return envs
-
-    async def __read_stream(self, stream, log_method, max_lines):
-        lines = []
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            line = line.decode("utf-8").rstrip()
-            lines.append(line)
-            if len(lines) > max_lines:
-                lines.pop(0)  # Keep only the last max_lines
-            log_method(line)
-        return "\n".join(lines)
 
     def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(
