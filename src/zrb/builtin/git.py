@@ -55,9 +55,11 @@ from zrb.util.git import (
     group=git_group,
     alias="diff",
 )
-def get_git_diff(ctx: AnyContext):
-    repo_dir = get_repo_dir()
-    diff = get_diff(repo_dir, ctx.input.source, ctx.input.current)
+async def get_git_diff(ctx: AnyContext):
+    repo_dir = await get_repo_dir(log_method=ctx.print)
+    diff = await get_diff(
+        repo_dir, ctx.input.source, ctx.input.current, log_method=ctx.print
+    )
     result = []
     decorated = []
     if ctx.input.created and diff.created:
@@ -83,8 +85,8 @@ def get_git_diff(ctx: AnyContext):
     group=git_branch_group,
     alias="prune",
 )
-def prune_local_branches(ctx: AnyContext):
-    repo_dir = get_repo_dir()
+async def prune_local_branches(ctx: AnyContext):
+    repo_dir = await get_repo_dir(log_method=ctx.print)
     branches = get_branches(repo_dir)
     current_branch = get_current_branch(repo_dir)
     for branch in branches:
@@ -110,7 +112,7 @@ def prune_local_branches(ctx: AnyContext):
     alias="commit",
 )
 async def git_commit(ctx: AnyContext):
-    repo_dir = get_repo_dir()
+    repo_dir = await get_repo_dir(log_method=ctx.print)
     ctx.print("Add changes to staging")
     await add(repo_dir, log_method=ctx.print)
     ctx.print("Commit changes")
@@ -130,8 +132,8 @@ async def git_commit(ctx: AnyContext):
     group=git_group,
     alias="pull",
 )
-def git_pull(ctx: AnyContext):
-    repo_dir = get_repo_dir()
+async def git_pull(ctx: AnyContext):
+    repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
     current_branch = get_current_branch(repo_dir)
     ctx.print(f"Pulling from {remote}/{current_branch}")
@@ -151,8 +153,8 @@ def git_pull(ctx: AnyContext):
     group=git_group,
     alias="push",
 )
-def git_push(ctx: AnyContext):
-    repo_dir = get_repo_dir()
+async def git_push(ctx: AnyContext):
+    repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
     current_branch = get_current_branch(repo_dir)
     ctx.print(f"Pushing to {remote}/{current_branch}")

@@ -14,19 +14,20 @@ class DiffResult(BaseModel):
     updated: list[str]
 
 
-def get_diff(repo_dir: str, source_commit: str, current_commit: str) -> DiffResult:
-    try:
-        result = subprocess.run(
-            ["git", "diff", source_commit, current_commit],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
-    lines = result.stdout.strip().split("\n")
+async def get_diff(
+    repo_dir: str,
+    source_commit: str,
+    current_commit: str,
+    log_method: Callable[..., Any] = print,
+) -> DiffResult:
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "diff", source_commit, current_commit],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    lines = cmd_result.ouptput.strip().split("\n")
     diff: dict[str, dict[str, bool]] = {}
     for line in lines:
         if not line.startswith("---") and not line.startswith("+++"):
@@ -54,20 +55,14 @@ def get_diff(repo_dir: str, source_commit: str, current_commit: str) -> DiffResu
     )
 
 
-def get_repo_dir() -> str:
-    try:
-        # Run the Git command to get the repository's top-level directory
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True,
-        )
-        # Return the directory path
-        return os.path.abspath(result.stdout.strip())
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def get_repo_dir(log_method: Callable[..., Any] = print) -> str:
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "rev-parse", "--show-toplevel"],
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    return os.path.abspath(cmd_result.output.strip())
 
 
 def get_current_branch(repo_dir: str) -> str:
