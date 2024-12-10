@@ -1,7 +1,11 @@
 import os
 import subprocess
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel
+
+from zrb.util.cmd.command import run_command
 
 
 class DiffResult(BaseModel):
@@ -113,18 +117,25 @@ def delete_branch(repo_dir: str, branch_name: str) -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-def add(repo_dir: str) -> str:
-    try:
-        subprocess.run(
-            ["git", "add", ".", "-A"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def add(repo_dir: str, log_method: Callable[..., Any]):
+    _, exit_code = await run_command(
+        cmd=["git", "add", ".", "-A"],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    # try:
+    #     subprocess.run(
+    #         ["git", "add", ".", "-A"],
+    #         stdout=subprocess.PIPE,
+    #         stderr=subprocess.PIPE,
+    #         cwd=repo_dir,
+    #         text=True,
+    #         check=True,
+    #     )
+    # except subprocess.CalledProcessError as e:
+    #     raise Exception(e.stderr or e.stdout)
 
 
 def commit(repo_dir: str, message: str) -> str:

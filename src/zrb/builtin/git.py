@@ -109,10 +109,10 @@ def prune_local_branches(ctx: AnyContext):
     group=git_group,
     alias="commit",
 )
-def git_commit(ctx: AnyContext):
+async def git_commit(ctx: AnyContext):
     repo_dir = get_repo_dir()
     ctx.print("Add changes to staging")
-    add(repo_dir)
+    await add(repo_dir, log_method=ctx.print)
     ctx.print("Commit changes")
     commit(repo_dir, ctx.input.message)
 
