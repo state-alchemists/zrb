@@ -114,7 +114,7 @@ async def git_commit(ctx: AnyContext):
     ctx.print("Add changes to staging")
     await add(repo_dir, log_method=ctx.print)
     ctx.print("Commit changes")
-    commit(repo_dir, ctx.input.message)
+    await commit(repo_dir, ctx.input.message, log_method=ctx.print)
 
 
 @make_task(

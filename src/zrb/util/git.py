@@ -117,7 +117,7 @@ def delete_branch(repo_dir: str, branch_name: str) -> str:
         raise Exception(e.stderr or e.stdout)
 
 
-async def add(repo_dir: str, log_method: Callable[..., Any]):
+async def add(repo_dir: str, log_method: Callable[..., Any] = print):
     _, exit_code = await run_command(
         cmd=["git", "add", ".", "-A"],
         cwd=repo_dir,
@@ -125,36 +125,23 @@ async def add(repo_dir: str, log_method: Callable[..., Any]):
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
-    # try:
-    #     subprocess.run(
-    #         ["git", "add", ".", "-A"],
-    #         stdout=subprocess.PIPE,
-    #         stderr=subprocess.PIPE,
-    #         cwd=repo_dir,
-    #         text=True,
-    #         check=True,
-    #     )
-    # except subprocess.CalledProcessError as e:
-    #     raise Exception(e.stderr or e.stdout)
 
 
-def commit(repo_dir: str, message: str) -> str:
-    try:
-        subprocess.run(
-            ["git", "commit", "-m", message],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
+async def commit(
+    repo_dir: str, message: str, log_method: Callable[..., Any] = print
+) -> str:
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "commit", "-m", message],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
         ignored_error_message = "nothing to commit, working tree clean"
         if (
-            ignored_error_message not in e.stderr
-            and ignored_error_message not in e.stdout
+            ignored_error_message not in cmd_result.error
+            and ignored_error_message not in cmd_result.output
         ):
-            raise Exception(e.stderr or e.stdout)
+            raise Exception(f"Non zero exit code: {exit_code}")
 
 
 def pull(repo_dir: str, remote: str, branch: str) -> str:
