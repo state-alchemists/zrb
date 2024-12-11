@@ -3,7 +3,7 @@ from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
-from zrb.util.cli.style import stylize_green, stylize_red, stylize_yellow
+from zrb.util.cli.style import stylize_faint, stylize_green, stylize_red, stylize_yellow
 from zrb.util.git import (
     add,
     commit,
@@ -92,7 +92,7 @@ async def prune_local_branches(ctx: AnyContext):
     for branch in branches:
         if branch == current_branch or branch == "main" or branch == "master":
             continue
-        ctx.print(stylize_yellow(f"Removing local branch: {branch}"))
+        ctx.print(stylize_faint(f"Removing local branch: {branch}"))
         try:
             await delete_branch(repo_dir, branch, log_method=ctx.print)
         except Exception as e:
@@ -113,9 +113,9 @@ async def prune_local_branches(ctx: AnyContext):
 )
 async def git_commit(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
-    ctx.print("Add changes to staging")
+    ctx.print(stylize_faint("Add changes to staging"))
     await add(repo_dir, log_method=ctx.print)
-    ctx.print("Commit changes")
+    ctx.print(stylize_faint("Commit changes"))
     await commit(repo_dir, ctx.input.message, log_method=ctx.print)
 
 
@@ -136,7 +136,7 @@ async def git_pull(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
-    ctx.print(f"Pulling from {remote}/{current_branch}")
+    ctx.print(stylize_faint(f"Pulling from {remote}/{current_branch}"))
     await pull(repo_dir, remote, current_branch, log_method=ctx.print)
 
 
@@ -157,5 +157,5 @@ async def git_push(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
-    ctx.print(f"Pushing to {remote}/{current_branch}")
+    ctx.print(stylize_faint(f"Pushing to {remote}/{current_branch}"))
     await push(repo_dir, remote, current_branch, log_method=ctx.print)

@@ -3,6 +3,7 @@ from zrb.builtin.group import git_subtree_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
+from zrb.util.cli.style import stylize_faint
 from zrb.util.git import get_repo_dir
 from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_subtree
 
@@ -59,7 +60,7 @@ async def git_pull_subtree(ctx: AnyContext):
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
-            ctx.print(f"Pull from subtree {name}")
+            ctx.print(stylize_faint(f"Pull from subtree {name}"))
             await pull_subtree(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,
@@ -90,7 +91,7 @@ async def git_push_subtree(ctx: AnyContext):
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
-            ctx.print(f"Push to subtree {name}")
+            ctx.print(stylize_faint(f"Push to subtree {name}"))
             await push_subtree(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,
