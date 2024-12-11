@@ -1,5 +1,4 @@
 import os
-import subprocess
 from collections.abc import Callable
 from typing import Any
 
@@ -27,7 +26,7 @@ async def get_diff(
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
-    lines = cmd_result.ouptput.strip().split("\n")
+    lines = cmd_result.output.strip().split("\n")
     diff: dict[str, dict[str, bool]] = {}
     for line in lines:
         if not line.startswith("---") and not line.startswith("+++"):
@@ -65,51 +64,45 @@ async def get_repo_dir(log_method: Callable[..., Any] = print) -> str:
     return os.path.abspath(cmd_result.output.strip())
 
 
-def get_current_branch(repo_dir: str) -> str:
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def get_current_branch(
+    repo_dir: str, log_method: Callable[..., Any] = print
+) -> str:
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    return cmd_result.output.strip()
 
 
-def get_branches(repo_dir: str) -> list[str]:
-    try:
-        result = subprocess.run(
-            ["git", "branch"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-        return [
-            branch.lstrip("*").strip() for branch in result.stdout.strip().split("\n")
-        ]
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def get_branches(
+    repo_dir: str, log_method: Callable[..., Any] = print
+) -> list[str]:
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    return [
+        branch.lstrip("*").strip() for branch in cmd_result.output.strip().split("\n")
+    ]
 
 
-def delete_branch(repo_dir: str, branch_name: str) -> str:
-    try:
-        result = subprocess.run(
-            ["git", "branch", "-D", branch_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def delete_branch(
+    repo_dir: str, branch_name: str, log_method: Callable[..., Any] = print
+) -> str:
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "branch", "-D", branch_name],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    return cmd_result.output.strip()
 
 
 async def add(repo_dir: str, log_method: Callable[..., Any] = print):
@@ -139,29 +132,25 @@ async def commit(
             raise Exception(f"Non zero exit code: {exit_code}")
 
 
-def pull(repo_dir: str, remote: str, branch: str) -> str:
-    try:
-        subprocess.run(
-            ["git", "pull", remote, branch],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def pull(
+    repo_dir: str, remote: str, branch: str, log_method: Callable[..., Any] = print
+) -> str:
+    _, exit_code = await run_command(
+        cmd=["git", "pull", remote, branch],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
 
 
-def push(repo_dir: str, remote: str, branch: str) -> str:
-    try:
-        subprocess.run(
-            ["git", "push", "-u", remote, branch],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=repo_dir,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise Exception(e.stderr or e.stdout)
+async def push(
+    repo_dir: str, remote: str, branch: str, log_method: Callable[..., Any] = print
+) -> str:
+    _, exit_code = await run_command(
+        cmd=["git", "push", "-u", remote, branch],
+        cwd=repo_dir,
+        log_method=log_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")

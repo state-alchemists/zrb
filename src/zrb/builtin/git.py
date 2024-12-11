@@ -87,14 +87,14 @@ async def get_git_diff(ctx: AnyContext):
 )
 async def prune_local_branches(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
-    branches = get_branches(repo_dir)
-    current_branch = get_current_branch(repo_dir)
+    branches = await get_branches(repo_dir, log_method=ctx.print)
+    current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
     for branch in branches:
         if branch == current_branch or branch == "main" or branch == "master":
             continue
         ctx.print(stylize_yellow(f"Removing local branch: {branch}"))
         try:
-            delete_branch(repo_dir, branch)
+            await delete_branch(repo_dir, branch, log_method=ctx.print)
         except Exception as e:
             ctx.log_error(e)
 
@@ -135,9 +135,9 @@ async def git_commit(ctx: AnyContext):
 async def git_pull(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
-    current_branch = get_current_branch(repo_dir)
+    current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
     ctx.print(f"Pulling from {remote}/{current_branch}")
-    pull(repo_dir, remote, current_branch)
+    await pull(repo_dir, remote, current_branch, log_method=ctx.print)
 
 
 @make_task(
@@ -156,6 +156,6 @@ async def git_pull(ctx: AnyContext):
 async def git_push(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
-    current_branch = get_current_branch(repo_dir)
+    current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
     ctx.print(f"Pushing to {remote}/{current_branch}")
-    push(repo_dir, remote, current_branch)
+    await push(repo_dir, remote, current_branch, log_method=ctx.print)

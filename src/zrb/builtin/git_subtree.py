@@ -34,12 +34,13 @@ from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_su
 )
 async def git_add_subtree(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
-    add_subtree(
+    await add_subtree(
         repo_dir=repo_dir,
         name=ctx.input.name,
         repo_url=ctx.input["repo-url"],
         branch=ctx.input["repo-branch"],
         prefix=ctx.input["repo-prefix"],
+        log_method=ctx.print,
     )
 
 
@@ -59,11 +60,12 @@ async def git_pull_subtree(ctx: AnyContext):
     for name, detail in config.data.items():
         try:
             ctx.print(f"Pull from subtree {name}")
-            pull_subtree(
+            await pull_subtree(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,
                 repo_url=detail.repo_url,
                 branch=detail.branch,
+                log_method=ctx.print,
             )
         except Exception as e:
             if first_err is None:
@@ -89,11 +91,12 @@ async def git_push_subtree(ctx: AnyContext):
     for name, detail in config.data.items():
         try:
             ctx.print(f"Push to subtree {name}")
-            push_subtree(
+            await push_subtree(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,
                 repo_url=detail.repo_url,
                 branch=detail.branch,
+                log_method=ctx.print,
             )
         except Exception as e:
             if first_err is None:
