@@ -193,10 +193,9 @@ def archive_todo(ctx: AnyContext):
     input=[
         StrInput(name="keyword", prompt="Task keyword", description="Task Keyword"),
         StrInput(
-            name="start",
-            prompt="Working start time (%Y-%m-%d %H:%M:%S)",
-            description="Working start time",
-            default_str=lambda _: _get_default_start(),
+            name="log",
+            prompt="Working log",
+            description="Working log",
         ),
         StrInput(
             name="duration",
@@ -205,9 +204,10 @@ def archive_todo(ctx: AnyContext):
             default_str="30m",
         ),
         StrInput(
-            name="log",
-            prompt="Working log",
-            description="Working log",
+            name="start",
+            prompt="Working start time (%Y-%m-%d %H:%M:%S)",
+            description="Working start time",
+            default_str=lambda _: _get_default_start(),
         ),
     ],
     description="🕒 Log work todo",
