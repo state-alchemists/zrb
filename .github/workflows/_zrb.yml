@@ -35,7 +35,7 @@ jobs:
         run: |
           set -e
           echo "🏁 Install project dependencies"
-          poetry config virtualenvs.create false --local
+          poetry config virtualenvs.create false
           poetry install
           echo "🏁 Start running"
           ${{ inputs.command }}
