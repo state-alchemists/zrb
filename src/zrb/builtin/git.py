@@ -56,6 +56,7 @@ from zrb.util.git import (
     alias="diff",
 )
 async def get_git_diff(ctx: AnyContext):
+    ctx.print(stylize_faint("Get directory"))
     repo_dir = await get_repo_dir(log_method=ctx.print)
     diff = await get_diff(
         repo_dir, ctx.input.source, ctx.input.current, log_method=ctx.print
@@ -86,8 +87,11 @@ async def get_git_diff(ctx: AnyContext):
     alias="prune",
 )
 async def prune_local_branches(ctx: AnyContext):
+    ctx.print(stylize_faint("Get directory"))
     repo_dir = await get_repo_dir(log_method=ctx.print)
+    ctx.print(stylize_faint("Get existing branches"))
     branches = await get_branches(repo_dir, log_method=ctx.print)
+    ctx.print(stylize_faint("Get current branch"))
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
     for branch in branches:
         if branch == current_branch or branch == "main" or branch == "master":
@@ -112,6 +116,7 @@ async def prune_local_branches(ctx: AnyContext):
     alias="commit",
 )
 async def git_commit(ctx: AnyContext):
+    ctx.print(stylize_faint("Get directory"))
     repo_dir = await get_repo_dir(log_method=ctx.print)
     ctx.print(stylize_faint("Add changes to staging"))
     await add(repo_dir, log_method=ctx.print)
@@ -133,6 +138,7 @@ async def git_commit(ctx: AnyContext):
     alias="pull",
 )
 async def git_pull(ctx: AnyContext):
+    ctx.print(stylize_faint("Get directory"))
     repo_dir = await get_repo_dir(log_method=ctx.print)
     remote = ctx.input.remote
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
@@ -155,7 +161,8 @@ async def git_pull(ctx: AnyContext):
 )
 async def git_push(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
-    remote = ctx.input.remote
+    ctx.print(stylize_faint("Get current branch"))
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
     ctx.print(stylize_faint(f"Pushing to {remote}/{current_branch}"))
+    remote = ctx.input.remote
     await push(repo_dir, remote, current_branch, log_method=ctx.print)
