@@ -8,5 +8,4 @@ jobs:
     with:
       environment: DEV
       command: |
-        docker ps
-        zrb explain solid
+        zrb

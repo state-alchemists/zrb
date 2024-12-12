@@ -17,7 +17,6 @@ exclude = [
     ".venv",
     ".vscode",
     "dist",
-    "docker",
     "docs",
     "htmlcov",
     "playground",
@@ -49,7 +48,7 @@ litellm = "^1.52.12"
 chromadb = {version = "^0.5.20", optional = true}
 pdfplumber = {version = "^0.11.4", optional = true}
 beautifulsoup4 = "^4.12.3"
-fastapi = {extras = ["standard"], version = "^0.115.5"}
+fastapi = {extras = ["standard"], version = "^0.115.6"}
 
 [tool.poetry.extras]
 # poetry install -E rag
