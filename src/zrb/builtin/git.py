@@ -140,8 +140,9 @@ async def git_commit(ctx: AnyContext):
 async def git_pull(ctx: AnyContext):
     ctx.print(stylize_faint("Get directory"))
     repo_dir = await get_repo_dir(log_method=ctx.print)
-    remote = ctx.input.remote
+    ctx.print(stylize_faint("Get current branch"))
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
+    remote = ctx.input.remote
     ctx.print(stylize_faint(f"Pulling from {remote}/{current_branch}"))
     await pull(repo_dir, remote, current_branch, log_method=ctx.print)
 
@@ -163,6 +164,6 @@ async def git_push(ctx: AnyContext):
     repo_dir = await get_repo_dir(log_method=ctx.print)
     ctx.print(stylize_faint("Get current branch"))
     current_branch = await get_current_branch(repo_dir, log_method=ctx.print)
-    ctx.print(stylize_faint(f"Pushing to {remote}/{current_branch}"))
     remote = ctx.input.remote
+    ctx.print(stylize_faint(f"Pushing to {remote}/{current_branch}"))
     await push(repo_dir, remote, current_branch, log_method=ctx.print)
