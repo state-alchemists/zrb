@@ -132,7 +132,7 @@ class CmdTask(BaseTask):
         if return_code != 0:
             ctx.log_error(f"Exit status: {return_code}")
             raise Exception(
-                f"Process {self._name} exited ({return_code}): {cmd_result.stderr}"
+                f"Process {self._name} exited ({return_code}): {cmd_result.error}"
             )
         ctx.log_info(f"Exit status: {return_code}")
         return cmd_result

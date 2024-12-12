@@ -1,6 +1,8 @@
 import os
 from typing import Any
 
+import tomlkit
+
 from zrb import (
     AnyContext,
     CmdPath,
@@ -19,6 +21,11 @@ from zrb.util.cli.style import WHITE
 from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
+
+with open(os.path.join(_DIR, "pyproject.toml")) as f:
+    pyproject = tomlkit.load(f)
+    _VERSION = pyproject["tool"]["poetry"]["version"]
+
 
 # TEST =======================================================================
 
@@ -93,21 +100,68 @@ format_code = code_group.add_task(
 )
 format_code >> git_commit
 
+# DOCKER =======================================================================
 
-# PIP =========================================================================
+docker_group = cli.add_group(
+    Group(name="docker", description="🐋 Docker related command")
+)
 
-pip_group = cli.add_group(Group(name="pip", description="📦 Pip related command"))
-
-publish_pip = pip_group.add_task(
+build_docker = docker_group.add_task(
     CmdTask(
-        name="publish-pip",
-        description="Publish Zrb",
+        name="build-zrb-docker-image",
+        description="Build Zrb docker image",
         cwd=_DIR,
-        cmd="poetry publish --build",
+        cmd=f"docker build . -t stalchmst/zrb:{_VERSION}",
+    ),
+    alias="build",
+)
+format_code >> build_docker
+
+run_docker = docker_group.add_task(
+    CmdTask(
+        name="run-zrb-docker-container",
+        description="Run Zrb docker container",
+        cwd=_DIR,
+        cmd=f"docker run -p 21213:21213 --rm stalchmst/zrb:{_VERSION}",
+    ),
+    alias="run",
+)
+build_docker >> run_docker
+
+publish_docker = docker_group.add_task(
+    CmdTask(
+        name="publish-zrb-docker-image",
+        description="Publish Zrb docker image",
+        cwd=_DIR,
+        cmd=f"docker push stalchmst/zrb:{_VERSION}",
     ),
     alias="publish",
 )
+build_docker >> publish_docker
+
+# PUBLISH ======================================================================
+
+publish_group = cli.add_group(
+    Group(name="publish", description="📦 Publication related command")
+)
+
+publish_pip = publish_group.add_task(
+    CmdTask(
+        name="publish-zrb-to-pip",
+        description="Publish Zrb as pip package",
+        cwd=_DIR,
+        cmd="poetry publish --build",
+    ),
+    alias="pip",
+)
 format_code >> publish_pip
+
+publish_group.add_task(publish_docker, alias="docker")
+
+publish_all = publish_group.add_task(
+    Task(name="publish-all", description="Publish Zrb")
+)
+publish_all << [publish_pip, publish_docker]
 
 # GENERATOR TEST ==============================================================
 

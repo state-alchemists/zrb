@@ -15,7 +15,6 @@ dist
 .env
 .flake8
 /install.sh
-/README.md
 /project.sh
 /zrb_init.py
 /zrb-test.sh

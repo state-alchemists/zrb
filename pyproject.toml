@@ -60,6 +60,7 @@ flake8 = "~7.1.1"
 pytest = "~8.3.3"
 pytest-cov = "~6.0.0"
 pytest-asyncio = "~0.24.0"
+tomlkit = "^0.13.2"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"

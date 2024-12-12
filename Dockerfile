@@ -13,6 +13,14 @@ RUN apt autoremove -yqq --purge && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install zrb
+# Install poetry
 RUN pip install poetry
+
+# Configure poetry to not use virtual environments
+RUN poetry config virtualenvs.create false
+
+# Install zrb
+COPY . .
 RUN poetry install
+
+CMD ["zrb", "server", "start"]
