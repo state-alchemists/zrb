@@ -3,8 +3,8 @@ from fastapp_template.common.schema import BasicResponse
 from fastapp_template.config import APP_MODE, APP_MODULES
 from fastapp_template.module.auth.service.user.user_usecase import user_usecase
 
-if APP_MODE == "microservices" and "auth" in APP_MODULES:
 
+def serve_route():
     if APP_MODE == "microservices" and (
         len(APP_MODULES) > 0 and APP_MODULES[0] == "auth"
     ):
@@ -20,3 +20,7 @@ if APP_MODE == "microservices" and "auth" in APP_MODULES:
             return BasicResponse(message="ok")
 
     user_usecase.serve_route(app)
+
+
+if APP_MODE == "microservices" and "auth" in APP_MODULES:
+    serve_route()

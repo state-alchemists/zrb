@@ -4,8 +4,8 @@ from fastapp_template.config import APP_MODE, APP_MODULES
 from fastapp_template.module.auth.client.factory import client as auth_client
 from fastapp_template.schema.user import UserCreate, UserResponse
 
-if APP_MODE == "monolith" or "gateway" in APP_MODULES:
 
+def serve_route():
     if APP_MODE == "monolith" or (len(APP_MODULES) > 0 and APP_MODULES[0] == "gateway"):
 
         @app.api_route("/health", methods=["GET", "HEAD"], response_model=BasicResponse)
@@ -25,3 +25,7 @@ if APP_MODE == "monolith" or "gateway" in APP_MODULES:
     @app.post("/api/v1/users", response_model=UserResponse | list[UserResponse])
     async def auth_create_user(data: UserCreate | list[UserCreate]):
         return await auth_client.create_user(data)
+
+
+if APP_MODE == "monolith" or "gateway" in APP_MODULES:
+    serve_route()

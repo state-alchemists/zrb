@@ -14,6 +14,7 @@ from fastapp_template._zrb.input import (
 )
 
 from zrb import AnyContext, Scaffolder, Task, make_task
+from zrb.util.codemod.add_code_to_function import add_code_to_function
 from zrb.util.codemod.add_code_to_module import add_code_to_module
 from zrb.util.codemod.add_parent_to_class import add_parent_to_class
 from zrb.util.string.conversion import to_pascal_case, to_snake_case
@@ -140,7 +141,7 @@ async def register_my_app_name_api_client(ctx: AnyContext):
     entity_name = to_snake_case(ctx.input.entity)
     module_name = to_snake_case(ctx.input.module)
     new_file_content_list = [
-        f"from {app_name}.module.{module_name}.service.{entity_name} import {entity_name}_usecase",  # noqa
+        f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
         new_code.strip(),
         "",
     ]
@@ -172,7 +173,34 @@ async def register_my_app_name_direct_client(ctx: AnyContext):
     entity_name = to_snake_case(ctx.input.entity)
     module_name = to_snake_case(ctx.input.module)
     new_file_content_list = [
-        f"from {app_name}.module.{module_name}.service.{entity_name} import {entity_name}_usecase",  # noqa
+        f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
+        new_code.strip(),
+        "",
+    ]
+    with open(direct_client_file_path, "w") as f:
+        f.write("\n".join(new_file_content_list))
+
+
+@make_task(
+    name="register-my-app-name-route",
+    input=[existing_module_input, new_entity_input],
+    retries=0,
+    upstream=validate_create_my_app_name_entity,
+)
+async def register_my_app_name_route(ctx: AnyContext):
+    direct_client_file_path = os.path.join(
+        APP_DIR, "module", to_snake_case(ctx.input.module), "route.py"
+    )
+    with open(direct_client_file_path, "r") as f:
+        file_content = f.read()
+    entity_name = to_snake_case(ctx.input.entity)
+    new_code = add_code_to_function(
+        file_content, "serve_route", f"{entity_name}_usecase.serve_route(app)"
+    )
+    app_name = os.path.basename(APP_DIR)
+    module_name = to_snake_case(ctx.input.module)
+    new_file_content_list = [
+        f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
         new_code.strip(),
         "",
     ]
@@ -193,4 +221,5 @@ create_my_app_name_entity << [
     scaffold_my_app_name_module_entity,
     register_my_app_name_api_client,
     register_my_app_name_direct_client,
+    register_my_app_name_route,
 ]
