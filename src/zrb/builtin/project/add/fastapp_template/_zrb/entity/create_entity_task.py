@@ -211,7 +211,6 @@ async def register_my_app_name_route(ctx: AnyContext):
         f.write("\n".join(new_file_content_list))
 
 
-# TODO: Register config
 # TODO: Register client methods
 # TODO: Register gatway route
 

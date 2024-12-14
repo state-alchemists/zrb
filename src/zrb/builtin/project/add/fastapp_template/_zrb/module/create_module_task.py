@@ -85,6 +85,9 @@ async def register_my_app_name_module(ctx: AnyContext):
         f.write(new_code)
 
 
+# TODO: Register config
+
+
 @make_task(
     name="register-my-app-name-module-runner",
     input=new_module_input,
