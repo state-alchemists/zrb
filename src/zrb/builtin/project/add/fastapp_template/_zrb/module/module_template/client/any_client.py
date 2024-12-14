@@ -6,7 +6,9 @@ from abc import ABC, abstractmethod
 
 
 class AnyClient(ABC):
-    pass
+    """
+    Defining client methods
+    """
 
     # @abstractmethod
     # async def get_my_entity_by_id(self, my_entity_id: str) -> MyEntityResponse:

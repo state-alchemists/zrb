@@ -14,6 +14,7 @@ from fastapp_template._zrb.input import (
 )
 
 from zrb import AnyContext, Scaffolder, Task, make_task
+from zrb.util.codemod.add_code_to_class import add_code_to_class
 from zrb.util.codemod.add_code_to_function import add_code_to_function
 from zrb.util.codemod.add_code_to_module import add_code_to_module
 from zrb.util.codemod.add_parent_to_class import add_parent_to_class
@@ -211,8 +212,43 @@ async def register_my_app_name_route(ctx: AnyContext):
         f.write("\n".join(new_file_content_list))
 
 
-# TODO: Register client methods
-# TODO: Register gatway route
+@make_task(
+    name="register-my-app-name-client-method",
+    input=[existing_module_input, new_entity_input],
+    retries=0,
+    upstream=validate_create_my_app_name_entity,
+)
+async def register_my_app_name_client_method(ctx: AnyContext):
+    any_client_file_path = os.path.join(
+        APP_DIR, "module", to_snake_case(ctx.input.module), "route.py"
+    )
+    with open(any_client_file_path, "r") as f:
+        file_content = f.read()
+    app_name = os.path.basename(APP_DIR)
+    snake_entity_name = to_snake_case(ctx.input.entity)
+    pascal_entity_name = to_pascal_case(ctx.input.entity)
+    # TODO: Register client methods
+    new_code = add_code_to_class(
+        file_content,
+        "AnyClient",
+        "\n".join(
+            [
+                "",
+            ]
+        ),
+    )
+    new_file_content_list = [
+        f"from {app_name}.schema.{snake_entity_name}.{snake_entity_name} import (",
+        f"    {pascal_entity_name}CreateWithAudit, {pascal_entity_name}Response, {pascal_entity_name}UpdateWithAudit",
+        ")",
+        new_code.strip(),
+        "",
+    ]
+    with open(any_client_file_path, "w") as f:
+        f.write("\n".join(new_file_content_list))
+
+
+# TODO: Register gateway route
 
 
 create_my_app_name_entity = app_create_group.add_task(
