@@ -82,6 +82,9 @@ scaffold_my_app_name_module_entity = Scaffolder(
         "my_entities": "{to_snake_case(ctx.input.plural)}",
         "my-entities": "{to_kebab_case(ctx.input.plural)}",
     },
+    transform_path={
+        "my_entity": "{to_snake_case(ctx.input.entity)}",
+    },
     retries=0,
     upstream=validate_create_my_app_name_entity,
 )

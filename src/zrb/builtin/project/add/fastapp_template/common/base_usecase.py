@@ -1,3 +1,4 @@
+import inspect
 from enum import Enum
 from functools import partial, wraps
 from typing import Any, Callable, Sequence

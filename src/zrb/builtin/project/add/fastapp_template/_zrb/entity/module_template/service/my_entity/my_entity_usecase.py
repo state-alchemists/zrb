@@ -2,7 +2,7 @@ from fastapp_template.common.base_usecase import BaseUsecase
 from fastapp_template.module.my_module.service.my_entity.repository.factory import (
     my_entity_repository,
 )
-from fastapp_template.module.my_module.service.my_entity.repository.repository import (
+from fastapp_template.module.my_module.service.my_entity.repository.my_entity_repository import (
     MyEntityRepository,
 )
 from fastapp_template.schema.my_entity import (

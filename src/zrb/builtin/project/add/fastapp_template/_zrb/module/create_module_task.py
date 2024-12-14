@@ -31,7 +31,8 @@ scaffold_my_app_name_module = Scaffolder(
     ),
     transform_content={
         "module_template": "{to_snake_case(ctx.input.module)}",
-        "MY_MODULE_NAME": "{to_snake_case(ctx.input.module).upper()}",
+        "MY_MODULE": "{to_snake_case(ctx.input.module).upper()}",
+        "my_module": "{to_snake_case(ctx.input.module)}",
     },
     retries=0,
     upstream=validate_create_my_app_name_module,

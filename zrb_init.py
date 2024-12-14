@@ -180,6 +180,7 @@ remove_generated = cli.add_task(
     description="🔨 Test generate fastapp",
     group=test_group,
     alias="generate",
+    retries=0,
 )
 async def test_generate(ctx: AnyContext):
     # Create project
@@ -216,8 +217,8 @@ async def test_generate(ctx: AnyContext):
     )
     # Start microservices
     await run_cmd_test(
-        name="run-microservices",
-        cmd="zrb project fastapp run microservices",
+        name="run-all",
+        cmd="zrb project fastapp run all",
     )
 
 

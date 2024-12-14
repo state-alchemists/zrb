@@ -30,9 +30,11 @@ class Scaffolder(BaseTask):
         destination_path: StrAttr | None = None,
         render_destination_path: bool = True,
         transform_path: TransformConfig = {},
+        render_transform_path: bool = True,
         transform_content: (
             list[AnyContentTransformer] | AnyContentTransformer | TransformConfig
         ) = [],
+        render_transform_content: bool = True,
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -70,7 +72,9 @@ class Scaffolder(BaseTask):
         self._destination_path = destination_path
         self._render_destination_path = render_destination_path
         self._content_transformers = transform_content
+        self._render_content_transformers = render_transform_content
         self._path_transformer = transform_path
+        self._render_path_transformer = render_transform_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._source_path, "", auto_render=True)
@@ -82,7 +86,13 @@ class Scaffolder(BaseTask):
         if callable(self._content_transformers):
             return [ContentTransformer(match="*", transform=self._content_transformers)]
         if isinstance(self._content_transformers, dict):
-            return [ContentTransformer(match="*", transform=self._content_transformers)]
+            return [
+                ContentTransformer(
+                    match="*",
+                    transform=self._content_transformers,
+                    auto_render=self._render_content_transformers,
+                )
+            ]
         if isinstance(self._content_transformers, AnyContentTransformer):
             return [self._content_transformers]
         return self._content_transformers
@@ -128,6 +138,8 @@ class Scaffolder(BaseTask):
             return self._path_transformer(ctx, file_path)
         new_file_path = file_path
         for keyword, replacement in self._path_transformer.items():
+            if self._render_path_transformer:
+                replacement = ctx.render(replacement)
             new_file_path = new_file_path.replace(keyword, replacement)
         return new_file_path
 

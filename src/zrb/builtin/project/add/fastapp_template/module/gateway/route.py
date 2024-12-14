@@ -7,6 +7,12 @@ from fastapp_template.schema.user import UserCreate, UserResponse
 
 def serve_route():
     if APP_MODE == "monolith" or (len(APP_MODULES) > 0 and APP_MODULES[0] == "gateway"):
+        """
+        To make sure health/readiness check is only served once,
+        the following will only run if one of these conditions is true:
+        - This application run as a monolith
+        - This application run as a gateway microservice
+        """
 
         @app.api_route("/health", methods=["GET", "HEAD"], response_model=BasicResponse)
         async def health():
@@ -28,4 +34,9 @@ def serve_route():
 
 
 if APP_MODE == "monolith" or "gateway" in APP_MODULES:
+    """
+    Will only serve route if one of these conditions is true:
+    - This application run as a monolith
+    - This application run as as a gateway microservice
+    """
     serve_route()
