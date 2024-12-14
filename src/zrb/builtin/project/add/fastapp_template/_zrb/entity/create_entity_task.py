@@ -228,15 +228,16 @@ async def register_my_app_name_client_method(ctx: AnyContext):
     snake_entity_name = to_snake_case(ctx.input.entity)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
     # TODO: Register client methods
-    new_code = add_code_to_class(
-        file_content,
-        "AnyClient",
-        "\n".join(
-            [
-                "",
-            ]
-        ),
+    # get methods
+    any_client_method_template_path = (
+        os.path.join(os.path.dirname(__file__), "any_client_method.template.py"),
     )
+    with open(any_client_method_template_path, "r") as f:
+        any_client_method_template = f.read()
+    any_client_method = any_client_method_template.replace(
+        "my_entity", snake_entity_name
+    ).replace("MyEntity", pascal_entity_name)
+    new_code = add_code_to_class(file_content, "AnyClient", any_client_method)
     new_file_content_list = [
         f"from {app_name}.schema.{snake_entity_name}.{snake_entity_name} import (",
         f"    {pascal_entity_name}CreateWithAudit, {pascal_entity_name}Response, {pascal_entity_name}UpdateWithAudit",
