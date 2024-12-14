@@ -1,28 +1,35 @@
+from fastapi import FastAPI
 from fastapp_template.common.app import app
 from fastapp_template.common.schema import BasicResponse
-from fastapp_template.config import APP_MODE, APP_MODULES
+from fastapp_template.config import APP_MAIN_MODULE, APP_MODE, APP_MODULES
 from fastapp_template.module.auth.client.factory import client as auth_client
 from fastapp_template.schema.user import UserCreate, UserResponse
 
 
-def serve_route():
-    if APP_MODE == "monolith" or (len(APP_MODULES) > 0 and APP_MODULES[0] == "gateway"):
+def serve_health_check(app: FastAPI):
+    @app.api_route("/health", methods=["GET", "HEAD"], response_model=BasicResponse)
+    async def health():
         """
-        To make sure health/readiness check is only served once,
-        the following will only run if one of these conditions is true:
-        - This application run as a monolith
-        - This application run as a gateway microservice
+        My App Name's health check
         """
+        return BasicResponse(message="ok")
 
-        @app.api_route("/health", methods=["GET", "HEAD"], response_model=BasicResponse)
-        async def health():
-            return BasicResponse(message="ok")
 
-        @app.api_route(
-            "/readiness", methods=["GET", "HEAD"], response_model=BasicResponse
-        )
-        async def readiness():
-            return BasicResponse(message="ok")
+def serve_readiness_check(app: FastAPI):
+    @app.api_route("/readiness", methods=["GET", "HEAD"], response_model=BasicResponse)
+    async def readiness():
+        """
+        My App Name's readiness check
+        """
+        return BasicResponse(message="ok")
+
+
+def serve_route(app: FastAPI):
+    if APP_MODE != "monolith" and "gateway" not in APP_MODULES:
+        return
+    if APP_MODE == "monolith" or APP_MAIN_MODULE == "gateway":
+        serve_health_check(app)
+        serve_readiness_check(app)
 
     @app.get("/api/v1/users", response_model=list[UserResponse])
     async def auth_get_all_users() -> UserResponse:
@@ -33,10 +40,4 @@ def serve_route():
         return await auth_client.create_user(data)
 
 
-if APP_MODE == "monolith" or "gateway" in APP_MODULES:
-    """
-    Will only serve route if one of these conditions is true:
-    - This application run as a monolith
-    - This application run as as a gateway microservice
-    """
-    serve_route()
+serve_route(app)

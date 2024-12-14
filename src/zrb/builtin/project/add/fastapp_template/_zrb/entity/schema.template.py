@@ -12,8 +12,16 @@ class MyEntityCreate(MyEntityBase):
     pass
 
 
+class MyEntityCreateWithAudit(MyEntityCreate):
+    created_by: str
+
+
 class MyEntityUpdate(SQLModel):
     my_column: str | None = None
+
+
+class MyEntityUpdateWithAudit(MyEntityUpdate):
+    updated_by: str
 
 
 class MyEntityResponse(MyEntityBase):

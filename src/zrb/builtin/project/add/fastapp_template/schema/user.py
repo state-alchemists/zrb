@@ -12,9 +12,17 @@ class UserCreate(UserBase):
     password: str
 
 
+class UserCreateWithAudit(UserCreate):
+    created_by: str
+
+
 class UserUpdate(SQLModel):
     username: str | None = None
     password: str | None = None
+
+
+class UserUpdateWithAudit(UserUpdate):
+    updated_by: str
 
 
 class UserResponse(UserBase):

@@ -1,16 +1,21 @@
 from abc import ABC, abstractmethod
 
-from fastapp_template.schema.user import User, UserCreate, UserResponse, UserUpdate
+from fastapp_template.schema.user import (
+    User,
+    UserCreateWithAudit,
+    UserResponse,
+    UserUpdateWithAudit,
+)
 
 
 class UserRepository(ABC):
 
     @abstractmethod
-    async def create(self, user_data: UserCreate) -> UserResponse:
+    async def create(self, user_data: UserCreateWithAudit) -> UserResponse:
         pass
 
     @abstractmethod
-    async def get_by_id(self, user_id: str) -> User:
+    async def get_by_id(self, user_id: str) -> UserResponse:
         pass
 
     @abstractmethod
@@ -18,15 +23,19 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, user_id: str, user_data: UserUpdate) -> User:
+    async def update(
+        self, user_id: str, user_data: UserUpdateWithAudit
+    ) -> UserResponse:
         pass
 
     @abstractmethod
-    async def delete(self, user_id: str) -> User:
+    async def delete(self, user_id: str) -> UserResponse:
         pass
 
     @abstractmethod
-    async def create_bulk(self, user_data_list: list[UserCreate]) -> list[UserResponse]:
+    async def create_bulk(
+        self, user_data_list: list[UserCreateWithAudit]
+    ) -> list[UserResponse]:
         pass
 
     @abstractmethod

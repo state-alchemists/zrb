@@ -3,7 +3,12 @@ from fastapp_template.common.error import NotFoundError
 from fastapp_template.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
-from fastapp_template.schema.user import User, UserCreate, UserResponse, UserUpdate
+from fastapp_template.schema.user import (
+    User,
+    UserCreateWithAudit,
+    UserResponse,
+    UserUpdateWithAudit,
+)
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session, select
@@ -17,12 +22,13 @@ def hash_password(password: str) -> str:
 
 
 class UserDBRepository(
-    BaseDBRepository[User, UserResponse, UserCreate, UserUpdate], UserRepository
+    BaseDBRepository[User, UserResponse, UserCreateWithAudit, UserUpdateWithAudit],
+    UserRepository,
 ):
     db_model = User
     response_model = UserResponse
-    create_model = UserCreate
-    update_model = UserUpdate
+    create_model = UserCreateWithAudit
+    update_model = UserUpdateWithAudit
     entity_name = "user"
     column_preprocessors = {"password": hash_password}
 

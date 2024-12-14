@@ -2,16 +2,16 @@ from abc import ABC, abstractmethod
 
 from fastapp_template.schema.my_entity import (
     MyEntity,
-    MyEntityCreate,
+    MyEntityCreateWithAudit,
     MyEntityResponse,
-    MyEntityUpdate,
+    MyEntityUpdateWithAudit,
 )
 
 
 class MyEntityRepository(ABC):
 
     @abstractmethod
-    async def create(self, my_entity_data: MyEntityCreate) -> MyEntityResponse:
+    async def create(self, my_entity_data: MyEntityCreateWithAudit) -> MyEntityResponse:
         pass
 
     @abstractmethod
@@ -24,7 +24,7 @@ class MyEntityRepository(ABC):
 
     @abstractmethod
     async def update(
-        self, my_entity_id: str, my_entity_data: MyEntityUpdate
+        self, my_entity_id: str, my_entity_data: MyEntityUpdateWithAudit
     ) -> MyEntity:
         pass
 
@@ -34,6 +34,6 @@ class MyEntityRepository(ABC):
 
     @abstractmethod
     async def create_bulk(
-        self, my_entity_data_list: list[MyEntityCreate]
+        self, my_entity_data_list: list[MyEntityCreateWithAudit]
     ) -> list[MyEntityResponse]:
         pass

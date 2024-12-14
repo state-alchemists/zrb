@@ -12,9 +12,17 @@ class PermissionCreate(PermissionBase):
     description: str
 
 
+class PermissionCreateWithAudit(PermissionCreate):
+    created_by: str
+
+
 class PermissionUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
+
+
+class PermissionUpdateWithAudit(PermissionUpdate):
+    updated_by: str
 
 
 class PermissionResponse(PermissionBase):

@@ -1,27 +1,33 @@
 from abc import ABC, abstractmethod
 
-from fastapp_template.schema.user import UserCreate, UserResponse, UserUpdate
+# from fastapp_template.schema.my_entity import (
+#     MyEntityCreateWithAudit, MyEntityResponse, MyEntityUpdateWithAudit
+# )
 
 
-class BaseClient(ABC):
-    @abstractmethod
-    async def get_user_by_id(self, user_id: str) -> UserResponse:
-        pass
+class AnyClient(ABC):
+    pass
 
-    @abstractmethod
-    async def get_all_users(self) -> list[UserResponse]:
-        pass
+    # @abstractmethod
+    # async def get_my_entity_by_id(self, my_entity_id: str) -> MyEntityResponse:
+    #     pass
 
-    @abstractmethod
-    async def create_user(
-        self, data: UserCreate | list[UserCreate]
-    ) -> UserResponse | list[UserResponse]:
-        pass
+    # @abstractmethod
+    # async def get_all_my_entitys(self) -> list[MyEntityResponse]:
+    #     pass
 
-    @abstractmethod
-    async def update_user(self, user_id: str, data: UserUpdate) -> UserResponse:
-        pass
+    # @abstractmethod
+    # async def create_my_entity(
+    #     self, data: MyEntityCreateWithAudit | list[MyEntityCreateWithAudit]
+    # ) -> MyEntityResponse | list[MyEntityResponse]:
+    #     pass
 
-    @abstractmethod
-    async def delete_user(self, user_id: str) -> UserResponse:
-        pass
+    # @abstractmethod
+    # async def update_my_entity(
+    #     self, my_entity_id: str, data: MyEntityUpdateWithAudit
+    # ) -> MyEntityResponse:
+    #     pass
+
+    # @abstractmethod
+    # async def delete_my_entity(self, my_entity_id: str) -> MyEntityResponse:
+    #     pass

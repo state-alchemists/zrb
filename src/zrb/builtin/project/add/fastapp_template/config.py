@@ -8,6 +8,7 @@ APP_MODULES = [
     for module in os.getenv("MY_APP_NAME_MODULES", "").split(",")
     if module.strip() != ""
 ]
+APP_MAIN_MODULE = APP_MODULES[0] if len(APP_MODULES) > 0 else None
 APP_PORT = int(os.getenv("MY_APP_NAME_PORT", "3000"))
 APP_COMMUNICATION = os.getenv(
     "MY_APP_NAME_COMMUNICATION", "direct" if APP_MODE == "monolith" else "api"

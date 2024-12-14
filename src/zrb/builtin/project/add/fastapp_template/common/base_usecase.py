@@ -1,4 +1,3 @@
-import inspect
 from enum import Enum
 from functools import partial, wraps
 from typing import Any, Callable, Sequence
@@ -68,6 +67,12 @@ class RouteParam:
 class BaseUsecase:
     _route_params: dict[str, RouteParam] = {}
 
+    def __init__(self):
+        self._route_params: dict[str, RouteParam] = {}
+        for name, method in self.__class__.__dict__.items():
+            if hasattr(method, "__route_param__"):
+                self._route_params[name] = getattr(method, "__route_param__")
+
     @classmethod
     def route(
         cls,
@@ -101,7 +106,15 @@ class BaseUsecase:
         """
 
         def decorator(func: Callable):
-            cls._route_params[func.__name__] = RouteParam(
+            @wraps(func)
+            async def wrapped(*args, **kwargs):
+                return await func(*args, **kwargs)
+
+            # Inject __route_param__ property to the method
+            # Method with __route_param__ property will automatically
+            # registered to self._route_param and will be automatically exposed
+            # into DirectClient and APIClient
+            wrapped.__route_param__ = RouteParam(
                 path=path,
                 response_model=response_model,
                 status_code=status_code,
@@ -127,11 +140,6 @@ class BaseUsecase:
                 generate_unique_id_function=generate_unique_id_function,
                 func=func,
             )
-
-            @wraps(func)
-            async def wrapped(*args, **kwargs):
-                return await func(*args, **kwargs)
-
             return wrapped
 
         return decorator
@@ -145,6 +153,8 @@ class BaseUsecase:
         for name, details in _methods.items():
             func = details.func
             client_method = create_direct_client_method(func, self)
+            # Use __get__ to make a bounded method,
+            # ensuring that client_method use DirectClient as `self`
             setattr(DirectClient, name, client_method.__get__(DirectClient))
         return DirectClient
 
@@ -157,6 +167,8 @@ class BaseUsecase:
         # Dynamically generate methods
         for name, param in _methods.items():
             client_method = create_api_client_method(param, base_url)
+            # Use __get__ to make a bounded method,
+            # ensuring that client_method use APIClient as `self`
             setattr(APIClient, name, client_method.__get__(APIClient))
         return APIClient
 

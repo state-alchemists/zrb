@@ -12,9 +12,17 @@ class RoleCreate(RoleBase):
     description: str
 
 
+class RoleCreateWithAudit(RoleCreate):
+    created_by: str
+
+
 class RoleUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
+
+
+class RoleUpdateWithAudit(RoleUpdate):
+    updated_by: str
 
 
 class RoleResponse(RoleBase):

@@ -6,9 +6,9 @@ from fastapp_template.module.my_module.service.my_entity.repository.my_entity_re
     MyEntityRepository,
 )
 from fastapp_template.schema.my_entity import (
-    MyEntityCreate,
+    MyEntityCreateWithAudit,
     MyEntityResponse,
-    MyEntityUpdate,
+    MyEntityUpdateWithAudit,
 )
 
 
@@ -38,9 +38,9 @@ class MyEntityUsecase(BaseUsecase):
         response_model=MyEntityResponse | list[MyEntityResponse],
     )
     async def create_my_entity(
-        self, data: MyEntityCreate | list[MyEntityCreate]
+        self, data: MyEntityCreateWithAudit | list[MyEntityCreateWithAudit]
     ) -> MyEntityResponse | list[MyEntityResponse]:
-        if isinstance(data, MyEntityCreate):
+        if isinstance(data, MyEntityCreateWithAudit):
             return await self.my_entity_repository.create(data)
         return await self.my_entity_repository.create_bulk(data)
 
@@ -50,7 +50,7 @@ class MyEntityUsecase(BaseUsecase):
         response_model=MyEntityResponse,
     )
     async def update_my_entity(
-        self, my_entity_id: str, data: MyEntityUpdate
+        self, my_entity_id: str, data: MyEntityUpdateWithAudit
     ) -> MyEntityResponse:
         return await self.my_entity_repository.update(my_entity_id, data)
 

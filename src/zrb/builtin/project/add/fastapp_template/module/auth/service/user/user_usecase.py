@@ -3,7 +3,11 @@ from fastapp_template.module.auth.service.user.repository.factory import user_re
 from fastapp_template.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
-from fastapp_template.schema.user import UserCreate, UserResponse, UserUpdate
+from fastapp_template.schema.user import (
+    UserCreateWithAudit,
+    UserResponse,
+    UserUpdateWithAudit,
+)
 
 
 class UserUsecase(BaseUsecase):
@@ -30,16 +34,18 @@ class UserUsecase(BaseUsecase):
         response_model=UserResponse | list[UserResponse],
     )
     async def create_user(
-        self, data: UserCreate | list[UserCreate]
+        self, data: UserCreateWithAudit | list[UserCreateWithAudit]
     ) -> UserResponse | list[UserResponse]:
-        if isinstance(data, UserCreate):
+        if isinstance(data, UserCreateWithAudit):
             return await self.user_repository.create(data)
         return await self.user_repository.create_bulk(data)
 
     @BaseUsecase.route(
         "/api/v1/users/{user_id}", methods=["put"], response_model=UserResponse
     )
-    async def update_user(self, user_id: str, data: UserUpdate) -> UserResponse:
+    async def update_user(
+        self, user_id: str, data: UserUpdateWithAudit
+    ) -> UserResponse:
         return await self.user_repository.update(user_id, data)
 
     @BaseUsecase.route(
