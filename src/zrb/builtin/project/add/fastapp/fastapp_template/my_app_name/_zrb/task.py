@@ -2,7 +2,8 @@ import os
 
 from my_app_name._zrb.column.create_column_task import add_my_app_name_column
 from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
-from my_app_name._zrb.entity.task import add_my_app_name_entity
+from my_app_name._zrb.entity.add_entity_task import add_my_app_name_entity
+from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import (
     app_create_migration_group,
     app_migrate_group,
@@ -17,6 +18,7 @@ from zrb import CmdTask, Env, EnvFile, Task
 assert add_my_app_name_entity
 assert add_my_app_name_module
 assert add_my_app_name_column
+assert format_my_app_name_code
 
 # 🚀 Run/Migrate All ===========================================================
 

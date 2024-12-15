@@ -2,6 +2,7 @@ import os
 import re
 
 from my_app_name._zrb.config import APP_DIR
+from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import app_create_group
 from my_app_name._zrb.input import new_module_input
 from my_app_name._zrb.module.add_module_util import (
@@ -36,7 +37,7 @@ scaffold_my_app_name_module = Scaffolder(
         "my_module": "{to_snake_case(ctx.input.module)}",
     },
     transform_content=[
-        # Common transformation
+        # Common transformation (my_app_name/module/snake_module_name)
         ContentTransformer(
             match=lambda ctx, file_path: file_path.startswith(
                 os.path.join(APP_DIR, "module", to_snake_case(ctx.input.module))
@@ -78,6 +79,7 @@ add_my_app_name_module = app_create_group.add_task(
         name="add-my-app-name-module",
         description="🧩 Create new module on My App Name",
         upstream=scaffold_my_app_name_module,
+        successor=format_my_app_name_code,
         retries=0,
     ),
     alias="module",

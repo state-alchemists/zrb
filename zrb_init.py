@@ -89,19 +89,15 @@ format_code = code_group.add_task(
         description="Format Zrb code",
         cwd=_DIR,
         cmd=[
-            "isort src",
-            "black src",
-            "isort test",
-            "black test",
-            "isort zrb_init.py",
-            "black zrb_init.py",
+            "isort .",
+            "black .",
         ],
     ),
     alias="format",
 )
 format_code >> git_commit
 
-# DOCKER =======================================================================
+# DOCKER ======================================================================
 
 docker_group = cli.add_group(
     Group(name="docker", description="🐋 Docker related command")
@@ -140,7 +136,7 @@ publish_docker = docker_group.add_task(
 )
 build_docker >> publish_docker
 
-# PUBLISH ======================================================================
+# PUBLISH =====================================================================
 
 publish_group = cli.add_group(
     Group(name="publish", description="📦 Publication related command")
@@ -164,7 +160,7 @@ publish_all = publish_group.add_task(
 )
 publish_all << [publish_pip, publish_docker]
 
-# GENERATOR TEST ==============================================================
+# GENERATOR TEST =============================================================
 
 remove_generated = cli.add_task(
     CmdTask(

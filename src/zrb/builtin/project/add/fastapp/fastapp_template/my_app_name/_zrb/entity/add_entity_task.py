@@ -1,6 +1,7 @@
 import os
 
 from my_app_name._zrb.config import APP_DIR
+from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import app_create_group
 from my_app_name._zrb.input import (
     existing_module_input,
@@ -10,7 +11,7 @@ from my_app_name._zrb.input import (
 )
 from my_app_name._zrb.util import get_existing_module_names, get_existing_schema_names
 
-from zrb import AnyContext, Scaffolder, Task, make_task
+from zrb import AnyContext, ContentTransformer, Scaffolder, Task, make_task
 from zrb.util.codemod.append_code_to_class import append_code_to_class
 from zrb.util.codemod.append_code_to_function import append_code_to_function
 from zrb.util.codemod.prepend_code_to_module import prepend_code_to_module
@@ -38,52 +39,52 @@ async def validate_create_my_app_name_entity(ctx: AnyContext):
         raise ValueError(f"Schema already exists: {schema_name}")
 
 
-scaffold_my_app_name_schema = Scaffolder(
-    name="scaffold-my-app-name-schema",
-    input=[
-        existing_module_input,
-        new_entity_input,
-        new_entity_column_input,
-    ],
-    source_path=os.path.join(os.path.dirname(__file__), "schema.template.py"),
-    render_source_path=False,
-    destination_path=lambda ctx: os.path.join(
-        APP_DIR,
-        "schema",
-        f"{to_snake_case(ctx.input.entity)}.py",
-    ),
-    transform_content={
-        "MyEntity": "{to_pascal_case(ctx.input.entity)}",
-        "my_column": "{to_snake_case(ctx.input.column)}",
-    },
-    retries=0,
-    upstream=validate_create_my_app_name_entity,
-)
-
-scaffold_my_app_name_module_entity = Scaffolder(
+scaffold_my_app_name_entity = Scaffolder(
     name="scaffold-my-app-name-entity",
     input=[
         existing_module_input,
         new_entity_input,
         plural_entity_input,
+        new_entity_column_input,
     ],
-    source_path=os.path.join(os.path.dirname(__file__), "module_template"),
+    source_path=os.path.join(os.path.dirname(__file__), "template", "app_template"),
     render_source_path=False,
-    destination_path=lambda ctx: os.path.join(
-        APP_DIR,
-        "module",
-        f"{to_snake_case(ctx.input.module)}",
-    ),
-    transform_content={
-        "my_module": "{to_snake_case(ctx.input.module)}",
-        "MyEntity": "{to_pascal_case(ctx.input.entity)}",
-        "my_entity": "{to_snake_case(ctx.input.entity)}",
-        "my_entities": "{to_snake_case(ctx.input.plural)}",
-        "my-entities": "{to_kebab_case(ctx.input.plural)}",
-    },
+    destination_path=APP_DIR,
     transform_path={
+        "my_module": "{to_snake_case(ctx.input.module)}",
         "my_entity": "{to_snake_case(ctx.input.entity)}",
     },
+    transform_content=[
+        # Schema tranformation (my_app_name/schema/snake_entity_name)
+        ContentTransformer(
+            match=lambda ctx, file_path: file_path.startswith(
+                os.path.join(APP_DIR, "schema", to_snake_case(ctx.input.entity))
+            ),
+            transform={
+                "MyEntity": "{to_pascal_case(ctx.input.entity)}",
+                "my_column": "{to_snake_case(ctx.input.column)}",
+            },
+        ),
+        # Common module's entity transformation (my_app_name/module/snake_module_name/service/snake_entity_name)
+        ContentTransformer(
+            match=lambda ctx, file_path: file_path.startswith(
+                os.path.join(
+                    APP_DIR,
+                    "module",
+                    to_snake_case(ctx.input.module),
+                    "service",
+                    to_snake_case(ctx.input.entity),
+                )
+            ),
+            transform={
+                "my_module": "{to_snake_case(ctx.input.module)}",
+                "MyEntity": "{to_pascal_case(ctx.input.entity)}",
+                "my_entity": "{to_snake_case(ctx.input.entity)}",
+                "my_entities": "{to_snake_case(ctx.input.plural)}",
+                "my-entities": "{to_kebab_case(ctx.input.plural)}",
+            },
+        ),
+    ],
     retries=0,
     upstream=validate_create_my_app_name_entity,
 )
@@ -244,13 +245,13 @@ add_my_app_name_entity = app_create_group.add_task(
     Task(
         name="add-my-app-name-entity",
         description="🏗️ Create new entity on a module",
-        successor="",
+        upstream=scaffold_my_app_name_entity,
+        successor=format_my_app_name_code,
+        retries=0,
     ),
     alias="entity",
 )
 add_my_app_name_entity << [
-    scaffold_my_app_name_schema,
-    scaffold_my_app_name_module_entity,
     register_my_app_name_api_client,
     register_my_app_name_direct_client,
     register_my_app_name_route,
