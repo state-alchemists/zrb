@@ -3,6 +3,7 @@ import os
 
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
+from zrb.util.file import read_file, write_file
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
@@ -15,20 +16,16 @@ class FileSessionStateLogger(AnySessionStateLogger):
         session_dir_path = os.path.dirname(session_file_path)
         if not os.path.isdir(session_dir_path):
             os.makedirs(session_dir_path, exist_ok=True)
-        with open(session_file_path, "w") as f:
-            f.write(session_log.model_dump_json())
+        write_file(session_file_path, session_log.model_dump_json())
         start_time = session_log.start_time
         if start_time == "":
             return
         timeline_dir_path = self._get_timeline_dir_path(session_log)
-        os.makedirs(timeline_dir_path, exist_ok=True)
-        with open(os.path.join(timeline_dir_path, session_log.name), "w"):
-            pass
+        write_file(os.path.join(timeline_dir_path, session_log.name), "")
 
     def read(self, session_name: str) -> SessionStateLog:
         session_file_path = self._get_session_file_path(session_name)
-        with open(session_file_path, "r") as f:
-            return SessionStateLog.model_validate_json(f.read())
+        return SessionStateLog.model_validate_json(read_file(session_file_path))
 
     def list(
         self,

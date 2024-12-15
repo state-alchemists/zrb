@@ -6,6 +6,7 @@ from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.task.scaffolder import Scaffolder
 from zrb.task.task import Task
+from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import double_quote, to_snake_case
 from zrb.util.string.name import get_random_name
 
@@ -50,28 +51,27 @@ def register_fastapp_automation(ctx: AnyContext):
     project_dir_path = ctx.input["project-dir"]
     zrb_init_path = os.path.join(project_dir_path, "zrb_init.py")
     app_dir_path = ctx.input.app
-    app_name = to_snake_case(ctx.input.app)
-    with open(zrb_init_path, "r") as f:
-        file_content = f.read().strip()
-    # Assemble new content
-    new_content_list = [file_content]
-    # Check if import load_file is exists, if not exists, add
+    snake_app_name = to_snake_case(ctx.input.app)
+    old_code = read_file(zrb_init_path).strip()
+    # Assemble new content components
     import_load_file_script = "from zrb import load_file"
-    if import_load_file_script not in file_content:
-        new_content_list = [import_load_file_script] + new_content_list
-    # Add fastapp-automation script
     automation_file_part = ", ".join(
         [double_quote(part) for part in [app_dir_path, "_zrb", "main.py"]]
     )
-    new_content_list = new_content_list + [
-        f"{app_name} = load_file(os.path.join(_DIR, {automation_file_part}))",
-        f"assert {app_name}",
-        "",
-    ]
-    new_content = "\n".join(new_content_list)
-    # Write new content
-    with open(zrb_init_path, "w") as f:
-        f.write(new_content)
+    write_file(
+        zrb_init_path,
+        [
+            (
+                import_load_file_script
+                if import_load_file_script not in old_code
+                else None
+            ),
+            old_code,
+            f"{snake_app_name} = load_file(os.path.join(_DIR, {automation_file_part}))",
+            f"assert {snake_app_name}",
+            "",
+        ],
+    )
 
 
 scaffold_fastapp >> register_fastapp_automation

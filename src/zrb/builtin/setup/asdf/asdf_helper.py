@@ -1,6 +1,7 @@
 import os
 
 from zrb.context.any_context import AnyContext
+from zrb.util.file import read_file, write_file
 
 
 def get_install_prerequisites_cmd(ctx: AnyContext) -> str:
@@ -31,14 +32,9 @@ def setup_asdf_ps_config(file_path: str):
 
 
 def _setup_asdf_config(file_path: str, asdf_config: str):
-    dir_path = os.path.dirname(file_path)
-    os.makedirs(dir_path, exist_ok=True)
     if not os.path.isfile(file_path):
-        with open(file_path, "w") as f:
-            f.write("")
-    with open(file_path, "r") as f:
-        content = f.read()
+        write_file(file_path, "")
+    content = read_file(file_path)
     if asdf_config in content:
         return
-    with open(file_path, "a") as f:
-        f.write(f"\n{asdf_config}\n")
+    write_file(file_path, [content, asdf_config, ""])

@@ -18,6 +18,7 @@ from zrb.util.codemod.add_code_to_class import add_code_to_class
 from zrb.util.codemod.add_code_to_function import add_code_to_function
 from zrb.util.codemod.add_code_to_module import add_code_to_module
 from zrb.util.codemod.add_parent_to_class import add_parent_to_class
+from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_pascal_case, to_snake_case
 
 
@@ -102,8 +103,7 @@ async def register_my_app_name_migration(ctx: AnyContext):
         APP_DIR, "module", to_snake_case(ctx.input.module), "migration_metadata.py"
     )
     app_name = os.path.basename(APP_DIR)
-    with open(migration_metadata_file_path, "r") as f:
-        file_content = f.read()
+    file_content = read_file(migration_metadata_file_path)
     entity_name = to_snake_case(ctx.input.entity)
     entity_class = to_pascal_case(ctx.input.entity)
     new_file_content_list = (
@@ -115,8 +115,7 @@ async def register_my_app_name_migration(ctx: AnyContext):
             "",
         ]
     )
-    with open(migration_metadata_file_path, "w") as f:
-        f.write("\n".join(new_file_content_list))
+    write_file(migration_metadata_file_path, "\n".join(new_file_content_list))
 
 
 @make_task(
@@ -129,8 +128,7 @@ async def register_my_app_name_api_client(ctx: AnyContext):
     api_client_file_path = os.path.join(
         APP_DIR, "module", to_snake_case(ctx.input.module), "client", "api_client.py"
     )
-    with open(api_client_file_path, "r") as f:
-        file_content = f.read()
+    file_content = read_file(api_client_file_path)
     module_config_name = to_snake_case(ctx.input.module).upper()
     new_code = add_code_to_module(
         file_content,
@@ -149,8 +147,7 @@ async def register_my_app_name_api_client(ctx: AnyContext):
         new_code.strip(),
         "",
     ]
-    with open(api_client_file_path, "w") as f:
-        f.write("\n".join(new_file_content_list))
+    write_file(api_client_file_path, "\n".join(new_file_content_list))
 
 
 @make_task(
@@ -163,8 +160,7 @@ async def register_my_app_name_direct_client(ctx: AnyContext):
     direct_client_file_path = os.path.join(
         APP_DIR, "module", to_snake_case(ctx.input.module), "client", "direct_client.py"
     )
-    with open(direct_client_file_path, "r") as f:
-        file_content = f.read()
+    file_content = read_file(direct_client_file_path)
     new_code = add_code_to_module(
         file_content, "user_direct_client = user_usecase.as_direct_client()"
     )
@@ -181,8 +177,7 @@ async def register_my_app_name_direct_client(ctx: AnyContext):
         new_code.strip(),
         "",
     ]
-    with open(direct_client_file_path, "w") as f:
-        f.write("\n".join(new_file_content_list))
+    write_file(direct_client_file_path, "\n".join(new_file_content_list))
 
 
 @make_task(
@@ -195,8 +190,7 @@ async def register_my_app_name_route(ctx: AnyContext):
     direct_client_file_path = os.path.join(
         APP_DIR, "module", to_snake_case(ctx.input.module), "route.py"
     )
-    with open(direct_client_file_path, "r") as f:
-        file_content = f.read()
+    file_content = read_file(direct_client_file_path)
     entity_name = to_snake_case(ctx.input.entity)
     new_code = add_code_to_function(
         file_content, "serve_route", f"{entity_name}_usecase.serve_route(app)"
@@ -208,8 +202,7 @@ async def register_my_app_name_route(ctx: AnyContext):
         new_code.strip(),
         "",
     ]
-    with open(direct_client_file_path, "w") as f:
-        f.write("\n".join(new_file_content_list))
+    write_file(direct_client_file_path, "\n".join(new_file_content_list))
 
 
 @make_task(
@@ -222,8 +215,7 @@ async def register_my_app_name_client_method(ctx: AnyContext):
     any_client_file_path = os.path.join(
         APP_DIR, "module", to_snake_case(ctx.input.module), "route.py"
     )
-    with open(any_client_file_path, "r") as f:
-        file_content = f.read()
+    file_content = read_file(any_client_file_path)
     app_name = os.path.basename(APP_DIR)
     snake_entity_name = to_snake_case(ctx.input.entity)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
@@ -232,8 +224,7 @@ async def register_my_app_name_client_method(ctx: AnyContext):
     any_client_method_template_path = (
         os.path.join(os.path.dirname(__file__), "any_client_method.template.py"),
     )
-    with open(any_client_method_template_path, "r") as f:
-        any_client_method_template = f.read()
+    any_client_method_template = read_file(any_client_method_template_path)
     any_client_method = any_client_method_template.replace(
         "my_entity", snake_entity_name
     ).replace("MyEntity", pascal_entity_name)
@@ -245,8 +236,7 @@ async def register_my_app_name_client_method(ctx: AnyContext):
         new_code.strip(),
         "",
     ]
-    with open(any_client_file_path, "w") as f:
-        f.write("\n".join(new_file_content_list))
+    write_file(any_client_file_path, "\n".join(new_file_content_list))
 
 
 # TODO: Register gateway route

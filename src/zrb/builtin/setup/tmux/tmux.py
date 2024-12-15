@@ -7,6 +7,7 @@ from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.cmd_task import CmdTask
 from zrb.task.make_task import make_task
+from zrb.util.file import read_file, write_file
 
 install_tmux = CmdTask(
     name="install-tmux",
@@ -28,22 +29,16 @@ install_tmux = CmdTask(
     alias="tmux",
 )
 def setup_tmux(ctx: AnyContext):
-    with open(os.path.join(os.path.dirname(__file__), "tmux_config.sh"), "r") as f:
-        tmux_config_template = f.read()
+    tmux_config = read_file(os.path.join(os.path.dirname(__file__), "tmux_config.sh"))
     tmux_config_file = os.path.expanduser(ctx.input["tmux-config"])
-    tmux_config_dir = os.path.dirname(tmux_config_file)
     # Make sure config file exists
-    os.makedirs(tmux_config_dir, exist_ok=True)
     if not os.path.isfile(tmux_config_file):
-        with open(tmux_config_file, "w") as f:
-            f.write("")
-    with open(tmux_config_file, "r") as f:
-        # config file already contain the config
-        if tmux_config_template in f.read():
-            return
+        write_file(tmux_config_file, "")
+    content = read_file(tmux_config_file)
+    if tmux_config in content:
+        return
     # Write config
-    with open(tmux_config_file, "a") as f:
-        f.write(f"\n{tmux_config_template}\n")
+    write_file(tmux_config_file, [content, tmux_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")
 
 

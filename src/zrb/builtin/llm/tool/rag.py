@@ -12,6 +12,7 @@ from zrb.config import (
     RAG_OVERLAP,
 )
 from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.file import read_file
 from zrb.util.run import run_async
 
 Document = str | Callable[[], str]
@@ -137,8 +138,7 @@ def get_rag_documents(document_dir_path: str) -> Callable[[], list[Callable[[], 
 def _get_text_reader(file_path: str):
     def read():
         print(stylize_faint(f"Start reading {file_path}"), file=sys.stderr)
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        content = read_file(file_path)
         print(stylize_faint(f"Complete reading {file_path}"), file=sys.stderr)
         return content
 

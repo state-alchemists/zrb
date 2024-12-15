@@ -6,6 +6,7 @@ from fastapp_template._zrb.helper import get_existing_module_names
 from fastapp_template._zrb.input import new_module_input
 
 from zrb import AnyContext, Scaffolder, Task, make_task
+from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 
 
@@ -61,8 +62,13 @@ async def register_my_app_name_module_config(ctx: AnyContext):
     config_name = f"APP_{upper_module_name}_BASE_URL"
     env_name = f"MY_APP_NAME_{upper_module_name}_BASE_URL"
     # TODO: check before write
-    with open(config_file_name, "a") as f:
-        f.write(f'{config_name} = os.getenv("{env_name}", "{module_base_url}")\n')
+    write_file(
+        config_file_name,
+        [
+            read_file(config_file_name),
+            f'{config_name} = os.getenv("{env_name}", "{module_base_url}")\n',
+        ],
+    )
 
 
 @make_task(
@@ -77,12 +83,10 @@ async def register_my_app_name_module(ctx: AnyContext):
     module_name = to_snake_case(ctx.input.module)
     import_code = f"from fastapp_template.module.{module_name} import route as {module_name}_route"  # noqa
     assert_code = f"assert {module_name}_route"
-    with open(app_main_file_name, "r") as f:
-        code = f.read()
+    code = read_file(app_main_file_name)
     new_code = "\n".join([import_code, code.strip(), assert_code, ""])
     # TODO: check before write
-    with open(app_main_file_name, "w") as f:
-        f.write(new_code)
+    write_file(app_main_file_name, new_code)
 
 
 # TODO: Register config
@@ -108,20 +112,19 @@ async def register_my_app_name_module_runner(ctx: AnyContext):
     module_snake_name = to_snake_case(ctx.input.module)
     module_kebab_name = to_kebab_case(ctx.input.module)
     module_pascal_name = to_pascal_case(ctx.input.module)
-    with open(os.path.join(os.path.dirname(__file__), "run_module.template.py")) as f:
-        module_runner_code = (
-            f.read()
-            .replace("my_module", module_snake_name)
-            .replace("my-module", module_kebab_name)
-            .replace("My Module", module_pascal_name)
-            .replace("3000", f"{module_port}")
-        )
-    with open(task_main_file_name, "r") as f:
-        code = f.read()
+    module_runner_code = read_file(
+        os.path.join(os.path.dirname(__file__), "run_module.template.py"),
+        {
+            "my_module": module_snake_name,
+            "my-module": module_kebab_name,
+            "My Module": module_pascal_name,
+            "3000": f"{module_port}",
+        },
+    )
+    code = read_file(task_main_file_name)
     new_code = "\n".join([code.strip(), "", module_runner_code, ""])
     # TODO: check before write
-    with open(task_main_file_name, "w") as f:
-        f.write(new_code)
+    write_file(task_main_file_name, new_code)
 
 
 create_my_app_name_module = app_create_group.add_task(

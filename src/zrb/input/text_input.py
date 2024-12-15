@@ -6,6 +6,7 @@ from collections.abc import Callable
 from zrb.config import DEFAULT_EDITOR
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
+from zrb.util.file import read_file
 
 
 class TextInput(BaseInput):
@@ -83,9 +84,8 @@ class TextInput(BaseInput):
         # Open the editor
         subprocess.call([self._editor, temp_file_name])
         # Read the edited content
-        with open(temp_file_name, "r") as temp_file:
-            edited_content = temp_file.read()
-            parts = [text.strip() for text in edited_content.split(prompt_message, 1)]
-            edited_content = "\n".join(parts).lstrip()
+        edited_content = read_file(temp_file_name)
+        parts = [text.strip() for text in edited_content.split(prompt_message, 1)]
+        edited_content = "\n".join(parts).lstrip()
         os.remove(temp_file_name)
         return edited_content

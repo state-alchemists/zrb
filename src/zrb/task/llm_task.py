@@ -15,6 +15,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
 from zrb.util.cli.style import stylize_faint
+from zrb.util.file import read_file, write_file
 from zrb.util.llm.tool import callable_to_tool_schema
 
 ListOfDict = list[dict[str, Any]]
@@ -171,9 +172,7 @@ class LLMTask(BaseTask):
                     messages.append(tool_call_message)
                 continue
             if history_file != "":
-                os.makedirs(os.path.dirname(history_file), exist_ok=True)
-                with open(history_file, "w") as f:
-                    f.write(json.dumps(messages, indent=2))
+                write_file(history_file, json.dumps(messages, indent=2))
             return response_message.content
 
     def _get_model(self, ctx: AnyContext) -> str:
@@ -211,8 +210,7 @@ class LLMTask(BaseTask):
             and history_file != ""
             and os.path.isfile(history_file)
         ):
-            with open(history_file, "r") as f:
-                return json.loads(f.read())
+            return json.loads(read_file(history_file))
         return self._history
 
     def _get_history_file(self, ctx: AnyContext) -> str:

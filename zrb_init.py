@@ -18,13 +18,13 @@ from zrb import (
 from zrb.builtin.git import git_commit
 from zrb.cmd.cmd_val import CmdVal
 from zrb.util.cli.style import WHITE
+from zrb.util.file import read_file
 from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
 
-with open(os.path.join(_DIR, "pyproject.toml")) as f:
-    pyproject = tomlkit.load(f)
-    _VERSION = pyproject["tool"]["poetry"]["version"]
+py_project = tomlkit.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
+_VERSION = py_project["tool"]["poetry"]["version"]
 
 
 # TEST =======================================================================
