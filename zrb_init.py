@@ -1,4 +1,5 @@
 import os
+import traceback
 from typing import Any
 
 import tomlkit
@@ -229,13 +230,19 @@ remove_generated >> test_generate
 
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
-    load_file(playground_zrb_init_path)
+    try:
+        load_file(playground_zrb_init_path)
+    except Exception:
+        traceback.print_exc()
 
 # GENERATED ===================================================================
 
 generated_zrb_init_path = os.path.join(_DIR, "playground", "generated", "zrb_init.py")
 if os.path.isfile(generated_zrb_init_path):
-    load_file(generated_zrb_init_path)
+    try:
+        load_file(generated_zrb_init_path)
+    except Exception:
+        traceback.print_exc()
 
 
 async def run_cmd_test(name: str, cmd: CmdVal) -> Any:

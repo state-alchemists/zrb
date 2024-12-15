@@ -14,7 +14,7 @@ class ContentTransformer(AnyContentTransformer):
         match: list[str] | str | Callable[[AnyContext, str], bool],
         transform: (
             dict[str, str | Callable[[AnyContext], str]]
-            | Callable[[AnyContext, str], str]
+            | Callable[[AnyContext, str], None]
         ),
         auto_render: bool = True,
     ):

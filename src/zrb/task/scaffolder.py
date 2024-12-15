@@ -84,11 +84,13 @@ class Scaffolder(BaseTask):
 
     def _get_content_transformers(self) -> list[AnyContentTransformer]:
         if callable(self._content_transformers):
-            return [ContentTransformer(match="*", transform=self._content_transformers)]
+            return [
+                ContentTransformer(match=".*", transform=self._content_transformers)
+            ]
         if isinstance(self._content_transformers, dict):
             return [
                 ContentTransformer(
-                    match="*",
+                    match=".*",
                     transform=self._content_transformers,
                     auto_render=self._render_content_transformers,
                 )
@@ -127,11 +129,11 @@ class Scaffolder(BaseTask):
                     dest_file = os.path.join(
                         dest_dir, self._transform_path(ctx, file_name)
                     )
+                    ctx.log_info(f"Copying {src_file} to {dest_file}")
                     shutil.copy2(src_file, dest_file)
-                    ctx.log_info(f"Copied {src_file} to {dest_file}")
         else:
+            ctx.log_info(f"Copying {source_path} to {destination_path}")
             shutil.copy2(source_path, destination_path)
-            ctx.log_info(f"Copied {source_path} to {destination_path}")
 
     def _transform_path(self, ctx: AnyContext, file_path: str):
         if callable(self._path_transformer):

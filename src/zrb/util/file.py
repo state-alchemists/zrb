@@ -15,4 +15,4 @@ def write_file(file_path: str, content: str | list[str]):
     dir_path = os.path.dirname(file_path)
     os.makedirs(dir_path, exist_ok=True)
     with open(file_path, "w") as f:
-        f.write(content)
+        f.write(content.strip())
