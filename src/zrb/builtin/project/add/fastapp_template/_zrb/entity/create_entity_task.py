@@ -2,15 +2,15 @@ import os
 
 from fastapp_template._zrb.config import APP_DIR
 from fastapp_template._zrb.group import app_create_group
-from fastapp_template._zrb.helper import (
-    get_existing_module_names,
-    get_existing_schema_names,
-)
 from fastapp_template._zrb.input import (
     existing_module_input,
     new_entity_column_input,
     new_entity_input,
     plural_entity_input,
+)
+from fastapp_template._zrb.util import (
+    get_existing_module_names,
+    get_existing_schema_names,
 )
 
 from zrb import AnyContext, Scaffolder, Task, make_task

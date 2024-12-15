@@ -21,7 +21,7 @@ scaffold_project = Scaffolder(
             name="project",
             description="Project name",
             prompt="Project name",
-            default_str=lambda ctx: os.path.basename(ctx.input["project-dir"]),
+            default_str=lambda ctx: os.path.basename(ctx.input.project_dir),
         ),
     ],
     source_path=os.path.join(_DIR, "project-template"),

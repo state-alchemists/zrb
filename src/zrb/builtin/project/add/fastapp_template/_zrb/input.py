@@ -1,4 +1,4 @@
-from fastapp_template._zrb.helper import (
+from fastapp_template._zrb.util import (
     get_existing_module_names,
     get_existing_schema_names,
 )

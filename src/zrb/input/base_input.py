@@ -4,6 +4,7 @@ from zrb.attr.type import StrAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.any_input import AnyInput
 from zrb.util.attr import get_str_attr
+from zrb.util.string.conversion import to_snake_case
 
 
 class BaseInput(AnyInput):
@@ -49,7 +50,18 @@ class BaseInput(AnyInput):
     ):
         if str_value is None:
             str_value = self._get_default_str(shared_ctx)
-        shared_ctx.input[self.name] = self._parse_str_value(str_value)
+        value = self._parse_str_value(str_value)
+        if self.name in shared_ctx.input:
+            raise ValueError(f"Input already defined in the context: {self.name}")
+        shared_ctx.input[self.name] = value
+        # We want to be able to access ctx.input["project-name"] as
+        # ctx.input.project_name
+        snake_key = to_snake_case(self.name)
+        if snake_key == self.name:
+            return
+        if snake_key in shared_ctx.input:
+            raise ValueError("Input already defined in the context: {snake_key}")
+        shared_ctx.input[snake_key] = value
 
     def _parse_str_value(self, str_value: str) -> Any:
         """Override this to transform str_value"""

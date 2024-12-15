@@ -1,36 +1,48 @@
 import os
 
 from zrb.builtin.group import add_to_project_group
+from zrb.builtin.project.add.fastapp_input import app_name_input, project_dir_input
+from zrb.builtin.project.add.fastapp_util import (
+    get_zrb_init_import_code,
+    get_zrb_init_load_app_name_task,
+)
 from zrb.context.any_context import AnyContext
-from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.task.scaffolder import Scaffolder
 from zrb.task.task import Task
 from zrb.util.file import read_file, write_file
-from zrb.util.string.conversion import double_quote, to_snake_case
+from zrb.util.string.conversion import to_snake_case
 from zrb.util.string.name import get_random_name
 
 _DIR = os.path.dirname(__file__)
 
 
+@make_task(
+    name="validate-create-fastapp",
+    input=[project_dir_input, app_name_input],
+    retries=0,
+)
+async def validate_create_fastapp(ctx: AnyContext):
+    project_dir = ctx.input.project_dir
+    if not os.path.isdir(project_dir):
+        raise ValueError(f"Project directory not exists: {project_dir}")
+    app_dir = os.path.join(project_dir, to_snake_case(ctx.input.app))
+    if os.path.exists(app_dir):
+        raise ValueError(f"Application directory already exists: {app_dir}")
+
+
 scaffold_fastapp = Scaffolder(
     name="scaffold-fastapp",
     input=[
-        StrInput(
-            name="project-dir",
-            description="Project directory",
-            prompt="Project directory",
-            default_str=lambda _: os.getcwd(),
-        ),
-        StrInput(
-            name="app",
-            description="App name",
-            prompt="App name",
-        ),
+        project_dir_input,
+        app_name_input,
     ],
+    upstream=validate_create_fastapp,
     source_path=os.path.join(_DIR, "fastapp_template"),
     render_source_path=False,
-    destination_path=lambda ctx: os.path.join(ctx.input["project-dir"], ctx.input.app),
+    destination_path=lambda ctx: os.path.join(
+        ctx.input.project_dir, to_snake_case(ctx.input.app)
+    ),
     transform_content={
         "fastapp_template": "{to_snake_case(ctx.input.app)}",
         "My App Name": "{ctx.input.app.title()}",
@@ -44,44 +56,34 @@ scaffold_fastapp = Scaffolder(
 
 
 @make_task(
-    name="register-fastapp-automation",
+    name="update-fastapp-zrb-init",
+    input=[
+        project_dir_input,
+        app_name_input,
+    ],
+    upstream=scaffold_fastapp,
     retries=0,
 )
-def register_fastapp_automation(ctx: AnyContext):
-    project_dir_path = ctx.input["project-dir"]
-    zrb_init_path = os.path.join(project_dir_path, "zrb_init.py")
-    app_dir_path = ctx.input.app
-    snake_app_name = to_snake_case(ctx.input.app)
-    old_code = read_file(zrb_init_path).strip()
-    # Assemble new content components
-    import_load_file_script = "from zrb import load_file"
-    automation_file_part = ", ".join(
-        [double_quote(part) for part in [app_dir_path, "_zrb", "main.py"]]
-    )
+def update_fastapp_zrb_init(ctx: AnyContext):
+    zrb_init_path = os.path.join(ctx.input.project_dir, "zrb_init.py")
+    old_zrb_init_code = read_file(zrb_init_path)
     write_file(
-        zrb_init_path,
-        [
-            (
-                import_load_file_script
-                if import_load_file_script not in old_code
-                else None
-            ),
-            old_code,
-            f"{snake_app_name} = load_file(os.path.join(_DIR, {automation_file_part}))",
-            f"assert {snake_app_name}",
+        file_path=zrb_init_path,
+        content=[
+            get_zrb_init_import_code(old_zrb_init_code),
+            old_zrb_init_code.strip(),
+            get_zrb_init_load_app_name_task(ctx.input.app),
             "",
         ],
     )
 
 
-scaffold_fastapp >> register_fastapp_automation
-
 add_fastapp_to_project = add_to_project_group.add_task(
     Task(
         name="add-fastapp",
         description="🚀 Add FastApp to project",
+        upstream=update_fastapp_zrb_init,
         retries=0,
     ),
     alias="fastapp",
 )
-add_fastapp_to_project << [register_fastapp_automation]

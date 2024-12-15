@@ -2,8 +2,8 @@ import os
 
 from fastapp_template._zrb.config import APP_DIR
 from fastapp_template._zrb.group import app_create_group
-from fastapp_template._zrb.helper import get_existing_module_names
 from fastapp_template._zrb.input import new_module_input
+from fastapp_template._zrb.util import get_existing_module_names
 
 from zrb import AnyContext, Scaffolder, Task, make_task
 from zrb.util.file import read_file, write_file
@@ -89,7 +89,7 @@ async def register_my_app_name_module(ctx: AnyContext):
     write_file(app_main_file_name, new_code)
 
 
-# TODO: Register config
+# TODO: Register to zrb's config
 
 
 @make_task(
@@ -99,8 +99,8 @@ async def register_my_app_name_module(ctx: AnyContext):
     retries=0,
 )
 async def register_my_app_name_module_runner(ctx: AnyContext):
-    """Registering module to _zrb's main.py"""
-    task_main_file_name = os.path.join(APP_DIR, "_zrb", "main.py")
+    """Registering module to _zrb's task.py"""
+    task_main_file_name = os.path.join(APP_DIR, "_zrb", "task.py")
     existing_module_names = get_existing_module_names()
     module_port = 3001 + len(
         [
