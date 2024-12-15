@@ -89,7 +89,7 @@ format_code = code_group.add_task(
         description="Format Zrb code",
         cwd=_DIR,
         cmd=[
-            "isort .",
+            "isort . --profile black --force-grid-wrap 0",
             "black .",
         ],
     ),

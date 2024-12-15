@@ -6,7 +6,7 @@ format_python_code = python_group.add_task(
         name="format-code",
         description="✏️ Format Python code",
         cmd=[
-            "isort .",
+            "isort . --profile black --force-grid-wrap 0",
             "black .",
         ],
     ),

@@ -8,9 +8,8 @@ format_my_app_name_code = app_group.add_task(
         name="format-my-app-name-code",
         description="✏️ Format Python code",
         cmd=[
-            "isort . --multi-line=3 --trailing-comma --use-parentheses \\",
-            "  --force-grid-wrap=0 --ensure-newline-before-comments",
-            "black . --skip-string-normalization",
+            "isort . --profile black --force-grid-wrap 0",
+            "black .",
         ],
         cwd=APP_DIR,
     ),

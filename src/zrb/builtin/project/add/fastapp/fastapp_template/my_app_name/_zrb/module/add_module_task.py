@@ -1,5 +1,4 @@
 import os
-import re
 
 from my_app_name._zrb.config import APP_DIR
 from my_app_name._zrb.format_task import format_my_app_name_code
