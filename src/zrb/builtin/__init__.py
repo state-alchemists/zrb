@@ -9,8 +9,8 @@ from zrb.builtin.git import (
 from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_subtree
 from zrb.builtin.llm.llm_chat import llm_chat
 from zrb.builtin.md5 import hash_md5, sum_md5
-from zrb.builtin.project.add.fastapp import add_fastapp_to_project
-from zrb.builtin.project.create.create import create_project
+from zrb.builtin.project.add.fastapp.fastapp_task import add_fastapp_to_project
+from zrb.builtin.project.create.project_task import create_project
 from zrb.builtin.python import format_python_code
 from zrb.builtin.setup.asdf.asdf import setup_asdf
 from zrb.builtin.setup.latex.ubuntu import setup_latex_on_ubuntu

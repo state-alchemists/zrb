@@ -23,7 +23,7 @@ async def validate_create_my_app_name_module(ctx: AnyContext):
 scaffold_my_app_name_module = Scaffolder(
     name="scaffold-my-app-name-module",
     input=new_module_input,
-    source_path=os.path.join(os.path.dirname(__file__), "module_template"),
+    source_path=os.path.join(os.path.dirname(__file__), "template", "module_template"),
     render_source_path=False,
     destination_path=lambda ctx: os.path.join(
         APP_DIR,
@@ -93,12 +93,12 @@ async def register_my_app_name_module(ctx: AnyContext):
 
 
 @make_task(
-    name="register-my-app-name-module-runner",
+    name="add-my-app-name-module-task-to-zrb-init",
     input=new_module_input,
     upstream=validate_create_my_app_name_module,
     retries=0,
 )
-async def register_my_app_name_module_runner(ctx: AnyContext):
+async def add_my_app_name_module_task_to_zrb_init(ctx: AnyContext):
     """Registering module to _zrb's task.py"""
     task_main_file_name = os.path.join(APP_DIR, "_zrb", "task.py")
     existing_module_names = get_existing_module_names()
@@ -113,7 +113,7 @@ async def register_my_app_name_module_runner(ctx: AnyContext):
     module_kebab_name = to_kebab_case(ctx.input.module)
     module_pascal_name = to_pascal_case(ctx.input.module)
     module_runner_code = read_file(
-        os.path.join(os.path.dirname(__file__), "run_module.template.py"),
+        os.path.join(os.path.dirname(__file__), "template", "task_definition.py"),
         {
             "my_module": module_snake_name,
             "my-module": module_kebab_name,
@@ -131,13 +131,13 @@ create_my_app_name_module = app_create_group.add_task(
     Task(
         name="create-my-app-name-module",
         description="🧩 Create new module on My App Name",
+        upstream=[
+            scaffold_my_app_name_module,
+            register_my_app_name_module,
+            register_my_app_name_module_config,
+            add_my_app_name_module_task_to_zrb_init,
+        ],
         retries=0,
     ),
     alias="module",
 )
-create_my_app_name_module << [
-    scaffold_my_app_name_module,
-    register_my_app_name_module,
-    register_my_app_name_module_config,
-    register_my_app_name_module_runner,
-]

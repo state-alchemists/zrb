@@ -2,13 +2,13 @@ import os
 
 from fastapp_template._zrb.column.create_column_task import create_my_app_name_column
 from fastapp_template._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
-from fastapp_template._zrb.entity.create_entity_task import create_my_app_name_entity
+from fastapp_template._zrb.entity.task import create_my_app_name_entity
 from fastapp_template._zrb.group import (
     app_create_migration_group,
     app_migrate_group,
     app_run_group,
 )
-from fastapp_template._zrb.module.create_module_task import create_my_app_name_module
+from fastapp_template._zrb.module.task import create_my_app_name_module
 from fastapp_template._zrb.util import (
     create_migration,
     migrate_module,

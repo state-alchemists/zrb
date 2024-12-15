@@ -1,8 +1,11 @@
 import os
 
 from zrb.builtin.group import add_to_project_group
-from zrb.builtin.project.add.fastapp_input import app_name_input, project_dir_input
-from zrb.builtin.project.add.fastapp_util import (
+from zrb.builtin.project.add.fastapp.fastapp_input import (
+    app_name_input,
+    project_dir_input,
+)
+from zrb.builtin.project.add.fastapp.fastapp_util import (
     get_zrb_init_import_code,
     get_zrb_init_load_app_name_task,
 )
