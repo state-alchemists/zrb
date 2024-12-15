@@ -1,30 +1,23 @@
 import os
 
-from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
+from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
 
 _DIR = os.path.dirname(__file__)
 
-with open(os.path.join(_DIR, "view.html"), "r") as f:
-    _VIEW_TEMPLATE = f.read()
-
-with open(os.path.join(_DIR, "partial", "input.html")) as f:
-    _TASK_INPUT_TEMPLATE = f.read()
-
-with open(os.path.join(_DIR, "partial", "main.js")) as f:
-    _MAIN_SCRIPT = f.read()
-
-with open(os.path.join(_DIR, "partial", "show-existing-session.js")) as f:
-    _SHOW_EXISTING_SESSION_SCRIPT = f.read()
-
-with open(os.path.join(_DIR, "partial", "visualize-history.js")) as f:
-    _VISUALIZE_HISTORY_SCRIPT = f.read()
-
-with open(os.path.join(_DIR, "partial", "common-util.js")) as f:
-    _COMMON_UTIL_SCRIPT = f.read()
+_VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+_TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
+_MAIN_SCRIPT = read_file(os.path.join(_DIR, "partial", "main.js"))
+_SHOW_EXISTING_SESSION_SCRIPT = read_file(
+    os.path.join(_DIR, "partial", "show-existing-session.js")
+)
+_VISUALIZE_HISTORY_SCRIPT = read_file(
+    os.path.join(_DIR, "partial", "visualize-history.js")
+)
+_COMMON_UTIL_SCRIPT = read_file(os.path.join(_DIR, "partial", "common-util.js"))
 
 
 def handle_task_ui(

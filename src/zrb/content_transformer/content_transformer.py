@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.context.any_context import AnyContext
+from zrb.util.file import read_file, write_file
 
 
 class ContentTransformer(AnyContentTransformer):
@@ -40,12 +41,10 @@ class ContentTransformer(AnyContentTransformer):
             keyword: self._get_str_replacement(ctx, replacement)
             for keyword, replacement in self._transform_file.items()
         }
-        with open(file_path, "r") as f:
-            content = f.read()
+        content = read_file(file_path)
         for keyword, replacement in transform_map.items():
             content = content.replace(keyword, replacement)
-        with open(file_path, "w") as f:
-            f.write(content)
+        write_file(file_path, content)
 
     def _get_str_replacement(
         self, ctx: AnyContext, replacement: str | Callable[[AnyContext], str]

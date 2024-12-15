@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from zrb.attr.type import fstring
 from zrb.context.context import Context
+from zrb.util.file import read_file
 
 
 class AnyCmdVal(ABC):
@@ -18,8 +19,7 @@ class CmdPath(AnyCmdVal):
 
     def to_str(self, ctx: Context) -> str:
         file_path = ctx.render(self._path) if self._auto_render else self._path
-        with open(file_path) as file:
-            return file.read()
+        return read_file(file_path)
 
 
 class Cmd(AnyCmdVal):

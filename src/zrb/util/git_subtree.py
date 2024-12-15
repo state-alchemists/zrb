@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from zrb.util.cmd.command import run_command
+from zrb.util.file import read_file, write_file
 
 
 class SingleSubTreeConfig(BaseModel):
@@ -21,14 +22,12 @@ def load_config(repo_dir: str) -> SubTreeConfig:
     file_path = os.path.join(repo_dir, "subtrees.json")
     if not os.path.exists(file_path):
         return SubTreeConfig(data={})
-    with open(file_path, "r") as f:
-        return SubTreeConfig.model_validate_json(f.read())
+    return SubTreeConfig.model_validate_json(read_file(file_path))
 
 
 def save_config(repo_dir: str, config: SubTreeConfig):
     file_path = os.path.join(repo_dir, "subtrees.json")
-    with open(file_path, "w") as f:
-        f.write(config.model_dump_json(indent=2))
+    write_file(file_path, config.model_dump_json(indent=2))
 
 
 async def add_subtree(

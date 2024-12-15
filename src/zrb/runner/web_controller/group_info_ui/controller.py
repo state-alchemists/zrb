@@ -1,25 +1,17 @@
 import os
 
 from zrb.group.any_group import AnyGroup
+from zrb.util.file import read_file
 from zrb.util.group import get_non_empty_subgroups, get_subtasks
 from zrb.util.string.format import fstring_format
 
 _DIR = os.path.dirname(__file__)
 
-with open(os.path.join(_DIR, "view.html"), "r") as f:
-    _VIEW_TEMPLATE = f.read()
-
-with open(os.path.join(_DIR, "partial", "group_info.html")) as f:
-    _GROUP_INFO_TEMPLATE = f.read()
-
-with open(os.path.join(_DIR, "partial", "group_li.html")) as f:
-    _GROUP_LI_TEMPLATE = f.read()
-
-with open(os.path.join(_DIR, "partial", "task_info.html")) as f:
-    _TASK_INFO_TEMPLATE = f.read()
-
-with open(os.path.join(_DIR, "partial", "task_li.html")) as f:
-    _TASK_LI_TEMPLATE = f.read()
+_VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+_GROUP_INFO_TEMPLATE = read_file(os.path.join(_DIR, "partial", "group_info.html"))
+_GROUP_LI_TEMPLATE = read_file(os.path.join(_DIR, "partial", "group_li.html"))
+_TASK_INFO_TEMPLATE = read_file(os.path.join(_DIR, "partial", "task_info.html"))
+_TASK_LI_TEMPLATE = read_file(os.path.join(_DIR, "partial", "task_li.html"))
 
 
 def handle_group_info_ui(root_group: AnyGroup, group: AnyGroup, url: str):

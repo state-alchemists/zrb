@@ -9,6 +9,7 @@ from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.make_task import make_task
+from zrb.util.file import read_file, write_file
 from zrb.util.todo import (
     TodoTaskModel,
     add_durations,
@@ -119,8 +120,7 @@ def show_todo(ctx: AnyContext):
     log_work_path = os.path.join(TODO_DIR, "log-work", f"{task_id}.json")
     log_work_list = []
     if os.path.isfile(log_work_path):
-        with open(log_work_path, "r") as f:
-            log_work_list = json.loads(f.read())
+        log_work_list = json.loads(read_file(log_work_path))
     return get_visual_todo_card(todo_task, log_work_list)
 
 
@@ -237,8 +237,7 @@ def log_todo(ctx: AnyContext):
         log_work_dir, f"{todo_task.keyval.get('id')}.json"
     )
     if os.path.isfile(log_work_file_path):
-        with open(log_work_file_path, "r") as f:
-            log_work_json = f.read()
+        log_work_json = read_file(log_work_file_path)
     else:
         log_work_json = "[]"
     log_work: list[dict[str, Any]] = json.loads(log_work_json)
@@ -246,15 +245,13 @@ def log_todo(ctx: AnyContext):
         {"log": ctx.input.log, "duration": ctx.input.duration, "start": ctx.input.start}
     )
     # save todo with log work
-    with open(log_work_file_path, "w") as f:
-        f.write(json.dumps(log_work, indent=2))
+    write_file(log_work_file_path, json.dumps(log_work, indent=2))
     # get log work list
     task_id = todo_task.keyval.get("id", "")
     log_work_path = os.path.join(TODO_DIR, "log-work", f"{task_id}.json")
     log_work_list = []
     if os.path.isfile(log_work_path):
-        with open(log_work_path, "r") as f:
-            log_work_list = json.loads(f.read())
+        log_work_list = json.loads(read_file(log_work_path))
     return "\n".join(
         [
             get_visual_todo_list(todo_list, TODO_VISUAL_FILTER),
@@ -290,8 +287,7 @@ def edit_todo(ctx: AnyContext):
     ]
     new_content = "\n".join(todo_task_to_line(todo_task) for todo_task in todo_list)
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
-    with open(todo_file_path, "w") as f:
-        f.write(new_content)
+    write_file(todo_file_path, new_content)
     todo_list = load_todo_list(todo_file_path)
     return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
 
@@ -300,5 +296,4 @@ def _get_todo_txt_content() -> str:
     todo_file_path = os.path.join(TODO_DIR, "todo.txt")
     if not os.path.isfile(todo_file_path):
         return ""
-    with open(todo_file_path, "r") as f:
-        return f.read()
+    return read_file(todo_file_path)

@@ -1,18 +1,17 @@
 import datetime
 import re
 import shutil
-from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
 from zrb.util.cli.style import (
-    stylize_bold_green,
     stylize_bold_yellow,
     stylize_cyan,
     stylize_faint,
     stylize_magenta,
     stylize_yellow,
 )
+from zrb.util.file import read_file, write_file
 from zrb.util.string.name import get_random_name
 
 
@@ -87,8 +86,7 @@ def select_todo_task(
 
 
 def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
-    with open(todo_file_path, "r") as f:
-        todo_lines = f.read().strip().split("\n")
+    todo_lines = read_file(todo_file_path).strip().split("\n")
     todo_list: list[TodoTaskModel] = []
     for todo_line in todo_lines:
         todo_line = todo_line.strip()
@@ -108,9 +106,9 @@ def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
 
 
 def save_todo_list(todo_file_path: str, todo_list: list[TodoTaskModel]):
-    with open(todo_file_path, "w") as f:
-        for todo_task in todo_list:
-            f.write(todo_task_to_line(todo_task) + "\n")
+    write_file(
+        todo_file_path, [todo_task_to_line(todo_task) for todo_task in todo_list]
+    )
 
 
 def line_to_todo_task(line: str) -> TodoTaskModel:

@@ -18,13 +18,13 @@ from zrb import (
 from zrb.builtin.git import git_commit
 from zrb.cmd.cmd_val import CmdVal
 from zrb.util.cli.style import WHITE
+from zrb.util.file import read_file
 from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
 
-with open(os.path.join(_DIR, "pyproject.toml")) as f:
-    pyproject = tomlkit.load(f)
-    _VERSION = pyproject["tool"]["poetry"]["version"]
+_PYPROJECT = tomlkit.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
+_VERSION = _PYPROJECT["tool"]["poetry"]["version"]
 
 
 # TEST =======================================================================
@@ -159,7 +159,7 @@ format_code >> publish_pip
 publish_group.add_task(publish_docker, alias="docker")
 
 publish_all = publish_group.add_task(
-    Task(name="publish-all", description="Publish Zrb")
+    Task(name="publish-all", description="Publish Zrb"), alias="all"
 )
 publish_all << [publish_pip, publish_docker]
 
@@ -180,6 +180,7 @@ remove_generated = cli.add_task(
     description="🔨 Test generate fastapp",
     group=test_group,
     alias="generate",
+    retries=0,
 )
 async def test_generate(ctx: AnyContext):
     # Create project
@@ -216,8 +217,8 @@ async def test_generate(ctx: AnyContext):
     )
     # Start microservices
     await run_cmd_test(
-        name="run-microservices",
-        cmd="zrb project fastapp run microservices",
+        name="run-all",
+        cmd="zrb project fastapp run all",
     )
 
 
