@@ -1,4 +1,4 @@
-from zrb.util.codemod.add_code_to_class import add_code_to_class
+from zrb.util.codemod.append_code_to_class import append_code_to_class
 
 original_code = """
 class OtherClass:
@@ -30,6 +30,8 @@ class MyClass:
 """
 
 
-def test_add_code_to_class():
-    new_code = add_code_to_class(original_code.strip(), "MyClass", method_code.strip())
+def test_append_code_to_class():
+    new_code = append_code_to_class(
+        original_code.strip(), "MyClass", method_code.strip()
+    )
     assert new_code == expected_new_code.strip()

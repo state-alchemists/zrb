@@ -1,4 +1,4 @@
-def add_code_to_module(source_code: str, new_code: str) -> str:
+def prepend_code_to_module(source_code: str, new_code: str) -> str:
     lines = source_code.splitlines()
     last_import_index = -1
     for i, line in enumerate(lines):

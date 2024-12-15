@@ -1,4 +1,4 @@
-from zrb.util.codemod.add_code_to_function import add_code_to_function
+from zrb.util.codemod.append_code_to_function import append_code_to_function
 
 original_code = """
 def existing_function(self):
@@ -16,8 +16,8 @@ def existing_function(self):
 """
 
 
-def test_add_code_to_function():
-    new_code = add_code_to_function(
+def test_append_code_to_function():
+    new_code = append_code_to_function(
         original_code.strip(), "existing_function", additional_code.strip()
     )
     assert new_code == expected_new_code.strip()

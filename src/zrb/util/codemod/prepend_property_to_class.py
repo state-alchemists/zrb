@@ -33,7 +33,7 @@ class ClassPropertyAdder(cst.CSTTransformer):
         return updated_node
 
 
-def add_property_to_class(
+def prepend_property_to_class(
     original_code: str,
     class_name: str,
     property_name: str,

@@ -22,7 +22,9 @@ class FunctionCodeAdder(cst.CSTTransformer):
         return updated_node
 
 
-def add_code_to_function(original_code: str, function_name: str, new_code: str) -> str:
+def append_code_to_function(
+    original_code: str, function_name: str, new_code: str
+) -> str:
     # Parse the original code into a module
     module = cst.parse_module(original_code)
     # Initialize the transformer with the necessary information

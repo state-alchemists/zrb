@@ -14,10 +14,10 @@ from fastapp_template._zrb.input import (
 )
 
 from zrb import AnyContext, Scaffolder, Task, make_task
-from zrb.util.codemod.add_code_to_class import add_code_to_class
-from zrb.util.codemod.add_code_to_function import add_code_to_function
-from zrb.util.codemod.add_code_to_module import add_code_to_module
-from zrb.util.codemod.add_parent_to_class import add_parent_to_class
+from zrb.util.codemod.append_code_to_class import append_code_to_class
+from zrb.util.codemod.append_code_to_function import append_code_to_function
+from zrb.util.codemod.prepend_code_to_module import prepend_code_to_module
+from zrb.util.codemod.prepend_parent_to_class import prepend_parent_class
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_pascal_case, to_snake_case
 
@@ -104,14 +104,14 @@ async def register_my_app_name_migration(ctx: AnyContext):
     )
     app_name = os.path.basename(APP_DIR)
     file_content = read_file(migration_metadata_file_path)
-    entity_name = to_snake_case(ctx.input.entity)
-    entity_class = to_pascal_case(ctx.input.entity)
+    snake_entity_name = to_snake_case(ctx.input.entity)
+    pascal_entity_name = to_pascal_case(ctx.input.entity)
     new_file_content_list = (
-        [f"from {app_name}.schema.{entity_name} import {entity_class}"]
+        [f"from {app_name}.schema.{snake_entity_name} import {pascal_entity_name}"]
         + file_content.strip()
         + [
-            f"{entity_class}.metadata = metadata",
-            f"{entity_class}.__table__.tometadata(metadata)",
+            f"{pascal_entity_name}.metadata = metadata",
+            f"{pascal_entity_name}.__table__.tometadata(metadata)",
             "",
         ]
     )
@@ -129,25 +129,27 @@ async def register_my_app_name_api_client(ctx: AnyContext):
         APP_DIR, "module", to_snake_case(ctx.input.module), "client", "api_client.py"
     )
     file_content = read_file(api_client_file_path)
-    module_config_name = to_snake_case(ctx.input.module).upper()
-    new_code = add_code_to_module(
+    upper_snake_module_name = to_snake_case(ctx.input.module).upper()
+    new_code = prepend_code_to_module(
         file_content,
-        f"user_api_client = user_usecase.as_api_client(base_url=APP_{module_config_name}_BASE_URL)",  # noqa
+        f"user_api_client = user_usecase.as_api_client(base_url=APP_{upper_snake_module_name}_BASE_URL)",  # noqa
     )
-    new_code = add_parent_to_class(
+    new_code = prepend_parent_class(
         original_code=new_code,
         class_name="APIClient",
         parent_class_name="user_api_client",
     )
     app_name = os.path.basename(APP_DIR)
-    entity_name = to_snake_case(ctx.input.entity)
-    module_name = to_snake_case(ctx.input.module)
-    new_file_content_list = [
-        f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
-        new_code.strip(),
-        "",
-    ]
-    write_file(api_client_file_path, "\n".join(new_file_content_list))
+    snake_entity_name = to_snake_case(ctx.input.entity)
+    snake_module_name = to_snake_case(ctx.input.module)
+    write_file(
+        api_client_file_path,
+        [
+            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_usecase import {snake_entity_name}_usecase",  # noqa
+            new_code.strip(),
+            "",
+        ],
+    )
 
 
 @make_task(
@@ -161,23 +163,22 @@ async def register_my_app_name_direct_client(ctx: AnyContext):
         APP_DIR, "module", to_snake_case(ctx.input.module), "client", "direct_client.py"
     )
     file_content = read_file(direct_client_file_path)
-    new_code = add_code_to_module(
-        file_content, "user_direct_client = user_usecase.as_direct_client()"
-    )
-    new_code = add_parent_to_class(
-        original_code=new_code,
-        class_name="DirectClient",
-        parent_class_name="user_direct_client",
-    )
     app_name = os.path.basename(APP_DIR)
-    entity_name = to_snake_case(ctx.input.entity)
-    module_name = to_snake_case(ctx.input.module)
-    new_file_content_list = [
-        f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
-        new_code.strip(),
-        "",
-    ]
-    write_file(direct_client_file_path, "\n".join(new_file_content_list))
+    snake_entity_name = to_snake_case(ctx.input.entity)
+    snake_module_name = to_snake_case(ctx.input.module)
+    write_file(
+        direct_client_file_path,
+        [
+            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_usecase import {snake_entity_name}_usecase",  # noqa
+            prepend_code_to_module(
+                prepend_parent_class(
+                    file_content, "DirectClient", "user_direct_client"
+                ),
+                "user_direct_client = user_usecase.as_direct_client()",
+            ).strip(),
+            "",
+        ],
+    )
 
 
 @make_task(
@@ -192,7 +193,7 @@ async def register_my_app_name_route(ctx: AnyContext):
     )
     file_content = read_file(direct_client_file_path)
     entity_name = to_snake_case(ctx.input.entity)
-    new_code = add_code_to_function(
+    new_code = append_code_to_function(
         file_content, "serve_route", f"{entity_name}_usecase.serve_route(app)"
     )
     app_name = os.path.basename(APP_DIR)
@@ -228,7 +229,7 @@ async def register_my_app_name_client_method(ctx: AnyContext):
     any_client_method = any_client_method_template.replace(
         "my_entity", snake_entity_name
     ).replace("MyEntity", pascal_entity_name)
-    new_code = add_code_to_class(file_content, "AnyClient", any_client_method)
+    new_code = append_code_to_class(file_content, "AnyClient", any_client_method)
     new_file_content_list = [
         f"from {app_name}.schema.{snake_entity_name}.{snake_entity_name} import (",
         f"    {pascal_entity_name}CreateWithAudit, {pascal_entity_name}Response, {pascal_entity_name}UpdateWithAudit",

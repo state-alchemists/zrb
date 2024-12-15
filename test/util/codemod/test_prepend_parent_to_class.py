@@ -1,4 +1,4 @@
-from zrb.util.codemod.add_parent_to_class import add_parent_to_class
+from zrb.util.codemod.prepend_parent_to_class import prepend_parent_class
 
 original_code = """
 class MyClass(OriginalParent):
@@ -11,6 +11,6 @@ class MyClass(NewParent, OriginalParent):
 """
 
 
-def test_add_code_to_method():
-    new_code = add_parent_to_class(original_code.strip(), "MyClass", "NewParent")
+def test_prepend_code_to_method():
+    new_code = prepend_parent_class(original_code.strip(), "MyClass", "NewParent")
     assert new_code == expected_new_code.strip()

@@ -33,7 +33,7 @@ class DictionaryModifier(cst.CSTTransformer):
         return updated_node
 
 
-def add_key_to_dict(
+def append_key_to_dict(
     original_code: str, dictionary_name: str, new_key: str, new_value: str
 ) -> str:
     # Parse the original code into a module

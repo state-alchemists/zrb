@@ -37,7 +37,7 @@ class MethodCodeAdder(cst.CSTTransformer):
         return updated_node
 
 
-def add_code_to_method(
+def append_code_to_method(
     original_code: str, class_name: str, function_name: str, new_code: str
 ) -> str:
     # Parse the original code into a module

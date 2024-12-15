@@ -1,4 +1,4 @@
-from zrb.util.codemod.add_property_to_class import add_property_to_class
+from zrb.util.codemod.prepend_property_to_class import prepend_property_to_class
 
 original_code = """
 class MyClass:
@@ -12,8 +12,8 @@ class MyClass:
 """
 
 
-def test_add_property_to_class():
-    new_code = add_property_to_class(
+def test_append_property_to_class():
+    new_code = prepend_property_to_class(
         original_code.strip(), "MyClass", "new_property", "int", "100"
     )
     assert new_code == expected_new_code.strip()

@@ -21,7 +21,7 @@ class FunctionCallParamAdder(cst.CSTTransformer):
         return updated_node
 
 
-def add_param_to_function_call(
+def append_param_to_function_call(
     original_code: str, func_name: str, new_param: str
 ) -> str:
     # Parse the original code into a module
