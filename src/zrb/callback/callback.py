@@ -8,7 +8,6 @@ from zrb.util.attr import get_str_dict_attr
 
 
 class Callback(AnyCallback):
-
     def __init__(
         self,
         input_mapping: StrDictAttr,

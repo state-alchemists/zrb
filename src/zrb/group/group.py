@@ -3,7 +3,6 @@ from zrb.task.any_task import AnyTask
 
 
 class Group(AnyGroup):
-
     def __init__(
         self, name: str, description: str | None = None, banner: str | None = None
     ):

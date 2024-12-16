@@ -32,7 +32,6 @@ def make_task(
     group: AnyGroup | None = None,
     alias: str | None = None,
 ) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
-
     def _make_task(fn: Callable[[AnyContext], Any]) -> BaseTask:
         task = BaseTask(
             name=name,

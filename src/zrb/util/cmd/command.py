@@ -47,7 +47,6 @@ async def run_command(
     max_output_line: int = 1000,
     max_error_line: int = 1000,
 ) -> tuple[CmdResult, int]:
-
     async def __read_stream(
         stream, log_method: Callable[..., None], max_lines: int
     ) -> str:

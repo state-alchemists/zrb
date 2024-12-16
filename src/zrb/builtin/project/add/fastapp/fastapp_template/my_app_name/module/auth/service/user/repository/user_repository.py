@@ -9,7 +9,6 @@ from my_app_name.schema.user import (
 
 
 class UserRepository(ABC):
-
     @abstractmethod
     async def create(self, user_data: UserCreateWithAudit) -> UserResponse:
         pass

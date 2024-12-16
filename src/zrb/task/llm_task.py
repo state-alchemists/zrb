@@ -33,7 +33,6 @@ def scratchpad(thought: str) -> str:
 
 
 class LLMTask(BaseTask):
-
     def __init__(
         self,
         name: str,

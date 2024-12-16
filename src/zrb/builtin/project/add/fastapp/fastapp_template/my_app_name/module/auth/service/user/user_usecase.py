@@ -11,7 +11,6 @@ from my_app_name.schema.user import (
 
 
 class UserUsecase(BaseUsecase):
-
     def __init__(self, user_repository: UserRepository):
         super().__init__()
         self.user_repository = user_repository

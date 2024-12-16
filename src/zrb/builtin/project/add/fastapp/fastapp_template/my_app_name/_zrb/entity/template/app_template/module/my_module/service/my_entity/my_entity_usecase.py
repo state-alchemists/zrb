@@ -13,7 +13,6 @@ from my_app_name.schema.my_entity import (
 
 
 class MyEntityUsecase(BaseUsecase):
-
     def __init__(self, my_entity_repository: MyEntityRepository):
         super().__init__()
         self.my_entity_repository = my_entity_repository

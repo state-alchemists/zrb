@@ -9,7 +9,6 @@ from my_app_name.schema.my_entity import (
 
 
 class MyEntityRepository(ABC):
-
     @abstractmethod
     async def create(self, my_entity_data: MyEntityCreateWithAudit) -> MyEntityResponse:
         pass

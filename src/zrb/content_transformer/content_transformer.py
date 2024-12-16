@@ -8,7 +8,6 @@ from zrb.util.file import read_file, write_file
 
 
 class ContentTransformer(AnyContentTransformer):
-
     def __init__(
         self,
         match: list[str] | str | Callable[[AnyContext, str], bool],

@@ -19,7 +19,6 @@ from zrb.xcom.xcom import Xcom
 
 
 class BaseTrigger(BaseTask):
-
     def __init__(
         self,
         name: str,

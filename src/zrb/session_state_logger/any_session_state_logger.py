@@ -5,7 +5,6 @@ from zrb.session_state_log.session_state_log import SessionStateLog, SessionStat
 
 
 class AnySessionStateLogger(ABC):
-
     @abstractmethod
     def write(self, session_log: SessionStateLog):
         pass

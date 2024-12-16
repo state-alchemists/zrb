@@ -20,7 +20,6 @@ from zrb.util.string.conversion import double_quote
 
 
 class Cli(Group):
-
     def run(self, args: list[str] = []):
         load_zrb_init()
         kwargs, args = self._extract_kwargs_from_args(args)
