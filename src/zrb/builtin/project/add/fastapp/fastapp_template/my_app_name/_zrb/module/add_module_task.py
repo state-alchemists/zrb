@@ -58,14 +58,12 @@ scaffold_my_app_name_module = Scaffolder(
         ),
         # Register module's tasks to my_app_name/_zrb/task.py
         ContentTransformer(
-            match=lambda _, file_path: file_path
-            == os.path.join(APP_DIR, "_zrb", "task.py"),
+            match=lambda _, file_path: file_path == os.path.join(APP_DIR, "_zrb", "task.py"),
             transform=update_app_zrb_task_file,
         ),
         # Register module's base url to my_app_name/_zrb/config.py
         ContentTransformer(
-            match=lambda _, file_path: file_path
-            == os.path.join(APP_DIR, "_zrb", "config.py"),
+            match=lambda _, file_path: file_path == os.path.join(APP_DIR, "_zrb", "config.py"),
             transform=update_app_zrb_config_file,
         ),
     ],
