@@ -1,6 +1,7 @@
 import os
 
 from my_app_name._zrb.config import APP_DIR
+from my_app_name._zrb.entity.add_entity_util import update_migration_metadata
 from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import app_create_group
 from my_app_name._zrb.input import (
@@ -84,36 +85,21 @@ scaffold_my_app_name_entity = Scaffolder(
                 "my-entities": "{to_kebab_case(ctx.input.plural)}",
             },
         ),
+        # Add entity to migration metadata (my_app_name/module/snake_module_name/migration_metadata.py)
+        ContentTransformer(
+            match=lambda ctx, file_path: file_path
+            == os.path.join(
+                APP_DIR,
+                "module",
+                to_snake_case(ctx.input.module),
+                "migration_metadata.py",
+            ),
+            transform=update_migration_metadata,
+        ),
     ],
     retries=0,
     upstream=validate_create_my_app_name_entity,
 )
-
-
-@make_task(
-    name="register-my-app-name-migration",
-    input=[existing_module_input, new_entity_input],
-    retries=0,
-    upstream=validate_create_my_app_name_entity,
-)
-async def register_my_app_name_migration(ctx: AnyContext):
-    migration_metadata_file_path = os.path.join(
-        APP_DIR, "module", to_snake_case(ctx.input.module), "migration_metadata.py"
-    )
-    app_name = os.path.basename(APP_DIR)
-    file_content = read_file(migration_metadata_file_path)
-    snake_entity_name = to_snake_case(ctx.input.entity)
-    pascal_entity_name = to_pascal_case(ctx.input.entity)
-    new_file_content_list = (
-        [f"from {app_name}.schema.{snake_entity_name} import {pascal_entity_name}"]
-        + file_content.strip()
-        + [
-            f"{pascal_entity_name}.metadata = metadata",
-            f"{pascal_entity_name}.__table__.tometadata(metadata)",
-            "",
-        ]
-    )
-    write_file(migration_metadata_file_path, "\n".join(new_file_content_list))
 
 
 @make_task(

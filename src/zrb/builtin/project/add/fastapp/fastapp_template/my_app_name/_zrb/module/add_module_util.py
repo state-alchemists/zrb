@@ -66,7 +66,9 @@ def _get_task_definition_code(existing_code: str, module_name: str) -> str | Non
             "3000": f"{module_port}",
         },
     ).strip()
-    return task_definition_code if task_definition_code not in existing_code else None
+    if task_definition_code in existing_code:
+        return None
+    return task_definition_code
 
 
 def update_app_main_file(ctx: AnyContext, app_main_file_path: str):
@@ -84,8 +86,13 @@ def update_app_main_file(ctx: AnyContext, app_main_file_path: str):
 
 def _get_import_module_route_code(existing_code: str, module_name: str) -> str | None:
     snake_module_name = to_snake_case(module_name)
-    import_route_code = f"from my_app_name.module.{snake_module_name} import route as {snake_module_name}_route"  # noqa
-    return import_route_code if import_route_code not in existing_code else None
+    import_module_path = f"my_app_name.module.{snake_module_name}"
+    import_route_code = (
+        f"from {import_module_path} import route as {snake_module_name}_route"
+    )
+    if import_route_code in existing_code:
+        return None
+    return import_route_code
 
 
 def _get_assert_module_route_code(existing_code: str, module_name: str) -> str | None:
@@ -119,4 +126,6 @@ def _get_new_module_config_code(existing_code: str, module_name: str) -> str | N
     config_name = f"APP_{upper_snake_module_name}_BASE_URL"
     env_name = f"MY_APP_NAME_{upper_snake_module_name}_BASE_URL"
     config_code = f'{config_name} = os.getenv("{env_name}", "{module_base_url}")'
-    return config_code if config_code not in existing_code else None
+    if config_code in existing_code:
+        return None
+    return config_code

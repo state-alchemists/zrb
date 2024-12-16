@@ -68,7 +68,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        imports=["import sqlmodel"],  # 🔥 FastApp Modification
         version_table=MIGRATION_TABLE,  # 🔥 FastApp Modification
         include_object=include_object,  # 🔥 FastApp Modification
     )
@@ -94,7 +93,6 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            imports=["import sqlmodel"],  # 🔥 FastApp Modification
             version_table=MIGRATION_TABLE,  # 🔥 FastApp Modification
             include_object=include_object,  # 🔥 FastApp Modification
         )
