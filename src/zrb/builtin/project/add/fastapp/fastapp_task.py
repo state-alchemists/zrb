@@ -18,8 +18,6 @@ from zrb.task.task import Task
 from zrb.util.string.conversion import to_snake_case
 from zrb.util.string.name import get_random_name
 
-_DIR = os.path.dirname(__file__)
-
 
 @make_task(
     name="validate-create-fastapp",
@@ -42,14 +40,14 @@ scaffold_fastapp = Scaffolder(
         app_name_input,
     ],
     upstream=validate_create_fastapp,
-    source_path=os.path.join(_DIR, "fastapp_template"),
+    source_path=os.path.join(os.path.dirname(__file__), "fastapp_template"),
     render_source_path=False,
     destination_path="{ctx.input.project_dir}",
     transform_path={
         "my_app_name": "{to_snake_case(ctx.input.app)}",
     },
     transform_content=[
-        # Common transformation
+        # Common transformation (project_dir/app_dir/**/*)
         ContentTransformer(
             match=is_in_project_app_dir,
             transform={
@@ -60,7 +58,7 @@ scaffold_fastapp = Scaffolder(
                 "my-secure-password": lambda _: get_random_name(),
             },
         ),
-        # Register fastapp's tasks to project's zrb_init
+        # Register fastapp's tasks to project's zrb_init (project_dir/zrb_init.py)
         ContentTransformer(
             match=is_project_zrb_init_file,
             transform=update_project_zrb_init_file,
