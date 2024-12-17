@@ -1,4 +1,5 @@
 import os
+import traceback
 from typing import Any
 
 import tomlkit
@@ -88,19 +89,15 @@ format_code = code_group.add_task(
         description="Format Zrb code",
         cwd=_DIR,
         cmd=[
-            "isort src",
-            "black src",
-            "isort test",
-            "black test",
-            "isort zrb_init.py",
-            "black zrb_init.py",
+            "isort . --profile black --force-grid-wrap 0",
+            "black .",
         ],
     ),
     alias="format",
 )
 format_code >> git_commit
 
-# DOCKER =======================================================================
+# DOCKER ======================================================================
 
 docker_group = cli.add_group(
     Group(name="docker", description="🐋 Docker related command")
@@ -139,7 +136,7 @@ publish_docker = docker_group.add_task(
 )
 build_docker >> publish_docker
 
-# PUBLISH ======================================================================
+# PUBLISH =====================================================================
 
 publish_group = cli.add_group(
     Group(name="publish", description="📦 Publication related command")
@@ -163,7 +160,7 @@ publish_all = publish_group.add_task(
 )
 publish_all << [publish_pip, publish_docker]
 
-# GENERATOR TEST ==============================================================
+# GENERATOR TEST =============================================================
 
 remove_generated = cli.add_task(
     CmdTask(
@@ -229,13 +226,19 @@ remove_generated >> test_generate
 
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
 if os.path.isfile(playground_zrb_init_path):
-    load_file(playground_zrb_init_path)
+    try:
+        load_file(playground_zrb_init_path)
+    except Exception:
+        traceback.print_exc()
 
 # GENERATED ===================================================================
 
 generated_zrb_init_path = os.path.join(_DIR, "playground", "generated", "zrb_init.py")
 if os.path.isfile(generated_zrb_init_path):
-    load_file(generated_zrb_init_path)
+    try:
+        load_file(generated_zrb_init_path)
+    except Exception:
+        traceback.print_exc()
 
 
 async def run_cmd_test(name: str, cmd: CmdVal) -> Any:

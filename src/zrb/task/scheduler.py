@@ -16,7 +16,6 @@ from zrb.xcom.xcom import Xcom
 
 
 class Scheduler(BaseTrigger):
-
     def __init__(
         self,
         name: str,

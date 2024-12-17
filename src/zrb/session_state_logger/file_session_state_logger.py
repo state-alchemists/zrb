@@ -7,7 +7,6 @@ from zrb.util.file import read_file, write_file
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
-
     def __init__(self, session_log_dir: str):
         self._session_log_dir = session_log_dir
 

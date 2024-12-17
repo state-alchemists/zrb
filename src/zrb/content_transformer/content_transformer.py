@@ -8,13 +8,12 @@ from zrb.util.file import read_file, write_file
 
 
 class ContentTransformer(AnyContentTransformer):
-
     def __init__(
         self,
         match: list[str] | str | Callable[[AnyContext, str], bool],
         transform: (
             dict[str, str | Callable[[AnyContext], str]]
-            | Callable[[AnyContext, str], str]
+            | Callable[[AnyContext, str], None]
         ),
         auto_render: bool = True,
     ):
@@ -25,7 +24,10 @@ class ContentTransformer(AnyContentTransformer):
     def match(self, ctx: AnyContext, file_path: str) -> bool:
         if callable(self._match):
             return self._match(ctx, file_path)
-        patterns = [self._match] if isinstance(self._match, str) else self._match
+        if isinstance(self._match, str):
+            patterns = [self._match]
+        else:
+            patterns = self._match
         for pattern in patterns:
             try:
                 if re.fullmatch(pattern, file_path):

@@ -6,7 +6,7 @@ class MethodCodeAdder(cst.CSTTransformer):
         self.class_name = class_name
         self.method_name = method_name
         # Use parse_module to handle multiple statements
-        self.new_code = cst.parse_statement(new_code)
+        self.new_code = cst.parse_module(new_code).body
         self.class_found = False
         self.method_found = False
 
@@ -27,7 +27,7 @@ class MethodCodeAdder(cst.CSTTransformer):
                 ):
                     # Modify the target function by adding the new code
                     body_with_new_code = item.body.with_changes(
-                        body=item.body.body + (self.new_code,)  # Add the new code
+                        body=item.body.body + tuple(self.new_code)  # Add the new code
                     )
                     new_body.append(item.with_changes(body=body_with_new_code))
                     self.method_found = True

@@ -42,7 +42,7 @@ class AnyContext(AnySharedContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         """Prints values to the specified output stream.
 
@@ -62,7 +62,7 @@ class AnyContext(AnySharedContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         """Logs debug-level messages.
 
@@ -82,7 +82,7 @@ class AnyContext(AnySharedContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         """Logs info-level messages.
 
@@ -102,7 +102,7 @@ class AnyContext(AnySharedContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         """Logs warning-level messages.
 
@@ -122,7 +122,7 @@ class AnyContext(AnySharedContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         """Logs error-level messages.
 
@@ -142,7 +142,7 @@ class AnyContext(AnySharedContext):
         sep: str | None = " ",
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
-        flush: bool = True
+        flush: bool = True,
     ):
         """Logs critical-level messages.
 
