@@ -1,11 +1,34 @@
 import os
 
+from my_app_name._zrb.config import APP_DIR
 from my_app_name._zrb.util import get_existing_module_names
 
 from zrb.context.any_context import AnyContext
 from zrb.util.codemod.append_key_to_dict import append_key_to_dict
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
+
+
+def is_app_config_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(APP_DIR, "config.py")
+
+
+def is_app_main_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(APP_DIR, "main.py")
+
+
+def is_app_zrb_task_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(APP_DIR, "_zrb", "task.py")
+
+
+def is_app_zrb_config_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(APP_DIR, "_zrb", "config.py")
+
+
+def is_in_module_dir(ctx: AnyContext, file_path: str) -> bool:
+    return file_path.startswith(
+        os.path.join(APP_DIR, "module", to_snake_case(ctx.input.module))
+    )
 
 
 def update_app_zrb_config_file(ctx: AnyContext, zrb_config_file_path: str):

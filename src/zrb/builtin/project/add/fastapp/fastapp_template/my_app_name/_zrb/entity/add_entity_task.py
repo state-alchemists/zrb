@@ -1,7 +1,20 @@
 import os
 
 from my_app_name._zrb.config import APP_DIR
-from my_app_name._zrb.entity.add_entity_util import update_migration_metadata
+from my_app_name._zrb.entity.add_entity_util import (
+    is_in_app_schema_dir,
+    is_in_module_entity_dir,
+    is_module_any_client_file,
+    is_module_api_client_file,
+    is_module_direct_client_file,
+    is_module_migration_metadata_file,
+    is_module_route_file,
+    update_any_client,
+    update_api_client,
+    update_direct_client,
+    update_migration_metadata,
+    update_route,
+)
 from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import app_create_group
 from my_app_name._zrb.input import (
@@ -13,12 +26,7 @@ from my_app_name._zrb.input import (
 from my_app_name._zrb.util import get_existing_module_names, get_existing_schema_names
 
 from zrb import AnyContext, ContentTransformer, Scaffolder, Task, make_task
-from zrb.util.codemod.append_code_to_class import append_code_to_class
-from zrb.util.codemod.append_code_to_function import append_code_to_function
-from zrb.util.codemod.prepend_code_to_module import prepend_code_to_module
-from zrb.util.codemod.prepend_parent_to_class import prepend_parent_class
-from zrb.util.file import read_file, write_file
-from zrb.util.string.conversion import to_pascal_case, to_snake_case
+from zrb.util.string.conversion import to_snake_case
 
 
 @make_task(
@@ -58,25 +66,16 @@ scaffold_my_app_name_entity = Scaffolder(
     transform_content=[
         # Schema tranformation (my_app_name/schema/snake_entity_name)
         ContentTransformer(
-            match=lambda ctx, file_path: file_path.startswith(
-                os.path.join(APP_DIR, "schema", to_snake_case(ctx.input.entity))
-            ),
+            match=is_in_app_schema_dir,
             transform={
                 "MyEntity": "{to_pascal_case(ctx.input.entity)}",
                 "my_column": "{to_snake_case(ctx.input.column)}",
             },
         ),
-        # Common module's entity transformation (my_app_name/module/snake_module_name/service/snake_entity_name)
+        # Common module's entity transformation
+        # (my_app_name/module/snake_module_name/service/snake_entity_name)
         ContentTransformer(
-            match=lambda ctx, file_path: file_path.startswith(
-                os.path.join(
-                    APP_DIR,
-                    "module",
-                    to_snake_case(ctx.input.module),
-                    "service",
-                    to_snake_case(ctx.input.entity),
-                )
-            ),
+            match=is_in_module_entity_dir,
             transform={
                 "my_module": "{to_snake_case(ctx.input.module)}",
                 "MyEntity": "{to_pascal_case(ctx.input.entity)}",
@@ -85,147 +84,37 @@ scaffold_my_app_name_entity = Scaffolder(
                 "my-entities": "{to_kebab_case(ctx.input.plural)}",
             },
         ),
-        # Add entity to migration metadata (my_app_name/module/snake_module_name/migration_metadata.py)
+        # Add entity to migration metadata
+        # (my_app_name/module/snake_module_name/migration_metadata.py)
         ContentTransformer(
-            match=lambda ctx, file_path: file_path
-            == os.path.join(
-                APP_DIR,
-                "module",
-                to_snake_case(ctx.input.module),
-                "migration_metadata.py",
-            ),
+            match=is_module_migration_metadata_file,
             transform=update_migration_metadata,
         ),
+        # Update API Client (my_app_name/module/snake_module_name/client/api_client.py)
+        ContentTransformer(
+            match=is_module_api_client_file,
+            transform=update_api_client,
+        ),
+        # Update Direct Client (my_app_name/module/snake_module_name/client/direct_client.py)
+        ContentTransformer(
+            match=is_module_direct_client_file,
+            transform=update_direct_client,
+        ),
+        # Update Any Client (my_app_name/module/snake_module_name/client/any_client.py)
+        ContentTransformer(
+            match=is_module_any_client_file,
+            transform=update_any_client,
+        ),
+        # Update module route (my_app_name/module/route.py)
+        ContentTransformer(
+            match=is_module_route_file,
+            transform=update_route,
+        ),
+        # TODO: Register gateway route
     ],
     retries=0,
     upstream=validate_create_my_app_name_entity,
 )
-
-
-@make_task(
-    name="register-my-app-name-api-client",
-    input=[existing_module_input, new_entity_input],
-    retries=0,
-    upstream=validate_create_my_app_name_entity,
-)
-async def register_my_app_name_api_client(ctx: AnyContext):
-    api_client_file_path = os.path.join(
-        APP_DIR, "module", to_snake_case(ctx.input.module), "client", "api_client.py"
-    )
-    file_content = read_file(api_client_file_path)
-    upper_snake_module_name = to_snake_case(ctx.input.module).upper()
-    new_code = prepend_code_to_module(
-        file_content,
-        f"user_api_client = user_usecase.as_api_client(base_url=APP_{upper_snake_module_name}_BASE_URL)",  # noqa
-    )
-    new_code = prepend_parent_class(
-        original_code=new_code,
-        class_name="APIClient",
-        parent_class_name="user_api_client",
-    )
-    app_name = os.path.basename(APP_DIR)
-    snake_entity_name = to_snake_case(ctx.input.entity)
-    snake_module_name = to_snake_case(ctx.input.module)
-    write_file(
-        api_client_file_path,
-        [
-            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_usecase import {snake_entity_name}_usecase",  # noqa
-            new_code.strip(),
-            "",
-        ],
-    )
-
-
-@make_task(
-    name="register-my-app-name-direct-client",
-    input=[existing_module_input, new_entity_input],
-    retries=0,
-    upstream=validate_create_my_app_name_entity,
-)
-async def register_my_app_name_direct_client(ctx: AnyContext):
-    direct_client_file_path = os.path.join(
-        APP_DIR, "module", to_snake_case(ctx.input.module), "client", "direct_client.py"
-    )
-    file_content = read_file(direct_client_file_path)
-    app_name = os.path.basename(APP_DIR)
-    snake_entity_name = to_snake_case(ctx.input.entity)
-    snake_module_name = to_snake_case(ctx.input.module)
-    write_file(
-        direct_client_file_path,
-        [
-            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_usecase import {snake_entity_name}_usecase",  # noqa
-            prepend_code_to_module(
-                prepend_parent_class(
-                    file_content, "DirectClient", "user_direct_client"
-                ),
-                "user_direct_client = user_usecase.as_direct_client()",
-            ).strip(),
-            "",
-        ],
-    )
-
-
-@make_task(
-    name="register-my-app-name-route",
-    input=[existing_module_input, new_entity_input],
-    retries=0,
-    upstream=validate_create_my_app_name_entity,
-)
-async def register_my_app_name_route(ctx: AnyContext):
-    direct_client_file_path = os.path.join(
-        APP_DIR, "module", to_snake_case(ctx.input.module), "route.py"
-    )
-    file_content = read_file(direct_client_file_path)
-    entity_name = to_snake_case(ctx.input.entity)
-    new_code = append_code_to_function(
-        file_content, "serve_route", f"{entity_name}_usecase.serve_route(app)"
-    )
-    app_name = os.path.basename(APP_DIR)
-    module_name = to_snake_case(ctx.input.module)
-    new_file_content_list = [
-        f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
-        new_code.strip(),
-        "",
-    ]
-    write_file(direct_client_file_path, "\n".join(new_file_content_list))
-
-
-@make_task(
-    name="register-my-app-name-client-method",
-    input=[existing_module_input, new_entity_input],
-    retries=0,
-    upstream=validate_create_my_app_name_entity,
-)
-async def register_my_app_name_client_method(ctx: AnyContext):
-    any_client_file_path = os.path.join(
-        APP_DIR, "module", to_snake_case(ctx.input.module), "route.py"
-    )
-    file_content = read_file(any_client_file_path)
-    app_name = os.path.basename(APP_DIR)
-    snake_entity_name = to_snake_case(ctx.input.entity)
-    pascal_entity_name = to_pascal_case(ctx.input.entity)
-    # TODO: Register client methods
-    # get methods
-    any_client_method_template_path = (
-        os.path.join(os.path.dirname(__file__), "any_client_method.template.py"),
-    )
-    any_client_method_template = read_file(any_client_method_template_path)
-    any_client_method = any_client_method_template.replace(
-        "my_entity", snake_entity_name
-    ).replace("MyEntity", pascal_entity_name)
-    new_code = append_code_to_class(file_content, "AnyClient", any_client_method)
-    new_file_content_list = [
-        f"from {app_name}.schema.{snake_entity_name}.{snake_entity_name} import (",
-        f"    {pascal_entity_name}CreateWithAudit, {pascal_entity_name}Response, {pascal_entity_name}UpdateWithAudit",
-        ")",
-        new_code.strip(),
-        "",
-    ]
-    write_file(any_client_file_path, "\n".join(new_file_content_list))
-
-
-# TODO: Register gateway route
-
 
 add_my_app_name_entity = app_create_group.add_task(
     Task(
@@ -237,8 +126,3 @@ add_my_app_name_entity = app_create_group.add_task(
     ),
     alias="entity",
 )
-add_my_app_name_entity << [
-    register_my_app_name_api_client,
-    register_my_app_name_direct_client,
-    register_my_app_name_route,
-]

@@ -4,7 +4,7 @@ async def get_my_entity_by_id(self, my_entity_id: str) -> MyEntityResponse:
 
 
 @abstractmethod
-async def get_all_my_entitys(self) -> list[MyEntityResponse]:
+async def get_all_my_entities(self) -> list[MyEntityResponse]:
     pass
 
 

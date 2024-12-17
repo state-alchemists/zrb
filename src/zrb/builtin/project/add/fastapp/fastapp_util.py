@@ -1,6 +1,18 @@
+import os
+
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import double_quote, to_snake_case
+
+
+def is_in_project_app_dir(ctx: AnyContext, file_path: str) -> bool:
+    return file_path.startswith(
+        os.path.join(ctx.input.project_dir, to_snake_case(ctx.input.app))
+    )
+
+
+def is_project_zrb_init_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(ctx.input.project_dir, "zrb_init.py")
 
 
 def update_project_zrb_init_file(ctx: AnyContext, zrb_init_path: str):

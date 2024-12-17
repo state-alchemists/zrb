@@ -5,7 +5,11 @@ from zrb.builtin.project.add.fastapp.fastapp_input import (
     app_name_input,
     project_dir_input,
 )
-from zrb.builtin.project.add.fastapp.fastapp_util import update_project_zrb_init_file
+from zrb.builtin.project.add.fastapp.fastapp_util import (
+    is_in_project_app_dir,
+    is_project_zrb_init_file,
+    update_project_zrb_init_file,
+)
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
@@ -47,7 +51,7 @@ scaffold_fastapp = Scaffolder(
     transform_content=[
         # Common transformation
         ContentTransformer(
-            match=".*",
+            match=is_in_project_app_dir,
             transform={
                 "My App Name": "{ctx.input.app.title()}",
                 "my-app-name": "{to_kebab_case(ctx.input.app)}",
@@ -58,8 +62,7 @@ scaffold_fastapp = Scaffolder(
         ),
         # Register fastapp's tasks to project's zrb_init
         ContentTransformer(
-            match=lambda ctx, file_path: file_path
-            == os.path.join(ctx.input.project_dir, "zrb_init.py"),
+            match=is_project_zrb_init_file,
             transform=update_project_zrb_init_file,
         ),
     ],

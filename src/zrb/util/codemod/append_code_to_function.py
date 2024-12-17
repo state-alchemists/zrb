@@ -5,7 +5,7 @@ class FunctionCodeAdder(cst.CSTTransformer):
     def __init__(self, function_name: str, new_code: str):
         self.function_name = function_name
         # Use parse_module to handle multiple statements
-        self.new_code = cst.parse_statement(new_code)
+        self.new_code = cst.parse_module(new_code).body
         self.function_found = False
 
     def leave_FunctionDef(
@@ -16,7 +16,7 @@ class FunctionCodeAdder(cst.CSTTransformer):
             self.function_found = True
             # Add the method to the class body
             new_body = updated_node.body.with_changes(
-                body=updated_node.body.body + (self.new_code,)
+                body=updated_node.body.body + tuple(self.new_code)
             )
             return updated_node.with_changes(body=new_body)
         return updated_node
