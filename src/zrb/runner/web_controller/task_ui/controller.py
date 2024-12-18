@@ -33,7 +33,7 @@ def handle_task_ui(
     parent_url = "/".join(parent_url_parts)
     # Assemble api url
     api_url_parts = list(url_parts)
-    api_url_parts[1] = "api"
+    api_url_parts[1] = "api/sessions"
     api_url = "/".join(api_url_parts)
     # Assemble ui url
     ui_url_parts = list(api_url_parts)

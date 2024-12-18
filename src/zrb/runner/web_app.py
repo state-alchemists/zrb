@@ -75,7 +75,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
             return handle_group_info_ui(root_group, node, url)
         raise HTTPException(status_code=404, detail="Not Found")
 
-    @app.post("/api/{path:path}")
+    @app.post("/api/sessions/{path:path}")
     async def create_new_session(
         path: str, request: Request = None
     ) -> NewSessionResponse:
@@ -96,7 +96,10 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
                 return NewSessionResponse(session_name=session.name)
         raise HTTPException(status_code=404, detail="Not Found")
 
-    @app.get("/api/{path:path}", response_model=SessionStateLog | SessionStateLogList)
+    @app.get(
+        "/api/sessions/{path:path}",
+        response_model=SessionStateLog | SessionStateLogList,
+    )
     async def get_session(
         path: str,
         min_start_query: str = Query(default=None, alias="from"),
