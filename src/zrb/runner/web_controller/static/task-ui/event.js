@@ -1,7 +1,7 @@
 window.addEventListener("load", async function () {
     // Get current session
     if (cfg.SESSION_NAME != "") {
-        pollCurrentSession();
+        CURRENT_SESSION.pollCurrentSession();
     }
     // set maxStartDate to today
     const tomorrow = new Date();
@@ -17,7 +17,7 @@ window.addEventListener("load", async function () {
     const minStartAtInput = document.getElementById("min-start-at-input");
     minStartAtInput.value = formattedToday;
     // Update session
-    pollPastSession();
+    PAST_SESSION.pollPastSession();
 });
 
 
@@ -64,8 +64,8 @@ async function submitNewSessionForm(event) {
         console.log("Success:", data);
         cfg.SESSION_NAME = data.session_name;
         history.pushState(null, "", `${cfg.CURRENT_URL}${cfg.SESSION_NAME}`);
-        getAndRenderPastSession(0);
-        await pollCurrentSession();
+        await PAST_SESSION.getAndRenderPastSession(0);
+        await CURRENT_SESSION.pollCurrentSession();
     } catch (error) {
         console.error("Error:", error);
     }
