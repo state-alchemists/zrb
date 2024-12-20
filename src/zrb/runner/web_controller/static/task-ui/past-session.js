@@ -13,7 +13,6 @@ const PAST_SESSION = {
         const minStartAt = UTIL.formatDate(minStartAtInput.value);
         const maxStartAtInput = document.getElementById("max-start-at-input");
         const maxStartAt = UTIL.formatDate(maxStartAtInput.value);
-        console.log(minStartAt);
         const queryString = new URLSearchParams({
             page: page,
             from: minStartAt,
@@ -29,7 +28,6 @@ const PAST_SESSION = {
             });
             const {total, data} = await response.json();
             this.showPastSession(page, total, data);
-            console.log("Success:", data);
         } catch (error) {
             console.error("Error:", error);
         }

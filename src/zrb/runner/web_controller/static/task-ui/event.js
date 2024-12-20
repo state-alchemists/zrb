@@ -61,7 +61,6 @@ async function submitNewSessionForm(event) {
             body: jsonData
         });
         const data = await response.json();
-        console.log("Success:", data);
         cfg.SESSION_NAME = data.session_name;
         history.pushState(null, "", `${cfg.CURRENT_URL}${cfg.SESSION_NAME}`);
         await PAST_SESSION.getAndRenderPastSession(0);
