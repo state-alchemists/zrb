@@ -1,10 +1,46 @@
-function showExistingSession(page, total, data) {
-    const ul = document.getElementById("session-history-ul");
+
+async function pollPastSession() {
+    while (true) {
+        await getAndRenderPastSession(cfg.PAGE);
+        await UTIL.delay(5000);
+    }
+}
+
+async function getAndRenderPastSession(page) {
+    cfg.PAGE=page
+    const minStartAtInput = document.getElementById("min-start-at-input");
+    const minStartAt = UTIL.formatDate(minStartAtInput.value);
+    const maxStartAtInput = document.getElementById("max-start-at-input");
+    const maxStartAt = UTIL.formatDate(maxStartAtInput.value);
+    console.log(minStartAt);
+    const queryString = new URLSearchParams({
+        page: page,
+        from: minStartAt,
+        to: maxStartAt,
+    }).toString();
+    try {
+        // Send the AJAX request
+        const response = await fetch(`${cfg.API_URL}list?${queryString}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+        });
+        const {total, data} = await response.json();
+        showPastSession(page, total, data);
+        console.log("Success:", data);
+    } catch (error) {
+        console.error("Error:", error);
+    }
+}
+
+function showPastSession(page, total, data) {
+    const ul = document.getElementById("past-session-ul");
     ul.innerHTML = '';  // Clear existing content
     data.forEach(item => {
         const taskStatus = item.task_status[item.main_task_name];
-        const finalStatus = getFinalTaskStatus(taskStatus);
-        const finalColor = getFinalColor(finalStatus);
+        const finalStatus = UTIL.getFinalTaskStatus(taskStatus);
+        const finalColor = UTIL.getFinalColor(finalStatus);
         const taskHistories = taskStatus.history;
         const taskStartTime = taskHistories.length > 0 ? taskHistories[0].time : ""
         const li = document.createElement('li');
@@ -13,7 +49,7 @@ function showExistingSession(page, total, data) {
         const statusSpan = document.createElement('span');
         a.textContent = item.name;
         a.target = '_blank';
-        a.href = `${UI_URL}${item.name}`;
+        a.href = `${cfg.UI_URL}${item.name}`;
         li.appendChild(a);
         statusSpan.style.marginLeft = "10px";
         statusSpan.style.display = 'inline-block';
@@ -28,7 +64,7 @@ function showExistingSession(page, total, data) {
         li.appendChild(dateSpan);
         ul.appendChild(li);
     }); 
-    const paginationUl = document.getElementById("session-history-pagination-ul");
+    const paginationUl = document.getElementById("past-session-pagination-ul");
     paginationUl.innerHTML = '';  // Clear previous pagination
 
     const totalPages = Math.ceil(total / 10);  // Calculate total pages based on page size
@@ -84,7 +120,7 @@ function createPageLink(text, page) {
     link.href = '#';
     link.onclick = (e) => {
         e.preventDefault();
-        getExistingSessions(page);
+        getAndRenderPastSession(page);
     };
     li.appendChild(link);
     return li;

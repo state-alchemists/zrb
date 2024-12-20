@@ -19,16 +19,16 @@
             <li><a href="/">🏠 Home</a></li>
             <li><a href="{parent_url}">🔙 Parent</a></li>
             <li><a href="{ui_url}">🆕 New Session</a></li>
-            <li><a href="#" onclick="openDialog(event)">📂 Existing Session</a></li>
+            <li><a href="#" onclick="openPastSessionDialog(event)">📂 Existing Session</a></li>
           </ul>
         </nav>
       </hgroup>
     </header>
 
-    <dialog id="session-history-dialog">
+    <dialog id="past-session-dialog">
       <article>
         <header>
-          <button aria-label="Close" rel="prev" onclick="closeDialog(event)"></button>
+          <button aria-label="Close" rel="prev" onclick="closePastSessionDialog(event)"></button>
           <p>
             <strong>📂 Existing Session</strong>
           </p>
@@ -40,11 +40,11 @@
               <input type="datetime-local" id="max-start-at-input" placeholder="Maximum Start Time" aria-label="Maximum Start Time" />
             </fieldset>
           </form>
-          <ul id="session-history-ul" style="font-family:monospace;"></ul>
+          <ul id="past-session-ul" style="font-family:monospace;"></ul>
         </main>
         <footer>
           <nav>
-            <ul id="session-history-pagination-ul"></ul>
+            <ul id="past-session-pagination-ul"></ul>
           </nav>
         </footer>
       </article>
@@ -55,7 +55,7 @@
       <p>{description}</p>
       <canvas id="history-canvas" height="0" width="1000" style="width: 100%;"></canvas>
       <hr />
-      <form id="submit-task-form" onsubmit="submitForm(event)">
+      <form id="submit-task-form" onsubmit="submitNewSessionForm(event)">
         {task_inputs}
         <button>🚀 Run</button>
       </form>
@@ -74,14 +74,11 @@
 
   </body>
   <script>
-    const CURRENT_URL = '{url}';
-    const API_URL = '{api_url}';
-    const UI_URL = `{ui_url}`;
-    let SESSION_NAME = '{session_name}';
-    let PAGE = 0;
-    {main_script} 
-    {common_util_script}
-    {show_existing_session_script}
-    {visualize_history_script}
+    const cfg = {json_cfg};
   </script>
+  <script src="/static/task-ui/common-util.js"></script>
+  <script src="/static/task-ui/past-session.js"></script>
+  <script src="/static/task-ui/current-session.js"></script>
+  <script src="/static/task-ui/event.js"></script>
+
 </html>

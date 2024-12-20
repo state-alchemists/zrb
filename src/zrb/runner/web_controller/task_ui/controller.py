@@ -1,3 +1,4 @@
+import json
 import os
 
 from zrb.group.any_group import AnyGroup
@@ -10,14 +11,6 @@ _DIR = os.path.dirname(__file__)
 
 _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
 _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
-_MAIN_SCRIPT = read_file(os.path.join(_DIR, "partial", "main.js"))
-_SHOW_EXISTING_SESSION_SCRIPT = read_file(
-    os.path.join(_DIR, "partial", "show-existing-session.js")
-)
-_VISUALIZE_HISTORY_SCRIPT = read_file(
-    os.path.join(_DIR, "partial", "visualize-history.js")
-)
-_COMMON_UTIL_SCRIPT = read_file(os.path.join(_DIR, "partial", "common-util.js"))
 
 
 def handle_task_ui(
@@ -60,11 +53,16 @@ def handle_task_ui(
                 "task_inputs": "\n".join(input_html_list),
                 "api_url": api_url,
                 "ui_url": ui_url,
-                "main_script": _MAIN_SCRIPT,
-                "show_existing_session_script": _SHOW_EXISTING_SESSION_SCRIPT,
-                "visualize_history_script": _VISUALIZE_HISTORY_SCRIPT,
-                "common_util_script": _COMMON_UTIL_SCRIPT,
                 "session_name": session_name,
+                "json_cfg": json.dumps(
+                    {
+                        "CURRENT_URL": url,
+                        "API_URL": api_url,
+                        "UI_URL": ui_url,
+                        "SESSION_NAME": session_name,
+                        "PAGE": 0,
+                    }
+                ),
             },
         )
     )

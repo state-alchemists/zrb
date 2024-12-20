@@ -1,4 +1,61 @@
-function visualizeHistory(allTaskStatus, finished) {
+async function pollCurrentSession() {
+    const resultTextarea = document.getElementById("result-textarea");
+    const logTextarea = document.getElementById("log-textarea");
+    const submitTaskForm = document.getElementById("submit-task-form");
+    let isFinished = false;
+    let errorCount = 0;
+    while (!isFinished) {
+        try {
+            const data = await getCurrentSession();
+            // update inputs
+            const dataInputs = data.input;
+            for (const inputName in dataInputs) {
+                const inputValue = dataInputs[inputName];
+                const input = submitTaskForm.querySelector(`[name="${inputName}"]`);
+                input.value = inputValue;
+            }
+            resultLineCount = data.final_result.split("\n").length;
+            resultTextarea.rows = resultLineCount <= 5 ? resultLineCount : 5;
+            // update text areas
+            resultTextarea.value = data.final_result;
+            logTextarea.value = data.log.join("\n");
+            logTextarea.scrollTop = logTextarea.scrollHeight;
+            // visualize history
+            showCurrentSession(data.task_status, data.finished);
+            if (data.finished) {
+                isFinished = true;
+            } else {
+                await UTIL.delay(200);
+            }
+        } catch (error) {
+            console.error("Error fetching session status:", error);
+            errorCount++;
+            if (errorCount > 5) {
+                console.error("Exceeding maximum error count, quitting");
+                return;
+            }
+            continue;
+        }
+    }
+}
+
+
+async function getCurrentSession() {
+    try {
+        const response = await fetch(`${cfg.API_URL}${cfg.SESSION_NAME}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Error:", error);
+    }
+}
+
+
+function showCurrentSession(allTaskStatus, finished) {
     const taskNames = Object.keys(allTaskStatus);
     const now = Date.now();
 
@@ -49,7 +106,7 @@ function visualizeHistory(allTaskStatus, finished) {
             return
         }
         // Get last status
-        const finalStatus = getFinalTaskStatus(allTaskStatus[taskName]);
+        const finalStatus = UTIL.getFinalTaskStatus(allTaskStatus[taskName]);
         const startDateTime = new Date(taskHistories[0].time);
         const endDateTime = getTaskEndDateTime(allTaskStatus[taskName], now);
         const startX = 100 + (startDateTime - minDateTime) * timeScale;
@@ -63,7 +120,7 @@ function visualizeHistory(allTaskStatus, finished) {
         ctx.fillText(taskName, 90, startY + barHeight / 1.5);
 
         // Draw task bar
-        ctx.fillStyle = getFinalColor(finalStatus);
+        ctx.fillStyle = UTIL.getFinalColor(finalStatus);
         ctx.fillRect(startX, startY, barWidth, barHeight);
 
         ctx.fillStyle = "#000";
