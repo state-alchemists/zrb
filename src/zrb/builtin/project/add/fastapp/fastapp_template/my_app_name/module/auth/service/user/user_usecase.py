@@ -1,5 +1,4 @@
 from my_app_name.common.base_usecase import BaseUsecase
-from my_app_name.module.auth.service.user.repository.factory import user_repository
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
@@ -50,7 +49,7 @@ class UserUsecase(BaseUsecase):
     @BaseUsecase.route(
         "/api/v1/users/{user_id}", methods=["delete"], response_model=UserResponse
     )
-    async def delete_user(self, user_id: str) -> UserResponse:
+    async def delete_user(self, user_id: str, deleted_by: str) -> UserResponse:
         return await self.user_repository.delete(user_id)
 
 

@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from my_app_name.common.app import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import APP_MAIN_MODULE, APP_MODE, APP_MODULES
-from my_app_name.module.auth.client.factory import client as auth_client
-from my_app_name.schema.user import UserCreate, UserResponse
+from my_app_name.module.gateway.subroute.auth import serve_auth_route
 
 
 def serve_health_check(app: FastAPI):
@@ -31,13 +30,8 @@ def serve_route(app: FastAPI):
         serve_health_check(app)
         serve_readiness_check(app)
 
-    @app.get("/api/v1/users", response_model=list[UserResponse])
-    async def auth_get_all_users() -> UserResponse:
-        return await auth_client.get_all_users()
-
-    @app.post("/api/v1/users", response_model=UserResponse | list[UserResponse])
-    async def auth_create_user(data: UserCreate | list[UserCreate]):
-        return await auth_client.create_user(data)
+    # Serve Auth Route
+    serve_auth_route(app)
 
 
 serve_route(app)
