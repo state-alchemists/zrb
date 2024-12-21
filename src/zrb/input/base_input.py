@@ -42,14 +42,14 @@ class BaseInput(AnyInput):
     def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self._get_default_str(ctx)
+        default = self.get_default_str(ctx)
         return f'<input name="{name}" placeholder="{description}" value="{default}" />'
 
     def update_shared_context(
         self, shared_ctx: AnySharedContext, str_value: str | None = None
     ):
         if str_value is None:
-            str_value = self._get_default_str(shared_ctx)
+            str_value = self.get_default_str(shared_ctx)
         value = self._parse_str_value(str_value)
         if self.name in shared_ctx.input:
             raise ValueError(f"Input already defined in the context: {self.name}")
@@ -75,7 +75,7 @@ class BaseInput(AnyInput):
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
-        default_value = self._get_default_str(shared_ctx)
+        default_value = self.get_default_str(shared_ctx)
         if default_value != "":
             prompt_message = f"{prompt_message} [{default_value}]"
         print(f"{prompt_message}: ", end="")
@@ -84,7 +84,7 @@ class BaseInput(AnyInput):
             value = default_value
         return value
 
-    def _get_default_str(self, shared_ctx: AnySharedContext) -> str:
+    def get_default_str(self, shared_ctx: AnySharedContext) -> str:
         return get_str_attr(
             shared_ctx, self._default_str, auto_render=self._auto_render
         )

@@ -28,12 +28,12 @@ class PasswordInput(BaseInput):
     def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self._get_default_str(ctx)
+        default = self.get_default_str(ctx)
         return f'<input type="password" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
-        default_value = self._get_default_str(shared_ctx)
+        default_value = self.get_default_str(shared_ctx)
         value = getpass.getpass(f"{prompt_message}: ")
         if value.strip() == "":
             value = default_value

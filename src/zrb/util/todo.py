@@ -14,6 +14,14 @@ from zrb.util.cli.style import (
 from zrb.util.file import read_file, write_file
 from zrb.util.string.name import get_random_name
 
+_DATE_TIME_STR_WIDTH = 14
+_MAX_DESCRIPTION_WIDTH = 70
+_PRIORITY_WIDTH = 3
+_COMPLETED_WIDTH = 3
+_COMPLETED_AT_WIDTH = _DATE_TIME_STR_WIDTH
+_CREATED_AT_WIDTH = _DATE_TIME_STR_WIDTH
+_GAP_WIDTH = 2
+
 
 class TodoTaskModel(BaseModel):
     priority: str | None = Field("D", pattern=r"^[A-Z]$")  # Priority like A, B, ...
@@ -213,8 +221,8 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel], filter: str) -> str:
     )
     if max_desc_length < len("DESCRIPTION"):
         max_desc_length = len("DESCRIPTION")
-    if max_desc_length > 70:
-        max_desc_length = 70
+    if max_desc_length > _MAX_DESCRIPTION_WIDTH:
+        max_desc_length = _MAX_DESCRIPTION_WIDTH
     max_additional_info_length = max(
         todo_task.get_additional_info_length() for todo_task in filtered_todo_list
     )
@@ -241,18 +249,24 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel], filter: str) -> str:
 def get_visual_todo_header(
     terminal_width: int, max_desc_length: int, max_additional_info_length: int
 ) -> str:
-    priority = "".ljust(3)
-    completed = "".ljust(3)
-    completed_at = "COMPLETED AT".rjust(14)
-    created_at = "CREATED_AT".ljust(14)
-    description = "DESCRIPTION".ljust(min(max_desc_length, 70))
-    additional_info = "PROJECT/CONTEXT/OTHERS"
-    if terminal_width <= 14 + max_desc_length + max_additional_info_length:
-        return "  ".join([priority, completed, description])
-    if terminal_width <= 36 + max_desc_length + max_additional_info_length:
-        return "  ".join([priority, completed, description, additional_info])
-    return "  ".join(
-        [priority, completed, completed_at, created_at, description, additional_info]
+    priority_caption = "".ljust(_PRIORITY_WIDTH)
+    completed_caption = "".ljust(_COMPLETED_WIDTH)
+    completed_at_caption = "COMPLETED AT".rjust(_COMPLETED_AT_WIDTH)
+    created_at_caption = "CREATED_AT".ljust(_CREATED_AT_WIDTH)
+    description_caption = "DESCRIPTION".ljust(
+        min(max_desc_length, _MAX_DESCRIPTION_WIDTH)
+    )
+    additional_info_caption = "PROJECT/CONTEXT/OTHERS".ljust(max_additional_info_length)
+    return _get_line_str(
+        terminal_width=terminal_width,
+        description_width=min(max_desc_length, _MAX_DESCRIPTION_WIDTH),
+        additional_info_width=max_additional_info_length,
+        priority=priority_caption,
+        completed=completed_caption,
+        completed_at=completed_at_caption,
+        created_at=created_at_caption,
+        description=description_caption,
+        additional_info=additional_info_caption,
     )
 
 
@@ -280,6 +294,17 @@ def get_visual_todo_line(
         + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
         + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
     )
+    return _get_line_str(
+        terminal_width=terminal_width,
+        description_width=min(max_desc_length, _MAX_DESCRIPTION_WIDTH),
+        additional_info_width=max_additional_info_length,
+        priority=priority,
+        completed=completed,
+        completed_at=completed_at,
+        created_at=created_at,
+        description=description,
+        additional_info=additional_info,
+    )
     if terminal_width <= 14 + max_desc_length + max_additional_info_length:
         return "  ".join([priority, completed, description])
     if terminal_width <= 36 + max_desc_length + max_additional_info_length:
@@ -287,6 +312,64 @@ def get_visual_todo_line(
     return "  ".join(
         [priority, completed, completed_at, created_at, description, additional_info]
     )
+
+
+def _get_line_str(
+    terminal_width: int,
+    description_width: int,
+    additional_info_width: int,
+    priority: str,
+    completed: str,
+    completed_at: str,
+    created_at: str,
+    description: str,
+    additional_info: str,
+):
+    gap = "".ljust(_GAP_WIDTH)
+    if terminal_width >= _get_minimum_width(
+        [
+            _PRIORITY_WIDTH,
+            _COMPLETED_WIDTH,
+            _COMPLETED_AT_WIDTH,
+            _CREATED_AT_WIDTH,
+            description_width,
+            additional_info_width,
+        ]
+    ):
+        return gap.join(
+            [
+                priority,
+                completed,
+                completed_at,
+                created_at,
+                description,
+                additional_info,
+            ]
+        )
+    if terminal_width >= _get_minimum_width(
+        [_PRIORITY_WIDTH, _COMPLETED_WIDTH, description_width, additional_info_width]
+    ):
+        return gap.join([priority, completed, description, additional_info])
+    if terminal_width >= _get_minimum_width(
+        [
+            _PRIORITY_WIDTH,
+            _COMPLETED_WIDTH,
+            _COMPLETED_AT_WIDTH,
+            _CREATED_AT_WIDTH,
+            description_width,
+        ]
+    ):
+        return gap.join([priority, completed, completed_at, created_at, description])
+    if terminal_width >= _get_minimum_width(
+        [_PRIORITY_WIDTH, _COMPLETED_WIDTH, description_width]
+    ):
+        return gap.join([priority, completed, description])
+    return gap.join([priority, description])
+
+
+def _get_minimum_width(field_widths: list[int]) -> int:
+    gap_width = _GAP_WIDTH * (len(field_widths) - 1)
+    return sum(field_width for field_width in field_widths) + gap_width
 
 
 def get_visual_todo_card(
@@ -342,13 +425,13 @@ def _date_to_str(date: datetime.date | None) -> str:
     return date.strftime("%a %Y-%m-%d")
 
 
-def add_durations(duration1: str, duration2: str) -> str:
-    total_seconds = _parse_duration(duration1) + _parse_duration(duration2)
+def add_duration(duration1: str, duration2: str) -> str:
+    total_seconds = parse_duration(duration1) + parse_duration(duration2)
     # Format and return the result
     return _format_duration(total_seconds)
 
 
-def _parse_duration(duration: str) -> int:
+def parse_duration(duration: str) -> int:
     """Parse a duration string into total seconds."""
     units = {"M": 2592000, "w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1}
     total_seconds = 0

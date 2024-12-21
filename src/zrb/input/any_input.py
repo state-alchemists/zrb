@@ -32,3 +32,7 @@ class AnyInput(ABC):
     @abstractmethod
     def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         pass
+
+    @abstractmethod
+    def get_default_str(self, shared_ctx: AnySharedContext) -> str:
+        pass

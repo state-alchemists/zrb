@@ -57,7 +57,7 @@ class TextInput(BaseInput):
     def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self._get_default_str(ctx)
+        default = self.get_default_str(ctx)
         return "\n".join(
             [
                 f'<textarea name="{name}" placeholder="{description}">',
@@ -71,7 +71,7 @@ class TextInput(BaseInput):
             f"{self.comment_start}{super().prompt_message}{self.comment_end}"
         )
         prompt_message_eol = f"{prompt_message}\n"
-        default_value = self._get_default_str(shared_ctx)
+        default_value = self.get_default_str(shared_ctx)
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=self._extension
         ) as temp_file:

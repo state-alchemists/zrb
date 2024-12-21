@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 from zrb.builtin.group import todo_group
-from zrb.config import TODO_DIR, TODO_VISUAL_FILTER
+from zrb.config import TODO_DIR, TODO_RETENTION, TODO_VISUAL_FILTER
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
@@ -12,12 +12,13 @@ from zrb.task.make_task import make_task
 from zrb.util.file import read_file, write_file
 from zrb.util.todo import (
     TodoTaskModel,
-    add_durations,
+    add_duration,
     cascade_todo_task,
     get_visual_todo_card,
     get_visual_todo_list,
     line_to_todo_task,
     load_todo_list,
+    parse_duration,
     save_todo_list,
     select_todo_task,
     todo_task_to_line,
@@ -165,11 +166,17 @@ def archive_todo(ctx: AnyContext):
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
-    working_todo_list = [
-        todo_task for todo_task in todo_list if not todo_task.completed
-    ]
+    retention_duration = datetime.timedelta(seconds=parse_duration(TODO_RETENTION))
+    threshold_date = datetime.date.today() - retention_duration
     new_archived_todo_list = [
-        todo_task for todo_task in todo_list if todo_task.completed
+        todo_task
+        for todo_task in todo_list
+        if todo_task.completed
+        and todo_task.completion_date is not None
+        and todo_task.completion_date < threshold_date
+    ]
+    working_todo_list = [
+        todo_task for todo_task in todo_list if todo_task not in new_archived_todo_list
     ]
     if len(new_archived_todo_list) == 0:
         ctx.print("No completed task to archive")
@@ -204,10 +211,10 @@ def archive_todo(ctx: AnyContext):
             default_str="30m",
         ),
         StrInput(
-            name="start",
-            prompt="Working start time (%Y-%m-%d %H:%M:%S)",
-            description="Working start time",
-            default_str=lambda _: _get_default_start(),
+            name="stop",
+            prompt="Working stop time (%Y-%m-%d %H:%M:%S)",
+            description="Working stop time",
+            default_str=lambda _: _get_default_stop_work_time_str(),
         ),
     ],
     description="🕒 Log work todo",
@@ -226,8 +233,10 @@ def log_todo(ctx: AnyContext):
         return get_visual_todo_list(todo_list, TODO_VISUAL_FILTER)
     # Update todo task
     todo_task = cascade_todo_task(todo_task)
-    current_duration = todo_task.keyval.get("duration", "0")
-    todo_task.keyval["duration"] = add_durations(current_duration, ctx.input.duration)
+    current_duration_str = todo_task.keyval.get("duration", "0")
+    todo_task.keyval["duration"] = add_duration(
+        current_duration_str, ctx.input.duration
+    )
     # Save todo list
     save_todo_list(todo_file_path, todo_list)
     # Add log work
@@ -241,8 +250,13 @@ def log_todo(ctx: AnyContext):
     else:
         log_work_json = "[]"
     log_work: list[dict[str, Any]] = json.loads(log_work_json)
+    start_work_time_str = _get_start_work_time_str(ctx.input.stop, ctx.input.duration)
     log_work.append(
-        {"log": ctx.input.log, "duration": ctx.input.duration, "start": ctx.input.start}
+        {
+            "log": ctx.input.log,
+            "duration": ctx.input.duration,
+            "start": start_work_time_str,
+        }
     )
     # save todo with log work
     write_file(log_work_file_path, json.dumps(log_work, indent=2))
@@ -261,7 +275,14 @@ def log_todo(ctx: AnyContext):
     )
 
 
-def _get_default_start() -> str:
+def _get_start_work_time_str(stop_work_time_str: str, work_duration_str: str) -> str:
+    work_duration = parse_duration(work_duration_str)
+    stop_work_time = datetime.datetime.strptime(stop_work_time_str, "%Y-%m-%d %H:%M:%S")
+    start_work_time = stop_work_time - datetime.timedelta(seconds=work_duration)
+    return start_work_time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _get_default_stop_work_time_str() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 

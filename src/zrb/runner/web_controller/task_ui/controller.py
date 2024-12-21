@@ -1,3 +1,4 @@
+import json
 import os
 
 from zrb.group.any_group import AnyGroup
@@ -10,14 +11,6 @@ _DIR = os.path.dirname(__file__)
 
 _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
 _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
-_MAIN_SCRIPT = read_file(os.path.join(_DIR, "partial", "main.js"))
-_SHOW_EXISTING_SESSION_SCRIPT = read_file(
-    os.path.join(_DIR, "partial", "show-existing-session.js")
-)
-_VISUALIZE_HISTORY_SCRIPT = read_file(
-    os.path.join(_DIR, "partial", "visualize-history.js")
-)
-_COMMON_UTIL_SCRIPT = read_file(os.path.join(_DIR, "partial", "common-util.js"))
 
 
 def handle_task_ui(
@@ -31,12 +24,16 @@ def handle_task_ui(
     # Assemble parent url
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)
-    # Assemble api url
-    api_url_parts = list(url_parts)
-    api_url_parts[1] = "api"
-    api_url = "/".join(api_url_parts)
+    # Assemble session api url
+    session_url_parts = list(url_parts)
+    session_url_parts[1] = "api/sessions"
+    session_api_url = "/".join(session_url_parts)
+    # Assemble input api url
+    input_url_parts = list(url_parts)
+    input_url_parts[1] = "api/inputs"
+    input_api_url = "/".join(input_url_parts)
     # Assemble ui url
-    ui_url_parts = list(api_url_parts)
+    ui_url_parts = list(url_parts)
     ui_url_parts[1] = "ui"
     ui_url = "/".join(ui_url_parts)
     # Assemble task inputs
@@ -58,13 +55,17 @@ def handle_task_ui(
                 "url": url,
                 "parent_url": parent_url,
                 "task_inputs": "\n".join(input_html_list),
-                "api_url": api_url,
                 "ui_url": ui_url,
-                "main_script": _MAIN_SCRIPT,
-                "show_existing_session_script": _SHOW_EXISTING_SESSION_SCRIPT,
-                "visualize_history_script": _VISUALIZE_HISTORY_SCRIPT,
-                "common_util_script": _COMMON_UTIL_SCRIPT,
-                "session_name": session_name,
+                "json_cfg": json.dumps(
+                    {
+                        "CURRENT_URL": url,
+                        "SESSION_API_URL": session_api_url,
+                        "INPUT_API_URL": input_api_url,
+                        "UI_URL": ui_url,
+                        "SESSION_NAME": session_name,
+                        "PAGE": 0,
+                    }
+                ),
             },
         )
     )
