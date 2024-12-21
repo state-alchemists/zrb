@@ -5,6 +5,7 @@ from zrb.config import BANNER, WEB_HTTP_PORT
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.group import Group
+from zrb.runner.common_util import get_run_kwargs
 from zrb.runner.web_app import create_app
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -30,7 +31,7 @@ class Cli(Group):
         if "h" in kwargs or "help" in kwargs:
             self._show_task_info(node)
             return
-        run_kwargs = self._get_run_kwargs(node, args, kwargs)
+        run_kwargs = get_run_kwargs(task=node, args=args, kwargs=kwargs, prompt=True)
         try:
             result = self._run_task(node, args, run_kwargs)
             if result is not None:
@@ -71,35 +72,6 @@ class Cli(Group):
                 )
                 continue
         return task.run(Session(shared_ctx=shared_ctx, root_group=self))
-
-    def _get_run_kwargs(
-        self, task: AnyTask, args: list[str], kwargs: dict[str, str]
-    ) -> tuple[Any]:
-        arg_index = 0
-        str_kwargs = {key: val for key, val in kwargs.items()}
-        run_kwargs = {**str_kwargs}
-        shared_ctx = SharedContext(args=args)
-        for task_input in task.inputs:
-            if task_input.name in str_kwargs:
-                # Update shared context for next input default value
-                task_input.update_shared_context(
-                    shared_ctx, str_kwargs[task_input.name]
-                )
-            elif arg_index < len(args):
-                run_kwargs[task_input.name] = args[arg_index]
-                # Update shared context for next input default value
-                task_input.update_shared_context(
-                    shared_ctx, run_kwargs[task_input.name]
-                )
-                arg_index += 1
-            else:
-                str_value = task_input.prompt_cli_str(shared_ctx)
-                run_kwargs[task_input.name] = str_value
-                # Update shared context for next input default value
-                task_input.update_shared_context(
-                    shared_ctx, run_kwargs[task_input.name]
-                )
-        return run_kwargs
 
     def _show_task_info(self, task: AnyTask):
         description = task.description

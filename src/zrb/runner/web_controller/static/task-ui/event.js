@@ -21,6 +21,51 @@ window.addEventListener("load", async function () {
 });
 
 
+const submitTaskForm = document.getElementById("submit-task-form");
+submitTaskForm.addEventListener("input", async function(event) {
+    const currentInput = event.target;
+    const inputs = Array.from(submitTaskForm.querySelectorAll("input[name]"));
+    const inputMap = {};
+    const fixedInputNames = [];
+    for (const input of inputs) {
+        fixedInputNames.push(input.name);
+        if (input === currentInput) {
+            inputMap[input.name] = currentInput.value;
+            break;
+        } else {
+            inputMap[input.name] = input.value;
+        }
+    }
+    const queryString = new URLSearchParams(
+        {query: JSON.stringify(inputMap)}
+    ).toString();
+    try {
+        // Send the AJAX request
+        const response = await fetch(`${cfg.INPUT_API_URL}?${queryString}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+        });
+        if (response.ok) {
+            const data = await response.json();
+            // Update the values of all subsequent inputs based on the response
+            Object.entries(data).forEach(([key, value]) => {
+                if (fixedInputNames.includes(key)) {
+                    return;
+                }
+                const input = submitTaskForm.querySelector(`[name="${key}"]`);
+                input.value = value;
+            });
+        } else {
+            console.error("Failed to fetch updated values:", response.statusText);
+        }
+    } catch (error) {
+        console.error("Error during fetch:", error);
+    }
+})
+
+
 function openPastSessionDialog(event) {
     event.preventDefault();
     const dialog = document.getElementById("past-session-dialog")
@@ -53,18 +98,22 @@ async function submitNewSessionForm(event) {
     const jsonData = JSON.stringify(formData);
     try {
         // Send the AJAX request
-        const response = await fetch(cfg.API_URL, {
+        const response = await fetch(cfg.SESSION_API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: jsonData
         });
-        const data = await response.json();
-        cfg.SESSION_NAME = data.session_name;
-        history.pushState(null, "", `${cfg.CURRENT_URL}${cfg.SESSION_NAME}`);
-        await PAST_SESSION.getAndRenderPastSession(0);
-        await CURRENT_SESSION.pollCurrentSession();
+        if (response.ok) {
+            const data = await response.json();
+            cfg.SESSION_NAME = data.session_name;
+            history.pushState(null, "", `${cfg.CURRENT_URL}${cfg.SESSION_NAME}`);
+            await PAST_SESSION.getAndRenderPastSession(0);
+            await CURRENT_SESSION.pollCurrentSession();
+        } else {
+            console.error("Error:", response);
+        }
     } catch (error) {
         console.error("Error:", error);
     }

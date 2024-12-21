@@ -28,7 +28,7 @@ class OptionInput(BaseInput):
     def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self._get_default_str(ctx)
+        default = self.get_default_str(ctx)
         html = [f'<select name="{name}" placeholder="{description}">']
         for value in get_str_list_attr(ctx, self._options, self._auto_render):
             selected = "selected" if value == default else ""
@@ -38,7 +38,7 @@ class OptionInput(BaseInput):
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
-        default_value = self._get_default_str(shared_ctx)
+        default_value = self.get_default_str(shared_ctx)
         options = get_str_list_attr(shared_ctx, self._options, self._auto_render)
         option_str = ", ".join(options)
         if default_value != "":

@@ -20,14 +20,18 @@ const PAST_SESSION = {
         }).toString();
         try {
             // Send the AJAX request
-            const response = await fetch(`${cfg.API_URL}list?${queryString}`, {
+            const response = await fetch(`${cfg.SESSION_API_URL}list?${queryString}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json"
                 },
             });
-            const {total, data} = await response.json();
-            this.showPastSession(page, total, data);
+            if (response.ok) {
+                const {total, data} = await response.json();
+                this.showPastSession(page, total, data);
+            } else {
+                console.error("Error:", response);
+            }
         } catch (error) {
             console.error("Error:", error);
         }

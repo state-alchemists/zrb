@@ -1,12 +1,13 @@
 import asyncio
+import json
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Any
 
 from zrb.config import BANNER, WEB_HTTP_PORT
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
+from zrb.runner.common_util import get_run_kwargs
 from zrb.runner.web_controller.group_info_ui.controller import handle_group_info_ui
 from zrb.runner.web_controller.home_page.controller import handle_home_page
 from zrb.runner.web_controller.task_ui.controller import handle_task_ui
@@ -76,9 +77,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         raise HTTPException(status_code=404, detail="Not Found")
 
     @app.post("/api/sessions/{path:path}")
-    async def create_new_session(
-        path: str, request: Request = None
-    ) -> NewSessionResponse:
+    async def create_new_session(path: str, request: Request) -> NewSessionResponse:
         """
         Creating new session
         """
@@ -94,6 +93,23 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
                 _COROS.append(coro)
                 coro.add_done_callback(lambda coro: _COROS.remove(coro))
                 return NewSessionResponse(session_name=session.name)
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    @app.get("/api/inputs/{path:path}", response_model=dict[str, str])
+    async def get_default_inputs(
+        path: str, query: str = Query("{}", description="JSON encoded inputs")
+    ):
+        """
+        Getting input completion for path
+        """
+        args = path.strip("/").split("/")
+        task, _, _ = extract_node_from_args(root_group, args)
+        if isinstance(task, AnyTask):
+            query_dict = json.loads(query)
+            run_kwargs = get_run_kwargs(
+                task=task, args=[], kwargs=query_dict, prompt=False
+            )
+            return run_kwargs
         raise HTTPException(status_code=404, detail="Not Found")
 
     @app.get(

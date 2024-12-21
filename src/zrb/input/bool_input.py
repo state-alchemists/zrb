@@ -26,7 +26,7 @@ class BoolInput(BaseInput):
     def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = to_boolean(self._get_default_str(ctx))
+        default = to_boolean(self.get_default_str(ctx))
         selected_true = "selected" if default else ""
         selected_false = "selected" if not default else ""
         return "\n".join(

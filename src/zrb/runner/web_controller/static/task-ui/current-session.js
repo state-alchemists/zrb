@@ -43,7 +43,7 @@ const CURRENT_SESSION = {
 
     async getCurrentSession() {
         try {
-            const response = await fetch(`${cfg.API_URL}${cfg.SESSION_NAME}`, {
+            const response = await fetch(`${cfg.SESSION_API_URL}${cfg.SESSION_NAME}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json"

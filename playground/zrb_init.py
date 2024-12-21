@@ -1,10 +1,12 @@
 import asyncio
+from decimal import Decimal
 
 from zrb import (
     BaseTrigger,
     Callback,
     CmdTask,
     Context,
+    FloatInput,
     Group,
     IntInput,
     Scheduler,
@@ -14,6 +16,42 @@ from zrb import (
     cli,
     make_task,
 )
+
+
+@make_task(
+    name="ppn",
+    input=[
+        FloatInput(
+            name="price",
+            prompt="Original price",
+            description="Original price",
+            default_str="100",
+        ),
+        FloatInput(
+            name="payed",
+            prompt="Price payed",
+            description="Price payed",
+            default_str=lambda ctx: float(Decimal(ctx.input.price) * Decimal("1.12")),
+        ),
+    ],
+    group=cli,
+)
+def ppn(ctx: Context):
+    """
+    This task calculates the discrepancy between the price and the payed amount.
+    Indonesian's PPN tax sucks BTW
+    """
+    discrepancy = ctx.input.payed - (ctx.input.price * 1.12)
+    ctx.print(f"Price: {ctx.input.price}")
+    ctx.print(f"Payed: {ctx.input.payed}")
+    ctx.print(f"Discrepancy: {discrepancy}")
+    if discrepancy > 0:
+        return f"Government is happy, you pay {discrepancy} more"
+    elif discrepancy < 0:
+        return f"Government is angry, you owe them {-discrepancy}"
+    else:
+        return "Government is happy, You are contributing to the country"
+
 
 math = cli.add_group(Group("math", description="➕ Math tools"))
 math.add_task(

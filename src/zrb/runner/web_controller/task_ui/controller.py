@@ -24,12 +24,16 @@ def handle_task_ui(
     # Assemble parent url
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)
-    # Assemble api url
-    api_url_parts = list(url_parts)
-    api_url_parts[1] = "api/sessions"
-    api_url = "/".join(api_url_parts)
+    # Assemble session api url
+    session_url_parts = list(url_parts)
+    session_url_parts[1] = "api/sessions"
+    session_api_url = "/".join(session_url_parts)
+    # Assemble input api url
+    input_url_parts = list(url_parts)
+    input_url_parts[1] = "api/inputs"
+    input_api_url = "/".join(input_url_parts)
     # Assemble ui url
-    ui_url_parts = list(api_url_parts)
+    ui_url_parts = list(url_parts)
     ui_url_parts[1] = "ui"
     ui_url = "/".join(ui_url_parts)
     # Assemble task inputs
@@ -51,13 +55,12 @@ def handle_task_ui(
                 "url": url,
                 "parent_url": parent_url,
                 "task_inputs": "\n".join(input_html_list),
-                "api_url": api_url,
                 "ui_url": ui_url,
-                "session_name": session_name,
                 "json_cfg": json.dumps(
                     {
                         "CURRENT_URL": url,
-                        "API_URL": api_url,
+                        "SESSION_API_URL": session_api_url,
+                        "INPUT_API_URL": input_api_url,
                         "UI_URL": ui_url,
                         "SESSION_NAME": session_name,
                         "PAGE": 0,

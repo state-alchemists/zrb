@@ -27,6 +27,7 @@ from zrb.group.group import Group
 from zrb.input.any_input import AnyInput
 from zrb.input.base_input import BaseInput
 from zrb.input.bool_input import BoolInput
+from zrb.input.float_input import FloatInput
 from zrb.input.int_input import IntInput
 from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
@@ -73,6 +74,7 @@ assert CmdResult
 assert CmdTask
 assert HttpCheck
 assert TcpCheck
+assert FloatInput
 assert IntInput
 assert OptionInput
 assert PasswordInput
