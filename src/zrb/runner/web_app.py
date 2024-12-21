@@ -4,7 +4,9 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-from zrb.config import BANNER, WEB_HTTP_PORT
+from fastapi.openapi.docs import get_swagger_ui_html
+
+from zrb.config import BANNER, VERSION, WEB_HTTP_PORT
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
@@ -42,10 +44,24 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
             coro.cancel()
         asyncio.gather(*_COROS)
 
-    app = FastAPI(title="zrb", lifespan=lifespan)
+    app = FastAPI(
+        title="Zrb",
+        version=VERSION,
+        summary="Your Automation Powerhouse",
+        lifespan=lifespan,
+        docs_url=None,
+    )
 
     # Serve static files
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+    @app.get("/docs", include_in_schema=False)
+    async def swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url="/openapi.json",
+            title="Zrb",
+            swagger_favicon_url="/static/favicon-32x32.png",
+        )
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
