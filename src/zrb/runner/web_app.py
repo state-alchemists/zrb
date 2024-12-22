@@ -2,21 +2,14 @@ import asyncio
 import json
 import os
 import sys
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Annotated
-
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.staticfiles import StaticFiles
+from typing import TYPE_CHECKING, Annotated
 
 from zrb.config import BANNER, VERSION
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_config import Token, User, WebConfig
+from zrb.runner.web_config import Token, WebConfig
 from zrb.runner.web_controller.error_page.controller import show_error_page
 from zrb.runner.web_controller.group_info_page.controller import show_group_info_page
 from zrb.runner.web_controller.home_page.controller import show_home_page
@@ -28,12 +21,23 @@ from zrb.session_state_logger.any_session_state_logger import AnySessionStateLog
 from zrb.task.any_task import AnyTask
 from zrb.util.group import extract_node_from_args, get_node_path
 
+if TYPE_CHECKING:
+    # We want fastapi to only be loaded when necessary to decrease footprint
+    from fastapi import FastAPI
+
 
 def create_app(
     root_group: AnyGroup,
     web_config: WebConfig,
     session_state_logger: AnySessionStateLogger,
-):
+) -> "FastAPI":
+    from contextlib import asynccontextmanager
+
+    from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+    from fastapi.openapi.docs import get_swagger_ui_html
+    from fastapi.responses import FileResponse, HTMLResponse
+    from fastapi.security import OAuth2PasswordRequestForm
+    from fastapi.staticfiles import StaticFiles
 
     _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_controller", "static")
     _COROS = []
@@ -56,9 +60,15 @@ def create_app(
         lifespan=lifespan,
         docs_url=None,
     )
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
     # Serve static files
-    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+    @app.get("/static/{file_path:path}", include_in_schema=False)
+    async def static_files(file_path: str):
+        full_path = os.path.join(_STATIC_DIR, file_path)
+        if os.path.isfile(full_path):
+            return FileResponse(full_path)
+        return show_error_page(root_group, 404, "File not found")
 
     @app.get("/docs", include_in_schema=False)
     async def swagger_ui_html():
@@ -68,24 +78,20 @@ def create_app(
             swagger_favicon_url="/static/favicon-32x32.png",
         )
 
-    @app.get("/static/{file_path:path}", include_in_schema=False)
-    async def static_files(file_path: str):
-        full_path = os.path.join(_STATIC_DIR, file_path)
-        if os.path.isfile(full_path):
-            return FileResponse(full_path)
-        return show_error_page(root_group, 404, "File not found")
-
+    # Serve homepage
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
-    async def home_page_ui(user: User = Depends(web_config.get_user_by_request)):
+    async def home_page_ui(request: Request) -> HTMLResponse:
+        user = web_config.get_user_by_request(request)
         return show_home_page(user, root_group)
 
-    @app.get("/ui/{path:path}", include_in_schema=False)
-    async def ui_page(path: str, user: User = Depends(web_config.get_user_by_request)):
+    @app.get("/ui/{path:path}", response_class=HTMLResponse, include_in_schema=False)
+    async def ui_page(path: str, request: Request) -> HTMLResponse:
         # Avoid capturing '/ui' itself
         if not path:
             raise HTTPException(status_code=404)
+        user = web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         node, node_path, residual_args = extract_node_from_args(root_group, args)
         url = f"/ui/{'/'.join(node_path)}/"
@@ -103,13 +109,15 @@ def create_app(
             return show_group_info_page(user, root_group, node, url)
         raise HTTPException(status_code=404)
 
-    @app.get("/login")
-    def login(user: User = Depends(web_config.get_user_by_request)):
-        pass
+    @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+    def login(request: Request) -> HTMLResponse:
+        user = web_config.get_user_by_request(request)
+        return HTMLResponse(user)
 
-    @app.get("/logout")
-    def logout(user: User = Depends(web_config.get_user_by_request)):
-        pass
+    @app.get("/logout", response_class=HTMLResponse, include_in_schema=False)
+    def logout(request: Request) -> HTMLResponse:
+        user = web_config.get_user_by_request(request)
+        return HTMLResponse(user)
 
     @app.post("/api/v1/login")
     async def login_api(
@@ -129,7 +137,7 @@ def create_app(
         _set_auth_cookie(response, token)
         return token
 
-    def _set_auth_cookie(self, response: Response, token: Token):
+    def _set_auth_cookie(response: Response, token: Token):
         response.set_cookie(
             key=web_config.access_token_cookie_name,
             value=token.access_token,
@@ -155,11 +163,11 @@ def create_app(
     async def create_new_session_api(
         path: str,
         request: Request,
-        user: User = Depends(web_config.get_user_by_request),
     ) -> NewSessionResponse:
         """
         Creating new session
         """
+        user = web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -179,12 +187,13 @@ def create_app(
     @app.get("/api/inputs/{path:path}", response_model=dict[str, str])
     async def get_default_inputs_api(
         path: str,
+        request: Request,
         query: str = Query("{}", description="JSON encoded inputs"),
-        user: User = Depends(web_config.get_user_by_request),
-    ):
+    ) -> dict[str, str]:
         """
         Getting input completion for path
         """
+        user = web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         task, _, _ = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -203,15 +212,16 @@ def create_app(
     )
     async def get_session_api(
         path: str,
+        request: Request,
         min_start_query: str = Query(default=None, alias="from"),
         max_start_query: str = Query(default=None, alias="to"),
         page: int = Query(default=0, alias="page"),
         limit: int = Query(default=10, alias="limit"),
-        user: User = Depends(web_config.get_user_by_request),
-    ):
+    ) -> SessionStateLog | SessionStateLogList:
         """
         Getting existing session or sessions
         """
+        user = web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask) and residual_args:

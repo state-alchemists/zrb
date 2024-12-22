@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Callable
 
-from fastapi import Depends, HTTPException, Request
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt
 from pydantic import BaseModel, ConfigDict
 
 from zrb.config import (
@@ -21,14 +19,21 @@ from zrb.group.any_group import AnyGroup
 from zrb.task.any_task import AnyTask
 from zrb.util.group import get_all_subtasks
 
+if TYPE_CHECKING:
+    # Import Request only for type checking to reduce runtime dependencies
+    from fastapi import Request
+
 
 class User(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     username: str
-    password: str
+    password: str = ""
     is_super_admin: bool = False
     is_guest: bool = False
     accessible_tasks: list[AnyTask | str] = []
+
+    def is_password_match(self, password: str) -> bool:
+        return self.password == password
 
     def can_access_group(self, group: AnyGroup) -> bool:
         if self.is_super_admin:
@@ -65,6 +70,8 @@ class WebConfig:
         super_admin_username: str,
         super_admin_password: str,
         guest_username: str,
+        guest_accessible_tasks: list[AnyTask | str] = [],
+        find_user_by_username: Callable[[str], User | None] | None = None,
     ):
         self._secret_key = secret_key
         self._access_token_expire_minutes = access_token_expire_minutes
@@ -73,20 +80,12 @@ class WebConfig:
         self._refresh_token_cookie_name = refresh_token_cookie_name
         self._enable_auth = enable_auth
         self._port = port
-        self._users = []
-        if self._enable_auth:
-            self._users.append(
-                User(
-                    username=super_admin_username,
-                    password=super_admin_password,
-                    is_super_admin=True,
-                )
-            )
-            self._guest_user = User(username=guest_username, password="", is_guest=True)
-        else:
-            self._guest_user = User(
-                username=guest_username, password="", is_super_admin=True, is_guest=True
-            )
+        self._user_list = []
+        self._super_admin_username = super_admin_username
+        self._super_admin_password = super_admin_password
+        self._guest_username = guest_username
+        self._guest_accessible_tasks = guest_accessible_tasks
+        self._find_user_by_username = find_user_by_username
 
     @property
     def port(self) -> int:
@@ -108,66 +107,115 @@ class WebConfig:
     def refresh_token_max_age(self) -> int:
         self._refresh_token_expire_minutes * 60
 
+    @property
+    def default_user(self) -> User:
+        if self._enable_auth:
+            return User(
+                username=self._guest_username,
+                password="",
+                is_guest=True,
+                accessible_tasks=self._guest_accessible_tasks,
+            )
+        return User(
+            username=self._guest_username,
+            password="",
+            is_guest=True,
+            is_super_admin=True,
+        )
+
+    @property
+    def super_admin(self) -> User:
+        return User(
+            username=self._super_admin_username,
+            password=self._super_admin_password,
+            is_super_admin=True,
+        )
+
+    @property
+    def user_list(self) -> list[User]:
+        if not self._enable_auth:
+            return [self.default_user]
+        return self._user_list + [self.super_admin, self.default_user]
+
+    def set_find_user_by_username(
+        self, find_user_by_username: Callable[[str], User | None]
+    ):
+        self._find_user_by_username = find_user_by_username
+
+    def append_user(self, user: User):
+        duplicates = [
+            existing_user
+            for existing_user in self.user_list
+            if existing_user.username == user.username
+        ]
+        if len(duplicates) > 0:
+            raise ValueError(f"User already exists {user.username}")
+        self._user_list.append(user)
+
     def enable_auth(self):
         self._enable_auth = True
 
     def disable_auth(self):
         self._enable_auth = False
 
-    def append_user(self, user: User):
-        existing_users = [
-            user for user in self._users if user.username == user.username
-        ]
-        if len(existing_users) > 0 or user.username == self._guest_user.username:
-            raise ValueError(f"User already exists {user.username}")
-        self._users.append(user)
+    def find_user_by_username(self, username: str) -> User | None:
+        user = None
+        if self._find_user_by_username is not None:
+            user = self._find_user_by_username(username)
+        if user is None:
+            user = next((u for u in self.user_list if u.username == username), None)
+        return user
 
-    def get_user_by_request(
-        self,
-        request: Request,
-        bearer_token: str | None = Depends(
-            OAuth2PasswordBearer(tokenUrl="/api/v1/login", auto_error=False)
-        ),
-    ) -> User | None:
+    def get_user_by_request(self, request: "Request") -> User | None:
+        from fastapi.security import OAuth2PasswordBearer
+
         if not self._enable_auth:
-            return self._guest_user
+            return self.default_user
+        # Normally we use "Depends"
+        oauth2_password_bearer = OAuth2PasswordBearer(
+            tokenUrl="/api/v1/login", auto_error=False
+        )
+        bearer_token = oauth2_password_bearer(request)
         token_user = self._get_user_from_token(bearer_token)
         if token_user is not None:
             return token_user
         cookie_user = self._get_user_from_cookie(request)
         if cookie_user is not None:
             return cookie_user
-        return self._guest_user
+        return self.default_user
 
     def _get_user_from_token(self, token: str) -> User | None:
         try:
+            from jose import jwt
+
             payload = jwt.decode(token, self._secret_key)
             username: str = payload.get("sub")
             if username is None:
                 return None
-            user = next((u for u in self._users if u.username == username), None)
+            user = self.find_user_by_username(username)
             if user is None:
                 return None
             return user
         except Exception:
             return None
 
-    def _get_user_from_cookie(self, request: Request) -> User | None:
+    def _get_user_from_cookie(self, request: "Request") -> User | None:
         token = request.cookies.get(self._access_token_cookie_name)
         if token:
             return self._get_user_from_token(token)
         return None
 
     def get_user_by_credentials(self, username: str, password: str) -> User:
-        if not self._enable_auth:
-            return self._guest_user
-        user = next((u for u in self._users if u.username == username), None)
-        if user is None or user.password != password:
-            return self._guest_user
+        user = self.find_user_by_username(username)
+        if user is None or not user.is_password_match(password):
+            return self.default_user
         return user
 
     def generate_tokens(self, username: str, password: str) -> Token:
-        user = self.get_user_by_credentials(username, password)
+        if not self._enable_auth:
+            user = self.default_user
+        else:
+            user = self.get_user_by_credentials(username, password)
         access_token = self.create_access_token(user.username)
         refresh_token = self.create_refresh_token(user.username)
         return Token(
@@ -175,16 +223,23 @@ class WebConfig:
         )
 
     def create_access_token(self, username: str) -> str:
+        from jose import jwt
+
         expire = datetime.now() + timedelta(minutes=self._access_token_expire_minutes)
         to_encode = {"sub": username, "exp": expire, "type": "access"}
         return jwt.encode(to_encode, self._secret_key)
 
     def create_refresh_token(self, username: str) -> str:
+        from jose import jwt
+
         expire = datetime.now() + timedelta(minutes=self._refresh_token_expire_minutes)
         to_encode = {"sub": username, "exp": expire, "type": "refresh"}
         return jwt.encode(to_encode, self._secret_key)
 
     def refresh_tokens(self, refresh_token: str) -> Token:
+        from fastapi import HTTPException
+        from jose import jwt
+
         try:
             payload = jwt.decode(refresh_token, self._secret_key)
             if payload.get("type") != "refresh":
@@ -192,7 +247,7 @@ class WebConfig:
             username: str = payload.get("sub")
             if username is None:
                 raise HTTPException(status_code=401, detail="Invalid refresh token")
-            user = next((u for u in self._users if u.username == username), None)
+            user = self.find_user_by_username(username)
             if user is None:
                 raise HTTPException(status_code=401, detail="User not found")
 

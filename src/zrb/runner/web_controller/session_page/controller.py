@@ -1,18 +1,12 @@
 import json
 import os
 
-from fastapi.responses import HTMLResponse
-
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config import User
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
-
-_DIR = os.path.dirname(__file__)
-_VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
-_TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
 
 
 def show_session_page(
@@ -23,6 +17,11 @@ def show_session_page(
     url: str,
     args: list[str],
 ):
+    from fastapi.responses import HTMLResponse
+
+    _DIR = os.path.dirname(__file__)
+    _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+    _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
 
     session.register_task(task)
     ctx = task.get_ctx(session)
