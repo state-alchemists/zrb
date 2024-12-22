@@ -59,6 +59,23 @@ TODO_VISUAL_FILTER = os.getenv("ZRB_TODO_FILTER", "")
 TODO_RETENTION = os.getenv("ZRB_TODO_RETENTION", "2w")
 VERSION = metadata.version("zrb")
 WEB_HTTP_PORT = int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
+WEB_GUEST_USERNAME = os.getenv("ZRB_WEB_GUEST_USERNAME", "user")
+WEB_SUPER_ADMIN_USERNAME = os.getenv("ZRB_WEB_SUPERADMIN_USERNAME", "admin")
+WEB_SUPER_ADMIN_PASSWORD = os.getenv("ZRB_WEB_SUPERADMIN_PASSWORD", "admin")
+WEB_ACCESS_TOKEN_COOKIE_NAME = os.getenv(
+    "ZRB_WEB_ACCESS_TOKEN_COOKIE_NAME", "access_token"
+)
+WEB_REFRESH_TOKEN_COOKIE_NAME = os.getenv(
+    "ZRB_WEB_REFRESH_TOKEN_COOKIE_NAME", "refresh_token"
+)
+WEB_SECRET_KEY = os.getenv("ZRB_WEB_SECRET", "zrb")
+WEB_ENABLE_AUTH = to_boolean(os.getenv("ZRB_WEB_ENABLE_AUTH", "0"))
+WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE", "30")
+)
+WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE", f"{60*24*7}")
+)
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", "You are a helpful assistant")
 LLM_HISTORY_FILE = os.getenv(

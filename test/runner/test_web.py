@@ -8,6 +8,10 @@ from uvicorn import Config, Server
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
 from zrb.runner.web_app import create_app
+from zrb.runner.web_config import WebConfig
+from zrb.session_state_logger.default_session_state_logger import (
+    default_session_state_logger,
+)
 from zrb.task.task import Task
 
 
@@ -38,7 +42,22 @@ class TestRunWebServer(unittest.TestCase):
             )
         )
         cls.port = 8080
-        cls.app = create_app(cls.root_group, port=cls.port)
+        cls.app = create_app(
+            cls.root_group,
+            WebConfig(
+                port=cls.port,
+                secret_key="zrb",
+                access_token_expire_minutes=30,
+                refresh_token_expire_minutes=30,
+                access_token_cookie_name="access_token",
+                refresh_token_cookie_name="refresh_token",
+                enable_auth=True,
+                super_admin_username="admin",
+                super_admin_password="admin",
+                guest_username="guest",
+            ),
+            default_session_state_logger,
+        )
         cls.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(cls.loop)
         # Start the server in the background

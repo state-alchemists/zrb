@@ -49,6 +49,7 @@ chromadb = {version = "^0.5.20", optional = true}
 pdfplumber = {version = "^0.11.4", optional = true}
 beautifulsoup4 = "^4.12.3"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 
 [tool.poetry.extras]
 # poetry install -E rag

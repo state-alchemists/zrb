@@ -2,33 +2,38 @@ import asyncio
 import json
 import os
 import sys
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from typing import Annotated
 
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 
-from zrb.config import BANNER, VERSION, WEB_HTTP_PORT
+from zrb.config import BANNER, VERSION
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_controller.group_info_ui.controller import handle_group_info_ui
-from zrb.runner.web_controller.home_page.controller import handle_home_page
-from zrb.runner.web_controller.task_ui.controller import handle_task_ui
+from zrb.runner.web_config import Token, User, WebConfig
+from zrb.runner.web_controller.error_page.controller import show_error_page
+from zrb.runner.web_controller.group_info_page.controller import show_group_info_page
+from zrb.runner.web_controller.home_page.controller import show_home_page
+from zrb.runner.web_controller.session_page.controller import show_session_page
 from zrb.runner.web_util import NewSessionResponse
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
-from zrb.session_state_logger.default_session_state_logger import (
-    default_session_state_logger,
-)
+from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
 from zrb.util.group import extract_node_from_args, get_node_path
 
 
-def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
-    from contextlib import asynccontextmanager
-
-    from fastapi import FastAPI, HTTPException, Query, Request
-    from fastapi.responses import FileResponse, HTMLResponse
-    from fastapi.staticfiles import StaticFiles
+def create_app(
+    root_group: AnyGroup,
+    web_config: WebConfig,
+    session_state_logger: AnySessionStateLogger,
+):
 
     _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_controller", "static")
     _COROS = []
@@ -36,7 +41,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         for line in BANNER.split("\n") + [
-            f"Zrb Server running on http://localhost:{port}"
+            f"Zrb Server running on http://localhost:{web_config.port}"
         ]:
             print(line, file=sys.stderr)
         yield
@@ -63,57 +68,119 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
             swagger_favicon_url="/static/favicon-32x32.png",
         )
 
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
-    @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
-    async def home_page():
-        return handle_home_page(root_group)
-
     @app.get("/static/{file_path:path}", include_in_schema=False)
     async def static_files(file_path: str):
         full_path = os.path.join(_STATIC_DIR, file_path)
         if os.path.isfile(full_path):
             return FileResponse(full_path)
-        raise HTTPException(status_code=404, detail="File not found")
+        return show_error_page(root_group, 404, "File not found")
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
+    async def home_page_ui(user: User = Depends(web_config.get_user_by_request)):
+        return show_home_page(user, root_group)
 
     @app.get("/ui/{path:path}", include_in_schema=False)
-    async def ui_page(path: str):
+    async def ui_page(path: str, user: User = Depends(web_config.get_user_by_request)):
         # Avoid capturing '/ui' itself
         if not path:
-            raise HTTPException(status_code=404, detail="Not Found")
+            raise HTTPException(status_code=404)
         args = path.strip("/").split("/")
         node, node_path, residual_args = extract_node_from_args(root_group, args)
         url = f"/ui/{'/'.join(node_path)}/"
         if isinstance(node, AnyTask):
+            if not user.can_access_task(node):
+                return show_error_page(root_group, 403, "Forbidden")
             shared_ctx = SharedContext(env=dict(os.environ))
             session = Session(shared_ctx=shared_ctx, root_group=root_group)
-            return handle_task_ui(root_group, node, session, url, residual_args)
+            return show_session_page(
+                user, root_group, node, session, url, residual_args
+            )
         elif isinstance(node, AnyGroup):
-            return handle_group_info_ui(root_group, node, url)
-        raise HTTPException(status_code=404, detail="Not Found")
+            if not user.can_access_group(node):
+                return show_error_page(root_group, 403, "Forbidden")
+            return show_group_info_page(user, root_group, node, url)
+        raise HTTPException(status_code=404)
+
+    @app.get("/login")
+    def login(user: User = Depends(web_config.get_user_by_request)):
+        pass
+
+    @app.get("/logout")
+    def logout(user: User = Depends(web_config.get_user_by_request)):
+        pass
+
+    @app.post("/api/v1/login")
+    async def login_api(
+        response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    ):
+        token = web_config.generate_tokens(
+            username=form_data.username, password=form_data.password
+        )
+        _set_auth_cookie(response, token)
+        return token
+
+    @app.post("/api/v1/refresh-token")
+    async def refresh_token_api(
+        response: Response, refresh_token: str = Query(..., description="Refresh token")
+    ):
+        token = web_config.refresh_tokens(refresh_token)
+        _set_auth_cookie(response, token)
+        return token
+
+    def _set_auth_cookie(self, response: Response, token: Token):
+        response.set_cookie(
+            key=web_config.access_token_cookie_name,
+            value=token.access_token,
+            httponly=True,
+            max_age=web_config.access_token_max_age,
+            expires=web_config.access_token_max_age,
+        )
+        response.set_cookie(
+            key=web_config.refresh_token_cookie_name,
+            value=token.refresh_token,
+            httponly=True,
+            max_age=web_config.refresh_token_max_age,
+            expires=web_config.refresh_token_max_age,
+        )
+
+    @app.get("/api/v1/logout")
+    async def logout_api(response: Response):
+        response.delete_cookie(web_config.access_token_cookie_name)
+        response.delete_cookie(web_config.refresh_token_cookie_name)
+        return {"message": "Logout successful"}
 
     @app.post("/api/sessions/{path:path}")
-    async def create_new_session(path: str, request: Request) -> NewSessionResponse:
+    async def create_new_session_api(
+        path: str,
+        request: Request,
+        user: User = Depends(web_config.get_user_by_request),
+    ) -> NewSessionResponse:
         """
         Creating new session
         """
         args = path.strip("/").split("/")
-        node, _, residual_args = extract_node_from_args(root_group, args)
-        if isinstance(node, AnyTask):
+        task, _, residual_args = extract_node_from_args(root_group, args)
+        if isinstance(task, AnyTask):
+            if not user.can_access_task(task):
+                raise HTTPException(status_code=403)
             session_name = residual_args[0] if residual_args else None
             if not session_name:
                 body = await request.json()
                 shared_ctx = SharedContext(env=dict(os.environ))
                 session = Session(shared_ctx=shared_ctx, root_group=root_group)
-                coro = asyncio.create_task(node.async_run(session, str_kwargs=body))
+                coro = asyncio.create_task(task.async_run(session, str_kwargs=body))
                 _COROS.append(coro)
                 coro.add_done_callback(lambda coro: _COROS.remove(coro))
                 return NewSessionResponse(session_name=session.name)
-        raise HTTPException(status_code=404, detail="Not Found")
+        raise HTTPException(status_code=404)
 
     @app.get("/api/inputs/{path:path}", response_model=dict[str, str])
-    async def get_default_inputs(
-        path: str, query: str = Query("{}", description="JSON encoded inputs")
+    async def get_default_inputs_api(
+        path: str,
+        query: str = Query("{}", description="JSON encoded inputs"),
+        user: User = Depends(web_config.get_user_by_request),
     ):
         """
         Getting input completion for path
@@ -121,6 +188,8 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         args = path.strip("/").split("/")
         task, _, _ = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
+            if not user.can_access_task(task):
+                raise HTTPException(status_code=403)
             query_dict = json.loads(query)
             run_kwargs = get_run_kwargs(
                 task=task, args=[], kwargs=query_dict, prompt=False
@@ -132,21 +201,24 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         "/api/sessions/{path:path}",
         response_model=SessionStateLog | SessionStateLogList,
     )
-    async def get_session(
+    async def get_session_api(
         path: str,
         min_start_query: str = Query(default=None, alias="from"),
         max_start_query: str = Query(default=None, alias="to"),
         page: int = Query(default=0, alias="page"),
         limit: int = Query(default=10, alias="limit"),
+        user: User = Depends(web_config.get_user_by_request),
     ):
         """
         Getting existing session or sessions
         """
         args = path.strip("/").split("/")
-        node, _, residual_args = extract_node_from_args(root_group, args)
-        if isinstance(node, AnyTask) and residual_args:
+        task, _, residual_args = extract_node_from_args(root_group, args)
+        if isinstance(task, AnyTask) and residual_args:
+            if not user.can_access_task(task):
+                raise HTTPException(status_code=403)
             if residual_args[0] == "list":
-                task_path = get_node_path(root_group, node)
+                task_path = get_node_path(root_group, task)
                 max_start_time = (
                     datetime.now()
                     if max_start_query is None
@@ -157,14 +229,14 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
                     if min_start_query is None
                     else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
                 )
-                return list_sessions(
+                return _get_existing_sessions(
                     task_path, min_start_time, max_start_time, page, limit
                 )
             else:
-                return read_session(residual_args[0])
+                return _read_session(residual_args[0])
         raise HTTPException(status_code=404, detail="Not Found")
 
-    def list_sessions(
+    def _get_existing_sessions(
         task_path: list[str],
         min_start_time: datetime,
         max_start_time: datetime,
@@ -172,7 +244,7 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         limit: int,
     ) -> SessionStateLogList:
         try:
-            return default_session_state_logger.list(
+            return session_state_logger.list(
                 task_path,
                 min_start_time=min_start_time,
                 max_start_time=max_start_time,
@@ -182,9 +254,9 @@ def create_app(root_group: AnyGroup, port: int = WEB_HTTP_PORT):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    def read_session(session_name: str) -> SessionStateLog:
+    def _read_session(session_name: str) -> SessionStateLog:
         try:
-            return default_session_state_logger.read(session_name)
+            return session_state_logger.read(session_name)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

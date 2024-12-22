@@ -12,9 +12,16 @@ from zrb import (
     Scheduler,
     StrInput,
     Task,
+    User,
     Xcom,
     cli,
     make_task,
+    web_config,
+)
+
+web_config.enable_auth()
+web_config.append_user(
+    User(username="jack", password="jack", accessible_tasks=["ppn", "llm-chat"])
 )
 
 

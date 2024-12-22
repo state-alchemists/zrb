@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from my_app_name.common.app import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import APP_MAIN_MODULE, APP_MODE, APP_MODULES
-from my_app_name.module.auth.service.user.user_usecase import user_usecase
+from my_app_name.module.auth.service.user.user_usecase_factory import user_usecase
 
 
 def serve_health_check(app: FastAPI):

@@ -51,6 +51,3 @@ class UserUsecase(BaseUsecase):
     )
     async def delete_user(self, user_id: str, deleted_by: str) -> UserResponse:
         return await self.user_repository.delete(user_id)
-
-
-user_usecase = UserUsecase(user_repository=user_repository)

@@ -34,6 +34,7 @@ from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.runner.cli import cli
+from zrb.runner.web_config import User, web_config
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
@@ -100,6 +101,8 @@ assert Scaffolder
 assert Scheduler
 assert cli
 assert Xcom
+assert web_config
+assert User
 
 if LOAD_BUILTIN:
     from zrb import builtin
