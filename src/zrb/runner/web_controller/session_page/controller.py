@@ -3,6 +3,7 @@ import os
 
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config import User
+from zrb.runner.web_util import get_html_auth_link
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.file import read_file
@@ -22,6 +23,7 @@ def show_session_page(
     _DIR = os.path.dirname(__file__)
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
     _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
+    auth_link = get_html_auth_link(user)
 
     session.register_task(task)
     ctx = task.get_ctx(session)
@@ -55,6 +57,7 @@ def show_session_page(
             {
                 "name": task.name,
                 "description": task.description,
+                "auth_link": auth_link,
                 "root_name": root_group.name,
                 "root_description": root_group.description,
                 "url": url,

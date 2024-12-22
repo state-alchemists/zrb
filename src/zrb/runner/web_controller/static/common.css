@@ -1,0 +1,11 @@
+header {
+    background-color: var(--primary);
+    padding: 2rem 0;
+    margin-bottom: 0;
+}
+header hgroup {
+    margin-bottom:0;
+}
+nav ul {
+    padding: 0;
+}

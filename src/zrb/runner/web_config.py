@@ -137,6 +137,9 @@ class WebConfig:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
 
+    def set_guest_accessible_tasks(self, tasks: list[AnyTask | str]):
+        self._guest_accessible_tasks = tasks
+
     def set_find_user_by_username(
         self, find_user_by_username: Callable[[str], User | None]
     ):
@@ -166,16 +169,16 @@ class WebConfig:
             user = next((u for u in self.user_list if u.username == username), None)
         return user
 
-    def get_user_by_request(self, request: "Request") -> User | None:
+    async def get_user_by_request(self, request: "Request") -> User | None:
         from fastapi.security import OAuth2PasswordBearer
 
         if not self._enable_auth:
             return self.default_user
         # Normally we use "Depends"
-        oauth2_password_bearer = OAuth2PasswordBearer(
+        get_bearer_token = OAuth2PasswordBearer(
             tokenUrl="/api/v1/login", auto_error=False
         )
-        bearer_token = oauth2_password_bearer(request)
+        bearer_token = await get_bearer_token(request)
         token_user = self._get_user_from_token(bearer_token)
         if token_user is not None:
             return token_user

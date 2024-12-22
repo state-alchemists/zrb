@@ -13,13 +13,15 @@ from zrb.runner.web_config import Token, WebConfig
 from zrb.runner.web_controller.error_page.controller import show_error_page
 from zrb.runner.web_controller.group_info_page.controller import show_group_info_page
 from zrb.runner.web_controller.home_page.controller import show_home_page
+from zrb.runner.web_controller.login_page.controller import show_login_page
+from zrb.runner.web_controller.logout_page.controller import show_logout_page
 from zrb.runner.web_controller.session_page.controller import show_session_page
 from zrb.runner.web_util import NewSessionResponse
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
-from zrb.util.group import extract_node_from_args, get_node_path
+from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
@@ -68,7 +70,7 @@ def create_app(
         full_path = os.path.join(_STATIC_DIR, file_path)
         if os.path.isfile(full_path):
             return FileResponse(full_path)
-        return show_error_page(root_group, 404, "File not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     @app.get("/docs", include_in_schema=False)
     async def swagger_ui_html():
@@ -83,21 +85,24 @@ def create_app(
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
     async def home_page_ui(request: Request) -> HTMLResponse:
-        user = web_config.get_user_by_request(request)
+        user = await web_config.get_user_by_request(request)
         return show_home_page(user, root_group)
 
     @app.get("/ui/{path:path}", response_class=HTMLResponse, include_in_schema=False)
     async def ui_page(path: str, request: Request) -> HTMLResponse:
+        user = await web_config.get_user_by_request(request)
         # Avoid capturing '/ui' itself
         if not path:
-            raise HTTPException(status_code=404)
-        user = web_config.get_user_by_request(request)
+            return show_error_page(user, root_group, 422, "Undefined path")
         args = path.strip("/").split("/")
-        node, node_path, residual_args = extract_node_from_args(root_group, args)
+        try:
+            node, node_path, residual_args = extract_node_from_args(root_group, args)
+        except NodeNotFoundError as e:
+            return show_error_page(user, root_group, 404, str(e))
         url = f"/ui/{'/'.join(node_path)}/"
         if isinstance(node, AnyTask):
             if not user.can_access_task(node):
-                return show_error_page(root_group, 403, "Forbidden")
+                return show_error_page(user, root_group, 403, "Forbidden")
             shared_ctx = SharedContext(env=dict(os.environ))
             session = Session(shared_ctx=shared_ctx, root_group=root_group)
             return show_session_page(
@@ -105,19 +110,19 @@ def create_app(
             )
         elif isinstance(node, AnyGroup):
             if not user.can_access_group(node):
-                return show_error_page(root_group, 403, "Forbidden")
+                return show_error_page(user, root_group, 403, "Forbidden")
             return show_group_info_page(user, root_group, node, url)
-        raise HTTPException(status_code=404)
+        return show_error_page(user, root_group, 404, "Not found")
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
-    def login(request: Request) -> HTMLResponse:
-        user = web_config.get_user_by_request(request)
-        return HTMLResponse(user)
+    async def login(request: Request) -> HTMLResponse:
+        user = await web_config.get_user_by_request(request)
+        return show_login_page(user, root_group)
 
     @app.get("/logout", response_class=HTMLResponse, include_in_schema=False)
-    def logout(request: Request) -> HTMLResponse:
-        user = web_config.get_user_by_request(request)
-        return HTMLResponse(user)
+    async def logout(request: Request) -> HTMLResponse:
+        user = await web_config.get_user_by_request(request)
+        return show_logout_page(user, root_group)
 
     @app.post("/api/v1/login")
     async def login_api(
@@ -154,6 +159,7 @@ def create_app(
         )
 
     @app.get("/api/v1/logout")
+    @app.post("/api/v1/logout")
     async def logout_api(response: Response):
         response.delete_cookie(web_config.access_token_cookie_name)
         response.delete_cookie(web_config.refresh_token_cookie_name)
@@ -167,7 +173,7 @@ def create_app(
         """
         Creating new session
         """
-        user = web_config.get_user_by_request(request)
+        user = await web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -193,7 +199,7 @@ def create_app(
         """
         Getting input completion for path
         """
-        user = web_config.get_user_by_request(request)
+        user = await web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         task, _, _ = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -221,7 +227,7 @@ def create_app(
         """
         Getting existing session or sessions
         """
-        user = web_config.get_user_by_request(request)
+        user = await web_config.get_user_by_request(request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask) and residual_args:

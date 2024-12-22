@@ -1,23 +1,32 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark">
-    <link rel="stylesheet" href="/static/pico.min.css">
-    <link rel="icon" href="/static/favicon-32x32.png" sizes="32x32" type="image/png">
-    <title>Zrb</title>
-  </head>
-  <body>
-    <header class="container">
-      <hgroup>
-        <h1>{name}</h1>
-        <p>{description}</p>
-      </hgroup>
-    </header>
-    <main class="container">
-        {group_info}
-        {task_info}
-    </main>
-  </body>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="light dark">
+        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="icon" href="/static/favicon-32x32.png" sizes="32x32" type="image/png">
+        <title>Zrb</title>
+        <link rel="stylesheet" href="/static/common.css">
+    </head>
+    <body>
+        <header class="container">
+            <hgroup>
+                <h1>{name}</h1>
+                <p>{description}</p>
+                <nav>
+                    <ul>
+                        <li><a href="/docs">💻 API Documentation</a></li>
+                    </ul>
+                    <ul>
+                        <li>{auth_link}</li>
+                    </ul>
+                </nav>
+            </hgroup>
+        </header>
+        <main class="container">
+                {group_info}
+                {task_info}
+        </main>
+    </body>
 </html>

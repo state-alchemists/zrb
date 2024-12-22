@@ -21,6 +21,14 @@ def node_path_to_url(args: list[str]) -> str:
     return f"/{stripped_url}/"
 
 
+def get_html_auth_link(user: User) -> str:
+    if user.is_guest and user.is_super_admin:
+        return f"Hi, {user.username}"
+    if user.is_guest:
+        return f'Hi, {user.username} <a href="/login">Login 🔑</a>'
+    return f'Hi, {user.username} <a href="/logout">Logout 🚪</a>'
+
+
 def get_html_subtask_info(user: User, parent_url: str, parent_group: AnyGroup) -> str:
     subtasks = get_subtasks(parent_group, web_only=True)
     task_li = "\n".join(
@@ -32,7 +40,7 @@ def get_html_subtask_info(user: User, parent_url: str, parent_group: AnyGroup) -
     )
     if task_li.strip() == "":
         return ""
-    return f"<h5>Groups</h5><ul>{task_li}</ul>"
+    return f"<h5>Tasks</h5><ul>{task_li}</ul>"
 
 
 def get_html_task_li(parent_url: str, alias: str, task: AnyTask) -> str:
@@ -52,7 +60,7 @@ def get_html_subgroup_info(user: User, parent_url: str, parent_group: AnyGroup) 
     )
     if group_li.strip() == "":
         return ""
-    return f"<h5>Tasks</h5><ul>{group_li}</ul>"
+    return f"<h5>Groups</h5><ul>{group_li}</ul>"
 
 
 def get_html_group_li(parent_url: str, alias: str, group: AnyGroup) -> str:
