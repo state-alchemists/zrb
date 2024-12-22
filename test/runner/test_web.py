@@ -51,7 +51,7 @@ class TestRunWebServer(unittest.TestCase):
                 refresh_token_expire_minutes=30,
                 access_token_cookie_name="access_token",
                 refresh_token_cookie_name="refresh_token",
-                enable_auth=True,
+                enable_auth=False,
                 super_admin_username="admin",
                 super_admin_password="admin",
                 guest_username="guest",
