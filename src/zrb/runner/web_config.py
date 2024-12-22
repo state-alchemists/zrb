@@ -188,7 +188,11 @@ class WebConfig:
         try:
             from jose import jwt
 
-            payload = jwt.decode(token, self._secret_key)
+            payload = jwt.decode(
+                token,
+                self._secret_key,
+                options={"require_sub": True, "require_exp": True},
+            )
             username: str = payload.get("sub")
             if username is None:
                 return None
@@ -240,26 +244,31 @@ class WebConfig:
         from fastapi import HTTPException
         from jose import jwt
 
+        # Decode and validate token
         try:
-            payload = jwt.decode(refresh_token, self._secret_key)
-            if payload.get("type") != "refresh":
-                raise HTTPException(status_code=401, detail="Invalid token type")
-            username: str = payload.get("sub")
-            if username is None:
-                raise HTTPException(status_code=401, detail="Invalid refresh token")
-            user = self.find_user_by_username(username)
-            if user is None:
-                raise HTTPException(status_code=401, detail="User not found")
-
-            new_access_token = self.create_access_token(username)
-            new_refresh_token = self.create_refresh_token(username)
-            return Token(
-                access_token=new_access_token,
-                refresh_token=new_refresh_token,
-                token_type="bearer",
+            payload = jwt.decode(
+                refresh_token,
+                self._secret_key,
+                options={"require_exp": True, "require_sub": True},
             )
         except Exception:
+            raise HTTPException(status_code=401, detail="Invalid JWT token")
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        username: str = payload.get("sub")
+        if username is None:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
+        user = self.find_user_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        # Create new token
+        new_access_token = self.create_access_token(username)
+        new_refresh_token = self.create_refresh_token(username)
+        return Token(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+        )
 
 
 web_config = WebConfig(
