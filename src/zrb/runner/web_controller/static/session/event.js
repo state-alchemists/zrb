@@ -1,7 +1,7 @@
 window.addEventListener("load", async function () {
     // Get current session
     if (cfg.SESSION_NAME != "") {
-        CURRENT_SESSION.pollCurrentSession();
+        CURRENT_SESSION.startPolling();
     }
     // set maxStartDate to today
     const tomorrow = new Date();
@@ -16,8 +16,6 @@ window.addEventListener("load", async function () {
     const formattedToday = UTIL.toLocalDateInputValue(today);
     const minStartAtInput = document.getElementById("min-start-at-input");
     minStartAtInput.value = formattedToday;
-    // Update session
-    PAST_SESSION.pollPastSession();
 });
 
 
@@ -63,11 +61,12 @@ submitTaskForm.addEventListener("input", async function(event) {
     } catch (error) {
         console.error("Error during fetch:", error);
     }
-})
+});
 
 
 function openPastSessionDialog(event) {
     event.preventDefault();
+    PAST_SESSION.startPolling();
     const dialog = document.getElementById("past-session-dialog")
     dialog.showModal();
 }
@@ -75,6 +74,7 @@ function openPastSessionDialog(event) {
 
 function closePastSessionDialog(event) {
     event.preventDefault();
+    PAST_SESSION.stopPolling();
     const dialog = document.getElementById("past-session-dialog")
     dialog.close();
 }
@@ -109,8 +109,7 @@ async function submitNewSessionForm(event) {
             const data = await response.json();
             cfg.SESSION_NAME = data.session_name;
             history.pushState(null, "", `${cfg.CURRENT_URL}${cfg.SESSION_NAME}`);
-            await PAST_SESSION.getAndRenderPastSession(0);
-            await CURRENT_SESSION.pollCurrentSession();
+            await CURRENT_SESSION.startPolling();
         } else {
             console.error("Error:", response);
         }

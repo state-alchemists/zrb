@@ -71,10 +71,10 @@ WEB_REFRESH_TOKEN_COOKIE_NAME = os.getenv(
 WEB_SECRET_KEY = os.getenv("ZRB_WEB_SECRET", "zrb")
 WEB_ENABLE_AUTH = to_boolean(os.getenv("ZRB_WEB_ENABLE_AUTH", "0"))
 WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE", "30")
+    os.getenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 )
 WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE", f"{60*24*7}")
+    os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60")
 )
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", "You are a helpful assistant")

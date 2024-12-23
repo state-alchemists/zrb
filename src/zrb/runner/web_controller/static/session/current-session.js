@@ -1,5 +1,5 @@
 const CURRENT_SESSION = {
-    async pollCurrentSession() {
+    async startPolling() {
         const resultTextarea = document.getElementById("result-textarea");
         const logTextarea = document.getElementById("log-textarea");
         const submitTaskForm = document.getElementById("submit-task-form");

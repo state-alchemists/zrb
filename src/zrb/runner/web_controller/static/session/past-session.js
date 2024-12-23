@@ -1,10 +1,16 @@
 const PAST_SESSION = {
+    shouldPoll: true,
 
-    async pollPastSession() {
-        while (true) {
-            await this.getAndRenderPastSession(cfg.PAGE);
+    async startPolling() {
+        await this.getAndRenderPastSession(cfg.PAGE);
+        while (this.shouldPoll) {
             await UTIL.delay(5000);
+            await this.getAndRenderPastSession(cfg.PAGE);
         }
+    },
+
+    stopPolling() {
+        this.shouldPoll = false;
     },
 
     async getAndRenderPastSession(page) {

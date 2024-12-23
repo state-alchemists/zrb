@@ -2,21 +2,26 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Annotated
 
 from zrb.config import BANNER, VERSION
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_config import RefreshTokenRequest, Token, WebConfig
+from zrb.runner.web_config import (
+    NewSessionResponse,
+    RefreshTokenRequest,
+    Token,
+    WebConfig,
+)
 from zrb.runner.web_controller.error_page.controller import show_error_page
 from zrb.runner.web_controller.group_info_page.controller import show_group_info_page
 from zrb.runner.web_controller.home_page.controller import show_home_page
 from zrb.runner.web_controller.login_page.controller import show_login_page
 from zrb.runner.web_controller.logout_page.controller import show_logout_page
 from zrb.runner.web_controller.session_page.controller import show_session_page
-from zrb.runner.web_util import NewSessionResponse
+from zrb.runner.web_util import get_refresh_token_js
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
@@ -28,32 +33,6 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-REFRESH_TOKEN_JS_TEMPLATE = """
-function refreshAuthToken(){
-    const refreshUrl = "/api/v1/refresh-token";
-    async function refresh() {
-        try {
-            const response = await fetch(refreshUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include", // Include cookies in the request
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            console.log("Token refreshed successfully");
-        } catch (error) {
-            console.error("Cannot refresh token", error)
-        }
-    }
-    setInterval(refresh, intervalSeconds * 60 * 1000);
-    refresh();
-}
-refreshAuthToken();
-""".strip()
-
-
 def create_app(
     root_group: AnyGroup,
     web_config: WebConfig,
@@ -61,9 +40,17 @@ def create_app(
 ) -> "FastAPI":
     from contextlib import asynccontextmanager
 
-    from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+    from fastapi import (
+        Cookie,
+        Depends,
+        FastAPI,
+        HTTPException,
+        Query,
+        Request,
+        Response,
+    )
     from fastapi.openapi.docs import get_swagger_ui_html
-    from fastapi.responses import FileResponse, HTMLResponse
+    from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
     from fastapi.security import OAuth2PasswordRequestForm
     from fastapi.staticfiles import StaticFiles
 
@@ -100,8 +87,11 @@ def create_app(
 
     @app.get("/refresh-token.js", include_in_schema=False)
     async def refresh_token_js():
-        return REFRESH_TOKEN_JS_TEMPLATE.replace(
-            "intervalSeconds", str(web_config.refresh_token_max_age / 3)
+        return PlainTextResponse(
+            content=get_refresh_token_js(
+                60 * web_config.refresh_token_expire_minutes / 3
+            ),
+            media_type="application/javascript",
         )
 
     @app.get("/docs", include_in_schema=False)
@@ -117,12 +107,12 @@ def create_app(
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
     async def home_page_ui(request: Request) -> HTMLResponse:
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         return show_home_page(user, root_group)
 
     @app.get("/ui/{path:path}", response_class=HTMLResponse, include_in_schema=False)
     async def ui_page(path: str, request: Request) -> HTMLResponse:
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         # Avoid capturing '/ui' itself
         if not path:
             return show_error_page(user, root_group, 422, "Undefined path")
@@ -148,12 +138,12 @@ def create_app(
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
     async def login(request: Request) -> HTMLResponse:
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         return show_login_page(user, root_group)
 
     @app.get("/logout", response_class=HTMLResponse, include_in_schema=False)
     async def logout(request: Request) -> HTMLResponse:
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         return show_logout_page(user, root_group)
 
     @app.post("/api/v1/login")
@@ -171,25 +161,43 @@ def create_app(
         return token
 
     @app.post("/api/v1/refresh-token")
-    async def refresh_token_api(response: Response, body: RefreshTokenRequest):
-        new_token = web_config.refresh_tokens(body.refresh_token)
+    async def refresh_token_api(
+        response: Response,
+        body: RefreshTokenRequest = None,
+        refresh_token_cookie: str = Cookie(
+            None, alias=web_config.refresh_token_cookie_name
+        ),
+    ):
+        # Try to get the refresh token from the request body first
+        refresh_token = body.refresh_token if body else None
+        # If not in the body, try to get it from the cookie
+        if not refresh_token:
+            refresh_token = refresh_token_cookie
+        # If we still don't have a refresh token, raise an exception
+        if not refresh_token:
+            raise HTTPException(status_code=400, detail="Refresh token not provided")
+        # Get token
+        new_token = web_config.regenerate_tokens(refresh_token)
         _set_auth_cookie(response, new_token)
         return new_token
 
     def _set_auth_cookie(response: Response, token: Token):
+        access_token_max_age = web_config.access_token_expire_minutes * 60
+        refresh_token_max_age = web_config.refresh_token_expire_minutes * 60
+        now = datetime.now(timezone.utc)
         response.set_cookie(
             key=web_config.access_token_cookie_name,
             value=token.access_token,
             httponly=True,
-            max_age=web_config.access_token_max_age,
-            expires=web_config.access_token_max_age,
+            max_age=access_token_max_age,
+            expires=now + timedelta(seconds=access_token_max_age),
         )
         response.set_cookie(
             key=web_config.refresh_token_cookie_name,
             value=token.refresh_token,
             httponly=True,
-            max_age=web_config.refresh_token_max_age,
-            expires=web_config.refresh_token_max_age,
+            max_age=refresh_token_max_age,
+            expires=now + timedelta(seconds=refresh_token_max_age),
         )
 
     @app.get("/api/v1/logout")
@@ -207,7 +215,7 @@ def create_app(
         """
         Creating new session
         """
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -233,7 +241,7 @@ def create_app(
         """
         Getting input completion for path
         """
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         args = path.strip("/").split("/")
         task, _, _ = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -261,7 +269,7 @@ def create_app(
         """
         Getting existing session or sessions
         """
-        user = await web_config.get_user_by_request(request)
+        user = await web_config.get_user_from_request(request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask) and residual_args:

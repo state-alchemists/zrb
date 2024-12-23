@@ -24,6 +24,10 @@ if TYPE_CHECKING:
     from fastapi import Request
 
 
+class NewSessionResponse(BaseModel):
+    session_name: str
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
@@ -77,51 +81,31 @@ class WebConfig:
         guest_accessible_tasks: list[AnyTask | str] = [],
         find_user_by_username: Callable[[str], User | None] | None = None,
     ):
-        self._secret_key = secret_key
-        self._access_token_expire_minutes = access_token_expire_minutes
-        self._refresh_token_expire_minutes = refresh_token_expire_minutes
-        self._access_token_cookie_name = access_token_cookie_name
-        self._refresh_token_cookie_name = refresh_token_cookie_name
-        self._enable_auth = enable_auth
-        self._port = port
+        self.secret_key = secret_key
+        self.access_token_expire_minutes = access_token_expire_minutes
+        self.refresh_token_expire_minutes = refresh_token_expire_minutes
+        self.access_token_cookie_name = access_token_cookie_name
+        self.refresh_token_cookie_name = refresh_token_cookie_name
+        self.enable_auth = enable_auth
+        self.port = port
         self._user_list = []
-        self._super_admin_username = super_admin_username
-        self._super_admin_password = super_admin_password
-        self._guest_username = guest_username
-        self._guest_accessible_tasks = guest_accessible_tasks
+        self.super_admin_username = super_admin_username
+        self.super_admin_password = super_admin_password
+        self.guest_username = guest_username
+        self.guest_accessible_tasks = guest_accessible_tasks
         self._find_user_by_username = find_user_by_username
 
     @property
-    def port(self) -> int:
-        return self._port
-
-    @property
-    def access_token_cookie_name(self) -> str:
-        return self._access_token_cookie_name
-
-    @property
-    def refresh_token_cookie_name(self) -> str:
-        return self._refresh_token_cookie_name
-
-    @property
-    def access_token_max_age(self) -> int:
-        self._access_token_expire_minutes * 60
-
-    @property
-    def refresh_token_max_age(self) -> int:
-        self._refresh_token_expire_minutes * 60
-
-    @property
     def default_user(self) -> User:
-        if self._enable_auth:
+        if self.enable_auth:
             return User(
-                username=self._guest_username,
+                username=self.guest_username,
                 password="",
                 is_guest=True,
-                accessible_tasks=self._guest_accessible_tasks,
+                accessible_tasks=self.guest_accessible_tasks,
             )
         return User(
-            username=self._guest_username,
+            username=self.guest_username,
             password="",
             is_guest=True,
             is_super_admin=True,
@@ -130,19 +114,19 @@ class WebConfig:
     @property
     def super_admin(self) -> User:
         return User(
-            username=self._super_admin_username,
-            password=self._super_admin_password,
+            username=self.super_admin_username,
+            password=self.super_admin_password,
             is_super_admin=True,
         )
 
     @property
     def user_list(self) -> list[User]:
-        if not self._enable_auth:
+        if not self.enable_auth:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
 
     def set_guest_accessible_tasks(self, tasks: list[AnyTask | str]):
-        self._guest_accessible_tasks = tasks
+        self.guest_accessible_tasks = tasks
 
     def set_find_user_by_username(
         self, find_user_by_username: Callable[[str], User | None]
@@ -159,12 +143,6 @@ class WebConfig:
             raise ValueError(f"User already exists {user.username}")
         self._user_list.append(user)
 
-    def enable_auth(self):
-        self._enable_auth = True
-
-    def disable_auth(self):
-        self._enable_auth = False
-
     def find_user_by_username(self, username: str) -> User | None:
         user = None
         if self._find_user_by_username is not None:
@@ -173,10 +151,10 @@ class WebConfig:
             user = next((u for u in self.user_list if u.username == username), None)
         return user
 
-    async def get_user_by_request(self, request: "Request") -> User | None:
+    async def get_user_from_request(self, request: "Request") -> User | None:
         from fastapi.security import OAuth2PasswordBearer
 
-        if not self._enable_auth:
+        if not self.enable_auth:
             return self.default_user
         # Normally we use "Depends"
         get_bearer_token = OAuth2PasswordBearer(
@@ -197,7 +175,7 @@ class WebConfig:
 
             payload = jwt.decode(
                 token,
-                self._secret_key,
+                self.secret_key,
                 options={"require_sub": True, "require_exp": True},
             )
             username: str = payload.get("sub")
@@ -211,14 +189,10 @@ class WebConfig:
             return None
 
     def _get_user_from_cookie(self, request: "Request") -> User | None:
-        token = request.cookies.get(self._access_token_cookie_name)
+        token = request.cookies.get(self.access_token_cookie_name)
         if token:
             return self._get_user_from_token(token)
         return None
-
-    def get_refresh_token_from_cookie(self, request: "Request") -> str | None:
-        refresh_token = request.cookies.get(self._refresh_token_cookie_name)
-        return refresh_token
 
     def get_user_by_credentials(self, username: str, password: str) -> User | None:
         user = self.find_user_by_username(username)
@@ -229,33 +203,33 @@ class WebConfig:
     def generate_tokens_by_credentials(
         self, username: str, password: str
     ) -> Token | None:
-        if not self._enable_auth:
+        if not self.enable_auth:
             user = self.default_user
         else:
             user = self.get_user_by_credentials(username, password)
         if user is None:
             return None
-        access_token = self.create_access_token(user.username)
-        refresh_token = self.create_refresh_token(user.username)
+        access_token = self._generate_access_token(user.username)
+        refresh_token = self._generate_refresh_token(user.username)
         return Token(
             access_token=access_token, refresh_token=refresh_token, token_type="bearer"
         )
 
-    def create_access_token(self, username: str) -> str:
+    def _generate_access_token(self, username: str) -> str:
         from jose import jwt
 
-        expire = datetime.now() + timedelta(minutes=self._access_token_expire_minutes)
+        expire = datetime.now() + timedelta(minutes=self.access_token_expire_minutes)
         to_encode = {"sub": username, "exp": expire, "type": "access"}
-        return jwt.encode(to_encode, self._secret_key)
+        return jwt.encode(to_encode, self.secret_key)
 
-    def create_refresh_token(self, username: str) -> str:
+    def _generate_refresh_token(self, username: str) -> str:
         from jose import jwt
 
-        expire = datetime.now() + timedelta(minutes=self._refresh_token_expire_minutes)
+        expire = datetime.now() + timedelta(minutes=self.refresh_token_expire_minutes)
         to_encode = {"sub": username, "exp": expire, "type": "refresh"}
-        return jwt.encode(to_encode, self._secret_key)
+        return jwt.encode(to_encode, self.secret_key)
 
-    def refresh_tokens(self, refresh_token: str) -> Token:
+    def regenerate_tokens(self, refresh_token: str) -> Token:
         from fastapi import HTTPException
         from jose import jwt
 
@@ -263,7 +237,7 @@ class WebConfig:
         try:
             payload = jwt.decode(
                 refresh_token,
-                self._secret_key,
+                self.secret_key,
                 options={"require_exp": True, "require_sub": True},
             )
         except Exception:
@@ -277,8 +251,8 @@ class WebConfig:
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         # Create new token
-        new_access_token = self.create_access_token(username)
-        new_refresh_token = self.create_refresh_token(username)
+        new_access_token = self._generate_access_token(username)
+        new_refresh_token = self._generate_refresh_token(username)
         return Token(
             access_token=new_access_token,
             refresh_token=new_refresh_token,
