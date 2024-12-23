@@ -1,4 +1,4 @@
 # Table of Contents
 
-- [Config](config.md)
+- [Configuration](configuration.md)
 - [Maintainer Guide](maintainer-guide.md)

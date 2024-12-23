@@ -2,7 +2,7 @@
 
 An environment variable is a user-definable value that can affect the way running processes will behave on a computer.
 
-Many applications (including Zrb) can be configured using environment variables. Refer to the application documentation for more information. For Zrb, the documentation can be found [here](../../config.md).
+Many applications (including Zrb) can be configured using environment variables. Refer to the application documentation for more information. For Zrb, the documentation can be found [here](../../configuration.md).
 
 
 ## UNIX-like Systems (Linux, macOS, WSL, Termux)
