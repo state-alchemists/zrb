@@ -33,11 +33,11 @@ def show_session_page(
     parent_url = "/".join(parent_url_parts)
     # Assemble session api url
     session_url_parts = list(url_parts)
-    session_url_parts[1] = "api/sessions"
+    session_url_parts[1] = "api/v1/task-sessions"
     session_api_url = "/".join(session_url_parts)
     # Assemble input api url
     input_url_parts = list(url_parts)
-    input_url_parts[1] = "api/inputs"
+    input_url_parts[1] = "api/v1/task-inputs"
     input_api_url = "/".join(input_url_parts)
     # Assemble ui url
     ui_url_parts = list(url_parts)

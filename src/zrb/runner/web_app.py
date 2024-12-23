@@ -9,7 +9,7 @@ from zrb.config import BANNER, VERSION
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_config import Token, WebConfig
+from zrb.runner.web_config import RefreshTokenRequest, Token, WebConfig
 from zrb.runner.web_controller.error_page.controller import show_error_page
 from zrb.runner.web_controller.group_info_page.controller import show_group_info_page
 from zrb.runner.web_controller.home_page.controller import show_home_page
@@ -26,6 +26,32 @@ from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_p
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
+
+
+REFRESH_TOKEN_JS_TEMPLATE = """
+function refreshAuthToken(){
+    const refreshUrl = "/api/v1/refresh-token";
+    async function refresh() {
+        try {
+            const response = await fetch(refreshUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include", // Include cookies in the request
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            console.log("Token refreshed successfully");
+        } catch (error) {
+            console.error("Cannot refresh token", error)
+        }
+    }
+    setInterval(refresh, intervalSeconds * 60 * 1000);
+    refresh();
+}
+refreshAuthToken();
+""".strip()
 
 
 def create_app(
@@ -71,6 +97,12 @@ def create_app(
         if os.path.isfile(full_path):
             return FileResponse(full_path)
         raise HTTPException(status_code=404, detail="File not found")
+
+    @app.get("/refresh-token.js", include_in_schema=False)
+    async def refresh_token_js():
+        return REFRESH_TOKEN_JS_TEMPLATE.replace(
+            "intervalSeconds", str(web_config.refresh_token_max_age / 3)
+        )
 
     @app.get("/docs", include_in_schema=False)
     async def swagger_ui_html():
@@ -128,19 +160,21 @@ def create_app(
     async def login_api(
         response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
     ):
-        token = web_config.generate_tokens(
+        token = web_config.generate_tokens_by_credentials(
             username=form_data.username, password=form_data.password
         )
+        if token is None:
+            raise HTTPException(
+                status_code=400, detail="Incorrect username or password"
+            )
         _set_auth_cookie(response, token)
         return token
 
     @app.post("/api/v1/refresh-token")
-    async def refresh_token_api(
-        response: Response, refresh_token: str = Query(..., description="Refresh token")
-    ):
-        token = web_config.refresh_tokens(refresh_token)
-        _set_auth_cookie(response, token)
-        return token
+    async def refresh_token_api(response: Response, body: RefreshTokenRequest):
+        new_token = web_config.refresh_tokens(body.refresh_token)
+        _set_auth_cookie(response, new_token)
+        return new_token
 
     def _set_auth_cookie(response: Response, token: Token):
         response.set_cookie(
@@ -165,8 +199,8 @@ def create_app(
         response.delete_cookie(web_config.refresh_token_cookie_name)
         return {"message": "Logout successful"}
 
-    @app.post("/api/sessions/{path:path}")
-    async def create_new_session_api(
+    @app.post("/api/v1/task-sessions/{path:path}")
+    async def create_new_task_session_api(
         path: str,
         request: Request,
     ) -> NewSessionResponse:
@@ -190,7 +224,7 @@ def create_app(
                 return NewSessionResponse(session_name=session.name)
         raise HTTPException(status_code=404)
 
-    @app.get("/api/inputs/{path:path}", response_model=dict[str, str])
+    @app.get("/api/v1/task-inputs/{path:path}", response_model=dict[str, str])
     async def get_default_inputs_api(
         path: str,
         request: Request,
@@ -213,7 +247,7 @@ def create_app(
         raise HTTPException(status_code=404, detail="Not Found")
 
     @app.get(
-        "/api/sessions/{path:path}",
+        "/api/v1/task-sessions/{path:path}",
         response_model=SessionStateLog | SessionStateLogList,
     )
     async def get_session_api(

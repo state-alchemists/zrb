@@ -24,6 +24,10 @@ if TYPE_CHECKING:
     from fastapi import Request
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class User(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     username: str
@@ -212,17 +216,25 @@ class WebConfig:
             return self._get_user_from_token(token)
         return None
 
-    def get_user_by_credentials(self, username: str, password: str) -> User:
+    def get_refresh_token_from_cookie(self, request: "Request") -> str | None:
+        refresh_token = request.cookies.get(self._refresh_token_cookie_name)
+        return refresh_token
+
+    def get_user_by_credentials(self, username: str, password: str) -> User | None:
         user = self.find_user_by_username(username)
         if user is None or not user.is_password_match(password):
-            return self.default_user
+            return None
         return user
 
-    def generate_tokens(self, username: str, password: str) -> Token:
+    def generate_tokens_by_credentials(
+        self, username: str, password: str
+    ) -> Token | None:
         if not self._enable_auth:
             user = self.default_user
         else:
             user = self.get_user_by_credentials(username, password)
+        if user is None:
+            return None
         access_token = self.create_access_token(user.username)
         refresh_token = self.create_refresh_token(user.username)
         return Token(
