@@ -1,8 +1,10 @@
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
+[Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
+
 # 🤖 Zrb: Your Automation Powerhouse
 
-With Zrb, you can write your automation tasks like this:
+Zrb allows you to write your automation tasks in Python and declaratively:
 
 
 ```python
@@ -20,59 +22,13 @@ math.add_task(Task(
 ))
 ```
 
-You can then access the task in various ways.
+Once defined, you will be able to access your automation tasks from the CLI, Web Interface, or via HTTP API.
 
-__Using CLI with arguments__
+For more complex scenario, you can also defined Task dependencies (upstreams) and retry mechanisms. You can also make a scheduled tasks, just like in Apache Airflow.
 
-```bash
-zrb math add 4 5
-```
+Furthermore, Zrb has some builtin tasks to manage monorepo, generate FastAPI application, or play around with LLM.
 
-Result:
-
-```
-9
-To run again: zrb math add --a=4 --b=5
-```
-
-__Using CLI with keyword arguments__
-
-```bash
-zrb math add --a 4 --b 5
-```
-
-Result:
-
-```
-9
-To run again: zrb math add --a=4 --b=5
-```
-
-__Using CLI with incomplete arguments__
-
-```bash
-zrb math add 4
-```
-
-Result:
-
-```
-b [0]: 5
-9
-To run again: zrb math add 4
-```
-
-__Using Web Interface__
-
-```bash
-zrb server start
-```
-
-Result (you need to access `http://localhost:21213`)
-
-![](https://raw.githubusercontent.com/state-alchemists/zrb/refs/heads/1.0.0/_images/web.png)
-
-__More:__
+See the [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/recipes/getting-started/README.md) for more information. Or just watch the demo:
 
 [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
