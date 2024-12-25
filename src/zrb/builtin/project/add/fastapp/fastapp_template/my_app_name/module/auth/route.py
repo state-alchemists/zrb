@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from my_app_name.common.app import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import APP_MAIN_MODULE, APP_MODE, APP_MODULES
-from my_app_name.module.auth.service.user.user_usecase_factory import user_usecase
+from my_app_name.module.auth.service.user.user_service_factory import user_service
 
 
 def serve_health_check(app: FastAPI):
@@ -31,7 +31,7 @@ def serve_route(app: FastAPI):
         serve_readiness_check(app)
 
     # Serve user endpoints for APIClient
-    user_usecase.serve_route(app)
+    user_service.serve_route(app)
 
 
 serve_route(app)

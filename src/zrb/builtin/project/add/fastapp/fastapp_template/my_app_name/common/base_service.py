@@ -64,7 +64,7 @@ class RouteParam:
         self.func = func
 
 
-class BaseUsecase:
+class BaseService:
     _route_params: dict[str, RouteParam] = {}
 
     def __init__(self):
@@ -216,9 +216,9 @@ def create_client_class(name):
     return Client
 
 
-def create_direct_client_method(func: Callable, usecase: BaseUsecase):
+def create_direct_client_method(func: Callable, service: BaseService):
     async def client_method(self, *args, **kwargs):
-        return await func(usecase, *args, **kwargs)
+        return await func(service, *args, **kwargs)
 
     return client_method
 

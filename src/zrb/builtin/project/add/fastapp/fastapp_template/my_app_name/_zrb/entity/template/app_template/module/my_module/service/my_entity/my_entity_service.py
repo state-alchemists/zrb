@@ -1,4 +1,4 @@
-from my_app_name.common.base_usecase import BaseUsecase
+from my_app_name.common.base_service import BaseService
 from my_app_name.module.my_module.service.my_entity.repository.factory import (
     my_entity_repository,
 )
@@ -12,12 +12,12 @@ from my_app_name.schema.my_entity import (
 )
 
 
-class MyEntityUsecase(BaseUsecase):
+class MyEntityService(BaseService):
     def __init__(self, my_entity_repository: MyEntityRepository):
         super().__init__()
         self.my_entity_repository = my_entity_repository
 
-    @BaseUsecase.route(
+    @BaseService.route(
         "/api/v1/my-entities/{my_entity_id}",
         methods=["get"],
         response_model=MyEntityResponse,
@@ -25,13 +25,13 @@ class MyEntityUsecase(BaseUsecase):
     async def get_my_entity_by_id(self, my_entity_id: str) -> MyEntityResponse:
         return await self.my_entity_repository.get_by_id(my_entity_id)
 
-    @BaseUsecase.route(
+    @BaseService.route(
         "/api/v1/my-entities", methods=["get"], response_model=list[MyEntityResponse]
     )
     async def get_all_my_entities(self) -> list[MyEntityResponse]:
         return await self.my_entity_repository.get_all()
 
-    @BaseUsecase.route(
+    @BaseService.route(
         "/api/v1/my-entities",
         methods=["post"],
         response_model=MyEntityResponse | list[MyEntityResponse],
@@ -43,7 +43,7 @@ class MyEntityUsecase(BaseUsecase):
             return await self.my_entity_repository.create(data)
         return await self.my_entity_repository.create_bulk(data)
 
-    @BaseUsecase.route(
+    @BaseService.route(
         "/api/v1/my-entities/{my_entity_id}",
         methods=["put"],
         response_model=MyEntityResponse,
@@ -53,7 +53,7 @@ class MyEntityUsecase(BaseUsecase):
     ) -> MyEntityResponse:
         return await self.my_entity_repository.update(my_entity_id, data)
 
-    @BaseUsecase.route(
+    @BaseService.route(
         "/api/v1/my-entities/{my_entity_id}",
         methods=["delete"],
         response_model=MyEntityResponse,
@@ -62,4 +62,4 @@ class MyEntityUsecase(BaseUsecase):
         return await self.my_entity_repository.delete(my_entity_id)
 
 
-my_entity_usecase = MyEntityUsecase(my_entity_repository=my_entity_repository)
+my_entity_service = MyEntityService(my_entity_repository=my_entity_repository)

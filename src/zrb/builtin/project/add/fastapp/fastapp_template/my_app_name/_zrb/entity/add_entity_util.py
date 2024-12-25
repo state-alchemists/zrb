@@ -165,12 +165,12 @@ def update_api_client(ctx: AnyContext, api_client_file_path: str):
     write_file(
         file_path=api_client_file_path,
         content=[
-            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_usecase import {snake_entity_name}_usecase",  # noqa
+            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_service import {snake_entity_name}_service",  # noqa
             prepend_code_to_module(
                 prepend_parent_class(
                     existing_api_client_code, "APIClient", "user_api_client"
                 ),
-                f"user_api_client = user_usecase.as_api_client(base_url=APP_{upper_snake_module_name}_BASE_URL)",  # noqa
+                f"user_api_client = user_service.as_api_client(base_url=APP_{upper_snake_module_name}_BASE_URL)",  # noqa
             ),
         ],
     )
@@ -184,12 +184,12 @@ def update_direct_client(ctx: AnyContext, direct_client_file_path: str):
     write_file(
         file_path=direct_client_file_path,
         content=[
-            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_usecase import {snake_entity_name}_usecase",  # noqa
+            f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_service import {snake_entity_name}_service",  # noqa
             prepend_code_to_module(
                 prepend_parent_class(
                     existing_direct_client_code, "DirectClient", "user_direct_client"
                 ),
-                "user_direct_client = user_usecase.as_direct_client()",
+                "user_direct_client = user_service.as_direct_client()",
             ).strip(),
         ],
     )
@@ -203,11 +203,11 @@ def update_route(ctx: AnyContext, route_file_path: str):
     write_file(
         file_path=route_file_path,
         content=[
-            f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_usecase import {entity_name}_usecase",  # noqa
+            f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_service import {entity_name}_service",  # noqa
             append_code_to_function(
                 existing_route_code,
                 "serve_route",
-                f"{entity_name}_usecase.serve_route(app)",
+                f"{entity_name}_service.serve_route(app)",
             ),
         ],
     )

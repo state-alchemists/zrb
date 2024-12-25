@@ -6,6 +6,7 @@ from zrb.config import BANNER, VERSION
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_route.docs_route import serve_docs
+from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
 from zrb.runner.web_route.home_page.home_page_route import serve_home_page
 from zrb.runner.web_route.login_api_route import serve_login_api
 from zrb.runner.web_route.login_page.login_page_route import serve_login_page
@@ -53,6 +54,7 @@ def create_web_app(
         docs_url=None,
     )
 
+    serve_default_404(app, root_group, web_config)
     serve_static_resources(app, web_config)
     serve_docs(app)
     serve_home_page(app, root_group, web_config)

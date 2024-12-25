@@ -19,11 +19,11 @@ from zrb import (
     web_config,
 )
 
-# web_config.enable_auth = True
-# web_config.append_user(
-#     User(username="jack", password="jack", accessible_tasks=["ppn", "llm-chat"])
-# )
-# web_config.set_guest_accessible_tasks(["ppn"])
+web_config.enable_auth = True
+web_config.append_user(
+    User(username="jack", password="jack", accessible_tasks=["ppn", "llm-chat"])
+)
+web_config.set_guest_accessible_tasks(["ppn"])
 
 
 @make_task(

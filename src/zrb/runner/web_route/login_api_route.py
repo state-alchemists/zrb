@@ -10,7 +10,8 @@ if TYPE_CHECKING:
 
 
 def serve_login_api(app: "FastAPI", web_config: WebConfig) -> None:
-    from fastapi import Depends, HTTPException, Response
+    from fastapi import Depends, Response
+    from fastapi.responses import JSONResponse
     from fastapi.security import OAuth2PasswordRequestForm
 
     @app.post("/api/v1/login")
@@ -23,8 +24,8 @@ def serve_login_api(app: "FastAPI", web_config: WebConfig) -> None:
             password=form_data.password,
         )
         if token is None:
-            raise HTTPException(
-                status_code=400, detail="Incorrect username or password"
+            return JSONResponse(
+                content={"detail": "Incorrect username or password"}, status_code=400
             )
         set_auth_cookie(web_config, response, token)
         return token

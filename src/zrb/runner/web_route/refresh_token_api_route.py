@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
 
 def serve_refresh_token_api(app: "FastAPI", web_config: WebConfig) -> None:
-    from fastapi import Cookie, HTTPException, Response
+    from fastapi import Cookie, Response
+    from fastapi.responses import JSONResponse
 
     @app.post("/api/v1/refresh-token")
     async def refresh_token_api(
@@ -28,7 +29,9 @@ def serve_refresh_token_api(app: "FastAPI", web_config: WebConfig) -> None:
             refresh_token = refresh_token_cookie
         # If we still don't have a refresh token, raise an exception
         if not refresh_token:
-            raise HTTPException(status_code=400, detail="Refresh token not provided")
+            return JSONResponse(
+                content={"detail": "Refresh token not provided"}, status_code=400
+            )
         # Get token
         new_token = regenerate_tokens(web_config, refresh_token)
         set_auth_cookie(web_config, response, new_token)

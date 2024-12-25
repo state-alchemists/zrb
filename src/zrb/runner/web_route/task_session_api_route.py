@@ -12,7 +12,7 @@ from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
-from zrb.util.group import extract_node_from_args, get_node_path
+from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
@@ -27,7 +27,8 @@ def serve_task_session_api(
     session_state_logger: AnySessionStateLogger,
     coroutines: list,
 ) -> None:
-    from fastapi import HTTPException, Query, Request
+    from fastapi import Query, Request
+    from fastapi.responses import JSONResponse
 
     @app.post("/api/v1/task-sessions/{path:path}")
     async def create_new_task_session_api(
@@ -40,10 +41,13 @@ def serve_task_session_api(
         """
         user = await get_user_from_request(web_config, request)
         args = path.strip("/").split("/")
-        task, _, residual_args = extract_node_from_args(root_group, args)
+        try:
+            task, _, residual_args = extract_node_from_args(root_group, args)
+        except NodeNotFoundError:
+            return JSONResponse(content={"detail": "Not found"}, status_code=404)
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
-                raise HTTPException(status_code=403)
+                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
             session_name = residual_args[0] if residual_args else None
             if not session_name:
                 shared_ctx = SharedContext(env=dict(os.environ))
@@ -52,7 +56,7 @@ def serve_task_session_api(
                 coroutines.append(coro)
                 coro.add_done_callback(lambda coro: coroutines.remove(coro))
                 return NewSessionResponse(session_name=session.name)
-        raise HTTPException(status_code=404)
+        return JSONResponse(content={"detail": "Not found"}, status_code=404)
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
@@ -71,10 +75,13 @@ def serve_task_session_api(
         """
         user = await get_user_from_request(web_config, request)
         args = path.strip("/").split("/")
-        task, _, residual_args = extract_node_from_args(root_group, args)
+        try:
+            task, _, residual_args = extract_node_from_args(root_group, args)
+        except NodeNotFoundError:
+            return JSONResponse(content={"detail": "Not found"}, status_code=404)
         if isinstance(task, AnyTask) and residual_args:
             if not user.can_access_task(task):
-                raise HTTPException(status_code=403)
+                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
             if residual_args[0] == "list":
                 task_path = get_node_path(root_group, task)
                 max_start_time = (
@@ -92,4 +99,4 @@ def serve_task_session_api(
                 )
             else:
                 return session_state_logger.read(residual_args[0])
-        raise HTTPException(status_code=404, detail="Not Found")
+        return JSONResponse(content={"detail": "Not found"}, status_code=404)
