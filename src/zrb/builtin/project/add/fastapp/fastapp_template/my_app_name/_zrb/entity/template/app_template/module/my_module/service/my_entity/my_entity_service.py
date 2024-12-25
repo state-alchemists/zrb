@@ -1,7 +1,4 @@
 from my_app_name.common.base_service import BaseService
-from my_app_name.module.my_module.service.my_entity.repository.factory import (
-    my_entity_repository,
-)
 from my_app_name.module.my_module.service.my_entity.repository.my_entity_repository import (
     MyEntityRepository,
 )
@@ -60,6 +57,3 @@ class MyEntityService(BaseService):
     )
     async def delete_my_entity(self, my_entity_id: str) -> MyEntityResponse:
         return await self.my_entity_repository.delete(my_entity_id)
-
-
-my_entity_service = MyEntityService(my_entity_repository=my_entity_repository)
