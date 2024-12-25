@@ -1,7 +1,7 @@
 import asyncio
 import os
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
@@ -16,6 +16,7 @@ from zrb.util.group import extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
+
     from fastapi import FastAPI
 
 
@@ -32,6 +33,7 @@ def serve_task_session_api(
     async def create_new_task_session_api(
         path: str,
         request: Request,
+        inputs: dict[str, Any],
     ) -> NewSessionResponse:
         """
         Creating new session
@@ -44,10 +46,9 @@ def serve_task_session_api(
                 raise HTTPException(status_code=403)
             session_name = residual_args[0] if residual_args else None
             if not session_name:
-                body = await request.json()
                 shared_ctx = SharedContext(env=dict(os.environ))
                 session = Session(shared_ctx=shared_ctx, root_group=root_group)
-                coro = asyncio.create_task(task.async_run(session, str_kwargs=body))
+                coro = asyncio.create_task(task.async_run(session, str_kwargs=inputs))
                 coroutines.append(coro)
                 coro.add_done_callback(lambda coro: coroutines.remove(coro))
                 return NewSessionResponse(session_name=session.name)
