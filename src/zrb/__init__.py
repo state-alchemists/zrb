@@ -34,7 +34,8 @@ from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.runner.cli import cli
-from zrb.runner.web_config import User, web_config
+from zrb.runner.web_config.config_factory import web_config
+from zrb.runner.web_schema.user import User
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask

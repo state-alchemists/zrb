@@ -49,7 +49,7 @@ def ppn(ctx: Context):
     This task calculates the discrepancy between the price and the payed amount.
     Indonesian's PPN tax sucks BTW
     """
-    discrepancy = ctx.input.payed - (ctx.input.price * 1.12)
+    discrepancy = ctx.input.payed - float(Decimal(ctx.input.price) * Decimal("1.12"))
     ctx.print(f"Price: {ctx.input.price}")
     ctx.print(f"Payed: {ctx.input.payed}")
     ctx.print(f"Discrepancy: {discrepancy}")

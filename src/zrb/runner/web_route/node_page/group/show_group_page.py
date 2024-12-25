@@ -1,8 +1,8 @@
 import os
 
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import User
-from zrb.runner.web_util import (
+from zrb.runner.web_schema.user import User
+from zrb.runner.web_util.html import (
     get_html_auth_link,
     get_html_subgroup_info,
     get_html_subtask_info,
@@ -11,7 +11,7 @@ from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
 
 
-def show_group_info_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str):
+def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str):
     from fastapi.responses import HTMLResponse
 
     _DIR = os.path.dirname(__file__)

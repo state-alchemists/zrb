@@ -2,15 +2,15 @@ import json
 import os
 
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import User
-from zrb.runner.web_util import get_html_auth_link
+from zrb.runner.web_schema.user import User
+from zrb.runner.web_util.html import get_html_auth_link
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
 
 
-def show_session_page(
+def show_task_page(
     user: User,
     root_group: AnyGroup,
     task: AnyTask,

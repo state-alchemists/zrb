@@ -2,7 +2,7 @@ import json
 from typing import Annotated
 
 
-def open_web_page(url: str) -> str:
+def open_web_route(url: str) -> str:
     """Get content from a web page."""
     import requests
 
