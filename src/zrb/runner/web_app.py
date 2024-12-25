@@ -9,19 +9,19 @@ from zrb.config import BANNER, VERSION
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_config import (
-    NewSessionResponse,
-    RefreshTokenRequest,
-    Token,
-    WebConfig,
-)
-from zrb.runner.web_controller.error_page.controller import show_error_page
-from zrb.runner.web_controller.group_info_page.controller import show_group_info_page
-from zrb.runner.web_controller.home_page.controller import show_home_page
-from zrb.runner.web_controller.login_page.controller import show_login_page
-from zrb.runner.web_controller.logout_page.controller import show_logout_page
-from zrb.runner.web_controller.session_page.controller import show_session_page
-from zrb.runner.web_util import get_refresh_token_js
+from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_route.docs.docs_route import serve_docs
+from zrb.runner.web_route.error_page.controller import show_error_page
+from zrb.runner.web_route.group_info_page.controller import show_group_info_page
+from zrb.runner.web_route.home_page.controller import show_home_page
+from zrb.runner.web_route.login_page.controller import show_login_page
+from zrb.runner.web_route.logout_page.controller import show_logout_page
+from zrb.runner.web_route.session_page.controller import show_session_page
+from zrb.runner.web_route.static.static_route import serve_static_resources
+from zrb.runner.web_schema.session import NewSessionResponse
+from zrb.runner.web_schema.token import RefreshTokenRequest, Token
+from zrb.runner.web_util.token import generate_tokens_by_credentials, regenerate_tokens
+from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def create_app(
+def create_web_app(
     root_group: AnyGroup,
     web_config: WebConfig,
     session_state_logger: AnySessionStateLogger,
@@ -49,12 +49,9 @@ def create_app(
         Request,
         Response,
     )
-    from fastapi.openapi.docs import get_swagger_ui_html
-    from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
+    from fastapi.responses import HTMLResponse
     from fastapi.security import OAuth2PasswordRequestForm
-    from fastapi.staticfiles import StaticFiles
 
-    _STATIC_DIR = os.path.join(os.path.dirname(__file__), "web_controller", "static")
     _COROS = []
 
     @asynccontextmanager
@@ -75,44 +72,21 @@ def create_app(
         lifespan=lifespan,
         docs_url=None,
     )
-    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
-    # Serve static files
-    @app.get("/static/{file_path:path}", include_in_schema=False)
-    async def static_files(file_path: str):
-        full_path = os.path.join(_STATIC_DIR, file_path)
-        if os.path.isfile(full_path):
-            return FileResponse(full_path)
-        raise HTTPException(status_code=404, detail="File not found")
-
-    @app.get("/refresh-token.js", include_in_schema=False)
-    async def refresh_token_js():
-        return PlainTextResponse(
-            content=get_refresh_token_js(
-                60 * web_config.refresh_token_expire_minutes / 3
-            ),
-            media_type="application/javascript",
-        )
-
-    @app.get("/docs", include_in_schema=False)
-    async def swagger_ui_html():
-        return get_swagger_ui_html(
-            openapi_url="/openapi.json",
-            title="Zrb",
-            swagger_favicon_url="/static/favicon-32x32.png",
-        )
+    serve_static_resources(app, web_config)
+    serve_docs(app)
 
     # Serve homepage
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
     async def home_page_ui(request: Request) -> HTMLResponse:
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         return show_home_page(user, root_group)
 
     @app.get("/ui/{path:path}", response_class=HTMLResponse, include_in_schema=False)
     async def ui_page(path: str, request: Request) -> HTMLResponse:
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         # Avoid capturing '/ui' itself
         if not path:
             return show_error_page(user, root_group, 422, "Undefined path")
@@ -138,20 +112,22 @@ def create_app(
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
     async def login(request: Request) -> HTMLResponse:
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         return show_login_page(user, root_group)
 
     @app.get("/logout", response_class=HTMLResponse, include_in_schema=False)
     async def logout(request: Request) -> HTMLResponse:
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         return show_logout_page(user, root_group)
 
     @app.post("/api/v1/login")
     async def login_api(
         response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
     ):
-        token = web_config.generate_tokens_by_credentials(
-            username=form_data.username, password=form_data.password
+        token = generate_tokens_by_credentials(
+            web_config=web_config,
+            username=form_data.username,
+            password=form_data.password,
         )
         if token is None:
             raise HTTPException(
@@ -177,7 +153,7 @@ def create_app(
         if not refresh_token:
             raise HTTPException(status_code=400, detail="Refresh token not provided")
         # Get token
-        new_token = web_config.regenerate_tokens(refresh_token)
+        new_token = regenerate_tokens(web_config, refresh_token)
         _set_auth_cookie(response, new_token)
         return new_token
 
@@ -215,7 +191,7 @@ def create_app(
         """
         Creating new session
         """
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -241,7 +217,7 @@ def create_app(
         """
         Getting input completion for path
         """
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         args = path.strip("/").split("/")
         task, _, _ = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask):
@@ -269,7 +245,7 @@ def create_app(
         """
         Getting existing session or sessions
         """
-        user = await web_config.get_user_from_request(request)
+        user = await get_user_from_request(web_config, request)
         args = path.strip("/").split("/")
         task, _, residual_args = extract_node_from_args(root_group, args)
         if isinstance(task, AnyTask) and residual_args:
@@ -287,35 +263,11 @@ def create_app(
                     if min_start_query is None
                     else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
                 )
-                return _get_existing_sessions(
+                return session_state_logger.list(
                     task_path, min_start_time, max_start_time, page, limit
                 )
             else:
-                return _read_session(residual_args[0])
+                return session_state_logger.read(residual_args[0])
         raise HTTPException(status_code=404, detail="Not Found")
-
-    def _get_existing_sessions(
-        task_path: list[str],
-        min_start_time: datetime,
-        max_start_time: datetime,
-        page: int,
-        limit: int,
-    ) -> SessionStateLogList:
-        try:
-            return session_state_logger.list(
-                task_path,
-                min_start_time=min_start_time,
-                max_start_time=max_start_time,
-                page=page,
-                limit=limit,
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
-    def _read_session(session_name: str) -> SessionStateLog:
-        try:
-            return session_state_logger.read(session_name)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
 
     return app

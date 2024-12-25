@@ -7,8 +7,8 @@ from uvicorn import Config, Server
 
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
-from zrb.runner.web_app import create_app
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_app import create_web_app
+from zrb.runner.web_config.config import WebConfig
 from zrb.session_state_logger.default_session_state_logger import (
     default_session_state_logger,
 )
@@ -42,7 +42,7 @@ class TestRunWebServer(unittest.TestCase):
             )
         )
         cls.port = 8080
-        cls.app = create_app(
+        cls.app = create_web_app(
             cls.root_group,
             WebConfig(
                 port=cls.port,

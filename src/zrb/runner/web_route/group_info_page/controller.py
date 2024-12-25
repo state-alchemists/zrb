@@ -1,8 +1,8 @@
 import os
 
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import User
-from zrb.runner.web_util import (
+from zrb.runner.web_schema.user import User
+from zrb.runner.web_util.html import (
     get_html_auth_link,
     get_html_subgroup_info,
     get_html_subtask_info,

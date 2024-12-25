@@ -1,21 +1,7 @@
-import os
-
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import User
+from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
-from zrb.util.file import read_file
 from zrb.util.group import get_non_empty_subgroups, get_subtasks
-
-
-def url_to_args(url: str) -> list[str]:
-    stripped_url = url.strip("/")
-    return [part for part in stripped_url.split("/") if part.strip() != ""]
-
-
-def node_path_to_url(args: list[str]) -> str:
-    pruned_args = [part for part in args if part.strip() != ""]
-    stripped_url = "/".join(pruned_args)
-    return f"/{stripped_url}/"
 
 
 def get_html_auth_link(user: User) -> str:
@@ -24,14 +10,6 @@ def get_html_auth_link(user: User) -> str:
     if user.is_guest:
         return f'Hi, {user.username} <a href="/login">Login 🔑</a>'
     return f'Hi, {user.username} <a href="/logout">Logout 🚪</a>'
-
-
-def get_refresh_token_js(refresh_interval_seconds: int):
-    _DIR = os.path.dirname(__file__)
-    return read_file(
-        os.path.join(_DIR, "refresh-token.template.js"),
-        {"refreshIntervalSeconds": f"{refresh_interval_seconds}"},
-    )
 
 
 def get_html_subtask_info(user: User, parent_url: str, parent_group: AnyGroup) -> str:
