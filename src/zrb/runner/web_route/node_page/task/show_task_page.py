@@ -10,7 +10,7 @@ from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
 
 
-def show_session_page(
+def show_task_page(
     user: User,
     root_group: AnyGroup,
     task: AnyTask,

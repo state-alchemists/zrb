@@ -1,0 +1,30 @@
+from typing import TYPE_CHECKING, Annotated
+
+from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_util.cookie import set_auth_cookie
+from zrb.runner.web_util.token import generate_tokens_by_credentials
+
+if TYPE_CHECKING:
+    # We want fastapi to only be loaded when necessary to decrease footprint
+    from fastapi import FastAPI
+
+
+def serve_login_api(app: "FastAPI", web_config: WebConfig) -> None:
+    from fastapi import Depends, HTTPException, Response
+    from fastapi.security import OAuth2PasswordRequestForm
+
+    @app.post("/api/v1/login")
+    async def login_api(
+        response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    ):
+        token = generate_tokens_by_credentials(
+            web_config=web_config,
+            username=form_data.username,
+            password=form_data.password,
+        )
+        if token is None:
+            raise HTTPException(
+                status_code=400, detail="Incorrect username or password"
+            )
+        set_auth_cookie(web_config, response, token)
+        return token

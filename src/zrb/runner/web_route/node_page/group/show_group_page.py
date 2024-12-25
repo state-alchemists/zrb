@@ -11,13 +11,16 @@ from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
 
 
-def show_home_page(user: User, root_group: AnyGroup):
+def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str):
     from fastapi.responses import HTMLResponse
 
     _DIR = os.path.dirname(__file__)
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
-    group_info = get_html_subgroup_info(user, "/ui/", root_group)
-    task_info = get_html_subtask_info(user, "/ui/", root_group)
+    url_parts = url.split("/")
+    parent_url_parts = url_parts[:-2] + [""]
+    parent_url = "/".join(parent_url_parts)
+    group_info = get_html_subgroup_info(user, url, group)
+    task_info = get_html_subtask_info(user, url, group)
     auth_link = get_html_auth_link(user)
     return HTMLResponse(
         fstring_format(
@@ -25,9 +28,13 @@ def show_home_page(user: User, root_group: AnyGroup):
             {
                 "group_info": group_info,
                 "task_info": task_info,
-                "name": root_group.name,
-                "description": root_group.description,
+                "name": group.name,
+                "description": group.description,
                 "auth_link": auth_link,
+                "root_name": root_group.name,
+                "root_description": root_group.description,
+                "url": url,
+                "parent_url": parent_url,
             },
         )
     )
