@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="light dark">
+        {% for css_path in partials.css_path_list -%}
+        <link rel="stylesheet" href="{{css_path}}">
+        {% endfor %}
+        <link rel="icon" href="{{partials.favicon_path}}" sizes="32x32" type="image/png">
+        <title>{{partials.title}}</title>
+    </head>
+    <body>
+        <header class="container">
+            <hgroup>
+                <h1>{{partials.title}}</h1>
+                <p>{{partials.subtitle}}</p>
+                <nav>
+                    <ul>
+                        <li><a href="/">🏠 Home</a></li>
+                        <li><a href="/docs">💻 API Documentation</a></li>
+                    </ul>
+                    <ul>
+                        <li>Hi</li>
+                    </ul>
+                </nav>
+            </hgroup>
+        </header>
+        {{content}}
+    </body>
+    {% for js_path in partials.js_path_list -%}
+    <script src="{{js_path}}"></script>
+    {% endfor %}
+</html>

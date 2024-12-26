@@ -38,3 +38,16 @@ new_entity_column_input = StrInput(
     prompt="New entity's column name",
     default_str="name",
 )
+
+new_column_input = StrInput(
+    name="column",
+    description="Column name",
+    prompt="New column name",
+)
+
+new_column_type_input = OptionInput(
+    name="type",
+    description="Column type",
+    prompt="Column type",
+    options=["str", "int", "float", "bool", "datetime", "date"],
+)

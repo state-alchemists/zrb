@@ -56,6 +56,7 @@ class CmdTask(BaseTask):
         monitor_readiness: bool = False,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
+        successor: list[AnyTask] | AnyTask | None = None,
     ):
         super().__init__(
             name=name,
@@ -76,6 +77,7 @@ class CmdTask(BaseTask):
             monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
+            successor=successor,
         )
         self._shell = shell
         self._render_shell = render_shell

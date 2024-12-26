@@ -49,6 +49,7 @@ class RsyncTask(CmdTask):
         readiness_check: list[AnyTask] | AnyTask | None = None,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
+        successor: list[AnyTask] | AnyTask | None = None,
     ):
         super().__init__(
             name=name,
@@ -80,6 +81,7 @@ class RsyncTask(CmdTask):
             readiness_check=readiness_check,
             upstream=upstream,
             fallback=fallback,
+            successor=successor,
         )
         self._remote_source_path = remote_source_path
         self._render_remote_source_path = render_remote_source_path

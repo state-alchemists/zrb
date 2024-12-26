@@ -11,9 +11,7 @@ from zrb.session_state_log.session_state_log import (
     TaskStatusStateLog,
 )
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
-from zrb.session_state_logger.default_session_state_logger import (
-    default_session_state_logger,
-)
+from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task_status.task_status import TaskStatus
 from zrb.util.cli.style import (
@@ -126,7 +124,7 @@ class Session(AnySession):
     @property
     def state_logger(self) -> AnySessionStateLogger:
         if self._state_logger is None:
-            return default_session_state_logger
+            return session_state_logger
         return self._state_logger
 
     def set_main_task(self, main_task: AnyTask):
@@ -215,6 +213,10 @@ class Session(AnySession):
         self._register_single_task(task)
         for readiness_check in task.readiness_checks:
             self.register_task(readiness_check)
+        for successor in task.successors:
+            self.register_task(successor)
+        for fallback in task.fallbacks:
+            self.register_task(fallback)
         for upstream in task.upstreams:
             self.register_task(upstream)
             if task not in self._downstreams[upstream]:

@@ -10,6 +10,7 @@ from zrb.util.file import read_file, write_file
 class ContentTransformer(AnyContentTransformer):
     def __init__(
         self,
+        name: str,
         match: list[str] | str | Callable[[AnyContext, str], bool],
         transform: (
             dict[str, str | Callable[[AnyContext], str]]
@@ -17,9 +18,14 @@ class ContentTransformer(AnyContentTransformer):
         ),
         auto_render: bool = True,
     ):
+        self._name = name
         self._match = match
         self._transform_file = transform
         self._auto_render = auto_render
+
+    @property
+    def name(self) -> str:
+        return self._name
 
     def match(self, ctx: AnyContext, file_path: str) -> bool:
         if callable(self._match):

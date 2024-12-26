@@ -265,11 +265,9 @@ class BaseTask(AnyTask):
     def __fill_shared_context_envs(self, shared_context: AnySharedContext):
         # Inject os environ
         os_env_map = {
-            key: val
-            for key, val in os.environ.items()
-            if key not in shared_context._env
+            key: val for key, val in os.environ.items() if key not in shared_context.env
         }
-        shared_context._env.update(os_env_map)
+        shared_context.env.update(os_env_map)
 
     async def exec_root_tasks(self, session: AnySession):
         session.set_main_task(self)
@@ -416,6 +414,23 @@ class BaseTask(AnyTask):
             ctx.log_info("Continue monitoring")
 
     async def __exec_action_and_retry(self, session: AnySession) -> Any:
+        """
+        Executes an action with retry logic.
+
+        This method attempts to execute the action defined in `_exec_action` with a specified number of retries.
+        If the action fails, it will retry after a specified period until the maximum number of attempts is reached.
+        If the action succeeds, it marks the task as completed and executes any successors.
+        If the action fails permanently, it marks the task as permanently failed and executes any fallbacks.
+
+        Args:
+            session (AnySession): The session object containing the task status and context.
+
+        Returns:
+            Any: The result of the executed action if successful.
+
+        Raises:
+            Exception: If the action fails permanently after all retry attempts.
+        """
         ctx = self.get_ctx(session)
         max_attempt = self._retries + 1
         ctx.set_max_attempt(max_attempt)
@@ -433,6 +448,7 @@ class BaseTask(AnyTask):
                 # Put result on xcom
                 task_xcom: Xcom = ctx.xcom.get(self.name)
                 task_xcom.push(result)
+                self.__skip_fallbacks(session)
                 await run_async(self.__exec_successors(session))
                 return result
             except (asyncio.CancelledError, KeyboardInterrupt):
@@ -447,6 +463,7 @@ class BaseTask(AnyTask):
                     continue
                 ctx.log_info("Marked as permanently failed")
                 session.get_task_status(self).mark_as_permanently_failed()
+                self.__skip_successors(session)
                 await run_async(self.__exec_fallbacks(session))
                 raise e
 
@@ -457,12 +474,20 @@ class BaseTask(AnyTask):
         ]
         await asyncio.gather(*successor_coros)
 
+    def __skip_successors(self, session: AnySession) -> Any:
+        for successor in self.successors:
+            session.get_task_status(successor).mark_as_skipped()
+
     async def __exec_fallbacks(self, session: AnySession) -> Any:
         fallbacks: list[AnyTask] = self.fallbacks
         fallback_coros = [
             run_async(fallback.exec_chain(session)) for fallback in fallbacks
         ]
         await asyncio.gather(*fallback_coros)
+
+    def __skip_fallbacks(self, session: AnySession) -> Any:
+        for fallback in self.fallbacks:
+            session.get_task_status(fallback).mark_as_skipped()
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         """Execute the main action of the task.

@@ -9,9 +9,7 @@ from zrb.runner.common_util import get_run_kwargs
 from zrb.runner.web_app import create_web_app
 from zrb.runner.web_config.config_factory import web_config
 from zrb.session.session import Session
-from zrb.session_state_logger.default_session_state_logger import (
-    default_session_state_logger,
-)
+from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import (
@@ -167,6 +165,6 @@ server_group = cli.add_group(
 async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
-    app = create_web_app(cli, web_config, default_session_state_logger)
+    app = create_web_app(cli, web_config, session_state_logger)
     server = Server(Config(app=app, host="0.0.0.0", port=WEB_HTTP_PORT, loop="asyncio"))
     await server.serve()

@@ -9,7 +9,10 @@ MICROSERVICES_ENV_VARS = {
     "MY_APP_NAME_MODE": "microservices",
     "MY_APP_NAME_AUTH_BASE_URL": "http://localhost:3002",
 }
-MONOLITH_ENV_VARS = {"MY_APP_NAME_MODE": "monolith"}
+MONOLITH_ENV_VARS = {
+    "MY_APP_NAME_MODE": "monolith",
+    "MY_APP_NAME_MODULES": "",
+}
 
 if platform.system() == "Windows":
     ACTIVATE_VENV_SCRIPT = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; . .venv\\Scripts\\Activate"  # noqa

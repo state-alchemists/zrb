@@ -62,9 +62,10 @@ class TaskStatus:
         self._history.append((TASK_PERMANENTLY_FAILED, datetime.datetime.now()))
 
     def mark_as_terminated(self):
-        self._is_terminated = True
-        if not self.is_completed and not self.is_permanently_failed:
-            self._history.append((TASK_TERMINATED, datetime.datetime.now()))
+        if not self._is_terminated:
+            self._is_terminated = True
+            if not (self.is_skipped or self.is_completed or self.is_permanently_failed):
+                self._history.append((TASK_TERMINATED, datetime.datetime.now()))
 
     @property
     def is_started(self) -> bool:

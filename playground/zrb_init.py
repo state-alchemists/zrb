@@ -42,6 +42,8 @@ web_config.set_guest_accessible_tasks(["ppn"])
             default_str=lambda ctx: float(Decimal(ctx.input.price) * Decimal("1.12")),
         ),
     ],
+    fallback=CmdTask(name="nay", cmd="echo failed"),
+    successor=CmdTask(name="yay", cmd="echo success"),
     group=cli,
 )
 def ppn(ctx: Context):
@@ -53,10 +55,14 @@ def ppn(ctx: Context):
     ctx.print(f"Price: {ctx.input.price}")
     ctx.print(f"Payed: {ctx.input.payed}")
     ctx.print(f"Discrepancy: {discrepancy}")
-    if discrepancy > 0:
-        return f"Government is happy, you pay {discrepancy} more"
+    if float(Decimal(ctx.input.payed)) < float(Decimal(ctx.input.price)):
+        raise ValueError(
+            "Government is super angry, you cannot pay less than the price"
+        )
     elif discrepancy < 0:
         return f"Government is angry, you owe them {-discrepancy}"
+    elif discrepancy > 0:
+        return f"Government is happy, you pay {discrepancy} more"
     else:
         return "Government is happy, You are contributing to the country"
 

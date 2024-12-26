@@ -184,32 +184,37 @@ async def test_generate(ctx: AnyContext):
     project_dir = os.path.join(_DIR, "playground", "generated")
     project_name = "Amalgam"
     await run_cmd_test(
-        name="create-project",
+        name="make-project",
         cmd=f"zrb project create --project-dir {project_dir} --project {project_name}",
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Create fastapp
     app_name = "fastapp"
     await run_cmd_test(
-        name="create-fastapp",
+        name="make-fastapp",
         cmd=f"zrb project add fastapp --project-dir {project_dir} --app {app_name}",
     )
     assert os.path.isdir(os.path.join(project_dir, app_name))
     # Create module
     app_dir_path = os.path.join(project_dir, app_name)
     await run_cmd_test(
-        name="create-module", cmd="zrb project fastapp create module --module library"
+        name="make-module", cmd="zrb project fastapp create module --module library"
     )
     assert os.path.isdir(os.path.join(app_dir_path, "module", "library"))
     # Create entity
     await run_cmd_test(
-        name="create-entity",
+        name="make-entity",
         cmd="zrb project fastapp create entity --module library --entity book --plural books --column title",  # noqa
     )
     assert os.path.isfile(os.path.join(app_dir_path, "schema", "book.py"))
+    # Create column
+    await run_cmd_test(
+        name="make-column",
+        cmd="zrb project fastapp create column --module library --entity book --column isbn --type str",  # noqa
+    )
     # Create migration
     await run_cmd_test(
-        name="create-migration",
+        name="make-migration",
         cmd='zrb project fastapp create migration library --message "create book"',
     )
     # Start microservices

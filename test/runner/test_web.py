@@ -9,9 +9,7 @@ from zrb.group.group import Group
 from zrb.input.int_input import IntInput
 from zrb.runner.web_app import create_web_app
 from zrb.runner.web_config.config import WebConfig
-from zrb.session_state_logger.default_session_state_logger import (
-    default_session_state_logger,
-)
+from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.task import Task
 
 
@@ -56,7 +54,7 @@ class TestRunWebServer(unittest.TestCase):
                 super_admin_password="admin",
                 guest_username="guest",
             ),
-            default_session_state_logger,
+            session_state_logger,
         )
         cls.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(cls.loop)

@@ -4,6 +4,13 @@ from zrb.context.any_context import AnyContext
 
 
 class AnyContentTransformer(ABC):
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Transformer's name"""
+        pass
+
     @abstractmethod
     def match(self, ctx: AnyContext, file_path: str) -> bool:
         """

@@ -4,6 +4,7 @@ from my_app_name._zrb.config import APP_DIR
 from my_app_name._zrb.util import get_existing_module_names
 
 from zrb.context.any_context import AnyContext
+from zrb.util.codemod.append_code_to_function import append_code_to_function
 from zrb.util.codemod.append_key_to_dict import append_key_to_dict
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
@@ -17,6 +18,10 @@ def is_app_main_file(ctx: AnyContext, file_path: str) -> bool:
     return file_path == os.path.join(APP_DIR, "main.py")
 
 
+def is_gateway_route_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(APP_DIR, "module", "gateway", "route.py")
+
+
 def is_app_zrb_task_file(ctx: AnyContext, file_path: str) -> bool:
     return file_path == os.path.join(APP_DIR, "_zrb", "task.py")
 
@@ -28,6 +33,13 @@ def is_app_zrb_config_file(ctx: AnyContext, file_path: str) -> bool:
 def is_in_module_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
         os.path.join(APP_DIR, "module", to_snake_case(ctx.input.module))
+    )
+
+
+def is_gateway_module_subroute_file(ctx: AnyContext, file_path: str) -> bool:
+    module_subroute_file_name = f"{to_snake_case(ctx.input.module)}.py"
+    return file_path == os.path.join(
+        APP_DIR, "module", "gateway", "subroute", module_subroute_file_name
     )
 
 
@@ -152,3 +164,34 @@ def _get_new_module_config_code(existing_code: str, module_name: str) -> str | N
     if config_code in existing_code:
         return None
     return config_code
+
+
+def update_gateway_route_file(ctx: AnyContext, gateway_route_file_path: str):
+    existing_gateway_route_code = read_file(gateway_route_file_path)
+    snake_module_name = to_snake_case(ctx.input.module)
+    write_file(
+        file_path=gateway_route_file_path,
+        content=[
+            _get_module_subroute_import(existing_gateway_route_code, ctx.input.module),
+            append_code_to_function(
+                original_code=existing_gateway_route_code,
+                function_name="serve_route",
+                new_code="\n".join(
+                    [
+                        f"# Serve {snake_module_name} route",
+                        f"serve_{snake_module_name}_route(app)",
+                    ]
+                ),
+            ),
+            existing_gateway_route_code,
+        ],
+    )
+
+
+def _get_module_subroute_import(existing_code: str, module_name: str) -> str | None:
+    snake_module_name = to_snake_case(module_name)
+    import_module_path = f"my_app_name.module.gateway.subroute.{snake_module_name}"
+    import_code = f"from {import_module_path} import serve_{snake_module_name}_route"
+    if import_code in existing_code:
+        return None
+    return import_code

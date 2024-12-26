@@ -29,6 +29,7 @@ def make_task(
     monitor_readiness: bool = False,
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,
+    successor: list[AnyTask] | AnyTask | None = None,
     group: AnyGroup | None = None,
     alias: str | None = None,
 ) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
@@ -53,6 +54,7 @@ def make_task(
             monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
+            successor=successor,
         )
         if group is not None:
             return group.add_task(task, alias=alias)

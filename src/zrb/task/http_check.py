@@ -28,6 +28,7 @@ class HttpCheck(BaseTask):
         execute_condition: bool | str | Callable[[Context], bool] = True,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
+        successor: list[AnyTask] | AnyTask | None = None,
     ):
         super().__init__(
             name=name,
@@ -41,6 +42,7 @@ class HttpCheck(BaseTask):
             retries=0,
             upstream=upstream,
             fallback=fallback,
+            successor=successor,
         )
         self._url = url
         self._render_url = render_url

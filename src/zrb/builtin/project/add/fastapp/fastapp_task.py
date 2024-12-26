@@ -49,6 +49,7 @@ scaffold_fastapp = Scaffolder(
     transform_content=[
         # Common transformation (project_dir/app_dir/**/*)
         ContentTransformer(
+            name="transform-app-dir",
             match=is_in_project_app_dir,
             transform={
                 "My App Name": "{ctx.input.app.title()}",
@@ -60,6 +61,7 @@ scaffold_fastapp = Scaffolder(
         ),
         # Register fastapp's tasks to project's zrb_init (project_dir/zrb_init.py)
         ContentTransformer(
+            name="trasnform-zrb-init",
             match=is_project_zrb_init_file,
             transform=update_project_zrb_init_file,
         ),

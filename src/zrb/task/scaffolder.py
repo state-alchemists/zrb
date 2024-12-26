@@ -11,6 +11,7 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
+from zrb.util.cli.style import stylize_faint
 
 TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
 
@@ -46,6 +47,7 @@ class Scaffolder(BaseTask):
         monitor_readiness: bool = False,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
+        successor: list[AnyTask] | AnyTask | None = None,
     ):
         super().__init__(
             name=name,
@@ -66,6 +68,7 @@ class Scaffolder(BaseTask):
             monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
+            successor=successor,
         )
         self._source_path = source_path
         self._render_source_path = render_source_path
@@ -83,13 +86,12 @@ class Scaffolder(BaseTask):
         return get_str_attr(ctx, self._destination_path, "", auto_render=True)
 
     def _get_content_transformers(self) -> list[AnyContentTransformer]:
-        if callable(self._content_transformers):
-            return [
-                ContentTransformer(match=".*", transform=self._content_transformers)
-            ]
-        if isinstance(self._content_transformers, dict):
+        if callable(self._content_transformers) or isinstance(
+            self._content_transformers, dict
+        ):
             return [
                 ContentTransformer(
+                    name="default-transform",
                     match=".*",
                     transform=self._content_transformers,
                     auto_render=self._render_content_transformers,
@@ -109,6 +111,7 @@ class Scaffolder(BaseTask):
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
                     try:
+                        ctx.print(stylize_faint(f"{transformer.name}: {file_path}"))
                         transformer.transform_file(ctx, file_path)
                     except UnicodeDecodeError:
                         pass

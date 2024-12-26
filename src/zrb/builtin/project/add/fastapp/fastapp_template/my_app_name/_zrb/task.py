@@ -1,7 +1,7 @@
 import os
 
-from my_app_name._zrb.column.create_column_task import add_my_app_name_column
-from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
+from my_app_name._zrb.column.add_column_task import add_my_app_name_column
+from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR, MONOLITH_ENV_VARS
 from my_app_name._zrb.entity.add_entity_task import add_my_app_name_entity
 from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import (
@@ -13,7 +13,7 @@ from my_app_name._zrb.module.add_module_task import add_my_app_name_module
 from my_app_name._zrb.util import create_migration, migrate_module, run_microservice
 from my_app_name._zrb.venv_task import prepare_venv
 
-from zrb import CmdTask, Env, EnvFile, Task
+from zrb import CmdTask, EnvFile, EnvMap, Task
 
 assert add_my_app_name_entity
 assert add_my_app_name_module
@@ -54,7 +54,7 @@ run_monolith = app_run_group.add_task(
         description="🗿 Run My App Name as a monolith",
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),
-            Env(name="MY_APP_NAME_MODE", default="monolith"),
+            EnvMap(vars=MONOLITH_ENV_VARS),
         ],
         cwd=APP_DIR,
         cmd=[

@@ -66,6 +66,7 @@ scaffold_my_app_name_entity = Scaffolder(
     transform_content=[
         # Schema tranformation (my_app_name/schema/snake_entity_name)
         ContentTransformer(
+            name="transform-schema-file",
             match=is_in_app_schema_dir,
             transform={
                 "MyEntity": "{to_pascal_case(ctx.input.entity)}",
@@ -75,6 +76,7 @@ scaffold_my_app_name_entity = Scaffolder(
         # Common module's entity transformation
         # (my_app_name/module/snake_module_name/service/snake_entity_name)
         ContentTransformer(
+            name="transform-module-entity-dir",
             match=is_in_module_entity_dir,
             transform={
                 "my_module": "{to_snake_case(ctx.input.module)}",
@@ -87,26 +89,31 @@ scaffold_my_app_name_entity = Scaffolder(
         # Add entity to migration metadata
         # (my_app_name/module/snake_module_name/migration_metadata.py)
         ContentTransformer(
+            name="transform-module-migration-metadata",
             match=is_module_migration_metadata_file,
             transform=update_migration_metadata,
         ),
         # Update API Client (my_app_name/module/snake_module_name/client/api_client.py)
         ContentTransformer(
+            name="transform-module-api-client",
             match=is_module_api_client_file,
             transform=update_api_client,
         ),
         # Update Direct Client (my_app_name/module/snake_module_name/client/direct_client.py)
         ContentTransformer(
+            name="transform-module-direct-client",
             match=is_module_direct_client_file,
             transform=update_direct_client,
         ),
         # Update Any Client (my_app_name/module/snake_module_name/client/any_client.py)
         ContentTransformer(
+            name="transform-module-any-client",
             match=is_module_any_client_file,
             transform=update_any_client,
         ),
         # Update module route (my_app_name/module/route.py)
         ContentTransformer(
+            name="transform-module-route",
             match=is_module_route_file,
             transform=update_route,
         ),
