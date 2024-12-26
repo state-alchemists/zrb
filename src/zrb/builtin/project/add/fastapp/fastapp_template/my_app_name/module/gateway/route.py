@@ -29,7 +29,7 @@ def serve_route(app: FastAPI):
 
 
 def _serve_homepage(app: FastAPI):
-    @app.get("/")
+    @app.get("/", include_in_schema=False)
     def home_page():
         return render(
             view_path=os.path.join(APP_GATEWAY_VIEW_PATH, "content", "homepage.html")

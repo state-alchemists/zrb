@@ -183,7 +183,6 @@ def update_gateway_route_file(ctx: AnyContext, gateway_route_file_path: str):
                     ]
                 ),
             ),
-            existing_gateway_route_code,
         ],
     )
 
