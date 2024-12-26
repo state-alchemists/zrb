@@ -1,4 +1,4 @@
-from my_app_name.module.module_template.client.any_client import AnyClient
+from my_app_name.module.my_module.client.any_client import AnyClient
 
 
 class DirectClient(AnyClient):

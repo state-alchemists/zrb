@@ -7,11 +7,13 @@ from my_app_name._zrb.entity.add_entity_util import (
     is_module_any_client_file,
     is_module_api_client_file,
     is_module_direct_client_file,
+    is_module_gateway_subroute_file,
     is_module_migration_metadata_file,
     is_module_route_file,
     update_any_client,
     update_api_client,
     update_direct_client,
+    update_gateway_subroute,
     update_migration_metadata,
     update_route,
 )
@@ -117,7 +119,13 @@ scaffold_my_app_name_entity = Scaffolder(
             match=is_module_route_file,
             transform=update_route,
         ),
-        # TODO: Register gateway route
+        # Update module gateway subroute
+        # (my_app_name/module/gateway/subroute/snake_module_name.py)
+        ContentTransformer(
+            name="transform-module-gateway-subroute",
+            match=is_module_gateway_subroute_file,
+            transform=update_gateway_subroute,
+        ),
     ],
     retries=0,
     upstream=validate_create_my_app_name_entity,
