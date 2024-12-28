@@ -3,7 +3,8 @@ from typing import Any, Callable, Generic, Type, TypeVar
 from my_app_name.common.error import NotFoundError
 from sqlalchemy import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
-from sqlmodel import Session, SQLModel, select
+from sqlalchemy.sql import ClauseElement
+from sqlmodel import Session, SQLModel, func, select
 
 DBModel = TypeVar("DBModel", bound=SQLModel)
 ResponseModel = TypeVar("Model", bound=SQLModel)
@@ -55,9 +56,28 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
             raise NotFoundError(f"{self.entity_name} not found")
         return self._to_response(db_instance)
 
-    async def get_all(self, page: int = 1, page_size: int = 10) -> list[ResponseModel]:
+    async def count(self, filters: list[ClauseElement] | None = None) -> int:
+        statement = select(func.count(1)).select_from(self.db_model)
+        if filters:
+            statement = statement.where(*filters)
+        if self.is_async:
+            async with AsyncSession(self.engine) as session:
+                result = await session.execute(statement)
+        else:
+            with Session(self.engine) as session:
+                result = session.exec(statement)
+        return result.scalar()
+
+    async def get_all(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        filters: list[ClauseElement] | None = None,
+    ) -> list[ResponseModel]:
         offset = (page - 1) * page_size
         statement = select(self.db_model).offset(offset).limit(page_size)
+        if filters:
+            statement = statement.where(*filters)
         if self.is_async:
             async with AsyncSession(self.engine) as session:
                 result = await session.execute(statement)

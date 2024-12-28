@@ -1,7 +1,7 @@
 # 🔐 Run/Migrate My Module ==========================================================
 
 run_my_module = app_run_group.add_task(
-    run_microservice("my-module", 3000, "my_module"), alias="microservices-my_module"
+    run_microservice("my-module", 3000, "my_module"), alias="svc-my_module"
 )
 prepare_venv >> run_my_module >> run_microservices
 
@@ -17,7 +17,7 @@ prepare_venv >> migrate_monolith_my_module >> [migrate_monolith, run_monolith]
 
 migrate_microservices_my_module = app_migrate_group.add_task(
     migrate_module("my-module", "my_module", as_microservices=True),
-    alias="microservices-my-module",
+    alias="svc-my-module",
 )
 (
     prepare_venv

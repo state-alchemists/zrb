@@ -100,7 +100,7 @@ migrate_microservices >> migrate_all
 # 📡 Run/Migrate Gateway =======================================================
 
 run_gateway = app_run_group.add_task(
-    run_microservice("gateway", 3001, "gateway"), alias="microservices-gateway"
+    run_microservice("gateway", 3001, "gateway"), alias="svc-gateway"
 )
 prepare_venv >> run_gateway >> run_microservices
 
@@ -114,14 +114,14 @@ prepare_venv >> migrate_monolith_gateway >> [migrate_monolith, run_monolith]
 
 migrate_microservices_gateway = app_migrate_group.add_task(
     migrate_module("gateway", "gateway", as_microservices=True),
-    alias="microservices-gateway",
+    alias="svc-gateway",
 )
 prepare_venv >> migrate_microservices_gateway >> [migrate_microservices, run_gateway]
 
 # 🔐 Run/Migrate Auth ==========================================================
 
 run_auth = app_run_group.add_task(
-    run_microservice("auth", 3002, "auth"), alias="microservices-auth"
+    run_microservice("auth", 3002, "auth"), alias="svc-auth"
 )
 prepare_venv >> run_auth >> run_microservices
 
@@ -134,6 +134,6 @@ migrate_monolith_auth = migrate_module("auth", "auth", as_microservices=False)
 prepare_venv >> migrate_monolith_auth >> [migrate_monolith, run_monolith]
 
 migrate_microservices_auth = app_migrate_group.add_task(
-    migrate_module("auth", "auth", as_microservices=True), alias="microservices-auth"
+    migrate_module("auth", "auth", as_microservices=True), alias="svc-auth"
 )
 prepare_venv >> migrate_microservices_auth >> [migrate_microservices, run_auth]

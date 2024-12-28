@@ -1,6 +1,7 @@
 import datetime
 
 import ulid
+from my_app_name.schema.permission import Permission
 from sqlmodel import Field, SQLModel
 
 
@@ -27,6 +28,7 @@ class RoleUpdateWithAudit(RoleUpdate):
 
 class RoleResponse(RoleBase):
     id: str
+    permissions: list[Permission]
 
 
 class Role(SQLModel, table=True):
@@ -37,3 +39,11 @@ class Role(SQLModel, table=True):
     updated_by: str | None
     name: str
     description: str
+
+
+class RolePermission(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
+    role_id: str
+    permission_id: str
+    created_at: datetime.datetime | None
+    created_by: str | None
