@@ -1,7 +1,7 @@
 import sys
 from typing import Any
 
-from zrb.config import BANNER, WEB_HTTP_PORT
+from zrb.config import BANNER, VERSION, WEB_HTTP_PORT
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.group import Group
@@ -149,6 +149,15 @@ class Cli(Group):
 
 
 cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=BANNER)
+
+
+@make_task(
+    name="version", description="🌟 Get current Zrb version", retries=0, group=cli
+)
+def get_version(_: AnyContext):
+    return VERSION
+
+
 server_group = cli.add_group(
     Group(name="server", description="🌐 Server related command")
 )

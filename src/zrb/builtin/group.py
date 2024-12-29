@@ -2,6 +2,7 @@ from zrb.group.group import Group
 from zrb.runner.cli import cli
 
 base64_group = cli.add_group(Group(name="base64", description="📄 Base64 operations"))
+random_group = cli.add_group(Group(name="random", description="🔀 Random operation"))
 git_group = cli.add_group(Group(name="git", description="🌱 Git related commands"))
 git_branch_group = git_group.add_group(
     Group(name="branch", description="🌿 Git branch related commands")
