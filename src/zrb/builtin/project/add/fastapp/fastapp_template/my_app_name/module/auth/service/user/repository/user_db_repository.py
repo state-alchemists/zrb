@@ -66,7 +66,9 @@ class UserDBRepository(
         ]
 
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
-        statement = self._get_default_select().where(User.username == username)
+        statement = self._get_default_select().where(
+            User.username == username, User.password == hash_password(password)
+        )
         # Execute statement
         if self.is_async:
             async with AsyncSession(self.engine) as session:
