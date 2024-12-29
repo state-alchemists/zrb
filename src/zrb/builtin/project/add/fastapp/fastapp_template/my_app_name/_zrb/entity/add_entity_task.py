@@ -1,6 +1,6 @@
 import os
 
-from my_app_name._zrb.config import APP_DIR
+from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from my_app_name._zrb.entity.add_entity_util import (
     is_in_app_schema_dir,
     is_in_module_entity_dir,
@@ -25,9 +25,23 @@ from my_app_name._zrb.input import (
     new_entity_input,
     plural_entity_input,
 )
-from my_app_name._zrb.util import get_existing_module_names, get_existing_schema_names
+from my_app_name._zrb.util import (
+    create_prepare_migration_script,
+    get_existing_module_names,
+    get_existing_schema_names,
+)
+from my_app_name._zrb.venv_task import prepare_venv
 
-from zrb import AnyContext, ContentTransformer, Scaffolder, Task, make_task
+from zrb import (
+    AnyContext,
+    Cmd,
+    CmdTask,
+    ContentTransformer,
+    EnvFile,
+    Scaffolder,
+    Task,
+    make_task,
+)
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -131,11 +145,36 @@ scaffold_my_app_name_entity = Scaffolder(
     upstream=validate_create_my_app_name_entity,
 )
 
+create_my_app_name_entity_migration = CmdTask(
+    name="create-my-app-name-entity-migration",
+    input=[
+        existing_module_input,
+        new_entity_input,
+    ],
+    env=EnvFile(path=os.path.join(APP_DIR, "template.env")),
+    cwd=APP_DIR,
+    cmd=[
+        ACTIVATE_VENV_SCRIPT,
+        Cmd(lambda ctx: create_prepare_migration_script(ctx.input.module)),
+        "alembic upgrade head",
+        Cmd(
+            'alembic revision --autogenerate -m "create_{to_snake_case(ctx.input.entity)}_table"',  # noqa
+            auto_render=True,
+        ),
+    ],
+    render_cmd=False,
+    retries=0,
+    upstream=[
+        prepare_venv,
+        scaffold_my_app_name_entity,
+    ],
+)
+
 add_my_app_name_entity = app_create_group.add_task(
     Task(
         name="add-my-app-name-entity",
         description="🏗️ Create new entity on a module",
-        upstream=scaffold_my_app_name_entity,
+        upstream=create_my_app_name_entity_migration,
         successor=format_my_app_name_code,
         retries=0,
     ),

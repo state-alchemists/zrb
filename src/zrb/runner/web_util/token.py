@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_schema.token import Token
@@ -55,7 +55,9 @@ def regenerate_tokens(web_config: WebConfig, refresh_token: str) -> Token:
 def _generate_access_token(web_config: WebConfig, username: str) -> str:
     from jose import jwt
 
-    expire = datetime.now() + timedelta(minutes=web_config.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=web_config.access_token_expire_minutes
+    )
     to_encode = {"sub": username, "exp": expire, "type": "access"}
     return jwt.encode(to_encode, web_config.secret_key)
 
@@ -63,6 +65,8 @@ def _generate_access_token(web_config: WebConfig, username: str) -> str:
 def _generate_refresh_token(web_config: WebConfig, username: str) -> str:
     from jose import jwt
 
-    expire = datetime.now() + timedelta(minutes=web_config.refresh_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=web_config.refresh_token_expire_minutes
+    )
     to_encode = {"sub": username, "exp": expire, "type": "refresh"}
     return jwt.encode(to_encode, web_config.secret_key)

@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
-from zrb.attr.type import fstring
+from zrb.attr.type import StrAttr, fstring
 from zrb.context.context import Context
+from zrb.util.attr import get_str_attr
 from zrb.util.file import read_file
 
 
@@ -13,22 +14,22 @@ class AnyCmdVal(ABC):
 
 
 class CmdPath(AnyCmdVal):
-    def __init__(self, path: str, auto_render: bool = True):
+    def __init__(self, path: StrAttr, auto_render: bool = True):
         self._path = path
         self._auto_render = auto_render
 
     def to_str(self, ctx: Context) -> str:
-        file_path = ctx.render(self._path) if self._auto_render else self._path
+        file_path = get_str_attr(ctx, self._path, "", self._auto_render)
         return read_file(file_path)
 
 
 class Cmd(AnyCmdVal):
-    def __init__(self, cmd: str, auto_render: str):
+    def __init__(self, cmd: StrAttr, auto_render: bool = True):
         self._cmd = cmd
         self._auto_render = auto_render
 
     def to_str(self, ctx: Context) -> str:
-        return ctx.render(self._cmd) if self._auto_render else self._cmd
+        return get_str_attr(ctx, self._cmd, "", self._auto_render)
 
 
 SingleCmdVal = AnyCmdVal | fstring | Callable[[Context], str]

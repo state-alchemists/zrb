@@ -33,17 +33,17 @@ class RoleResponse(RoleBase):
 
 class Role(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
-    created_at: datetime.datetime | None
-    created_by: str | None
-    updated_at: datetime.datetime | None
-    updated_by: str | None
-    name: str
+    created_at: datetime.datetime | None = Field(index=True)
+    created_by: str | None = Field(index=True)
+    updated_at: datetime.datetime | None = Field(index=True)
+    updated_by: str | None = Field(index=True)
+    name: str = Field(index=True)
     description: str
 
 
 class RolePermission(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
-    role_id: str
-    permission_id: str
+    role_id: str = Field(index=True)
+    permission_id: str = Field(index=True)
     created_at: datetime.datetime | None
     created_by: str | None

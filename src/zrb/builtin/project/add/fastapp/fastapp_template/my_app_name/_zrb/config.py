@@ -17,4 +17,4 @@ MONOLITH_ENV_VARS = {
 if platform.system() == "Windows":
     ACTIVATE_VENV_SCRIPT = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; . .venv\\Scripts\\Activate"  # noqa
 else:
-    ACTIVATE_VENV_SCRIPT = "source .venv/bin/activate"
+    ACTIVATE_VENV_SCRIPT = ". .venv/bin/activate"

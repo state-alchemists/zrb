@@ -30,8 +30,8 @@ class MyEntityResponse(MyEntityBase):
 
 class MyEntity(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
-    created_at: datetime.datetime
-    created_by: str
-    updated_at: datetime.datetime
-    updated_by: str
-    my_column: str
+    created_at: datetime.datetime = Field(index=True)
+    created_by: str = Field(index=True)
+    updated_at: datetime.datetime | None = Field(index=True)
+    updated_by: str | None = Field(index=True)
+    my_column: str = Field(index=True)

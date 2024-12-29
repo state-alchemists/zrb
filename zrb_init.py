@@ -215,7 +215,7 @@ async def test_generate(ctx: AnyContext):
     # Create migration
     await run_cmd_test(
         name="make-migration",
-        cmd='zrb project fastapp create migration library --message "create book"',
+        cmd='zrb project fastapp create migration library --message "test migration"',
     )
     # Start microservices
     await run_cmd_test(

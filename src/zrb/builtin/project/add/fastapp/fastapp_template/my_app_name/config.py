@@ -39,7 +39,7 @@ APP_COMMUNICATION = os.getenv(
 )
 APP_REPOSITORY_TYPE = os.getenv("APP_REPOSITORY_TYPE", "db")
 APP_DB_URL = os.getenv(
-    "APP_DB_URL",
+    "MY_APP_NAME_DB_URL",
     (
         f"sqlite:///{APP_PATH}/monolith.db"
         if APP_MODE == "monolith" or len(APP_MODULES) == 0

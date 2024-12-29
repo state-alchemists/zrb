@@ -1,3 +1,4 @@
+import inspect
 from enum import Enum
 from functools import partial, wraps
 from typing import Any, Callable, Sequence
@@ -7,6 +8,7 @@ from fastapi import APIRouter, params
 from fastapi.routing import APIRoute
 from fastapi.types import IncEx
 from fastapi.utils import generate_unique_id
+from pydantic import BaseModel
 from starlette.responses import JSONResponse, Response
 
 
@@ -224,21 +226,52 @@ def create_direct_client_method(func: Callable, service: BaseService):
 
 
 def create_api_client_method(param: RouteParam, base_url: str):
-    _url = param.path
-    _methods = [method.lower() for method in param.methods]
+    async def client_method(*args, **kwargs):
+        url = base_url + param.path
+        method = (
+            param.methods[0].lower()
+            if isinstance(param.methods, list)
+            else param.methods.lower()
+        )
 
-    async def client_method(self, *args, **kwargs):
-        async with httpx.AsyncClient() as client:
-            url = base_url + _url.format(**kwargs)
-            if "post" in _methods:
-                response = await client.post(url, json=kwargs)
-            elif "put" in _methods:
-                response = await client.put(url, json=kwargs)
-            elif "delete" in _methods:
-                response = await client.delete(url, json=kwargs)
+        # Get the signature of the original function
+        sig = inspect.signature(param.func)
+
+        # Bind the arguments to the signature
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        # Prepare the request
+        path_params = {}
+        query_params = {}
+        body = {}
+
+        for name, value in bound_args.arguments.items():
+            if name == "self":
+                continue
+            if f"{{{name}}}" in param.path:
+                path_params[name] = value
+            elif isinstance(value, BaseModel):
+                body = value.model_dump()
+            elif method in ["get", "delete"]:
+                query_params[name] = value
             else:
-                response = await client.get(url, params=kwargs)
-            # Add more HTTP methods as needed
+                body[name] = value
+
+        # Format the URL with path parameters
+        url = url.format(**path_params)
+
+        print(
+            f"Sending request to {url} with method {method}, json={body}, params={query_params}"
+        )
+
+        async with httpx.AsyncClient() as client:
+            response = await getattr(client, method)(
+                url, json=body if body else None, params=query_params
+            )
+            print(
+                f"Received response: status={response.status_code}, content={response.content}"
+            )
             response.raise_for_status()
             return response.json()
 

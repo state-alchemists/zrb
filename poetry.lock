@@ -4113,6 +4113,16 @@ files = [
 ]
 
 [[package]]
+name = "ulid"
+version = "1.1"
+description = "Pyhton version of this: https://github.com/alizain/ulid"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ulid-1.1.tar.gz", hash = "sha256:0943e8a751ec10dfcdb4df2758f96dffbbfbc055d0b49288caf2f92125900d49"},
+]
+
+[[package]]
 name = "urllib3"
 version = "2.2.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
@@ -4578,4 +4588,4 @@ rag = ["chromadb", "pdfplumber"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "c29db2bcae3eaa1fd0f522fd54b5eb42b292c5e72f87e8fdd7331d7294591265"
+content-hash = "6b21c61585ea7682d16c0773da567ebed5fc3893de46fa1a9aa5279e25dead73"

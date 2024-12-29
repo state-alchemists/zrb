@@ -35,17 +35,17 @@ class UserResponse(UserBase):
 
 class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
-    created_at: datetime.datetime
-    created_by: str
-    updated_at: datetime.datetime
-    updated_by: str
-    username: str
+    created_at: datetime.datetime = Field(index=True)
+    created_by: str = Field(index=True)
+    updated_at: datetime.datetime | None = Field(index=True)
+    updated_by: str | None = Field(index=True)
+    username: str = Field(index=True)
     password: str
 
 
 class UserRole(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
-    user_id: str
-    role_id: str
+    user_id: str = Field(index=True)
+    role_id: str = Field(index=True)
     created_at: datetime.datetime | None
     created_by: str | None
