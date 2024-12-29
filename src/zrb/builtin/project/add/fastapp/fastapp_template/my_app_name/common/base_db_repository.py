@@ -1,3 +1,4 @@
+import datetime
 from typing import Any, Callable, Generic, Type, TypeVar
 
 from my_app_name.common.error import NotFoundError
@@ -28,11 +29,12 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         return self.response_model(**db_instance.model_dump())
 
     async def create(self, data: CreateModel) -> ResponseModel:
-        data_dict = data.model_dump(exclude_unset=True)
+        new_data = data.model_dump(exclude_unset=True)
+        new_data["created_at"] = datetime.datetime.now(datetime.timezone.utc)
         for key, preprocessor in self.column_preprocessors.items():
-            if key in data_dict:
-                data_dict[key] = preprocessor(data_dict[key])
-        db_instance = self.db_model(**data_dict)
+            if key in new_data:
+                new_data[key] = preprocessor(new_data[key])
+        db_instance = self.db_model(**new_data)
         if self.is_async:
             async with AsyncSession(self.engine) as session:
                 session.add(db_instance)
@@ -89,6 +91,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
 
     async def update(self, item_id: str, data: UpdateModel) -> ResponseModel:
         update_data = data.model_dump(exclude_unset=True)
+        update_data["created_at"] = datetime.datetime.now(datetime.timezone.utc)
         for key, value in update_data.items():
             if key in self.column_preprocessors:
                 update_data[key] = self.column_preprocessors[key](value)
@@ -133,12 +136,14 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
 
     async def create_bulk(self, data_list: list[CreateModel]) -> list[ResponseModel]:
         db_instances = []
+        now = datetime.datetime.now(datetime.timezone.utc)
         for data in data_list:
-            data_dict = data.model_dump(exclude_unset=True)
+            new_data = data.model_dump(exclude_unset=True)
+            new_data["created_at"] = now
             for key, preprocessor in self.column_preprocessors.items():
-                if key in data_dict:
-                    data_dict[key] = preprocessor(data_dict[key])
-            db_instances.append(self.db_model(**data_dict))
+                if key in new_data:
+                    new_data[key] = preprocessor(new_data[key])
+            db_instances.append(self.db_model(**new_data))
         if self.is_async:
             async with AsyncSession(self.engine) as session:
                 session.add_all(db_instances)
