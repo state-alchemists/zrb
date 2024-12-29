@@ -55,5 +55,7 @@ class MyEntityService(BaseService):
         methods=["delete"],
         response_model=MyEntityResponse,
     )
-    async def delete_my_entity(self, my_entity_id: str) -> MyEntityResponse:
+    async def delete_my_entity(
+        self, my_entity_id: str, deleted_by: str
+    ) -> MyEntityResponse:
         return await self.my_entity_repository.delete(my_entity_id)

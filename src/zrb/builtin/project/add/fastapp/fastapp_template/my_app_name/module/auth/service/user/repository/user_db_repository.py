@@ -16,7 +16,7 @@ from my_app_name.schema.user import (
 )
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import ClauseElement, ColumnElement, Select
+from sqlalchemy.sql import Select
 from sqlmodel import Session, select
 
 # Password hashing context
@@ -47,26 +47,23 @@ class UserDBRepository(
             .join(Permission, Permission.id == RolePermission.role_id, isouter=True)
         )
 
-    def _to_response(self, result: Any) -> UserResponse:
-        user_role_map: dict[str, Role] = {}
-        user_permission_map: dict[str, Permission] = {}
-        for user, role, permission in result:
-            if user.id not in user_role_map:
-                user_role_map[user.id] = {}
-            user_role_map[user.id].append(role)
-            if user.id not in user_permission_map:
-                user_permission_map[user.id] = {}
-            user_permission_map[user.id].append(permission)
-        user_responses = []
-        for user_id, user in user_responses:
-            user_responses.append(
-                UserResponse(
-                    **user.model_dump(),
-                    permissions=user_permission_map[user_id],
-                    roles=user_role_map[user_id],
-                )
+    def _rows_to_responses(self, rows: list[Any]) -> UserResponse:
+        user_map: dict[str, dict[str, Any]] = {}
+        for user, role, permission in rows:
+            if user.id not in user_map:
+                user_map[user.id] = {"user": user, "roles": set(), "permissions": set()}
+            if role:
+                user_map[user.id]["roles"].add(role)
+            if permission:
+                user_map[user.id]["permissions"].add(permission)
+        return [
+            UserResponse(
+                **data["user"].model_dump(),
+                roles=list(data["roles"]),
+                permissions=list(data["permissions"])
             )
-        return user_responses
+            for data in user_map.values()
+        ]
 
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
         statement = self._get_default_select().where(User.username == username)

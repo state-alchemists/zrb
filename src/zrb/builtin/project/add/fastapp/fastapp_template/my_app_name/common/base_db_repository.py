@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Callable, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Generic, Sequence, Type, TypeVar
 
 from my_app_name.common.error import InvalidValueError, NotFoundError
 from sqlalchemy import Engine, func, select
@@ -21,30 +21,38 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
     entity_name: str = "entity"
     column_preprocessors: dict[str, Callable[[Any], Any]] = {}
 
-    def __init__(self, engine: Union[Engine, AsyncEngine]):
+    def __init__(self, engine: Engine | AsyncEngine):
         self.engine = engine
         self.is_async = isinstance(engine, AsyncEngine)
 
     def _get_default_select(self) -> Select:
         """
-        Default select statement, ensures the query is consistent for single and bulk operations.
+        Default select statement, ensures the query is consistent
+        for single and bulk operations.
         """
         return select(self.db_model)
 
-    def _rows_to_responses(self, rows: List[Any]) -> List[ResponseModel]:
+    def _rows_to_responses(self, rows: list[Any]) -> list[ResponseModel]:
         """
         Transforms query result rows into a list of ResponseModel instances.
         """
         return [self.response_model(**row.model_dump()) for row in rows]
 
-    def _row_to_response(self, row: Any) -> ResponseModel:
-        """
-        Transforms a single query result row into a ResponseModel.
-        """
-        if not row:
+    def _ensure_one_response(self, responses: list[ResponseModel]) -> ResponseModel:
+        if not responses:
             raise NotFoundError(f"{self.entity_name} not found")
-        responses = self._rows_to_responses([row])
+        if len(responses) > 1:
+            raise InvalidValueError(f"Duplicate {self.entity_name}")
         return responses[0]
+
+    async def _execute_select_statement(self, statement: Select) -> list[Any]:
+        if self.is_async:
+            async with AsyncSession(self.engine) as session:
+                result = await session.execute(statement)
+                return result.all()
+        with Session(self.engine) as session:
+            result = session.exec(statement)
+            return result.all()
 
     async def create(self, data: CreateModel) -> ResponseModel:
         """
@@ -72,36 +80,23 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.commit()
                 session.refresh(db_instance)
         # Fetch the created record using the default select
-        statement = self._get_default_select().where(self.db_model.id == db_instance.id)
-        if self.is_async:
-            async with AsyncSession(self.engine) as session:
-                result = await session.execute(statement)
-                created_instance = result.scalar_one_or_none()
-        else:
-            with Session(self.engine) as session:
-                result = session.exec(statement)
-                created_instance = result.scalar_one_or_none()
-        # Return response
-        return self._row_to_response(created_instance)
+        select_statement = self._get_default_select().where(
+            self.db_model.id == db_instance.id
+        )
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one_response(responses)
 
     async def get_by_id(self, item_id: str) -> ResponseModel:
         """
         Retrieve an item by its ID and return the ResponseModel.
         """
-        statement = self._get_default_select().where(self.db_model.id == item_id)
-        # Execute statement
-        if self.is_async:
-            async with AsyncSession(self.engine) as session:
-                result = await session.execute(statement)
-                row = result.scalar_one_or_none()
-        else:
-            with Session(self.engine) as session:
-                result = session.exec(statement)
-                row = result.scalar_one_or_none()
-        # Return response
-        return self._row_to_response(row)
+        select_statement = self._get_default_select().where(self.db_model.id == item_id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one_response(responses)
 
-    async def count(self, filters: Optional[List[ClauseElement]] = None) -> int:
+    async def count(self, filters: list[ClauseElement] | None = None) -> int:
         """
         Count the number of records matching the filters.
         """
@@ -124,28 +119,22 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         self,
         page: int = 1,
         page_size: int = 10,
-        filters: Optional[List[ClauseElement]] = None,
-        sorts: Optional[List[ColumnElement]] = None,
-    ) -> List[ResponseModel]:
+        filters: list[ClauseElement] | None = None,
+        sorts: list[ColumnElement] | None = None,
+    ) -> list[ResponseModel]:
         """
         Retrieve paginated results as ResponseModels.
         """
         offset = (page - 1) * page_size
-        statement = self._get_default_select().offset(offset).limit(page_size)
+        select_statement = self._get_default_select().offset(offset).limit(page_size)
         if filters:
-            statement = statement.where(*filters)
+            select_statement = select_statement.where(*filters)
         if sorts:
-            statement = statement.order_by(*sorts)
+            select_statement = select_statement.order_by(*sorts)
         # Execute statement
-        if self.is_async:
-            async with AsyncSession(self.engine) as session:
-                result = await session.execute(statement)
-                rows = result.scalars().all()
-        else:
-            with Session(self.engine) as session:
-                rows = session.exec(statement).scalars().all()
-        # Return response
-        return self._rows_to_responses(rows)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return responses
 
     async def update(self, item_id: str, data: UpdateModel) -> ResponseModel:
         """
@@ -182,17 +171,10 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.commit()
                 session.refresh(db_instance)
         # Fetch updated instance
-        statement = self._get_default_select().where(self.db_model.id == item_id)
-        if self.is_async:
-            async with AsyncSession(self.engine) as session:
-                result = await session.execute(statement)
-                updated_instance = result.scalar_one_or_none()
-        else:
-            with Session(self.engine) as session:
-                result = session.exec(statement)
-                updated_instance = result.scalar_one_or_none()
-        # Return response
-        return self._row_to_response(updated_instance)
+        select_statement = self._get_default_select().where(self.db_model.id == item_id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one_response(responses)
 
     async def create_bulk(self, data_list: list[CreateModel]) -> list[ResponseModel]:
         db_instances = []
@@ -214,25 +196,23 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.add_all(db_instances)
                 await session.commit()
                 await session.refresh(db_instances)
-            async with AsyncSession(self.engine) as session:
-                statement = self._get_default_select().where(
-                    self.db_model.id.in_([instance.id for instance in db_instances])
-                )
-                result = await session.execute(statement)
-                results = result.scalars().all()
         else:
             with Session(self.engine) as session:
                 session.add_all(db_instances)
                 session.commit()
                 session.refresh(db_instances)
-            with Session(self.engine) as session:
-                statement = self._get_default_select().where(
-                    self.db_model.id.in_([instance.id for instance in db_instances])
-                )
-                results = session.exec(statement).all()
-        return self._rows_to_responses(results)
+        select_statement = self._get_default_select().where(
+            self.db_model.id.in_([instance.id for instance in db_instances])
+        )
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return responses
 
     async def delete(self, item_id: str) -> ResponseModel:
+        select_statement = self._get_default_select().where(self.db_model.id == item_id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        response = self._ensure_one_response(responses)
         if self.is_async:
             async with AsyncSession(self.engine) as session:
                 statement = self._get_default_select().where(
@@ -244,7 +224,6 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                     raise NotFoundError(f"{self.entity_name} not found")
                 await session.delete(db_instance)
                 await session.commit()
-                await session.refresh(db_instance)
         else:
             with Session(self.engine) as session:
                 statement = self._get_default_select().where(
@@ -256,5 +235,4 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                     raise NotFoundError(f"{self.entity_name} not found")
                 session.delete(db_instance)
                 session.commit()
-                session.refresh(db_instance)
-        return self._row_to_response(db_instance)
+        return response

@@ -1,15 +1,13 @@
 import inspect
 from enum import Enum
-from functools import partial, wraps
+from functools import partial
 from typing import Any, Callable, Sequence
 
 import httpx
-from fastapi import APIRouter, params
-from fastapi.routing import APIRoute
-from fastapi.types import IncEx
-from fastapi.utils import generate_unique_id
+from fastapi import APIRouter, Depends, params
+from my_app_name.common.error import ClientAPIError
+from my_app_name.common.log import logger
 from pydantic import BaseModel
-from starlette.responses import JSONResponse, Response
 
 
 class RouteParam:
@@ -19,50 +17,20 @@ class RouteParam:
         response_model: Any,
         status_code: int | None = None,
         tags: list[str | Enum] | None = None,
-        dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str = "",
-        response_description: str = "",
-        responses: dict[int | str, dict[str, Any]] | None = None,
         deprecated: bool | None = None,
         methods: set[str] | list[str] | None = None,
-        operation_id: str | None = None,
-        response_model_include: IncEx | None = None,
-        response_model_exclude: IncEx | None = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: type[Response] = Response,
-        name: str | None = None,
-        openapi_extra: dict[str, Any] | None = None,
-        generate_unique_id_function: Callable[[APIRoute], str] | None = None,
         func: Callable | None = None,
     ):
         self.path = path
         self.response_model = response_model
         self.status_code = status_code
         self.tags = tags
-        self.dependencies = dependencies
         self.summary = summary
         self.description = description
-        self.response_description = response_description
-        self.responses = responses
         self.deprecated = deprecated
         self.methods = methods
-        self.operation_id = operation_id
-        self.response_model_include = response_model_include
-        self.response_model_exclude = response_model_exclude
-        self.response_model_by_alias = response_model_by_alias
-        self.response_model_exclude_unset = response_model_exclude_unset
-        self.response_model_exclude_defaults = response_model_exclude_defaults
-        self.response_model_exclude_none = response_model_exclude_none
-        self.include_in_schema = include_in_schema
-        self.response_class = response_class
-        self.name = name
-        self.openapi_extra = openapi_extra
-        self.generate_unique_id_function = generate_unique_id_function
         self.func = func
 
 
@@ -86,63 +54,40 @@ class BaseService:
         dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str = None,
-        response_description: str = "Successful Response",
-        responses: dict[int | str, dict[str, Any]] | None = None,
         deprecated: bool | None = None,
         methods: set[str] | list[str] | None = None,
-        operation_id: str | None = None,
-        response_model_include: IncEx | None = None,
-        response_model_exclude: IncEx | None = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: type[Response] = JSONResponse,
-        name: str | None = None,
-        openapi_extra: dict[str, Any] | None = None,
-        generate_unique_id_function: Callable[[APIRoute], str] = generate_unique_id,
     ):
         """
         Decorator to register a method with its HTTP details.
         """
 
         def decorator(func: Callable):
-            @wraps(func)
-            async def wrapped(*args, **kwargs):
-                return await func(*args, **kwargs)
-
+            # Check for Depends in function parameters
+            sig = inspect.signature(func)
+            for param in sig.parameters.values():
+                if param.annotation is Depends or (
+                    hasattr(param.annotation, "__origin__")
+                    and param.annotation.__origin__ is Depends
+                ):
+                    raise ValueError(
+                        f"Depends is not allowed in function parameters. Found in {func.__name__}"  # noqa
+                    )
             # Inject __route_param__ property to the method
             # Method with __route_param__ property will automatically
             # registered to self._route_param and will be automatically exposed
             # into DirectClient and APIClient
-            wrapped.__route_param__ = RouteParam(
+            func.__route_param__ = RouteParam(
                 path=path,
                 response_model=response_model,
                 status_code=status_code,
                 tags=tags,
-                dependencies=dependencies,
                 summary=summary,
                 description=description,
-                response_description=response_description,
-                responses=responses,
                 deprecated=deprecated,
                 methods=methods,
-                operation_id=operation_id,
-                response_model_include=response_model_include,
-                response_model_exclude=response_model_exclude,
-                response_model_by_alias=response_model_by_alias,
-                response_model_exclude_unset=response_model_exclude_unset,
-                response_model_exclude_defaults=response_model_exclude_defaults,
-                response_model_exclude_none=response_model_exclude_none,
-                include_in_schema=include_in_schema,
-                response_class=response_class,
-                name=name,
-                openapi_extra=openapi_extra,
-                generate_unique_id_function=generate_unique_id_function,
                 func=func,
             )
-            return wrapped
+            return func
 
         return decorator
 
@@ -188,25 +133,10 @@ class BaseService:
                 response_model=route_param.response_model,
                 status_code=route_param.status_code,
                 tags=route_param.tags,
-                dependencies=route_param.dependencies,
                 summary=route_param.summary,
                 description=route_param.description,
-                response_description=route_param.response_description,
-                responses=route_param.responses,
                 deprecated=route_param.deprecated,
                 methods=route_param.methods,
-                operation_id=route_param.operation_id,
-                response_model_include=route_param.response_model_include,
-                response_model_exclude=route_param.response_model_exclude,
-                response_model_by_alias=route_param.response_model_by_alias,
-                response_model_exclude_unset=route_param.response_model_exclude_unset,
-                response_model_exclude_defaults=route_param.response_model_exclude_defaults,
-                response_model_exclude_none=route_param.response_model_exclude_none,
-                include_in_schema=route_param.include_in_schema,
-                response_class=route_param.response_class,
-                name=route_param.name,
-                openapi_extra=route_param.openapi_extra,
-                generate_unique_id_function=route_param.generate_unique_id_function,
             )
 
 
@@ -233,19 +163,15 @@ def create_api_client_method(param: RouteParam, base_url: str):
             if isinstance(param.methods, list)
             else param.methods.lower()
         )
-
         # Get the signature of the original function
         sig = inspect.signature(param.func)
-
         # Bind the arguments to the signature
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
-
         # Prepare the request
         path_params = {}
         query_params = {}
         body = {}
-
         for name, value in bound_args.arguments.items():
             if name == "self":
                 continue
@@ -257,22 +183,28 @@ def create_api_client_method(param: RouteParam, base_url: str):
                 query_params[name] = value
             else:
                 body[name] = value
-
         # Format the URL with path parameters
         url = url.format(**path_params)
-
-        print(
-            f"Sending request to {url} with method {method}, json={body}, params={query_params}"
+        logger.info(
+            f"Sending request to {url} with method {method}, json={body}, params={query_params}"  # noqa
         )
-
         async with httpx.AsyncClient() as client:
-            response = await getattr(client, method)(
-                url, json=body if body else None, params=query_params
-            )
-            print(
+            if method in ["get", "delete"]:
+                response = await getattr(client, method)(url, params=query_params)
+            else:
+                response = await getattr(client, method)(
+                    url, json=body, params=query_params
+                )
+            logger.info(
                 f"Received response: status={response.status_code}, content={response.content}"
             )
-            response.raise_for_status()
+            if response.status_code >= 400:
+                error_detail = (
+                    response.json()
+                    if response.headers.get("content-type") == "application/json"
+                    else response.text
+                )
+                raise ClientAPIError(response.status_code, error_detail)
             return response.json()
 
     return client_method

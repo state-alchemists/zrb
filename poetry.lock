@@ -4588,4 +4588,4 @@ rag = ["chromadb", "pdfplumber"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "6b21c61585ea7682d16c0773da567ebed5fc3893de46fa1a9aa5279e25dead73"
+content-hash = "1cbc6d7d7144e943b0c9c2d30d0d6d01981694a40899d40c398b2d60c21a204d"
