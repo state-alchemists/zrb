@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from my_app_name.module.auth.client.factory import client as auth_client
 from my_app_name.schema.user import (
+    MultipleUserResponse,
     UserCreate,
     UserCreateWithAudit,
     UserResponse,
@@ -11,9 +12,16 @@ from my_app_name.schema.user import (
 
 def serve_auth_route(app: FastAPI):
 
-    @app.get("/api/v1/users", response_model=list[UserResponse])
-    async def get_all_users() -> UserResponse:
-        return await auth_client.get_all_users()
+    @app.get("/api/v1/users", response_model=MultipleUserResponse)
+    async def get_all_users(
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
+    ) -> MultipleUserResponse:
+        return await auth_client.get_all_users(
+            page=page, page_size=page_size, sort=sort, filter=filter
+        )
 
     @app.get("/api/v1/users/{user_id}", response_model=UserResponse)
     async def get_user_by_id(user_id: str) -> UserResponse:

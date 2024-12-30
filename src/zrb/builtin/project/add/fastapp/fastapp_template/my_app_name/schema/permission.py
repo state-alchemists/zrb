@@ -1,6 +1,7 @@
 import datetime
 
 import ulid
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -27,6 +28,11 @@ class PermissionUpdateWithAudit(PermissionUpdate):
 
 class PermissionResponse(PermissionBase):
     id: str
+
+
+class MultiplePermissionResponse(BaseModel):
+    data: list[PermissionResponse]
+    count: int
 
 
 class Permission(SQLModel, table=True):

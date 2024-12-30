@@ -3,6 +3,7 @@ import datetime
 import ulid
 from my_app_name.schema.permission import Permission
 from my_app_name.schema.role import Role
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -31,6 +32,11 @@ class UserResponse(UserBase):
     id: str
     roles: list[Role]
     permissions: list[Permission]
+
+
+class MultipleUserResponse(BaseModel):
+    data: list[UserResponse]
+    count: int
 
 
 class User(SQLModel, table=True):

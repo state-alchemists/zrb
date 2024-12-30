@@ -2,6 +2,7 @@ import datetime
 
 import ulid
 from my_app_name.schema.permission import Permission
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -29,6 +30,11 @@ class RoleUpdateWithAudit(RoleUpdate):
 class RoleResponse(RoleBase):
     id: str
     permissions: list[Permission]
+
+
+class MultipleRoleResponse(BaseModel):
+    data: list[RoleResponse]
+    count: int
 
 
 class Role(SQLModel, table=True):

@@ -1,6 +1,7 @@
 import datetime
 
 import ulid
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -26,6 +27,11 @@ class MyEntityUpdateWithAudit(MyEntityUpdate):
 
 class MyEntityResponse(MyEntityBase):
     id: str
+
+
+class MultipleMyEntityResponse(BaseModel):
+    data: list[MyEntityResponse]
+    count: int
 
 
 class MyEntity(SQLModel, table=True):

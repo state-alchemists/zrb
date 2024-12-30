@@ -1,8 +1,11 @@
 from my_app_name.common.base_service import BaseService
+from my_app_name.common.parser import parse_filter_param, parse_sort_param
 from my_app_name.module.my_module.service.my_entity.repository.my_entity_repository import (
     MyEntityRepository,
 )
 from my_app_name.schema.my_entity import (
+    MultipleMyEntityResponse,
+    MyEntity,
     MyEntityCreateWithAudit,
     MyEntityResponse,
     MyEntityUpdateWithAudit,
@@ -23,10 +26,22 @@ class MyEntityService(BaseService):
         return await self.my_entity_repository.get_by_id(my_entity_id)
 
     @BaseService.route(
-        "/api/v1/my-entities", methods=["get"], response_model=list[MyEntityResponse]
+        "/api/v1/my-entities", methods=["get"], response_model=MultipleMyEntityResponse
     )
-    async def get_all_my_entities(self) -> list[MyEntityResponse]:
-        return await self.my_entity_repository.get_all()
+    async def get_all_my_entities(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
+    ) -> MultipleMyEntityResponse:
+        filters = parse_filter_param(MyEntity, filter) if filter else None
+        sorts = parse_sort_param(MyEntity, sort) if sort else None
+        data = await self.my_entity_repository.get_all(
+            page=page, page_size=page_size, filters=filters, sorts=sorts
+        )
+        count = await self.my_entity_repository.count(filters=filters)
+        return MultipleMyEntityResponse(data=data, count=count)
 
     @BaseService.route(
         "/api/v1/my-entities",

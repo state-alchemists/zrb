@@ -1,8 +1,11 @@
 from my_app_name.common.base_service import BaseService
+from my_app_name.common.parser import parse_filter_param, parse_sort_param
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
 from my_app_name.schema.user import (
+    MultipleUserResponse,
+    User,
     UserCreateWithAudit,
     UserResponse,
     UserUpdateWithAudit,
@@ -21,10 +24,22 @@ class UserService(BaseService):
         return await self.user_repository.get_by_id(user_id)
 
     @BaseService.route(
-        "/api/v1/users", methods=["get"], response_model=list[UserResponse]
+        "/api/v1/users", methods=["get"], response_model=MultipleUserResponse
     )
-    async def get_all_users(self) -> list[UserResponse]:
-        return await self.user_repository.get_all()
+    async def get_all_users(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
+    ) -> MultipleUserResponse:
+        filters = parse_filter_param(User, filter) if filter else None
+        sorts = parse_sort_param(User, sort) if sort else None
+        data = await self.user_repository.get_all(
+            page=page, page_size=page_size, filters=filters, sorts=sorts
+        )
+        count = await self.user_repository.count(filters=filters)
+        return MultipleUserResponse(data=data, count=count)
 
     @BaseService.route(
         "/api/v1/users",

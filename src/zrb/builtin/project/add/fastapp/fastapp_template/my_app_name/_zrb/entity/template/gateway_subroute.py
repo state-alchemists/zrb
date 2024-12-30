@@ -1,6 +1,13 @@
-@app.get("/api/v1/my_entities", response_model=list[MyEntityResponse])
-async def get_all_my_entities() -> MyEntityResponse:
-    return await my_module_client.get_all_my_entities()
+@app.get("/api/v1/my_entities", response_model=MultipleMyEntityResponse)
+async def get_all_my_entities(
+    page: int = 1,
+    page_size: int = 10,
+    sort: str | None = None,
+    filter: str | None = None,
+) -> MultipleMyEntityResponse:
+    return await my_module_client.get_all_my_entities(
+        page=page, page_size=page_size, sort=sort, filter=filter
+    )
 
 
 @app.get("/api/v1/my_entities/{my_entity_id}", response_model=MyEntityResponse)

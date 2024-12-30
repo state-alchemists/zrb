@@ -1,6 +1,7 @@
 import datetime
 
 import ulid
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -24,6 +25,11 @@ class SessionResponse(SessionBase):
     id: str
     created_at: datetime.datetime = Field(index=True)
     updated_at: datetime.datetime | None = Field(index=True)
+
+
+class MultipleSessionResponse(BaseModel):
+    data: list[SessionResponse]
+    count: int
 
 
 class Session(SQLModel, table=True):

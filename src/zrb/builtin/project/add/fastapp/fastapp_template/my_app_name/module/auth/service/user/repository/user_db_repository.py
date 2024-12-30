@@ -1,7 +1,6 @@
 from typing import Any
 
 from my_app_name.common.base_db_repository import BaseDBRepository
-from my_app_name.common.error import NotFoundError
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
@@ -15,9 +14,8 @@ from my_app_name.schema.user import (
     UserUpdateWithAudit,
 )
 from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
-from sqlmodel import Session, select
+from sqlmodel import select
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -38,7 +36,7 @@ class UserDBRepository(
     entity_name = "user"
     column_preprocessors = {"password": hash_password}
 
-    def _get_default_select(self) -> Select:
+    def _select(self) -> Select:
         return (
             select(User, Role, Permission)
             .join(UserRole, UserRole.user_id == User.id, isouter=True)
@@ -66,17 +64,9 @@ class UserDBRepository(
         ]
 
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
-        statement = self._get_default_select().where(
+        select_statement = self._select().where(
             User.username == username, User.password == hash_password(password)
         )
-        # Execute statement
-        if self.is_async:
-            async with AsyncSession(self.engine) as session:
-                result = await session.execute(statement)
-                row = result.scalar_one_or_none()
-        else:
-            with Session(self.engine) as session:
-                result = session.exec(statement)
-                row = result.scalar_one_or_none()
-        # Return response
-        return self._row_to_response(row)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one(responses)

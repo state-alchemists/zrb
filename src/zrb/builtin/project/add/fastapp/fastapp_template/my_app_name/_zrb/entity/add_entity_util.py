@@ -282,6 +282,7 @@ def _get_import_schema_for_gateway_subroute_code(
     new_code = "\n".join(
         [
             f"from {schema_import_path} import (",
+            f"   Multiple{pascal_entity_name}Response,",
             f"   {pascal_entity_name}Create,",
             f"   {pascal_entity_name}CreateWithAudit,",
             f"   {pascal_entity_name}Response,",
