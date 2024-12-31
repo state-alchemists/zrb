@@ -1,5 +1,7 @@
+from logging import Logger
+
 from my_app_name.common.base_service import BaseService
-from my_app_name.common.parser import parse_filter_param, parse_sort_param
+from my_app_name.common.parser_factory import parse_filter_param, parse_sort_param
 from my_app_name.module.my_module.service.my_entity.repository.my_entity_repository import (
     MyEntityRepository,
 )
@@ -13,8 +15,8 @@ from my_app_name.schema.my_entity import (
 
 
 class MyEntityService(BaseService):
-    def __init__(self, my_entity_repository: MyEntityRepository):
-        super().__init__()
+    def __init__(self, logger: Logger, my_entity_repository: MyEntityRepository):
+        super().__init__(logger)
         self.my_entity_repository = my_entity_repository
 
     @BaseService.route(

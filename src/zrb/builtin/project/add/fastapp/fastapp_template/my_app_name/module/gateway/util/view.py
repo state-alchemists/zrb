@@ -2,7 +2,7 @@ import os
 from typing import Any
 
 from fastapi.responses import HTMLResponse
-from my_app_name.common.view import render_page, render_str
+from my_app_name.common.util.view import render_page, render_str
 from my_app_name.config import (
     APP_GATEWAY_CSS_PATH_LIST,
     APP_GATEWAY_FAVICON_PATH,

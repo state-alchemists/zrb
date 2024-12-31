@@ -159,7 +159,6 @@ create_my_app_name_entity_migration = CmdTask(
         "alembic upgrade head",
         Cmd(
             'alembic revision --autogenerate -m "create_{to_snake_case(ctx.input.entity)}_table"',  # noqa
-            auto_render=True,
         ),
     ],
     render_cmd=False,

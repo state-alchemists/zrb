@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse
-from my_app_name.common.app import app
+from my_app_name.common.app_factory import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import (
     APP_GATEWAY_VIEW_PATH,

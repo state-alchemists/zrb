@@ -1,12 +1,12 @@
 import inspect
 from enum import Enum
 from functools import partial
+from logging import Logger
 from typing import Any, Callable, Sequence
 
 import httpx
 from fastapi import APIRouter, Depends, params
 from my_app_name.common.error import ClientAPIError
-from my_app_name.common.log import logger
 from pydantic import BaseModel
 
 
@@ -37,11 +37,16 @@ class RouteParam:
 class BaseService:
     _route_params: dict[str, RouteParam] = {}
 
-    def __init__(self):
+    def __init__(self, logger: Logger):
+        self._logger = logger
         self._route_params: dict[str, RouteParam] = {}
         for name, method in self.__class__.__dict__.items():
             if hasattr(method, "__route_param__"):
                 self._route_params[name] = getattr(method, "__route_param__")
+
+    @property
+    def logger(self) -> Logger:
+        return self._logger
 
     @classmethod
     def route(
@@ -96,10 +101,10 @@ class BaseService:
         Dynamically create a direct client class.
         """
         _methods = self._route_params
-        DirectClient = create_client_class("DirectClient")
+        DirectClient = _create_client_class("DirectClient")
         for name, details in _methods.items():
             func = details.func
-            client_method = create_direct_client_method(func, self)
+            client_method = _create_direct_client_method(self._logger, func, self)
             # Use __get__ to make a bounded method,
             # ensuring that client_method use DirectClient as `self`
             setattr(DirectClient, name, client_method.__get__(DirectClient))
@@ -110,10 +115,10 @@ class BaseService:
         Dynamically create an API client class.
         """
         _methods = self._route_params
-        APIClient = create_client_class("APIClient")
+        APIClient = _create_client_class("APIClient")
         # Dynamically generate methods
         for name, param in _methods.items():
-            client_method = create_api_client_method(param, base_url)
+            client_method = _create_api_client_method(self._logger, param, base_url)
             # Use __get__ to make a bounded method,
             # ensuring that client_method use APIClient as `self`
             setattr(APIClient, name, client_method.__get__(APIClient))
@@ -140,7 +145,7 @@ class BaseService:
             )
 
 
-def create_client_class(name):
+def _create_client_class(name):
     class Client:
         pass
 
@@ -148,14 +153,14 @@ def create_client_class(name):
     return Client
 
 
-def create_direct_client_method(func: Callable, service: BaseService):
+def _create_direct_client_method(logger: Logger, func: Callable, service: BaseService):
     async def client_method(self, *args, **kwargs):
         return await func(service, *args, **kwargs)
 
     return client_method
 
 
-def create_api_client_method(param: RouteParam, base_url: str):
+def _create_api_client_method(logger: Logger, param: RouteParam, base_url: str):
     async def client_method(*args, **kwargs):
         url = base_url + param.path
         method = (

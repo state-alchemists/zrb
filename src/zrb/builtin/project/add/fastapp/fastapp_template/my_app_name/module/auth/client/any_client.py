@@ -6,6 +6,12 @@ from my_app_name.schema.permission import (
     PermissionResponse,
     PermissionUpdateWithAudit,
 )
+from my_app_name.schema.role import (
+    MultipleRoleResponse,
+    RoleCreateWithAudit,
+    RoleResponse,
+    RoleUpdateWithAudit,
+)
 from my_app_name.schema.user import (
     MultipleUserResponse,
     UserCreateWithAudit,
@@ -46,6 +52,38 @@ class AnyClient(ABC):
 
     @abstractmethod
     async def delete_permission(self, permission_id: str) -> PermissionResponse:
+        pass
+
+    # Role related methods
+
+    @abstractmethod
+    async def get_role_by_id(self, role_id: str) -> RoleResponse:
+        pass
+
+    @abstractmethod
+    async def get_all_roles(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
+    ) -> MultipleRoleResponse:
+        pass
+
+    @abstractmethod
+    async def create_role(
+        self, data: RoleCreateWithAudit | list[RoleCreateWithAudit]
+    ) -> RoleResponse | list[RoleResponse]:
+        pass
+
+    @abstractmethod
+    async def update_role(
+        self, role_id: str, data: RoleUpdateWithAudit
+    ) -> RoleResponse:
+        pass
+
+    @abstractmethod
+    async def delete_role(self, role_id: str) -> RoleResponse:
         pass
 
     # User related methods

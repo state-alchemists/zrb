@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from my_app_name.common.app import app
+from my_app_name.common.app_factory import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import APP_MAIN_MODULE, APP_MODE, APP_MODULES
 

@@ -1,5 +1,7 @@
+from logging import Logger
+
 from my_app_name.common.base_service import BaseService
-from my_app_name.common.parser import parse_filter_param, parse_sort_param
+from my_app_name.common.parser_factory import parse_filter_param, parse_sort_param
 from my_app_name.module.auth.service.permission.repository.permission_repository import (
     PermissionRepository,
 )
@@ -13,8 +15,8 @@ from my_app_name.schema.permission import (
 
 
 class PermissionService(BaseService):
-    def __init__(self, permission_repository: PermissionRepository):
-        super().__init__()
+    def __init__(self, logger: Logger, permission_repository: PermissionRepository):
+        super().__init__(logger)
         self.permission_repository = permission_repository
 
     @BaseService.route(

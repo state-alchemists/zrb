@@ -1,5 +1,7 @@
+from logging import Logger
+
 from my_app_name.common.base_service import BaseService
-from my_app_name.common.parser import parse_filter_param, parse_sort_param
+from my_app_name.common.parser_factory import parse_filter_param, parse_sort_param
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
@@ -13,8 +15,8 @@ from my_app_name.schema.user import (
 
 
 class UserService(BaseService):
-    def __init__(self, user_repository: UserRepository):
-        super().__init__()
+    def __init__(self, logger, user_repository: UserRepository):
+        super().__init__(logger)
         self.user_repository = user_repository
 
     @BaseService.route(
