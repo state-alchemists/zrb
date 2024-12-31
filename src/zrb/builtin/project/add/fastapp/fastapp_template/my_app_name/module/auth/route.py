@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from my_app_name.common.app import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import APP_MAIN_MODULE, APP_MODE, APP_MODULES
+from my_app_name.module.auth.service.permission.permission_service_factory import (
+    permission_service,
+)
 from my_app_name.module.auth.service.user.user_service_factory import user_service
 
 
@@ -32,6 +35,7 @@ def serve_route(app: FastAPI):
 
     # Serve user endpoints for APIClient
     user_service.serve_route(app)
+    permission_service.serve_route(app)
 
 
 serve_route(app)

@@ -4,7 +4,13 @@ async def get_my_entity_by_id(self, my_entity_id: str) -> MyEntityResponse:
 
 
 @abstractmethod
-async def get_all_my_entities(self) -> list[MyEntityResponse]:
+async def get_all_my_entities(
+    self,
+    page: int = 1,
+    page_size: int = 10,
+    sort: str | None = None,
+    filter: str | None = None,
+) -> MultipleMyEntityResponse:
     pass
 
 

@@ -139,32 +139,54 @@ def _get_entity_metadata_assignment_code(
 
 def update_any_client(ctx: AnyContext, any_client_file_path: str):
     existing_any_client_code = read_file(any_client_file_path)
-    app_name = os.path.basename(APP_DIR)
     snake_entity_name = to_snake_case(ctx.input.entity)
     snake_plural_entity_name = to_snake_case(ctx.input.plural)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
-    any_client_method = read_file(
-        file_path=os.path.join(
-            os.path.dirname(__file__), "template", "any_client_method.py"
-        ),
-        replace_map={
-            "my_entity": snake_entity_name,
-            "my_entities": snake_plural_entity_name,
-            "MyEntity": pascal_entity_name,
-        },
-    )
-    new_code = append_code_to_class(
-        existing_any_client_code, "AnyClient", any_client_method
-    )
     write_file(
         file_path=any_client_file_path,
         content=[
-            f"from {app_name}.schema.{snake_entity_name} import (",
-            f"    {pascal_entity_name}CreateWithAudit, {pascal_entity_name}Response, {pascal_entity_name}UpdateWithAudit",  # noqa
-            ")",
-            new_code.strip(),
+            _get_import_schema_for_any_client_code(
+                existing_code=existing_any_client_code, entity_name=ctx.input.entity
+            ),
+            append_code_to_class(
+                original_code=existing_any_client_code,
+                class_name="AnyClient",
+                new_code=read_file(
+                    file_path=os.path.join(
+                        os.path.dirname(__file__), "template", "any_client_method.py"
+                    ),
+                    replace_map={
+                        "my_entity": snake_entity_name,
+                        "my_entities": snake_plural_entity_name,
+                        "MyEntity": pascal_entity_name,
+                    },
+                ),
+            ),
         ],
     )
+
+
+def _get_import_schema_for_any_client_code(
+    existing_code: str, entity_name: str
+) -> str | None:
+    snake_entity_name = to_snake_case(entity_name)
+    pascal_entity_name = to_pascal_case(entity_name)
+    schema_import_path = f"my_app_name.schema.{snake_entity_name}"
+    new_code = "\n".join(
+        [
+            f"from {schema_import_path} import (",
+            f"   Multiple{pascal_entity_name}Response,",
+            f"   {pascal_entity_name}Create,",
+            f"   {pascal_entity_name}CreateWithAudit,",
+            f"   {pascal_entity_name}Response,",
+            f"   {pascal_entity_name}Update,",
+            f"   {pascal_entity_name}UpdateWithAudit,",
+            ")",
+        ]
+    )
+    if new_code in existing_code:
+        return None
+    return new_code
 
 
 def update_api_client(ctx: AnyContext, api_client_file_path: str):

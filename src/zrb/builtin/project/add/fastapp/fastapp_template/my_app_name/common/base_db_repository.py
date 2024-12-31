@@ -32,11 +32,14 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         """
         return select(self.db_model)
 
-    def _rows_to_responses(self, rows: list[Any]) -> list[ResponseModel]:
+    def _rows_to_responses(self, rows: list[tuple[Any]]) -> list[ResponseModel]:
         """
         Transforms query result rows into a list of ResponseModel.
+        Rows is typically a list of tuple since both of these return list of tuples:
+        - session.exec(select(Model)).all() --> [(Model,), ...]
+        - session.exec(select(Model, Other).join(Other)).all() --> [(Model, Other), ...]
         """
-        return [self.response_model(**row.model_dump()) for row in rows]
+        return [self.response_model(**row[0].model_dump()) for row in rows]
 
     def _ensure_one(self, responses: list[ResponseModel]) -> ResponseModel:
         """
@@ -49,7 +52,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
             raise InvalidValueError(f"Duplicate {self.entity_name}")
         return responses[0]
 
-    async def _execute_select_statement(self, statement: Select) -> list[Any]:
+    async def _execute_select_statement(self, statement: Select) -> list[tuple[Any]]:
         """
         Execute select statement and return the result.
         """

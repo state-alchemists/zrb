@@ -45,7 +45,9 @@ class UserDBRepository(
             .join(Permission, Permission.id == RolePermission.role_id, isouter=True)
         )
 
-    def _rows_to_responses(self, rows: list[Any]) -> UserResponse:
+    def _rows_to_responses(
+        self, rows: list[tuple[User, Role, Permission]]
+    ) -> UserResponse:
         user_map: dict[str, dict[str, Any]] = {}
         for user, role, permission in rows:
             if user.id not in user_map:
