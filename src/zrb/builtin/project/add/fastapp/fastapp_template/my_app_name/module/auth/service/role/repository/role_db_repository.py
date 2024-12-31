@@ -52,6 +52,20 @@ class RoleDBRepository(
             for data in role_map.values()
         ]
 
+    async def add_permissions(self, role_id, permission_names: list[str]) -> Role:
+        # TODO: complete this
+        select_statement = self._select().where(self.db_model.id == role_id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one(responses)
+
+    async def remove_permissions(self, role_id, permission_names: list[str]) -> Role:
+        # TODO: complete this
+        select_statement = self._select().where(self.db_model.id == role_id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one(responses)
+
     async def create(self, data: RoleCreateWithAudit) -> RoleResponse:
         permission_names = data.permissions if data.permissions else []
         # Insert role
