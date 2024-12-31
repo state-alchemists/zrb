@@ -13,6 +13,7 @@ class UserBase(SQLModel):
 
 class UserCreate(UserBase):
     password: str
+    roles: list[str] | None = None
 
 
 class UserCreateWithAudit(UserCreate):

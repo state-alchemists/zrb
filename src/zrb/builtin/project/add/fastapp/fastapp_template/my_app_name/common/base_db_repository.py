@@ -68,6 +68,17 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         """
         Create a new record and return the created ResponseModel.
         """
+        db_instance = await self._create(data)
+        # Fetch the created record using the default select
+        select_statement = self._select().where(self.db_model.id == db_instance.id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one(responses)
+
+    async def _create(self, data: CreateModel) -> DBModel:
+        """
+        Create a new record and return the created DBModel.
+        """
         new_data = data.model_dump(exclude_unset=True)
         if hasattr(self.db_model, "created_at"):
             new_data["created_at"] = datetime.datetime.now(datetime.timezone.utc)
@@ -89,11 +100,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.add(db_instance)
                 session.commit()
                 session.refresh(db_instance)
-        # Fetch the created record using the default select
-        select_statement = self._select().where(self.db_model.id == db_instance.id)
-        rows = await self._execute_select_statement(select_statement)
-        responses = self._rows_to_responses(rows)
-        return self._ensure_one(responses)
+        return db_instance
 
     async def get_by_id(self, item_id: str) -> ResponseModel:
         """
@@ -146,10 +153,20 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         """
         Update an existing record by ID and return the updated ResponseModel.
         """
+        await self._update(item_id, data)
+        # Fetch updated instance
+        select_statement = self._select().where(self.db_model.id == item_id)
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return self._ensure_one(responses)
+
+    async def _update(self, item_id: str, data: UpdateModel) -> ResponseModel:
+        """
+        Update an existing record by ID and return the updated DBModel.
+        """
         update_data = data.model_dump(exclude_unset=True)
         if hasattr(self.db_model, "updated_at"):
             update_data["updated_at"] = datetime.datetime.now(datetime.timezone.utc)
-
         for key, value in update_data.items():
             if not hasattr(self.db_model, key):
                 raise InvalidValueError(f"Invalid {self.entity_name} property: {key}")
@@ -166,6 +183,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.add(db_instance)
                 await session.commit()
                 await session.refresh(db_instance)
+                return db_instance
         else:
             with Session(self.engine) as session:
                 db_instance = session.get(self.db_model, item_id)
@@ -176,13 +194,18 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.add(db_instance)
                 session.commit()
                 session.refresh(db_instance)
-        # Fetch updated instance
-        select_statement = self._select().where(self.db_model.id == item_id)
-        rows = await self._execute_select_statement(select_statement)
-        responses = self._rows_to_responses(rows)
-        return self._ensure_one(responses)
+                return db_instance
 
     async def create_bulk(self, data_list: list[CreateModel]) -> list[ResponseModel]:
+        db_instances = self._create_bulk(data_list)
+        select_statement = self._select().where(
+            self.db_model.id.in_([instance.id for instance in db_instances])
+        )
+        rows = await self._execute_select_statement(select_statement)
+        responses = self._rows_to_responses(rows)
+        return responses
+
+    async def _create_bulk(self, data_list: list[CreateModel]) -> list[ResponseModel]:
         db_instances = []
         now = datetime.datetime.now(datetime.timezone.utc)
         for data in data_list:
@@ -207,12 +230,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
                 session.add_all(db_instances)
                 session.commit()
                 session.refresh(db_instances)
-        select_statement = self._select().where(
-            self.db_model.id.in_([instance.id for instance in db_instances])
-        )
-        rows = await self._execute_select_statement(select_statement)
-        responses = self._rows_to_responses(rows)
-        return responses
+        return db_instances
 
     async def delete(self, item_id: str) -> ResponseModel:
         select_statement = self._select().where(self.db_model.id == item_id)

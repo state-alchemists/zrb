@@ -12,6 +12,7 @@ class RoleBase(SQLModel):
 
 class RoleCreate(RoleBase):
     description: str
+    permissions: list[str] | None = None
 
 
 class RoleCreateWithAudit(RoleCreate):
