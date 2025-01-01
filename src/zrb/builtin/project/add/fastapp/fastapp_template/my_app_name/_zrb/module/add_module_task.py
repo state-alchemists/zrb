@@ -50,6 +50,7 @@ scaffold_my_app_name_module = Scaffolder(
             transform={
                 "MY_MODULE": "{to_snake_case(ctx.input.module).upper()}",
                 "my_module": "{to_snake_case(ctx.input.module)}",
+                "MyModule": "{to_pascal_case(ctx.input.module)}",
             },
         ),
         # Gateway's module subroute (my_app_name/module/gateway/subroute/snake_module_name.py)

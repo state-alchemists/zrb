@@ -8,7 +8,7 @@ from zrb.util.codemod.append_code_to_function import append_code_to_function
 from zrb.util.codemod.prepend_code_to_module import prepend_code_to_module
 from zrb.util.codemod.prepend_parent_to_class import prepend_parent_class
 from zrb.util.file import read_file, write_file
-from zrb.util.string.conversion import to_pascal_case, to_snake_case
+from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 
 
 def is_in_app_schema_dir(ctx: AnyContext, file_path: str) -> bool:
@@ -49,13 +49,13 @@ def is_module_migration_metadata_file(ctx: AnyContext, file_path: str) -> bool:
     return file_path == module_migration_metadata_file
 
 
-def is_module_any_client_file(ctx: AnyContext, file_path: str) -> bool:
+def is_module_client_file(ctx: AnyContext, file_path: str) -> bool:
     module_any_client_file = os.path.join(
         APP_DIR,
         "module",
         to_snake_case(ctx.input.module),
         "client",
-        "any_client.py",
+        f"{to_snake_case(ctx.input.module)}_client.py",
     )
     return file_path == module_any_client_file
 
@@ -66,7 +66,7 @@ def is_module_api_client_file(ctx: AnyContext, file_path: str) -> bool:
         "module",
         to_snake_case(ctx.input.module),
         "client",
-        "api_client.py",
+        f"{to_snake_case(ctx.input.module)}_api_client.py",
     )
     return file_path == module_api_client_file
 
@@ -77,7 +77,7 @@ def is_module_direct_client_file(ctx: AnyContext, file_path: str) -> bool:
         "module",
         to_snake_case(ctx.input.module),
         "client",
-        "direct_client.py",
+        f"{to_snake_case(ctx.input.module)}_direct_client.py",
     )
     return file_path == module_direct_client_file
 
@@ -93,24 +93,24 @@ def is_module_gateway_subroute_file(ctx: AnyContext, file_path: str) -> bool:
     return file_path == module_gateway_subroute_file
 
 
-def update_migration_metadata(ctx: AnyContext, migration_metadata_file_path: str):
+def update_migration_metadata_file(ctx: AnyContext, migration_metadata_file_path: str):
     app_name = os.path.basename(APP_DIR)
     existing_migration_metadata_code = read_file(migration_metadata_file_path)
     write_file(
         file_path=migration_metadata_file_path,
         content=[
-            _get_import_schema_code(
+            _get_migration_import_schema_code(
                 existing_migration_metadata_code, app_name, ctx.input.entity
             ),
             existing_migration_metadata_code.strip(),
-            _get_entity_metadata_assignment_code(
+            _get_migration_entity_metadata_assignment_code(
                 existing_migration_metadata_code, ctx.input.entity
             ),
         ],
     )
 
 
-def _get_import_schema_code(
+def _get_migration_import_schema_code(
     existing_code: str, app_name: str, entity_name: str
 ) -> str | None:
     snake_entity_name = to_snake_case(entity_name)
@@ -122,7 +122,7 @@ def _get_import_schema_code(
     return import_schema_code
 
 
-def _get_entity_metadata_assignment_code(
+def _get_migration_entity_metadata_assignment_code(
     existing_code: str, entity_name: str
 ) -> str | None:
     pascal_entity_name = to_pascal_case(entity_name)
@@ -137,23 +137,24 @@ def _get_entity_metadata_assignment_code(
     return entity_metadata_assignment_code
 
 
-def update_any_client(ctx: AnyContext, any_client_file_path: str):
-    existing_any_client_code = read_file(any_client_file_path)
+def update_client_file(ctx: AnyContext, client_file_path: str):
+    existing_client_code = read_file(client_file_path)
+    pascal_module_name = to_pascal_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
     snake_plural_entity_name = to_snake_case(ctx.input.plural)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
     write_file(
-        file_path=any_client_file_path,
+        file_path=client_file_path,
         content=[
-            _get_import_schema_for_any_client_code(
-                existing_code=existing_any_client_code, entity_name=ctx.input.entity
+            _get_import_schema_for_client_code(
+                existing_code=existing_client_code, entity_name=ctx.input.entity
             ),
             append_code_to_class(
-                original_code=existing_any_client_code,
-                class_name="AnyClient",
+                original_code=existing_client_code,
+                class_name=f"{pascal_module_name}Client",
                 new_code=read_file(
                     file_path=os.path.join(
-                        os.path.dirname(__file__), "template", "any_client_method.py"
+                        os.path.dirname(__file__), "template", "client_method.py"
                     ),
                     replace_map={
                         "my_entity": snake_entity_name,
@@ -166,7 +167,7 @@ def update_any_client(ctx: AnyContext, any_client_file_path: str):
     )
 
 
-def _get_import_schema_for_any_client_code(
+def _get_import_schema_for_client_code(
     existing_code: str, entity_name: str
 ) -> str | None:
     snake_entity_name = to_snake_case(entity_name)
@@ -189,12 +190,13 @@ def _get_import_schema_for_any_client_code(
     return new_code
 
 
-def update_api_client(ctx: AnyContext, api_client_file_path: str):
+def update_api_client_file(ctx: AnyContext, api_client_file_path: str):
     existing_api_client_code = read_file(api_client_file_path)
     upper_snake_module_name = to_snake_case(ctx.input.module).upper()
     app_name = os.path.basename(APP_DIR)
     snake_entity_name = to_snake_case(ctx.input.entity)
     snake_module_name = to_snake_case(ctx.input.module)
+    pascal_module_name = to_pascal_case(ctx.input.module)
     write_file(
         file_path=api_client_file_path,
         content=[
@@ -202,7 +204,7 @@ def update_api_client(ctx: AnyContext, api_client_file_path: str):
             prepend_code_to_module(
                 prepend_parent_class(
                     original_code=existing_api_client_code,
-                    class_name="APIClient",
+                    class_name=f"{pascal_module_name}APIClient",
                     parent_class_name=f"{snake_entity_name}_api_client",
                 ),
                 f"{snake_entity_name}_api_client = {snake_entity_name}_service.as_api_client(base_url=APP_{upper_snake_module_name}_BASE_URL)",  # noqa
@@ -211,11 +213,12 @@ def update_api_client(ctx: AnyContext, api_client_file_path: str):
     )
 
 
-def update_direct_client(ctx: AnyContext, direct_client_file_path: str):
+def update_direct_client_file(ctx: AnyContext, direct_client_file_path: str):
     existing_direct_client_code = read_file(direct_client_file_path)
     app_name = os.path.basename(APP_DIR)
     snake_entity_name = to_snake_case(ctx.input.entity)
     snake_module_name = to_snake_case(ctx.input.module)
+    pascal_module_name = to_pascal_case(ctx.input.module)
     write_file(
         file_path=direct_client_file_path,
         content=[
@@ -223,7 +226,7 @@ def update_direct_client(ctx: AnyContext, direct_client_file_path: str):
             prepend_code_to_module(
                 prepend_parent_class(
                     original_code=existing_direct_client_code,
-                    class_name="DirectClient",
+                    class_name=f"{pascal_module_name}DirectClient",
                     parent_class_name=f"{snake_entity_name}_direct_client",
                 ),
                 f"{snake_entity_name}_direct_client = {snake_entity_name}_service.as_direct_client()",  # noqa
@@ -232,7 +235,7 @@ def update_direct_client(ctx: AnyContext, direct_client_file_path: str):
     )
 
 
-def update_route(ctx: AnyContext, route_file_path: str):
+def update_route_file(ctx: AnyContext, route_file_path: str):
     existing_route_code = read_file(route_file_path)
     entity_name = to_snake_case(ctx.input.entity)
     app_name = os.path.basename(APP_DIR)
@@ -250,10 +253,11 @@ def update_route(ctx: AnyContext, route_file_path: str):
     )
 
 
-def update_gateway_subroute(ctx: AnyContext, module_gateway_subroute_path: str):
+def update_gateway_subroute_file(ctx: AnyContext, module_gateway_subroute_path: str):
     snake_module_name = to_snake_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
     snake_plural_entity_name = to_snake_case(ctx.input.plural)
+    kebab_plural_entity_name = to_kebab_case(ctx.input.plural)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
     existing_gateway_subroute_code = read_file(module_gateway_subroute_path)
     write_file(
@@ -276,6 +280,7 @@ def update_gateway_subroute(ctx: AnyContext, module_gateway_subroute_path: str):
                         "my_module": snake_module_name,
                         "my_entity": snake_entity_name,
                         "my_entities": snake_plural_entity_name,
+                        "my-entities": kebab_plural_entity_name,
                         "MyEntity": pascal_entity_name,
                     },
                 ),
@@ -288,8 +293,8 @@ def _get_import_client_for_gateway_subroute_code(
     existing_code: str, module_name: str
 ) -> str | None:
     snake_module_name = to_snake_case(module_name)
-    client_import_path = f"my_app_name.module.{snake_module_name}.client.factory"
-    new_code = f"from {client_import_path} import client as {snake_module_name}_client"
+    client_import_path = f"my_app_name.module.{snake_module_name}.client.{snake_module_name}_client_factory"  # noqa
+    new_code = f"from {client_import_path} import {snake_module_name}_client"
     if new_code in existing_code:
         return None
     return new_code
@@ -306,10 +311,8 @@ def _get_import_schema_for_gateway_subroute_code(
             f"from {schema_import_path} import (",
             f"   Multiple{pascal_entity_name}Response,",
             f"   {pascal_entity_name}Create,",
-            f"   {pascal_entity_name}CreateWithAudit,",
             f"   {pascal_entity_name}Response,",
             f"   {pascal_entity_name}Update,",
-            f"   {pascal_entity_name}UpdateWithAudit,",
             ")",
         ]
     )

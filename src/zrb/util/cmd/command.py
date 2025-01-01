@@ -62,6 +62,7 @@ async def run_command(
             log_method(line)
         return "\n".join(lines)
 
+    cmd_process = None
     try:
         if cwd is None:
             cwd = os.getcwd()

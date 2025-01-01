@@ -9,30 +9,51 @@ from my_app_name.schema.my_entity import (
 
 
 class MyEntityRepository(ABC):
-    @abstractmethod
-    async def create(self, my_entity_data: MyEntityCreateWithAudit) -> MyEntityResponse:
-        pass
 
     @abstractmethod
-    async def get_by_id(self, my_entity_id: str) -> MyEntity:
-        pass
+    async def get_by_id(self, id: str) -> MyEntityResponse:
+        """Get my entity by id"""
 
     @abstractmethod
-    async def get_all(self) -> list[MyEntity]:
-        pass
+    async def get_by_ids(self, id_list: list[str]) -> MyEntityResponse:
+        """Get my entities by ids"""
 
     @abstractmethod
-    async def update(
-        self, my_entity_id: str, my_entity_data: MyEntityUpdateWithAudit
-    ) -> MyEntity:
-        pass
+    async def get(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        filter: str | None = None,
+        sort: str | None = None,
+    ) -> list[MyEntity]:
+        """Get my entities by filter and sort"""
 
     @abstractmethod
-    async def delete(self, my_entity_id: str) -> MyEntity:
-        pass
+    async def count(self, filter: str | None = None) -> int:
+        """Count my entities by filter"""
 
     @abstractmethod
-    async def create_bulk(
-        self, my_entity_data_list: list[MyEntityCreateWithAudit]
-    ) -> list[MyEntityResponse]:
-        pass
+    async def create(self, data: MyEntityCreateWithAudit) -> MyEntity:
+        """Create a new my entity"""
+
+    @abstractmethod
+    async def create_bulk(self, data: list[MyEntityCreateWithAudit]) -> list[MyEntity]:
+        """Create some my entities"""
+
+    @abstractmethod
+    async def delete(self, id: str) -> MyEntity:
+        """Delete a my entity"""
+
+    @abstractmethod
+    async def delete_bulk(self, id_list: list[str]) -> list[MyEntity]:
+        """Delete some my entities"""
+
+    @abstractmethod
+    async def update(self, id: str, data: MyEntityUpdateWithAudit) -> MyEntity:
+        """Update a my entity"""
+
+    @abstractmethod
+    async def update_bulk(
+        self, id_list: list[str], data: MyEntityUpdateWithAudit
+    ) -> list[MyEntity]:
+        """Update some my entities"""

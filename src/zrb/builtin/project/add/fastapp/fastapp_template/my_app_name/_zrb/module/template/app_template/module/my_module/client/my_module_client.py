@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class AnyClient(ABC):
+class MyModuleClient(ABC):
     """
     Defining client methods
     """

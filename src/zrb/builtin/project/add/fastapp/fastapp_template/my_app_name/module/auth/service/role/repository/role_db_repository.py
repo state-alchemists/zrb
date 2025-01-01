@@ -66,34 +66,6 @@ class RoleDBRepository(
         responses = self._rows_to_responses(rows)
         return self._ensure_one(responses)
 
-    async def create(self, data: RoleCreateWithAudit) -> RoleResponse:
-        permission_names = data.permissions if data.permissions else []
-        # Insert role
-        data = _remove_create_model_additional_property(data)
-        new_role = await self._create(data)
-        select_statement = self._select().where(self.db_model.id == new_role.id)
-        rows = await self._execute_select_statement(select_statement)
-        # Create role permissions
-        # TODO: work on this
-        responses = self._rows_to_responses(rows)
-        return self._ensure_one(responses)
-
-    async def create_bulk(self, data_list: list[RoleCreateWithAudit]) -> list[Role]:
-        permission_names_list = [data.permission_names for data in data_list]
-        # Insert roles
-        data_list = [
-            _remove_create_model_additional_property(data) for data in data_list
-        ]
-        db_instances = await self._create_bulk(data_list)
-        select_statement = self._select().where(
-            self.db_model.id.in_([instance.id for instance in db_instances])
-        )
-        rows = await self._execute_select_statement(select_statement)
-        # Create role permissions
-        # TODO worn this
-        responses = self._rows_to_responses(rows)
-        return responses
-
 
 def _remove_create_model_additional_property(
     data: RoleCreateWithAudit,

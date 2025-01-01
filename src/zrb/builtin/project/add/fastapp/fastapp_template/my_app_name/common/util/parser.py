@@ -98,6 +98,8 @@ def create_default_filter_param_parser() -> (
                         filters.append(column.in_(value.split(";")))
         return filters
 
+    return parse_filter_param
+
 
 def split_by_comma(s: str, delimiter: str = ",") -> list[str]:
     return re.split(r"(?<!\\)" + re.escape(delimiter), s)

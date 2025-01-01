@@ -242,7 +242,29 @@ class BaseTask(AnyTask):
     def run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
-        return asyncio.run(self.async_run(session, str_kwargs))
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(self._run_and_cleanup(session, str_kwargs))
+        finally:
+            loop.close()
+
+    async def _run_and_cleanup(
+        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
+    ) -> Any:
+        try:
+            result = await self.async_run(session, str_kwargs)
+        finally:
+            if not session.is_terminated:
+                session.terminate()
+            # Cancel all running tasks except the current one
+            current_task = asyncio.current_task()
+            pending = [task for task in asyncio.all_tasks() if task is not current_task]
+            for task in pending:
+                task.cancel()
+            # Wait for all tasks to complete with a timeout
+            if pending:
+                await asyncio.wait(pending, timeout=5)
+        return result
 
     async def async_run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
@@ -455,7 +477,7 @@ class BaseTask(AnyTask):
                 ctx.log_info("Marked as failed")
                 session.get_task_status(self).mark_as_failed()
                 return
-            except Exception as e:
+            except BaseException as e:
                 ctx.log_error(e)
                 if attempt < max_attempt - 1:
                     ctx.log_info("Marked as failed")

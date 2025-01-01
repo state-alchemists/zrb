@@ -9,30 +9,51 @@ from my_app_name.schema.role import (
 
 
 class RoleRepository(ABC):
-    @abstractmethod
-    async def create(self, role_data: RoleCreateWithAudit) -> RoleResponse:
-        pass
 
     @abstractmethod
-    async def get_by_id(self, role_id: str) -> RoleResponse:
-        pass
+    async def get_by_id(self, id: str) -> RoleResponse:
+        """Get role by id"""
 
     @abstractmethod
-    async def get_all(self) -> list[Role]:
-        pass
+    async def get_by_ids(self, id_list: list[str]) -> RoleResponse:
+        """Get roles by ids"""
 
     @abstractmethod
-    async def update(
-        self, role_id: str, role_data: RoleUpdateWithAudit
-    ) -> RoleResponse:
-        pass
+    async def get(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        filter: str | None = None,
+        sort: str | None = None,
+    ) -> list[Role]:
+        """Get roles by filter and sort"""
 
     @abstractmethod
-    async def delete(self, role_id: str) -> RoleResponse:
-        pass
+    async def count(self, filter: str | None = None) -> int:
+        """Count roles by filter"""
 
     @abstractmethod
-    async def create_bulk(
-        self, role_data_list: list[RoleCreateWithAudit]
-    ) -> list[RoleResponse]:
-        pass
+    async def create(self, data: RoleCreateWithAudit) -> Role:
+        """Create a new role"""
+
+    @abstractmethod
+    async def create_bulk(self, data: list[RoleCreateWithAudit]) -> list[Role]:
+        """Create some roles"""
+
+    @abstractmethod
+    async def delete(self, id: str) -> Role:
+        """Delete a role"""
+
+    @abstractmethod
+    async def delete_bulk(self, id_list: list[str]) -> list[Role]:
+        """Delete some roles"""
+
+    @abstractmethod
+    async def update(self, id: str, data: RoleUpdateWithAudit) -> Role:
+        """Update a role"""
+
+    @abstractmethod
+    async def update_bulk(
+        self, id_list: list[str], data: RoleUpdateWithAudit
+    ) -> list[Role]:
+        """Update some roles"""

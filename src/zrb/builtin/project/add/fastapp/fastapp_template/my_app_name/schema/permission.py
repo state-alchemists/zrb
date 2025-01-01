@@ -12,6 +12,9 @@ class PermissionBase(SQLModel):
 class PermissionCreate(PermissionBase):
     description: str
 
+    def with_audit(self, created_by: str) -> "PermissionCreateWithAudit":
+        return PermissionCreateWithAudit(**self.model_dump(), created_by=created_by)
+
 
 class PermissionCreateWithAudit(PermissionCreate):
     created_by: str
@@ -20,6 +23,9 @@ class PermissionCreateWithAudit(PermissionCreate):
 class PermissionUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
+
+    def with_audit(self, updated_by: str) -> "PermissionUpdateWithAudit":
+        return PermissionUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
 
 
 class PermissionUpdateWithAudit(PermissionUpdate):

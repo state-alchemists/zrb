@@ -14,11 +14,23 @@ class SessionBase(SQLModel):
 
 
 class SessionCreate(SessionBase):
-    pass
+
+    def with_audit(self, created_by: str) -> "SessionCreateWithAudit":
+        return SessionCreateWithAudit(**self.model_dump(), created_by=created_by)
+
+
+class SessionCreateWithAudit(SessionCreate):
+    created_by: str
 
 
 class SessionUpdate(SessionBase):
-    pass
+
+    def with_audit(self, updated_by: str) -> "SessionUpdateWithAudit":
+        return SessionUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
+
+
+class SessionUpdateWithAudit(SessionUpdate):
+    updated_by: str
 
 
 class SessionResponse(SessionBase):

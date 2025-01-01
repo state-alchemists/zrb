@@ -10,7 +10,8 @@ class MyEntityBase(SQLModel):
 
 
 class MyEntityCreate(MyEntityBase):
-    pass
+    def with_audit(self, created_by: str) -> "MyEntityCreateWithAudit":
+        return MyEntityCreateWithAudit(**self.model_dump(), created_by=created_by)
 
 
 class MyEntityCreateWithAudit(MyEntityCreate):
@@ -19,6 +20,9 @@ class MyEntityCreateWithAudit(MyEntityCreate):
 
 class MyEntityUpdate(SQLModel):
     my_column: str | None = None
+
+    def with_audit(self, updated_by: str) -> "MyEntityUpdateWithAudit":
+        return MyEntityUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
 
 
 class MyEntityUpdateWithAudit(MyEntityUpdate):

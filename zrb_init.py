@@ -18,7 +18,9 @@ from zrb import (
 )
 from zrb.builtin.git import git_commit
 from zrb.cmd.cmd_val import CmdVal
+from zrb.config import DEFAULT_SHELL
 from zrb.util.cli.style import WHITE
+from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file
 from zrb.util.load import load_file
 
@@ -183,45 +185,36 @@ async def test_generate(ctx: AnyContext):
     # Create project
     project_dir = os.path.join(_DIR, "playground", "generated")
     project_name = "Amalgam"
-    await run_cmd_test(
-        name="make-project",
-        cmd=f"zrb project create --project-dir {project_dir} --project {project_name}",
+
+    await run_shell_script(
+        f"zrb project create --project-dir {project_dir} --project {project_name}"
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Create fastapp
     app_name = "fastapp"
-    await run_cmd_test(
-        name="make-fastapp",
-        cmd=f"zrb project add fastapp --project-dir {project_dir} --app {app_name}",
+    await run_shell_script(
+        f"zrb project add fastapp --project-dir {project_dir} --app {app_name}"
     )
     assert os.path.isdir(os.path.join(project_dir, app_name))
     # Create module
     app_dir_path = os.path.join(project_dir, app_name)
-    await run_cmd_test(
-        name="make-module", cmd="zrb project fastapp create module --module library"
-    )
+    await run_shell_script("zrb project fastapp create module --module library")
     assert os.path.isdir(os.path.join(app_dir_path, "module", "library"))
     # Create entity
-    await run_cmd_test(
-        name="make-entity",
-        cmd="zrb project fastapp create entity --module library --entity book --plural books --column title",  # noqa
+    await run_shell_script(
+        "zrb project fastapp create entity --module library --entity book --plural books --column title"  # noqa
     )
     assert os.path.isfile(os.path.join(app_dir_path, "schema", "book.py"))
     # Create column
-    await run_cmd_test(
-        name="make-column",
-        cmd="zrb project fastapp create column --module library --entity book --column isbn --type str",  # noqa
+    await run_shell_script(
+        "zrb project fastapp create column --module library --entity book --column isbn --type str"  # noqa
     )
     # Create migration
-    await run_cmd_test(
-        name="make-migration",
-        cmd='zrb project fastapp create migration library --message "test migration"',
+    await run_shell_script(
+        'zrb project fastapp create migration library --message "test migration"'
     )
     # Start microservices
-    await run_cmd_test(
-        name="run-all",
-        cmd="zrb project fastapp run all",
-    )
+    await run_shell_script("zrb project fastapp run all")
 
 
 remove_generated >> test_generate
@@ -246,12 +239,10 @@ if os.path.isfile(generated_zrb_init_path):
         traceback.print_exc()
 
 
-async def run_cmd_test(name: str, cmd: CmdVal) -> Any:
-    return await CmdTask(
-        name=name,
-        icon="🧪",
-        color=WHITE,
-        retries=0,
-        env=Env("ZRB_SHOW_TIME", "False", link_to_os=False),
-        cmd=cmd,
-    ).async_run()
+async def run_shell_script(script: str) -> Any:
+    shell = DEFAULT_SHELL
+    flag = "/c" if shell.lower() == "powershell" else "-c"
+    return await run_command(
+        cmd=[shell, flag, script],
+        cwd=_DIR,
+    )

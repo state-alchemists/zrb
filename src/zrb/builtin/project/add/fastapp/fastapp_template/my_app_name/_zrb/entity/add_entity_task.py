@@ -4,18 +4,18 @@ from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from my_app_name._zrb.entity.add_entity_util import (
     is_in_app_schema_dir,
     is_in_module_entity_dir,
-    is_module_any_client_file,
     is_module_api_client_file,
+    is_module_client_file,
     is_module_direct_client_file,
     is_module_gateway_subroute_file,
     is_module_migration_metadata_file,
     is_module_route_file,
-    update_any_client,
-    update_api_client,
-    update_direct_client,
-    update_gateway_subroute,
-    update_migration_metadata,
-    update_route,
+    update_api_client_file,
+    update_client_file,
+    update_direct_client_file,
+    update_gateway_subroute_file,
+    update_migration_metadata_file,
+    update_route_file,
 )
 from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import app_create_group
@@ -26,9 +26,11 @@ from my_app_name._zrb.input import (
     plural_entity_input,
 )
 from my_app_name._zrb.util import (
-    create_prepare_migration_script,
+    cd_module_script,
     get_existing_module_names,
     get_existing_schema_names,
+    set_create_migration_db_url_env,
+    set_env,
 )
 from my_app_name._zrb.venv_task import prepare_venv
 
@@ -107,38 +109,41 @@ scaffold_my_app_name_entity = Scaffolder(
         ContentTransformer(
             name="transform-module-migration-metadata",
             match=is_module_migration_metadata_file,
-            transform=update_migration_metadata,
+            transform=update_migration_metadata_file,
         ),
-        # Update API Client (my_app_name/module/snake_module_name/client/api_client.py)
+        # Update API Client
+        # (my_app_name/module/snake_module_name/client/snake_module_name_api_client.py)
         ContentTransformer(
             name="transform-module-api-client",
             match=is_module_api_client_file,
-            transform=update_api_client,
+            transform=update_api_client_file,
         ),
-        # Update Direct Client (my_app_name/module/snake_module_name/client/direct_client.py)
+        # Update Direct Client
+        # (my_app_name/module/snake_module_name/client/snake_module_name_direct_client.py)
         ContentTransformer(
             name="transform-module-direct-client",
             match=is_module_direct_client_file,
-            transform=update_direct_client,
+            transform=update_direct_client_file,
         ),
-        # Update Any Client (my_app_name/module/snake_module_name/client/any_client.py)
+        # Update Client
+        # (my_app_name/module/snake_module_name/client/snake_module_name_client.py)
         ContentTransformer(
             name="transform-module-any-client",
-            match=is_module_any_client_file,
-            transform=update_any_client,
+            match=is_module_client_file,
+            transform=update_client_file,
         ),
         # Update module route (my_app_name/module/route.py)
         ContentTransformer(
             name="transform-module-route",
             match=is_module_route_file,
-            transform=update_route,
+            transform=update_route_file,
         ),
         # Update module gateway subroute
         # (my_app_name/module/gateway/subroute/snake_module_name.py)
         ContentTransformer(
             name="transform-module-gateway-subroute",
             match=is_module_gateway_subroute_file,
-            transform=update_gateway_subroute,
+            transform=update_gateway_subroute_file,
         ),
     ],
     retries=0,
@@ -155,7 +160,9 @@ create_my_app_name_entity_migration = CmdTask(
     cwd=APP_DIR,
     cmd=[
         ACTIVATE_VENV_SCRIPT,
-        Cmd(lambda ctx: create_prepare_migration_script(ctx.input.module)),
+        Cmd(lambda ctx: set_create_migration_db_url_env(ctx.input.module)),
+        Cmd(lambda ctx: set_env("MY_APP_NAME_MODULES", ctx.input.module)),
+        Cmd(lambda ctx: cd_module_script(ctx.input.module)),
         "alembic upgrade head",
         Cmd(
             'alembic revision --autogenerate -m "create_{to_snake_case(ctx.input.entity)}_table"',  # noqa

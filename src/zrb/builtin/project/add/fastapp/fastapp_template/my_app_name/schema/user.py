@@ -15,6 +15,9 @@ class UserCreate(UserBase):
     password: str
     roles: list[str] | None = None
 
+    def with_audit(self, created_by: str) -> "UserCreateWithAudit":
+        return UserCreateWithAudit(**self.model_dump(), created_by=created_by)
+
 
 class UserCreateWithAudit(UserCreate):
     created_by: str
@@ -23,6 +26,9 @@ class UserCreateWithAudit(UserCreate):
 class UserUpdate(SQLModel):
     username: str | None = None
     password: str | None = None
+
+    def with_audit(self, updated_by: str) -> "UserUpdateWithAudit":
+        return UserUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
 
 
 class UserUpdateWithAudit(UserUpdate):

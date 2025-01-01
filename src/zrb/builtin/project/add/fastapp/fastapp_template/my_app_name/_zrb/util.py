@@ -26,7 +26,9 @@ def create_migration(name: str, module: str) -> Task:
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            create_prepare_migration_script(module),
+            set_create_migration_db_url_env(module),
+            set_module_env(module),
+            cd_module_script(module),
             "alembic upgrade head",
             Cmd(
                 "alembic revision --autogenerate -m {double_quote(ctx.input.message)}",
@@ -39,7 +41,11 @@ def create_migration(name: str, module: str) -> Task:
 
 
 def migrate_module(name: str, module: str, as_microservices: bool) -> Task:
-    env_vars = MICROSERVICES_ENV_VARS if as_microservices else MONOLITH_ENV_VARS
+    env_vars = (
+        dict(MICROSERVICES_ENV_VARS) if as_microservices else dict(MONOLITH_ENV_VARS)
+    )
+    if as_microservices:
+        env_vars["MY_APP_NAME_MODULES"] = to_snake_case(module)
     return CmdTask(
         name=(
             f"migrate-my-app-name-{name}"
@@ -54,7 +60,7 @@ def migrate_module(name: str, module: str, as_microservices: bool) -> Task:
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            create_prepare_migration_script(module),
+            cd_module_script(module),
             "alembic upgrade head",
         ],
         render_cmd=False,
@@ -71,14 +77,14 @@ def run_microservice(name: str, port: int, module: str) -> Task:
             EnvMap(
                 vars={
                     **MICROSERVICES_ENV_VARS,
-                    "MY_APP_NAME_PORT": f"{port}",
-                    "MY_APP_NAME_MODULES": f"{module}",
                 }
             ),
         ],
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
+            set_env("MY_APP_NAME_MODULES", module),
+            set_env("MY_APP_NAME_PORT", f"{port}"),
             'fastapi dev main.py --port "${MY_APP_NAME_PORT}"',
         ],
         render_cmd=False,
@@ -100,21 +106,23 @@ def get_existing_schema_names() -> list[str]:
     ]
 
 
-def create_prepare_migration_script(module_name: str) -> str:
-    module_dir_path = os.path.join(APP_DIR, "module", to_snake_case(module_name))
-    return "\n".join(
-        (
-            create_set_env_script(
-                "MY_APP_NAME_DB_URL",
-                f"sqlite:///{APP_DIR}/.migration.{to_snake_case(module_name)}.db",
-            ),
-            create_set_env_script("MY_APP_NAME_MODULES", to_snake_case(module_name)),
-            f"cd {module_dir_path}",
-        )
+def set_create_migration_db_url_env(module_name: str) -> str:
+    return set_env(
+        "MY_APP_NAME_DB_URL",
+        f"sqlite:///{APP_DIR}/.migration.{to_snake_case(module_name)}.db",
     )
 
 
-def create_set_env_script(var_name: str, var_value: str) -> str:
+def set_module_env(module_name: str) -> str:
+    return (set_env("MY_APP_NAME_MODULES", to_snake_case(module_name)),)
+
+
+def cd_module_script(module_name: str) -> str:
+    module_dir_path = os.path.join(APP_DIR, "module", to_snake_case(module_name))
+    return f"cd {module_dir_path}"
+
+
+def set_env(var_name: str, var_value: str) -> str:
     """
     Generates a script to set an environment variable depending on the OS.
     :param var_name: Name of the environment variable.

@@ -12,16 +12,45 @@ class RoleBase(SQLModel):
 
 class RoleCreate(RoleBase):
     description: str
-    permissions: list[str] | None = None
+
+    def with_audit(self, created_by: str) -> "RoleCreateWithAudit":
+        return RoleCreateWithAudit(**self.model_dump(), created_by=created_by)
 
 
 class RoleCreateWithAudit(RoleCreate):
     created_by: str
 
 
+class RoleCreateWithPermissions(RoleCreate):
+    permissions: list[str] | None = None
+
+    def with_audit(self, created_by: str) -> "RoleCreateWithPermissionsAndAudit":
+        return RoleCreateWithPermissionsAndAudit(
+            **self.model_dump(), created_by=created_by
+        )
+
+
+class RoleCreateWithPermissionsAndAudit(RoleCreateWithPermissions):
+    created_by: str
+
+    def get_role_create_with_audit(self) -> RoleCreateWithAudit:
+        data = {
+            key: val for key, val in self.model_dump().items() if key != "permissions"
+        }
+        return RoleCreateWithAudit(**data)
+
+    def get_permission_names(self) -> list[str]:
+        if self.permissions is None:
+            return []
+        return self.permissions
+
+
 class RoleUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
+
+    def with_audit(self, updated_by: str) -> "RoleUpdateWithAudit":
+        return RoleUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
 
 
 class RoleUpdateWithAudit(RoleUpdate):

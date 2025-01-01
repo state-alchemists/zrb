@@ -1,13 +1,11 @@
 from logging import Logger
 
 from my_app_name.common.base_service import BaseService
-from my_app_name.common.parser_factory import parse_filter_param, parse_sort_param
 from my_app_name.module.auth.service.role.repository.role_repository import (
     RoleRepository,
 )
 from my_app_name.schema.role import (
     MultipleRoleResponse,
-    Role,
     RoleCreateWithAudit,
     RoleResponse,
     RoleUpdateWithAudit,
@@ -15,6 +13,7 @@ from my_app_name.schema.role import (
 
 
 class RoleService(BaseService):
+
     def __init__(self, logger: Logger, role_repository: RoleRepository):
         super().__init__(logger)
         self.role_repository = role_repository
@@ -32,32 +31,45 @@ class RoleService(BaseService):
         methods=["get"],
         response_model=MultipleRoleResponse,
     )
-    async def get_all_roles(
+    async def get_roles(
         self,
         page: int = 1,
         page_size: int = 10,
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultipleRoleResponse:
-        filters = parse_filter_param(Role, filter) if filter else None
-        sorts = parse_sort_param(Role, sort) if sort else None
-        data = await self.role_repository.get_all(
-            page=page, page_size=page_size, filters=filters, sorts=sorts
-        )
-        count = await self.role_repository.count(filters=filters)
-        return MultipleRoleResponse(data=data, count=count)
+        roles = await self.role_repository.get(page, page_size, sort, filter)
+        count = await self.role_repository.count(filter)
+        return MultipleRoleResponse(data=roles, count=count)
 
     @BaseService.route(
         "/api/v1/roles",
         methods=["post"],
-        response_model=RoleResponse | list[RoleResponse],
+        response_model=RoleResponse,
     )
-    async def create_role(
-        self, data: RoleCreateWithAudit | list[RoleCreateWithAudit]
-    ) -> RoleResponse | list[RoleResponse]:
-        if isinstance(data, RoleCreateWithAudit):
-            return await self.role_repository.create(data)
-        return await self.role_repository.create_bulk(data)
+    async def create_role(self, data: RoleCreateWithAudit) -> RoleResponse:
+        role = await self.role_repository.create(data)
+        return await self.role_repository.get_by_id(role.id)
+
+    @BaseService.route(
+        "/api/v1/roles/bulk",
+        methods=["post"],
+        response_model=list[RoleResponse],
+    )
+    async def create_role(self, data: list[RoleCreateWithAudit]) -> list[RoleResponse]:
+        roles = await self.role_repository.create_bulk(data)
+        return await self.role_repository.get_by_ids([role.id for role in roles])
+
+    @BaseService.route(
+        "/api/v1/roles/bulk",
+        methods=["put"],
+        response_model=RoleResponse,
+    )
+    async def update_role_bulk(
+        self, role_ids: list[str], data: RoleUpdateWithAudit
+    ) -> RoleResponse:
+        roles = await self.role_repository.update_bulk(role_ids, data)
+        return await self.role_repository.get_by_ids([role.id for role in roles])
 
     @BaseService.route(
         "/api/v1/roles/{role_id}",
@@ -67,7 +79,17 @@ class RoleService(BaseService):
     async def update_role(
         self, role_id: str, data: RoleUpdateWithAudit
     ) -> RoleResponse:
-        return await self.role_repository.update(role_id, data)
+        role = await self.role_repository.update(role_id, data)
+        return await self.role_repository.get_by_id(role.id)
+
+    @BaseService.route(
+        "/api/v1/roles/{role_id}",
+        methods=["delete"],
+        response_model=RoleResponse,
+    )
+    async def delete_role_bulk(self, role_ids: str, deleted_by: str) -> RoleResponse:
+        roles = await self.role_repository.delete_bulk(role_ids)
+        return await self.role_repository.get_by_ids([role.id for role in roles])
 
     @BaseService.route(
         "/api/v1/roles/{role_id}",
@@ -75,4 +97,5 @@ class RoleService(BaseService):
         response_model=RoleResponse,
     )
     async def delete_role(self, role_id: str, deleted_by: str) -> RoleResponse:
-        return await self.role_repository.delete(role_id)
+        role = await self.role_repository.delete(role_id)
+        return await self.role_repository.get_by_id(role.id)
