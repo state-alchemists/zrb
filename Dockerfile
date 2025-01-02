@@ -21,6 +21,6 @@ RUN poetry config virtualenvs.create false
 
 # Install zrb
 COPY . .
-RUN poetry install
+RUN poetry install --without dev
 
 CMD ["zrb", "server", "start"]
