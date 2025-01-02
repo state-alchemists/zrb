@@ -38,7 +38,7 @@ class MyEntityService(BaseService):
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultipleMyEntityResponse:
-        my_entities = await self.my_entity_repository.get(page, page_size, sort, filter)
+        my_entities = await self.my_entity_repository.get(page, page_size, filter, sort)
         count = await self.my_entity_repository.count(filter)
         return MultipleMyEntityResponse(data=my_entities, count=count)
 
@@ -94,7 +94,7 @@ class MyEntityService(BaseService):
         response_model=MyEntityResponse,
     )
     async def delete_my_entity_bulk(
-        self, my_entity_ids: str, deleted_by: str
+        self, my_entity_ids: list[str], deleted_by: str
     ) -> MyEntityResponse:
         my_entities = await self.my_entity_repository.delete_bulk(my_entity_ids)
         return await self.my_entity_repository.get_by_ids(

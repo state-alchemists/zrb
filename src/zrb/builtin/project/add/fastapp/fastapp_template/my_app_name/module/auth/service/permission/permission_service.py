@@ -39,7 +39,7 @@ class PermissionService(BaseService):
         filter: str | None = None,
     ) -> MultiplePermissionResponse:
         permissions = await self.permission_repository.get(
-            page, page_size, sort, filter
+            page, page_size, filter, sort
         )
         count = await self.permission_repository.count(filter)
         return MultiplePermissionResponse(data=permissions, count=count)
@@ -98,7 +98,7 @@ class PermissionService(BaseService):
         response_model=PermissionResponse,
     )
     async def delete_permission_bulk(
-        self, permission_ids: str, deleted_by: str
+        self, permission_ids: list[str], deleted_by: str
     ) -> PermissionResponse:
         permissions = await self.permission_repository.delete_bulk(permission_ids)
         return await self.permission_repository.get_by_ids(

@@ -235,17 +235,18 @@ class CmdTask(BaseTask):
 
     def _render_cmd_val(self, ctx: AnyContext, cmd_val: CmdVal) -> str:
         if isinstance(cmd_val, list):
+            cmd_val_list = [
+                self.__render_single_cmd_val(ctx, single_cmd_val)
+                for single_cmd_val in cmd_val
+            ]
             return "\n".join(
-                [
-                    self.__render_single_cmd_val(ctx, single_cmd_val)
-                    for single_cmd_val in cmd_val
-                ]
+                [cmd_val for cmd_val in cmd_val_list if cmd_val is not None]
             )
         return self.__render_single_cmd_val(ctx, cmd_val)
 
     def __render_single_cmd_val(
         self, ctx: AnyContext, single_cmd_val: SingleCmdVal
-    ) -> str:
+    ) -> str | None:
         if callable(single_cmd_val):
             return single_cmd_val(ctx)
         if isinstance(single_cmd_val, str):
@@ -254,6 +255,7 @@ class CmdTask(BaseTask):
             return single_cmd_val
         if isinstance(single_cmd_val, AnyCmdVal):
             return single_cmd_val.to_str(ctx)
+        return None
 
     def __get_multiline_repr(self, text: str) -> str:
         lines_repr: list[str] = []

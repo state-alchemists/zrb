@@ -81,12 +81,12 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
             ]
 
     async def count(self, filter: str | None = None) -> int:
-        statement = select(func.count()).select_from(self._select().subquery())
+        count_statement = select(func.count(1)).select_from(self.db_model)
         if filter:
             filter_param = parse_filter_param(self.db_model, filter)
-            statement = statement.where(*filter_param)
+            count_statement = count_statement.where(*filter_param)
         async with self._session_scope() as session:
-            result = await self._execute_statement(session, statement)
+            result = await self._execute_statement(session, count_statement)
             return result.scalar_one()
 
     async def get(

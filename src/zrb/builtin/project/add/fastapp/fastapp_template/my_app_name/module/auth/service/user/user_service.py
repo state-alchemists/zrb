@@ -38,7 +38,7 @@ class UserService(BaseService):
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultipleUserResponse:
-        users = await self.user_repository.get(page, page_size, sort, filter)
+        users = await self.user_repository.get(page, page_size, filter, sort)
         count = await self.user_repository.count(filter)
         return MultipleUserResponse(data=users, count=count)
 
@@ -56,7 +56,9 @@ class UserService(BaseService):
         methods=["post"],
         response_model=list[UserResponse],
     )
-    async def create_user(self, data: list[UserCreateWithAudit]) -> list[UserResponse]:
+    async def create_user_bulk(
+        self, data: list[UserCreateWithAudit]
+    ) -> list[UserResponse]:
         users = await self.user_repository.create_bulk(data)
         return await self.user_repository.get_by_ids([user.id for user in users])
 
@@ -87,7 +89,9 @@ class UserService(BaseService):
         methods=["delete"],
         response_model=UserResponse,
     )
-    async def delete_user_bulk(self, user_ids: str, deleted_by: str) -> UserResponse:
+    async def delete_user_bulk(
+        self, user_ids: list[str], deleted_by: str
+    ) -> UserResponse:
         users = await self.user_repository.delete_bulk(user_ids)
         return await self.user_repository.get_by_ids([user.id for user in users])
 

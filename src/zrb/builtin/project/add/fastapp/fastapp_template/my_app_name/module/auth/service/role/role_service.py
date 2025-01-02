@@ -38,7 +38,7 @@ class RoleService(BaseService):
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultipleRoleResponse:
-        roles = await self.role_repository.get(page, page_size, sort, filter)
+        roles = await self.role_repository.get(page, page_size, filter, sort)
         count = await self.role_repository.count(filter)
         return MultipleRoleResponse(data=roles, count=count)
 
@@ -56,7 +56,9 @@ class RoleService(BaseService):
         methods=["post"],
         response_model=list[RoleResponse],
     )
-    async def create_role(self, data: list[RoleCreateWithAudit]) -> list[RoleResponse]:
+    async def create_role_bulk(
+        self, data: list[RoleCreateWithAudit]
+    ) -> list[RoleResponse]:
         roles = await self.role_repository.create_bulk(data)
         return await self.role_repository.get_by_ids([role.id for role in roles])
 
@@ -87,7 +89,9 @@ class RoleService(BaseService):
         methods=["delete"],
         response_model=RoleResponse,
     )
-    async def delete_role_bulk(self, role_ids: str, deleted_by: str) -> RoleResponse:
+    async def delete_role_bulk(
+        self, role_ids: list[str], deleted_by: str
+    ) -> RoleResponse:
         roles = await self.role_repository.delete_bulk(role_ids)
         return await self.role_repository.get_by_ids([role.id for role in roles])
 

@@ -173,6 +173,13 @@ def _create_api_client_method(logger: Logger, param: RouteParam, base_url: str):
         # Bind the arguments to the signature
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
+        # Analyze parameters
+        params = list(sig.parameters.values())
+        body_params = [
+            p
+            for p in params
+            if p.name != "self" and p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+        ]
         # Prepare the request
         path_params = {}
         query_params = {}
@@ -183,11 +190,14 @@ def _create_api_client_method(logger: Logger, param: RouteParam, base_url: str):
             if f"{{{name}}}" in param.path:
                 path_params[name] = value
             elif isinstance(value, BaseModel):
-                body = value.model_dump()
+                body = _parse_api_param(value)
             elif method in ["get", "delete"]:
-                query_params[name] = value
+                query_params[name] = _parse_api_param(value)
+            elif len(body_params) == 1 and name == body_params[0].name:
+                # If there's only one body parameter, use its value directly
+                body = _parse_api_param(value)
             else:
-                body[name] = value
+                body[name] = _parse_api_param(value)
         # Format the URL with path parameters
         url = url.format(**path_params)
         logger.info(
@@ -213,3 +223,14 @@ def _create_api_client_method(logger: Logger, param: RouteParam, base_url: str):
             return response.json()
 
     return client_method
+
+
+def _parse_api_param(data: Any) -> Any:
+    if isinstance(data, BaseModel):
+        return data.model_dump()
+    elif isinstance(data, list):
+        return [_parse_api_param(item) for item in data]
+    elif isinstance(data, dict):
+        return {key: _parse_api_param(value) for key, value in data.items()}
+    else:
+        return data

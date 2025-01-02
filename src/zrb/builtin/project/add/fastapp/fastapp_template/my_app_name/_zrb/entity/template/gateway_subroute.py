@@ -40,7 +40,7 @@ async def create_my_entity(data: MyEntityCreate):
     "/api/v1/my-entities/bulk",
     response_model=list[MyEntityResponse],
 )
-async def update_my_entity_bulk(my_entity_ids: str, data: MyEntityUpdate):
+async def update_my_entity_bulk(my_entity_ids: list[str], data: MyEntityUpdate):
     return await my_module_client.update_my_entity_bulk(
         my_entity_ids, data.with_audit(updated_by="system")
     )
@@ -58,7 +58,7 @@ async def update_my_entity(my_entity_id: str, data: MyEntityUpdate):
     "/api/v1/my-entities/bulk",
     response_model=list[MyEntityResponse],
 )
-async def delete_my_entity_bulk(my_entity_ids: str):
+async def delete_my_entity_bulk(my_entity_ids: list[str]):
     return await my_module_client.delete_my_entity_bulk(
         my_entity_ids, deleted_by="system"
     )

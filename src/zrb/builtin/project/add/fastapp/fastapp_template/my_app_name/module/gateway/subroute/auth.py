@@ -59,7 +59,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/permissions/bulk",
         response_model=list[PermissionResponse],
     )
-    async def update_permission_bulk(permission_ids: str, data: PermissionUpdate):
+    async def update_permission_bulk(permission_ids: list[str], data: PermissionUpdate):
         return await auth_client.update_permission_bulk(
             permission_ids, data.with_audit(updated_by="system")
         )
@@ -75,7 +75,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/permissions/bulk",
         response_model=list[PermissionResponse],
     )
-    async def delete_permission_bulk(permission_ids: str):
+    async def delete_permission_bulk(permission_ids: list[str]):
         return await auth_client.delete_permission_bulk(
             permission_ids, deleted_by="system"
         )
@@ -124,7 +124,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/roles/bulk",
         response_model=list[RoleResponse],
     )
-    async def update_role_bulk(role_ids: str, data: RoleUpdate):
+    async def update_role_bulk(role_ids: list[str], data: RoleUpdate):
         return await auth_client.update_role_bulk(
             role_ids, data.with_audit(updated_by="system")
         )
@@ -140,7 +140,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/roles/bulk",
         response_model=list[RoleResponse],
     )
-    async def delete_role_bulk(role_ids: str):
+    async def delete_role_bulk(role_ids: list[str]):
         return await auth_client.delete_role_bulk(role_ids, deleted_by="system")
 
     @app.delete(
@@ -187,7 +187,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/users/bulk",
         response_model=list[UserResponse],
     )
-    async def update_user_bulk(user_ids: str, data: UserUpdate):
+    async def update_user_bulk(user_ids: list[str], data: UserUpdate):
         return await auth_client.update_user_bulk(
             user_ids, data.with_audit(updated_by="system")
         )
@@ -203,7 +203,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/users/bulk",
         response_model=list[UserResponse],
     )
-    async def delete_user_bulk(user_ids: str):
+    async def delete_user_bulk(user_ids: list[str]):
         return await auth_client.delete_user_bulk(user_ids, deleted_by="system")
 
     @app.delete(
