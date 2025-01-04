@@ -46,7 +46,7 @@ def serve_auth_route(app: FastAPI):
         response_model=list[PermissionResponse],
     )
     async def create_permission_bulk(data: list[PermissionCreate]):
-        return await auth_client.create_permission(
+        return await auth_client.create_permission_bulk(
             [row.with_audit(created_by="system") for row in data]
         )
 
@@ -111,7 +111,7 @@ def serve_auth_route(app: FastAPI):
         response_model=list[RoleResponse],
     )
     async def create_role_bulk(data: list[RoleCreateWithPermissions]):
-        return await auth_client.create_role(
+        return await auth_client.create_role_bulk(
             [row.with_audit(created_by="system") for row in data]
         )
 
