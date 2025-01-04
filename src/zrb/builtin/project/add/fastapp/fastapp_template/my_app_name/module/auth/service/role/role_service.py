@@ -7,8 +7,10 @@ from my_app_name.module.auth.service.role.repository.role_repository import (
 from my_app_name.schema.role import (
     MultipleRoleResponse,
     RoleCreateWithAudit,
+    RoleCreateWithPermissionsAndAudit,
     RoleResponse,
     RoleUpdateWithAudit,
+    RoleUpdateWithPermissionsAndAudit,
 )
 
 
@@ -47,7 +49,11 @@ class RoleService(BaseService):
         methods=["post"],
         response_model=RoleResponse,
     )
-    async def create_role(self, data: RoleCreateWithAudit) -> RoleResponse:
+    async def create_role(
+        self, data: RoleCreateWithPermissionsAndAudit
+    ) -> RoleResponse:
+        permission_names = data.get_permissions_names()
+        data = data.get_role_update_with_audit()
         role = await self.role_repository.create(data)
         return await self.role_repository.get_by_id(role.id)
 
@@ -57,8 +63,10 @@ class RoleService(BaseService):
         response_model=list[RoleResponse],
     )
     async def create_role_bulk(
-        self, data: list[RoleCreateWithAudit]
+        self, data: list[RoleCreateWithPermissionsAndAudit]
     ) -> list[RoleResponse]:
+        permission_names = data.get_permissions_names()
+        data = data.get_role_update_with_audit()
         roles = await self.role_repository.create_bulk(data)
         return await self.role_repository.get_by_ids([role.id for role in roles])
 
@@ -68,8 +76,10 @@ class RoleService(BaseService):
         response_model=RoleResponse,
     )
     async def update_role_bulk(
-        self, role_ids: list[str], data: RoleUpdateWithAudit
+        self, role_ids: list[str], data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
+        permission_names = data.get_permissions_names()
+        data = data.get_role_update_with_audit()
         roles = await self.role_repository.update_bulk(role_ids, data)
         return await self.role_repository.get_by_ids([role.id for role in roles])
 
@@ -79,8 +89,10 @@ class RoleService(BaseService):
         response_model=RoleResponse,
     )
     async def update_role(
-        self, role_id: str, data: RoleUpdateWithAudit
+        self, role_id: str, data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
+        permission_names = data.get_permissions_names()
+        data = data.get_role_update_with_audit()
         role = await self.role_repository.update(role_id, data)
         return await self.role_repository.get_by_id(role.id)
 

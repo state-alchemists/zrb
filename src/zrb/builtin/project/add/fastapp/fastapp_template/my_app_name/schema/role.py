@@ -57,6 +57,30 @@ class RoleUpdateWithAudit(RoleUpdate):
     updated_by: str
 
 
+class RoleUpdateWithPermissions(RoleUpdate):
+    permissions: list[str] | None = None
+
+    def with_audit(self, updated_by: str) -> "RoleUpdateWithPermissionsAndAudit":
+        return RoleUpdateWithPermissionsAndAudit(
+            **self.model_dump(), updated_by=updated_by
+        )
+
+
+class RoleUpdateWithPermissionsAndAudit(RoleUpdateWithPermissions):
+    updated_by: str
+
+    def get_role_update_with_audit(self) -> RoleUpdateWithAudit:
+        data = {
+            key: val for key, val in self.model_dump().items() if key != "permissions"
+        }
+        return RoleUpdateWithAudit(**data)
+
+    def get_permission_names(self) -> list[str]:
+        if self.permissions is None:
+            return []
+        return self.permissions
+
+
 class RoleResponse(RoleBase):
     id: str
     permissions: list[Permission]

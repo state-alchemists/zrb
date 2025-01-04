@@ -9,8 +9,10 @@ from my_app_name.schema.permission import (
 from my_app_name.schema.role import (
     MultipleRoleResponse,
     RoleCreate,
+    RoleCreateWithPermissions,
     RoleResponse,
     RoleUpdate,
+    RoleUpdateWithPermissions,
 )
 from my_app_name.schema.user import (
     MultipleUserResponse,
@@ -108,7 +110,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/roles/bulk",
         response_model=list[RoleResponse],
     )
-    async def create_role_bulk(data: list[RoleCreate]):
+    async def create_role_bulk(data: list[RoleCreateWithPermissions]):
         return await auth_client.create_role(
             [row.with_audit(created_by="system") for row in data]
         )
@@ -117,14 +119,14 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/roles",
         response_model=RoleResponse,
     )
-    async def create_role(data: RoleCreate):
+    async def create_role(data: RoleCreateWithPermissions):
         return await auth_client.create_role(data.with_audit(created_by="system"))
 
     @app.put(
         "/api/v1/roles/bulk",
         response_model=list[RoleResponse],
     )
-    async def update_role_bulk(role_ids: list[str], data: RoleUpdate):
+    async def update_role_bulk(role_ids: list[str], data: RoleUpdateWithPermissions):
         return await auth_client.update_role_bulk(
             role_ids, data.with_audit(updated_by="system")
         )
@@ -133,7 +135,7 @@ def serve_auth_route(app: FastAPI):
         "/api/v1/roles/{role_id}",
         response_model=RoleResponse,
     )
-    async def update_role(role_id: str, data: RoleUpdate):
+    async def update_role(role_id: str, data: RoleUpdateWithPermissions):
         return await auth_client.update_role(data.with_audit(updated_by="system"))
 
     @app.delete(
