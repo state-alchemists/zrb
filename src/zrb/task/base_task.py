@@ -243,13 +243,19 @@ class BaseTask(AnyTask):
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
         loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            return loop.run_until_complete(self._run_and_cleanup(session, str_kwargs))
+            return loop.run_until_complete(
+                self._run_and_cleanup(loop, session, str_kwargs)
+            )
         finally:
             loop.close()
 
     async def _run_and_cleanup(
-        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
+        self,
+        loop: asyncio.AbstractEventLoop,
+        session: AnySession | None = None,
+        str_kwargs: dict[str, str] = {},
     ) -> Any:
         current_task = self.async_run(session, str_kwargs)
         try:
@@ -258,13 +264,20 @@ class BaseTask(AnyTask):
             if not session.is_terminated:
                 session.terminate()
             # Cancel all running tasks except the current one
-            pending = [task for task in asyncio.all_tasks() if task is not current_task]
+            pending = [
+                task
+                for task in asyncio.tasks.Task.all_tasks(loop)
+                if task is not current_task
+            ]
             for task in pending:
                 task.cancel()
             # Wait for all tasks to complete with a timeout
             pending = [task for task in asyncio.all_tasks() if task is not current_task]
             if pending:
-                await asyncio.wait(pending, timeout=5)
+                try:
+                    await asyncio.wait(pending, timeout=5)
+                except asyncio.CancelledError:
+                    pass
         return result
 
     async def async_run(
