@@ -91,7 +91,7 @@ class User(SQLModel, table=True):
     created_by: str = Field(index=True)
     updated_at: datetime.datetime | None = Field(index=True)
     updated_by: str | None = Field(index=True)
-    username: str = Field(index=True)
+    username: str = Field(index=True, unique=True)
     password: str
 
 

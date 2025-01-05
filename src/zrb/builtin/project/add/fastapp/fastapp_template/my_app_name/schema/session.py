@@ -7,9 +7,7 @@ from sqlmodel import Field, SQLModel
 
 class SessionBase(SQLModel):
     user_id: str
-    device: str
-    os: str
-    browser: str
+    token: str
     expired_at: datetime.datetime | None
 
 
@@ -47,6 +45,4 @@ class MultipleSessionResponse(BaseModel):
 class Session(SQLModel, table=True):
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     user_id: str = Field(index=True)
-    device: str
-    os: str
-    browser: str
+    token: str = Field(index=True, unique=True)

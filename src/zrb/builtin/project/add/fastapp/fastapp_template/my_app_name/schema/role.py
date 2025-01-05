@@ -101,7 +101,7 @@ class Role(SQLModel, table=True):
     created_by: str | None = Field(index=True)
     updated_at: datetime.datetime | None = Field(index=True)
     updated_by: str | None = Field(index=True)
-    name: str = Field(index=True)
+    name: str = Field(index=True, unique=True)
     description: str
 
 
