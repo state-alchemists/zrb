@@ -51,7 +51,9 @@ async def update_my_entity_bulk(my_entity_ids: list[str], data: MyEntityUpdate):
     response_model=MyEntityResponse,
 )
 async def update_my_entity(my_entity_id: str, data: MyEntityUpdate):
-    return await my_module_client.update_my_entity(data.with_audit(updated_by="system"))
+    return await my_module_client.update_my_entity(
+        my_entity_id, data.with_audit(updated_by="system")
+    )
 
 
 @app.delete(
