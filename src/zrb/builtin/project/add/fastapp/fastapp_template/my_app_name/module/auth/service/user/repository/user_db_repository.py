@@ -25,9 +25,10 @@ from my_app_name.schema.user import (
     UserUpdateWithAudit,
 )
 from passlib.context import CryptContext
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.sql import ClauseElement, ColumnElement, Select
-from sqlmodel import Engine, SQLModel, delete, insert, select
+from sqlmodel import SQLModel, delete, insert, select
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
