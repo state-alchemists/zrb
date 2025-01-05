@@ -52,12 +52,15 @@ class RoleService(BaseService):
     async def create_role_bulk(
         self, data: list[RoleCreateWithPermissionsAndAudit]
     ) -> list[RoleResponse]:
-        permission_names = [row.get_permissions_names() for row in data]
+        permission_ids = [row.get_permissions_names() for row in data]
         data = [row.get_role_update_with_audit() for row in data]
         roles = await self.role_repository.create_bulk(data)
-        await self.role_repository.add_permissions(
-            {roles[i].id: permission_names[i] for i in range(roles)}
-        )
+        if len(roles) > 0:
+            created_by = roles[0].created_by
+            await self.role_repository.add_permissions(
+                data={roles[i].id: permission_ids[i] for i in range(roles)},
+                created_by=created_by,
+            )
         return await self.role_repository.get_by_ids([role.id for role in roles])
 
     @BaseService.route(
@@ -68,10 +71,12 @@ class RoleService(BaseService):
     async def create_role(
         self, data: RoleCreateWithPermissionsAndAudit
     ) -> RoleResponse:
-        permission_names = data.get_permissions_names()
+        permission_ids = data.get_permissions_names()
         data = data.get_role_update_with_audit()
         role = await self.role_repository.create(data)
-        await self.role_repository.add_permissions({role.id: permission_names})
+        await self.role_repository.add_permissions(
+            data={role.id: permission_ids}, created_by=role.created_by
+        )
         return await self.role_repository.get_by_id(role.id)
 
     @BaseService.route(
@@ -82,13 +87,18 @@ class RoleService(BaseService):
     async def update_role_bulk(
         self, role_ids: list[str], data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
-        permission_names = [row.get_permissions_names() for row in data]
+        permission_ids = [row.get_permissions_names() for row in data]
         data = [row.get_role_update_with_audit() for row in data]
         roles = await self.role_repository.update_bulk(role_ids, data)
-        await self.role_repository.remove_all_permissions([role.id for role in roles])
-        await self.role_repository.add_permissions(
-            {roles[i].id: permission_names[i] for i in range(roles)}
-        )
+        if len(roles) > 0:
+            updated_by = roles[0].updated_by
+            await self.role_repository.remove_all_permissions(
+                [role.id for role in roles]
+            )
+            await self.role_repository.add_permissions(
+                data={roles[i].id: permission_ids[i] for i in range(roles)},
+                created_by=updated_by,
+            )
         return await self.role_repository.get_by_ids([role.id for role in roles])
 
     @BaseService.route(
@@ -99,11 +109,13 @@ class RoleService(BaseService):
     async def update_role(
         self, role_id: str, data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
-        permission_names = data.get_permissions_names()
+        permission_ids = data.get_permissions_names()
         data = data.get_role_update_with_audit()
         role = await self.role_repository.update(role_id, data)
         await self.role_repository.remove_all_permissions([role.id])
-        await self.role_repository.add_permissions({role.id: permission_names})
+        await self.role_repository.add_permissions(
+            data={role.id: permission_ids}, created_by=role.updated_by
+        )
         return await self.role_repository.get_by_id(role.id)
 
     @BaseService.route(

@@ -1,3 +1,4 @@
+import datetime
 from typing import Any
 
 from my_app_name.common.base_db_repository import BaseDBRepository
@@ -52,12 +53,20 @@ class RoleDBRepository(
             for data in role_map.values()
         ]
 
-    async def add_permissions(self, data: dict[str, list[str]] = {}) -> Role:
+    async def add_permissions(
+        self, data: dict[str, list[str]], created_by: str
+    ) -> Role:
+        now = datetime.datetime.now(datetime.timezone.utc)
         role_permissions: list[RolePermission] = []
-        for role_id, permission_names in data.items():
-            for permission_name in permission_names:
+        for role_id, permission_ids in data.items():
+            for permission_id in permission_ids:
                 role_permissions.append(
-                    RolePermission(role_id=role_id, permission_name=permission_name)
+                    RolePermission(
+                        role_id=role_id,
+                        permission_id=permission_id,
+                        created_at=now,
+                        created_by=created_by,
+                    )
                 )
         async with self._session_scope() as session:
             await self._execute_statement(

@@ -22,7 +22,7 @@ class RoleCreateWithAudit(RoleCreate):
 
 
 class RoleCreateWithPermissions(RoleCreate):
-    permissions: list[str] | None = None
+    permission_ids: list[str] | None = None
 
     def with_audit(self, created_by: str) -> "RoleCreateWithPermissionsAndAudit":
         return RoleCreateWithPermissionsAndAudit(
@@ -39,10 +39,10 @@ class RoleCreateWithPermissionsAndAudit(RoleCreateWithPermissions):
         }
         return RoleCreateWithAudit(**data)
 
-    def get_permission_names(self) -> list[str]:
-        if self.permissions is None:
+    def get_permission_ids(self) -> list[str]:
+        if self.permission_ids is None:
             return []
-        return self.permissions
+        return self.permission_ids
 
 
 class RoleUpdate(SQLModel):
@@ -58,7 +58,7 @@ class RoleUpdateWithAudit(RoleUpdate):
 
 
 class RoleUpdateWithPermissions(RoleUpdate):
-    permissions: list[str] | None = None
+    permission_ids: list[str] | None = None
 
     def with_audit(self, updated_by: str) -> "RoleUpdateWithPermissionsAndAudit":
         return RoleUpdateWithPermissionsAndAudit(
@@ -75,10 +75,10 @@ class RoleUpdateWithPermissionsAndAudit(RoleUpdateWithPermissions):
         }
         return RoleUpdateWithAudit(**data)
 
-    def get_permission_names(self) -> list[str]:
-        if self.permissions is None:
+    def get_permission_ids(self) -> list[str]:
+        if self.permission_ids is None:
             return []
-        return self.permissions
+        return self.permission_ids
 
 
 class RoleResponse(RoleBase):
