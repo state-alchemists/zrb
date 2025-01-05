@@ -1,13 +1,22 @@
 import datetime
-from typing import Any
+from typing import Any, Callable
 
 import ulid
 from my_app_name.common.base_db_repository import BaseDBRepository
+from my_app_name.config import (
+    APP_AUTH_GUEST_USER,
+    APP_AUTH_GUEST_USER_PERMISSIONS,
+    APP_AUTH_SUPER_USER,
+    APP_AUTH_SUPER_USER_PASSWORD,
+    APP_MAX_PARALLEL_SESSION,
+    APP_SESSION_EXPIRE_MINUTES,
+)
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
 from my_app_name.schema.permission import Permission
 from my_app_name.schema.role import Role, RolePermission
+from my_app_name.schema.session import Session
 from my_app_name.schema.user import (
     User,
     UserCreateWithAudit,
@@ -16,8 +25,9 @@ from my_app_name.schema.user import (
     UserUpdateWithAudit,
 )
 from passlib.context import CryptContext
-from sqlalchemy.sql import Select
-from sqlmodel import delete, insert, select
+from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.sql import ClauseElement, ColumnElement, Select
+from sqlmodel import Engine, SQLModel, delete, insert, select
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -38,9 +48,39 @@ class UserDBRepository(
     entity_name = "user"
     column_preprocessors = {"password": hash_password}
 
+    def __init__(
+        self,
+        engine: Engine | AsyncEngine,
+        super_user_username: str = APP_AUTH_SUPER_USER,
+        super_user_password: str = APP_AUTH_SUPER_USER_PASSWORD,
+        guest_user_username: str = APP_AUTH_GUEST_USER,
+        guest_user_password: str = APP_AUTH_SUPER_USER_PASSWORD,
+        guest_user_permission_names: list[str] = APP_AUTH_GUEST_USER_PERMISSIONS,
+        max_parallel_session: int = APP_MAX_PARALLEL_SESSION,
+        session_expire_minutes: int = APP_SESSION_EXPIRE_MINUTES,
+        filter_param_parser: (
+            Callable[[SQLModel, str], list[ClauseElement]] | None
+        ) = None,
+        sort_param_parser: Callable[[SQLModel, str], list[ColumnElement]] | None = None,
+    ):
+        super().__init__(
+            engine=engine,
+            filter_param_parser=filter_param_parser,
+            sort_param_parser=sort_param_parser,
+        )
+        self._super_user_username = super_user_username
+        self._super_user_passwored = super_user_password
+        self._guest_user_username = guest_user_username
+        self._guest_user_password = guest_user_password
+        self._guest_user_permission_names = guest_user_permission_names
+        self._max_parallel_session = max_parallel_session
+        self._session_expire_minutes = session_expire_minutes
+        self._super_user: User | None = None
+        self._guest_user: User | None = None
+
     def _select(self) -> Select:
         return (
-            select(User, Role, Permission)
+            select(User, Role, Permission, Session)
             .join(UserRole, UserRole.user_id == User.id, isouter=True)
             .join(Role, Role.id == UserRole.role_id, isouter=True)
             .join(RolePermission, RolePermission.role_id == Role.id, isouter=True)
@@ -107,9 +147,9 @@ class UserDBRepository(
             )
 
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
-        select_statement = self._select().where(
-            User.username == username, User.password == hash_password(password)
+        rows = await self._select_to_response(
+            lambda q: q.where(
+                User.username == username, User.password == hash_password(password)
+            )
         )
-        rows = await self._execute_select_statement(select_statement)
-        responses = self._rows_to_responses(rows)
-        return self._ensure_one(responses)
+        return self._ensure_one(rows)

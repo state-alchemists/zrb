@@ -38,13 +38,17 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         sort_param_parser: Callable[[SQLModel, str], list[ColumnElement]] | None = None,
     ):
         self.engine = engine
-        self.is_async = isinstance(engine, AsyncEngine)
+        self._is_async = isinstance(engine, AsyncEngine)
         self._parse_filter_param = (
             filter_param_parser if filter_param_parser else default_parse_filter_param
         )
         self._parse_sort_param = (
             sort_param_parser if sort_param_parser else default_parse_sort_param
         )
+
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
 
     def _select(self) -> Select:
         """
