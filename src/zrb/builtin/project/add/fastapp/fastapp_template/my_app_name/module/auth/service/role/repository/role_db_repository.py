@@ -13,7 +13,7 @@ from my_app_name.schema.role import (
     RoleUpdateWithAudit,
 )
 from sqlalchemy.sql import Select
-from sqlmodel import select
+from sqlmodel import delete, insert, select
 
 
 class RoleDBRepository(
@@ -52,19 +52,24 @@ class RoleDBRepository(
             for data in role_map.values()
         ]
 
-    async def add_permissions(self, role_id, permission_names: list[str]) -> Role:
-        # TODO: complete this
-        select_statement = self._select().where(self.db_model.id == role_id)
-        rows = await self._execute_select_statement(select_statement)
-        responses = self._rows_to_responses(rows)
-        return self._ensure_one(responses)
+    async def add_permissions(self, data: dict[str, list[str]] = {}) -> Role:
+        role_permissions: list[RolePermission] = []
+        for role_id, permission_names in data.items():
+            for permission_name in permission_names:
+                role_permissions.append(
+                    RolePermission(role_id=role_id, permission_name=permission_name)
+                )
+        async with self._session_scope() as session:
+            await self._execute_statement(
+                session, insert(RolePermission).values(role_permissions)
+            )
 
-    async def remove_permissions(self, role_id, permission_names: list[str]) -> Role:
-        # TODO: complete this
-        select_statement = self._select().where(self.db_model.id == role_id)
-        rows = await self._execute_select_statement(select_statement)
-        responses = self._rows_to_responses(rows)
-        return self._ensure_one(responses)
+    async def remove_all_permissions(self, role_ids: list[str] = []) -> Role:
+        async with self._session_scope() as session:
+            await self._execute_statement(
+                session,
+                delete(RolePermission).where(RolePermission.role_id._in(role_ids)),
+            )
 
 
 def _remove_create_model_additional_property(
