@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from collections.abc import Callable
 from typing import Any
 
@@ -260,19 +261,24 @@ class BaseTask(AnyTask):
         current_task = self.async_run(session, str_kwargs)
         try:
             result = await current_task
+        except KeyboardInterrupt:
+            pass
+        except RuntimeError as e:
+            if f"{e}".lower() != "event loop is closed":
+                raise e
         finally:
             if not session.is_terminated:
                 session.terminate()
+            if sys.version_info >= (3, 11):
+                all_tasks = asyncio.all_tasks(loop=loop)
+            else:
+                all_tasks = asyncio.tasks.Task.all_tasks(loop)
             # Cancel all running tasks except the current one
-            pending = [
-                task
-                for task in asyncio.tasks.Task.all_tasks(loop)
-                if task is not current_task
-            ]
+            pending = [task for task in all_tasks if task is not current_task]
             for task in pending:
                 task.cancel()
             # Wait for all tasks to complete with a timeout
-            pending = [task for task in asyncio.all_tasks() if task is not current_task]
+            pending = [task for task in all_tasks if task is not current_task]
             if pending:
                 try:
                     await asyncio.wait(pending, timeout=5)

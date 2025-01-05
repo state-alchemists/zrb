@@ -16,5 +16,8 @@ def serve_cli():
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         print(stylize_warning("\nStopped"), file=sys.stderr)
+    except RuntimeError as e:
+        if f"{e}".lower() != "event loop is closed":
+            raise e
     except NodeNotFoundError as e:
         print(stylize_error(f"{e}"), file=sys.stderr)
