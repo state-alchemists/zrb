@@ -50,5 +50,17 @@ APP_AUTH_SUPER_USER = os.getenv("MY_APP_NAME_AUTH_SUPER_USER", "admin")
 APP_AUTH_SUPER_USER_PASSWORD = os.getenv(
     "MY_APP_NAME_AUTH_SUPER_USER_PASSWORD", "my-secure-password"
 )
+APP_AUTH_GUEST_USER = os.getenv("MY_APP_NAME_AUTH_GUEST_USER", "user")
+APP_AUTH_GUEST_USER_PERMISSIONS = (
+    permission_name.strip()
+    for permission_name in os.getenv(
+        "MY_APP_NAME_AUTH_GUEST_USER_PERMISSIONS", ""
+    ).split(",")
+    if permission_name.strip() != ""
+)
+APP_MAX_PARALLEL_SESSION = int(os.getenv("MY_APP_NAME_MAX_PARALLEL_SESSION", "1"))
+APP_SESSION_EXPIRE_MINUTES = int(
+    os.getenv("MY_APP_NAME_SESSION_EXPIRE_MINUTES", "1440")
+)
 
 APP_AUTH_BASE_URL = os.getenv("MY_APP_NAME_AUTH_BASE_URL", "http://localhost:3001")

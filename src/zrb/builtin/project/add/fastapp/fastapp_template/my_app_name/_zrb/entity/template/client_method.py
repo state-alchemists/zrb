@@ -18,15 +18,15 @@ async def get_my_entities(
 
 
 @abstractmethod
-async def create_my_entity(self, data: MyEntityCreateWithAudit) -> MyEntityResponse:
-    """Create a new my entities"""
-
-
-@abstractmethod
-async def create_my_entity(
+async def create_my_entity_bulk(
     self, data: list[MyEntityCreateWithAudit]
 ) -> list[MyEntityResponse]:
     """Create new my entities"""
+
+
+@abstractmethod
+async def create_my_entity(self, data: MyEntityCreateWithAudit) -> MyEntityResponse:
+    """Create a new my entities"""
 
 
 @abstractmethod

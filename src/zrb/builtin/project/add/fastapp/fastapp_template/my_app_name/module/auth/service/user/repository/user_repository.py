@@ -19,6 +19,14 @@ class UserRepository(ABC):
         """Get users by ids"""
 
     @abstractmethod
+    async def add_roles(self, data: dict[str, list[str]], created_by: str) -> User:
+        """Add roles to user"""
+
+    @abstractmethod
+    async def remove_all_roles(self, user_ids: list[str] = []) -> User:
+        """Remove roles from user"""
+
+    @abstractmethod
     async def get(
         self,
         page: int = 1,

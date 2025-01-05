@@ -8,15 +8,15 @@ from my_app_name.schema.permission import (
 )
 from my_app_name.schema.role import (
     MultipleRoleResponse,
-    RoleCreateWithAudit,
+    RoleCreateWithPermissionsAndAudit,
     RoleResponse,
-    RoleUpdateWithAudit,
+    RoleUpdateWithPermissionsAndAudit,
 )
 from my_app_name.schema.user import (
     MultipleUserResponse,
-    UserCreateWithAudit,
+    UserCreateWithRolesAndAudit,
     UserResponse,
-    UserUpdateWithAudit,
+    UserUpdateWithRolesAndAudit,
 )
 
 
@@ -39,16 +39,16 @@ class AuthClient(ABC):
         """Get permissions by filter and sort"""
 
     @abstractmethod
+    async def create_permission_bulk(
+        self, data: list[PermissionCreateWithAudit]
+    ) -> list[PermissionResponse]:
+        """Create new permissions"""
+
+    @abstractmethod
     async def create_permission(
         self, data: PermissionCreateWithAudit
     ) -> PermissionResponse:
         """Create a new permission"""
-
-    @abstractmethod
-    async def create_permission(
-        self, data: list[PermissionCreateWithAudit]
-    ) -> list[PermissionResponse]:
-        """Create new permissions"""
 
     @abstractmethod
     async def update_permission_bulk(
@@ -91,22 +91,26 @@ class AuthClient(ABC):
         """Get roles by filter and sort"""
 
     @abstractmethod
-    async def create_role(self, data: RoleCreateWithAudit) -> RoleResponse:
-        """Create a new role"""
-
-    @abstractmethod
-    async def create_role(self, data: list[RoleCreateWithAudit]) -> list[RoleResponse]:
+    async def create_role_bulk(
+        self, data: list[RoleCreateWithPermissionsAndAudit]
+    ) -> list[RoleResponse]:
         """Create new roles"""
 
     @abstractmethod
+    async def create_role(
+        self, data: RoleCreateWithPermissionsAndAudit
+    ) -> RoleResponse:
+        """Create a new role"""
+
+    @abstractmethod
     async def update_role_bulk(
-        self, role_ids: list[str], data: RoleUpdateWithAudit
+        self, role_ids: list[str], data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
         """Update some roles"""
 
     @abstractmethod
     async def update_role(
-        self, role_id: str, data: RoleUpdateWithAudit
+        self, role_id: str, data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
         """Update a role"""
 
@@ -135,22 +139,24 @@ class AuthClient(ABC):
         """Get users by filter and sort"""
 
     @abstractmethod
-    async def create_user(self, data: UserCreateWithAudit) -> UserResponse:
-        """Create a new user"""
-
-    @abstractmethod
-    async def create_user(self, data: list[UserCreateWithAudit]) -> list[UserResponse]:
+    async def create_user_bulk(
+        self, data: list[UserCreateWithRolesAndAudit]
+    ) -> list[UserResponse]:
         """Create new users"""
 
     @abstractmethod
+    async def create_user(self, data: UserCreateWithRolesAndAudit) -> UserResponse:
+        """Create a new user"""
+
+    @abstractmethod
     async def update_user_bulk(
-        self, user_ids: list[str], data: UserUpdateWithAudit
+        self, user_ids: list[str], data: UserUpdateWithRolesAndAudit
     ) -> UserResponse:
         """Update some users"""
 
     @abstractmethod
     async def update_user(
-        self, user_id: str, data: UserUpdateWithAudit
+        self, user_id: str, data: UserUpdateWithRolesAndAudit
     ) -> UserResponse:
         """Update a user"""
 

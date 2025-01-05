@@ -13,7 +13,6 @@ class UserBase(SQLModel):
 
 class UserCreate(UserBase):
     password: str
-    roles: list[str] | None = None
 
     def with_audit(self, created_by: str) -> "UserCreateWithAudit":
         return UserCreateWithAudit(**self.model_dump(), created_by=created_by)
@@ -21,6 +20,26 @@ class UserCreate(UserBase):
 
 class UserCreateWithAudit(UserCreate):
     created_by: str
+
+
+class UserCreateWithRoles(UserCreate):
+    role_ids: list[str] | None = None
+
+    def with_audit(self, created_by: str) -> "UserCreateWithRolesAndAudit":
+        return UserCreateWithRolesAndAudit(**self.model_dump(), created_by=created_by)
+
+
+class UserCreateWithRolesAndAudit(UserCreateWithRoles):
+    created_by: str
+
+    def get_user_create_with_audit(self) -> UserCreateWithAudit:
+        data = {key: val for key, val in self.model_dump().items() if key != "role_ids"}
+        return UserCreateWithAudit(**data)
+
+    def get_role_ids(self) -> list[str]:
+        if self.role_ids is None:
+            return []
+        return self.role_ids
 
 
 class UserUpdate(SQLModel):
@@ -33,6 +52,26 @@ class UserUpdate(SQLModel):
 
 class UserUpdateWithAudit(UserUpdate):
     updated_by: str
+
+
+class UserUpdateWithRoles(UserUpdate):
+    role_ids: list[str] | None = None
+
+    def with_audit(self, updated_by: str) -> "UserUpdateWithRolesAndAudit":
+        return UserUpdateWithRolesAndAudit(**self.model_dump(), updated_by=updated_by)
+
+
+class UserUpdateWithRolesAndAudit(UserUpdateWithRoles):
+    updated_by: str
+
+    def get_user_update_with_audit(self) -> UserUpdateWithAudit:
+        data = {key: val for key, val in self.model_dump().items() if key != "role_ids"}
+        return UserUpdateWithAudit(**data)
+
+    def get_role_ids(self) -> list[str]:
+        if self.role_ids is None:
+            return []
+        return self.role_ids
 
 
 class UserResponse(UserBase):

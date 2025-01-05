@@ -75,10 +75,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         statement = self._select().where(self.db_model.id.in_(id_list))
         async with self._session_scope() as session:
             result = await self._execute_statement(session, statement)
-            return [
-                self.db_model(**entity.model_dump())
-                for entity in result.scalars().all()
-            ]
+            return self._rows_to_responses(result.all())
 
     async def count(self, filter: str | None = None) -> int:
         count_statement = select(func.count(1)).select_from(self.db_model)
@@ -106,10 +103,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
             statement = statement.order_by(*sort_param)
         async with self._session_scope() as session:
             result = await self._execute_statement(session, statement)
-            return [
-                self.db_model(**entity.model_dump())
-                for entity in result.scalars().all()
-            ]
+            return self._rows_to_responses(result.all())
 
     def _model_to_data_dict(
         self, data: SQLModel, **additional_data: Any

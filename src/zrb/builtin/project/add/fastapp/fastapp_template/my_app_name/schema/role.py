@@ -35,7 +35,9 @@ class RoleCreateWithPermissionsAndAudit(RoleCreateWithPermissions):
 
     def get_role_create_with_audit(self) -> RoleCreateWithAudit:
         data = {
-            key: val for key, val in self.model_dump().items() if key != "permissions"
+            key: val
+            for key, val in self.model_dump().items()
+            if key != "permission_ids"
         }
         return RoleCreateWithAudit(**data)
 
@@ -71,7 +73,9 @@ class RoleUpdateWithPermissionsAndAudit(RoleUpdateWithPermissions):
 
     def get_role_update_with_audit(self) -> RoleUpdateWithAudit:
         data = {
-            key: val for key, val in self.model_dump().items() if key != "permissions"
+            key: val
+            for key, val in self.model_dump().items()
+            if key != "permission_ids"
         }
         return RoleUpdateWithAudit(**data)
 
