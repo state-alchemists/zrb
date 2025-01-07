@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from my_app_name.schema.session import SessionResponse
 from my_app_name.schema.user import (
     User,
     UserCreateWithAudit,
@@ -69,3 +70,23 @@ class UserRepository(ABC):
     @abstractmethod
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
         """Get user by credential"""
+
+    @abstractmethod
+    async def get_by_token(self, token: str) -> UserResponse:
+        """Get user by token"""
+
+    @abstractmethod
+    async def add_token(self, user_id: str, token: str):
+        """Add token to user"""
+
+    @abstractmethod
+    async def remove_token(self, user_id: str, token: str):
+        """Remove token from user"""
+
+    @abstractmethod
+    async def get_sessions(self, user_id: str) -> list[SessionResponse]:
+        """Get sessions"""
+
+    @abstractmethod
+    async def remove_session(self, user_id: str, session_id: str) -> SessionResponse:
+        """Remove a session"""

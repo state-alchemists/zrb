@@ -154,3 +154,23 @@ class UserDBRepository(
             )
         )
         return self._ensure_one(rows)
+
+    async def get_by_token(self, token: str) -> UserResponse:
+        # TODO: Get user by token
+        pass
+
+    async def add_token(self, user_id: str, token: str):
+        # TODO: Add token to user
+        pass
+
+    async def remove_token(self, user_id: str, token: str):
+        # TODO: Remove token from user
+        pass
+
+    async def get_sessions(self, user_id: str) -> list[SessionResponse]:
+        # TODO: Get sessions
+        pass
+
+    async def remove_session(self, user_id: str, session_id: str) -> SessionResponse:
+        # TODO: Remove a session
+        pass
