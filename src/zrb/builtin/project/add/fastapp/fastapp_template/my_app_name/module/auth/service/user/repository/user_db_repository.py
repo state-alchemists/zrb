@@ -88,13 +88,14 @@ class UserDBRepository(
             .join(
                 Permission, Permission.id == RolePermission.permission_id, isouter=True
             )
+            .join(Session, Session.user_id == User.id)
         )
 
     def _rows_to_responses(self, rows: list[tuple[Any, ...]]) -> list[UserResponse]:
         user_map: dict[str, dict[str, Any]] = {}
         user_role_map: dict[str, list[str]] = {}
         user_permission_map: dict[str, list[str]] = {}
-        for user, role, permission in rows:
+        for user, role, permission, _ in rows:
             if user.id not in user_map:
                 user_map[user.id] = {"user": user, "roles": [], "permissions": []}
                 user_role_map[user.id] = []
@@ -154,16 +155,34 @@ class UserDBRepository(
         return self._ensure_one(rows)
 
     async def get_by_token(self, token: str) -> UserResponse:
-        # TODO: Get user by token
-        pass
+        rows = await self._select_tor_response(
+            lambda q: q.where(Session.token == token)
+        )
+        return self._ensure_one(rows)
 
     async def add_token(self, user_id: str, token: str):
-        # TODO: Add token to user
-        pass
+        async with self._session_scope() as session:
+            await self._execute_statement(
+                session,
+                insert(Session).values(
+                    {
+                        "id": ulid.new().str,
+                        "user_id": user_id,
+                        "token": token,
+                        "created_by": "system",
+                        "created_at": datetime.datetime.now(datetime.timezone.utc),
+                    }
+                ),
+            )
 
     async def remove_token(self, user_id: str, token: str):
-        # TODO: Remove token from user
-        pass
+        async with self._session_scope() as session:
+            await self._execute_statement(
+                session,
+                delete(Session).where(
+                    Session.token == token, Session.user_id == user_id
+                ),
+            )
 
     async def get_sessions(self, user_id: str) -> list[SessionResponse]:
         # TODO: Get sessions
