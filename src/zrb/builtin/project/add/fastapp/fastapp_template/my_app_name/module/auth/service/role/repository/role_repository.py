@@ -19,13 +19,11 @@ class RoleRepository(ABC):
         """Get roles by ids"""
 
     @abstractmethod
-    async def add_permissions(
-        self, data: dict[str, list[str]], created_by: str
-    ) -> Role:
+    async def add_permissions(self, data: dict[str, list[str]], created_by: str):
         """Adding permissions to roles"""
 
     @abstractmethod
-    async def remove_all_permissions(self, role_ids: list[str] = []) -> Role:
+    async def remove_all_permissions(self, role_ids: list[str] = []):
         """Remove permissions from roles"""
 
     @abstractmethod

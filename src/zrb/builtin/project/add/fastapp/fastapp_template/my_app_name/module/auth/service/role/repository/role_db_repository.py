@@ -42,13 +42,13 @@ class RoleDBRepository(
             )
         )
 
-    def _rows_to_responses(self, rows: list[tuple[Role, Permission]]) -> RoleResponse:
+    def _rows_to_responses(self, rows: list[tuple[Any, ...]]) -> list[RoleResponse]:
         role_map: dict[str, dict[str, Any]] = {}
         role_permission_map: dict[str, list[str]] = {}
         for role, permission in rows:
             if role.id not in role_map:
                 role_map[role.id] = {"role": role, "permissions": []}
-                role_permission_map[role.id] = {}
+                role_permission_map[role.id] = []
             if (
                 permission is not None
                 and permission.id not in role_permission_map[role.id]
@@ -60,9 +60,7 @@ class RoleDBRepository(
             for data in role_map.values()
         ]
 
-    async def add_permissions(
-        self, data: dict[str, list[str]], created_by: str
-    ) -> Role:
+    async def add_permissions(self, data: dict[str, list[str]], created_by: str):
         now = datetime.datetime.now(datetime.timezone.utc)
         data_dict_list: list[dict[str, Any]] = []
         for role_id, permission_ids in data.items():
@@ -83,7 +81,7 @@ class RoleDBRepository(
                 session, insert(RolePermission).values(data_dict_list)
             )
 
-    async def remove_all_permissions(self, role_ids: list[str] = []) -> Role:
+    async def remove_all_permissions(self, role_ids: list[str] = []):
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,

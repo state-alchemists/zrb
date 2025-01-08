@@ -20,11 +20,11 @@ class UserRepository(ABC):
         """Get users by ids"""
 
     @abstractmethod
-    async def add_roles(self, data: dict[str, list[str]], created_by: str) -> User:
+    async def add_roles(self, data: dict[str, list[str]], created_by: str):
         """Add roles to user"""
 
     @abstractmethod
-    async def remove_all_roles(self, user_ids: list[str] = []) -> User:
+    async def remove_all_roles(self, user_ids: list[str] = []):
         """Remove roles from user"""
 
     @abstractmethod

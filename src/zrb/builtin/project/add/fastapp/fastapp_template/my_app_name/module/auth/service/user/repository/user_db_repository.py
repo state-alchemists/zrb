@@ -90,9 +90,7 @@ class UserDBRepository(
             )
         )
 
-    def _rows_to_responses(
-        self, rows: list[tuple[User, Role, Permission]]
-    ) -> UserResponse:
+    def _rows_to_responses(self, rows: list[tuple[Any, ...]]) -> list[UserResponse]:
         user_map: dict[str, dict[str, Any]] = {}
         user_role_map: dict[str, list[str]] = {}
         user_permission_map: dict[str, list[str]] = {}
@@ -119,7 +117,7 @@ class UserDBRepository(
             for data in user_map.values()
         ]
 
-    async def add_roles(self, data: dict[str, list[str]], created_by: str) -> User:
+    async def add_roles(self, data: dict[str, list[str]], created_by: str):
         now = datetime.datetime.now(datetime.timezone.utc)
         data_dict_list: list[dict[str, Any]] = []
         for user_id, role_ids in data.items():
@@ -140,7 +138,7 @@ class UserDBRepository(
                 session, insert(UserRole).values(data_dict_list)
             )
 
-    async def remove_all_roles(self, user_ids: list[str] = []) -> User:
+    async def remove_all_roles(self, user_ids: list[str] = []):
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,
