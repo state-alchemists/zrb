@@ -16,7 +16,7 @@ from my_app_name.module.auth.service.user.repository.user_repository import (
 )
 from my_app_name.schema.permission import Permission
 from my_app_name.schema.role import Role, RolePermission
-from my_app_name.schema.session import Session
+from my_app_name.schema.session import Session, SessionResponse
 from my_app_name.schema.user import (
     User,
     UserCreateWithAudit,
