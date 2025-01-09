@@ -110,7 +110,8 @@ class LLMTask(BaseTask):
         )
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from litellm import acompletion, supports_function_calling
+        from litellm import acompletion
+        from litellm.utils import supports_function_calling
 
         model = self._get_model(ctx)
         try:

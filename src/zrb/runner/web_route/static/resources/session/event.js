@@ -20,7 +20,7 @@ window.addEventListener("load", async function () {
 
 
 const submitTaskForm = document.getElementById("submit-task-form");
-submitTaskForm.addEventListener("input", async function(event) {
+submitTaskForm.addEventListener("change", async function(event) {
     const currentInput = event.target;
     const inputs = Array.from(submitTaskForm.querySelectorAll("input[name], textarea[name]"));
     const inputMap = {};
