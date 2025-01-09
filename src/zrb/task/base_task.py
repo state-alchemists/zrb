@@ -352,7 +352,7 @@ class BaseTask(AnyTask):
             session.get_task_status(self).mark_as_skipped()
             return
         # Wait for task to be ready
-        await run_async(self.__exec_action_until_ready(session))
+        return await run_async(self.__exec_action_until_ready(session))
 
     def __get_execute_condition(self, session: Session) -> bool:
         ctx = self.get_ctx(session)
