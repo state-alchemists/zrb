@@ -3,6 +3,7 @@ from typing import Any, Callable
 
 import ulid
 from my_app_name.common.base_db_repository import BaseDBRepository
+from my_app_name.common.error import NotFoundError
 from my_app_name.config import (
     APP_AUTH_GUEST_USER,
     APP_AUTH_GUEST_USER_PERMISSIONS,
@@ -113,7 +114,7 @@ class UserDBRepository(
             UserResponse(
                 **data["user"].model_dump(),
                 roles=list(data["roles"]),
-                permissions=list(data["permissions"])
+                permissions=list(data["permissions"]),
             )
             for data in user_map.values()
         ]
@@ -185,9 +186,27 @@ class UserDBRepository(
             )
 
     async def get_sessions(self, user_id: str) -> list[SessionResponse]:
-        # TODO: Get sessions
-        pass
+        async with self._session_scope() as session:
+            statement = select(Session).where(Session.user_id == user_id)
+            result = await self._execute_statement(session, statement)
+            return [
+                SessionResponse(**session.model_dump())
+                for session in result.scalars().all()
+            ]
 
     async def remove_session(self, user_id: str, session_id: str) -> SessionResponse:
-        # TODO: Remove a session
-        pass
+        async with self._session_scope() as session:
+            statement = select(Session).where(
+                Session.user_id == user_id, Session.id == session_id
+            )
+            result = await self._execute_statement(session, statement)
+            session = result.scalar_one_or_none()
+            if not session:
+                raise NotFoundError(f"{self.entity_name} not found")
+            await self._execute_statement(
+                session,
+                delete(Session).where(
+                    Session.id == session_id, Session.user_id == user_id
+                ),
+            )
+            return SessionResponse(**session.model_dump())
