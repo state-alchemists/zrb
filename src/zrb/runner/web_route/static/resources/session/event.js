@@ -22,7 +22,7 @@ window.addEventListener("load", async function () {
 const submitTaskForm = document.getElementById("submit-task-form");
 submitTaskForm.addEventListener("input", async function(event) {
     const currentInput = event.target;
-    const inputs = Array.from(submitTaskForm.querySelectorAll("input[name]"));
+    const inputs = Array.from(submitTaskForm.querySelectorAll("input[name], textarea[name]"));
     const inputMap = {};
     const fixedInputNames = [];
     for (const input of inputs) {
@@ -53,6 +53,9 @@ submitTaskForm.addEventListener("input", async function(event) {
                     return;
                 }
                 const input = submitTaskForm.querySelector(`[name="${key}"]`);
+                if (input === currentInput) {
+                    return;
+                }
                 input.value = value;
             });
         } else {
