@@ -44,7 +44,7 @@ black = "~24.10.0"
 isort = "~5.13.2"
 requests = "^2.32.3"
 libcst = "^1.5.0"
-litellm = "1.52.12"
+litellm = "^1.52.12"
 chromadb = {version = "^0.5.20", optional = true}
 pdfplumber = {version = "^0.11.4", optional = true}
 beautifulsoup4 = "^4.12.3"

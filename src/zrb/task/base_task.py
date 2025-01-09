@@ -242,7 +242,7 @@ class BaseTask(AnyTask):
     def run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
-        asyncio.run(self._run_and_cleanup(session, str_kwargs))
+        return asyncio.run(self._run_and_cleanup(session, str_kwargs))
 
     async def _run_and_cleanup(
         self,
