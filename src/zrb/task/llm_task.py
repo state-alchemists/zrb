@@ -146,6 +146,8 @@ class LLMTask(BaseTask):
                 )
             model_kwargs["tools"] = tool_schema
             ctx.log_debug("TOOL SCHEMA", tool_schema)
+        else:
+            ctx.log_warning("Function call is not supported")
         history_file = self._get_history_file(ctx)
         while True:
             response = await acompletion(
@@ -156,23 +158,25 @@ class LLMTask(BaseTask):
             response_message = response.choices[0].message
             ctx.print(stylize_faint(f"{response_message.to_dict()}"))
             messages.append(response_message.to_dict())
-            tool_calls = response_message.tool_calls
-            if tool_calls:
-                # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
-                for tool_call in tool_calls:
-                    function_name = tool_call.function.name
-                    function_to_call = available_tools[function_name]
-                    function_kwargs = json.loads(tool_call.function.arguments)
-                    function_response = function_to_call(**function_kwargs)
-                    tool_call_message = {
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": function_response,
-                    }
-                    ctx.print(stylize_faint(f"{tool_call_message}"))
-                    messages.append(tool_call_message)
-                continue
+            ctx.log_debug("RESPONSE MESSAGE", response_message)
+            if hasattr(response_message, "tool_calls"):
+                tool_calls = response_message.tool_calls
+                if tool_calls:
+                    # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
+                    for tool_call in tool_calls:
+                        function_name = tool_call.function.name
+                        function_to_call = available_tools[function_name]
+                        function_kwargs = json.loads(tool_call.function.arguments)
+                        function_response = function_to_call(**function_kwargs)
+                        tool_call_message = {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                        }
+                        ctx.print(stylize_faint(f"{tool_call_message}"))
+                        messages.append(tool_call_message)
+                    continue
             if history_file != "":
                 write_file(history_file, json.dumps(messages, indent=2))
             return response_message.content
