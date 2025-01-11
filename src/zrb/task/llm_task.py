@@ -153,8 +153,8 @@ class LLMTask(BaseTask):
             if not is_function_call_supported:
                 try:
                     json_payload = json.loads(llm_response.content)
-                    function_name = json_payload["name"]
-                    function_kwargs = json_payload["arguments"]
+                    function_name = self._get_fallback_function_name(json_payload)
+                    function_kwargs = self._get_fallback_function_kwargs(json_payload)
                     tool_execution_message = self._create_fallback_tool_exec_message(
                         available_tools, function_name, function_kwargs
                     )
@@ -203,6 +203,23 @@ class LLMTask(BaseTask):
                 available_tools, function_name, function_kwargs
             ),
         }
+
+    def _get_fallback_function_name(self, json_payload: dict[str, Any]) -> str:
+        for key in ("name",):
+            if key in json_payload:
+                return json_payload[key]
+        raise ValueError("Function name not provided")
+
+    def _get_fallback_function_kwargs(self, json_payload: dict[str, Any]) -> str:
+        for key in (
+            "arguments",
+            "args",
+            "parameters",
+            "params",
+        ):
+            if key in json_payload:
+                return json_payload[key]
+        raise ValueError("Function arguments not provided")
 
     def _create_fallback_tool_exec_message(
         self,
