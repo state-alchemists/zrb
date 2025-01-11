@@ -62,7 +62,7 @@ reload() {
 
     log_info 'Install'
     poetry lock --no-update
-    poetry install
+    poetry install --all-extras
 
     if [ "$_IS_TERMUX" = "1" ]
     then
