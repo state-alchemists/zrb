@@ -139,22 +139,19 @@ class LLMTask(BaseTask):
             ctx.print(stylize_faint(f"{llm_response_dict}"))
             conversations.append(llm_response_dict)
             ctx.log_debug("RESPONSE MESSAGE", llm_response)
-            if is_function_call_supported and not llm_response.tool_calls:
-                self._save_conversation(history_file, conversations)
-                return llm_response.content
-            if is_function_call_supported and llm_response.tool_calls:
-                # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
-                for tool_call in llm_response.tool_calls:
-                    tool_execution_message = self._create_tool_exec_message(
-                        available_tools, tool_call
-                    )
-                    ctx.print(stylize_faint(f"{tool_execution_message}"))
-                    conversations.append(tool_execution_message)
+            if is_function_call_supported:
+                if not llm_response.tool_calls:
+                    # No tool call, end conversation
+                    self._save_conversation(history_file, conversations)
+                    return llm_response.content
+                self._handle_tool_calls(
+                    ctx, available_tools, conversations, llm_response
+                )
             if not is_function_call_supported:
                 try:
                     json_payload = json.loads(llm_response.content)
-                    function_name = self._get_fallback_function_name(json_payload)
-                    function_kwargs = self._get_fallback_function_kwargs(json_payload)
+                    function_name = _get_fallback_function_name(json_payload)
+                    function_kwargs = _get_fallback_function_kwargs(json_payload)
                     tool_execution_message = self._create_fallback_tool_exec_message(
                         available_tools, function_name, function_kwargs
                     )
@@ -169,6 +166,21 @@ class LLMTask(BaseTask):
                         f"{e}"
                     )
                     conversations.append(tool_execution_message)
+
+    def _handle_tool_calls(
+        self,
+        ctx: AnyContext,
+        available_tools: dict[str, Callable],
+        conversations: list[dict[str, Any]],
+        llm_response: Any,
+    ):
+        # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
+        for tool_call in llm_response.tool_calls:
+            tool_execution_message = self._create_tool_exec_message(
+                available_tools, tool_call
+            )
+            ctx.print(stylize_faint(f"{tool_execution_message}"))
+            conversations.append(tool_execution_message)
 
     def _save_conversation(self, history_file: str, conversations: list[Any]):
         if history_file != "":
@@ -199,27 +211,10 @@ class LLMTask(BaseTask):
             "tool_call_id": tool_call.id,
             "role": "tool",
             "name": function_name,
-            "content": self._get_tool_result(
+            "content": self._get_exec_tool_result(
                 available_tools, function_name, function_kwargs
             ),
         }
-
-    def _get_fallback_function_name(self, json_payload: dict[str, Any]) -> str:
-        for key in ("name",):
-            if key in json_payload:
-                return json_payload[key]
-        raise ValueError("Function name not provided")
-
-    def _get_fallback_function_kwargs(self, json_payload: dict[str, Any]) -> str:
-        for key in (
-            "arguments",
-            "args",
-            "parameters",
-            "params",
-        ):
-            if key in json_payload:
-                return json_payload[key]
-        raise ValueError("Function arguments not provided")
 
     def _create_fallback_tool_exec_message(
         self,
@@ -227,7 +222,9 @@ class LLMTask(BaseTask):
         function_name: str,
         function_kwargs: dict[str, Any],
     ) -> dict[str, Any]:
-        result = self._get_tool_result(available_tools, function_name, function_kwargs)
+        result = self._get_exec_tool_result(
+            available_tools, function_name, function_kwargs
+        )
         return self._create_exec_scratchpad_message(
             f"Result of {function_name} call: {result}"
         )
@@ -240,7 +237,7 @@ class LLMTask(BaseTask):
             ),
         }
 
-    def _get_tool_result(
+    def _get_exec_tool_result(
         self,
         available_tools: dict[str, Callable],
         function_name: str,
@@ -310,3 +307,22 @@ class LLMTask(BaseTask):
         return get_str_attr(
             ctx, self._history_file, "", auto_render=self._render_history_file
         )
+
+
+def _get_fallback_function_name(json_payload: dict[str, Any]) -> str:
+    for key in ("name",):
+        if key in json_payload:
+            return json_payload[key]
+    raise ValueError("Function name not provided")
+
+
+def _get_fallback_function_kwargs(json_payload: dict[str, Any]) -> str:
+    for key in (
+        "arguments",
+        "args",
+        "parameters",
+        "params",
+    ):
+        if key in json_payload:
+            return json_payload[key]
+    raise ValueError("Function arguments not provided")

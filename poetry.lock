@@ -1821,13 +1821,13 @@ dev = ["Sphinx (>=5.1.1)", "black (==24.8.0)", "build (>=0.10.0)", "coverage[tom
 
 [[package]]
 name = "litellm"
-version = "1.57.7"
+version = "1.57.8"
 description = "Library to easily interface with LLM API providers"
 optional = false
 python-versions = "!=2.7.*,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,!=3.7.*,>=3.8"
 files = [
-    {file = "litellm-1.57.7-py3-none-any.whl", hash = "sha256:0dc44faf96d2d7331e68fe43040fd0827f6852b1f95386ddb2b69117840713c5"},
-    {file = "litellm-1.57.7.tar.gz", hash = "sha256:b534405dd6be7a028862f7c8efa05bbab49f23e2002a67f51ea6687a9f1b0246"},
+    {file = "litellm-1.57.8-py3-none-any.whl", hash = "sha256:d0ed4a47ff0abf194abd236c375699b4fb16e33829d4a3aa7e9bbedf26440956"},
+    {file = "litellm-1.57.8.tar.gz", hash = "sha256:e3550f7e43c789aaf0f56a98d683e7e376178dd5626b80e4a3bac4c411e47ecb"},
 ]
 
 [package.dependencies]

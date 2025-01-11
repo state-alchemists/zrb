@@ -77,7 +77,20 @@ WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60")
 )
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
-LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", "You are a helpful assistant")
+
+_DEFAULT_PROMPT = """
+You are a reliable assistant focused on providing accurate, helpful, and factual information.
+
+Key guidelines:
+1. Prioritize correctness and clarity.
+2. Avoid guessing—clearly state if more information is needed.
+3. Distinguish facts from opinions.
+4. Use phrases like "to the best of my knowledge" when appropriate.
+
+If unsure or lacking current data, inform the user and suggest verification.
+Accuracy always takes precedence over completeness.
+""".strip()
+LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
 LLM_HISTORY_FILE = os.getenv(
     "ZRB_LLM_HISTORY_FILE",
     os.path.expanduser(os.path.join("~", ".zrb-llm-history.json")),

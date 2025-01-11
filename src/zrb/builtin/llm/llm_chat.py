@@ -22,7 +22,7 @@ llm_chat: LLMTask = llm_group.add_task(
                 prompt="LLM Model",
                 default_str=LLM_MODEL,
             ),
-            StrInput(
+            TextInput(
                 "system-prompt",
                 description="System prompt",
                 prompt="System prompt",

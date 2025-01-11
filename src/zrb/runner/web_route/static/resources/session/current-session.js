@@ -22,7 +22,7 @@ const CURRENT_SESSION = {
                 // update text areas
                 resultTextarea.value = data.final_result;
                 logTextarea.value = data.log.join("\n");
-                logTextarea.scrollTop = logTextarea.scrollHeight;
+                // logTextarea.scrollTop = logTextarea.scrollHeight;
                 // visualize history
                 this.showCurrentSession(data.task_status, data.finished);
                 if (data.finished) {
