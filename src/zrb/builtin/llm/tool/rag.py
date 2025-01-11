@@ -27,70 +27,80 @@ def create_rag_from_directory(
     overlap: int = RAG_OVERLAP,
     max_result_count: int = RAG_MAX_RESULT_COUNT,
 ):
-    from chromadb import PersistentClient
-    from chromadb.config import Settings
-
-    client = PersistentClient(path=vector_db_path, settings=Settings(allow_reset=True))
-    collection = client.get_or_create_collection(vector_db_collection)
-
-    # Track file changes using a hash-based approach
-    hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
-    previous_hashes = _load_hashes(hash_file_path)
-    current_hashes = {}
-
-    updated_files = []
-
-    for root, _, files in os.walk(document_dir_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            file_hash = _compute_file_hash(file_path)
-            relative_path = os.path.relpath(file_path, document_dir_path)
-            current_hashes[relative_path] = file_hash
-
-            if previous_hashes.get(relative_path) != file_hash:
-                updated_files.append(file_path)
-
-    if updated_files:
-        print(
-            stylize_faint(f"Updating {len(updated_files)} changed files"),
-            file=sys.stderr,
-        )
-
-        for file_path in updated_files:
-            try:
-                relative_path = os.path.relpath(file_path, document_dir_path)
-                collection.delete(where={"file_path": relative_path})
-                content = _read_file_content(file_path)
-                file_id = ulid.new().str
-                for i in range(0, len(content), chunk_size - overlap):
-                    chunk = content[i : i + chunk_size]
-                    if chunk:
-                        chunk_id = ulid.new().str
-                        print(
-                            stylize_faint(f"Vectorizing chunk {chunk_id}"),
-                            file=sys.stderr,
-                        )
-                        response = litellm.embedding(model=model, input=[chunk])
-                        vector = response["data"][0]["embedding"]
-                        collection.upsert(
-                            ids=[chunk_id],
-                            embeddings=[vector],
-                            documents=[chunk],
-                            metadatas={"file_path": relative_path, "file_id": file_id},
-                        )
-            except Exception as e:
-                print(
-                    stylize_error(f"Error processing {file_path}: {e}"), file=sys.stderr
-                )
-
-        _save_hashes(hash_file_path, current_hashes)
-    else:
-        print(
-            stylize_faint("No changes detected. Skipping database update."),
-            file=sys.stderr,
-        )
-
     async def retrieve(query: str) -> str:
+        from chromadb import PersistentClient
+        from chromadb.config import Settings
+
+        client = PersistentClient(
+            path=vector_db_path, settings=Settings(allow_reset=True)
+        )
+        collection = client.get_or_create_collection(vector_db_collection)
+
+        # Track file changes using a hash-based approach
+        hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
+        previous_hashes = _load_hashes(hash_file_path)
+        current_hashes = {}
+
+        updated_files = []
+
+        for root, _, files in os.walk(document_dir_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                file_hash = _compute_file_hash(file_path)
+                relative_path = os.path.relpath(file_path, document_dir_path)
+                current_hashes[relative_path] = file_hash
+
+                if previous_hashes.get(relative_path) != file_hash:
+                    updated_files.append(file_path)
+
+        if updated_files:
+            print(
+                stylize_faint(f"Updating {len(updated_files)} changed files"),
+                file=sys.stderr,
+            )
+
+            for file_path in updated_files:
+                try:
+                    relative_path = os.path.relpath(file_path, document_dir_path)
+                    collection.delete(where={"file_path": relative_path})
+                    content = _read_file_content(file_path)
+                    file_id = ulid.new().str
+                    for i in range(0, len(content), chunk_size - overlap):
+                        chunk = content[i : i + chunk_size]
+                        if chunk:
+                            chunk_id = ulid.new().str
+                            print(
+                                stylize_faint(
+                                    f"Vectorizing {relative_path} chunk {chunk_id}"
+                                ),
+                                file=sys.stderr,
+                            )
+                            response = await litellm.aembedding(
+                                model=model, input=[chunk]
+                            )
+                            vector = response["data"][0]["embedding"]
+                            collection.upsert(
+                                ids=[chunk_id],
+                                embeddings=[vector],
+                                documents=[chunk],
+                                metadatas={
+                                    "file_path": relative_path,
+                                    "file_id": file_id,
+                                },
+                            )
+                except Exception as e:
+                    print(
+                        stylize_error(f"Error processing {file_path}: {e}"),
+                        file=sys.stderr,
+                    )
+
+            _save_hashes(hash_file_path, current_hashes)
+        else:
+            print(
+                stylize_faint("No changes detected. Skipping database update."),
+                file=sys.stderr,
+            )
+
         print(stylize_faint("Vectorizing query"), file=sys.stderr)
         query_response = await litellm.aembedding(model=model, input=[query])
         query_vector = query_response["data"][0]["embedding"]

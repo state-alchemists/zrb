@@ -1,5 +1,6 @@
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.tool.cli import run_shell_command
+from zrb.builtin.llm.tool.rag import create_rag_from_directory
 from zrb.builtin.llm.tool.web import open_web_route, query_internet
 from zrb.config import (
     LLM_ALLOW_ACCESS_SHELL,
@@ -35,6 +36,7 @@ llm_chat: LLMTask = llm_group.add_task(
         model="{ctx.input.model}",
         system_prompt="{ctx.input['system-prompt']}",
         message="{ctx.input.message}",
+        retries=0,
     ),
     alias="chat",
 )

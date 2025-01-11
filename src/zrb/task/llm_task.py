@@ -17,6 +17,7 @@ from zrb.util.attr import get_str_attr
 from zrb.util.cli.style import stylize_faint
 from zrb.util.file import read_file, write_file
 from zrb.util.llm.tool import callable_to_tool_schema
+from zrb.util.run import run_async
 
 ListOfDict = list[dict[str, Any]]
 
@@ -144,7 +145,7 @@ class LLMTask(BaseTask):
                     # No tool call, end conversation
                     self._save_conversation(history_file, conversations)
                     return llm_response.content
-                self._handle_tool_calls(
+                await self._handle_tool_calls(
                     ctx, available_tools, conversations, llm_response
                 )
             if not is_function_call_supported:
@@ -152,8 +153,10 @@ class LLMTask(BaseTask):
                     json_payload = json.loads(llm_response.content)
                     function_name = _get_fallback_function_name(json_payload)
                     function_kwargs = _get_fallback_function_kwargs(json_payload)
-                    tool_execution_message = self._create_fallback_tool_exec_message(
-                        available_tools, function_name, function_kwargs
+                    tool_execution_message = (
+                        await self._create_fallback_tool_exec_message(
+                            available_tools, function_name, function_kwargs
+                        )
                     )
                     ctx.print(stylize_faint(f"{tool_execution_message}"))
                     conversations.append(tool_execution_message)
@@ -167,7 +170,7 @@ class LLMTask(BaseTask):
                     )
                     conversations.append(tool_execution_message)
 
-    def _handle_tool_calls(
+    async def _handle_tool_calls(
         self,
         ctx: AnyContext,
         available_tools: dict[str, Callable],
@@ -176,7 +179,7 @@ class LLMTask(BaseTask):
     ):
         # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
         for tool_call in llm_response.tool_calls:
-            tool_execution_message = self._create_tool_exec_message(
+            tool_execution_message = await self._create_tool_exec_message(
                 available_tools, tool_call
             )
             ctx.print(stylize_faint(f"{tool_execution_message}"))
@@ -202,7 +205,7 @@ class LLMTask(BaseTask):
         )
         return llm_response.choices[0].message
 
-    def _create_tool_exec_message(
+    async def _create_tool_exec_message(
         self, available_tools: dict[str, Callable], tool_call: Any
     ) -> dict[str, Any]:
         function_name = tool_call.function.name
@@ -211,18 +214,18 @@ class LLMTask(BaseTask):
             "tool_call_id": tool_call.id,
             "role": "tool",
             "name": function_name,
-            "content": self._get_exec_tool_result(
+            "content": await self._get_exec_tool_result(
                 available_tools, function_name, function_kwargs
             ),
         }
 
-    def _create_fallback_tool_exec_message(
+    async def _create_fallback_tool_exec_message(
         self,
         available_tools: dict[str, Callable],
         function_name: str,
         function_kwargs: dict[str, Any],
     ) -> dict[str, Any]:
-        result = self._get_exec_tool_result(
+        result = await self._get_exec_tool_result(
             available_tools, function_name, function_kwargs
         )
         return self._create_exec_scratchpad_message(
@@ -237,7 +240,7 @@ class LLMTask(BaseTask):
             ),
         }
 
-    def _get_exec_tool_result(
+    async def _get_exec_tool_result(
         self,
         available_tools: dict[str, Callable],
         function_name: str,
@@ -247,7 +250,7 @@ class LLMTask(BaseTask):
             return f"[ERROR] Invalid tool: {function_name}"
         function_to_call = available_tools[function_name]
         try:
-            return function_to_call(**function_kwargs)
+            return await run_async(function_to_call(**function_kwargs))
         except Exception as e:
             return f"[ERROR] {e}"
 
