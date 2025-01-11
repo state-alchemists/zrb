@@ -13,7 +13,9 @@ const CURRENT_SESSION = {
                 for (const inputName in dataInputs) {
                     const inputValue = dataInputs[inputName];
                     const input = submitTaskForm.querySelector(`[name="${inputName}"]`);
-                    input.value = inputValue;
+                    if (input) {
+                        input.value = inputValue;
+                    }
                 }
                 resultLineCount = data.final_result.split("\n").length;
                 resultTextarea.rows = resultLineCount <= 5 ? resultLineCount : 5;
@@ -49,6 +51,7 @@ const CURRENT_SESSION = {
                     "Content-Type": "application/json"
                 },
             });
+            console.log("RESPONSE", response);
             return await response.json();
         } catch (error) {
             console.error("Error:", error);

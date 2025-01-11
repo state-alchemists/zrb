@@ -249,7 +249,7 @@ class BaseTask(AnyTask):
         session: AnySession | None = None,
         str_kwargs: dict[str, str] = {},
     ) -> Any:
-        current_task = self.async_run(session, str_kwargs)
+        current_task = asyncio.create_task(self.async_run(session, str_kwargs))
         try:
             result = await current_task
         finally:
@@ -274,7 +274,8 @@ class BaseTask(AnyTask):
         # Update session
         self.__fill_shared_context_inputs(session.shared_ctx, str_kwargs)
         self.__fill_shared_context_envs(session.shared_ctx)
-        return await run_async(self.exec_root_tasks(session))
+        result = await run_async(self.exec_root_tasks(session))
+        return result
 
     def __fill_shared_context_inputs(
         self, shared_context: AnySharedContext, str_kwargs: dict[str, str] = {}
