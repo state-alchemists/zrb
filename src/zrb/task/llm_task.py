@@ -28,7 +28,7 @@ class AdditionalTool(BaseModel):
 
 
 def scratchpad(thought: str) -> str:
-    """Use this tool to note your thought and planning"""
+    """Write your thought, analysis, reasoning, and evaluation here."""
     return thought
 
 
