@@ -1,7 +1,7 @@
 from zrb import Env, StrInput, Task
 
 
-async def test_upstream_executed():
+def test_upstream_executed():
     lines = []
     create_naoh = Task(name="create-NaOH", action=lambda _: lines.append("NaOH"))
     create_hcl = Task(name="create-HCl", action=lambda _: lines.append("HCl"))
