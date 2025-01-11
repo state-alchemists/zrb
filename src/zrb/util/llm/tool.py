@@ -3,22 +3,18 @@ from collections.abc import Callable
 from typing import Any, get_type_hints
 
 
-def callable_to_tool_schema(
-    callable_obj: Callable, name: str | None = None, description: str | None = None
-) -> dict[str, Any]:
+def callable_to_tool_schema(callable_obj: Callable) -> dict[str, Any]:
     """
     Convert a callable into a tool schema dictionary by deriving the parameter schema.
 
     :param callable_obj: The callable object (e.g., a function).
-    :param name: The name to assign to the function in the schema.
-    :param description: A description of the function.
     :return: A dictionary representing the tool schema.
     """
     if not callable(callable_obj):
         raise ValueError("Provided object is not callable")
     # Derive name and description
-    name = name or callable_obj.__name__
-    description = description or (callable_obj.__doc__ or "").strip()
+    name = callable_obj.__name__
+    description = (callable_obj.__doc__ or "").strip()
     # Get function signature
     sig = inspect.signature(callable_obj)
     hints = get_type_hints(callable_obj)

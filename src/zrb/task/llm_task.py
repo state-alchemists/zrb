@@ -24,12 +24,16 @@ ListOfDict = list[dict[str, Any]]
 class AdditionalTool(BaseModel):
     fn: Callable
     name: str | None
-    description: str | None
 
 
 def scratchpad(thought: str) -> str:
     """Use this tool to note your thought and planning"""
     return thought
+
+
+def end_conversation(final_answer: str) -> str:
+    """End conversation with a final answer containing all necessary information"""
+    return final_answer
 
 
 class LLMTask(BaseTask):
@@ -47,9 +51,7 @@ class LLMTask(BaseTask):
         system_prompt: StrAttr | None = LLM_SYSTEM_PROMPT,
         render_system_prompt: bool = True,
         message: StrAttr | None = None,
-        tools: (
-            dict[str, Callable] | Callable[[AnySharedContext], dict[str, Callable]]
-        ) = {},
+        tools: list[Callable] | Callable[[AnySharedContext], list[Callable]] = [],
         history: ListOfDict | Callable[[AnySharedContext], ListOfDict] = [],
         history_file: StrAttr | None = None,
         render_history_file: bool = True,
@@ -102,22 +104,26 @@ class LLMTask(BaseTask):
         self._render_history_file = render_history_file
         self._additional_tools: list[AdditionalTool] = []
 
-    def add_tool(
-        self, tool: Callable, name: str | None = None, description: str | None = None
-    ):
-        self._additional_tools.append(
-            AdditionalTool(fn=tool, name=name, description=description)
-        )
+    def add_tool(self, tool: Callable):
+        self._tools.append(tool)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from litellm import acompletion
+        import litellm
         from litellm.utils import supports_function_calling
 
         model = self._get_model(ctx)
         try:
-            allow_function_call = supports_function_calling(model=model)
+            function_call_supported = supports_function_calling(model=model)
         except Exception:
-            allow_function_call = False
+            function_call_supported = False
+            litellm.add_function_to_prompt = True
+        if not function_call_supported:
+            ctx.log_warning(f"Model {model} doesn't support function call")
+        available_tools = self._get_available_tools(ctx)
+        if not function_call_supported:
+            available_tools["end_conversation"] = end_conversation
+        tool_schema = [callable_to_tool_schema(tool) for tool in available_tools.values()]
+        ctx.log_debug("TOOL SCHEMA", tool_schema)
         model_kwargs = self._get_model_kwargs(ctx)
         ctx.log_debug("MODEL KWARGS", model_kwargs)
         system_prompt = self._get_system_prompt(ctx)
@@ -126,60 +132,92 @@ class LLMTask(BaseTask):
         ctx.log_debug("HISTORY PROMPT", history)
         user_message = {"role": "user", "content": self._get_message(ctx)}
         ctx.print(stylize_faint(f"{user_message}"))
-        messages = history + [user_message]
-        available_tools = self._get_tools(ctx)
-        available_tools["scratchpad"] = scratchpad
-        if allow_function_call:
-            tool_schema = [
-                callable_to_tool_schema(tool, name)
-                for name, tool in available_tools.items()
-            ]
-            for additional_tool in self._additional_tools:
-                fn = additional_tool.fn
-                tool_name = additional_tool.name or fn.__name__
-                tool_description = additional_tool.description
-                available_tools[tool_name] = additional_tool.fn
-                tool_schema.append(
-                    callable_to_tool_schema(
-                        fn, name=tool_name, description=tool_description
-                    )
-                )
-            model_kwargs["tools"] = tool_schema
-            ctx.log_debug("TOOL SCHEMA", tool_schema)
-        else:
-            ctx.log_warning("Function call is not supported")
+        conversations = history + [user_message]
+        model_kwargs["tools"] = tool_schema
         history_file = self._get_history_file(ctx)
         while True:
-            response = await acompletion(
+            llm_response = await self._get_llm_response(
                 model=model,
-                messages=[{"role": "system", "content": system_prompt}] + messages,
-                **model_kwargs,
+                system_prompt=system_prompt,
+                conversations=conversations,
+                model_kwargs=model_kwargs
             )
-            response_message = response.choices[0].message
-            ctx.print(stylize_faint(f"{response_message.to_dict()}"))
-            messages.append(response_message.to_dict())
-            ctx.log_debug("RESPONSE MESSAGE", response_message)
-            if hasattr(response_message, "tool_calls"):
-                tool_calls = response_message.tool_calls
-                if tool_calls:
-                    # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
-                    for tool_call in tool_calls:
-                        function_name = tool_call.function.name
-                        function_to_call = available_tools[function_name]
-                        function_kwargs = json.loads(tool_call.function.arguments)
-                        function_response = function_to_call(**function_kwargs)
-                        tool_call_message = {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": function_name,
-                            "content": function_response,
-                        }
-                        ctx.print(stylize_faint(f"{tool_call_message}"))
-                        messages.append(tool_call_message)
-                    continue
+            llm_response_dict = llm_response.to_dict()
+            ctx.print(stylize_faint(f"{llm_response_dict}"))
+            conversations.append(llm_response_dict)
+            ctx.log_debug("RESPONSE MESSAGE", llm_response)
+            if hasattr(llm_response, "tool_calls") and llm_response.tool_calls:
+                # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
+                for tool_call in llm_response.tool_calls:
+                    function_name = tool_call.function.name
+                    function_kwargs = json.loads(tool_call.function.arguments)
+                    tool_call_message = {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": self._get_tool_result(
+                            available_tools, function_name, function_kwargs
+                        ),
+                    }
+                    ctx.print(stylize_faint(f"{tool_call_message}"))
+                    conversations.append(tool_call_message)
+                continue
+            elif not function_call_supported:
+                try:
+                    payload = json.loads(llm_response.content)
+                    function_name = payload["name"]
+                    function_kwargs = payload["arguments"]
+                    tool_call_message = self._create_fallback_scratchpad_call_message(
+                        self._get_tool_result(available_tools, function_name, function_kwargs)
+                    )
+                    ctx.print(stylize_faint(f"{tool_call_message}"))
+                    conversations.append(tool_call_message)
+                    if function_name == "end_conversation":
+                        write_file(history_file, json.dumps(conversations, indent=2))
+                        return function_kwargs.get("final_answer", "")
+                except Exception as e:
+                    ctx.log_error(e)
+                    tool_call_message = self._create_fallback_scratchpad_call_message(f"{e}")
+                    conversations.append(tool_call_message)
+                continue
             if history_file != "":
-                write_file(history_file, json.dumps(messages, indent=2))
-            return response_message.content
+                write_file(history_file, json.dumps(conversations, indent=2))
+            return llm_response.content
+
+    async def _get_llm_response(
+        self,
+        model: str,
+        system_prompt: str,
+        conversations: list[Any],
+        model_kwargs: dict[str, Any]
+    ) -> Any:
+        from litellm import acompletion
+        llm_response = await acompletion(
+            model=model,
+            messages=[{"role": "system", "content": system_prompt}] + conversations,
+            **model_kwargs,
+        )
+        return llm_response.choices[0].message
+
+    def _create_fallback_scratchpad_call_message(self, message: str) -> dict[str, Any]:
+        return {
+            "role": "assistant",
+            "content": json.dumps({"name": "scratchpad", "arguments": {"thought": message}}),
+        }
+
+    def _get_tool_result(
+        self,
+        available_tools: dict[str, Callable],
+        function_name: str,
+        function_kwargs: dict[str, Any],
+    ) -> str:
+        if function_name not in available_tools:
+            return f"[ERROR] Invalid tool: {function_name}"
+        function_to_call = available_tools[function_name]
+        try:
+            return function_to_call(**function_kwargs)
+        except Exception as e:
+            return f"[ERROR] {e}"
 
     def _get_model(self, ctx: AnyContext) -> str:
         return get_str_attr(
@@ -202,10 +240,12 @@ class LLMTask(BaseTask):
             return self._model_kwargs(ctx)
         return {**self._model_kwargs}
 
-    def _get_tools(self, ctx: AnyContext) -> dict[str, Callable]:
-        if callable(self._tools):
-            return self._tools(ctx)
-        return self._tools
+    def _get_available_tools(self, ctx: AnyContext) -> dict[str, Callable]:
+        tools = {"scratchpad": scratchpad}
+        tool_list = self._tools(ctx) if callable(self._tools) else self._tools
+        for tool in tool_list:
+            tools[tool.__name__] = tool
+        return tools
 
     def _get_history(self, ctx: AnyContext) -> ListOfDict:
         if callable(self._history):
