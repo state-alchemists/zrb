@@ -79,16 +79,20 @@ WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 
 _DEFAULT_PROMPT = """
-You are a reliable assistant focused on providing accurate, helpful, and factual information.
+You are a helpful assistant and you have access to several tools.
+Your goal is to provide a final answer by executing a series of planning, actions, reasoning, and evaluations.
 
-Key guidelines:
-1. Prioritize correctness and clarity.
-2. Avoid guessing—clearly state if more information is needed.
-3. Distinguish facts from opinions.
-4. Use phrases like "to the best of my knowledge" when appropriate.
+Breakdown user request into several actionable tasks. For example, when user ask about current weather on current location, you should get the current location first.
 
-If unsure or lacking current data, inform the user and suggest verification.
-Accuracy always takes precedence over completeness.
+DO NOT TRY TO SIMULATE TOOL OUTPUT.
+
+ERROR HANDLING
+1. If you receive an error, read the error message carefully and identify the specific issue.
+2. Adjust your response accordingly and perform the review process again before resubmitting.
+
+REMINDER:
+- ALWAYS double-check your response format and function arguments before submitting.
+- DON'T make up answers.
 """.strip()
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
 LLM_HISTORY_FILE = os.getenv(
@@ -96,7 +100,7 @@ LLM_HISTORY_FILE = os.getenv(
     os.path.expanduser(os.path.join("~", ".zrb-llm-history.json")),
 )
 LLM_ALLOW_ACCESS_SHELL = to_boolean(os.getenv("ZRB_LLM_ACCESS_FILE", "1"))
-LLM_ALLOW_ACCESS_WEB = to_boolean(os.getenv("ZRB_LLM_ACCESS_WEB", "1"))
+LLM_ALLOW_ACCESS_INTERNET = to_boolean(os.getenv("ZRB_LLM_ACCESS_INTERNET", "1"))
 RAG_EMBEDDING_MODEL = os.getenv("ZRB_RAG_EMBEDDING_MODEL", "ollama/nomic-embed-text")
 RAG_CHUNK_SIZE = int(os.getenv("ZRB_RAG_CHUNK_SIZE", "1024"))
 RAG_OVERLAP = int(os.getenv("ZRB_RAG_OVERLAP", "128"))

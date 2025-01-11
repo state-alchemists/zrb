@@ -56,6 +56,9 @@ submitTaskForm.addEventListener("change", async function(event) {
                 if (input === currentInput) {
                     return;
                 }
+                if (value === "") {
+                    return;
+                }
                 input.value = value;
             });
         } else {
