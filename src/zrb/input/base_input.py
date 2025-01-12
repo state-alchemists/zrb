@@ -16,6 +16,7 @@ class BaseInput(AnyInput):
         default_str: StrAttr = "",
         auto_render: bool = True,
         allow_empty: bool = False,
+        allow_positional_parsing: bool = True,
     ):
         self._name = name
         self._description = description
@@ -23,6 +24,7 @@ class BaseInput(AnyInput):
         self._default_str = default_str
         self._auto_render = auto_render
         self._allow_empty = allow_empty
+        self._allow_positional_parsing = allow_positional_parsing
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
@@ -38,6 +40,10 @@ class BaseInput(AnyInput):
     @property
     def prompt_message(self) -> str:
         return self._prompt if self._prompt is not None else self.name
+
+    @property
+    def allow_positional_parsing(self) -> bool:
+        return self._allow_positional_parsing
 
     def to_html(self, ctx: AnySharedContext) -> str:
         name = self.name

@@ -95,9 +95,11 @@ REMINDER:
 - DON'T make up answers.
 """.strip()
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
+LLM_HISTORY_DIR = os.getenv(
+    "ZRB_LLM_HISTORY_DIR", os.path.expanduser(os.path.join("~", ".zrb-llm-history"))
+)
 LLM_HISTORY_FILE = os.getenv(
-    "ZRB_LLM_HISTORY_FILE",
-    os.path.expanduser(os.path.join("~", ".zrb-llm-history.json")),
+    "ZRB_LLM_HISTORY_FILE", os.path.join(LLM_HISTORY_DIR, "history.json")
 )
 LLM_ALLOW_ACCESS_SHELL = to_boolean(os.getenv("ZRB_LLM_ACCESS_FILE", "1"))
 LLM_ALLOW_ACCESS_INTERNET = to_boolean(os.getenv("ZRB_LLM_ACCESS_INTERNET", "1"))

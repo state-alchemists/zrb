@@ -12,6 +12,7 @@ class FloatInput(BaseInput):
         default_str: StrAttr = "0.0",
         auto_render: bool = True,
         allow_empty: bool = False,
+        allow_positional_parsing: bool = True,
     ):
         super().__init__(
             name=name,
@@ -20,6 +21,7 @@ class FloatInput(BaseInput):
             default_str=default_str,
             auto_render=auto_render,
             allow_empty=allow_empty,
+            allow_positional_parsing=allow_positional_parsing,
         )
 
     def to_html(self, ctx: AnySharedContext) -> str:

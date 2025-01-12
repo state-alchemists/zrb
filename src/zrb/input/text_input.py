@@ -18,6 +18,7 @@ class TextInput(BaseInput):
         default_str: str | Callable[[AnySharedContext], str] = "",
         auto_render: bool = True,
         allow_empty: bool = False,
+        allow_positional_parsing: bool = True,
         editor: str = DEFAULT_EDITOR,
         extension: str = ".txt",
         comment_start: str | None = None,
@@ -30,6 +31,7 @@ class TextInput(BaseInput):
             default_str=default_str,
             auto_render=auto_render,
             allow_empty=allow_empty,
+            allow_positional_parsing=allow_positional_parsing,
         )
         self._editor = editor
         self._extension = extension

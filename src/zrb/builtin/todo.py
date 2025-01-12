@@ -294,6 +294,7 @@ def _get_default_stop_work_time_str() -> str:
             description="Todo.txt content",
             prompt="Todo.txt content (will override existing)",
             default_str=lambda _: _get_todo_txt_content(),
+            allow_positional_parsing=False,
         ),
     ],
     description="📝 Edit todo",

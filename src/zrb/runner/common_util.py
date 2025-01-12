@@ -15,7 +15,7 @@ def get_run_kwargs(
         if task_input.name in str_kwargs:
             # Update shared context for next input default value
             task_input.update_shared_context(shared_ctx, str_kwargs[task_input.name])
-        elif arg_index < len(args):
+        elif arg_index < len(args) and task_input.allow_positional_parsing:
             run_kwargs[task_input.name] = args[arg_index]
             # Update shared context for next input default value
             task_input.update_shared_context(shared_ctx, run_kwargs[task_input.name])

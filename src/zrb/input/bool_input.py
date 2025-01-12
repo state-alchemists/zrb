@@ -13,6 +13,7 @@ class BoolInput(BaseInput):
         default_str: StrAttr = "False",
         auto_render: bool = True,
         allow_empty: bool = False,
+        allow_positional_parsing: bool = True,
     ):
         super().__init__(
             name=name,
@@ -21,6 +22,7 @@ class BoolInput(BaseInput):
             default_str=default_str,
             auto_render=auto_render,
             allow_empty=allow_empty,
+            allow_positional_parsing=allow_positional_parsing,
         )
 
     def to_html(self, ctx: AnySharedContext) -> str:

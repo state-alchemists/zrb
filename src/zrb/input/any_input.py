@@ -19,6 +19,11 @@ class AnyInput(ABC):
     def prompt_message(self) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def allow_positional_parsing(self) -> bool:
+        pass
+
     @abstractmethod
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         pass
