@@ -53,8 +53,16 @@ class LLMTask(BaseTask):
         render_system_prompt: bool = True,
         message: StrAttr | None = None,
         tools: list[Callable] | Callable[[AnySharedContext], list[Callable]] = [],
-        history: ListOfDict | Callable[[AnySharedContext], ListOfDict] = [],
-        history_file: StrAttr | None = None,
+        conversation_history: (
+            ListOfDict | Callable[[AnySharedContext], ListOfDict]
+        ) = [],
+        conversation_history_reader: (
+            Callable[[AnySharedContext], ListOfDict] | None
+        ) = None,
+        conversation_history_writer: (
+            Callable[[AnySharedContext, ListOfDict], None] | None
+        ) = None,
+        conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
         model_kwargs: (
             dict[str, Any] | Callable[[AnySharedContext], dict[str, Any]]
@@ -100,8 +108,10 @@ class LLMTask(BaseTask):
         self._render_system_prompt = render_system_prompt
         self._message = message
         self._tools = tools
-        self._history = history
-        self._history_file = history_file
+        self._conversation_history = conversation_history
+        self._conversation_history_reader = conversation_history_reader
+        self._conversation_history_writer = conversation_history_writer
+        self._conversation_history_file = conversation_history_file
         self._render_history_file = render_history_file
 
     def add_tool(self, tool: Callable):
@@ -128,10 +138,9 @@ class LLMTask(BaseTask):
         ctx.log_debug("MODEL KWARGS", model_kwargs)
         system_prompt = self._get_system_prompt(ctx)
         ctx.log_debug("SYSTEM PROMPT", system_prompt)
-        history = self._get_history(ctx)
+        history = await self._read_conversation_history(ctx)
         ctx.log_debug("HISTORY PROMPT", history)
         conversations = history + [user_message]
-        history_file = self._get_history_file(ctx)
         while True:
             llm_response = await self._get_llm_response(
                 model, system_prompt, conversations, model_kwargs
@@ -143,7 +152,7 @@ class LLMTask(BaseTask):
             if is_function_call_supported:
                 if not llm_response.tool_calls:
                     # No tool call, end conversation
-                    self._save_conversation(history_file, conversations)
+                    await self._write_conversation_history(ctx, conversations)
                     return llm_response.content
                 await self._handle_tool_calls(
                     ctx, available_tools, conversations, llm_response
@@ -161,7 +170,7 @@ class LLMTask(BaseTask):
                     ctx.print(stylize_faint(f"{tool_execution_message}"))
                     conversations.append(tool_execution_message)
                     if function_name == "end_conversation":
-                        self._save_conversation(history_file, conversations)
+                        await self._write_conversation_history(ctx, conversations)
                         return function_kwargs.get("final_answer", "")
                 except Exception as e:
                     ctx.log_error(e)
@@ -185,7 +194,12 @@ class LLMTask(BaseTask):
             ctx.print(stylize_faint(f"{tool_execution_message}"))
             conversations.append(tool_execution_message)
 
-    def _save_conversation(self, history_file: str, conversations: list[Any]):
+    async def _write_conversation_history(
+        self, ctx: AnyContext, conversations: list[Any]
+    ):
+        if self._conversation_history_writer is not None:
+            await run_async(self._conversation_history_writer(ctx, conversations))
+        history_file = self._get_history_file(ctx)
         if history_file != "":
             write_file(history_file, json.dumps(conversations, indent=2))
 
@@ -294,21 +308,26 @@ class LLMTask(BaseTask):
             tools[tool.__name__] = tool
         return tools
 
-    def _get_history(self, ctx: AnyContext) -> ListOfDict:
-        if callable(self._history):
-            return self._history(ctx)
+    async def _read_conversation_history(self, ctx: AnyContext) -> ListOfDict:
+        if self._conversation_history_reader is not None:
+            return await run_async(self._conversation_history_reader(ctx))
+        if callable(self._conversation_history):
+            return self._conversation_history(ctx)
         history_file = self._get_history_file(ctx)
         if (
-            len(self._history) == 0
+            len(self._conversation_history) == 0
             and history_file != ""
             and os.path.isfile(history_file)
         ):
             return json.loads(read_file(history_file))
-        return self._history
+        return self._conversation_history
 
     def _get_history_file(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._history_file, "", auto_render=self._render_history_file
+            ctx,
+            self._conversation_history_file,
+            "",
+            auto_render=self._render_history_file,
         )
 
 

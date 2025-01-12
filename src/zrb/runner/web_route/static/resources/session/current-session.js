@@ -51,7 +51,6 @@ const CURRENT_SESSION = {
                     "Content-Type": "application/json"
                 },
             });
-            console.log("RESPONSE", response);
             return await response.json();
         } catch (error) {
             console.error("Error:", error);
