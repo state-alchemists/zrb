@@ -33,7 +33,7 @@ def scratchpad(thought: str) -> str:
 
 
 def end_conversation(final_answer: str) -> str:
-    """End conversation with a final answer containing all necessary information"""
+    """Answer the user's question, and finish the conversation."""
     return final_answer
 
 
@@ -131,9 +131,7 @@ class LLMTask(BaseTask):
             litellm.add_function_to_prompt = True
         if not is_function_call_supported:
             ctx.log_warning(f"Model {model} doesn't support function call")
-        available_tools = self._get_available_tools(
-            ctx, include_end_conversation=not is_function_call_supported
-        )
+        available_tools = self._get_available_tools(ctx)
         model_kwargs = self._get_model_kwargs(ctx, available_tools)
         ctx.log_debug("MODEL KWARGS", model_kwargs)
         system_prompt = self._get_system_prompt(ctx)
@@ -149,14 +147,17 @@ class LLMTask(BaseTask):
             ctx.print(stylize_faint(f"{llm_response_dict}"))
             conversations.append(llm_response_dict)
             ctx.log_debug("RESPONSE MESSAGE", llm_response)
-            if is_function_call_supported:
-                if not llm_response.tool_calls:
-                    # No tool call, end conversation
-                    await self._write_conversation_history(ctx, conversations)
-                    return llm_response.content
-                await self._handle_tool_calls(
-                    ctx, available_tools, conversations, llm_response
-                )
+            if is_function_call_supported and llm_response.tool_calls:
+                for tool_call in llm_response.tool_calls:
+                    # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
+                    tool_execution_message = await self._create_tool_exec_message(
+                        available_tools, tool_call
+                    )
+                    ctx.print(stylize_faint(f"{tool_execution_message}"))
+                    conversations.append(tool_execution_message)
+                    if tool_execution_message["name"] == "end_conversation":
+                        await self._write_conversation_history(ctx, conversations)
+                        return tool_execution_message["content"]
             if not is_function_call_supported:
                 try:
                     json_payload = json.loads(llm_response.content)
@@ -178,21 +179,6 @@ class LLMTask(BaseTask):
                         f"{e}"
                     )
                     conversations.append(tool_execution_message)
-
-    async def _handle_tool_calls(
-        self,
-        ctx: AnyContext,
-        available_tools: dict[str, Callable],
-        conversations: list[dict[str, Any]],
-        llm_response: Any,
-    ):
-        # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
-        for tool_call in llm_response.tool_calls:
-            tool_execution_message = await self._create_tool_exec_message(
-                available_tools, tool_call
-            )
-            ctx.print(stylize_faint(f"{tool_execution_message}"))
-            conversations.append(tool_execution_message)
 
     async def _write_conversation_history(
         self, ctx: AnyContext, conversations: list[Any]
@@ -297,12 +283,11 @@ class LLMTask(BaseTask):
         ]
         return model_kwargs
 
-    def _get_available_tools(
-        self, ctx: AnyContext, include_end_conversation: bool
-    ) -> dict[str, Callable]:
-        tools = {"scratchpad": scratchpad}
-        if include_end_conversation:
-            tools["end_conversation"] = end_conversation
+    def _get_available_tools(self, ctx: AnyContext) -> dict[str, Callable]:
+        tools = {
+            "scratchpad": scratchpad,
+            "end_conversation": end_conversation,
+        }
         tool_list = self._tools(ctx) if callable(self._tools) else self._tools
         for tool in tool_list:
             tools[tool.__name__] = tool

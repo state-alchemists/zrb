@@ -1,6 +1,6 @@
 import inspect
 from collections.abc import Callable
-from typing import Any, get_type_hints
+from typing import Annotated, Any, Literal, get_type_hints
 
 
 def callable_to_tool_schema(callable_obj: Callable) -> dict[str, Any]:
@@ -21,10 +21,14 @@ def callable_to_tool_schema(callable_obj: Callable) -> dict[str, Any]:
     # Build parameter schema
     param_schema = {"type": "object", "properties": {}, "required": []}
     for param_name, param in sig.parameters.items():
-        param_type = hints.get(param_name, str)  # Default type is string
-        param_schema["properties"][param_name] = {
-            "type": _python_type_to_json_type(param_type)
-        }
+        # Get the type hint or default to str
+        param_type = hints.get(param_name, str)
+
+        # Handle annotated types (e.g., Annotated[str, "description"])
+        json_type, param_metadata = _process_type_annotation(param_type)
+        param_schema["properties"][param_name] = param_metadata
+
+        # Mark required parameters
         if param.default is inspect.Parameter.empty:
             param_schema["required"].append(param_name)
     return {
@@ -35,6 +39,30 @@ def callable_to_tool_schema(callable_obj: Callable) -> dict[str, Any]:
             "parameters": param_schema,
         },
     }
+
+
+def _process_type_annotation(py_type: Any) -> tuple[str, dict]:
+    """
+    Process type annotations and return the JSON Schema type and metadata.
+
+    :param py_type: The type annotation.
+    :return: A tuple of (JSON type, parameter metadata).
+    """
+    if hasattr(py_type, "__origin__") and py_type.__origin__ is Literal:
+        # Handle Literal (enum)
+        enum_values = list(py_type.__args__)
+        return "string", {"type": "string", "enum": enum_values}
+
+    if hasattr(py_type, "__origin__") and py_type.__origin__ is Annotated:
+        # Handle Annotated types
+        base_type = py_type.__args__[0]
+        description = py_type.__args__[1]
+        json_type = _python_type_to_json_type(base_type)
+        return json_type, {"type": json_type, "description": description}
+
+    # Fallback to basic type conversion
+    json_type = _python_type_to_json_type(py_type)
+    return json_type, {"type": json_type}
 
 
 def _python_type_to_json_type(py_type):

@@ -92,8 +92,8 @@ llm_chat: LLMTask = llm_group.add_task(
             ),
             BoolInput(
                 "start-new",
-                description="Start new conversation session",
-                prompt="Forget everything and start new conversation session",
+                description="Start new conversation (LLM will forget everything)",
+                prompt="Start new conversation (LLM will forget everything)",
                 default_str="false",
                 allow_positional_parsing=False,
             ),

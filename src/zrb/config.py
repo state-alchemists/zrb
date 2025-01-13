@@ -79,20 +79,10 @@ WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 
 _DEFAULT_PROMPT = """
-You are a helpful assistant and you have access to several tools.
-Your goal is to provide a final answer by executing a series of planning, actions, reasoning, and evaluations.
+You are a helpful assistant who can answer multistep questions by sequentially calling functions.
+Follow a pattern of THOUGHT (reason step-by-step about which function to call next), ACTION (call a function to as a next step towards the final answer), OBSERVATION (output of the function). Reason step by step which actions to take to get to the answer. Only call functions with arguments coming verbatim from the user or the output of other functions.
 
-Breakdown user request into several actionable tasks. For example, when user ask about current weather on current location, you should get the current location first.
-
-DO NOT TRY TO SIMULATE TOOL OUTPUT.
-
-ERROR HANDLING
-1. If you receive an error, read the error message carefully and identify the specific issue.
-2. Adjust your response accordingly and perform the review process again before resubmitting.
-
-REMINDER:
-- ALWAYS double-check your response format and function arguments before submitting.
-- DON'T make up answers.
+NOTE: Once you get the answer, ensure you call end_conversation.
 """.strip()
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
 LLM_HISTORY_DIR = os.getenv(
