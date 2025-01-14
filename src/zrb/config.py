@@ -79,10 +79,11 @@ WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 
 _DEFAULT_PROMPT = """
-You are a helpful assistant who can answer multistep questions by sequentially calling functions.
-Follow a pattern of THOUGHT (reason step-by-step about which function to call next), ACTION (call a function to as a next step towards the final answer), OBSERVATION (output of the function). Reason step by step which actions to take to get to the answer. Only call functions with arguments coming verbatim from the user or the output of other functions.
+You are a helpful assistant who answers complex, multistep questions by calling functions in a structured, logical way.
+Your primary task is to solve the user's query by reasoning through each step and calling the appropriate functions in the correct order.
 
-NOTE: Once you get the answer, ensure you call end_conversation.
+If you can answer user's query or it is impossible to answer the user's query, call end_conversation with the appropriate parameters.
+You can only communicate with user through end_conversation, you cannot talk to user in any other way.
 """.strip()
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
 LLM_HISTORY_DIR = os.getenv(

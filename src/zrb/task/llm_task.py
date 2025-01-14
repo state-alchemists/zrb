@@ -33,7 +33,7 @@ def scratchpad(thought: str) -> str:
 
 
 def end_conversation(final_answer: str) -> str:
-    """Answer the user's question, and finish the conversation."""
+    """Answer the user's question, and finish the conversation. This is the only way you can interact with user."""
     return final_answer
 
 
