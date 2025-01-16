@@ -121,6 +121,8 @@ class LLMTask(BaseTask):
         import litellm
         from litellm.utils import supports_function_calling
 
+        litellm.drop_params = True
+
         user_message = {"role": "user", "content": self._get_message(ctx)}
         ctx.print(stylize_faint(f"{user_message}"))
         model = self._get_model(ctx)
