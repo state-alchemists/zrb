@@ -20,7 +20,7 @@ window.addEventListener("load", async function () {
 
 
 const submitTaskForm = document.getElementById("submit-task-form");
-submitTaskForm.addEventListener("change", async function(event) {
+async function handleInputUpdate(event) {
     const currentInput = event.target;
     const inputs = Array.from(submitTaskForm.querySelectorAll("input[name], textarea[name], select[name]"));
     const inputMap = {};
@@ -59,6 +59,7 @@ submitTaskForm.addEventListener("change", async function(event) {
                 if (value === "") {
                     return;
                 }
+                console.log(input, data);
                 input.value = value;
             });
         } else {
@@ -67,6 +68,14 @@ submitTaskForm.addEventListener("change", async function(event) {
     } catch (error) {
         console.error("Error during fetch:", error);
     }
+}
+
+submitTaskForm.querySelectorAll("input[name], textarea[name]").forEach((element) => {
+    element.addEventListener("input", handleInputUpdate);
+    element.addEventListener("keyup", handleInputUpdate);
+});
+submitTaskForm.querySelectorAll("select[name]").forEach((element) => {
+    element.addEventListener("change", handleInputUpdate);
 });
 
 

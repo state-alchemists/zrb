@@ -4,18 +4,22 @@ const CURRENT_SESSION = {
         const logTextarea = document.getElementById("log-textarea");
         const submitTaskForm = document.getElementById("submit-task-form");
         let isFinished = false;
+        let isInputUpdated = false;
         let errorCount = 0;
         while (!isFinished) {
             try {
                 const data = await this.getCurrentSession();
                 // update inputs
-                const dataInputs = data.input;
-                for (const inputName in dataInputs) {
-                    const inputValue = dataInputs[inputName];
-                    const input = submitTaskForm.querySelector(`[name="${inputName}"]`);
-                    if (input) {
-                        input.value = inputValue;
+                if (!isInputUpdated) {
+                    const dataInputs = data.input;
+                    for (const inputName in dataInputs) {
+                        const inputValue = dataInputs[inputName];
+                        const input = submitTaskForm.querySelector(`[name="${inputName}"]`);
+                        if (input) {
+                            input.value = inputValue;
+                        }
                     }
+                    isInputUpdated = true;
                 }
                 resultLineCount = data.final_result.split("\n").length;
                 resultTextarea.rows = resultLineCount <= 5 ? resultLineCount : 5;
