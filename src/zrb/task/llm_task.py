@@ -76,6 +76,7 @@ class LLMTask(BaseTask):
         readiness_failure_threshold: int = 1,
         readiness_timeout: int = 60,
         monitor_readiness: bool = False,
+        max_call_iteration: int = 20,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
@@ -113,6 +114,7 @@ class LLMTask(BaseTask):
         self._conversation_history_writer = conversation_history_writer
         self._conversation_history_file = conversation_history_file
         self._render_history_file = render_history_file
+        self._max_call_iteration = max_call_iteration
 
     def add_tool(self, tool: Callable):
         self._tools.append(tool)
@@ -141,7 +143,9 @@ class LLMTask(BaseTask):
         history = await self._read_conversation_history(ctx)
         ctx.log_debug("HISTORY PROMPT", history)
         conversations = history + [user_message]
-        while True:
+        call_iteration = 0
+        while call_iteration < self._max_call_iteration:
+            call_iteration += 1
             llm_response = await self._get_llm_response(
                 model, system_prompt, conversations, model_kwargs
             )
@@ -181,6 +185,7 @@ class LLMTask(BaseTask):
                         f"{e}"
                     )
                     conversations.append(tool_execution_message)
+        raise Exception("Maximum call iteration reached")
 
     async def _write_conversation_history(
         self, ctx: AnyContext, conversations: list[Any]
