@@ -24,16 +24,6 @@ ListOfDict = list[dict[str, Any]]
 ToolOrCallable = Tool | Callable
 
 
-def scratchpad(thought: str) -> str:
-    """Write your thought, analysis, reasoning, and evaluation here."""
-    return thought
-
-
-def end_conversation(final_answer: str) -> str:
-    """Answer the user's question, and finish the conversation. This is the only way you can interact with user."""
-    return final_answer
-
-
 class LLMTask(BaseTask):
     def __init__(
         self,
@@ -156,12 +146,16 @@ class LLMTask(BaseTask):
             return self._agent
         if callable(self._agent):
             return self._agent(ctx)
-        tools_or_callables = self._tools(ctx) if callable(self._tools) else self._tools
+        tools_or_callables = list(
+            self._tools(ctx) if callable(self._tools) else self._tools
+        )
         tools_or_callables.extend(self._additional_tools)
         tools = [
             tool if isinstance(tool, Tool) else Tool(tool, takes_ctx=False)
             for tool in tools_or_callables
         ]
+        for tool in tools:
+            print("tool", tool)
         return Agent(
             self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),

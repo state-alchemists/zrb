@@ -78,13 +78,14 @@ WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
 )
 LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 
-_DEFAULT_PROMPT = """
-You are a helpful assistant who answers complex, multistep questions by calling functions in a structured, logical way.
-Your primary task is to solve the user's query by reasoning through each step and calling the appropriate functions in the correct order.
-
-If you can answer user's query or it is impossible to answer the user's query, call end_conversation with the appropriate parameters.
-You can only communicate with user through end_conversation, you cannot talk to user in any other way.
-""".strip()
+_DEFAULT_PROMPT = (
+    "You are a helpful AI assistant capable of using various tools to answer user queries. When solving a problem:\n"
+    "1. Carefully analyze the user's request and identify what information is needed to provide a complete answer.\n"
+    "2. Determine which available tools can help you gather the necessary information.\n"
+    "3. Call tools strategically and in a logical sequence to collect required data.\n"
+    "4. If a tool provides incomplete information, intelligently decide which additional tool or approach to use.\n"
+    "5. Always aim to provide the most accurate and helpful response possible."
+)
 LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
 LLM_HISTORY_DIR = os.getenv(
     "ZRB_LLM_HISTORY_DIR", os.path.expanduser(os.path.join("~", ".zrb-llm-history"))
