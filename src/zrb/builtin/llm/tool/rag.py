@@ -31,7 +31,7 @@ def create_rag_from_directory(
         from chromadb.config import Settings
         from fastembed import TextEmbedding
 
-        embedding_model = TextEmbedding()
+        embedding_model = TextEmbedding(model_name=model)
         client = PersistentClient(
             path=vector_db_path, settings=Settings(allow_reset=True)
         )
@@ -76,7 +76,8 @@ def create_rag_from_directory(
                                 ),
                                 file=sys.stderr,
                             )
-                            vector = list(embedding_model.embed(chunk))[0]
+                            embedding_result = list(embedding_model.embed([chunk]))
+                            vector = embedding_result[0]
                             collection.upsert(
                                 ids=[chunk_id],
                                 embeddings=[vector],
@@ -100,7 +101,8 @@ def create_rag_from_directory(
             )
 
         print(stylize_faint("Vectorizing query"), file=sys.stderr)
-        query_vector = list(embedding_model.embed(query))[0]
+        embedding_result = list(embedding_model.embed([query]))
+        query_vector = embedding_result[0]
         print(stylize_faint("Searching documents"), file=sys.stderr)
         results = collection.query(
             query_embeddings=query_vector,

@@ -154,8 +154,6 @@ class LLMTask(BaseTask):
             tool if isinstance(tool, Tool) else Tool(tool, takes_ctx=False)
             for tool in tools_or_callables
         ]
-        for tool in tools:
-            print("tool", tool)
         return Agent(
             self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),
