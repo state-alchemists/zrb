@@ -3,7 +3,9 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic_ai import Agent, Tool
+from pydantic_ai.messages import ModelMessagesTypeAdapter
+from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import StrAttr
 from zrb.config import LLM_MODEL, LLM_SYSTEM_PROMPT
@@ -16,15 +18,10 @@ from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
 from zrb.util.cli.style import stylize_faint
 from zrb.util.file import read_file, write_file
-from zrb.util.llm.tool import callable_to_tool_schema
 from zrb.util.run import run_async
 
 ListOfDict = list[dict[str, Any]]
-
-
-class AdditionalTool(BaseModel):
-    fn: Callable
-    name: str | None
+ToolOrCallable = Tool | Callable
 
 
 def scratchpad(thought: str) -> str:
@@ -48,11 +45,17 @@ class LLMTask(BaseTask):
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
         model: StrAttr | None = LLM_MODEL,
+        model_settings: (
+            ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
+        ) = None,
         render_model: bool = True,
+        agent: Agent | Callable[[AnySharedContext], Agent] | None = None,
         system_prompt: StrAttr | None = LLM_SYSTEM_PROMPT,
         render_system_prompt: bool = True,
         message: StrAttr | None = None,
-        tools: list[Callable] | Callable[[AnySharedContext], list[Callable]] = [],
+        tools: (
+            list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
+        ) = [],
         conversation_history: (
             ListOfDict | Callable[[AnySharedContext], ListOfDict]
         ) = [],
@@ -64,9 +67,6 @@ class LLMTask(BaseTask):
         ) = None,
         conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
-        model_kwargs: (
-            dict[str, Any] | Callable[[AnySharedContext], dict[str, Any]]
-        ) = {},
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -103,12 +103,14 @@ class LLMTask(BaseTask):
             successor=successor,
         )
         self._model = model
+        self._model_settings = (model_settings,)
+        self._agent = agent
         self._render_model = render_model
-        self._model_kwargs = model_kwargs
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
         self._message = message
         self._tools = tools
+        self._additional_tools: list[ToolOrCallable] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
         self._conversation_history_writer = conversation_history_writer
@@ -116,76 +118,22 @@ class LLMTask(BaseTask):
         self._render_history_file = render_history_file
         self._max_call_iteration = max_call_iteration
 
-    def add_tool(self, tool: Callable):
-        self._tools.append(tool)
+    def add_tool(self, tool: ToolOrCallable):
+        self._additional_tools.append(tool)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        import litellm
-        from litellm.utils import supports_function_calling
-
-        litellm.drop_params = True
-
-        user_message = {"role": "user", "content": self._get_message(ctx)}
-        ctx.print(stylize_faint(f"{user_message}"))
-        model = self._get_model(ctx)
-        try:
-            is_function_call_supported = supports_function_calling(model=model)
-        except Exception:
-            is_function_call_supported = False
-            litellm.add_function_to_prompt = True
-        if not is_function_call_supported:
-            ctx.log_warning(f"Model {model} doesn't support function call")
-        available_tools = self._get_available_tools(ctx)
-        model_kwargs = self._get_model_kwargs(ctx, available_tools)
-        ctx.log_debug("MODEL KWARGS", model_kwargs)
-        system_prompt = self._get_system_prompt(ctx)
-        ctx.log_debug("SYSTEM PROMPT", system_prompt)
         history = await self._read_conversation_history(ctx)
-        ctx.log_debug("HISTORY PROMPT", history)
-        conversations = history + [user_message]
-        call_iteration = 0
-        while call_iteration < self._max_call_iteration:
-            call_iteration += 1
-            llm_response = await self._get_llm_response(
-                model, system_prompt, conversations, model_kwargs
-            )
-            llm_response_dict = llm_response.to_dict()
-            ctx.print(stylize_faint(f"{llm_response_dict}"))
-            conversations.append(llm_response_dict)
-            ctx.log_debug("RESPONSE MESSAGE", llm_response)
-            if is_function_call_supported and llm_response.tool_calls:
-                for tool_call in llm_response.tool_calls:
-                    # noqa Reference: https://docs.litellm.ai/docs/completion/function_call#full-code---parallel-function-calling-with-gpt-35-turbo-1106
-                    tool_execution_message = await self._create_tool_exec_message(
-                        available_tools, tool_call
-                    )
-                    ctx.print(stylize_faint(f"{tool_execution_message}"))
-                    conversations.append(tool_execution_message)
-                    if tool_execution_message["name"] == "end_conversation":
-                        await self._write_conversation_history(ctx, conversations)
-                        return tool_execution_message["content"]
-            if not is_function_call_supported:
-                try:
-                    json_payload = json.loads(llm_response.content)
-                    function_name = _get_fallback_function_name(json_payload)
-                    function_kwargs = _get_fallback_function_kwargs(json_payload)
-                    tool_execution_message = (
-                        await self._create_fallback_tool_exec_message(
-                            available_tools, function_name, function_kwargs
-                        )
-                    )
-                    ctx.print(stylize_faint(f"{tool_execution_message}"))
-                    conversations.append(tool_execution_message)
-                    if function_name == "end_conversation":
-                        await self._write_conversation_history(ctx, conversations)
-                        return function_kwargs.get("final_answer", "")
-                except Exception as e:
-                    ctx.log_error(e)
-                    tool_execution_message = self._create_exec_scratchpad_message(
-                        f"{e}"
-                    )
-                    conversations.append(tool_execution_message)
-        raise Exception("Maximum call iteration reached")
+        user_prompt = self._get_message(ctx)
+        agent = self._get_agent(ctx)
+        result = await agent.run(
+            user_prompt=user_prompt,
+            message_history=ModelMessagesTypeAdapter.validate_python(history),
+        )
+        new_history = json.loads(result.all_messages_json())
+        for history in new_history:
+            ctx.print(stylize_faint(json.dumps(history)))
+        await self._write_conversation_history(ctx, new_history)
+        return result.data
 
     async def _write_conversation_history(
         self, ctx: AnyContext, conversations: list[Any]
@@ -196,70 +144,29 @@ class LLMTask(BaseTask):
         if history_file != "":
             write_file(history_file, json.dumps(conversations, indent=2))
 
-    async def _get_llm_response(
-        self,
-        model: str,
-        system_prompt: str,
-        conversations: list[Any],
-        model_kwargs: dict[str, Any],
-    ) -> Any:
-        from litellm import acompletion
+    def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
+        if isinstance(self._model_settings, ModelSettings):
+            return self._model_settings
+        if callable(self._model_settings):
+            return self._model_settings(ctx)
+        return None
 
-        llm_response = await acompletion(
-            model=model,
-            messages=[{"role": "system", "content": system_prompt}] + conversations,
-            **model_kwargs,
+    def _get_agent(self, ctx: AnyContext) -> Agent:
+        if isinstance(self._agent, Agent):
+            return self._agent
+        if callable(self._agent):
+            return self._agent(ctx)
+        tools_or_callables = self._tools(ctx) if callable(self._tools) else self._tools
+        tools_or_callables.extend(self._additional_tools)
+        tools = [
+            tool if isinstance(tool, Tool) else Tool(tool, takes_ctx=False)
+            for tool in tools_or_callables
+        ]
+        return Agent(
+            self._get_model(ctx),
+            system_prompt=self._get_system_prompt(ctx),
+            tools=tools,
         )
-        return llm_response.choices[0].message
-
-    async def _create_tool_exec_message(
-        self, available_tools: dict[str, Callable], tool_call: Any
-    ) -> dict[str, Any]:
-        function_name = tool_call.function.name
-        function_kwargs = json.loads(tool_call.function.arguments)
-        return {
-            "tool_call_id": tool_call.id,
-            "role": "tool",
-            "name": function_name,
-            "content": await self._get_exec_tool_result(
-                available_tools, function_name, function_kwargs
-            ),
-        }
-
-    async def _create_fallback_tool_exec_message(
-        self,
-        available_tools: dict[str, Callable],
-        function_name: str,
-        function_kwargs: dict[str, Any],
-    ) -> dict[str, Any]:
-        result = await self._get_exec_tool_result(
-            available_tools, function_name, function_kwargs
-        )
-        return self._create_exec_scratchpad_message(
-            f"Result of {function_name} call: {result}"
-        )
-
-    def _create_exec_scratchpad_message(self, message: str) -> dict[str, Any]:
-        return {
-            "role": "assistant",
-            "content": json.dumps(
-                {"name": "scratchpad", "arguments": {"thought": message}}
-            ),
-        }
-
-    async def _get_exec_tool_result(
-        self,
-        available_tools: dict[str, Callable],
-        function_name: str,
-        function_kwargs: dict[str, Any],
-    ) -> str:
-        if function_name not in available_tools:
-            return f"[ERROR] Invalid tool: {function_name}"
-        function_to_call = available_tools[function_name]
-        try:
-            return await run_async(function_to_call(**function_kwargs))
-        except Exception as e:
-            return f"[ERROR] {e}"
 
     def _get_model(self, ctx: AnyContext) -> str:
         return get_str_attr(
@@ -276,29 +183,6 @@ class LLMTask(BaseTask):
 
     def _get_message(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._message, "How are you?", auto_render=True)
-
-    def _get_model_kwargs(
-        self, ctx: AnyContext, available_tools: dict[str, Callable]
-    ) -> dict[str, Any]:
-        model_kwargs = {}
-        if callable(self._model_kwargs):
-            model_kwargs = self._model_kwargs(ctx)
-        else:
-            model_kwargs = self._model_kwargs
-        model_kwargs["tools"] = [
-            callable_to_tool_schema(tool) for tool in available_tools.values()
-        ]
-        return model_kwargs
-
-    def _get_available_tools(self, ctx: AnyContext) -> dict[str, Callable]:
-        tools = {
-            "scratchpad": scratchpad,
-            "end_conversation": end_conversation,
-        }
-        tool_list = self._tools(ctx) if callable(self._tools) else self._tools
-        for tool in tool_list:
-            tools[tool.__name__] = tool
-        return tools
 
     async def _read_conversation_history(self, ctx: AnyContext) -> ListOfDict:
         if self._conversation_history_reader is not None:
@@ -321,22 +205,3 @@ class LLMTask(BaseTask):
             "",
             auto_render=self._render_history_file,
         )
-
-
-def _get_fallback_function_name(json_payload: dict[str, Any]) -> str:
-    for key in ("name",):
-        if key in json_payload:
-            return json_payload[key]
-    raise ValueError("Function name not provided")
-
-
-def _get_fallback_function_kwargs(json_payload: dict[str, Any]) -> str:
-    for key in (
-        "arguments",
-        "args",
-        "parameters",
-        "params",
-    ):
-        if key in json_payload:
-            return json_payload[key]
-    raise ValueError("Function arguments not provided")

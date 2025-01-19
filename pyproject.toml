@@ -51,6 +51,7 @@ beautifulsoup4 = "^4.12.3"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 ulid-py = "^1.1.0"
+pydantic-ai = "^0.0.19"
 
 [tool.poetry.extras]
 # poetry install -E rag
