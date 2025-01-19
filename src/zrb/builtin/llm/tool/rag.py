@@ -3,7 +3,6 @@ import json
 import os
 import sys
 
-import litellm
 import ulid
 
 from zrb.config import (
@@ -30,7 +29,9 @@ def create_rag_from_directory(
     async def retrieve(query: str) -> str:
         from chromadb import PersistentClient
         from chromadb.config import Settings
+        from fastembed import TextEmbedding
 
+        embedding_model = TextEmbedding()
         client = PersistentClient(
             path=vector_db_path, settings=Settings(allow_reset=True)
         )
@@ -75,10 +76,7 @@ def create_rag_from_directory(
                                 ),
                                 file=sys.stderr,
                             )
-                            response = await litellm.aembedding(
-                                model=model, input=[chunk]
-                            )
-                            vector = response["data"][0]["embedding"]
+                            vector = list(embedding_model.embed(chunk))[0]
                             collection.upsert(
                                 ids=[chunk_id],
                                 embeddings=[vector],
@@ -102,9 +100,7 @@ def create_rag_from_directory(
             )
 
         print(stylize_faint("Vectorizing query"), file=sys.stderr)
-        query_response = await litellm.aembedding(model=model, input=[query])
-        query_vector = query_response["data"][0]["embedding"]
-
+        query_vector = list(embedding_model.embed(query))[0]
         print(stylize_faint("Searching documents"), file=sys.stderr)
         results = collection.query(
             query_embeddings=query_vector,
