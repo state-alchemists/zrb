@@ -10,6 +10,7 @@ from zrb import (
     CmdTask,
     Env,
     Group,
+    HttpCheck,
     StrInput,
     Task,
     TcpCheck,
@@ -17,9 +18,7 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.cmd.cmd_val import CmdVal
 from zrb.config import DEFAULT_SHELL
-from zrb.util.cli.style import WHITE
 from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file
 from zrb.util.load import load_file
@@ -73,6 +72,7 @@ run_test >> stop_test_docker_compose
 prepare_and_run_test = test_group.add_task(
     Task(
         name="run-test",
+        description="🧪 Run Test",
         action=lambda ctx: ctx.xcom["run-integration-test"].pop(),
         cli_only=True,
     ),
@@ -164,6 +164,11 @@ publish_all << [publish_pip, publish_docker]
 
 # GENERATOR TEST =============================================================
 
+test_generator_group = test_group.add_group(
+    Group("generator", description="🔥 Testing generator")
+)
+
+
 remove_generated = cli.add_task(
     CmdTask(
         name="remove-generated",
@@ -175,13 +180,13 @@ remove_generated = cli.add_task(
 
 
 @make_task(
-    name="test-generate-fastapp",
-    description="🔨 Test generate fastapp",
-    group=test_group,
+    name="generate-fastapp",
+    description="🪄 Generate fastapp",
+    group=test_generator_group,
     alias="generate",
     retries=0,
 )
-async def test_generate(ctx: AnyContext):
+async def test_generate_fastapp(ctx: AnyContext):
     # Create project
     project_dir = os.path.join(_DIR, "playground", "generated")
     project_name = "Amalgam"
@@ -215,11 +220,26 @@ async def test_generate(ctx: AnyContext):
     await run_shell_script(
         ctx, 'zrb project fastapp create migration library --message "test migration"'
     )
-    # Start microservices
+
+
+@make_task(
+    name="run-generated-fastapp",
+    description="🔨 Run generate fastapp",
+    readiness_check=[
+        HttpCheck(name="check-monolith", url="http://localhost:3000/readiness"),
+        HttpCheck(name="check-gateway", url="http://localhost:3001/readiness"),
+        HttpCheck(name="check-auth-svc", url="http://localhost:3002/readiness"),
+        HttpCheck(name="check-lib-svc", url="http://localhost:3003/readiness"),
+    ],
+    group=test_generator_group,
+    alias="run",
+    retries=0,
+)
+async def run_generated_fastapp(ctx: AnyContext):
     await run_shell_script(ctx, "zrb project fastapp run all")
 
 
-remove_generated >> test_generate
+remove_generated >> test_generate_fastapp >> run_generated_fastapp
 
 
 # PLAYGROUND ==================================================================
