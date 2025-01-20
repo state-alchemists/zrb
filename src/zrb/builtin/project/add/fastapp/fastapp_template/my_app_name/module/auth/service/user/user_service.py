@@ -84,16 +84,16 @@ class UserService(BaseService):
         self, user_ids: list[str], data: UserUpdateWithRolesAndAudit
     ) -> UserResponse:
         role_ids = [row.get_role_ids() for row in data]
-        data = [row.get_user_create_with_audit() for row in data]
-        users = await self.user_repository.update_bulk(user_ids, data)
-        if len(users) > 0:
-            updated_by = users[0].updated_by
-            await self.user_repository.remove_all_roles([user.id for user in users])
+        user_data = [row.get_user_create_with_audit() for row in data]
+        await self.user_repository.update_bulk(user_ids, user_data)
+        if len(user_ids) > 0:
+            updated_by = user_data[0].updated_by
+            await self.user_repository.remove_all_roles(user_ids)
             await self.user_repository.add_roles(
-                data={user.id: role_ids[i] for i, user in enumerate(data)},
+                data={user_id: role_ids[i] for i, user_id in enumerate(user_ids)},
                 updated_by=updated_by,
             )
-        return await self.user_repository.get_by_ids([user.id for user in users])
+        return await self.user_repository.get_by_ids(user_ids)
 
     @BaseService.route(
         "/api/v1/users/{user_id}",
@@ -103,19 +103,27 @@ class UserService(BaseService):
     async def update_user(
         self, user_id: str, data: UserUpdateWithRolesAndAudit
     ) -> UserResponse:
-        user = await self.user_repository.update(user_id, data)
-        return await self.user_repository.get_by_id(user.id)
+        role_ids = data.get_role_ids()
+        user_data = data.get_user_update_with_audit()
+        await self.user_repository.update(user_id, user_data)
+        await self.user_repository.remove_all_roles([user_id])
+        await self.user_repository.add_roles(
+            data={user_id: role_ids}, created_by=user_data.updated_by
+        )
+        return await self.user_repository.get_by_id(user_id)
 
     @BaseService.route(
-        "/api/v1/users/{user_id}",
+        "/api/v1/users/bulk",
         methods=["delete"],
         response_model=UserResponse,
     )
     async def delete_user_bulk(
         self, user_ids: list[str], deleted_by: str
     ) -> UserResponse:
-        users = await self.user_repository.delete_bulk(user_ids)
-        return await self.user_repository.get_by_ids([user.id for user in users])
+        roles = await self.user_repository.get_by_ids(user_ids)
+        await self.user_repository.delete_bulk(user_ids)
+        await self.user_repository.remove_all_roles(user_ids)
+        return roles
 
     @BaseService.route(
         "/api/v1/users/{user_id}",
@@ -123,5 +131,7 @@ class UserService(BaseService):
         response_model=UserResponse,
     )
     async def delete_user(self, user_id: str, deleted_by: str) -> UserResponse:
-        user = await self.user_repository.delete(user_id)
-        return await self.user_repository.get_by_id(user.id)
+        user = await self.user_repository.get_by_id(user_id)
+        await self.user_repository.delete(user_id)
+        await self.user_repository.remove_all_roles([user_id])
+        return user

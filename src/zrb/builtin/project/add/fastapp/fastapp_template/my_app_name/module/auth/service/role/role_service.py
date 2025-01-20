@@ -87,17 +87,15 @@ class RoleService(BaseService):
     ) -> RoleResponse:
         permission_ids = [row.get_permission_ids() for row in data]
         data = [row.get_role_update_with_audit() for row in data]
-        roles = await self.role_repository.update_bulk(role_ids, data)
-        if len(roles) > 0:
-            updated_by = roles[0].updated_by
-            await self.role_repository.remove_all_permissions(
-                [role.id for role in roles]
-            )
+        await self.role_repository.update_bulk(role_ids, data)
+        if len(role_ids) > 0:
+            updated_by = data[0].updated_by
+            await self.role_repository.remove_all_permissions(role_ids)
             await self.role_repository.add_permissions(
-                data={role.id: permission_ids[i] for i, role in enumerate(roles)},
+                data={role_id: permission_ids[i] for i, role_id in enumerate(role_ids)},
                 created_by=updated_by,
             )
-        return await self.role_repository.get_by_ids([role.id for role in roles])
+        return await self.role_repository.get_by_ids(role_ids)
 
     @BaseService.route(
         "/api/v1/roles/{role_id}",
@@ -108,24 +106,26 @@ class RoleService(BaseService):
         self, role_id: str, data: RoleUpdateWithPermissionsAndAudit
     ) -> RoleResponse:
         permission_ids = data.get_permission_ids()
-        data = data.get_role_update_with_audit()
-        role = await self.role_repository.update(role_id, data)
-        await self.role_repository.remove_all_permissions([role.id])
+        role_data = data.get_role_update_with_audit()
+        await self.role_repository.update(role_id, role_data)
+        await self.role_repository.remove_all_permissions([role_id])
         await self.role_repository.add_permissions(
-            data={role.id: permission_ids}, created_by=role.updated_by
+            data={role_id: permission_ids}, created_by=role_data.updated_by
         )
-        return await self.role_repository.get_by_id(role.id)
+        return await self.role_repository.get_by_id(role_id)
 
     @BaseService.route(
-        "/api/v1/roles/{role_id}",
+        "/api/v1/roles/bulk",
         methods=["delete"],
         response_model=RoleResponse,
     )
     async def delete_role_bulk(
         self, role_ids: list[str], deleted_by: str
     ) -> RoleResponse:
-        roles = await self.role_repository.delete_bulk(role_ids)
-        return await self.role_repository.get_by_ids([role.id for role in roles])
+        roles = await self.role_repository.get_by_ids(role_ids)
+        await self.role_repository.delete_bulk(role_ids)
+        await self.role_repository.remove_all_permissions(role_ids)
+        return roles
 
     @BaseService.route(
         "/api/v1/roles/{role_id}",
@@ -133,5 +133,7 @@ class RoleService(BaseService):
         response_model=RoleResponse,
     )
     async def delete_role(self, role_id: str, deleted_by: str) -> RoleResponse:
-        role = await self.role_repository.delete(role_id)
-        return await self.role_repository.get_by_id(role.id)
+        role = await self.role_repository.get_by_id(role_id)
+        await self.role_repository.delete(role_id)
+        await self.role_repository.remove_all_permissions([role_id])
+        return role

@@ -76,10 +76,8 @@ class PermissionService(BaseService):
     async def update_permission_bulk(
         self, permission_ids: list[str], data: PermissionUpdateWithAudit
     ) -> PermissionResponse:
-        permissions = await self.permission_repository.update_bulk(permission_ids, data)
-        return await self.permission_repository.get_by_ids(
-            [permission.id for permission in permissions]
-        )
+        await self.permission_repository.update_bulk(permission_ids, data)
+        return await self.permission_repository.get_by_ids(permission_ids)
 
     @BaseService.route(
         "/api/v1/permissions/{permission_id}",
@@ -89,21 +87,20 @@ class PermissionService(BaseService):
     async def update_permission(
         self, permission_id: str, data: PermissionUpdateWithAudit
     ) -> PermissionResponse:
-        permission = await self.permission_repository.update(permission_id, data)
-        return await self.permission_repository.get_by_id(permission.id)
+        await self.permission_repository.update(permission_id, data)
+        return await self.permission_repository.get_by_id(permission_id)
 
     @BaseService.route(
-        "/api/v1/permissions/{permission_id}",
+        "/api/v1/permissions/bulk",
         methods=["delete"],
         response_model=PermissionResponse,
     )
     async def delete_permission_bulk(
         self, permission_ids: list[str], deleted_by: str
     ) -> PermissionResponse:
-        permissions = await self.permission_repository.delete_bulk(permission_ids)
-        return await self.permission_repository.get_by_ids(
-            [permission.id for permission in permissions]
-        )
+        permissions = await self.permission_repository.get_by_ids(permission_ids)
+        await self.permission_repository.delete_bulk(permission_ids)
+        return permissions
 
     @BaseService.route(
         "/api/v1/permissions/{permission_id}",
@@ -113,5 +110,6 @@ class PermissionService(BaseService):
     async def delete_permission(
         self, permission_id: str, deleted_by: str
     ) -> PermissionResponse:
-        permission = await self.permission_repository.delete(permission_id)
-        return await self.permission_repository.get_by_id(permission.id)
+        permission = await self.permission_repository.get_by_id(permission_id)
+        await self.permission_repository.delete(permission_id)
+        return permission
