@@ -1,8 +1,10 @@
+import json
 import os
 import shutil
 import traceback
 from typing import Any
 
+import requests
 import tomlkit
 
 from zrb import (
@@ -254,12 +256,26 @@ async def run_generated_fastapp(ctx: AnyContext):
     retries=0,
 )
 async def test_generated_fastapp(ctx: AnyContext) -> str:
-    ctx.print("Test fastapp")
+    ctx.print("Test fastapp monolith")
+    await test_fastapp("http://localhost:3000")
+    ctx.print("Test fastapp gateway")
+    await test_fastapp("http://localhost:3001")
     print("\a")
     return "Test succeed, here have a beer 🍺"
 
 
 remove_generated >> test_generate >> run_generated_fastapp >> test_generated_fastapp
+
+
+async def test_fastapp(base_url: str) -> bool:
+    url = f"{base_url}/api/v1/permissions"
+    json_data = json.dumps({"name": "admin", "description": "Can do everything"})
+    response = requests.post(
+        url, data=json_data, headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("name") == "admin"
 
 
 # PLAYGROUND ==================================================================
