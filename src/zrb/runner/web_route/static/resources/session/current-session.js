@@ -65,14 +65,18 @@ const CURRENT_SESSION = {
     showCurrentSession(allTaskStatus, finished) {
         const taskNames = Object.keys(allTaskStatus);
         const now = Date.now();
+        const barHeight = 30;
+        const gap = 40;
 
         // Set up canvas context
         const canvas = document.getElementById("history-canvas");
-        canvas.height = taskNames.length * 50 + 10;
+        canvas.height = taskNames.length * (barHeight + gap) + 10;
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#EEE";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.textBaseline = "top";
+        ctx.imageSmoothingEnabled = true;
 
         // Calculate start and end times
         let minDateTime = null;
@@ -102,8 +106,6 @@ const CURRENT_SESSION = {
         }
         // Canvas settings
         const chartWidth = canvas.width;
-        const barHeight = 20;
-        const gap = 10;
         const timeScale = (chartWidth - 200) / (maxDateTime - minDateTime);
 
         // Draw labels and bars
@@ -118,13 +120,13 @@ const CURRENT_SESSION = {
             const endDateTime = this.getTaskEndDateTime(allTaskStatus[taskName], now);
             const startX = 100 + (startDateTime - minDateTime) * timeScale;
             const barWidth = (endDateTime - startDateTime) * timeScale;
-            const startY = index * (barHeight + gap + 20) + 5;
+            const startY = index * (barHeight + gap) + 5;
 
             // Draw task label
             ctx.fillStyle = "#000";
-            ctx.font = "12px Arial";
+            ctx.font = "10px Arial";
             ctx.textAlign = "right";
-            ctx.fillText(taskName, 90, startY + barHeight / 1.5);
+            ctx.fillText(taskName, 90, startY + barHeight - 0.5 * barHeight);
 
             // Draw task bar
             ctx.fillStyle = UTIL.getFinalColor(finalStatus);
@@ -145,14 +147,18 @@ const CURRENT_SESSION = {
                 }
             }
             // Draw start and end time below the bar
+            let offsetY = 0;
             for (let statusStartX in labels) {
                 const {dateTime, caption} = labels[statusStartX];
-                const [dateStr, timeStr] = dateTime.toISOString().split("T");
+                const timeStr = dateTime.toISOString().split("T")[1].split(".")[0];
                 ctx.font = "10px Arial";
-                ctx.fillText(caption, statusStartX, startY + 10);
-                ctx.font = "8px Arial";
-                ctx.fillText(dateStr, statusStartX, startY + barHeight + 10);
-                ctx.fillText(timeStr, statusStartX, startY + barHeight + 20);
+                ctx.fillText(caption, statusStartX, startY + offsetY);
+                ctx.font = "10px Arial";
+                ctx.fillText(timeStr, statusStartX, startY + barHeight + offsetY);
+                offsetY += 10
+                if (offsetY >= barHeight) {
+                    offsetY = 0;
+                }
             }
         });
     },

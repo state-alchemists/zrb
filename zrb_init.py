@@ -1,4 +1,5 @@
 import os
+import shutil
 import traceback
 from typing import Any
 
@@ -169,62 +170,67 @@ test_generator_group = test_group.add_group(
 )
 
 
-remove_generated = cli.add_task(
-    CmdTask(
-        name="remove-generated",
-        description="🔄 Remove generated resources",
-        cmd=f"rm -Rf {os.path.join(_DIR, 'playground', 'generated')}",
-        render_cmd=False,
-    )
+@make_task(
+    name="remove-generated",
+    description="🔄 Remove generated resources",
 )
+async def remove_generated(ctx: AnyContext):
+    ctx.print("Remove generated resources")
+    shutil.rmtree(os.path.join(_DIR, "playground", "generated"))
 
 
 @make_task(
-    name="generate-fastapp",
-    description="🪄 Generate fastapp",
+    name="test-generate",
+    description="🪄 Generate app",
     group=test_generator_group,
     alias="generate",
     retries=0,
 )
-async def test_generate_fastapp(ctx: AnyContext):
+async def test_generate(ctx: AnyContext):
     # Create project
     project_dir = os.path.join(_DIR, "playground", "generated")
     project_name = "Amalgam"
 
+    ctx.print("Generate project")
     await run_shell_script(
         ctx, f"zrb project create --project-dir {project_dir} --project {project_name}"
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Create fastapp
     app_name = "fastapp"
+    ctx.print("Generate fastapp")
     await run_shell_script(
         ctx, f"zrb project add fastapp --project-dir {project_dir} --app {app_name}"
     )
     assert os.path.isdir(os.path.join(project_dir, app_name))
     # Create module
     app_dir_path = os.path.join(project_dir, app_name)
+    ctx.print("Generate module")
     await run_shell_script(ctx, "zrb project fastapp create module --module library")
     assert os.path.isdir(os.path.join(app_dir_path, "module", "library"))
     # Create entity
+    ctx.print("Generate entity")
     await run_shell_script(
         ctx,
         "zrb project fastapp create entity --module library --entity book --plural books --column title",  # noqa
     )
     assert os.path.isfile(os.path.join(app_dir_path, "schema", "book.py"))
     # Create column
+    ctx.print("Generate column")
     await run_shell_script(
         ctx,
         "zrb project fastapp create column --module library --entity book --column isbn --type str",  # noqa
     )
     # Create migration
+    ctx.print("Generate migration")
     await run_shell_script(
         ctx, 'zrb project fastapp create migration library --message "test migration"'
     )
 
 
 @make_task(
-    name="run-generated-fastapp",
-    description="🔨 Run generate fastapp",
+    name="run-generated-app",
+    description="🏃 Run generated app",
     readiness_check=[
         HttpCheck(name="check-monolith", url="http://localhost:3000/readiness"),
         HttpCheck(name="check-gateway", url="http://localhost:3001/readiness"),
@@ -236,10 +242,24 @@ async def test_generate_fastapp(ctx: AnyContext):
     retries=0,
 )
 async def run_generated_fastapp(ctx: AnyContext):
+    ctx.print("Run fastapp")
     await run_shell_script(ctx, "zrb project fastapp run all")
 
 
-remove_generated >> test_generate_fastapp >> run_generated_fastapp
+@make_task(
+    name="test-generated-app",
+    description="🧪 Test generated app",
+    group=test_generator_group,
+    alias="eval",
+    retries=0,
+)
+async def test_generated_fastapp(ctx: AnyContext) -> str:
+    ctx.print("Test fastapp")
+    print("\a")
+    return "Test succeed, here have a beer 🍺"
+
+
+remove_generated >> test_generate >> run_generated_fastapp >> test_generated_fastapp
 
 
 # PLAYGROUND ==================================================================
