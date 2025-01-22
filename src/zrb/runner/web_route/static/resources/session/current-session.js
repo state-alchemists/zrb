@@ -147,8 +147,9 @@ const CURRENT_SESSION = {
                 }
             }
             // Draw start and end time below the bar
+            let sortedStartX = Object.keys(labels).sort((a, b) => a - b);
             let offsetY = 0;
-            for (let statusStartX in labels) {
+            for (let statusStartX of sortedStartX) {
                 const {dateTime, caption} = labels[statusStartX];
                 const timeStr = dateTime.toISOString().split("T")[1].split(".")[0];
                 ctx.font = "10px Arial";

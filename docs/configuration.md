@@ -12,7 +12,6 @@ Zrb can be configured using the following [environment variables](recipes/others
 - `ZRB_INIT_SCRIPTS`: Colon-separated list of scripts to initialize.
 - `ZRB_LOGGING_LEVEL`: Sets the logging level. Possible values: CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET. Default: WARNING
 - `ZRB_LOAD_BUILTIN`: Whether to load built-in modules. Default: `1` (true)
-- `ZRB_SHOW_TIME`: Whether to show time in logs. Default: `1` (true)
 - `ZRB_WARN_UNRECOMMENDED_COMMAND`: Whether to show warnings for unrecommended commands. Default: `1` (true)
 
 ## Directories and Files

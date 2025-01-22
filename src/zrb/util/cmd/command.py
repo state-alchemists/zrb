@@ -1,10 +1,26 @@
 import asyncio
 import os
 import re
+import signal
 import sys
 from collections.abc import Callable
 
 from zrb.cmd.cmd_result import CmdResult
+
+_RUNNING_PROCESSES = []
+
+
+def _cleanup_processes():
+    """Terminate all running subprocesses on exit."""
+    for process in _RUNNING_PROCESSES:
+        if process.returncode is None:
+            process.terminate()
+            process.kill()
+
+
+# Register a single cleanup function once
+signal.signal(signal.SIGINT, lambda sig, frame: _cleanup_processes() or sys.exit(1))
+signal.signal(signal.SIGTERM, lambda sig, frame: _cleanup_processes() or sys.exit(1))
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
@@ -43,7 +59,8 @@ async def run_command(
     cmd: list[str],
     cwd: str | None = None,
     env_map: dict[str, str] | None = None,
-    log_method: Callable[..., None] = print,
+    print_method: Callable[..., None] | None = None,
+    register_pid_method: Callable[[int], None] | None = None,
     max_output_line: int = 1000,
     max_error_line: int = 1000,
 ) -> tuple[CmdResult, int]:
@@ -62,6 +79,7 @@ async def run_command(
             log_method(line)
         return "\n".join(lines)
 
+    actual_print_method = print_method if print_method is not None else print
     cmd_process = None
     try:
         if cwd is None:
@@ -77,11 +95,13 @@ async def run_command(
             env=env_map,
             bufsize=0,
         )
+        if register_pid_method is not None:
+            register_pid_method(cmd_process.pid)
         stdout_task = asyncio.create_task(
-            __read_stream(cmd_process.stdout, log_method, max_output_line)
+            __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
         )
         stderr_task = asyncio.create_task(
-            __read_stream(cmd_process.stderr, log_method, max_error_line)
+            __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
         )
         # Wait for process to complete and gather stdout/stderr
         return_code = await cmd_process.wait()
@@ -89,5 +109,7 @@ async def run_command(
         stderr = await stderr_task
         return CmdResult(stdout, stderr), return_code
     finally:
+        if cmd_process in _RUNNING_PROCESSES:
+            _RUNNING_PROCESSES.remove(cmd_process)
         if cmd_process is not None and cmd_process.returncode is None:
             cmd_process.terminate()

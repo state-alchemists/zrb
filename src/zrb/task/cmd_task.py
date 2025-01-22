@@ -1,4 +1,5 @@
 import os
+from functools import partial
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.cmd.cmd_result import CmdResult
@@ -12,6 +13,7 @@ from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_int_attr, get_str_attr
 from zrb.util.cmd.command import check_unrecommended_commands, run_command
 from zrb.util.cmd.remote import get_remote_cmd_script
+from zrb.xcom.xcom import Xcom
 
 
 class CmdTask(BaseTask):
@@ -42,6 +44,7 @@ class CmdTask(BaseTask):
         render_cmd: bool = True,
         cwd: str | None = None,
         render_cwd: bool = True,
+        plain_print: bool = False,
         warn_unrecommended_command: bool | None = None,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
@@ -99,6 +102,7 @@ class CmdTask(BaseTask):
         self._render_cwd = render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
+        self._should_plain_print = plain_print
         self._should_warn_unrecommended_command = warn_unrecommended_command
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
@@ -122,11 +126,17 @@ class CmdTask(BaseTask):
         if self._get_should_warn_unrecommended_commands():
             self._check_unrecommended_commands(ctx, shell, cmd_script)
         ctx.log_info("Running script")
+        log_method = (
+            partial(ctx.print, plain=True) if self._should_plain_print else ctx.print
+        )
+        xcom_pid_key = f"{self.name}-pid"
+        ctx.xcom[xcom_pid_key] = Xcom([])
         cmd_result, return_code = await run_command(
             cmd=[shell, shell_flag, cmd_script],
             cwd=cwd,
             env_map=env_map,
-            log_method=ctx.print,
+            print_method=log_method,
+            register_pid_method=lambda pid: ctx.xcom.get(xcom_pid_key).push(pid),
             max_output_line=self._max_output_line,
             max_error_line=self._max_error_line,
         )

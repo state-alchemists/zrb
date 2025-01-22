@@ -54,7 +54,7 @@ async def add_subtree(
             branch,
         ],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -82,7 +82,7 @@ async def pull_subtree(
             branch,
         ],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -106,7 +106,7 @@ async def push_subtree(
             branch,
         ],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")

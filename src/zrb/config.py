@@ -47,7 +47,6 @@ INIT_SCRIPTS = (
 )
 LOGGING_LEVEL = _get_log_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
 LOAD_BUILTIN = to_boolean(os.getenv("ZRB_LOAD_BUILTIN", "1"))
-SHOW_TIME = to_boolean(os.getenv("ZRB_SHOW_TIME", "1"))
 WARN_UNRECOMMENDED_COMMAND = to_boolean(
     os.getenv("ZRB_WARN_UNRECOMMENDED_COMMAND", "1")
 )

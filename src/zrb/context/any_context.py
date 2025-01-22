@@ -43,6 +43,7 @@ class AnyContext(AnySharedContext):
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
         flush: bool = True,
+        plain: bool = False,
     ):
         """Prints values to the specified output stream.
 
@@ -52,6 +53,7 @@ class AnyContext(AnySharedContext):
             end (str, optional): String appended after the last value. Defaults to a newline.
             file (TextIO, optional): The output stream to print to. Defaults to sys.stderr.
             flush (bool, optional): Whether to flush the output stream. Defaults to True.
+            plain (bool, optional): Whether to use plain text. Defaults to False.
         """
         pass
 

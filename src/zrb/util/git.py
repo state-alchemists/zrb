@@ -22,7 +22,7 @@ async def get_diff(
     cmd_result, exit_code = await run_command(
         cmd=["git", "diff", source_commit, current_commit],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -57,7 +57,7 @@ async def get_diff(
 async def get_repo_dir(log_method: Callable[..., Any] = print) -> str:
     cmd_result, exit_code = await run_command(
         cmd=["git", "rev-parse", "--show-toplevel"],
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -70,7 +70,7 @@ async def get_current_branch(
     cmd_result, exit_code = await run_command(
         cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -83,7 +83,7 @@ async def get_branches(
     cmd_result, exit_code = await run_command(
         cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -98,7 +98,7 @@ async def delete_branch(
     cmd_result, exit_code = await run_command(
         cmd=["git", "branch", "-D", branch_name],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -109,7 +109,7 @@ async def add(repo_dir: str, log_method: Callable[..., Any] = print):
     _, exit_code = await run_command(
         cmd=["git", "add", ".", "-A"],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -121,7 +121,7 @@ async def commit(
     cmd_result, exit_code = await run_command(
         cmd=["git", "commit", "-m", message],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         ignored_error_message = "nothing to commit, working tree clean"
@@ -138,7 +138,7 @@ async def pull(
     _, exit_code = await run_command(
         cmd=["git", "pull", remote, branch],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -150,7 +150,7 @@ async def push(
     _, exit_code = await run_command(
         cmd=["git", "push", "-u", remote, branch],
         cwd=repo_dir,
-        log_method=log_method,
+        print_method=log_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")

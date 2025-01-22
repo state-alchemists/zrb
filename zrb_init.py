@@ -1,7 +1,10 @@
+import asyncio
 import json
 import os
 import shutil
+import signal
 import traceback
+from functools import partial
 from typing import Any
 
 import requests
@@ -17,6 +20,7 @@ from zrb import (
     StrInput,
     Task,
     TcpCheck,
+    Xcom,
     cli,
     make_task,
 )
@@ -194,43 +198,43 @@ async def test_generate(ctx: AnyContext):
     project_name = "Amalgam"
 
     ctx.print("Generate project")
-    await run_shell_script(
+    await _run_shell_script(
         ctx, f"zrb project create --project-dir {project_dir} --project {project_name}"
     )
     assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
     # Create fastapp
     app_name = "fastapp"
     ctx.print("Generate fastapp")
-    await run_shell_script(
+    await _run_shell_script(
         ctx, f"zrb project add fastapp --project-dir {project_dir} --app {app_name}"
     )
     assert os.path.isdir(os.path.join(project_dir, app_name))
     # Create module
     app_dir_path = os.path.join(project_dir, app_name)
     ctx.print("Generate module")
-    await run_shell_script(ctx, "zrb project fastapp create module --module library")
+    await _run_shell_script(ctx, "zrb project fastapp create module --module library")
     assert os.path.isdir(os.path.join(app_dir_path, "module", "library"))
     # Create entity
     ctx.print("Generate entity")
-    await run_shell_script(
+    await _run_shell_script(
         ctx,
         "zrb project fastapp create entity --module library --entity book --plural books --column title",  # noqa
     )
     assert os.path.isfile(os.path.join(app_dir_path, "schema", "book.py"))
     # Create column
     ctx.print("Generate column")
-    await run_shell_script(
+    await _run_shell_script(
         ctx,
         "zrb project fastapp create column --module library --entity book --column isbn --type str",  # noqa
     )
     # Create migration
     ctx.print("Generate migration")
-    await run_shell_script(
+    await _run_shell_script(
         ctx, 'zrb project fastapp create migration library --message "test migration"'
     )
 
 
-@make_task(
+run_generated_fastapp = CmdTask(
     name="run-generated-app",
     description="🏃 Run generated app",
     readiness_check=[
@@ -239,13 +243,11 @@ async def test_generate(ctx: AnyContext):
         HttpCheck(name="check-auth-svc", url="http://localhost:3002/readiness"),
         HttpCheck(name="check-lib-svc", url="http://localhost:3003/readiness"),
     ],
-    group=test_generator_group,
-    alias="run",
+    cmd="zrb project fastapp run all",
+    plain_print=True,
     retries=0,
 )
-async def run_generated_fastapp(ctx: AnyContext):
-    ctx.print("Run fastapp")
-    await run_shell_script(ctx, "zrb project fastapp run all")
+test_generator_group.add_task(run_generated_fastapp, alias="run")
 
 
 @make_task(
@@ -256,26 +258,62 @@ async def run_generated_fastapp(ctx: AnyContext):
     retries=0,
 )
 async def test_generated_fastapp(ctx: AnyContext) -> str:
-    ctx.print("Test fastapp monolith")
-    await test_fastapp("http://localhost:3000")
-    ctx.print("Test fastapp gateway")
-    await test_fastapp("http://localhost:3001")
-    print("\a")
-    return "Test succeed, here have a beer 🍺"
+    try:
+        await asyncio.sleep(2)
+        ctx.print("Test fastapp monolith")
+        await _test_fastapp_permission_api(ctx, "http://localhost:3000")
+        await _test_fastapp_book_api(ctx, "http://localhost:3000")
+        ctx.print("Test fastapp gateway")
+        await _test_fastapp_permission_api(ctx, "http://localhost:3001")
+        await _test_fastapp_book_api(ctx, "http://localhost:3001")
+        print("\a")
+        return "Test succeed, here have a beer 🍺"
+    except Exception as e:
+        ctx.log_error(e)
+    finally:
+        app_pid_xcom: Xcom = ctx.xcom.get("run-generated-app-pid")
+        app_pid = app_pid_xcom.pop()
+        ctx.print(f"Killing process {app_pid}")
+        os.kill(app_pid, signal.SIGTERM)
 
 
 remove_generated >> test_generate >> run_generated_fastapp >> test_generated_fastapp
 
 
-async def test_fastapp(base_url: str) -> bool:
+async def _test_fastapp_permission_api(ctx: AnyContext, base_url: str):
+    ctx.print("Test creating permission")
     url = f"{base_url}/api/v1/permissions"
     json_data = json.dumps({"name": "admin", "description": "Can do everything"})
     response = requests.post(
         url, data=json_data, headers={"Content-Type": "application/json"}
     )
+    ctx.print(response.status_code, response.text)
     assert response.status_code == 200
     response_json = response.json()
     assert response_json.get("name") == "admin"
+
+
+async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
+    ctx.print("Test creating books")
+    url = f"{base_url}/api/v1/books/bulk"
+    json_data = json.dumps(
+        [
+            {"title": "Doraemon"},
+            {"title": "P Man"},
+            {"title": "Kobochan"},
+        ]
+    )
+    response = requests.post(
+        url, data=json_data, headers={"Content-Type": "application/json"}
+    )
+    ctx.print(response.status_code, response.text)
+    assert response.status_code == 200
+    response_json = response.json()
+    assert len(response_json) == 3
+    titles = [row.get("title") for row in response_json]
+    assert "Doraemon" in titles
+    assert "P Man" in titles
+    assert "Kobochan" in titles
 
 
 # PLAYGROUND ==================================================================
@@ -297,12 +335,13 @@ if os.path.isfile(generated_zrb_init_path):
         traceback.print_exc()
 
 
-async def run_shell_script(ctx: AnyContext, script: str) -> Any:
+async def _run_shell_script(ctx: AnyContext, script: str) -> Any:
     shell = DEFAULT_SHELL
     flag = "/c" if shell.lower() == "powershell" else "-c"
     cmd_result, return_code = await run_command(
         cmd=[shell, flag, script],
         cwd=_DIR,
+        print_method=partial(ctx.print, plain=True),
     )
     if return_code != 0:
         ctx.log_error(f"Exit status: {return_code}")

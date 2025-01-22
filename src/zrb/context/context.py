@@ -3,7 +3,6 @@ import logging
 import sys
 from typing import Any, TextIO
 
-from zrb.config import SHOW_TIME
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.dot_dict.dot_dict import DotDict
@@ -101,7 +100,13 @@ class Context(AnyContext):
         end: str | None = "\n",
         file: TextIO | None = sys.stderr,
         flush: bool = True,
+        plain: bool = False,
     ):
+        message = sep.join([f"{value}" for value in values])
+        if plain:
+            self.append_to_shared_log(remove_style(message))
+            print(message, sep=sep, end=end, file=file, flush=flush)
+            return
         color = self._color
         icon = self._icon
         max_name_length = max(len(name) + len(icon) for name in self.session.task_names)
@@ -112,11 +117,8 @@ class Context(AnyContext):
         else:
             attempt_status = f"{self._attempt}/{self._max_attempt}".ljust(5)
         now = datetime.datetime.now()
-        formatted_time = (
-            now.strftime("%y%m%d %H:%M:%S.%f")[:19] + " " if SHOW_TIME else ""
-        )
+        formatted_time = now.strftime("%y%m%d %H:%M:%S.%f")[:19] + " "
         prefix = f"{formatted_time}{attempt_status} {padded_styled_task_name} ⬤ "
-        message = sep.join([f"{value}" for value in values])
         self.append_to_shared_log(remove_style(f"{prefix} {message}"))
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
