@@ -19,8 +19,8 @@ def _cleanup_processes():
 
 
 # Register a single cleanup function once
-signal.signal(signal.SIGINT, lambda sig, frame: _cleanup_processes() or sys.exit(1))
-signal.signal(signal.SIGTERM, lambda sig, frame: _cleanup_processes() or sys.exit(1))
+signal.signal(signal.SIGINT, lambda sig, frame: _cleanup_processes())
+signal.signal(signal.SIGTERM, lambda sig, frame: _cleanup_processes())
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:

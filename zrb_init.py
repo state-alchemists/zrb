@@ -268,8 +268,6 @@ async def test_generated_fastapp(ctx: AnyContext) -> str:
         await _test_fastapp_book_api(ctx, "http://localhost:3001")
         print("\a")
         return "Test succeed, here have a beer 🍺"
-    except Exception as e:
-        ctx.log_error(e)
     finally:
         app_pid_xcom: Xcom = ctx.xcom.get("run-generated-app-pid")
         app_pid = app_pid_xcom.pop()
