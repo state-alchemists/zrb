@@ -15,9 +15,16 @@ install_zsh = CmdTask(
     cmd=get_install_zsh_cmd,
 )
 
-install_my_zsh = CmdTask(
-    name="install-my-zsh",
+install_omz = CmdTask(
+    name="install-omz",
     cmd='sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"',  # noqa
+    upstream=install_zsh,
+)
+
+install_zinit = CmdTask(
+    name="install-zinit",
+    cmd='bash -c "$(curl --fail --show-error --silent --location https://raw.githubusercontent.com/zdharma-continuum/zinit/HEAD/scripts/install.sh)"',  # noqa
+    upstream=install_zsh,
 )
 
 
@@ -29,6 +36,7 @@ install_my_zsh = CmdTask(
         prompt="zsh config file",
         default_str="~/.zshrc",
     ),
+    upstream=[install_omz, install_zinit],
     description="💻 Setup `zsh`.",
     group=setup_group,
     alias="zsh",
@@ -46,5 +54,3 @@ def setup_zsh(ctx: AnyContext):
     write_file(zsh_config_file, [content, zsh_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")
 
-
-install_zsh >> install_my_zsh >> setup_zsh
