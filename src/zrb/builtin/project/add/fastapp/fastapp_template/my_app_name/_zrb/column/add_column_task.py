@@ -30,6 +30,8 @@ async def validate_add_my_app_name_column(ctx: AnyContext):
         new_column_input,
         new_column_type_input,
     ],
+    retries=0,
+    upstream=validate_add_my_app_name_column,
 )
 def update_my_app_name_schema(ctx: AnyContext):
     snake_entity_name = to_snake_case(ctx.input.entity)
@@ -72,6 +74,7 @@ add_my_app_name_column = app_create_group.add_task(
     Task(
         name="add-my-app-name-column",
         description="📊 Create new column on an entity",
+        upstream=update_my_app_name_schema,
         successor=format_my_app_name_code,
         retries=0,
     ),
