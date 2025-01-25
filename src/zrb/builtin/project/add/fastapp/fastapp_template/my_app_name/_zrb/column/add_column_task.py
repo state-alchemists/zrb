@@ -1,15 +1,19 @@
+import os
+
 from my_app_name._zrb.config import APP_DIR
 from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import app_create_group
 from my_app_name._zrb.input import (
-    existing_entity_input, new_column_input, new_column_type_input
+    existing_entity_input,
+    new_column_input,
+    new_column_type_input,
 )
 from my_app_name._zrb.util import get_existing_schema_names
-from zrb import AnyContext, make_task, Task
-from zrb.util.file import read_file, write_file
+
+from zrb import AnyContext, Task, make_task
 from zrb.util.codemod.prepend_property_to_class import prepend_property_to_class
-from zrb.util.string.conversion import to_snake_case, to_pascal_case
-import os
+from zrb.util.file import read_file, write_file
+from zrb.util.string.conversion import to_pascal_case, to_snake_case
 
 
 @make_task(
@@ -40,32 +44,29 @@ def update_my_app_name_schema(ctx: AnyContext):
     existing_code = read_file(schema_file_path)
     snake_column_name = to_snake_case(ctx.input.column)
     column_type = ctx.input.type
-    # Create
+    # Base
     new_code = prepend_property_to_class(
         original_code=existing_code,
-        class_name=f"{pascal_entity_name}Create",
+        class_name=f"{pascal_entity_name}Base",
         property_name=snake_column_name,
         annotation=column_type,
         default_value=_get_default_value(column_type),
-
     )
     # Update
     new_code = prepend_property_to_class(
-        original_code=existing_code,
+        original_code=new_code,
         class_name=f"{pascal_entity_name}Update",
         property_name=snake_column_name,
         annotation=f"{column_type} | None",
         default_value="None",
-
     )
     # Table
     new_code = prepend_property_to_class(
-        original_code=existing_code,
+        original_code=new_code,
         class_name=f"{pascal_entity_name}",
         property_name=snake_column_name,
         annotation=f"{column_type} | None",
         default_value="Field(index=False)",
-
     )
     write_file(schema_file_path, new_code)
 
@@ -90,4 +91,3 @@ def _get_default_value(data_type: str) -> str:
     if data_type == "bool":
         return "True"
     return "None"
-
