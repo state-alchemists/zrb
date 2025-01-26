@@ -35,7 +35,7 @@ from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_su
 )
 async def git_add_subtree(ctx: AnyContext):
     ctx.print(stylize_faint("Get directory"))
-    repo_dir = await get_repo_dir(log_method=ctx.print)
+    repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_faint("Add subtree"))
     await add_subtree(
         repo_dir=repo_dir,
@@ -43,7 +43,7 @@ async def git_add_subtree(ctx: AnyContext):
         repo_url=ctx.input["repo-url"],
         branch=ctx.input["repo-branch"],
         prefix=ctx.input["repo-prefix"],
-        log_method=ctx.print,
+        print_method=ctx.print,
     )
 
 
@@ -56,7 +56,7 @@ async def git_add_subtree(ctx: AnyContext):
 )
 async def git_pull_subtree(ctx: AnyContext):
     ctx.print(stylize_faint("Get directory"))
-    repo_dir = await get_repo_dir(log_method=ctx.print)
+    repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
         raise ValueError("No subtree config found")
@@ -69,7 +69,7 @@ async def git_pull_subtree(ctx: AnyContext):
                 prefix=detail.prefix,
                 repo_url=detail.repo_url,
                 branch=detail.branch,
-                log_method=ctx.print,
+                print_method=ctx.print,
             )
         except Exception as e:
             if first_err is None:
@@ -88,7 +88,7 @@ async def git_pull_subtree(ctx: AnyContext):
 )
 async def git_push_subtree(ctx: AnyContext):
     ctx.print(stylize_faint("Get directory"))
-    repo_dir = await get_repo_dir(log_method=ctx.print)
+    repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
         raise ValueError("No subtree config found")
@@ -101,7 +101,7 @@ async def git_push_subtree(ctx: AnyContext):
                 prefix=detail.prefix,
                 repo_url=detail.repo_url,
                 branch=detail.branch,
-                log_method=ctx.print,
+                print_method=ctx.print,
             )
         except Exception as e:
             if first_err is None:

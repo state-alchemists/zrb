@@ -17,12 +17,12 @@ async def get_diff(
     repo_dir: str,
     source_commit: str,
     current_commit: str,
-    log_method: Callable[..., Any] = print,
+    print_method: Callable[..., Any] = print,
 ) -> DiffResult:
     cmd_result, exit_code = await run_command(
         cmd=["git", "diff", source_commit, current_commit],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -54,10 +54,10 @@ async def get_diff(
     )
 
 
-async def get_repo_dir(log_method: Callable[..., Any] = print) -> str:
+async def get_repo_dir(print_method: Callable[..., Any] = print) -> str:
     cmd_result, exit_code = await run_command(
         cmd=["git", "rev-parse", "--show-toplevel"],
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -65,12 +65,12 @@ async def get_repo_dir(log_method: Callable[..., Any] = print) -> str:
 
 
 async def get_current_branch(
-    repo_dir: str, log_method: Callable[..., Any] = print
+    repo_dir: str, print_method: Callable[..., Any] = print
 ) -> str:
     cmd_result, exit_code = await run_command(
         cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -78,12 +78,12 @@ async def get_current_branch(
 
 
 async def get_branches(
-    repo_dir: str, log_method: Callable[..., Any] = print
+    repo_dir: str, print_method: Callable[..., Any] = print
 ) -> list[str]:
     cmd_result, exit_code = await run_command(
         cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -93,35 +93,35 @@ async def get_branches(
 
 
 async def delete_branch(
-    repo_dir: str, branch_name: str, log_method: Callable[..., Any] = print
+    repo_dir: str, branch_name: str, print_method: Callable[..., Any] = print
 ) -> str:
     cmd_result, exit_code = await run_command(
         cmd=["git", "branch", "-D", branch_name],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
     return cmd_result.output.strip()
 
 
-async def add(repo_dir: str, log_method: Callable[..., Any] = print):
+async def add(repo_dir: str, print_method: Callable[..., Any] = print):
     _, exit_code = await run_command(
         cmd=["git", "add", ".", "-A"],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
 
 
 async def commit(
-    repo_dir: str, message: str, log_method: Callable[..., Any] = print
+    repo_dir: str, message: str, print_method: Callable[..., Any] = print
 ) -> str:
     cmd_result, exit_code = await run_command(
         cmd=["git", "commit", "-m", message],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         ignored_error_message = "nothing to commit, working tree clean"
@@ -133,24 +133,24 @@ async def commit(
 
 
 async def pull(
-    repo_dir: str, remote: str, branch: str, log_method: Callable[..., Any] = print
+    repo_dir: str, remote: str, branch: str, print_method: Callable[..., Any] = print
 ) -> str:
     _, exit_code = await run_command(
         cmd=["git", "pull", remote, branch],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
 
 
 async def push(
-    repo_dir: str, remote: str, branch: str, log_method: Callable[..., Any] = print
+    repo_dir: str, remote: str, branch: str, print_method: Callable[..., Any] = print
 ) -> str:
     _, exit_code = await run_command(
         cmd=["git", "push", "-u", remote, branch],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")

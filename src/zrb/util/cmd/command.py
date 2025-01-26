@@ -65,7 +65,7 @@ async def run_command(
     max_error_line: int = 1000,
 ) -> tuple[CmdResult, int]:
     async def __read_stream(
-        stream, log_method: Callable[..., None], max_lines: int
+        stream, print_method: Callable[..., None], max_lines: int
     ) -> str:
         lines = []
         while True:
@@ -76,7 +76,7 @@ async def run_command(
             lines.append(line)
             if len(lines) > max_lines:
                 lines.pop(0)  # Keep only the last max_lines
-            log_method(line)
+            print_method(line)
         return "\n".join(lines)
 
     actual_print_method = print_method if print_method is not None else print

@@ -36,7 +36,7 @@ async def add_subtree(
     repo_url: str,
     branch: str,
     prefix: str,
-    log_method: Callable[..., Any] = print,
+    print_method: Callable[..., Any] = print,
 ):
     config = load_config()
     if os.path.isdir(prefix):
@@ -54,7 +54,7 @@ async def add_subtree(
             branch,
         ],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -69,7 +69,7 @@ async def pull_subtree(
     prefix: str,
     repo_url: str,
     branch: str,
-    log_method: Callable[..., Any] = print,
+    print_method: Callable[..., Any] = print,
 ):
     _, exit_code = await run_command(
         cmd=[
@@ -82,7 +82,7 @@ async def pull_subtree(
             branch,
         ],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
@@ -93,7 +93,7 @@ async def push_subtree(
     prefix: str,
     repo_url: str,
     branch: str,
-    log_method: Callable[..., Any] = print,
+    print_method: Callable[..., Any] = print,
 ):
     _, exit_code = await run_command(
         cmd=[
@@ -106,7 +106,7 @@ async def push_subtree(
             branch,
         ],
         cwd=repo_dir,
-        print_method=log_method,
+        print_method=print_method,
     )
     if exit_code != 0:
         raise Exception(f"Non zero exit code: {exit_code}")
