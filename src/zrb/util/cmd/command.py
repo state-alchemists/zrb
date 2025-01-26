@@ -7,21 +7,6 @@ from collections.abc import Callable
 
 from zrb.cmd.cmd_result import CmdResult
 
-_RUNNING_PROCESSES = []
-
-
-def _cleanup_processes():
-    """Terminate all running subprocesses on exit."""
-    for process in _RUNNING_PROCESSES:
-        if process.returncode is None:
-            process.terminate()
-            process.kill()
-
-
-# Register a single cleanup function once
-signal.signal(signal.SIGINT, lambda sig, frame: _cleanup_processes())
-signal.signal(signal.SIGTERM, lambda sig, frame: _cleanup_processes())
-
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
     banned_commands = {
@@ -81,35 +66,29 @@ async def run_command(
 
     actual_print_method = print_method if print_method is not None else print
     cmd_process = None
-    try:
-        if cwd is None:
-            cwd = os.getcwd()
-        if env_map is None:
-            env_map = os.environ
-        cmd_process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=cwd,
-            stdin=sys.stdin if sys.stdin.isatty() else None,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env_map,
-            bufsize=0,
-        )
-        if register_pid_method is not None:
-            register_pid_method(cmd_process.pid)
-        stdout_task = asyncio.create_task(
-            __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
-        )
-        stderr_task = asyncio.create_task(
-            __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
-        )
-        # Wait for process to complete and gather stdout/stderr
-        return_code = await cmd_process.wait()
-        stdout = await stdout_task
-        stderr = await stderr_task
-        return CmdResult(stdout, stderr), return_code
-    finally:
-        if cmd_process in _RUNNING_PROCESSES:
-            _RUNNING_PROCESSES.remove(cmd_process)
-        if cmd_process is not None and cmd_process.returncode is None:
-            cmd_process.terminate()
+    if cwd is None:
+        cwd = os.getcwd()
+    if env_map is None:
+        env_map = os.environ
+    cmd_process = await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=cwd,
+        stdin=sys.stdin if sys.stdin.isatty() else None,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env_map,
+        bufsize=0,
+    )
+    if register_pid_method is not None:
+        register_pid_method(cmd_process.pid)
+    stdout_task = asyncio.create_task(
+        __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
+    )
+    stderr_task = asyncio.create_task(
+        __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
+    )
+    # Wait for process to complete and gather stdout/stderr
+    return_code = await cmd_process.wait()
+    stdout = await stdout_task
+    stderr = await stderr_task
+    return CmdResult(stdout, stderr), return_code

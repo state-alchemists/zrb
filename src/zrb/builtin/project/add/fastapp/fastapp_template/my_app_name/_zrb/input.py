@@ -3,6 +3,14 @@ from my_app_name._zrb.util import get_existing_module_names, get_existing_schema
 from zrb import OptionInput, StrInput
 from zrb.util.string.conversion import pluralize
 
+run_env_input = OptionInput(
+    name="env",
+    description="Running environment",
+    prompt="Running Environment",
+    options=["dev", "prod"],
+    default_str="prod",
+)
+
 new_module_input = StrInput(
     name="module", description="Module name", prompt="New module name"
 )

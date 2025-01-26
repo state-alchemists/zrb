@@ -52,6 +52,7 @@ python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 ulid-py = "^1.1.0"
 pydantic-ai = "^0.0.19"
 fastembed = "^0.5.1"
+psutil = "^6.1.1"
 
 [tool.poetry.extras]
 # poetry install -E rag

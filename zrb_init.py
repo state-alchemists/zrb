@@ -7,6 +7,7 @@ import traceback
 from functools import partial
 from typing import Any
 
+import psutil
 import requests
 import tomlkit
 
@@ -247,7 +248,7 @@ run_generated_fastapp = CmdTask(
         HttpCheck(name="check-auth-svc", url="http://localhost:3002/readiness"),
         HttpCheck(name="check-lib-svc", url="http://localhost:3003/readiness"),
     ],
-    cmd="zrb project fastapp run all",
+    cmd="zrb project fastapp run all --env prod",
     plain_print=True,
     retries=0,
 )
@@ -262,6 +263,7 @@ test_generator_group.add_task(run_generated_fastapp, alias="run")
     retries=0,
 )
 async def test_generated_fastapp(ctx: AnyContext) -> str:
+    result = ""
     try:
         await asyncio.sleep(2)
         ctx.print("Test fastapp monolith")
@@ -271,12 +273,20 @@ async def test_generated_fastapp(ctx: AnyContext) -> str:
         await _test_fastapp_permission_api(ctx, "http://localhost:3001")
         await _test_fastapp_book_api(ctx, "http://localhost:3001")
         print("\a")
-        return "Test succeed, here have a beer 🍺"
+        result = "Test succeed, here have a beer 🍺"
+    except:
+        result = "Test failed ☹️"
     finally:
         app_pid_xcom: Xcom = ctx.xcom.get("run-generated-app-pid")
         app_pid = app_pid_xcom.pop()
+        parent = psutil.Process(app_pid)
+        children = parent.children(recursive=True)
+        for child in children:
+            ctx.print(f"Killing child process {child.pid}")
+            child.terminate()
         ctx.print(f"Killing process {app_pid}")
-        os.kill(app_pid, signal.SIGTERM)
+        parent.terminate()
+    return result
 
 
 remove_generated >> test_generate >> run_generated_fastapp >> test_generated_fastapp
@@ -296,6 +306,11 @@ async def _test_fastapp_permission_api(ctx: AnyContext, base_url: str):
 
 
 async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
+    await _test_fastapp_book_api_bulk_insert(ctx, base_url)
+    await _test_fastapp_book_api_insert(ctx, base_url)
+
+
+async def _test_fastapp_book_api_bulk_insert(ctx: AnyContext, base_url: str):
     ctx.print("Test creating books")
     url = f"{base_url}/api/v1/books/bulk"
     json_data = json.dumps(
@@ -303,6 +318,7 @@ async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
             {"title": "Doraemon", "isbn": "978-6-6625-3489-3", "author": "anonymous"},
             {"title": "P Man", "isbn": "978-0-9259-2124-6", "author": "anonymous"},
             {"title": "Kobochan", "isbn": "978-8-8818-0448-1", "author": "anonymous"},
+            {"title": "Bleach", "isbn": "978-8-1744-3763-1", "author": "Tite Kubo"},
         ]
     )
     response = requests.post(
@@ -311,19 +327,37 @@ async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
     ctx.print(response.status_code, response.text)
     assert response.status_code == 200
     response_json = response.json()
-    assert len(response_json) == 3
+    assert len(response_json) == 4
     titles = [row.get("title") for row in response_json]
     assert "Doraemon" in titles
     assert "P Man" in titles
     assert "Kobochan" in titles
+    assert "Bleach" in titles
     isbns = [row.get("isbn") for row in response_json]
     assert "978-6-6625-3489-3" in isbns
     assert "978-0-9259-2124-6" in isbns
     assert "978-8-8818-0448-1" in isbns
+    assert "978-8-1744-3763-1" in isbns
     authors = [row.get("author") for row in response_json]
-    assert authors[0] == "anonymous"
-    assert authors[1] == "anonymous"
-    assert authors[2] == "anonymous"
+    assert "anonymous" in authors
+    assert "Tite Kubo" in authors
+
+
+async def _test_fastapp_book_api_insert(ctx: AnyContext, base_url: str):
+    ctx.print("Test creating a book")
+    url = f"{base_url}/api/v1/books"
+    json_data = json.dumps(
+        {"title": "Naruto", "isbn": "978-0-1490-0625-5", "author": "Masashi Kishimoto"},
+    )
+    response = requests.post(
+        url, data=json_data, headers={"Content-Type": "application/json"}
+    )
+    ctx.print(response.status_code, response.text)
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("title") == "Naruto"
+    assert response_json.get("isbn") == "978-0-1490-0625-5"
+    assert response_json.get("author") == "Masashi Kishimoto"
 
 
 # PLAYGROUND ==================================================================
