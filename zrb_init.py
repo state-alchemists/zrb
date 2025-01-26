@@ -227,6 +227,10 @@ async def test_generate(ctx: AnyContext):
         ctx,
         "zrb project fastapp create column --module library --entity book --column isbn --type str",  # noqa
     )
+    await _run_shell_script(
+        ctx,
+        "zrb project fastapp create column --module library --entity book --column author --type str",  # noqa
+    )
     # Create migration
     ctx.print("Generate migration")
     await _run_shell_script(
@@ -296,9 +300,9 @@ async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
     url = f"{base_url}/api/v1/books/bulk"
     json_data = json.dumps(
         [
-            {"title": "Doraemon"},
-            {"title": "P Man"},
-            {"title": "Kobochan"},
+            {"title": "Doraemon", "isbn": "978-6-6625-3489-3", "author": "anonymous"},
+            {"title": "P Man", "isbn": "978-0-9259-2124-6", "author": "anonymous"},
+            {"title": "Kobochan", "isbn": "978-8-8818-0448-1", "author": "anonymous"},
         ]
     )
     response = requests.post(
@@ -312,6 +316,14 @@ async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
     assert "Doraemon" in titles
     assert "P Man" in titles
     assert "Kobochan" in titles
+    isbns = [row.get("isbn") for row in response_json]
+    assert "978-6-6625-3489-3" in isbns
+    assert "978-0-9259-2124-6" in isbns
+    assert "978-8-8818-0448-1" in isbns
+    authors = [row.get("author") for row in response_json]
+    assert authors[0] == "anonymous"
+    assert authors[1] == "anonymous"
+    assert authors[2] == "anonymous"
 
 
 # PLAYGROUND ==================================================================
