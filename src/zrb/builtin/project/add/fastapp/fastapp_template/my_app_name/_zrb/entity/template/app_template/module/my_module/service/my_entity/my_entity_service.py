@@ -67,11 +67,11 @@ class MyEntityService(BaseService):
     @BaseService.route(
         "/api/v1/my-entities/bulk",
         methods=["put"],
-        response_model=MyEntityResponse,
+        response_model=list[MyEntityResponse],
     )
     async def update_my_entity_bulk(
         self, my_entity_ids: list[str], data: MyEntityUpdateWithAudit
-    ) -> MyEntityResponse:
+    ) -> list[MyEntityResponse]:
         await self.my_entity_repository.update_bulk(my_entity_ids, data)
         return await self.my_entity_repository.get_by_ids(my_entity_ids)
 
@@ -89,11 +89,11 @@ class MyEntityService(BaseService):
     @BaseService.route(
         "/api/v1/my-entities/bulk",
         methods=["delete"],
-        response_model=MyEntityResponse,
+        response_model=list[MyEntityResponse],
     )
     async def delete_my_entity_bulk(
         self, my_entity_ids: list[str], deleted_by: str
-    ) -> MyEntityResponse:
+    ) -> list[MyEntityResponse]:
         my_entities = await self.my_entity_repository.get_by_ids(my_entity_ids)
         await self.my_entity_repository.delete_bulk(my_entity_ids)
         return my_entities
@@ -106,6 +106,6 @@ class MyEntityService(BaseService):
     async def delete_my_entity(
         self, my_entity_id: str, deleted_by: str
     ) -> MyEntityResponse:
-        my_entity = await self.my_entity_repository.get_by_id(my_entity.id)
+        my_entity = await self.my_entity_repository.get_by_id(my_entity_id)
         await self.my_entity_repository.delete(my_entity_id)
         return my_entity

@@ -78,11 +78,11 @@ class UserService(BaseService):
     @BaseService.route(
         "/api/v1/users/bulk",
         methods=["put"],
-        response_model=UserResponse,
+        response_model=list[UserResponse],
     )
     async def update_user_bulk(
         self, user_ids: list[str], data: UserUpdateWithRolesAndAudit
-    ) -> UserResponse:
+    ) -> list[UserResponse]:
         role_ids = [row.get_role_ids() for row in data]
         user_data = [row.get_user_create_with_audit() for row in data]
         await self.user_repository.update_bulk(user_ids, user_data)
@@ -115,11 +115,11 @@ class UserService(BaseService):
     @BaseService.route(
         "/api/v1/users/bulk",
         methods=["delete"],
-        response_model=UserResponse,
+        response_model=list[UserResponse],
     )
     async def delete_user_bulk(
         self, user_ids: list[str], deleted_by: str
-    ) -> UserResponse:
+    ) -> list[UserResponse]:
         roles = await self.user_repository.get_by_ids(user_ids)
         await self.user_repository.delete_bulk(user_ids)
         await self.user_repository.remove_all_roles(user_ids)

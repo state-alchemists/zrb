@@ -80,11 +80,11 @@ class RoleService(BaseService):
     @BaseService.route(
         "/api/v1/roles/bulk",
         methods=["put"],
-        response_model=RoleResponse,
+        response_model=list[RoleResponse],
     )
     async def update_role_bulk(
         self, role_ids: list[str], data: RoleUpdateWithPermissionsAndAudit
-    ) -> RoleResponse:
+    ) -> list[RoleResponse]:
         permission_ids = [row.get_permission_ids() for row in data]
         data = [row.get_role_update_with_audit() for row in data]
         await self.role_repository.update_bulk(role_ids, data)
@@ -117,11 +117,11 @@ class RoleService(BaseService):
     @BaseService.route(
         "/api/v1/roles/bulk",
         methods=["delete"],
-        response_model=RoleResponse,
+        response_model=list[RoleResponse],
     )
     async def delete_role_bulk(
         self, role_ids: list[str], deleted_by: str
-    ) -> RoleResponse:
+    ) -> list[RoleResponse]:
         roles = await self.role_repository.get_by_ids(role_ids)
         await self.role_repository.delete_bulk(role_ids)
         await self.role_repository.remove_all_permissions(role_ids)

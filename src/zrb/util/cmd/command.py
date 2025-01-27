@@ -1,9 +1,10 @@
 import asyncio
 import os
 import re
-import signal
 import sys
 from collections.abc import Callable
+
+import psutil
 
 from zrb.cmd.cmd_result import CmdResult
 
@@ -92,3 +93,14 @@ async def run_command(
     stdout = await stdout_task
     stderr = await stderr_task
     return CmdResult(stdout, stderr), return_code
+
+
+def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
+    actual_print_method = print_method if print_method is not None else print
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+    for child in children:
+        actual_print_method(f"Killing child process {child.pid}")
+        child.terminate()
+    actual_print_method(f"Killing process {pid}")
+    parent.terminate()

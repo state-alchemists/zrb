@@ -160,56 +160,62 @@ def _create_direct_client_method(logger: Logger, func: Callable, service: BaseSe
     return client_method
 
 
-def _create_api_client_method(logger: Logger, param: RouteParam, base_url: str):
+def _create_api_client_method(logger: Logger, route_param: RouteParam, base_url: str):
     async def client_method(*args, **kwargs):
-        url = base_url + param.path
+        url = base_url + route_param.path
         method = (
-            param.methods[0].lower()
-            if isinstance(param.methods, list)
-            else param.methods.lower()
+            route_param.methods[0].lower()
+            if isinstance(route_param.methods, list)
+            else route_param.methods.lower()
         )
         # Get the signature of the original function
-        sig = inspect.signature(param.func)
+        sig = inspect.signature(route_param.func)
         # Bind the arguments to the signature
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
         # Analyze parameters
-        params = list(sig.parameters.values())
-        body_params = [
-            p
-            for p in params
-            if p.name != "self" and p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+        function_params = list(sig.parameters.values())
+        body_param_names = [
+            p.name
+            for p in function_params
+            if (
+                p.name != "self"
+                and f"{{{p.name}}}" not in route_param.path
+                and p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+                and (
+                    method not in ["get", "delete"]
+                    or (method == "delete" and p.annotation not in [str, float, bool])
+                )
+            )
         ]
         # Prepare the request
         path_params = {}
         query_params = {}
-        body = {}
+        body_params = {}
         for name, value in bound_args.arguments.items():
             if name == "self":
                 continue
-            if f"{{{name}}}" in param.path:
+            if f"{{{name}}}" in route_param.path:
                 path_params[name] = value
-            elif isinstance(value, BaseModel):
-                body = _parse_api_param(value)
-            elif method in ["get", "delete"]:
+            elif name not in body_param_names:
                 query_params[name] = _parse_api_param(value)
-            elif len(body_params) == 1 and name == body_params[0].name:
+            elif len(body_param_names) == 1 and name == body_param_names[0]:
                 # If there's only one body parameter, use its value directly
-                body = _parse_api_param(value)
+                body_params = _parse_api_param(value)
             else:
-                body[name] = _parse_api_param(value)
+                body_params[name] = _parse_api_param(value)
         # Format the URL with path parameters
         url = url.format(**path_params)
         logger.info(
-            f"Sending request to {url} with method {method}, json={body}, params={query_params}"  # noqa
+            f"Sending request to {url} with method {method}, json={body_params}, params={query_params}"  # noqa
         )
         async with httpx.AsyncClient() as client:
-            if method in ["get", "delete"]:
-                response = await getattr(client, method)(url, params=query_params)
-            else:
-                response = await getattr(client, method)(
-                    url, json=body, params=query_params
-                )
+            response = await client.request(
+                method=method,
+                url=url,
+                params=query_params,
+                json=None if method == "get" else body_params,
+            )
             logger.info(
                 f"Received response: status={response.status_code}, content={response.content}"
             )

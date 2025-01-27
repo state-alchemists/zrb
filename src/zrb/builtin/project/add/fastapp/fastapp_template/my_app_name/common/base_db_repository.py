@@ -225,6 +225,7 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
     async def update(self, id: str, data: UpdateModel) -> DBModel:
         now = datetime.datetime.now(datetime.timezone.utc)
         update_data = self._model_to_data_dict(data, updated_at=now)
+        update_data = {k: v for k, v in update_data.items() if v is not None}
         async with self._session_scope() as session:
             statement = (
                 update(self.db_model)
