@@ -17,19 +17,22 @@ from my_app_name.module.auth.service.user.repository.user_repository import (
 )
 from my_app_name.schema.permission import Permission
 from my_app_name.schema.role import Role, RolePermission
-from my_app_name.schema.session import Session, SessionResponse
 from my_app_name.schema.user import (
     User,
     UserCreateWithAudit,
     UserResponse,
     UserRole,
+    UserSession,
+    UserSessionResponse,
+    UserTokenData,
     UserUpdateWithAudit,
 )
 from passlib.context import CryptContext
+from sqlalchemy import and_
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.sql import ClauseElement, ColumnElement, Select
-from sqlmodel import SQLModel, delete, insert, select
+from sqlmodel import SQLModel, delete, insert, select, update
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -81,15 +84,23 @@ class UserDBRepository(
         self._guest_user: User | None = None
 
     def _select(self) -> Select:
+        now = datetime.datetime.now(datetime.timezone.utc)
         return (
-            select(User, Role, Permission, Session)
+            select(User, Role, Permission, UserSession)
             .join(UserRole, UserRole.user_id == User.id, isouter=True)
             .join(Role, Role.id == UserRole.role_id, isouter=True)
             .join(RolePermission, RolePermission.role_id == Role.id, isouter=True)
             .join(
                 Permission, Permission.id == RolePermission.permission_id, isouter=True
             )
-            .join(Session, Session.user_id == User.id)
+            .join(
+                UserSession,
+                and_(
+                    UserSession.user_id == User.id,
+                    UserSession.token_expired_at > now,
+                ),
+                isouter=True,
+            )
         )
 
     def _rows_to_responses(self, rows: list[tuple[Any, ...]]) -> list[UserResponse]:
@@ -121,15 +132,23 @@ class UserDBRepository(
 
     async def add_roles(self, data: dict[str, list[str]], created_by: str):
         now = datetime.datetime.now(datetime.timezone.utc)
+        # get mapping from role names to role ids
+        all_role_names = {name for role_names in data.values() for name in role_names}
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session, select(Role.id, Role.name).where(Role.name.in_(all_role_names))
+            )
+            role_mapping = {row.name: row.id for row in result}
+        # Assemble data dict
         data_dict_list: list[dict[str, Any]] = []
-        for user_id, role_ids in data.items():
-            for role_id in role_ids:
+        for user_id, role_names in data.items():
+            for role_name in role_names:
                 data_dict_list.append(
                     self._model_to_data_dict(
                         UserRole(
                             id=ulid.new().str,
                             user_id=user_id,
-                            role_id=role_id,
+                            role_id=role_mapping.get(role_name),
                             created_at=now,
                             created_by=created_by,
                         )
@@ -150,63 +169,131 @@ class UserDBRepository(
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
         rows = await self._select_to_response(
             lambda q: q.where(
-                User.username == username, User.password == hash_password(password)
+                User.username == username,
+                User.password == hash_password(password),
+                User.active,
             )
         )
         return self._ensure_one(rows)
 
     async def get_by_token(self, token: str) -> UserResponse:
-        rows = await self._select_tor_response(
-            lambda q: q.where(Session.token == token)
+        rows = await self._select_to_response(
+            lambda q: q.where(UserSession.token == token)
         )
         return self._ensure_one(rows)
 
-    async def add_token(self, user_id: str, token: str):
+    async def delete_expired_user_sessions(self, user_id: str):
+        now = datetime.datetime.now(datetime.timezone.utc)
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,
-                insert(Session).values(
-                    {
-                        "id": ulid.new().str,
-                        "user_id": user_id,
-                        "token": token,
-                        "created_by": "system",
-                        "created_at": datetime.datetime.now(datetime.timezone.utc),
-                    }
+                (
+                    delete(UserSession).where(
+                        UserSession.user_id == user_id,
+                        UserSession.token_expired_at < now,
+                        UserSession.refresh_token_expired_at < now,
+                    )
                 ),
             )
 
-    async def remove_token(self, user_id: str, token: str):
+    async def get_user_sessions(self, user_id: str) -> list[UserSessionResponse]:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session,
+                (
+                    select(UserSession).where(
+                        UserSession.user_id == user_id,
+                        UserSession.token_expired_at > now,
+                    )
+                ),
+            )
+            return [UserSessionResponse.model_validate(row[0] for row in result.all())]
+
+    async def get_user_session_by_token(self, token: str) -> UserSessionResponse:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session,
+                (
+                    select(UserSession).where(
+                        UserSession.token == token, UserSession.token_expired_at > now
+                    )
+                ),
+            )
+            user_session = result.scalar_one_or_none()
+            if user_session is None:
+                raise NotFoundError("User session not found")
+            return UserSession.model_validate(user_session)
+
+    async def get_user_session_by_refresh_token(
+        self, refresh_token: str
+    ) -> UserSessionResponse:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session,
+                (
+                    select(UserSession).where(
+                        UserSession.refresh_token == refresh_token,
+                        UserSession.refresh_token_expired_at > now,
+                    )
+                ),
+            )
+            user_session = result.scalar_one_or_none()
+            if user_session is None:
+                raise NotFoundError("User session not found")
+            return UserSession.model_validate(user_session)
+
+    async def create_user_session(
+        self, user_id: str, token_data: UserTokenData
+    ) -> UserSessionResponse:
+        data_dict = self._model_to_data_dict(
+            token_data, user_id=user_id, id=ulid.new().str
+        )
+        async with self._session_scope() as session:
+            await self._execute_statement(
+                session, insert(UserSession).values(**data_dict)
+            )
+            result = await self._execute_statement(
+                session, select(UserSession).where(UserSession.id == data_dict["id"])
+            )
+            user_session = result.scalar_one_or_none()
+            if user_session is None:
+                raise NotFoundError("User session not found after created")
+
+    async def update_user_session(
+        self, user_id: str, session_id: str, token_data: UserTokenData
+    ) -> UserSessionResponse:
+        data_dict = self._model_to_data_dict(token_data, user_id=user_id)
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,
-                delete(Session).where(
-                    Session.token == token, Session.user_id == user_id
+                (
+                    update(UserSession)
+                    .where(UserSession.id == session_id)
+                    .values(**data_dict)
                 ),
             )
+            result = await self._execute_statement(
+                session, select(UserSession).where(UserSession.id == session_id)
+            )
+            user_session = result.scalar_one_or_none()
+            if user_session is None:
+                raise NotFoundError("User session not found after created")
 
-    async def get_sessions(self, user_id: str) -> list[SessionResponse]:
+    async def delete_user_session(
+        self, user_id: str, session_id: str
+    ) -> UserSessionResponse:
         async with self._session_scope() as session:
-            statement = select(Session).where(Session.user_id == user_id)
+            statement = select(UserSession).where(
+                UserSession.id == session_id, UserSession.user_id == user_id
+            )
             result = await self._execute_statement(session, statement)
-            return [
-                SessionResponse(**session.model_dump())
-                for session in result.scalars().all()
-            ]
-
-    async def remove_session(self, user_id: str, session_id: str) -> SessionResponse:
-        async with self._session_scope() as session:
-            statement = select(Session).where(
-                Session.user_id == user_id, Session.id == session_id
-            )
-            result = await self._execute_statement(session, statement)
-            session = result.scalar_one_or_none()
-            if not session:
-                raise NotFoundError(f"{self.entity_name} not found")
+            user_session = result.scalar_one_or_none()
+            if not user_session:
+                raise NotFoundError("User session not found")
             await self._execute_statement(
-                session,
-                delete(Session).where(
-                    Session.id == session_id, Session.user_id == user_id
-                ),
+                session, delete(UserSession).where(UserSession.id == user_session.id)
             )
-            return SessionResponse(**session.model_dump())
+            return self.db_model(**user_session.model_dump())

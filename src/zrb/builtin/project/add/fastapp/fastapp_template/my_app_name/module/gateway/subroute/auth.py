@@ -172,7 +172,7 @@ def serve_auth_route(app: FastAPI):
         response_model=list[UserResponse],
     )
     async def create_user_bulk(data: list[UserCreateWithRoles]):
-        return await auth_client.create_user(
+        return await auth_client.create_user_bulk(
             [row.with_audit(created_by="system") for row in data]
         )
 

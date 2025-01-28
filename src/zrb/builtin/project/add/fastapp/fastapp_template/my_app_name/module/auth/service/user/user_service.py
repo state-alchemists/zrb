@@ -1,3 +1,4 @@
+import datetime
 from logging import Logger
 
 from my_app_name.common.base_service import BaseService
@@ -7,7 +8,10 @@ from my_app_name.module.auth.service.user.repository.user_repository import (
 from my_app_name.schema.user import (
     MultipleUserResponse,
     UserCreateWithRolesAndAudit,
+    UserCredential,
     UserResponse,
+    UserSessionResponse,
+    UserTokenData,
     UserUpdateWithRolesAndAudit,
 )
 
@@ -17,6 +21,29 @@ class UserService(BaseService):
     def __init__(self, logger: Logger, user_repository: UserRepository):
         super().__init__(logger)
         self.user_repository = user_repository
+
+    @BaseService.route(
+        "/api/v1/users/sessions",
+        methods=["post"],
+        response_model=UserSessionResponse,
+    )
+    async def create_user_session(
+        self, credential: UserCredential
+    ) -> UserSessionResponse:
+        current_user = await self.user_repository.get_by_credentials(
+            username=credential.username,
+            password=credential.password,
+        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        token_data = UserTokenData(
+            token="fufufafa",
+            refresh_token="fufufafa",
+            token_expired_at=now,
+            refresh_token_expired_at=now,
+        )
+        return await self.create_user_session(
+            user_id=current_user.id, token_data=token_data
+        )
 
     @BaseService.route(
         "/api/v1/users/{user_id}",
@@ -50,13 +77,13 @@ class UserService(BaseService):
     async def create_user_bulk(
         self, data: list[UserCreateWithRolesAndAudit]
     ) -> list[UserResponse]:
-        role_ids = [row.get_role_ids() for row in data]
+        role_names = [row.get_role_names() for row in data]
         data = [row.get_user_create_with_audit() for row in data]
         users = await self.user_repository.create_bulk(data)
         if len(users) > 0:
             created_by = users[0].created_by
             await self.user_repository.add_roles(
-                data={user.id: role_ids[i] for i, user in enumerate(data)},
+                data={user.id: role_names[i] for i, user in enumerate(users)},
                 created_by=created_by,
             )
         return await self.user_repository.get_by_ids([user.id for user in users])
@@ -67,11 +94,11 @@ class UserService(BaseService):
         response_model=UserResponse,
     )
     async def create_user(self, data: UserCreateWithRolesAndAudit) -> UserResponse:
-        role_ids = data.get_role_ids()
+        role_names = data.get_role_names()
         data = data.get_user_create_with_audit()
         user = await self.user_repository.create(data)
         await self.user_repository.add_roles(
-            data={user.id: role_ids}, created_by=user.created_by
+            data={user.id: role_names}, created_by=user.created_by
         )
         return await self.user_repository.get_by_id(user.id)
 
@@ -83,14 +110,14 @@ class UserService(BaseService):
     async def update_user_bulk(
         self, user_ids: list[str], data: UserUpdateWithRolesAndAudit
     ) -> list[UserResponse]:
-        role_ids = [row.get_role_ids() for row in data]
+        role_names = [row.get_role_names() for row in data]
         user_data = [row.get_user_create_with_audit() for row in data]
         await self.user_repository.update_bulk(user_ids, user_data)
         if len(user_ids) > 0:
             updated_by = user_data[0].updated_by
             await self.user_repository.remove_all_roles(user_ids)
             await self.user_repository.add_roles(
-                data={user_id: role_ids[i] for i, user_id in enumerate(user_ids)},
+                data={user_id: role_names[i] for i, user_id in enumerate(user_ids)},
                 updated_by=updated_by,
             )
         return await self.user_repository.get_by_ids(user_ids)
@@ -103,12 +130,12 @@ class UserService(BaseService):
     async def update_user(
         self, user_id: str, data: UserUpdateWithRolesAndAudit
     ) -> UserResponse:
-        role_ids = data.get_role_ids()
+        role_names = data.get_role_names()
         user_data = data.get_user_update_with_audit()
         await self.user_repository.update(user_id, user_data)
         await self.user_repository.remove_all_roles([user_id])
         await self.user_repository.add_roles(
-            data={user_id: role_ids}, created_by=user_data.updated_by
+            data={user_id: role_names}, created_by=user_data.updated_by
         )
         return await self.user_repository.get_by_id(user_id)
 

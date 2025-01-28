@@ -9,6 +9,7 @@ from sqlmodel import Field, SQLModel
 
 class UserBase(SQLModel):
     username: str
+    active: bool
 
 
 class UserCreate(UserBase):
@@ -23,7 +24,7 @@ class UserCreateWithAudit(UserCreate):
 
 
 class UserCreateWithRoles(UserCreate):
-    role_ids: list[str] | None = None
+    role_names: list[str] | None = None
 
     def with_audit(self, created_by: str) -> "UserCreateWithRolesAndAudit":
         return UserCreateWithRolesAndAudit(**self.model_dump(), created_by=created_by)
@@ -33,18 +34,21 @@ class UserCreateWithRolesAndAudit(UserCreateWithRoles):
     created_by: str
 
     def get_user_create_with_audit(self) -> UserCreateWithAudit:
-        data = {key: val for key, val in self.model_dump().items() if key != "role_ids"}
+        data = {
+            key: val for key, val in self.model_dump().items() if key != "role_names"
+        }
         return UserCreateWithAudit(**data)
 
-    def get_role_ids(self) -> list[str]:
-        if self.role_ids is None:
+    def get_role_names(self) -> list[str]:
+        if self.role_names is None:
             return []
-        return self.role_ids
+        return self.role_names
 
 
 class UserUpdate(SQLModel):
     username: str | None = None
     password: str | None = None
+    active: bool | None = None
 
     def with_audit(self, updated_by: str) -> "UserUpdateWithAudit":
         return UserUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
@@ -55,7 +59,7 @@ class UserUpdateWithAudit(UserUpdate):
 
 
 class UserUpdateWithRoles(UserUpdate):
-    role_ids: list[str] | None = None
+    role_names: list[str] | None = None
 
     def with_audit(self, updated_by: str) -> "UserUpdateWithRolesAndAudit":
         return UserUpdateWithRolesAndAudit(**self.model_dump(), updated_by=updated_by)
@@ -65,13 +69,15 @@ class UserUpdateWithRolesAndAudit(UserUpdateWithRoles):
     updated_by: str
 
     def get_user_update_with_audit(self) -> UserUpdateWithAudit:
-        data = {key: val for key, val in self.model_dump().items() if key != "role_ids"}
+        data = {
+            key: val for key, val in self.model_dump().items() if key != "role_names"
+        }
         return UserUpdateWithAudit(**data)
 
-    def get_role_ids(self) -> list[str]:
-        if self.role_ids is None:
+    def get_role_names(self) -> list[str]:
+        if self.role_names is None:
             return []
-        return self.role_ids
+        return self.role_names
 
 
 class UserResponse(UserBase):
@@ -85,7 +91,24 @@ class MultipleUserResponse(BaseModel):
     count: int
 
 
+class UserCredential(SQLModel):
+    username: str
+    password: str
+
+
+class UserTokenData(SQLModel):
+    token: str
+    refresh_token: str
+    token_expired_at: datetime.datetime
+    refresh_token_expired_at: datetime.datetime
+
+
+class UserSessionResponse(UserTokenData):
+    id: str
+
+
 class User(SQLModel, table=True):
+    __tablename__ = "users"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     created_at: datetime.datetime = Field(index=True)
     created_by: str = Field(index=True)
@@ -93,11 +116,23 @@ class User(SQLModel, table=True):
     updated_by: str | None = Field(index=True)
     username: str = Field(index=True, unique=True)
     password: str
+    active: bool = Field(index=True)
 
 
 class UserRole(SQLModel, table=True):
+    __tablename__ = "user_roles"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     user_id: str = Field(index=True)
     role_id: str = Field(index=True)
     created_at: datetime.datetime | None
     created_by: str | None
+
+
+class UserSession(SQLModel, table=True):
+    __tablename__ = "user_sessions"
+    id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
+    user_id: str = Field(index=True)
+    token: str = Field(index=True)
+    refresh_token: str = Field(index=True)
+    token_expired_at: datetime.datetime = Field(index=True)
+    refresh_token_expired_at: datetime.datetime = Field(index=True)
