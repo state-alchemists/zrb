@@ -295,16 +295,16 @@ class BaseTask(AnyTask):
     async def exec_root_tasks(self, session: AnySession):
         session.set_main_task(self)
         session.state_logger.write(session.as_state_log())
-        log_state = asyncio.create_task(self._log_session_state(session))
-        root_tasks = [
-            task
-            for task in session.get_root_tasks(self)
-            if session.is_allowed_to_run(task)
-        ]
-        root_task_coros = [
-            run_async(root_task.exec_chain(session)) for root_task in root_tasks
-        ]
         try:
+            log_state = asyncio.create_task(self._log_session_state(session))
+            root_tasks = [
+                task
+                for task in session.get_root_tasks(self)
+                if session.is_allowed_to_run(task)
+            ]
+            root_task_coros = [
+                run_async(root_task.exec_chain(session)) for root_task in root_tasks
+            ]
             await asyncio.gather(*root_task_coros)
             await session.wait_deferred()
             session.terminate()

@@ -80,4 +80,5 @@ APP_AUTH_SECRET_KEY = os.getenv("MY_APP_NAME_AUTH_SECRET_KEY", "my-secret-key")
 APP_AUTH_PRIORITIZE_NEW_SESSION = (
     os.getenv("MY_APP_NAME_AUTH_PRIORITIZE_NEW_SESSION", "1").lower() in TRUE_STRS
 )
+
 APP_AUTH_BASE_URL = os.getenv("MY_APP_NAME_AUTH_BASE_URL", "http://localhost:3001")

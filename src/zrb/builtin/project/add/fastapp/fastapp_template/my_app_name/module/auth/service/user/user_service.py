@@ -46,8 +46,8 @@ class UserService(BaseService):
         methods=["get"],
         response_model=AuthUserResponse,
     )
-    async def get_current_user(self, access_token: str) -> AuthUserResponse:
-        return self._get_auth_user_by_access_token(access_token)
+    async def get_current_user(self, access_token: str | None) -> AuthUserResponse:
+        return await self._get_auth_user_by_access_token(access_token)
 
     @BaseService.route(
         "/api/v1/user-sessions",
@@ -232,7 +232,7 @@ class UserService(BaseService):
         return self._to_auth_user_response(user)
 
     async def _get_auth_user_by_access_token(
-        self, access_token: str
+        self, access_token: str | None
     ) -> AuthUserResponse:
         if access_token is None or access_token == "":
             return self._get_guest_user()

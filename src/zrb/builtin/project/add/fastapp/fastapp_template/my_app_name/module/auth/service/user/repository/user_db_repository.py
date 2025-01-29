@@ -49,7 +49,7 @@ class UserDBRepository(
 
     def _select(self) -> Select:
         return (
-            select(User, Role, Permission, UserSession)
+            select(User, Role, Permission)
             .join(UserRole, UserRole.user_id == User.id, isouter=True)
             .join(Role, Role.id == UserRole.role_id, isouter=True)
             .join(RolePermission, RolePermission.role_id == Role.id, isouter=True)
@@ -62,7 +62,7 @@ class UserDBRepository(
         user_map: dict[str, dict[str, Any]] = {}
         user_role_map: dict[str, list[str]] = {}
         user_permission_map: dict[str, list[str]] = {}
-        for user, role, permission, _ in rows:
+        for user, role, permission in rows:
             if user.id not in user_map:
                 user_map[user.id] = {"user": user, "roles": [], "permissions": []}
                 user_role_map[user.id] = []
