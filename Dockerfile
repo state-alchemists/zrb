@@ -1,4 +1,4 @@
-FROM python:3.10-bookworm
+FROM python:3.10-slim-bookworm
 
 # Create and set workdir
 RUN mkdir -p /project
