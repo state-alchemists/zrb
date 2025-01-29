@@ -57,6 +57,7 @@ scaffold_fastapp = Scaffolder(
                 "my_app_name": "{to_snake_case(ctx.input.app)}",
                 "MY_APP_NAME": "{to_snake_case(ctx.input.app).upper()}",
                 "my-secure-password": lambda _: get_random_name(),
+                "my-secret-key": lambda _: get_random_name(),
             },
         ),
         # Register fastapp's tasks to project's zrb_init (project_dir/zrb_init.py)

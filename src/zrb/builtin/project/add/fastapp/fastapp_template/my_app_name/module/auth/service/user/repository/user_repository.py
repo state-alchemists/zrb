@@ -73,22 +73,20 @@ class UserRepository(ABC):
         """Get user by credential"""
 
     @abstractmethod
-    async def get_by_token(self, token: str) -> UserResponse:
-        """Get user by token"""
-
-    @abstractmethod
-    async def get_user_sessions(self, user_id: str) -> list[UserSessionResponse]:
+    async def get_active_user_sessions(self, user_id: str) -> list[UserSessionResponse]:
         """Get user sessions"""
 
     @abstractmethod
-    async def get_user_session_by_token(self, token: str) -> UserSessionResponse:
-        """Get user session by token"""
+    async def get_user_session_by_access_token(
+        self, access_token: str
+    ) -> UserSessionResponse:
+        """Get user session by access token"""
 
     @abstractmethod
     async def get_user_session_by_refresh_token(
         self, refresh_token: str
     ) -> UserSessionResponse:
-        """Get user session by token"""
+        """Get user session by refresh token"""
 
     @abstractmethod
     async def create_user_session(
@@ -107,5 +105,5 @@ class UserRepository(ABC):
         """Delete expired user sessions"""
 
     @abstractmethod
-    async def delete_user_session(self, user_id: str, session_id: str):
+    async def delete_user_sessions(self, session_ids: list[str]):
         """Delete user session"""

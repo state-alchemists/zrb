@@ -54,9 +54,14 @@ class RoleDBRepository(
                 and permission.id not in role_permission_map[role.id]
             ):
                 role_permission_map[role.id].append(permission.id)
-                role_map[role.id]["permissions"].append(permission.model_dump())
+                role_map[role.id]["permissions"].append(permission)
         return [
-            RoleResponse(**data["role"].model_dump(), permissions=data["permissions"])
+            RoleResponse(
+                **data["role"].model_dump(),
+                permission_names=[
+                    permission.name for permission in data["permissions"]
+                ],
+            )
             for data in role_map.values()
         ]
 

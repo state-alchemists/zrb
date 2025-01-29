@@ -51,21 +51,26 @@
     "password": "password123",
     "role_names": [
       "librarian"
-    ]
+    ],
+    "active": true
   },
   {
     "username": "jane_smith",
     "password": "securePass!2025",
     "role_names": [
       "assistant-librarian"
-    ]
+    ],
+    "active": true
+
   },
   {
     "username": "alex_viewer",
     "password": "viewOnly@2025",
     "role_names": [
       "viewer"
-    ]
+    ],
+    "active": true
+
   },
   {
     "username": "emily_helper",
@@ -73,7 +78,8 @@
     "role_names": [
       "assistant-librarian",
       "viewer"
-    ]
+    ],
+    "active": true
   }
 ]
 ```

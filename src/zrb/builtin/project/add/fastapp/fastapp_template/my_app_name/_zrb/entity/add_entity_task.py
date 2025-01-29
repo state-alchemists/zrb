@@ -88,6 +88,7 @@ scaffold_my_app_name_entity = Scaffolder(
             match=is_in_app_schema_dir,
             transform={
                 "MyEntity": "{to_pascal_case(ctx.input.entity)}",
+                "my_entities": "{to_snake_case(ctx.input.plural)}",
                 "my_column": "{to_snake_case(ctx.input.column)}",
             },
         ),

@@ -56,7 +56,6 @@ class BaseService:
         response_model: Any = None,
         status_code: int | None = None,
         tags: list[str | Enum] | None = None,
-        dependencies: Sequence[params.Depends] | None = None,
         summary: str | None = None,
         description: str = None,
         deprecated: bool | None = None,

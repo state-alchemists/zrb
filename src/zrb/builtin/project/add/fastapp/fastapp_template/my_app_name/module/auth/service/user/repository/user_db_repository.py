@@ -1,17 +1,9 @@
 import datetime
-from typing import Any, Callable
+from typing import Any
 
 import ulid
 from my_app_name.common.base_db_repository import BaseDBRepository
-from my_app_name.common.error import NotFoundError
-from my_app_name.config import (
-    APP_AUTH_GUEST_USER,
-    APP_AUTH_GUEST_USER_PERMISSIONS,
-    APP_AUTH_SUPER_USER,
-    APP_AUTH_SUPER_USER_PASSWORD,
-    APP_MAX_PARALLEL_SESSION,
-    APP_SESSION_EXPIRE_MINUTES,
-)
+from my_app_name.common.error import NotFoundError, UnauthorizedError
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
@@ -28,11 +20,8 @@ from my_app_name.schema.user import (
     UserUpdateWithAudit,
 )
 from passlib.context import CryptContext
-from sqlalchemy import and_
-from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy.sql import ClauseElement, ColumnElement, Select
-from sqlmodel import SQLModel, delete, insert, select, update
+from sqlalchemy.sql import Select
+from sqlmodel import delete, insert, select, update
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -40,6 +29,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies if a password matches the stored hash."""
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 class UserDBRepository(
@@ -53,38 +47,7 @@ class UserDBRepository(
     entity_name = "user"
     column_preprocessors = {"password": hash_password}
 
-    def __init__(
-        self,
-        engine: Engine | AsyncEngine,
-        super_user_username: str = APP_AUTH_SUPER_USER,
-        super_user_password: str = APP_AUTH_SUPER_USER_PASSWORD,
-        guest_user_username: str = APP_AUTH_GUEST_USER,
-        guest_user_password: str = APP_AUTH_SUPER_USER_PASSWORD,
-        guest_user_permission_names: list[str] = APP_AUTH_GUEST_USER_PERMISSIONS,
-        max_parallel_session: int = APP_MAX_PARALLEL_SESSION,
-        session_expire_minutes: int = APP_SESSION_EXPIRE_MINUTES,
-        filter_param_parser: (
-            Callable[[SQLModel, str], list[ClauseElement]] | None
-        ) = None,
-        sort_param_parser: Callable[[SQLModel, str], list[ColumnElement]] | None = None,
-    ):
-        super().__init__(
-            engine=engine,
-            filter_param_parser=filter_param_parser,
-            sort_param_parser=sort_param_parser,
-        )
-        self._super_user_username = super_user_username
-        self._super_user_passwored = super_user_password
-        self._guest_user_username = guest_user_username
-        self._guest_user_password = guest_user_password
-        self._guest_user_permission_names = guest_user_permission_names
-        self._max_parallel_session = max_parallel_session
-        self._session_expire_minutes = session_expire_minutes
-        self._super_user: User | None = None
-        self._guest_user: User | None = None
-
     def _select(self) -> Select:
-        now = datetime.datetime.now(datetime.timezone.utc)
         return (
             select(User, Role, Permission, UserSession)
             .join(UserRole, UserRole.user_id == User.id, isouter=True)
@@ -92,14 +55,6 @@ class UserDBRepository(
             .join(RolePermission, RolePermission.role_id == Role.id, isouter=True)
             .join(
                 Permission, Permission.id == RolePermission.permission_id, isouter=True
-            )
-            .join(
-                UserSession,
-                and_(
-                    UserSession.user_id == User.id,
-                    UserSession.token_expired_at > now,
-                ),
-                isouter=True,
             )
         )
 
@@ -114,18 +69,20 @@ class UserDBRepository(
                 user_permission_map[user.id] = []
             if role is not None and role.id not in user_role_map[user.id]:
                 user_role_map[user.id].append(role.id)
-                user_map[user.id]["roles"].append(role.model_dump())
+                user_map[user.id]["roles"].append(role)
             if (
                 permission is not None
                 and permission.id not in user_permission_map[user.id]
             ):
                 user_permission_map[user.id].append(permission.id)
-                user_map[user.id]["permissions"].append(permission.model_dump())
+                user_map[user.id]["permissions"].append(permission)
         return [
             UserResponse(
                 **data["user"].model_dump(),
-                roles=list(data["roles"]),
-                permissions=list(data["permissions"]),
+                role_names=[role.name for role in data["roles"]],
+                permission_names=[
+                    permission.name for permission in data["permissions"]
+                ],
             )
             for data in user_map.values()
         ]
@@ -167,64 +124,54 @@ class UserDBRepository(
             )
 
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:
-        rows = await self._select_to_response(
-            lambda q: q.where(
-                User.username == username,
-                User.password == hash_password(password),
-                User.active,
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session, select(User).where(User.username == username, User.active)
             )
-        )
-        return self._ensure_one(rows)
-
-    async def get_by_token(self, token: str) -> UserResponse:
-        rows = await self._select_to_response(
-            lambda q: q.where(UserSession.token == token)
-        )
-        return self._ensure_one(rows)
+            user = result.scalar_one_or_none()
+            if user is None or not verify_password(password, user.password):
+                raise UnauthorizedError("Invalid username or password")
+            return await self.get_by_id(user.id)
 
     async def delete_expired_user_sessions(self, user_id: str):
         now = datetime.datetime.now(datetime.timezone.utc)
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,
-                (
-                    delete(UserSession).where(
-                        UserSession.user_id == user_id,
-                        UserSession.token_expired_at < now,
-                        UserSession.refresh_token_expired_at < now,
-                    )
+                delete(UserSession).where(
+                    UserSession.user_id == user_id,
+                    UserSession.refresh_token_expired_at < now,
                 ),
             )
 
-    async def get_user_sessions(self, user_id: str) -> list[UserSessionResponse]:
+    async def get_active_user_sessions(self, user_id: str) -> list[UserSessionResponse]:
         now = datetime.datetime.now(datetime.timezone.utc)
         async with self._session_scope() as session:
             result = await self._execute_statement(
                 session,
-                (
-                    select(UserSession).where(
-                        UserSession.user_id == user_id,
-                        UserSession.token_expired_at > now,
-                    )
+                select(UserSession).where(
+                    UserSession.user_id == user_id,
+                    UserSession.refresh_token_expired_at > now,
                 ),
             )
-            return [UserSessionResponse.model_validate(row[0] for row in result.all())]
+            return [self._user_session_to_response(row[0]) for row in result.all()]
 
-    async def get_user_session_by_token(self, token: str) -> UserSessionResponse:
+    async def get_user_session_by_access_token(
+        self, access_token: str
+    ) -> UserSessionResponse:
         now = datetime.datetime.now(datetime.timezone.utc)
         async with self._session_scope() as session:
             result = await self._execute_statement(
                 session,
-                (
-                    select(UserSession).where(
-                        UserSession.token == token, UserSession.token_expired_at > now
-                    )
+                select(UserSession).where(
+                    UserSession.access_token == access_token,
+                    UserSession.access_token_expired_at > now,
                 ),
             )
             user_session = result.scalar_one_or_none()
             if user_session is None:
                 raise NotFoundError("User session not found")
-            return UserSession.model_validate(user_session)
+            return self._user_session_to_response(user_session)
 
     async def get_user_session_by_refresh_token(
         self, refresh_token: str
@@ -233,17 +180,15 @@ class UserDBRepository(
         async with self._session_scope() as session:
             result = await self._execute_statement(
                 session,
-                (
-                    select(UserSession).where(
-                        UserSession.refresh_token == refresh_token,
-                        UserSession.refresh_token_expired_at > now,
-                    )
+                select(UserSession).where(
+                    UserSession.refresh_token == refresh_token,
+                    UserSession.refresh_token_expired_at > now,
                 ),
             )
             user_session = result.scalar_one_or_none()
             if user_session is None:
                 raise NotFoundError("User session not found")
-            return UserSession.model_validate(user_session)
+            return self._user_session_to_response(user_session)
 
     async def create_user_session(
         self, user_id: str, token_data: UserTokenData
@@ -261,6 +206,7 @@ class UserDBRepository(
             user_session = result.scalar_one_or_none()
             if user_session is None:
                 raise NotFoundError("User session not found after created")
+            return self._user_session_to_response(user_session)
 
     async def update_user_session(
         self, user_id: str, session_id: str, token_data: UserTokenData
@@ -281,19 +227,20 @@ class UserDBRepository(
             user_session = result.scalar_one_or_none()
             if user_session is None:
                 raise NotFoundError("User session not found after created")
+            return self._user_session_to_response(user_session)
 
-    async def delete_user_session(
-        self, user_id: str, session_id: str
-    ) -> UserSessionResponse:
+    async def delete_user_sessions(self, session_ids: list[str]):
         async with self._session_scope() as session:
-            statement = select(UserSession).where(
-                UserSession.id == session_id, UserSession.user_id == user_id
-            )
-            result = await self._execute_statement(session, statement)
-            user_session = result.scalar_one_or_none()
-            if not user_session:
-                raise NotFoundError("User session not found")
             await self._execute_statement(
-                session, delete(UserSession).where(UserSession.id == user_session.id)
+                session, delete(UserSession).where(UserSession.id.in_(session_ids))
             )
-            return self.db_model(**user_session.model_dump())
+
+    def _user_session_to_response(
+        self, user_session: UserSession
+    ) -> UserSessionResponse:
+        return UserSessionResponse(
+            id=user_session.id,
+            user_id=user_session.user_id,
+            access_token_expired_at=user_session.access_token_expired_at,
+            refresh_token_expired_at=user_session.refresh_token_expired_at,
+        )

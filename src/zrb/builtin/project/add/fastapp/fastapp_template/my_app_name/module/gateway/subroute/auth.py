@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, Response
+from fastapi.security import OAuth2PasswordRequestForm
 from my_app_name.module.auth.client.auth_client_factory import auth_client
 from my_app_name.schema.permission import (
     MultiplePermissionResponse,
@@ -15,12 +18,34 @@ from my_app_name.schema.role import (
 from my_app_name.schema.user import (
     MultipleUserResponse,
     UserCreateWithRoles,
+    UserCredentials,
     UserResponse,
+    UserSessionResponse,
     UserUpdateWithRoles,
 )
 
 
 def serve_auth_route(app: FastAPI):
+
+    @app.post("/api/v1/user-sessions", response_model=UserSessionResponse)
+    async def create_user_session(
+        response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    ) -> UserSessionResponse:
+        user_session = await auth_client.create_user_session(
+            UserCredentials(
+                username=form_data.username,
+                password=form_data.password,
+            )
+        )
+        return user_session
+
+    @app.put("/api/v1/user-sessions", response_model=UserSessionResponse)
+    async def update_user_session(refresh_token: str) -> UserSessionResponse:
+        return await auth_client.update_user_session(refresh_token)
+
+    @app.delete("/api/v1/user-sessions", response_model=UserSessionResponse)
+    async def delete_user_session(refresh_token: str) -> UserSessionResponse:
+        return await auth_client.delete_user_session(refresh_token)
 
     # Permission routes
 

@@ -82,8 +82,13 @@ class UserUpdateWithRolesAndAudit(UserUpdateWithRoles):
 
 class UserResponse(UserBase):
     id: str
-    roles: list[Role]
-    permissions: list[Permission]
+    role_names: list[str]
+    permission_names: list[str]
+
+
+class AuthUserResponse(UserResponse):
+    is_super_user: bool
+    is_guest: bool
 
 
 class MultipleUserResponse(BaseModel):
@@ -91,20 +96,23 @@ class MultipleUserResponse(BaseModel):
     count: int
 
 
-class UserCredential(SQLModel):
+class UserCredentials(SQLModel):
     username: str
     password: str
 
 
 class UserTokenData(SQLModel):
-    token: str
+    access_token: str
     refresh_token: str
-    token_expired_at: datetime.datetime
+    access_token_expired_at: datetime.datetime
     refresh_token_expired_at: datetime.datetime
 
 
-class UserSessionResponse(UserTokenData):
+class UserSessionResponse(SQLModel):
     id: str
+    user_id: str
+    access_token_expired_at: datetime.datetime
+    refresh_token_expired_at: datetime.datetime
 
 
 class User(SQLModel, table=True):
@@ -132,7 +140,7 @@ class UserSession(SQLModel, table=True):
     __tablename__ = "user_sessions"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     user_id: str = Field(index=True)
-    token: str = Field(index=True)
+    access_token: str = Field(index=True)
     refresh_token: str = Field(index=True)
-    token_expired_at: datetime.datetime = Field(index=True)
+    access_token_expired_at: datetime.datetime = Field(index=True)
     refresh_token_expired_at: datetime.datetime = Field(index=True)
