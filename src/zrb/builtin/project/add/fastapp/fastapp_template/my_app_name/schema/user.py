@@ -90,6 +90,12 @@ class AuthUserResponse(UserResponse):
     is_super_user: bool
     is_guest: bool
 
+    def has_permission(self, permission_name: str):
+        return self.is_super_user or permission_name in self.permission_names
+
+    def has_role(self, role_name: str):
+        return self.is_super_user or role_name in self.role_names
+
 
 class MultipleUserResponse(BaseModel):
     data: list[UserResponse]
