@@ -1,7 +1,6 @@
 import datetime
 
 import ulid
-from my_app_name.schema.permission import Permission
 from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
@@ -22,7 +21,7 @@ class RoleCreateWithAudit(RoleCreate):
 
 
 class RoleCreateWithPermissions(RoleCreate):
-    permission_ids: list[str] | None = None
+    permission_names: list[str] | None = None
 
     def with_audit(self, created_by: str) -> "RoleCreateWithPermissionsAndAudit":
         return RoleCreateWithPermissionsAndAudit(
@@ -37,14 +36,14 @@ class RoleCreateWithPermissionsAndAudit(RoleCreateWithPermissions):
         data = {
             key: val
             for key, val in self.model_dump().items()
-            if key != "permission_ids"
+            if key != "permission_names"
         }
         return RoleCreateWithAudit(**data)
 
-    def get_permission_ids(self) -> list[str]:
-        if self.permission_ids is None:
+    def get_permission_names(self) -> list[str]:
+        if self.permission_names is None:
             return []
-        return self.permission_ids
+        return self.permission_names
 
 
 class RoleUpdate(SQLModel):
@@ -60,7 +59,7 @@ class RoleUpdateWithAudit(RoleUpdate):
 
 
 class RoleUpdateWithPermissions(RoleUpdate):
-    permission_ids: list[str] | None = None
+    permission_names: list[str] | None = None
 
     def with_audit(self, updated_by: str) -> "RoleUpdateWithPermissionsAndAudit":
         return RoleUpdateWithPermissionsAndAudit(
@@ -75,19 +74,19 @@ class RoleUpdateWithPermissionsAndAudit(RoleUpdateWithPermissions):
         data = {
             key: val
             for key, val in self.model_dump().items()
-            if key != "permission_ids"
+            if key != "permission_names"
         }
         return RoleUpdateWithAudit(**data)
 
-    def get_permission_ids(self) -> list[str]:
-        if self.permission_ids is None:
+    def get_permission_names(self) -> list[str]:
+        if self.permission_names is None:
             return []
-        return self.permission_ids
+        return self.permission_names
 
 
 class RoleResponse(RoleBase):
     id: str
-    permissions: list[Permission]
+    permission_names: list[str]
 
 
 class MultipleRoleResponse(BaseModel):
@@ -96,6 +95,7 @@ class MultipleRoleResponse(BaseModel):
 
 
 class Role(SQLModel, table=True):
+    __tablename__ = "roles"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     created_at: datetime.datetime | None = Field(index=True)
     created_by: str | None = Field(index=True)
@@ -106,6 +106,7 @@ class Role(SQLModel, table=True):
 
 
 class RolePermission(SQLModel, table=True):
+    __tablename__ = "role_permissions"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     role_id: str = Field(index=True)
     permission_id: str = Field(index=True)

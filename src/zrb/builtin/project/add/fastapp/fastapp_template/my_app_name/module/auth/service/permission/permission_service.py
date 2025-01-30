@@ -71,11 +71,11 @@ class PermissionService(BaseService):
     @BaseService.route(
         "/api/v1/permissions/bulk",
         methods=["put"],
-        response_model=PermissionResponse,
+        response_model=list[PermissionResponse],
     )
     async def update_permission_bulk(
         self, permission_ids: list[str], data: PermissionUpdateWithAudit
-    ) -> PermissionResponse:
+    ) -> list[PermissionResponse]:
         await self.permission_repository.update_bulk(permission_ids, data)
         return await self.permission_repository.get_by_ids(permission_ids)
 
@@ -93,11 +93,11 @@ class PermissionService(BaseService):
     @BaseService.route(
         "/api/v1/permissions/bulk",
         methods=["delete"],
-        response_model=PermissionResponse,
+        response_model=list[PermissionResponse],
     )
     async def delete_permission_bulk(
         self, permission_ids: list[str], deleted_by: str
-    ) -> PermissionResponse:
+    ) -> list[PermissionResponse]:
         permissions = await self.permission_repository.get_by_ids(permission_ids)
         await self.permission_repository.delete_bulk(permission_ids)
         return permissions

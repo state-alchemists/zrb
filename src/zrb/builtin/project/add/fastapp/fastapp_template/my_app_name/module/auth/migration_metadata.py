@@ -1,7 +1,6 @@
 from my_app_name.schema.permission import Permission
 from my_app_name.schema.role import Role, RolePermission
-from my_app_name.schema.session import Session
-from my_app_name.schema.user import User, UserRole
+from my_app_name.schema.user import User, UserRole, UserSession
 from sqlalchemy import MetaData
 
 metadata = MetaData()
@@ -19,5 +18,5 @@ User.__table__.tometadata(metadata)
 UserRole.metadata = metadata
 UserRole.__table__.tometadata(metadata)
 
-Session.metadata = metadata
-Session.__table__.tometadata(metadata)
+UserSession.metadata = metadata
+UserSession.__table__.tometadata(metadata)

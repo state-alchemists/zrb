@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 
-from my_app_name.schema.session import SessionResponse
 from my_app_name.schema.user import (
     User,
     UserCreateWithAudit,
     UserResponse,
+    UserSessionResponse,
+    UserTokenData,
     UserUpdateWithAudit,
 )
 
@@ -72,21 +73,37 @@ class UserRepository(ABC):
         """Get user by credential"""
 
     @abstractmethod
-    async def get_by_token(self, token: str) -> UserResponse:
-        """Get user by token"""
+    async def get_active_user_sessions(self, user_id: str) -> list[UserSessionResponse]:
+        """Get user sessions"""
 
     @abstractmethod
-    async def add_token(self, user_id: str, token: str):
-        """Add token to user"""
+    async def get_user_session_by_access_token(
+        self, access_token: str
+    ) -> UserSessionResponse:
+        """Get user session by access token"""
 
     @abstractmethod
-    async def remove_token(self, user_id: str, token: str):
-        """Remove token from user"""
+    async def get_user_session_by_refresh_token(
+        self, refresh_token: str
+    ) -> UserSessionResponse:
+        """Get user session by refresh token"""
 
     @abstractmethod
-    async def get_sessions(self, user_id: str) -> list[SessionResponse]:
-        """Get sessions"""
+    async def create_user_session(
+        self, user_id: str, token_data: UserTokenData
+    ) -> UserSessionResponse:
+        """Create new user session"""
 
     @abstractmethod
-    async def remove_session(self, user_id: str, session_id: str) -> SessionResponse:
-        """Remove a session"""
+    async def update_user_session(
+        self, user_id: str, session_id: str, token_data: UserTokenData
+    ) -> UserSessionResponse:
+        """Update user session"""
+
+    @abstractmethod
+    async def delete_expired_user_sessions(self, user_id: str):
+        """Delete expired user sessions"""
+
+    @abstractmethod
+    async def delete_user_sessions(self, session_ids: list[str]):
+        """Delete user session"""

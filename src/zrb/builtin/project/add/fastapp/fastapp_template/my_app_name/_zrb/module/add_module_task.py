@@ -24,11 +24,11 @@ from zrb import AnyContext, ContentTransformer, Scaffolder, Task, make_task
 
 
 @make_task(
-    name="validate-create-my-app-name-module",
+    name="validate-add-my-app-name-module",
     input=new_module_input,
     retries=0,
 )
-async def validate_create_my_app_name_module(ctx: AnyContext):
+async def validate_add_my_app_name_module(ctx: AnyContext):
     if ctx.input.module in get_existing_module_names():
         raise ValueError(f"Module already exists: {ctx.input.module}")
 
@@ -93,7 +93,7 @@ scaffold_my_app_name_module = Scaffolder(
         ),
     ],
     retries=0,
-    upstream=validate_create_my_app_name_module,
+    upstream=validate_add_my_app_name_module,
 )
 
 add_my_app_name_module = app_create_group.add_task(

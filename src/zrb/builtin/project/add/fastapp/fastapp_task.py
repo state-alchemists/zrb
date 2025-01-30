@@ -20,11 +20,11 @@ from zrb.util.string.name import get_random_name
 
 
 @make_task(
-    name="validate-create-fastapp",
+    name="validate-add-fastapp",
     input=[project_dir_input, app_name_input],
     retries=0,
 )
-async def validate_create_fastapp(ctx: AnyContext):
+async def validate_add_fastapp(ctx: AnyContext):
     project_dir = ctx.input.project_dir
     if not os.path.isdir(project_dir):
         raise ValueError(f"Project directory not exists: {project_dir}")
@@ -39,7 +39,7 @@ scaffold_fastapp = Scaffolder(
         project_dir_input,
         app_name_input,
     ],
-    upstream=validate_create_fastapp,
+    upstream=validate_add_fastapp,
     source_path=os.path.join(os.path.dirname(__file__), "fastapp_template"),
     render_source_path=False,
     destination_path="{ctx.input.project_dir}",
@@ -57,6 +57,7 @@ scaffold_fastapp = Scaffolder(
                 "my_app_name": "{to_snake_case(ctx.input.app)}",
                 "MY_APP_NAME": "{to_snake_case(ctx.input.app).upper()}",
                 "my-secure-password": lambda _: get_random_name(),
+                "my-secret-key": lambda _: get_random_name(),
             },
         ),
         # Register fastapp's tasks to project's zrb_init (project_dir/zrb_init.py)

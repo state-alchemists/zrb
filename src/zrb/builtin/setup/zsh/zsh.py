@@ -53,4 +53,3 @@ def setup_zsh(ctx: AnyContext):
     # Write config
     write_file(zsh_config_file, [content, zsh_config, ""])
     ctx.print("Setup complete, restart your terminal to continue")
-

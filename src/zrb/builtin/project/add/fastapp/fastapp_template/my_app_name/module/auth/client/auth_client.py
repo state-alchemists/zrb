@@ -13,14 +13,35 @@ from my_app_name.schema.role import (
     RoleUpdateWithPermissionsAndAudit,
 )
 from my_app_name.schema.user import (
+    AuthUserResponse,
     MultipleUserResponse,
     UserCreateWithRolesAndAudit,
+    UserCredentials,
     UserResponse,
+    UserSessionResponse,
     UserUpdateWithRolesAndAudit,
 )
 
 
 class AuthClient(ABC):
+
+    @abstractmethod
+    async def get_current_user(self, access_token: str) -> AuthUserResponse:
+        """Get current user based on access token"""
+
+    @abstractmethod
+    async def create_user_session(
+        self, credential: UserCredentials
+    ) -> UserSessionResponse:
+        """Create new user session"""
+
+    @abstractmethod
+    async def update_user_session(self, refresh_token: str) -> UserSessionResponse:
+        """Update user session"""
+
+    @abstractmethod
+    async def delete_user_session(self, refresh_token: str) -> UserSessionResponse:
+        """Delete user session"""
 
     # Permission related methods
 

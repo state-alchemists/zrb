@@ -48,7 +48,7 @@ from zrb.util.string.conversion import to_snake_case
 
 
 @make_task(
-    name="validate-create-my-app-name-entity",
+    name="validate-add-my-app-name-entity",
     input=[
         existing_module_input,
         new_entity_input,
@@ -57,7 +57,7 @@ from zrb.util.string.conversion import to_snake_case
     ],
     retries=0,
 )
-async def validate_create_my_app_name_entity(ctx: AnyContext):
+async def validate_add_my_app_name_entity(ctx: AnyContext):
     module_name = to_snake_case(ctx.input.module)
     if module_name not in get_existing_module_names():
         raise ValueError(f"Module not exist: {module_name}")
@@ -88,6 +88,7 @@ scaffold_my_app_name_entity = Scaffolder(
             match=is_in_app_schema_dir,
             transform={
                 "MyEntity": "{to_pascal_case(ctx.input.entity)}",
+                "my_entities": "{to_snake_case(ctx.input.plural)}",
                 "my_column": "{to_snake_case(ctx.input.column)}",
             },
         ),
@@ -147,7 +148,7 @@ scaffold_my_app_name_entity = Scaffolder(
         ),
     ],
     retries=0,
-    upstream=validate_create_my_app_name_entity,
+    upstream=validate_add_my_app_name_entity,
 )
 
 create_my_app_name_entity_migration = CmdTask(

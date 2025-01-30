@@ -1,5 +1,8 @@
 import os
 
+TRUE_STRS = ["true", "1", "yes", "y", "active", "on"]
+FALSE_STRS = ["false", "0", "no", "n", "inactive", "off"]
+
 APP_PATH = os.path.dirname(__file__)
 APP_VERSION = "0.1.0"
 
@@ -51,16 +54,31 @@ APP_AUTH_SUPER_USER_PASSWORD = os.getenv(
     "MY_APP_NAME_AUTH_SUPER_USER_PASSWORD", "my-secure-password"
 )
 APP_AUTH_GUEST_USER = os.getenv("MY_APP_NAME_AUTH_GUEST_USER", "user")
-APP_AUTH_GUEST_USER_PERMISSIONS = (
+APP_AUTH_GUEST_USER_PERMISSIONS = [
     permission_name.strip()
     for permission_name in os.getenv(
         "MY_APP_NAME_AUTH_GUEST_USER_PERMISSIONS", ""
     ).split(",")
     if permission_name.strip() != ""
+]
+APP_AUTH_MAX_PARALLEL_SESSION = int(
+    os.getenv("MY_APP_NAME_AUTH_MAX_PARALLEL_SESSION", "1")
 )
-APP_MAX_PARALLEL_SESSION = int(os.getenv("MY_APP_NAME_MAX_PARALLEL_SESSION", "1"))
-APP_SESSION_EXPIRE_MINUTES = int(
-    os.getenv("MY_APP_NAME_SESSION_EXPIRE_MINUTES", "1440")
+APP_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("MY_APP_NAME_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+)
+APP_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("MY_APP_NAME_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES", "1440")
+)
+APP_AUTH_ACCESS_TOKEN_COOKIE_NAME = os.getenv(
+    "MY_APP_NAME_AUTH_ACCESS_TOKEN_COOKIE_NAME", "access_token"
+)
+APP_AUTH_REFRESH_TOKEN_COOKIE_NAME = os.getenv(
+    "MY_APP_NAME_AUTH_REFRESH_TOKEN_COOKIE_NAME", "refresh_token"
+)
+APP_AUTH_SECRET_KEY = os.getenv("MY_APP_NAME_AUTH_SECRET_KEY", "my-secret-key")
+APP_AUTH_PRIORITIZE_NEW_SESSION = (
+    os.getenv("MY_APP_NAME_AUTH_PRIORITIZE_NEW_SESSION", "1").lower() in TRUE_STRS
 )
 
 APP_AUTH_BASE_URL = os.getenv("MY_APP_NAME_AUTH_BASE_URL", "http://localhost:3001")

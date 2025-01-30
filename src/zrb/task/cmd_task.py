@@ -126,7 +126,7 @@ class CmdTask(BaseTask):
         if self._get_should_warn_unrecommended_commands():
             self._check_unrecommended_commands(ctx, shell, cmd_script)
         ctx.log_info("Running script")
-        log_method = (
+        print_method = (
             partial(ctx.print, plain=True) if self._should_plain_print else ctx.print
         )
         xcom_pid_key = f"{self.name}-pid"
@@ -135,17 +135,14 @@ class CmdTask(BaseTask):
             cmd=[shell, shell_flag, cmd_script],
             cwd=cwd,
             env_map=env_map,
-            print_method=log_method,
+            print_method=print_method,
             register_pid_method=lambda pid: ctx.xcom.get(xcom_pid_key).push(pid),
             max_output_line=self._max_output_line,
             max_error_line=self._max_error_line,
         )
         # Check for errors
-        if return_code != 0:
-            ctx.log_error(f"Exit status: {return_code}")
-            raise Exception(
-                f"Process {self._name} exited ({return_code}): {cmd_result.error}"
-            )
+        if return_code > 0:
+            raise Exception(f"Process {self._name} exited ({return_code})")
         ctx.log_info(f"Exit status: {return_code}")
         return cmd_result
 

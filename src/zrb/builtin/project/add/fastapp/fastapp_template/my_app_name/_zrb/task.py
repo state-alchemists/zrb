@@ -9,8 +9,14 @@ from my_app_name._zrb.group import (
     app_migrate_group,
     app_run_group,
 )
+from my_app_name._zrb.input import run_env_input
 from my_app_name._zrb.module.add_module_task import add_my_app_name_module
-from my_app_name._zrb.util import create_migration, migrate_module, run_microservice
+from my_app_name._zrb.task_util import (
+    create_migration,
+    migrate_module,
+    run_microservice,
+    run_my_app_name,
+)
 from my_app_name._zrb.venv_task import prepare_venv
 
 from zrb import CmdTask, EnvFile, EnvMap, Task
@@ -52,6 +58,7 @@ run_monolith = app_run_group.add_task(
     CmdTask(
         name="run-monolith-my-app-name",
         description="🗿 Run My App Name as a monolith",
+        input=run_env_input,
         env=[
             EnvFile(path=os.path.join(APP_DIR, "template.env")),
             EnvMap(vars=MONOLITH_ENV_VARS),
@@ -59,7 +66,7 @@ run_monolith = app_run_group.add_task(
         cwd=APP_DIR,
         cmd=[
             ACTIVATE_VENV_SCRIPT,
-            'fastapi dev main.py --port "${MY_APP_NAME_PORT}"',
+            run_my_app_name,
         ],
         render_cmd=False,
         retries=2,

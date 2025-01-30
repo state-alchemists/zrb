@@ -42,6 +42,7 @@ class MultiplePermissionResponse(BaseModel):
 
 
 class Permission(SQLModel, table=True):
+    __tablename__ = "permissions"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     created_at: datetime.datetime | None = Field(index=True)
     created_by: str | None = Field(index=True)

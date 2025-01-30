@@ -122,9 +122,19 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
         return self._ensure_one(rows)
 
     async def get_by_ids(self, id_list: list[str]) -> list[ResponseModel]:
-        return await self._select_to_response(
+        rows = await self._select_to_response(
             lambda q: q.where(self.db_model.id.in_(id_list))
         )
+        # raise error if any id not in id_list
+        existing_id_list = [row.id for row in rows]
+        inexist_id_list = [id for id in id_list if id not in existing_id_list]
+        if len(inexist_id_list) > 0:
+            raise NotFoundError(
+                f"{self.entity_name} not found, inexist ids: {', '.join(inexist_id_list)}"
+            )
+        # sort rows
+        row_dict = {row.id: row for row in rows}
+        return [row_dict[id] for id in id_list]
 
     async def count(self, filter: str | None = None) -> int:
         count_statement = select(func.count(1)).select_from(self.db_model)
@@ -184,21 +194,22 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
 
     async def create_bulk(self, data_list: list[CreateModel]) -> list[DBModel]:
         now = datetime.datetime.now(datetime.timezone.utc)
-        data_dicts = [
+        data_dict_list = [
             self._model_to_data_dict(data, created_at=now, id=ulid.new().str)
             for data in data_list
         ]
+        id_list = [data_dict["id"] for data_dict in data_dict_list]
         async with self._session_scope() as session:
             await self._execute_statement(
-                session, insert(self.db_model).values(data_dicts)
+                session, insert(self.db_model).values(data_dict_list)
             )
-            id_list = [d["id"] for d in data_dicts]
             statement = select(self.db_model).where(self.db_model.id.in_(id_list))
             result = await self._execute_statement(session, statement)
-            return [
-                self.db_model(**entity.model_dump())
+            row_dict = {
+                entity.id: self.db_model(**entity.model_dump())
                 for entity in result.scalars().all()
-            ]
+            }
+            return [row_dict[id] for id in id_list]
 
     async def delete(self, id: str) -> DBModel:
         async with self._session_scope() as session:
@@ -220,11 +231,15 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
             await self._execute_statement(
                 session, delete(self.db_model).where(self.db_model.id.in_(id_list))
             )
-            return [self.db_model(**entity.model_dump()) for entity in entities]
+            row_dict = {
+                entity.id: self.db_model(**entity.model_dump()) for entity in entities
+            }
+            return [row_dict[id] for id in id_list]
 
     async def update(self, id: str, data: UpdateModel) -> DBModel:
         now = datetime.datetime.now(datetime.timezone.utc)
         update_data = self._model_to_data_dict(data, updated_at=now)
+        update_data = {k: v for k, v in update_data.items() if v is not None}
         async with self._session_scope() as session:
             statement = (
                 update(self.db_model)
@@ -256,7 +271,8 @@ class BaseDBRepository(Generic[DBModel, ResponseModel, CreateModel, UpdateModel]
             result = await self._execute_statement(
                 session, select(self.db_model).where(self.db_model.id.in_(id_list))
             )
-            return [
-                self.db_model(**entity.model_dump())
+            row_dict = {
+                entity.id: self.db_model(**entity.model_dump())
                 for entity in result.scalars().all()
-            ]
+            }
+            return [row_dict[id] for id in id_list]

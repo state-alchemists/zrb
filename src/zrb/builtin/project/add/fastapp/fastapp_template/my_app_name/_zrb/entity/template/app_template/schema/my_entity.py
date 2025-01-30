@@ -39,6 +39,7 @@ class MultipleMyEntityResponse(BaseModel):
 
 
 class MyEntity(SQLModel, table=True):
+    __tablename__ = "my_entities"
     id: str = Field(default_factory=lambda: ulid.new().str, primary_key=True)
     created_at: datetime.datetime = Field(index=True)
     created_by: str = Field(index=True)
