@@ -151,6 +151,8 @@ scaffold_my_app_name_entity = Scaffolder(
     upstream=validate_add_my_app_name_entity,
 )
 
+# TODO: Add task to detect existing migration files
+
 create_my_app_name_entity_migration = CmdTask(
     name="create-my-app-name-entity-migration",
     input=[
@@ -176,6 +178,8 @@ create_my_app_name_entity_migration = CmdTask(
         scaffold_my_app_name_entity,
     ],
 )
+
+# TODO: Add task to add permission to the newly created migration
 
 add_my_app_name_entity = app_create_group.add_task(
     Task(
