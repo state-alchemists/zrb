@@ -42,6 +42,7 @@ from zrb import (
     EnvFile,
     Scaffolder,
     Task,
+    Xcom,
     make_task,
 )
 from zrb.util.string.conversion import to_snake_case
@@ -151,7 +152,29 @@ scaffold_my_app_name_entity = Scaffolder(
     upstream=validate_add_my_app_name_entity,
 )
 
-# TODO: Add task to detect existing migration files
+
+@make_task(
+    name="inspect-my-app-name-entity-migration",
+    input=[
+        existing_module_input,
+        new_entity_input,
+    ],
+)
+def inspect_my_app_name_enttiy_migration(ctx: AnyContext):
+    snake_entity_name = to_snake_case(ctx.input.entity)
+    snake_module_name = to_snake_case(ctx.input.module)
+    migration_version_dir = os.path.join(
+        APP_DIR, "module", snake_module_name, "migration", "version",
+    )
+    migration_file_names = [
+        file_name for file_name in migration_version_dir
+        if file_name.endswith(".py")
+    ]
+    xcom_key = f"existing_my_app_name_{snake_module_name}_{snake_entity_name}" 
+    if xcom_key not in ctx.xcom:
+        ctx.xcom[xcom_key] = Xcom([])
+    ctx.xcom[xcom_key].push(migration_file_names)
+
 
 create_my_app_name_entity_migration = CmdTask(
     name="create-my-app-name-entity-migration",
