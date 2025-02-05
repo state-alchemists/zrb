@@ -2,6 +2,9 @@ import os
 
 from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from my_app_name._zrb.entity.add_entity_util import (
+    get_auth_migration_version_dir,
+    get_existing_auth_migration_file_names,
+    get_existing_auth_migration_xcom_key,
     is_in_app_schema_dir,
     is_in_module_entity_dir,
     is_module_api_client_file,
@@ -45,6 +48,8 @@ from zrb import (
     Xcom,
     make_task,
 )
+from zrb.util.codemod.prepend_code_to_function import prepend_code_to_function
+from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -152,30 +157,6 @@ scaffold_my_app_name_entity = Scaffolder(
     upstream=validate_add_my_app_name_entity,
 )
 
-
-@make_task(
-    name="inspect-my-app-name-entity-migration",
-    input=[
-        existing_module_input,
-        new_entity_input,
-    ],
-)
-def inspect_my_app_name_enttiy_migration(ctx: AnyContext):
-    snake_entity_name = to_snake_case(ctx.input.entity)
-    snake_module_name = to_snake_case(ctx.input.module)
-    migration_version_dir = os.path.join(
-        APP_DIR, "module", snake_module_name, "migration", "version",
-    )
-    migration_file_names = [
-        file_name for file_name in migration_version_dir
-        if file_name.endswith(".py")
-    ]
-    xcom_key = f"existing_my_app_name_{snake_module_name}_{snake_entity_name}" 
-    if xcom_key not in ctx.xcom:
-        ctx.xcom[xcom_key] = Xcom([])
-    ctx.xcom[xcom_key].push(migration_file_names)
-
-
 create_my_app_name_entity_migration = CmdTask(
     name="create-my-app-name-entity-migration",
     input=[
@@ -202,13 +183,87 @@ create_my_app_name_entity_migration = CmdTask(
     ],
 )
 
-# TODO: Add task to add permission to the newly created migration
+
+@make_task(
+    name="inspect-my-app-name-auth-migration",
+    input=new_entity_input,
+    retries=0,
+    upstream=scaffold_my_app_name_entity,
+)
+def inspect_my_app_name_auth_migration(ctx: AnyContext):
+    """Getting existing migration files in auth module"""
+    migration_file_names = get_existing_auth_migration_file_names()
+    xcom_key = get_existing_auth_migration_xcom_key(ctx)
+    if xcom_key not in ctx.xcom:
+        ctx.xcom[xcom_key] = Xcom([])
+    ctx.xcom[xcom_key].push(migration_file_names)
+
+
+create_my_app_name_entity_permission = CmdTask(
+    name="create-my-app-name-entity-permission",
+    input=[
+        new_entity_input,
+    ],
+    env=EnvFile(path=os.path.join(APP_DIR, "template.env")),
+    cwd=APP_DIR,
+    cmd=[
+        ACTIVATE_VENV_SCRIPT,
+        Cmd(lambda ctx: set_create_migration_db_url_env("auth")),
+        Cmd(lambda ctx: set_env("MY_APP_NAME_MODULES", "auth")),
+        Cmd(lambda ctx: cd_module_script("auth")),
+        "alembic upgrade head",
+        Cmd(
+            'alembic revision --autogenerate -m "create_{to_snake_case(ctx.input.entity)}_permission"',  # noqa
+        ),
+    ],
+    render_cmd=False,
+    retries=0,
+    upstream=[
+        prepare_venv,
+        inspect_my_app_name_auth_migration,
+    ],
+)
+
+
+@make_task(
+    name="update-my-app-name-entity-permission",
+    input=new_entity_input,
+    retries=0,
+    upstream=create_my_app_name_entity_permission,
+)
+def update_my_app_name_entity_permission(ctx: AnyContext):
+    xcom_key = get_existing_auth_migration_xcom_key(ctx)
+    existing_migration_file_names = ctx.xcom[xcom_key].pop()
+    current_migration_file_names = get_existing_auth_migration_file_names()
+    new_migration_file_names = [
+        file_name
+        for file_name in current_migration_file_names
+        if file_name not in existing_migration_file_names
+    ]
+    if len(new_migration_file_names) == 0:
+        raise Exception("No migration file created")
+    new_migration_file_path = os.path.join(
+        get_auth_migration_version_dir(), new_migration_file_names[0]
+    )
+    migration_code = read_file(new_migration_file_path)
+    # TODO add bulk insert and bulk delete
+    new_migration_code = prepend_code_to_function(
+        migration_code, "upgrade", "# ora umum"
+    )
+    new_migration_code = prepend_code_to_function(
+        new_migration_code, "downgrade", "# ora umum"
+    )
+    write_file(new_migration_file_path, new_migration_code)
+
 
 add_my_app_name_entity = app_create_group.add_task(
     Task(
         name="add-my-app-name-entity",
         description="🏗️ Create new entity on a module",
-        upstream=create_my_app_name_entity_migration,
+        upstream=[
+            create_my_app_name_entity_migration,
+            update_my_app_name_entity_permission,
+        ],
         successor=format_my_app_name_code,
         retries=0,
     ),

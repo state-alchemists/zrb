@@ -11,6 +11,24 @@ from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 
 
+def get_auth_migration_version_dir() -> str:
+    return os.path.join(APP_DIR, "module", "auth", "migration", "versions")
+
+
+def get_existing_auth_migration_file_names() -> list[str]:
+    migration_version_dir = get_auth_migration_version_dir()
+    return [
+        file_name
+        for file_name in os.listdir(migration_version_dir)
+        if file_name.endswith(".py")
+    ]
+
+
+def get_existing_auth_migration_xcom_key(ctx: AnyContext) -> str:
+    snake_entity_name = to_snake_case(ctx.input.entity)
+    return f"existing_my_app_name_auth_{snake_entity_name}_migration"
+
+
 def is_in_app_schema_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
         os.path.join(APP_DIR, "schema", to_snake_case(ctx.input.entity))
