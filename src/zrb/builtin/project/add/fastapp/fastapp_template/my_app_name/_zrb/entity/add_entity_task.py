@@ -246,9 +246,12 @@ def update_my_app_name_entity_permission(ctx: AnyContext):
         get_auth_migration_version_dir(), new_migration_file_names[0]
     )
     migration_code = read_file(new_migration_file_path)
+    new_migration_code = "\n".join(
+        ["from module.auth.migration_metadata import metadata", migration_code]
+    )
     # TODO add bulk insert and bulk delete
     new_migration_code = prepend_code_to_function(
-        migration_code, "upgrade", "# ora umum"
+        new_migration_code, "upgrade", "# ora umum"
     )
     new_migration_code = prepend_code_to_function(
         new_migration_code, "downgrade", "# ora umum"
