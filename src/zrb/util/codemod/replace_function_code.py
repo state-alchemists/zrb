@@ -15,16 +15,12 @@ class FunctionCodeAdder(cst.CSTTransformer):
         if original_node.name.value == self.function_name:
             self.function_found = True
             # Add the method to the class body
-            new_body = updated_node.body.with_changes(
-                body=tuple(self.new_code) + updated_node.body.body
-            )
+            new_body = updated_node.body.with_changes(body=tuple(self.new_code))
             return updated_node.with_changes(body=new_body)
         return updated_node
 
 
-def prepend_code_to_function(
-    original_code: str, function_name: str, new_code: str
-) -> str:
+def replace_function_code(original_code: str, function_name: str, new_code: str) -> str:
     # Parse the original code into a module
     module = cst.parse_module(original_code)
     # Initialize the transformer with the necessary information

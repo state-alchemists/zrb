@@ -2,9 +2,11 @@ import os
 
 from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR
 from my_app_name._zrb.entity.add_entity_util import (
+    get_add_permission_migration_script,
     get_auth_migration_version_dir,
     get_existing_auth_migration_file_names,
     get_existing_auth_migration_xcom_key,
+    get_remove_permission_migration_script,
     is_in_app_schema_dir,
     is_in_module_entity_dir,
     is_module_api_client_file,
@@ -48,7 +50,7 @@ from zrb import (
     Xcom,
     make_task,
 )
-from zrb.util.codemod.prepend_code_to_function import prepend_code_to_function
+from zrb.util.codemod.replace_function_code import replace_function_code
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_snake_case
 
@@ -245,16 +247,22 @@ def update_my_app_name_entity_permission(ctx: AnyContext):
     new_migration_file_path = os.path.join(
         get_auth_migration_version_dir(), new_migration_file_names[0]
     )
-    migration_code = read_file(new_migration_file_path)
-    new_migration_code = "\n".join(
-        ["from module.auth.migration_metadata import metadata", migration_code]
+    new_migration_code = read_file(
+        new_migration_file_path,
+        {
+            "from alembic import op": "\n".join(
+                [
+                    "from alembic import op",
+                    "from module.auth.migration_metadata import metadata",
+                ]
+            ),
+        },
     )
-    # TODO add bulk insert and bulk delete
-    new_migration_code = prepend_code_to_function(
-        new_migration_code, "upgrade", "# ora umum"
+    new_migration_code = replace_function_code(
+        new_migration_code, "upgrade", get_add_permission_migration_script(ctx)
     )
-    new_migration_code = prepend_code_to_function(
-        new_migration_code, "downgrade", "# ora umum"
+    new_migration_code = replace_function_code(
+        new_migration_code, "downgrade", get_remove_permission_migration_script(ctx)
     )
     write_file(new_migration_file_path, new_migration_code)
 

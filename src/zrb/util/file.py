@@ -15,10 +15,11 @@ def write_file(file_path: str, content: str | list[str]):
         content = "\n".join([line for line in content if line is not None])
     dir_path = os.path.dirname(file_path)
     os.makedirs(dir_path, exist_ok=True)
+    should_add_eol = content.endswith("\n")
+    # Remove trailing newlines, but keep one if the file originally ended up with newline
     content = re.sub(r"\n{3,}$", "\n\n", content)
-    # Remove trailing newlines, but keep one if it exists
     content = content.rstrip("\n")
-    if content.endswith("\n"):
+    if should_add_eol:
         content += "\n"
     with open(file_path, "w") as f:
         f.write(content)

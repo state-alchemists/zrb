@@ -11,6 +11,40 @@ from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 
 
+def get_add_permission_migration_script(ctx: AnyContext) -> str:
+    kebab_entity_name = to_kebab_case(ctx.input.entity)
+    return "\n".join(
+        [
+            "op.bulk_insert(",
+            '    metadata.tables["permissions"],',
+            "    [",
+            f'        {{"name": "{kebab_entity_name}:create", "description": "create {kebab_entity_name}"}},',  # noqa
+            f'        {{"name": "{kebab_entity_name}:read", "description": "read {kebab_entity_name}"}},',  # noqa
+            f'        {{"name": "{kebab_entity_name}:update", "description": "update {kebab_entity_name}"}},',  # noqa
+            f'        {{"name": "{kebab_entity_name}:delete", "description": "delete {kebab_entity_name}"}},',  # noqa
+            "    ]",
+            ")",
+        ]
+    )
+
+
+def get_remove_permission_migration_script(ctx: AnyContext) -> str:
+    kebab_entity_name = to_kebab_case(ctx.input.entity)
+    return "\n".join(
+        [
+            "op.execute(",
+            '    sa.delete(metadata.tables["permissions"])',
+            '    .where(metadata.tables["permissions"].c.name.in_(',
+            f'        "{kebab_entity_name}:create",',
+            f'        "{kebab_entity_name}:read",',
+            f'        "{kebab_entity_name}:update",',
+            f'        "{kebab_entity_name}:delete",',
+            "    ))",
+            ")",
+        ]
+    )
+
+
 def get_auth_migration_version_dir() -> str:
     return os.path.join(APP_DIR, "module", "auth", "migration", "versions")
 
