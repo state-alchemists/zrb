@@ -118,3 +118,27 @@ def test_get_admin_user_with_cookie():
     assert user_data.get("username") == APP_AUTH_SUPER_USER
     assert user_data.get("is_super_user")
     assert not user_data.get("is_guest")
+
+
+def test_delete_user_session():
+    login_client = TestClient(app, base_url="http://localhost")
+    session_response = login_client.post(
+        "/api/v1/user-sessions",
+        data={
+            "username": APP_AUTH_SUPER_USER,
+            "password": APP_AUTH_SUPER_USER_PASSWORD,
+        },
+    )
+    assert session_response.status_code == 200
+    # Fetch current user with cookies
+    cookies = {
+        APP_AUTH_ACCESS_TOKEN_COOKIE_NAME: session_response.cookies.get(
+            APP_AUTH_ACCESS_TOKEN_COOKIE_NAME
+        )
+    }
+    # re-initiate client with cookies and delete
+    client = TestClient(app, base_url="http://localhost", cookies=cookies)
+    response = client.delete("/api/v1/user-sessions")
+    assert response.status_code == 200
+    assert response.cookies.get(APP_AUTH_ACCESS_TOKEN_COOKIE_NAME, None) is None
+    assert response.cookies.get(APP_AUTH_REFRESH_TOKEN_COOKIE_NAME, None) is None
