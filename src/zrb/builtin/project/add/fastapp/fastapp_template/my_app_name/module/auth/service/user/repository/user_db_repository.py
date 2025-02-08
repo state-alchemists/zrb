@@ -241,6 +241,9 @@ class UserDBRepository(
         return UserSessionResponse(
             id=user_session.id,
             user_id=user_session.user_id,
+            access_token=user_session.access_token,
             access_token_expired_at=user_session.access_token_expired_at,
+            refresh_token=user_session.refresh_token,
             refresh_token_expired_at=user_session.refresh_token_expired_at,
+            token_type="bearer",
         )

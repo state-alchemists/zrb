@@ -7,6 +7,7 @@ fi
 
 pytest -vv \
     --ignore-glob="**/template/**" \
+    --ignore-glob="**/fastapp_template/**" \
     --ignore="playground" \
     --cov=zrb \
     --cov-config=".coveragerc" \

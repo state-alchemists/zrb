@@ -47,7 +47,19 @@ class UserService(BaseService):
         response_model=AuthUserResponse,
     )
     async def get_current_user(self, access_token: str | None) -> AuthUserResponse:
-        return await self._get_auth_user_by_access_token(access_token)
+        if access_token is None or access_token == "":
+            return self._get_guest_user()
+        try:
+            user_session = await self.user_repository.get_user_session_by_access_token(
+                access_token
+            )
+            user_id = user_session.user_id
+            if user_id == self.config.super_user:
+                return self._get_super_user()
+            user = await self.user_repository.get_by_id(user_id)
+            return self._to_auth_user_response(user)
+        except NotFoundError:
+            return self._get_guest_user()
 
     @BaseService.route(
         "/api/v1/user-sessions",
@@ -230,23 +242,6 @@ class UserService(BaseService):
             return self._get_super_user()
         user = await self.user_repository.get_by_id(user_id)
         return self._to_auth_user_response(user)
-
-    async def _get_auth_user_by_access_token(
-        self, access_token: str | None
-    ) -> AuthUserResponse:
-        if access_token is None or access_token == "":
-            return self._get_guest_user()
-        user_session = await self.user_repository.get_user_session_by_access_token(
-            access_token
-        )
-        user_id = user_session.user_id
-        if user_id == self.config.super_user:
-            return self._get_super_user()
-        try:
-            user = await self.user_repository.get_by_id(user_id)
-            return self._to_auth_user_response(user)
-        except NotFoundError:
-            return self._get_guest_user()
 
     async def _get_user_by_credentials(
         self, credentials: UserCredentials

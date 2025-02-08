@@ -117,6 +117,9 @@ class UserTokenData(SQLModel):
 class UserSessionResponse(SQLModel):
     id: str
     user_id: str
+    access_token: str
+    refresh_token: str
+    token_type: str
     access_token_expired_at: datetime.datetime
     refresh_token_expired_at: datetime.datetime
 

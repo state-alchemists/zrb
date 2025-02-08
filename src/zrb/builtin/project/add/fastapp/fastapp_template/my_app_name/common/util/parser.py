@@ -45,7 +45,7 @@ def create_default_filter_param_parser() -> (
     Callable[[SQLModel, str], list[ClauseElement]]
 ):
     def parse_filter_param(model: SQLModel, query: str) -> list[ClauseElement]:
-        """
+        r"""
         Parse the filter parameter and return a list of SQLAlchemy ClauseElement objects.
 
         Args:

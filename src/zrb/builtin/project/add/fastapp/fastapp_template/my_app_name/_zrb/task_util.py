@@ -16,10 +16,11 @@ from my_app_name._zrb.util import (
 )
 
 from zrb import Cmd, CmdTask, EnvFile, EnvMap, StrInput, Task
-from zrb.util.string.conversion import to_snake_case
+from zrb.util.string.conversion import to_kebab_case, to_snake_case
 
 
-def create_migration(name: str, module: str) -> Task:
+def create_migration(module: str) -> Task:
+    name = to_kebab_case(module)
     return CmdTask(
         name=f"create-my-app-name-{name}-migration",
         description=f"🧩 Create My App Name {name.capitalize()} DB migration",
@@ -47,10 +48,14 @@ def create_migration(name: str, module: str) -> Task:
     )
 
 
-def migrate_module(name: str, module: str, as_microservices: bool) -> Task:
+def migrate_module(
+    module: str, as_microservices: bool, additional_env_vars: dict[str, str] = {}
+) -> Task:
+    name = to_kebab_case(module)
     env_vars = (
         dict(MICROSERVICES_ENV_VARS) if as_microservices else dict(MONOLITH_ENV_VARS)
     )
+    env_vars.update(additional_env_vars)
     if as_microservices:
         env_vars["MY_APP_NAME_MODULES"] = to_snake_case(module)
     return CmdTask(
@@ -75,7 +80,8 @@ def migrate_module(name: str, module: str, as_microservices: bool) -> Task:
     )
 
 
-def run_microservice(name: str, port: int, module: str) -> Task:
+def run_microservice(module: str, port: int) -> Task:
+    name = to_kebab_case(module)
     return CmdTask(
         name=f"run-my-app-name-{name}",
         description=f"🧩 Run My App Name {name.capitalize()}",

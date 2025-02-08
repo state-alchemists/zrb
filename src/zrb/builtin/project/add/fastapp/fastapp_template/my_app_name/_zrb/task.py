@@ -1,11 +1,17 @@
 import os
 
 from my_app_name._zrb.column.add_column_task import add_my_app_name_column
-from my_app_name._zrb.config import ACTIVATE_VENV_SCRIPT, APP_DIR, MONOLITH_ENV_VARS
+from my_app_name._zrb.config import (
+    ACTIVATE_VENV_SCRIPT,
+    APP_DIR,
+    MONOLITH_ENV_VARS,
+    TEST_ENV_VARS,
+)
 from my_app_name._zrb.entity.add_entity_task import add_my_app_name_entity
 from my_app_name._zrb.format_task import format_my_app_name_code
 from my_app_name._zrb.group import (
     app_create_migration_group,
+    app_group,
     app_migrate_group,
     app_run_group,
 )
@@ -19,12 +25,48 @@ from my_app_name._zrb.task_util import (
 )
 from my_app_name._zrb.venv_task import prepare_venv
 
-from zrb import CmdTask, EnvFile, EnvMap, Task
+from zrb import AnyContext, CmdTask, EnvFile, EnvMap, Task, make_task
 
 assert add_my_app_name_entity
 assert add_my_app_name_module
 assert add_my_app_name_column
 assert format_my_app_name_code
+
+# 🧪 Test ======================================================================
+
+
+@make_task(
+    name="prepare-my-app-name-test",
+)
+def prepare_test(ctx: AnyContext):
+    db_test_path = os.path.join(APP_DIR, "test.db")
+    if os.path.exists(db_test_path):
+        ctx.print(f"Removing test db: {db_test_path}")
+        os.remove(db_test_path)
+
+
+migrate_test = Task(name="migrate-test")
+
+test_app = app_group.add_task(
+    CmdTask(
+        name="test-my-app-name",
+        description="🧪 Test My App Name",
+        env=EnvMap(vars=TEST_ENV_VARS),
+        cwd=APP_DIR,
+        cmd=(
+            "pytest -vv"
+            " --cov=my_app_name"
+            " --cov-config=.coveragerc"
+            " --cov-report=html"
+            " --cov-report=term"
+            " --cov-report=term-missing"
+        ),
+        retries=0,
+    ),
+    alias="test",
+)
+prepare_venv >> prepare_test >> migrate_test >> test_app
+
 
 # 🚀 Run/Migrate All ===========================================================
 
@@ -107,40 +149,49 @@ migrate_microservices >> migrate_all
 # 📡 Run/Migrate Gateway =======================================================
 
 run_gateway = app_run_group.add_task(
-    run_microservice("gateway", 3001, "gateway"), alias="svc-gateway"
+    run_microservice("gateway", 3001), alias="svc-gateway"
 )
 prepare_venv >> run_gateway >> run_microservices
 
 create_gateway_migration = app_create_migration_group.add_task(
-    create_migration("gateway", "gateway"), alias="gateway"
+    create_migration("gateway"), alias="gateway"
 )
 prepare_venv >> create_gateway_migration >> create_all_migration
 
-migrate_monolith_gateway = migrate_module("gateway", "gateway", as_microservices=False)
+migrate_monolith_gateway = migrate_module("gateway", as_microservices=False)
 prepare_venv >> migrate_monolith_gateway >> [migrate_monolith, run_monolith]
 
 migrate_microservices_gateway = app_migrate_group.add_task(
-    migrate_module("gateway", "gateway", as_microservices=True),
+    migrate_module("gateway", as_microservices=True),
     alias="svc-gateway",
 )
 prepare_venv >> migrate_microservices_gateway >> [migrate_microservices, run_gateway]
 
+migrate_test_gateway = migrate_module(
+    "gateway", as_microservices=False, additional_env_vars=TEST_ENV_VARS
+)
+prepare_venv >> migrate_test_gateway >> migrate_test
+
+
 # 🔐 Run/Migrate Auth ==========================================================
 
-run_auth = app_run_group.add_task(
-    run_microservice("auth", 3002, "auth"), alias="svc-auth"
-)
+run_auth = app_run_group.add_task(run_microservice("auth", 3002), alias="svc-auth")
 prepare_venv >> run_auth >> run_microservices
 
 create_auth_migration = app_create_migration_group.add_task(
-    create_migration("auth", "auth"), alias="auth"
+    create_migration("auth"), alias="auth"
 )
 prepare_venv >> create_auth_migration >> create_all_migration
 
-migrate_monolith_auth = migrate_module("auth", "auth", as_microservices=False)
+migrate_monolith_auth = migrate_module("auth", as_microservices=False)
 prepare_venv >> migrate_monolith_auth >> [migrate_monolith, run_monolith]
 
 migrate_microservices_auth = app_migrate_group.add_task(
-    migrate_module("auth", "auth", as_microservices=True), alias="svc-auth"
+    migrate_module("auth", as_microservices=True), alias="svc-auth"
 )
 prepare_venv >> migrate_microservices_auth >> [migrate_microservices, run_auth]
+
+migrate_test_auth = migrate_module(
+    "auth", as_microservices=False, additional_env_vars=TEST_ENV_VARS
+)
+prepare_venv >> migrate_test_auth >> migrate_test

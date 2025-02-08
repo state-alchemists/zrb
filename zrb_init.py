@@ -4,7 +4,7 @@ import os
 import shutil
 import traceback
 from functools import partial
-from typing import Any
+from typing import Any, Callable
 
 import psutil
 import requests
@@ -249,7 +249,7 @@ run_generated_fastapp = test_generator_group.add_task(
             HttpCheck(name="check-auth-svc", url="http://localhost:3002/readiness"),
             HttpCheck(name="check-lib-svc", url="http://localhost:3003/readiness"),
         ],
-        cmd="zrb project fastapp run all --env prod",
+        cmd="FASTAPP_AUTH_SUPER_USER_PASSWORD=admin zrb project fastapp run all --env prod",
         plain_print=True,
         retries=0,
     ),

@@ -13,6 +13,10 @@ MONOLITH_ENV_VARS = {
     "MY_APP_NAME_MODE": "monolith",
     "MY_APP_NAME_MODULES": "",
 }
+TEST_ENV_VARS = {
+    "MY_APP_NAME_DB_URL": f"sqlite:///{APP_DIR}/test.db",
+    "MY_APP_NAM_AUTH_PRIORITIZE_NEW_SESSION": "1",
+}
 
 if platform.system() == "Windows":
     ACTIVATE_VENV_SCRIPT = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; . .venv\\Scripts\\Activate"  # noqa

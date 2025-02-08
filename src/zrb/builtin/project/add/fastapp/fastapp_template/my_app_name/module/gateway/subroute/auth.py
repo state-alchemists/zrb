@@ -3,7 +3,11 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from my_app_name.module.auth.client.auth_client_factory import auth_client
-from my_app_name.module.gateway.util.auth import get_current_user
+from my_app_name.module.gateway.util.auth import (
+    get_current_user,
+    set_user_session_cookie,
+    unset_user_session_cookie,
+)
 from my_app_name.schema.permission import (
     MultiplePermissionResponse,
     PermissionCreate,
@@ -39,15 +43,24 @@ def serve_auth_route(app: FastAPI):
                 password=form_data.password,
             )
         )
+        set_user_session_cookie(response, user_session)
         return user_session
 
     @app.put("/api/v1/user-sessions", response_model=UserSessionResponse)
-    async def update_user_session(refresh_token: str) -> UserSessionResponse:
-        return await auth_client.update_user_session(refresh_token)
+    async def update_user_session(
+        response: Response, refresh_token: str
+    ) -> UserSessionResponse:
+        user_session = await auth_client.update_user_session(refresh_token)
+        set_user_session_cookie(response, user_session)
+        return user_session
 
     @app.delete("/api/v1/user-sessions", response_model=UserSessionResponse)
-    async def delete_user_session(refresh_token: str) -> UserSessionResponse:
-        return await auth_client.delete_user_session(refresh_token)
+    async def delete_user_session(
+        response: Response, refresh_token: str
+    ) -> UserSessionResponse:
+        user_session = await auth_client.delete_user_session(refresh_token)
+        unset_user_session_cookie(response)
+        return user_session
 
     # Permission routes
 

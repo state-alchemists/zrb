@@ -2,3 +2,7 @@ __pycache__
 .venv
 .env
 *.db
+
+htmlcov
+.coverage
+.pytest_cache

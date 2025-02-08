@@ -312,7 +312,7 @@ class BaseTask(AnyTask):
             return session.final_result
         except IndexError:
             return None
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, KeyboardInterrupt):
             ctx = self.get_ctx(session)
             ctx.log_info("Session terminated")
         finally:
