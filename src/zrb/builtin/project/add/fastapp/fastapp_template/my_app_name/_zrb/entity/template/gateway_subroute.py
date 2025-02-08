@@ -9,6 +9,8 @@ async def get_my_entities(
     sort: str | None = None,
     filter: str | None = None,
 ) -> MultipleMyEntityResponse:
+    if not current_user.has_permission("my-entity:read"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.get_my_entities(
         page=page, page_size=page_size, sort=sort, filter=filter
     )
@@ -19,6 +21,8 @@ async def get_my_entity_by_id(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     my_entity_id: str,
 ) -> MyEntityResponse:
+    if not current_user.has_permission("my-entity:read"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.get_my_entity_by_id(my_entity_id)
 
 
@@ -30,6 +34,8 @@ async def create_my_entity_bulk(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     data: list[MyEntityCreate],
 ) -> list[MyEntityResponse]:
+    if not current_user.has_permission("my-entity:create"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.create_my_entity_bulk(
         [row.with_audit(created_by=current_user.id) for row in data]
     )
@@ -43,6 +49,8 @@ async def create_my_entity(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     data: MyEntityCreate,
 ) -> MyEntityResponse:
+    if not current_user.has_permission("my-entity:create"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.create_my_entity(
         data.with_audit(created_by=current_user.id)
     )
@@ -57,6 +65,8 @@ async def update_my_entity_bulk(
     my_entity_ids: list[str],
     data: MyEntityUpdate,
 ) -> list[MyEntityResponse]:
+    if not current_user.has_permission("my-entity:update"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.update_my_entity_bulk(
         my_entity_ids, data.with_audit(updated_by=current_user.id)
     )
@@ -71,6 +81,8 @@ async def update_my_entity(
     my_entity_id: str,
     data: MyEntityUpdate,
 ) -> MyEntityResponse:
+    if not current_user.has_permission("my-entity:update"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.update_my_entity(
         my_entity_id, data.with_audit(updated_by=current_user.id)
     )
@@ -84,6 +96,8 @@ async def delete_my_entity_bulk(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     my_entity_ids: list[str],
 ) -> list[MyEntityResponse]:
+    if not current_user.has_permission("my-entity:delete"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.delete_my_entity_bulk(
         my_entity_ids, deleted_by=current_user.id
     )
@@ -97,6 +111,8 @@ async def delete_my_entity(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     my_entity_id: str,
 ) -> MyEntityResponse:
+    if not current_user.has_permission("my-entity:delete"):
+        raise ForbiddenError("Access denied")
     return await my_module_client.delete_my_entity(
         my_entity_id, deleted_by=current_user.id
     )

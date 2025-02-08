@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Response
 from fastapi.security import OAuth2PasswordRequestForm
+from my_app_name.common.error import ForbiddenError
 from my_app_name.module.auth.client.auth_client_factory import auth_client
 from my_app_name.module.gateway.util.auth import (
     get_current_user,
@@ -72,6 +73,8 @@ def serve_auth_route(app: FastAPI):
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultiplePermissionResponse:
+        if not current_user.has_permission("permission:read"):
+            raise ForbiddenError("Access denied")
         return await auth_client.get_permissions(
             page=page, page_size=page_size, sort=sort, filter=filter
         )
@@ -81,6 +84,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         permission_id: str,
     ) -> PermissionResponse:
+        if not current_user.has_permission("permission:read"):
+            raise ForbiddenError("Access denied")
         return await auth_client.get_permission_by_id(permission_id)
 
     @app.post(
@@ -91,6 +96,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         data: list[PermissionCreate],
     ) -> list[PermissionResponse]:
+        if not current_user.has_permission("permission:create"):
+            raise ForbiddenError("Access denied")
         return await auth_client.create_permission_bulk(
             [row.with_audit(created_by=current_user.id) for row in data]
         )
@@ -103,6 +110,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         data: PermissionCreate,
     ) -> PermissionResponse:
+        if not current_user.has_permission("permission:create"):
+            raise ForbiddenError("Access denied")
         return await auth_client.create_permission(
             data.with_audit(created_by=current_user.id)
         )
@@ -116,6 +125,8 @@ def serve_auth_route(app: FastAPI):
         permission_ids: list[str],
         data: PermissionUpdate,
     ) -> list[PermissionResponse]:
+        if not current_user.has_permission("permission:update"):
+            raise ForbiddenError("Access denied")
         return await auth_client.update_permission_bulk(
             permission_ids, data.with_audit(updated_by=current_user.id)
         )
@@ -129,8 +140,10 @@ def serve_auth_route(app: FastAPI):
         permission_id: str,
         data: PermissionUpdate,
     ) -> PermissionResponse:
+        if not current_user.has_permission("permission:update"):
+            raise ForbiddenError("Access denied")
         return await auth_client.update_permission(
-            data.with_audit(updated_by=current_user.id)
+            permission_id, data.with_audit(updated_by=current_user.id)
         )
 
     @app.delete(
@@ -141,6 +154,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         permission_ids: list[str],
     ) -> list[PermissionResponse]:
+        if not current_user.has_permission("permission:delete"):
+            raise ForbiddenError("Access denied")
         return await auth_client.delete_permission_bulk(
             permission_ids, deleted_by=current_user.id
         )
@@ -153,6 +168,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         permission_id: str,
     ) -> PermissionResponse:
+        if not current_user.has_permission("permission:delete"):
+            raise ForbiddenError("Access denied")
         return await auth_client.delete_permission(
             permission_id, deleted_by=current_user.id
         )
@@ -167,6 +184,8 @@ def serve_auth_route(app: FastAPI):
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultipleRoleResponse:
+        if not current_user.has_permission("role:read"):
+            raise ForbiddenError("Access denied")
         return await auth_client.get_roles(
             page=page, page_size=page_size, sort=sort, filter=filter
         )
@@ -176,6 +195,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         role_id: str,
     ) -> RoleResponse:
+        if not current_user.has_permission("role:read"):
+            raise ForbiddenError("Access denied")
         return await auth_client.get_role_by_id(role_id)
 
     @app.post(
@@ -186,6 +207,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         data: list[RoleCreateWithPermissions],
     ) -> list[RoleResponse]:
+        if not current_user.has_permission("role:create"):
+            raise ForbiddenError("Access denied")
         return await auth_client.create_role_bulk(
             [row.with_audit(created_by=current_user.id) for row in data]
         )
@@ -198,6 +221,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         data: RoleCreateWithPermissions,
     ) -> RoleResponse:
+        if not current_user.has_permission("role:create"):
+            raise ForbiddenError("Access denied")
         return await auth_client.create_role(
             data.with_audit(created_by=current_user.id)
         )
@@ -211,6 +236,8 @@ def serve_auth_route(app: FastAPI):
         role_ids: list[str],
         data: RoleUpdateWithPermissions,
     ) -> list[RoleResponse]:
+        if not current_user.has_permission("role:update"):
+            raise ForbiddenError("Access denied")
         return await auth_client.update_role_bulk(
             role_ids, data.with_audit(updated_by=current_user.id)
         )
@@ -224,8 +251,10 @@ def serve_auth_route(app: FastAPI):
         role_id: str,
         data: RoleUpdateWithPermissions,
     ) -> RoleResponse:
+        if not current_user.has_permission("role:update"):
+            raise ForbiddenError("Access denied")
         return await auth_client.update_role(
-            data.with_audit(updated_by=current_user.id)
+            role_id, data.with_audit(updated_by=current_user.id)
         )
 
     @app.delete(
@@ -236,6 +265,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         role_ids: list[str],
     ) -> list[RoleResponse]:
+        if not current_user.has_permission("role:delete"):
+            raise ForbiddenError("Access denied")
         return await auth_client.delete_role_bulk(role_ids, deleted_by=current_user.id)
 
     @app.delete(
@@ -246,6 +277,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         role_id: str,
     ) -> RoleResponse:
+        if not current_user.has_permission("role:delete"):
+            raise ForbiddenError("Access denied")
         return await auth_client.delete_role(role_id, deleted_by=current_user.id)
 
     # User routes
@@ -258,6 +291,8 @@ def serve_auth_route(app: FastAPI):
         sort: str | None = None,
         filter: str | None = None,
     ) -> MultipleUserResponse:
+        if not current_user.has_permission("user:read"):
+            raise ForbiddenError("Access denied")
         return await auth_client.get_users(
             page=page, page_size=page_size, sort=sort, filter=filter
         )
@@ -267,6 +302,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         user_id: str,
     ) -> UserResponse:
+        if not current_user.has_permission("user:read"):
+            raise ForbiddenError("Access denied")
         return await auth_client.get_user_by_id(user_id)
 
     @app.post(
@@ -277,6 +314,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         data: list[UserCreateWithRoles],
     ) -> list[UserResponse]:
+        if not current_user.has_permission("user:create"):
+            raise ForbiddenError("Access denied")
         return await auth_client.create_user_bulk(
             [row.with_audit(created_by=current_user.id) for row in data]
         )
@@ -289,6 +328,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         data: UserCreateWithRoles,
     ) -> UserResponse:
+        if not current_user.has_permission("user:create"):
+            raise ForbiddenError("Access denied")
         return await auth_client.create_user(
             data.with_audit(created_by=current_user.id)
         )
@@ -302,6 +343,8 @@ def serve_auth_route(app: FastAPI):
         user_ids: list[str],
         data: UserUpdateWithRoles,
     ) -> list[UserResponse]:
+        if not current_user.has_permission("user:update"):
+            raise ForbiddenError("Access denied")
         return await auth_client.update_user_bulk(
             user_ids, data.with_audit(updated_by=current_user.id)
         )
@@ -315,8 +358,10 @@ def serve_auth_route(app: FastAPI):
         user_id: str,
         data: UserUpdateWithRoles,
     ) -> UserResponse:
+        if not current_user.has_permission("user:update"):
+            raise ForbiddenError("Access denied")
         return await auth_client.update_user(
-            data.with_audit(updated_by=current_user.id)
+            user_id, data.with_audit(updated_by=current_user.id)
         )
 
     @app.delete(
@@ -327,6 +372,8 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         user_ids: list[str],
     ) -> list[UserResponse]:
+        if not current_user.has_permission("user:delete"):
+            raise ForbiddenError("Access denied")
         return await auth_client.delete_user_bulk(user_ids, deleted_by=current_user.id)
 
     @app.delete(
@@ -337,4 +384,6 @@ def serve_auth_route(app: FastAPI):
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
         user_id: str,
     ) -> UserResponse:
+        if not current_user.has_permission("user:delete"):
+            raise ForbiddenError("Access denied")
         return await auth_client.delete_user(user_id, deleted_by=current_user.id)

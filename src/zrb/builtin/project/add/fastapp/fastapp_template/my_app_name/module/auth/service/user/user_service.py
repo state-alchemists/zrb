@@ -90,7 +90,7 @@ class UserService(BaseService):
     async def update_user_session(self, refresh_token: str) -> UserSessionResponse:
         current_user = await self._get_auth_user_by_refresh_token(refresh_token)
         current_user_session = (
-            await self.user_respository.get_user_sesion_by_refresh_token(refresh_token)
+            await self.user_repository.get_user_session_by_refresh_token(refresh_token)
         )
         token_data = self._create_user_token_data(current_user.username)
         return await self.user_repository.update_user_session(
@@ -106,7 +106,7 @@ class UserService(BaseService):
     )
     async def delete_user_session(self, refresh_token: str) -> UserSessionResponse:
         current_user_session = (
-            await self.user_respository.get_user_sesion_by_refresh_token(refresh_token)
+            await self.user_repository.get_user_session_by_refresh_token(refresh_token)
         )
         await self.user_repository.delete_user_sessions([current_user_session.id])
         return current_user_session

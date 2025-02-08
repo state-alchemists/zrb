@@ -1,13 +1,9 @@
-import asyncio
-import json
 import os
 import shutil
 import traceback
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
-import psutil
-import requests
 import tomlkit
 
 from zrb import (
@@ -20,14 +16,12 @@ from zrb import (
     StrInput,
     Task,
     TcpCheck,
-    Xcom,
     cli,
     make_task,
 )
 from zrb.builtin.git import git_commit
 from zrb.config import DEFAULT_SHELL
-from zrb.util.cli.style import stylize_green, stylize_magenta
-from zrb.util.cmd.command import kill_pid, run_command
+from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file
 from zrb.util.load import load_file
 
@@ -257,229 +251,18 @@ run_generated_fastapp = test_generator_group.add_task(
 )
 
 
-@make_task(
-    name="test-generated-app",
-    description="🧪 Test generated app",
-    group=test_generator_group,
+test_generated_fastapp = test_generator_group.add_task(
+    CmdTask(
+        name="test-generated-app",
+        description="🧪 Test generated app",
+        cmd="zrb project fastapp test",
+        plain_print=True,
+        retries=0,
+    ),
     alias="validate",
-    retries=0,
 )
-async def test_generated_fastapp(ctx: AnyContext) -> str:
-    try:
-        await asyncio.sleep(2)
-        ctx.print(stylize_magenta("Test fastapp monolith"))
-        await _test_fastapp_permission_api(ctx, "http://localhost:3000")
-        await _test_fastapp_book_api(ctx, "http://localhost:3000")
-        ctx.print(stylize_magenta("Test fastapp gateway"))
-        await _test_fastapp_permission_api(ctx, "http://localhost:3001")
-        await _test_fastapp_book_api(ctx, "http://localhost:3001")
-        return "Test succeed, here have a beer 🍺"
-    finally:
-        app_pid_xcom: Xcom = ctx.xcom.get("run-generated-app-pid")
-        app_pid = app_pid_xcom.pop()
-        kill_pid(app_pid, print_method=ctx.print)
-        print("\a")
 
-
-remove_generated >> test_generate >> run_generated_fastapp >> test_generated_fastapp
-
-
-async def _test_fastapp_permission_api(ctx: AnyContext, base_url: str):
-    ctx.print(stylize_green("Test creating permission"))
-    url = f"{base_url}/api/v1/permissions"
-    json_data = json.dumps({"name": "admin", "description": "Can do everything"})
-    ctx.print(url, json_data)
-    response = requests.post(
-        url, data=json_data, headers={"Content-Type": "application/json"}
-    )
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("name") == "admin"
-
-
-async def _test_fastapp_book_api(ctx: AnyContext, base_url: str):
-    ids = await _test_fastapp_book_api_bulk_insert(ctx, base_url)
-    await _test_fastapp_book_api_bulk_update(ctx, base_url, ids)
-    bleach_id = await _test_fastapp_book_api_get_with_filter(ctx, base_url)
-    await _test_fastapp_book_api_update(ctx, base_url, id=bleach_id)
-    naruto_id = await _test_fastapp_book_api_insert(ctx, base_url)
-    await _test_fastapp_book_api_get_by_id(ctx, base_url, id=naruto_id)
-    await _test_fastapp_book_api_get_without_filter(ctx, base_url)
-    await _test_fastapp_book_api_delete(ctx, base_url, naruto_id)
-    await _test_fastapp_book_api_bulk_delete(ctx, base_url, [bleach_id])
-
-
-async def _test_fastapp_book_api_delete(ctx: AnyContext, base_url: str, id: str):
-    ctx.print(stylize_green("Test delete book by id"))
-    url = f"{base_url}/api/v1/books/{id}"
-    ctx.print(url)
-    response = requests.delete(url, headers={"Content-Type": "application/json"})
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-
-
-async def _test_fastapp_book_api_bulk_delete(
-    ctx: AnyContext, base_url: str, ids: list[str]
-):
-    ctx.print(stylize_green("Test delete books"))
-    url = f"{base_url}/api/v1/books/bulk"
-    json_data = json.dumps(ids)
-    ctx.print(url, json_data)
-    response = requests.delete(
-        url, data=json_data, headers={"Content-Type": "application/json"}
-    )
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-
-
-async def _test_fastapp_book_api_get_by_id(
-    ctx: AnyContext, base_url: str, id: str
-) -> str:
-    ctx.print(stylize_green("Test get book by id"))
-    url = f"{base_url}/api/v1/books/{id}"
-    ctx.print(url)
-    response = requests.get(url, headers={"Content-Type": "application/json"})
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    book = response.json()
-    assert book.get("title") == "Naruto"
-    assert book.get("author") == "Masashi Kishimoto"
-    assert book.get("isbn") == "978-0-1490-0625-5"
-
-
-async def _test_fastapp_book_api_get_without_filter(
-    ctx: AnyContext, base_url: str
-) -> str:
-    ctx.print(stylize_green("Test get books without filter"))
-    url = f"{base_url}/api/v1/books"
-    ctx.print(url)
-    response = requests.get(url, headers={"Content-Type": "application/json"})
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    count = response_json.get("count")
-    data = response_json.get("data")
-    assert count == 5
-    assert len(data) == 5
-
-
-async def _test_fastapp_book_api_get_with_filter(ctx: AnyContext, base_url: str) -> str:
-    ctx.print(stylize_green("Test get books with filter"))
-    url = f"{base_url}/api/v1/books?filter=title:eq:Bleach"
-    ctx.print(url)
-    response = requests.get(url, headers={"Content-Type": "application/json"})
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    count = response_json.get("count")
-    data = response_json.get("data")
-    assert count == 1
-    book = data[0]
-    assert book.get("title") == "Bleach"
-    assert book.get("author") == "Fujiko F. Fujio"
-    assert book.get("isbn") == "978-8-1744-3763-1"
-    return book.get("id")
-
-
-async def _test_fastapp_book_api_bulk_insert(
-    ctx: AnyContext, base_url: str
-) -> list[str]:
-    ctx.print(stylize_green("Test creating books"))
-    url = f"{base_url}/api/v1/books/bulk"
-    json_data = json.dumps(
-        [
-            {"title": "Doraemon", "isbn": "978-6-6625-3489-3", "author": "anonymous"},
-            {"title": "P Man", "isbn": "978-0-9259-2124-6", "author": "anonymous"},
-            {"title": "Kobochan", "isbn": "978-8-8818-0448-1", "author": "anonymous"},
-            {"title": "Bleach", "isbn": "978-8-1744-3763-1", "author": "anonymous"},
-        ]
-    )
-    ctx.print(url, json_data)
-    response = requests.post(
-        url, data=json_data, headers={"Content-Type": "application/json"}
-    )
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    assert len(response_json) == 4
-    isbns = [row.get("isbn") for row in response_json]
-    assert "978-6-6625-3489-3" in isbns
-    assert "978-0-9259-2124-6" in isbns
-    assert "978-8-8818-0448-1" in isbns
-    assert "978-8-1744-3763-1" in isbns
-    titles = [row.get("title") for row in response_json]
-    assert "Doraemon" in titles
-    assert "P Man" in titles
-    assert "Kobochan" in titles
-    assert "Bleach" in titles
-    authors = [row.get("author") for row in response_json]
-    assert "anonymous" in authors
-    return [row.get("id") for row in response_json]
-
-
-async def _test_fastapp_book_api_bulk_update(
-    ctx: AnyContext, base_url: str, ids: list[str]
-):
-    ctx.print(stylize_green("Test update books"))
-    url = f"{base_url}/api/v1/books/bulk"
-    json_data = json.dumps({"book_ids": ids, "data": {"author": "Fujiko F. Fujio"}})
-    ctx.print(url, json_data)
-    response = requests.put(
-        url, data=json_data, headers={"Content-Type": "application/json"}
-    )
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    assert len(response_json) == 4
-    isbns = [row.get("isbn") for row in response_json]
-    assert "978-6-6625-3489-3" in isbns
-    assert "978-0-9259-2124-6" in isbns
-    assert "978-8-8818-0448-1" in isbns
-    assert "978-8-1744-3763-1" in isbns
-    titles = [row.get("title") for row in response_json]
-    assert "Doraemon" in titles
-    assert "P Man" in titles
-    assert "Kobochan" in titles
-    assert "Bleach" in titles
-    authors = [row.get("author") for row in response_json]
-    assert "anonymous" not in authors
-    assert "Fujiko F. Fujio" in authors
-
-
-async def _test_fastapp_book_api_insert(ctx: AnyContext, base_url: str) -> str:
-    ctx.print(stylize_green("Test creating a book"))
-    url = f"{base_url}/api/v1/books"
-    json_data = json.dumps(
-        {"title": "Naruto", "isbn": "978-0-1490-0625-5", "author": "Masashi Kishimoto"},
-    )
-    ctx.print(url, json_data)
-    response = requests.post(
-        url, data=json_data, headers={"Content-Type": "application/json"}
-    )
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("title") == "Naruto"
-    assert response_json.get("isbn") == "978-0-1490-0625-5"
-    assert response_json.get("author") == "Masashi Kishimoto"
-    return response_json.get("id")
-
-
-async def _test_fastapp_book_api_update(ctx: AnyContext, base_url: str, id: str):
-    ctx.print(stylize_green("Test update book"))
-    url = f"{base_url}/api/v1/books/{id}"
-    json_data = json.dumps({"author": "Tite Kubo"})
-    ctx.print(url, json_data)
-    response = requests.put(
-        url, data=json_data, headers={"Content-Type": "application/json"}
-    )
-    ctx.print(response.status_code, response.text)
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("title") == "Bleach"
-    assert response_json.get("isbn") == "978-8-1744-3763-1"
-    assert response_json.get("author") == "Tite Kubo"
+remove_generated >> test_generate >> [run_generated_fastapp, test_generated_fastapp]
 
 
 # PLAYGROUND ==================================================================

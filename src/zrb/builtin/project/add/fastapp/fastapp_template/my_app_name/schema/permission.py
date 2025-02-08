@@ -34,6 +34,7 @@ class PermissionUpdateWithAudit(PermissionUpdate):
 
 class PermissionResponse(PermissionBase):
     id: str
+    description: str
 
 
 class MultiplePermissionResponse(BaseModel):
