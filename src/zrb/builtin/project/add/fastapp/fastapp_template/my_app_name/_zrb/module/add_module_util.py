@@ -4,8 +4,8 @@ from my_app_name._zrb.config import APP_DIR
 from my_app_name._zrb.util import get_existing_module_names
 
 from zrb.context.any_context import AnyContext
-from zrb.util.codemod.append_code_to_function import append_code_to_function
 from zrb.util.codemod.append_key_to_dict import append_key_to_dict
+from zrb.util.codemod.modify_function import append_code_to_function
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 

@@ -1,4 +1,4 @@
-from zrb.util.codemod.append_code_to_method import append_code_to_method
+from zrb.util.codemod.modify_method import append_code_to_method
 
 original_code = """
 class MyClass:

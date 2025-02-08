@@ -50,7 +50,7 @@ from zrb import (
     Xcom,
     make_task,
 )
-from zrb.util.codemod.replace_function_code import replace_function_code
+from zrb.util.codemod.modify_function import replace_function_code
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_snake_case
 

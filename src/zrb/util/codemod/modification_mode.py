@@ -1,0 +1,3 @@
+PREPEND = 0
+APPEND = 1
+REPLACE = 2

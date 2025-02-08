@@ -1,4 +1,4 @@
-from zrb.util.codemod.append_code_to_function import append_code_to_function
+from zrb.util.codemod.modify_function import append_code_to_function
 
 original_code = """
 def existing_function(self):
