@@ -15,7 +15,8 @@ MONOLITH_ENV_VARS = {
 }
 TEST_ENV_VARS = {
     "MY_APP_NAME_DB_URL": f"sqlite:///{APP_DIR}/test.db",
-    "MY_APP_NAM_AUTH_PRIORITIZE_NEW_SESSION": "1",
+    "MY_APP_NAME_AUTH_PRIORITIZE_NEW_SESSION": "1",  # Need this because we will launch a new user session for each test
+    "MY_APP_NAME_AUTH_GUEST_USER_PERMISSIONs": "",  # Guest user should not has any privilege for testing
 }
 
 if platform.system() == "Windows":

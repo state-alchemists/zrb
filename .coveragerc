@@ -1,5 +1,6 @@
 [run]
 omit =
+    src/zrb/callback/any_callback.py
     src/zrb/content_transformer/any_content_transformer.py 
     src/zrb/context/any_context.py 
     src/zrb/context/any_shared_context.py 

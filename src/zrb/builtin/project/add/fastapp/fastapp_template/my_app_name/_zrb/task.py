@@ -25,7 +25,7 @@ from my_app_name._zrb.task_util import (
 )
 from my_app_name._zrb.venv_task import prepare_venv
 
-from zrb import AnyContext, CmdTask, EnvFile, EnvMap, Task, make_task
+from zrb import AnyContext, CmdPath, CmdTask, EnvFile, EnvMap, Task, make_task
 
 assert add_my_app_name_entity
 assert add_my_app_name_module
@@ -53,7 +53,7 @@ test_app = app_group.add_task(
         description="🧪 Test My App Name",
         env=EnvMap(vars=TEST_ENV_VARS),
         cwd=APP_DIR,
-        cmd="pytest -vv --cov=my_app_name --cov-config=.coveragerc --ignore=_zrb",
+        cmd=CmdPath(os.path.join(APP_DIR, "test.sh")),
         retries=0,
     ),
     alias="test",
