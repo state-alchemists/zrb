@@ -5,8 +5,7 @@ def prepend_code_to_module(original_code: str, new_code: str) -> str:
         stripped_line = line.strip()
         if stripped_line.startswith("import") or stripped_line.startswith("from"):
             last_import_index = i
-        elif stripped_line and not stripped_line.startswith("#"):
+        else:
             break
-    if last_import_index != -1:
-        lines.insert(last_import_index + 1, new_code)
+    lines.insert(last_import_index + 1, new_code)
     return "\n".join(lines)

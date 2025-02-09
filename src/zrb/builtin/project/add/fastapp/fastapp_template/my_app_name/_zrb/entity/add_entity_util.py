@@ -3,10 +3,10 @@ import os
 from my_app_name._zrb.config import APP_DIR
 
 from zrb.context.any_context import AnyContext
-from zrb.util.codemod.append_code_to_class import append_code_to_class
+from zrb.util.codemod.modify_class import append_code_to_class
+from zrb.util.codemod.modify_class_parent import prepend_parent_class
 from zrb.util.codemod.modify_function import append_code_to_function
 from zrb.util.codemod.modify_module import prepend_code_to_module
-from zrb.util.codemod.prepend_parent_to_class import prepend_parent_class
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
 

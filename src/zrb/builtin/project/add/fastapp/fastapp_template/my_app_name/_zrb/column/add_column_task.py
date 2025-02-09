@@ -11,7 +11,7 @@ from my_app_name._zrb.input import (
 from my_app_name._zrb.util import get_existing_schema_names
 
 from zrb import AnyContext, Task, make_task
-from zrb.util.codemod.prepend_property_to_class import prepend_property_to_class
+from zrb.util.codemod.modify_class_property import append_property_to_class
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_pascal_case, to_snake_case
 
@@ -45,7 +45,7 @@ def update_my_app_name_schema(ctx: AnyContext):
     snake_column_name = to_snake_case(ctx.input.column)
     column_type = ctx.input.type
     # Base
-    new_code = prepend_property_to_class(
+    new_code = append_property_to_class(
         original_code=existing_code,
         class_name=f"{pascal_entity_name}Base",
         property_name=snake_column_name,
@@ -53,7 +53,7 @@ def update_my_app_name_schema(ctx: AnyContext):
         default_value=_get_default_value(column_type),
     )
     # Update
-    new_code = prepend_property_to_class(
+    new_code = append_property_to_class(
         original_code=new_code,
         class_name=f"{pascal_entity_name}Update",
         property_name=snake_column_name,
@@ -61,7 +61,7 @@ def update_my_app_name_schema(ctx: AnyContext):
         default_value="None",
     )
     # Table
-    new_code = prepend_property_to_class(
+    new_code = append_property_to_class(
         original_code=new_code,
         class_name=f"{pascal_entity_name}",
         property_name=snake_column_name,

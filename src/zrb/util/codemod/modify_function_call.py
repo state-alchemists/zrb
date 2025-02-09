@@ -56,9 +56,11 @@ class _FunctionCallParamModifier(cst.CSTTransformer):
             if self.mode == REPLACE:
                 new_args = (cst.Arg(value=self.new_param),)
                 self.param_added = True
+                return updated_node.with_changes(args=new_args)
             if self.mode == PREPEND:
                 new_args = (cst.Arg(value=self.new_param),) + updated_node.args
                 self.param_added = True
+                return updated_node.with_changes(args=new_args)
             if self.mode == APPEND:
                 new_args = updated_node.args + (cst.Arg(value=self.new_param),)
                 self.param_added = True
