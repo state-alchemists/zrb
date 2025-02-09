@@ -1,0 +1,11 @@
+[run]
+omit =
+    _zrb/*
+
+[report]
+# Show missing lines in the terminal report
+show_missing = True
+
+[html]
+# Set the output directory for HTML reports (optional)
+directory = htmlcov 

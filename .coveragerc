@@ -1,4 +1,20 @@
 [run]
 omit =
+    src/zrb/content_transformer/any_content_transformer.py 
+    src/zrb/context/any_context.py 
+    src/zrb/context/any_shared_context.py 
+    src/zrb/env/any_env.py 
+    src/zrb/group/any_group.py 
+    src/zrb/input/any_input.py
+    src/zrb/session/any_session.py 
+    src/zrb/session_state_logger/any_session_state_logger.py 
     src/zrb/task/any_task.py
     src/zrb/**/__init__.py
+   
+[report]
+# Show missing lines in the terminal report
+show_missing = True
+
+[html]
+# Set the output directory for HTML reports (optional)
+directory = htmlcov  

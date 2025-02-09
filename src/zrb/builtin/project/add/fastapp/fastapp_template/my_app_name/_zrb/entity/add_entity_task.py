@@ -9,6 +9,7 @@ from my_app_name._zrb.entity.add_entity_util import (
     get_remove_permission_migration_script,
     is_in_app_schema_dir,
     is_in_module_entity_dir,
+    is_in_module_entity_test_dir,
     is_module_api_client_file,
     is_module_client_file,
     is_module_direct_client_file,
@@ -111,6 +112,18 @@ scaffold_my_app_name_entity = Scaffolder(
                 "my_entity": "{to_snake_case(ctx.input.entity)}",
                 "my_entities": "{to_snake_case(ctx.input.plural)}",
                 "my-entities": "{to_kebab_case(ctx.input.plural)}",
+            },
+        ),
+        # Test transformation (my_app_name/test/my_module/my_entity)
+        ContentTransformer(
+            name="transform-module-entity-test-dir",
+            match=is_in_module_entity_test_dir,
+            transform={
+                "my_module": "{to_snake_case(ctx.input.module)}",
+                "my_entity": "{to_snake_case(ctx.input.entity)}",
+                "my-entity": "{to_kebab_case(ctx.input.entity)}",
+                "my-entities": "{to_kebab_case(ctx.input.plural)}",
+                "my_column": "{to_snake_case(ctx.input.column)}",
             },
         ),
         # Add entity to migration metadata

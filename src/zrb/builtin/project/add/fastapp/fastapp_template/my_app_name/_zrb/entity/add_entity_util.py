@@ -69,6 +69,17 @@ def is_in_app_schema_dir(ctx: AnyContext, file_path: str) -> bool:
     )
 
 
+def is_in_module_entity_test_dir(ctx: AnyContext, file_path: str) -> bool:
+    return file_path.startswith(
+        os.path.join(
+            APP_DIR,
+            "test",
+            to_snake_case(ctx.input.module),
+            to_snake_case(ctx.input.entity),
+        )
+    )
+
+
 def is_in_module_entity_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
         os.path.join(

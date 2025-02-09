@@ -53,14 +53,7 @@ test_app = app_group.add_task(
         description="🧪 Test My App Name",
         env=EnvMap(vars=TEST_ENV_VARS),
         cwd=APP_DIR,
-        cmd=(
-            "pytest -vv"
-            " --cov=my_app_name"
-            " --cov-config=.coveragerc"
-            " --cov-report=html"
-            " --cov-report=term"
-            " --cov-report=term-missing"
-        ),
+        cmd="pytest -vv --cov=my_app_name --cov-config=.coveragerc --ignore=_zrb",
         retries=0,
     ),
     alias="test",
