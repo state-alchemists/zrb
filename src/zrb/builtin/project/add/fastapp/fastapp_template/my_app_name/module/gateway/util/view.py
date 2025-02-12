@@ -13,6 +13,7 @@ from my_app_name.config import (
     APP_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH,
     APP_GATEWAY_VIEW_PATH,
 )
+from my_app_name.schema.user import AuthUserResponse
 
 _DEFAULT_TEMPLATE_PATH = os.path.join(
     APP_GATEWAY_VIEW_PATH, APP_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH
@@ -37,6 +38,8 @@ def render(
     status_code: int = 200,
     headers: dict[str, str] | None = None,
     media_type: str | None = None,
+    current_user: AuthUserResponse | None = None,
+    current_nav_name: str | None = None,
     partials: dict[str, Any] = {},
     **data: Any
 ) -> HTMLResponse:
@@ -60,6 +63,8 @@ def render_error(
     template_path: str = _DEFAULT_TEMPLATE_PATH,
     headers: dict[str, str] | None = None,
     media_type: str | None = None,
+    current_user: AuthUserResponse | None = None,
+    current_nav_name: str | None = None,
     partials: dict[str, Any] = {},
 ):
     return render(
@@ -68,6 +73,8 @@ def render_error(
         status_code=status_code,
         headers=headers,
         media_type=media_type,
+        current_user=current_user,
+        current_nav_name=current_nav_name,
         partials=partials,
         error_status_code=status_code,
         error_message=error_message,
