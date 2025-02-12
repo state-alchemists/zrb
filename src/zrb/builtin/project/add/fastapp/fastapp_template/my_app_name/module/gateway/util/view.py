@@ -35,7 +35,7 @@ def render(
     view_path: str,
     template_path: str = _DEFAULT_TEMPLATE_PATH,
     status_code: int = 200,
-    headers: dict[str, str] = None,
+    headers: dict[str, str] | None = None,
     media_type: str | None = None,
     partials: dict[str, Any] = {},
     **data: Any
@@ -58,7 +58,7 @@ def render_error(
     status_code: int = 500,
     view_path: str = _DEFAULT_ERROR_TEMPLATE_PATH,
     template_path: str = _DEFAULT_TEMPLATE_PATH,
-    headers: dict[str, str] = None,
+    headers: dict[str, str] | None = None,
     media_type: str | None = None,
     partials: dict[str, Any] = {},
 ):

@@ -16,5 +16,3 @@ class Menu(BaseModel):
 
 class Nav(BaseModel):
     menus: list[Menu] = []
-
-

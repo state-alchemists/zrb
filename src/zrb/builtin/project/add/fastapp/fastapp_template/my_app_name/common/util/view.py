@@ -27,7 +27,7 @@ def render_str(template_path: str, **data: Any) -> str:
 def render_page(
     template_path: str,
     status_code: int = 200,
-    headers: dict[str, str] = None,
+    headers: dict[str, str] | None = None,
     media_type: str | None = None,
     **data: Any
 ) -> HTMLResponse:
