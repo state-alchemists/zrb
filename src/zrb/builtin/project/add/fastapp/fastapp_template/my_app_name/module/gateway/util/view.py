@@ -13,6 +13,7 @@ from my_app_name.config import (
     APP_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH,
     APP_GATEWAY_VIEW_PATH,
 )
+from my_app_name.module.gateway.config import APP_NAVIGATION
 from my_app_name.schema.user import AuthUserResponse
 
 _DEFAULT_TEMPLATE_PATH = os.path.join(
@@ -39,13 +40,16 @@ def render(
     headers: dict[str, str] | None = None,
     media_type: str | None = None,
     current_user: AuthUserResponse | None = None,
-    current_nav_name: str | None = None,
+    current_submenu_name: str | None = None,
     partials: dict[str, Any] = {},
     **data: Any
 ) -> HTMLResponse:
     rendered_partials = {key: val for key, val in _DEFAULT_PARTIALS.items()}
     for key, val in partials.items():
         rendered_partials[key] = val
+    rendered_partials["menus"] = APP_NAVIGATION.get_accessible_menus(
+        current_submenu_name, current_user
+    )
     return render_page(
         template_path=template_path,
         status_code=status_code,
@@ -64,7 +68,7 @@ def render_error(
     headers: dict[str, str] | None = None,
     media_type: str | None = None,
     current_user: AuthUserResponse | None = None,
-    current_nav_name: str | None = None,
+    current_submenu_name: str | None = None,
     partials: dict[str, Any] = {},
 ):
     return render(
@@ -74,7 +78,7 @@ def render_error(
         headers=headers,
         media_type=media_type,
         current_user=current_user,
-        current_nav_name=current_nav_name,
+        current_submenu_name=current_submenu_name,
         partials=partials,
         error_status_code=status_code,
         error_message=error_message,
