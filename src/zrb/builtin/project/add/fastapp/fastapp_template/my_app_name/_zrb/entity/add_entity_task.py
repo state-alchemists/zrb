@@ -88,7 +88,9 @@ scaffold_my_app_name_entity = Scaffolder(
     destination_path=APP_DIR,
     transform_path={
         "my_module": "{to_snake_case(ctx.input.module)}",
+        "my-module": "{to_kebab_case(ctx.input.module)}",
         "my_entity": "{to_snake_case(ctx.input.entity)}",
+        "my-entity": "{to_kebab_case(ctx.input.entity)}",
     },
     transform_content=[
         # Schema tranformation (my_app_name/schema/snake_entity_name)

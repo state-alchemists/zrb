@@ -1,14 +1,17 @@
+import os
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
-from my_app_name.common.error import ForbiddenError
+from my_app_name.common.error import ForbiddenError, NotFoundError
 from my_app_name.module.auth.client.auth_client_factory import auth_client
 from my_app_name.module.gateway.util.auth import (
     get_current_user,
+    get_refresh_token,
     set_user_session_cookie,
     unset_user_session_cookie,
 )
+from my_app_name.module.gateway.util.view import render_content
 from my_app_name.schema.permission import (
     MultiplePermissionResponse,
     PermissionCreate,
@@ -49,21 +52,42 @@ def serve_auth_route(app: FastAPI):
 
     @app.put("/api/v1/user-sessions", response_model=UserSessionResponse)
     async def update_user_session(
-        response: Response, refresh_token: str
+        request: Request, response: Response, refresh_token: str | None = None
     ) -> UserSessionResponse:
-        user_session = await auth_client.update_user_session(refresh_token)
+        actual_refresh_token = get_refresh_token(request, refresh_token)
+        if actual_refresh_token is None:
+            raise ForbiddenError("Refresh token needed")
+        try:
+            user_session = await auth_client.update_user_session(actual_refresh_token)
+        except NotFoundError:
+            raise ForbiddenError("Session not found")
         set_user_session_cookie(response, user_session)
         return user_session
 
     @app.delete("/api/v1/user-sessions", response_model=UserSessionResponse)
     async def delete_user_session(
-        response: Response, refresh_token: str
+        request: Request, response: Response, refresh_token: str | None = None
     ) -> UserSessionResponse:
-        user_session = await auth_client.delete_user_session(refresh_token)
-        unset_user_session_cookie(response)
-        return user_session
+        try:
+            actual_refresh_token = get_refresh_token(request, refresh_token)
+            if actual_refresh_token is None:
+                raise ForbiddenError("Refresh token needed")
+            user_session = await auth_client.delete_user_session(actual_refresh_token)
+            return user_session
+        finally:
+            unset_user_session_cookie(response)
 
     # Permission routes
+
+    @app.get("/auth/permissions", include_in_schema=False)
+    def home_page(
+        current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+    ):
+        return render_content(
+            view_path=os.path.join("auth", "permission.html"),
+            current_user=current_user,
+            page_name="auth.permission",
+        )
 
     @app.get("/api/v1/permissions", response_model=MultiplePermissionResponse)
     async def get_permissions(
@@ -176,6 +200,16 @@ def serve_auth_route(app: FastAPI):
 
     # Role routes
 
+    @app.get("/auth/roles", include_in_schema=False)
+    def home_page(
+        current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+    ):
+        return render_content(
+            view_path=os.path.join("auth", "role.html"),
+            current_user=current_user,
+            page_name="auth.role",
+        )
+
     @app.get("/api/v1/roles", response_model=MultipleRoleResponse)
     async def get_roles(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
@@ -282,6 +316,16 @@ def serve_auth_route(app: FastAPI):
         return await auth_client.delete_role(role_id, deleted_by=current_user.id)
 
     # User routes
+
+    @app.get("/auth/users", include_in_schema=False)
+    def home_page(
+        current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+    ):
+        return render_content(
+            view_path=os.path.join("auth", "user.html"),
+            current_user=current_user,
+            page_name="auth.user",
+        )
 
     @app.get("/api/v1/users", response_model=MultipleUserResponse)
     async def get_users(

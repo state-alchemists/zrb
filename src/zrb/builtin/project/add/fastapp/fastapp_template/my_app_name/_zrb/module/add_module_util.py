@@ -7,7 +7,12 @@ from zrb.context.any_context import AnyContext
 from zrb.util.codemod.modify_dict import append_key_to_dict
 from zrb.util.codemod.modify_function import append_code_to_function
 from zrb.util.file import read_file, write_file
-from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
+from zrb.util.string.conversion import (
+    to_human_case,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
+)
 
 
 def is_app_config_file(ctx: AnyContext, file_path: str) -> bool:
@@ -20,6 +25,12 @@ def is_app_main_file(ctx: AnyContext, file_path: str) -> bool:
 
 def is_gateway_route_file(ctx: AnyContext, file_path: str) -> bool:
     return file_path == os.path.join(APP_DIR, "module", "gateway", "route.py")
+
+
+def is_gateway_navigation_config_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(
+        APP_DIR, "module", "gateway", "config", "navigation.py"
+    )
 
 
 def is_app_zrb_task_file(ctx: AnyContext, file_path: str) -> bool:
@@ -194,3 +205,31 @@ def _get_module_subroute_import(existing_code: str, module_name: str) -> str | N
     if import_code in existing_code:
         return None
     return import_code
+
+
+def update_gateway_navigation_config_file(
+    ctx: AnyContext, gateway_navigation_config_file_path: str
+):
+    existing_gateway_navigation_config_code = read_file(
+        gateway_navigation_config_file_path
+    )
+    snake_module_name = to_snake_case(ctx.input.module)
+    kebab_module_name = to_kebab_case(ctx.input.module)
+    human_module_name = to_human_case(ctx.input.module)
+    new_navigation_config_code = read_file(
+        file_path=os.path.join(
+            os.path.dirname(__file__), "template", "navigation_config_file.py"
+        ),
+        replace_map={
+            "my_module": snake_module_name,
+            "my-module": kebab_module_name,
+            "My Module": human_module_name,
+        },
+    ).strip()
+    write_file(
+        file_path=gateway_navigation_config_file_path,
+        content=[
+            existing_gateway_navigation_config_code,
+            new_navigation_config_code,
+        ],
+    )

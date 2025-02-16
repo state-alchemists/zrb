@@ -318,7 +318,9 @@ def update_route_file(ctx: AnyContext, route_file_path: str):
 
 def update_gateway_subroute_file(ctx: AnyContext, module_gateway_subroute_path: str):
     snake_module_name = to_snake_case(ctx.input.module)
+    kebab_module_name = to_kebab_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
+    kebab_entity_name = to_kebab_case(ctx.input.entity)
     snake_plural_entity_name = to_snake_case(ctx.input.plural)
     kebab_plural_entity_name = to_kebab_case(ctx.input.plural)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
@@ -341,7 +343,9 @@ def update_gateway_subroute_file(ctx: AnyContext, module_gateway_subroute_path: 
                     ),
                     replace_map={
                         "my_module": snake_module_name,
+                        "my-module": kebab_module_name,
                         "my_entity": snake_entity_name,
+                        "my-entity": kebab_entity_name,
                         "my_entities": snake_plural_entity_name,
                         "my-entities": kebab_plural_entity_name,
                         "MyEntity": pascal_entity_name,

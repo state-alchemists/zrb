@@ -4,31 +4,83 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="light dark">
-        {% for css_path in partials.css_path_list -%}
+        {% for css_path in css_path_list -%}
         <link rel="stylesheet" href="{{css_path}}">
         {% endfor %}
-        <link rel="icon" href="{{partials.favicon_path}}" sizes="32x32" type="image/png">
-        <title>{{partials.title}}</title>
+        <link rel="stylesheet" href="/static/default/style.css">
+        <link rel="icon" href="{{favicon_path}}" sizes="32x32" type="image/png">
+        <title>{{title}}</title>
     </head>
     <body>
-        <header class="container">
-            <hgroup>
-                <h1>{{partials.title}}</h1>
-                <p>{{partials.subtitle}}</p>
+        <button class="hamburger-menu" aria-label="Menu">☰</button>
+        <div class="layout-container">
+            <aside>
                 <nav>
                     <ul>
-                        <li><a href="/">🏠 Home</a></li>
-                        <li><a href="/docs">💻 API Documentation</a></li>
-                    </ul>
-                    <ul>
-                        <li>Hi</li>
+                        {% for navigation in navigations %}
+                            {% if navigation|attr("pages") %}
+                            <li>
+                                <details {% if navigation.active %}open{% endif %}>
+                                    <summary>{{navigation.caption}}</summary>
+                                    <ul>
+                                        {% for page in navigation.pages %}
+                                        <li><a href="{{page.url}}" class="{{ 'active-link' if page.active else '' }}">{{page.caption}}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                            </li>
+                            {% else %}
+                                <li><a href="{{navigation.url}}" class="{{ 'active-link' if navigation.active else '' }}">{{navigation.caption}}</a></li>
+                            {% endif %}
+                        {% endfor %}
                     </ul>
                 </nav>
-            </hgroup>
-        </header>
-        {{content}}
+                <div class="theme-switcher">
+                    <label for="theme-select">Theme:</label>
+                    <select id="theme-select">
+                        <option value="auto">🌗 Auto</option>
+                        <option value="light">☀️ Light</option>
+                        <option value="dark">🌙 Dark</option>
+                    </select>
+                </div>
+            </aside>
+            <div class="content-wrapper">
+                <main class="content">
+                    <header>
+                        <hgroup>
+                            <h1>{{title}}</h1>
+                            <p>{{subtitle}}</p>
+                        </hgroup>
+                        {% if show_user_info %}
+                        <nav>
+                            <ul></ul>
+                            <ul>
+                                <li>
+                                    {% if current_user is none %}
+                                    <p>Hi Visitor, <a href="/login">login</a></p>
+                                    {% elif current_user.is_guest %}
+                                    <p>Hi {{current_user.username}}, <a href="/login">login</a></p>
+                                    {% else %}
+                                    <p>Hi {{current_user.username}}, <a href="/logout">Logout</a></p>
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    </header>
+                    {{content}}
+                </main>
+            </div>
+        </div>
+        {% for js_path in js_path_list -%}
+        <script src="{{js_path}}"></script>
+        {% endfor %}
+        <script src="/static/default/script.js"></script>
+        <script src="/static/common/util.js"></script>
+        <script>
+            {% if should_refresh_session %}
+            UTIL.refreshAuthToken({{refresh_session_interval_seconds}});
+            {% endif %}
+        </script>
     </body>
-    {% for js_path in partials.js_path_list -%}
-    <script src="{{js_path}}"></script>
-    {% endfor %}
 </html>

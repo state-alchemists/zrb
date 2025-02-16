@@ -10,12 +10,14 @@ from my_app_name._zrb.module.add_module_util import (
     is_app_zrb_config_file,
     is_app_zrb_task_file,
     is_gateway_module_subroute_file,
+    is_gateway_navigation_config_file,
     is_gateway_route_file,
     is_in_module_dir,
     update_app_config_file,
     update_app_main_file,
     update_app_zrb_config_file,
     update_app_zrb_task_file,
+    update_gateway_navigation_config_file,
     update_gateway_route_file,
 )
 from my_app_name._zrb.util import get_existing_module_names
@@ -90,6 +92,12 @@ scaffold_my_app_name_module = Scaffolder(
             name="transform-gateway-route",
             match=is_gateway_route_file,
             transform=update_gateway_route_file,
+        ),
+        # Register module's navigation to my_app_name/gateway/config/navigation.py
+        ContentTransformer(
+            name="transform-gateway-navigation-config",
+            match=is_gateway_navigation_config_file,
+            transform=update_gateway_navigation_config_file,
         ),
     ],
     retries=0,

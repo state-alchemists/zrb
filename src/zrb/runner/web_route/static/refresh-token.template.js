@@ -1,6 +1,10 @@
 function refreshAuthToken(){
     const refreshUrl = "/api/v1/refresh-token";
+    let shouldRefresh = true;
     async function refresh() {
+        if (!shouldRefresh) {
+            return;
+        }
         try {
             const response = await fetch(refreshUrl, {
                 method: "POST",
@@ -9,6 +13,11 @@ function refreshAuthToken(){
             });
 
             if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    console.warn("Skipping token refresh, authentication required.");
+                    shouldRefresh = false;
+                    return;
+                }
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             console.log("Token refreshed successfully");

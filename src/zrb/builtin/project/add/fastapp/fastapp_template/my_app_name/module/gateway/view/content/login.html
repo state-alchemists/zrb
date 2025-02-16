@@ -1,0 +1,64 @@
+<main class="container">
+    <article>
+        <h1>Login</h1>
+        <form id="login-form">
+            <fieldset>
+                <label>
+                    Username
+                    <input name="username" placeholder="Username" autocomplete="username" required />
+                </label>
+                <label>
+                    Password
+                    <input type="password" name="password" placeholder="Password" autocomplete="current-password" required />
+                </label>
+            </fieldset>
+
+            <button type="submit">Login</button>
+        </form>
+        <dialog id="alert" class="contrast">
+            <article>
+                <p id="alert-message"></p>
+                <footer>
+                    <form method="dialog">
+                        <button>OK</button>
+                    </form>
+                </footer>
+            </article>
+        </dialog>
+    </article>
+</main>
+
+<script>
+    document.getElementById("login-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const formData = new FormData(form);
+        const alertBox = document.getElementById("alert");
+        const alertMessage = document.getElementById("alert-message");
+
+        alertBox.classList.add("hidden");
+        alertBox.classList.remove("primary", "secondary");
+
+        try {
+            const response = await fetch("/api/v1/user-sessions", {
+                method: "POST",
+                body: new URLSearchParams(formData), // Convert FormData to URL-encoded format
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || "Login failed");
+            }
+            alertMessage.textContent = "Login successful! Redirecting...";
+            alertBox.showModal();
+
+            setTimeout(() => window.location.href = "/", 1500);
+        } catch (error) {
+            alertMessage.textContent = error.message;
+            alertBox.showModal();
+        }
+    });
+</script>

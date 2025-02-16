@@ -30,7 +30,7 @@ def serve_refresh_token_api(app: "FastAPI", web_config: WebConfig) -> None:
         # If we still don't have a refresh token, raise an exception
         if not refresh_token:
             return JSONResponse(
-                content={"detail": "Refresh token not provided"}, status_code=400
+                content={"detail": "Refresh token not provided"}, status_code=401
             )
         # Get token
         new_token = regenerate_tokens(web_config, refresh_token)

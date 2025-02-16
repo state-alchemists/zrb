@@ -1,6 +1,17 @@
 # MyEntity routes
 
 
+@app.get("/my-module/my-entities", include_in_schema=False)
+def home_page(
+    current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+):
+    return render_content(
+        view_path=os.path.join("my-module", "my-entity.html"),
+        current_user=current_user,
+        page_name="my-module.my-entity",
+    )
+
+
 @app.get("/api/v1/my-entities", response_model=MultipleMyEntityResponse)
 async def get_my_entities(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],

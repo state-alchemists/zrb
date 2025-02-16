@@ -30,7 +30,7 @@ def serve_static_resources(app: "FastAPI", web_config: WebConfig) -> None:
     async def refresh_token_js():
         return PlainTextResponse(
             content=_get_refresh_token_js(
-                60 * web_config.refresh_token_expire_minutes / 3
+                60 * web_config.access_token_expire_minutes / 3
             ),
             media_type="application/javascript",
         )

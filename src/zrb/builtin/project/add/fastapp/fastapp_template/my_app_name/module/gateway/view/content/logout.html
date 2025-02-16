@@ -1,0 +1,48 @@
+<main class="container">
+    <article>
+        <h1>Logout</h1>
+        <p>Are you sure you want to log out?</p>
+        <footer>
+            <a role="button" class="secondary" href="/">Cancel</a>
+            <button id="logout-button" class="button primary">Confirm</button>
+        </footer>
+    </article>
+
+    <dialog id="alert" class="contrast">
+        <article>
+            <p id="alert-message"></p>
+            <footer>
+                <form method="dialog">
+                    <button>OK</button>
+                </form>
+            </footer>
+        </article>
+    </dialog>
+</main>
+
+<script>
+    document.getElementById("logout-button").addEventListener("click", async function() {
+        const alertBox = document.getElementById("alert");
+        const alertMessage = document.getElementById("alert-message");
+
+        try {
+            const response = await fetch("/api/v1/user-sessions", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include", // Include cookies in the request
+            });
+
+            if (!response.ok) {
+                throw new Error("Logout failed");
+            }
+
+            alertMessage.textContent = "Logged out successfully! Redirecting...";
+            alertBox.showModal();
+
+            setTimeout(() => window.location.href = "/", 1500);
+        } catch (error) {
+            alertMessage.textContent = error.message;
+            alertBox.showModal();
+        }
+    });
+</script>

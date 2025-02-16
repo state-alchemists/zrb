@@ -15,6 +15,15 @@ from typing_extensions import Annotated
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user-sessions", auto_error=False)
 
 
+def get_refresh_token(request: Request, refresh_token: str | None) -> str | None:
+    if refresh_token is not None and refresh_token != "":
+        return refresh_token
+    cookie_refresh_token = request.cookies.get(APP_AUTH_REFRESH_TOKEN_COOKIE_NAME)
+    if cookie_refresh_token is not None and cookie_refresh_token != "":
+        return cookie_refresh_token
+    return None
+
+
 async def get_current_user(
     request: Request,
     response: Response,
