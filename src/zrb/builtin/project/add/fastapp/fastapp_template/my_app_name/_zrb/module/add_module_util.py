@@ -223,7 +223,7 @@ def update_gateway_navigation_config_file(
         replace_map={
             "my_module": snake_module_name,
             "my-module": kebab_module_name,
-            "My Module": human_module_name,
+            "My Module": human_module_name.title(),
         },
     ).strip()
     write_file(

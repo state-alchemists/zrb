@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from my_app_name.common.app_factory import app
 from my_app_name.common.schema import BasicResponse
 from my_app_name.config import (
@@ -46,6 +46,8 @@ def _serve_common_pages(app: FastAPI):
     def login_page(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     ):
+        if not current_user.is_guest:
+            return RedirectResponse("/")
         return render_content(
             view_path="login.html",
             current_user=current_user,
@@ -57,6 +59,8 @@ def _serve_common_pages(app: FastAPI):
     def logout_page(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     ):
+        if current_user is None:
+            return RedirectResponse("/")
         return render_content(
             view_path="logout.html",
             current_user=current_user,

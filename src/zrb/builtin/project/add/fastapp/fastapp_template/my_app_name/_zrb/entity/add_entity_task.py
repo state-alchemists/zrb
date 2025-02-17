@@ -7,6 +7,7 @@ from my_app_name._zrb.entity.add_entity_util import (
     get_existing_auth_migration_file_names,
     get_existing_auth_migration_xcom_key,
     get_remove_permission_migration_script,
+    is_gateway_navigation_config_file,
     is_in_app_schema_dir,
     is_in_module_entity_dir,
     is_in_module_entity_test_dir,
@@ -19,6 +20,7 @@ from my_app_name._zrb.entity.add_entity_util import (
     update_api_client_file,
     update_client_file,
     update_direct_client_file,
+    update_gateway_navigation_config_file,
     update_gateway_subroute_file,
     update_migration_metadata_file,
     update_route_file,
@@ -168,6 +170,12 @@ scaffold_my_app_name_entity = Scaffolder(
             name="transform-module-gateway-subroute",
             match=is_module_gateway_subroute_file,
             transform=update_gateway_subroute_file,
+        ),
+        # Register entity's page to my_app_name/gateway/config/navigation.py
+        ContentTransformer(
+            name="transform-gateway-navigation-config",
+            match=is_gateway_navigation_config_file,
+            transform=update_gateway_navigation_config_file,
         ),
     ],
     retries=0,

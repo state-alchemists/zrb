@@ -5,6 +5,8 @@
 def home_page(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
 ):
+    if not current_user.has_permission("my-entity:read"):
+        return render_error(error_message="Access denied", status_code=403)
     return render_content(
         view_path=os.path.join("my-module", "my-entity.html"),
         current_user=current_user,

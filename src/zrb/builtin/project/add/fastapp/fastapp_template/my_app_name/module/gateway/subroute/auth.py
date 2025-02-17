@@ -11,7 +11,7 @@ from my_app_name.module.gateway.util.auth import (
     set_user_session_cookie,
     unset_user_session_cookie,
 )
-from my_app_name.module.gateway.util.view import render_content
+from my_app_name.module.gateway.util.view import render_content, render_error
 from my_app_name.schema.permission import (
     MultiplePermissionResponse,
     PermissionCreate,
@@ -83,6 +83,8 @@ def serve_auth_route(app: FastAPI):
     def home_page(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     ):
+        if not current_user.has_permission("permission:read"):
+            return render_error(error_message="Access denied", status_code=403)
         return render_content(
             view_path=os.path.join("auth", "permission.html"),
             current_user=current_user,
@@ -204,6 +206,8 @@ def serve_auth_route(app: FastAPI):
     def home_page(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     ):
+        if not current_user.has_permission("role:read"):
+            return render_error(error_message="Access denied", status_code=403)
         return render_content(
             view_path=os.path.join("auth", "role.html"),
             current_user=current_user,
@@ -321,6 +325,8 @@ def serve_auth_route(app: FastAPI):
     def home_page(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
     ):
+        if not current_user.has_permission("user:read"):
+            return render_error(error_message="Access denied", status_code=403)
         return render_content(
             view_path=os.path.join("auth", "user.html"),
             current_user=current_user,

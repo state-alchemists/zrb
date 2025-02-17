@@ -8,7 +8,18 @@ from zrb.util.codemod.modify_class_parent import prepend_parent_class
 from zrb.util.codemod.modify_function import append_code_to_function
 from zrb.util.codemod.modify_module import prepend_code_to_module
 from zrb.util.file import read_file, write_file
-from zrb.util.string.conversion import to_kebab_case, to_pascal_case, to_snake_case
+from zrb.util.string.conversion import (
+    to_human_case,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
+)
+
+
+def is_gateway_navigation_config_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(
+        APP_DIR, "module", "gateway", "config", "navigation.py"
+    )
 
 
 def get_add_permission_migration_script(ctx: AnyContext) -> str:
@@ -386,3 +397,35 @@ def _get_import_schema_for_gateway_subroute_code(
     if new_code in existing_code:
         return None
     return new_code
+
+
+def update_gateway_navigation_config_file(
+    ctx: AnyContext, gateway_navigation_config_file_path: str
+):
+    existing_gateway_navigation_config_code = read_file(
+        gateway_navigation_config_file_path
+    )
+    snake_module_name = to_snake_case(ctx.input.module)
+    kebab_module_name = to_kebab_case(ctx.input.module)
+    kebab_entity_name = to_kebab_case(ctx.input.entity)
+    human_entity_name = to_human_case(ctx.input.entity)
+    kebab_plural_name = to_kebab_case(ctx.input.plural)
+    new_navigation_config_code = read_file(
+        file_path=os.path.join(
+            os.path.dirname(__file__), "template", "navigation_config_file.py"
+        ),
+        replace_map={
+            "my_module": snake_module_name,
+            "my-module": kebab_module_name,
+            "my-entity": kebab_entity_name,
+            "My Entity": human_entity_name.title(),
+            "my-entities": kebab_plural_name,
+        },
+    ).strip()
+    write_file(
+        file_path=gateway_navigation_config_file_path,
+        content=[
+            existing_gateway_navigation_config_code,
+            new_navigation_config_code,
+        ],
+    )

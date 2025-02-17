@@ -93,7 +93,7 @@ scaffold_my_app_name_module = Scaffolder(
             match=is_gateway_route_file,
             transform=update_gateway_route_file,
         ),
-        # Register module's navigation to my_app_name/gateway/config/navigation.py
+        # Register module's page to my_app_name/gateway/config/navigation.py
         ContentTransformer(
             name="transform-gateway-navigation-config",
             match=is_gateway_navigation_config_file,

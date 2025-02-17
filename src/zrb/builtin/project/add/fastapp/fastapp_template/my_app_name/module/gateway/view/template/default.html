@@ -57,11 +57,11 @@
                             <ul>
                                 <li>
                                     {% if current_user is none %}
-                                    <p>Hi Visitor, <a href="/login">login</a></p>
+                                    <p>Hi Visitor <a href="/login">🔓</a></p>
                                     {% elif current_user.is_guest %}
-                                    <p>Hi {{current_user.username}}, <a href="/login">login</a></p>
+                                    <p>Hi {{current_user.username}} <a href="/login">🔓</a></p>
                                     {% else %}
-                                    <p>Hi {{current_user.username}}, <a href="/logout">Logout</a></p>
+                                    <p>Hi {{current_user.username}} <a href="/logout">🔒</a></p>
                                     {% endif %}
                                 </li>
                             </ul>
