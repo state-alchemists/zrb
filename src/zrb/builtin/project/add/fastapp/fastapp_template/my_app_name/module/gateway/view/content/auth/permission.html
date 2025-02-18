@@ -1,7 +1,7 @@
 <main class="container">
     <article>
         <h1>Permission</h1>
-        <table class="striped">
+        <table id="permission-table" class="striped">
             <thead>
                 <tr>
                     <th scope="col">id</th>
@@ -12,5 +12,95 @@
             <tbody>
             </tbody>
         </table>
+        <nav id="pagination"></nav>
     </article>
 </main>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const apiUrl = "/api/v1/permissions";
+        let currentPage = 1;
+        const pageSize = 5;
+
+        async function fetchItems(page = 1) {
+            try {
+                const res = await fetch(`${apiUrl}?page=${page}&page_size=${pageSize}`,{
+                    method: "GET",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    credentials: "include",
+                });
+                const data = await res.json();
+                renderItems(data.items);
+                renderPagination(data.total, page);
+            } catch (error) {
+                console.error("Error fetching items:", error);
+            }
+        }
+
+        function renderItems(items) {
+            const tableBody = document.querySelector("#permission-table tbody");
+            tableBody.innerHTML = "";
+            items.forEach(item => {
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${item.name}</td>
+                        <td>
+                            <button onclick="editItem(${item.id}, '${item.name}')">Edit</button>
+                            <button onclick="deleteItem(${item.id})">Delete</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function renderPagination(total, page) {
+            const pagination = document.querySelector("#pagination");
+            const pages = Math.ceil(total / pageSize);
+            pagination.innerHTML = "";
+            for (let i = 1; i <= pages; i++) {
+                pagination.innerHTML += `<button onclick="fetchItems(${i})" ${i === page ? "disabled" : ""}>${i}</button>`;
+            }
+        }
+
+        document.querySelector("#itemForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            const id = document.querySelector("#itemId").value;
+            const name = document.querySelector("#itemName").value;
+            const method = id ? "PUT" : "POST";
+            const url = id ? `${apiUrl}/${id}` : apiUrl;
+            try {
+                await fetch(url, {
+                    method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name }),
+                    credentials: "include",
+                });
+                this.reset();
+                fetchItems(currentPage);
+            } catch (error) {
+                console.error("Error saving item:", error);
+            }
+        });
+
+        window.editItem = (id, name) => {
+            document.querySelector("#itemId").value = id;
+            document.querySelector("#itemName").value = name;
+        };
+
+        window.deleteItem = async (id) => {
+            if (confirm("Are you sure?")) {
+                try {
+                    await fetch(`${apiUrl}/${id}`, {
+                        method: "DELETE",
+                        credentials: "include",
+                    });
+                    fetchItems(currentPage);
+                } catch (error) {
+                    console.error("Error deleting item:", error);
+                }
+            }
+        };
+
+        fetchItems();
+    });
+</script>
