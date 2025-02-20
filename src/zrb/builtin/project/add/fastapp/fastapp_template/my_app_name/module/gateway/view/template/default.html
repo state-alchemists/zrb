@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="light dark">
+        <link rel="stylesheet" href="{{pico_css_path}}">
         {% for css_path in css_path_list -%}
         <link rel="stylesheet" href="{{css_path}}">
         {% endfor %}
@@ -79,7 +80,7 @@
         <script src="/static/common/util.js"></script>
         <script>
             {% if should_refresh_session %}
-            UTIL.refreshAuthToken({{refresh_session_interval_seconds}});
+            UTIL.refreshAccessTokenPeriodically({{refresh_session_interval_seconds}});
             {% endif %}
         </script>
     </body>

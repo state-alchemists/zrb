@@ -8,25 +8,32 @@ APP_VERSION = "0.1.0"
 
 APP_GATEWAY_VIEW_PATH = os.path.join(APP_PATH, "module", "gateway", "view")
 APP_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH = os.getenv(
-    "MY_APP_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH",
+    "MY_APP_NAME_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH",
     os.path.join("template", "default.html"),
 )
-_DEFAULT_CSS_PATH = "/static/pico-css/pico.min.css"
+APP_GATEWAY_PICO_CSS_COLOR = os.getenv("MY_APP_NAME_GATEWAY_PICO_CSS_COLOR", "")
+APP_GATEWAY_PICO_CSS_PATH = (
+    "/static/pico-css/pico.min.css"
+    if APP_GATEWAY_PICO_CSS_COLOR == ""
+    else f"/static/pico-css/pico.{APP_GATEWAY_PICO_CSS_COLOR}.min.css"
+)
 APP_GATEWAY_CSS_PATH_LIST = [
     path
-    for path in os.getenv("MY_APP_GATEWAY_CSS_PATH", _DEFAULT_CSS_PATH).split(":")
+    for path in os.getenv("MY_APP_NAME_GATEWAY_CSS_PATH", "").split(":")
     if path != ""
 ]
 APP_GATEWAY_JS_PATH_LIST = [
-    path for path in os.getenv("MY_APP_GATEWAY_JS_PATH", "").split(":") if path != ""
+    path
+    for path in os.getenv("MY_APP_NAME_GATEWAY_JS_PATH", "").split(":")
+    if path != ""
 ]
-APP_GATEWAY_TITLE = os.getenv("MY_APP_GATEWAY_TITLE", "My App Name")
-APP_GATEWAY_SUBTITLE = os.getenv("MY_APP_GATEWAY_SUBTITLE", "Just Another App")
+APP_GATEWAY_TITLE = os.getenv("MY_APP_NAME_GATEWAY_TITLE", "My App Name")
+APP_GATEWAY_SUBTITLE = os.getenv("MY_APP_NAME_GATEWAY_SUBTITLE", "Just Another App")
 APP_GATEWAY_LOGO_PATH = os.getenv(
-    "MY_APP_GATEWAY_LOGO", "/static/images/android-chrome-192x192.png"
+    "MY_APP_NAME_GATEWAY_LOGO", "/static/images/android-chrome-192x192.png"
 )
 APP_GATEWAY_FAVICON_PATH = os.getenv(
-    "MY_APP_GATEWAY_FAVICON", "/static/images/favicon-32x32.png"
+    "MY_APP_NAME_GATEWAY_FAVICON", "/static/images/favicon-32x32.png"
 )
 
 APP_MODE = os.getenv("MY_APP_NAME_MODE", "monolith")

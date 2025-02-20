@@ -1,6 +1,7 @@
 import os
 from typing import Any
 
+import my_app_name.config as CFG
 from fastapi.responses import HTMLResponse
 from my_app_name.common.util.view import render_page, render_str
 from my_app_name.config import (
@@ -9,6 +10,7 @@ from my_app_name.config import (
     APP_GATEWAY_FAVICON_PATH,
     APP_GATEWAY_JS_PATH_LIST,
     APP_GATEWAY_LOGO_PATH,
+    APP_GATEWAY_PICO_CSS_PATH,
     APP_GATEWAY_SUBTITLE,
     APP_GATEWAY_TITLE,
     APP_GATEWAY_VIEW_DEFAULT_TEMPLATE_PATH,
@@ -29,6 +31,7 @@ _DEFAULT_PARTIALS = {
     "subtitle": APP_GATEWAY_SUBTITLE,
     "logo_path": APP_GATEWAY_LOGO_PATH,
     "favicon_path": APP_GATEWAY_FAVICON_PATH,
+    "pico_css_path": APP_GATEWAY_PICO_CSS_PATH,
     "css_path_list": APP_GATEWAY_CSS_PATH_LIST,
     "js_path_list": APP_GATEWAY_JS_PATH_LIST,
     "show_user_info": True,
