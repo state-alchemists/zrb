@@ -9,10 +9,13 @@ body {
     min-height: 100vh;
 }
 aside {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
     width: 300px;
     padding: 1rem;
     border-right: 1px solid var(--muted-border-color);
-    overflow-y: auto;
     height: 100vh;
     background: var(--background-color);
     display: flex;
@@ -20,6 +23,8 @@ aside {
 }
 aside nav {
     flex-grow: 1; /* Pushes theme-switcher to the bottom */
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 aside ul {
     padding: 0;
@@ -40,7 +45,7 @@ aside li > ul {
 }
 .hamburger-menu {
     display: none;
-    background: none;
+    background: var(--pico-primary);
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
@@ -49,34 +54,6 @@ aside li > ul {
     left: 1rem;
     z-index: 1001;
     color: var(--contrast);
-}
-@media (max-width: 768px) {
-    .layout-container {
-        position: relative;
-        left: 0;
-        transition: left 0.3s ease;
-    }
-    .hamburger-menu {
-        display: block;
-    }
-    aside {
-        position: fixed;
-        left: -300px;
-        top: 0;
-        bottom: 0;
-        z-index: 1000;
-        transition: left 0.3s ease;
-        padding-top: 4rem;
-    }
-    .layout-container.menu-active {
-        left: 300px;
-    }
-    .layout-container.menu-active aside {
-        left: 0;
-    }
-    .content {
-        padding-top: 4rem;
-    }
 }
 .theme-switcher {
     display: flex;
@@ -87,4 +64,39 @@ aside li > ul {
 .active-link {
     font-weight: bold;
     color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    .layout-container {
+        position: relative;
+        left: 0;
+        transition: left 0.3s ease;
+    }
+    .hamburger-menu {
+        display: block;
+    }
+    aside {
+        left: -300px;
+        top: 0;
+        bottom: 0;
+        z-index: 1000;
+        transition: left 0.3s ease;
+        padding-top: 4rem;
+    }
+    .layout-container.menu-active {
+        margin-left: 300px;
+        /*left: 300px;*/
+    }
+    .layout-container.menu-active aside {
+        left: 0;
+    }
+    .content {
+        padding-top: 4rem;
+    }
+}
+
+@media (min-width: 769px) {
+  .content-wrapper {
+    margin-left: 300px;
+  }
 }

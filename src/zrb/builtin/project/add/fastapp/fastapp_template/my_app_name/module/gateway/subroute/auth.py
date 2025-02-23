@@ -80,8 +80,12 @@ def serve_auth_route(app: FastAPI):
     # Permission routes
 
     @app.get("/auth/permissions", include_in_schema=False)
-    def home_page(
+    def permissions_crud_ui(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
     ):
         if not current_user.has_permission("permission:read"):
             return render_error(error_message="Access denied", status_code=403)
@@ -89,6 +93,13 @@ def serve_auth_route(app: FastAPI):
             view_path=os.path.join("auth", "permission.html"),
             current_user=current_user,
             page_name="auth.permission",
+            page=page,
+            page_size=page_size,
+            sort=sort,
+            filter=filter,
+            allow_create=current_user.has_permission("permission:create"),
+            allow_update=current_user.has_permission("permission:update"),
+            allow_delete=current_user.has_permission("permission:delete"),
         )
 
     @app.get("/api/v1/permissions", response_model=MultiplePermissionResponse)
@@ -203,8 +214,12 @@ def serve_auth_route(app: FastAPI):
     # Role routes
 
     @app.get("/auth/roles", include_in_schema=False)
-    def home_page(
+    def roles_crud_ui(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
     ):
         if not current_user.has_permission("role:read"):
             return render_error(error_message="Access denied", status_code=403)
@@ -212,6 +227,13 @@ def serve_auth_route(app: FastAPI):
             view_path=os.path.join("auth", "role.html"),
             current_user=current_user,
             page_name="auth.role",
+            page=page,
+            page_size=page_size,
+            sort=sort,
+            filter=filter,
+            allow_create=current_user.has_permission("role:create"),
+            allow_update=current_user.has_permission("role:update"),
+            allow_delete=current_user.has_permission("role:delete"),
         )
 
     @app.get("/api/v1/roles", response_model=MultipleRoleResponse)
@@ -322,8 +344,12 @@ def serve_auth_route(app: FastAPI):
     # User routes
 
     @app.get("/auth/users", include_in_schema=False)
-    def home_page(
+    def users_crud_ui(
         current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+        page: int = 1,
+        page_size: int = 10,
+        sort: str | None = None,
+        filter: str | None = None,
     ):
         if not current_user.has_permission("user:read"):
             return render_error(error_message="Access denied", status_code=403)
@@ -331,6 +357,13 @@ def serve_auth_route(app: FastAPI):
             view_path=os.path.join("auth", "user.html"),
             current_user=current_user,
             page_name="auth.user",
+            page=page,
+            page_size=page_size,
+            sort=sort,
+            filter=filter,
+            allow_create=current_user.has_permission("user:create"),
+            allow_update=current_user.has_permission("user:update"),
+            allow_delete=current_user.has_permission("user:delete"),
         )
 
     @app.get("/api/v1/users", response_model=MultipleUserResponse)

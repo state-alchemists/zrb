@@ -5,10 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="light dark">
         <link rel="stylesheet" href="{{pico_css_path}}">
+        <link rel="stylesheet" href="/static/default/pico-style.css">
+        <link rel="stylesheet" href="/static/default/style.css">
         {% for css_path in css_path_list -%}
         <link rel="stylesheet" href="{{css_path}}">
         {% endfor %}
-        <link rel="stylesheet" href="/static/default/style.css">
         <link rel="icon" href="{{favicon_path}}" sizes="32x32" type="image/png">
         <title>{{title}}</title>
     </head>
@@ -58,18 +59,20 @@
                             <ul>
                                 <li>
                                     {% if current_user is none %}
-                                    <p>Hi Visitor <a href="/login">🔓</a></p>
+                                        <p>Hi Visitor <a href="/login">🔓</a></p>
                                     {% elif current_user.is_guest %}
-                                    <p>Hi {{current_user.username}} <a href="/login">🔓</a></p>
+                                        <p>Hi {{current_user.username}} <a href="/login">🔓</a></p>
                                     {% else %}
-                                    <p>Hi {{current_user.username}} <a href="/logout">🔒</a></p>
+                                        <p>Hi {{current_user.username}} <a href="/logout">🔒</a></p>
                                     {% endif %}
                                 </li>
                             </ul>
                         </nav>
                         {% endif %}
                     </header>
+                    <script src="/static/common/util.js"></script>
                     {{content}}
+                    <footer>{{footer}}</footer>
                 </main>
             </div>
         </div>
@@ -77,7 +80,6 @@
         <script src="{{js_path}}"></script>
         {% endfor %}
         <script src="/static/default/script.js"></script>
-        <script src="/static/common/util.js"></script>
         <script>
             {% if should_refresh_session %}
             UTIL.refreshAccessTokenPeriodically({{refresh_session_interval_seconds}});

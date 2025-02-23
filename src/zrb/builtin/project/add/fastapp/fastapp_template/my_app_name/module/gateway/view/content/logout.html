@@ -3,8 +3,8 @@
         <h1>Logout</h1>
         <p>Are you sure you want to log out?</p>
         <footer>
-            <a role="button" class="secondary" href="/">Cancel</a>
-            <button id="logout-button" class="button primary">Confirm</button>
+            <a role="button" class="secondary" href="/">❌ Cancel</a>
+            <button id="logout-button" class="button primary">✅ Confirm</button>
         </footer>
     </article>
 
@@ -35,6 +35,7 @@
             if (!response.ok) {
                 throw new Error("Logout failed");
             }
+            UTIL.unsetAccessTokenExpiredAt();
 
             alertMessage.textContent = "Logged out successfully! Redirecting...";
             alertBox.showModal();

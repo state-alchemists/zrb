@@ -5,9 +5,10 @@ import my_app_name.config as CFG
 from fastapi.responses import HTMLResponse
 from my_app_name.common.util.view import render_page, render_str
 from my_app_name.config import (
-    APP_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES,
+    APP_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES,
     APP_GATEWAY_CSS_PATH_LIST,
     APP_GATEWAY_FAVICON_PATH,
+    APP_GATEWAY_FOOTER,
     APP_GATEWAY_JS_PATH_LIST,
     APP_GATEWAY_LOGO_PATH,
     APP_GATEWAY_PICO_CSS_PATH,
@@ -29,6 +30,7 @@ _DEFAULT_ERROR_TEMPLATE_PATH = os.path.join(
 _DEFAULT_PARTIALS = {
     "title": APP_GATEWAY_TITLE,
     "subtitle": APP_GATEWAY_SUBTITLE,
+    "footer": APP_GATEWAY_FOOTER,
     "logo_path": APP_GATEWAY_LOGO_PATH,
     "favicon_path": APP_GATEWAY_FAVICON_PATH,
     "pico_css_path": APP_GATEWAY_PICO_CSS_PATH,
@@ -36,7 +38,7 @@ _DEFAULT_PARTIALS = {
     "js_path_list": APP_GATEWAY_JS_PATH_LIST,
     "show_user_info": True,
     "should_refresh_session": True,
-    "refresh_session_interval_seconds": f"{APP_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES * 60 / 3}",
+    "refresh_session_interval_seconds": f"{APP_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES * 60 / 3}",
 }
 
 

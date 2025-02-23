@@ -1,0 +1,14 @@
+#crud-pagination {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#crud-table-fieldset {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr
+}
+
+#crud-table-container {
+    width: 100%;
+    overflow-x: auto;
+}

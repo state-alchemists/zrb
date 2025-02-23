@@ -13,7 +13,7 @@
                 </label>
             </fieldset>
 
-            <button type="submit">Login</button>
+            <button type="submit">🔓 Login</button>
         </form>
         <dialog id="alert" class="contrast">
             <article>
@@ -52,6 +52,9 @@
             if (!response.ok) {
                 throw new Error(result.message || "Login failed");
             }
+            // Assume API return UTC + 0
+            UTIL.setAccessTokenExpiredAt(result.access_token_expired_at + "Z");
+
             alertMessage.textContent = "Login successful! Redirecting...";
             alertBox.showModal();
 

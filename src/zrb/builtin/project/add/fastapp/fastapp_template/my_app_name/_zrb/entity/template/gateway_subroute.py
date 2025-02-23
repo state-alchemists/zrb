@@ -2,8 +2,12 @@
 
 
 @app.get("/my-module/my-entities", include_in_schema=False)
-def home_page(
+def my_entities_crud_ui(
     current_user: Annotated[AuthUserResponse, Depends(get_current_user)],
+    page: int = 1,
+    page_size: int = 10,
+    sort: str | None = None,
+    filter: str | None = None,
 ):
     if not current_user.has_permission("my-entity:read"):
         return render_error(error_message="Access denied", status_code=403)
@@ -11,6 +15,13 @@ def home_page(
         view_path=os.path.join("my-module", "my-entity.html"),
         current_user=current_user,
         page_name="my-module.my-entity",
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        filter=filter,
+        allow_create=current_user.has_permission("my-entity:create"),
+        allow_update=current_user.has_permission("my-entity:update"),
+        allow_delete=current_user.has_permission("my-entity:delete"),
     )
 
 

@@ -1,0 +1,297 @@
+<link rel="stylesheet" href="/static/crud/style.css">
+
+<main class="container">
+    <article>
+        <h1>My Entity</h1>
+
+        <fieldset id="crud-table-fieldset" role="group" class="grid">
+            <input id="crud-filter" onchange="applySearch()" placeholder="🔍 Filter" aria-label="Search" />
+            <button onclick="applySearch()">🔍 Search</button>
+            {% if allow_create %}
+            <button class="contrast" onclick="showCreateForm(event)">➕ Add</button>
+            {% endif %}
+        </fieldset>
+        <div id="crud-table-container">
+            <table id="crud-table" class="striped">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">My Column</th>
+                        <!-- Update this -->
+                        {% if allow_update or allow_delete %}
+                        <th scope="col">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="crud-pagination"></div>
+
+        {% if allow_create %}
+        <dialog id="crud-create-form-dialog">
+            <article>
+                <h2>New My Entity</h2>
+                <form id="crud-create-form">
+                    <label>
+                        My Column:
+                        <input type="text" name="my_column" required>
+                    </label>
+                    <!-- Update this -->
+                    <footer>
+                        <button onclick="createRow(event)">➕ Save</button>
+                        <button class="secondary" onclick="hideCreateForm(event)">❌ Cancel</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        {% endif %}
+
+        {% if allow_update %}
+        <dialog id="crud-update-form-dialog">
+            <article>
+                <h2>Update My Entity</h2>
+                <form id="crud-update-form">
+                    <label>
+                        My Column:
+                        <input type="text" name="my_column" required>
+                    </label>
+                    <!-- Update this -->
+                    <footer>
+                        <button onclick="updateRow(event)">✏️ Save</button>
+                        <button class="secondary" onclick="hideUpdateForm(event)">❌ Cancel</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        {% endif %}
+
+        {% if allow_delete %}
+        <dialog id="crud-delete-form-dialog">
+            <article>
+                <h2>Delete My Entity</h2>
+                <form id="crud-delete-form">
+                    <label>
+                        My Column:
+                        <input type="text" name="my_column" readonly>
+                    </label>
+                    <!-- Update this -->
+                    <footer>
+                        <button class="secondary" onclick="hideDeleteForm()">❌ Cancel</button>
+                        <button onclick="deleteRow()">🗑️ Delete</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        {% endif %}
+
+        <dialog id="crud-alert-dialog">
+            <article>
+                <h2 id="crud-alert-title">Error</h2>
+                <pre id="crud-alert-message"></pre>
+                <footer>
+                    <button onclick="hideAlert(event)">Close</button>
+                </footer>
+            </article>
+        </dialog>
+
+    </article>
+</main>
+
+<script src="/static/crud/util.js"></script>
+<script>
+    const apiUrl = "/api/v1/my-entities";
+    const crudState = {
+        pageSize: {{page_size | tojson}},
+        currentPage: {{page | tojson}},
+        sort: {{sort | tojson}},
+        filter: {{filter | tojson}},
+        allowCreate: {{allow_create | tojson}},
+        allowUpdate: {{allow_update | tojson}},
+        allowDelete: {{allow_delete | tojson}},
+        updatedRowId: null,
+        deletedRowId: null,
+    };
+
+    async function applySearch() {
+        const filterInput = document.getElementById("crud-filter");
+        crudState.filter = filterInput.value;
+        return await fetchRows(crudState.currentPage);
+    }
+
+    async function fetchRows(page = null) {
+        try {
+            if (typeof page !== 'undefined' && page !== null) {
+                crudState.currentPage = page;
+            }
+            const defaultSearchColumn = "my_column"
+            // update address bar
+            const searchParam = CRUD_UTIL.getSearchParam(crudState, defaultSearchColumn, false);
+            const newUrl = `${window.location.pathname}?${searchParam}`;
+            window.history.pushState({ path: newUrl }, "", newUrl);
+            // update table and pagination
+            const apiSearchParam = CRUD_UTIL.getSearchParam(crudState, defaultSearchColumn, true);
+            const result = await UTIL.fetchAPI(
+                `${apiUrl}?${apiSearchParam}`, { method: "GET" }
+            );
+            renderRows(result.data);
+            const crudPagination = document.getElementById("crud-pagination");
+            CRUD_UTIL.renderPagination(
+                crudPagination, crudState, result.count, "fetchRows"
+            );
+        } catch (error) {
+            console.error("Error fetching items:", error);
+        }
+    }
+
+    function renderRows(rows) {
+        const tableBody = document.querySelector("#crud-table tbody");
+        tableBody.innerHTML = "";
+        rows.forEach(row => {
+            let rowComponent = getRowComponents(row);
+            actionColumn = "";
+            if (crudState.allowUpdate) {
+                actionColumn += `<button class="contrast" onclick="showUpdateForm('${row.id}')">✏️ Edit</button>`;
+            }
+            if (crudState.allowDelete) {
+                actionColumn += `<button class="secondary" onclick="showDeleteForm('${row.id}')">🗑️ Delete</button>`;
+            }
+            if (crudState.allowUpdate || crudState.allowDelete) {
+                actionColumn = `<td><fieldset class="grid" role="group">${actionColumn}</fieldset></td>`;
+            }
+            tableBody.innerHTML += `<tr>${rowComponent.join('')}${actionColumn}</tr>`;
+        });
+    }
+
+    function getRowComponents(row) {
+        let rowComponents = [];
+        rowComponents.push(`<td>${row.id}</td>`);
+        rowComponents.push(`<td>${row.my_column}</td>`);
+        // Update this
+        return rowComponents;
+    }
+
+    {% if allow_create %}
+    async function showCreateForm(id) {
+        const createFormDialog = document.getElementById("crud-create-form-dialog");
+        const createForm = document.getElementById("crud-create-form");
+        UTIL.clearFormData(createForm);
+        createFormDialog.showModal();
+    }
+
+    async function createRow(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        try {
+            const createForm = document.getElementById("crud-create-form");
+            const formData = JSON.stringify(UTIL.getFormData(createForm));
+            await UTIL.fetchAPI(apiUrl, {method: "POST", body: formData});
+            await fetchRows();
+            hideCreateForm();
+        } catch(error) {
+            showAlert("Create My Entity Error", error);
+        }
+    }
+
+    function hideCreateForm(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        const createFormDialog = document.getElementById("crud-create-form-dialog");
+        createFormDialog.close();
+    }
+    {% endif %}
+
+    {% if allow_update %}
+    async function showUpdateForm(id) {
+        crudState.updatedRowId = id;
+        const updateFormDialog = document.getElementById("crud-update-form-dialog");
+        const updateForm = document.getElementById("crud-update-form");
+        result = await UTIL.fetchAPI(`${apiUrl}/${id}`, { method: "GET" });
+        UTIL.setFormData(updateForm, result);
+        updateFormDialog.showModal();
+    }
+
+    async function updateRow(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        try {
+            const updateForm = document.getElementById("crud-update-form");
+            const formData = JSON.stringify(UTIL.getFormData(updateForm));
+            await UTIL.fetchAPI(
+                `${apiUrl}/${crudState.updatedRowId}`, {method: "PUT", body: formData},
+            );
+            await fetchRows();
+            hideUpdateForm();
+        } catch(error) {
+            showAlert("Update My Entity Error", error);
+        }
+    }
+
+    function hideUpdateForm(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        const updateFormDialog = document.getElementById("crud-update-form-dialog");
+        updateFormDialog.close();
+    }
+    {% endif %}
+
+    {% if allow_delete %}
+    async function showDeleteForm(id) {
+        crudState.deletedRowId = id;
+        const deleteFormDialog = document.getElementById("crud-delete-form-dialog");
+        const deleteForm = document.getElementById("crud-delete-form");
+        result = await UTIL.fetchAPI(`${apiUrl}/${id}`, { method: "GET" });
+        UTIL.setFormData(deleteForm, result);
+        deleteFormDialog.showModal();
+    }
+
+    async function deleteRow(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        try {
+            await UTIL.fetchAPI(`${apiUrl}/${crudState.deletedRowId}`, {method: "DELETE",});
+            await fetchRows();
+            hideDeleteForm();
+        } catch(error) {
+            showAlert("Delete My Entity Error", error);
+        }
+    }
+
+    function hideDeleteForm(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        const deleteFormDialog = document.getElementById("crud-delete-form-dialog");
+        deleteFormDialog.close();
+    }
+    {% endif %}
+
+    function showAlert(title, error) {
+        const alertDialog = document.getElementById("crud-alert-dialog");
+        const alertTitle = document.getElementById("crud-alert-title");
+        const alertMessage = document.getElementById("crud-alert-message");
+        const errorMessage = error.message ? error.message : String(error);
+        alertTitle.textContent = title;
+        alertMessage.textContent = errorMessage;
+        alertDialog.showModal();
+    }
+
+    function hideAlert(event = null) {
+        if (event != null) {
+            event.preventDefault();
+        }
+        const alertDialog = document.getElementById("crud-alert-dialog");
+        alertDialog.close();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const filterInput = document.getElementById("crud-filter");
+        filterInput.value = crudState.filter;
+        fetchRows(crudState.currentPage);
+    });
+</script>

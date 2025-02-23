@@ -15,6 +15,7 @@ from my_app_name._zrb.entity.add_entity_util import (
     is_module_client_file,
     is_module_direct_client_file,
     is_module_gateway_subroute_file,
+    is_module_gateway_subroute_view_file,
     is_module_migration_metadata_file,
     is_module_route_file,
     update_api_client_file,
@@ -170,6 +171,18 @@ scaffold_my_app_name_entity = Scaffolder(
             name="transform-module-gateway-subroute",
             match=is_module_gateway_subroute_file,
             transform=update_gateway_subroute_file,
+        ),
+        # Update module gateway subroute view
+        # (my_app_name/module/gateway/view/content/kebab-module-name/kebab-entity-name.py)
+        ContentTransformer(
+            name="transform-module-gateway-subroute-view",
+            match=is_module_gateway_subroute_view_file,
+            transform={
+                "My Entity": "{to_human_case(ctx.input.entity).title()}",
+                "my-entities": "{to_kebab_case(ctx.input.plural)}",
+                "My Column": "{to_human_case(ctx.input.column)}",
+                "my_column": "{to_snake_case(ctx.input.column)}",
+            },
         ),
         # Register entity's page to my_app_name/gateway/config/navigation.py
         ContentTransformer(

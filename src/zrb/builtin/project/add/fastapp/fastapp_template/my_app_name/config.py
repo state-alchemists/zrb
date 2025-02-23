@@ -32,6 +32,9 @@ APP_GATEWAY_SUBTITLE = os.getenv("MY_APP_NAME_GATEWAY_SUBTITLE", "Just Another A
 APP_GATEWAY_LOGO_PATH = os.getenv(
     "MY_APP_NAME_GATEWAY_LOGO", "/static/images/android-chrome-192x192.png"
 )
+APP_GATEWAY_FOOTER = os.getenv(
+    "MY_APP_NAME_GATEWAY_FOOTER", f"{APP_GATEWAY_TITLE} &copy; 2025"
+)
 APP_GATEWAY_FAVICON_PATH = os.getenv(
     "MY_APP_NAME_GATEWAY_FAVICON", "/static/images/favicon-32x32.png"
 )

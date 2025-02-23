@@ -167,6 +167,19 @@ def is_module_gateway_subroute_file(ctx: AnyContext, file_path: str) -> bool:
     return file_path == module_gateway_subroute_file
 
 
+def is_module_gateway_subroute_view_file(ctx: AnyContext, file_path: str) -> bool:
+    module_gateway_subroute_file = os.path.join(
+        APP_DIR,
+        "module",
+        "gateway",
+        "view",
+        "content",
+        f"{to_kebab_case(ctx.input.module)}",
+        f"{to_kebab_case(ctx.input.entity)}.html",
+    )
+    return file_path == module_gateway_subroute_file
+
+
 def update_migration_metadata_file(ctx: AnyContext, migration_metadata_file_path: str):
     app_name = os.path.basename(APP_DIR)
     existing_migration_metadata_code = read_file(migration_metadata_file_path)

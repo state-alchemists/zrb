@@ -72,7 +72,7 @@ def create_default_filter_param_parser() -> (
             # Returns [UserModel.age >= 18, UserModel.name.like("John%"), UserModel.role.in_(["admin", "user"]), UserModel.address == "123, Main St."]
         """
         filters: list[ClauseElement] = []
-        filter_parts = split_by_comma(query)
+        filter_parts = split_unescaped(query)
         for part in filter_parts:
             match = re.match(r"(.+):(.+):(.+)", part)
             if match:
@@ -101,5 +101,5 @@ def create_default_filter_param_parser() -> (
     return parse_filter_param
 
 
-def split_by_comma(s: str, delimiter: str = ",") -> list[str]:
+def split_unescaped(s: str, delimiter: str = ",") -> list[str]:
     return re.split(r"(?<!\\)" + re.escape(delimiter), s)
