@@ -180,7 +180,7 @@ scaffold_my_app_name_entity = Scaffolder(
             transform={
                 "My Entity": "{to_human_case(ctx.input.entity).title()}",
                 "my-entities": "{to_kebab_case(ctx.input.plural)}",
-                "My Column": "{to_human_case(ctx.input.column)}",
+                "My Column": "{to_human_case(ctx.input.column).title()}",
                 "my_column": "{to_snake_case(ctx.input.column)}",
             },
         ),
