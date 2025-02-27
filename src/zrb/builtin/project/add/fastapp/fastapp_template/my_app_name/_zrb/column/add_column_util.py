@@ -1,4 +1,5 @@
 import os
+import re
 import textwrap
 
 from bs4 import BeautifulSoup, formatter
@@ -66,6 +67,7 @@ def _get_default_column_value(data_type: str) -> str:
 def update_fastapp_ui(ctx: AnyContext):
     kebab_module_name = to_kebab_case(ctx.input.module)
     kebab_entity_name = to_kebab_case(ctx.input.entity)
+    snake_column_name = to_snake_case(ctx.input.column)
     human_column_name = to_human_case(ctx.input.column).title()
     subroute_file_path = os.path.join(
         APP_DIR,
@@ -81,7 +83,32 @@ def update_fastapp_ui(ctx: AnyContext):
     new_code = _add_th_before_last(
         existing_code, table_id="crud-table", th_content=human_column_name
     )
-    # TODO: update UI
+    # Forms
+    new_code = _add_input_to_form(
+        new_code,
+        form_id="crud-create-form",
+        column_label=human_column_name,
+        column_name=snake_column_name,
+    )
+    new_code = _add_input_to_form(
+        new_code,
+        form_id="crud-update-form",
+        column_label=human_column_name,
+        column_name=snake_column_name,
+    )
+    new_code = _add_input_to_form(
+        new_code,
+        form_id="crud-delete-form",
+        column_label=human_column_name,
+        column_name=snake_column_name,
+    )
+    # JS Function
+    new_code = _alter_js_function_returned_array(
+        new_code,
+        js_function_name="getRowComponents",
+        js_array_name="rowComponents",
+        js_new_value=f"`<td>${{row.{snake_column_name}}}</td>`",
+    )
     write_file(subroute_file_path, new_code)
 
 
@@ -116,7 +143,9 @@ def _add_th_before_last(html_str, table_id, th_content):
     )
 
 
-def _add_input_to_form(html_str, form_id, column_label, column_name):
+def _add_input_to_form(
+    html_str: str, form_id: str, column_label: str, column_name: str
+) -> str:
     soup = BeautifulSoup(html_str, "html.parser")
     # Find the form by id.
     form = soup.find("form", id=form_id)
@@ -126,7 +155,9 @@ def _add_input_to_form(html_str, form_id, column_label, column_name):
     new_label = soup.new_tag("label")
     new_label.append(f"{column_label}: ")
     # Create a new input element with the provided column name.
-    new_input = soup.new_tag("input", type="text", name=column_name, required=True)
+    new_input = soup.new_tag(
+        "input", attrs={"type": "text", "name": column_name, "required": "required"}
+    )
     new_label.append(new_input)
     # Look for a footer element inside the form.
     footer = form.find("footer")
@@ -141,18 +172,69 @@ def _add_input_to_form(html_str, form_id, column_label, column_name):
     )
 
 
-def _infer_html_indent_width(html_str):
+def _infer_html_indent_width(html_str: str) -> int:
     """
     Infer the indentation width (number of spaces) from the HTML string.
     It looks for the first non-empty line that starts with whitespace
     followed by '<' and returns the number of leading spaces.
     If none is found, defaults to 2.
     """
-    for line in html_str.splitlines():
+    for line in textwrap.dedent(html_str).splitlines():
         stripped = line.lstrip()
         if stripped.startswith("<") and line != stripped:
             return len(line) - len(stripped)
     return 2
+
+
+def _alter_js_function_returned_array(
+    html_str: str, js_function_name: str, js_array_name: str, js_new_value: str
+) -> str:
+    """
+    Inserts a new push into the specified JavaScript function.
+
+    It finds the function definition with the given js_function_name,
+    then looks for the first return statement inside the function body,
+    and inserts a new line that pushes js_new_value into js_arr_name.
+
+    Parameters:
+        html_str (str): The HTML containing the JavaScript.
+        js_function_name (str): The name of the JavaScript function to modify.
+        js_arr_name (str): The name of the array inside that function.
+        js_new_value (str): The new value to push. (Pass the JS literal as a string,
+                            e.g. "`<td>NEW</td>`" or '"<td>NEW</td>"'.)
+
+    Returns:
+        str: The modified HTML.
+    """
+    # This pattern finds:
+    #  1. The function signature and opening brace.
+    #  2. All content (non-greedily) until we hit a newline containing a return statement.
+    #  3. Captures the newline and leading whitespace (indent) of the return statement.
+    #  4. Captures the rest of the return line.
+    pattern = (
+        r"(function\s+"
+        + re.escape(js_function_name)
+        + r"\s*\([^)]*\)\s*\{)"  # group1: function header
+        r"([\s\S]*?)"  # group2: code before return
+        r"(\n(\s*)return\s+[^;]+;)"  # group3: newline+return line, group4: indent
+    )
+
+    def replacer(match):
+        header = match.group(1)
+        before_return = match.group(2)
+        return_line = match.group(3)
+        indent = match.group(4)
+        # Create the new push statement. We add a newline plus the same indent.
+        # The resulting line will be, e.g.,
+        # "        rowComponents.push(`<td>NEW</td>`);"
+        injection = f"\n{indent}{js_array_name}.push({js_new_value});"
+        return header + before_return + injection + return_line
+
+    # Use re.sub to replace only the first occurrence of the function
+    new_html, count = re.subn(
+        pattern, replacer, html_str, count=1, flags=re.MULTILINE | re.DOTALL
+    )
+    return new_html
 
 
 def update_fastapp_test_create(ctx: AnyContext):
