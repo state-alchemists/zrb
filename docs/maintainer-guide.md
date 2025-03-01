@@ -26,7 +26,7 @@ To publish Zrb, you can do the following command:
 source ./project.sh
 docker login -U stalchmst
 
-zrb publish
+zrb publish all
 ```
 
 🔖 [Table of Contents](README.md)

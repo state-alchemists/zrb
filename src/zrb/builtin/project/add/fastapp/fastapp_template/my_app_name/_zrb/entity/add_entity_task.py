@@ -306,7 +306,7 @@ def update_my_app_name_entity_permission(ctx: AnyContext):
 add_my_app_name_entity = app_create_group.add_task(
     Task(
         name="add-my-app-name-entity",
-        description="🏗️ Create new entity on a module",
+        description="📦 Create new entity on a module",
         upstream=[
             create_my_app_name_entity_migration,
             update_my_app_name_entity_permission,
