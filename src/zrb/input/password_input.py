@@ -27,10 +27,10 @@ class PasswordInput(BaseInput):
         )
         self._is_secret = True
 
-    def to_html(self, ctx: AnySharedContext) -> str:
+    def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self.get_default_str(ctx)
+        default = self.get_default_str(shared_ctx)
         return f'<input type="password" name="{name}" placeholder="{description}" value="{default}" />'  # noqa
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:

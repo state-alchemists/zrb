@@ -27,12 +27,12 @@ class OptionInput(BaseInput):
         )
         self._options = options
 
-    def to_html(self, ctx: AnySharedContext) -> str:
+    def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self.get_default_str(ctx)
+        default = self.get_default_str(shared_ctx)
         html = [f'<select name="{name}" placeholder="{description}">']
-        for value in get_str_list_attr(ctx, self._options, self._auto_render):
+        for value in get_str_list_attr(shared_ctx, self._options, self._auto_render):
             selected = "selected" if value == default else ""
             html.append(f'<option value="{value}" {selected}>{value}</option>')
         html.append("</select>")

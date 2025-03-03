@@ -25,10 +25,10 @@ class BoolInput(BaseInput):
             allow_positional_parsing=allow_positional_parsing,
         )
 
-    def to_html(self, ctx: AnySharedContext) -> str:
+    def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = to_boolean(self.get_default_str(ctx))
+        default = to_boolean(self.get_default_str(shared_ctx))
         selected_true = "selected" if default else ""
         selected_false = "selected" if not default else ""
         return "\n".join(

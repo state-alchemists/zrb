@@ -56,10 +56,10 @@ class TextInput(BaseInput):
             return " -->"
         return ""
 
-    def to_html(self, ctx: AnySharedContext) -> str:
+    def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self.get_default_str(ctx)
+        default = self.get_default_str(shared_ctx)
         return "\n".join(
             [
                 f'<textarea name="{name}" placeholder="{description}">',

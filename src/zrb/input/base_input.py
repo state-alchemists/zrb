@@ -45,10 +45,10 @@ class BaseInput(AnyInput):
     def allow_positional_parsing(self) -> bool:
         return self._allow_positional_parsing
 
-    def to_html(self, ctx: AnySharedContext) -> str:
+    def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
-        default = self.get_default_str(ctx)
+        default = self.get_default_str(shared_ctx)
         return f'<input name="{name}" placeholder="{description}" value="{default}" />'
 
     def update_shared_context(
