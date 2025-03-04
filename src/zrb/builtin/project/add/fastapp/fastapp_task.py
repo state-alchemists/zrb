@@ -7,6 +7,7 @@ from zrb.builtin.project.add.fastapp.fastapp_input import (
 )
 from zrb.builtin.project.add.fastapp.fastapp_util import (
     is_in_project_app_dir,
+    is_project_zrb_init_file,
     update_project_zrb_init_file,
 )
 from zrb.content_transformer.content_transformer import ContentTransformer
@@ -59,27 +60,21 @@ scaffold_fastapp = Scaffolder(
                 "my-secret-key": lambda _: get_random_name(),
             },
         ),
+        # Register fastapp's tasks to project's zrb_init (project_dir/zrb_init.py)
+        ContentTransformer(
+            name="transform-zrb-init",
+            match=is_project_zrb_init_file,
+            transform=update_project_zrb_init_file,
+        ),
     ],
     retries=0,
 )
-
-
-@make_task(
-    name="register-fastapp-task",
-    input=app_name_input,
-    upstream=scaffold_fastapp,
-    retries=0,
-)
-def register_fastapp_task(ctx: AnyContext):
-    # Register fastapp's tasks to project's zrb_init (project_dir/zrb_init.py)
-    update_project_zrb_init_file(ctx)
-
 
 add_fastapp_to_project = add_to_project_group.add_task(
     Task(
         name="add-fastapp",
         description="🚀 Add FastApp to project",
-        upstream=register_fastapp_task,
+        upstream=scaffold_fastapp,
         retries=0,
     ),
     alias="fastapp",

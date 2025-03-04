@@ -11,14 +11,17 @@ def is_in_project_app_dir(ctx: AnyContext, file_path: str) -> bool:
     )
 
 
-def update_project_zrb_init_file(ctx: AnyContext):
-    zrb_init_path = os.path.join(ctx.input.project_dir, "zrb_init.py")
-    zrb_init_content = read_file(zrb_init_path)
+def is_project_zrb_init_file(ctx: AnyContext, file_path: str) -> bool:
+    return file_path == os.path.join(ctx.input.project_dir, "zrb_init.py")
+
+
+def update_project_zrb_init_file(ctx: AnyContext, zrb_init_path: str):
+    existing_zrb_init_code = read_file(zrb_init_path)
     write_file(
         file_path=zrb_init_path,
         content=[
-            _get_import_load_file_code(zrb_init_content),
-            zrb_init_content,
+            _get_import_load_file_code(existing_zrb_init_code),
+            existing_zrb_init_code.strip(),
             _get_load_app_name_task_code(ctx.input.app),
         ],
     )
