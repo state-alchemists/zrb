@@ -44,8 +44,7 @@ pip install --pre zrb
 Alternatively, you can also use our installation script to install Zrb along with some prerequisites:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/refs/heads/1.0.0/install.sh)"
-# bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 ```
 
 # 🐞 Bug Report + Feature Request
