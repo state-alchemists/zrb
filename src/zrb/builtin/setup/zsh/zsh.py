@@ -34,7 +34,7 @@ install_zinit = CmdTask(
         name="zsh-config",
         description="zsh config file",
         prompt="zsh config file",
-        default_str="~/.zshrc",
+        default="~/.zshrc",
     ),
     upstream=[install_omz, install_zinit],
     description="💻 Setup `zsh`.",

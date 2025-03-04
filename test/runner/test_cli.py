@@ -37,7 +37,7 @@ def test_show_help_for_existing_task():
     cli.add_task(
         Task(
             name="hello",
-            input=StrInput("name", default_str="world"),
+            input=StrInput("name", default="world"),
             action="Hello {input.name}",
         )
     )

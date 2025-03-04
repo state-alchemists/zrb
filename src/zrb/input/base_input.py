@@ -1,9 +1,9 @@
 from typing import Any
 
-from zrb.attr.type import StrAttr
+from zrb.attr.type import AnyAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.any_input import AnyInput
-from zrb.util.attr import get_str_attr
+from zrb.util.attr import get_attr
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -13,7 +13,7 @@ class BaseInput(AnyInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default_str: StrAttr = "",
+        default: AnyAttr = "",
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
@@ -21,7 +21,7 @@ class BaseInput(AnyInput):
         self._name = name
         self._description = description
         self._prompt = prompt
-        self._default_str = default_str
+        self._default_value = default
         self._auto_render = auto_render
         self._allow_empty = allow_empty
         self._allow_positional_parsing = allow_positional_parsing
@@ -74,6 +74,7 @@ class BaseInput(AnyInput):
         return str_value
 
     def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
+        """Prompting user to input the value"""
         value = self._prompt_cli_str(shared_ctx)
         while not self._allow_empty and value == "":
             value = self._prompt_cli_str(shared_ctx)
@@ -81,16 +82,20 @@ class BaseInput(AnyInput):
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
-        default_value = self.get_default_str(shared_ctx)
-        if default_value != "":
-            prompt_message = f"{prompt_message} [{default_value}]"
+        default_str = self.get_default_str(shared_ctx)
+        if default_str != "":
+            prompt_message = f"{prompt_message} [{default_str}]"
         print(f"{prompt_message}: ", end="")
         value = input()
         if value.strip() == "":
-            value = default_value
+            value = default_str
         return value
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
-        return get_str_attr(
-            shared_ctx, self._default_str, auto_render=self._auto_render
+        """Get default value as str"""
+        default_value = get_attr(
+            shared_ctx, self._default_value, default="", auto_render=self._auto_render
         )
+        if not isinstance(default_value, str):
+            return str(default_value)
+        return default_value

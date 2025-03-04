@@ -6,30 +6,30 @@ package_manager_input = OptionInput(
     description="Your package manager",
     prompt="Your package manager",
     options=["apt", "dnf", "pacman", "zypper", "pkg", "brew", "spack"],
-    default_str="apt",
+    default="apt",
 )
 
 use_sudo_input = BoolInput(
     name="use-sudo",
     description="Use sudo or not",
     prompt="Need sudo",
-    default_str="yes",
+    default=True,
 )
 
 setup_bash_input = BoolInput(
     name="setup-bash",
     description="Setup bash",
     prompt="Setup bash",
-    default_str="yes",
+    default=True,
 )
 
 setup_zsh_input = BoolInput(
-    name="setup-zsh", description="Setup zsh", prompt="Setup zsh", default_str="yes"
+    name="setup-zsh", description="Setup zsh", prompt="Setup zsh", default=True
 )
 
 setup_powershell_input = BoolInput(
     name="setup-powershell",
     description="Setup powershell",
     prompt="Setup powershell",
-    default_str="no",
+    default=False,
 )

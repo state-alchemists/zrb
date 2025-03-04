@@ -6,7 +6,7 @@ project_dir_input = StrInput(
     name="project-dir",
     description="Project directory",
     prompt="Project directory",
-    default_str=lambda _: os.getcwd(),
+    default=lambda _: os.getcwd(),
 )
 
 app_name_input = StrInput(

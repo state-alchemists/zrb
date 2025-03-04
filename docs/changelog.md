@@ -1,3 +1,7 @@
+# 1.2.0
+
+- When creating any `Input`, use `default` keyword instead of `default_str`.
+
 # 1.1.0
 
 - Fastapp generator is now generating UI when user add new columns (i.e., `zrb project <app-name> create column`)

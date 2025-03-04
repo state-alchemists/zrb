@@ -55,7 +55,7 @@ run_test = CmdTask(
         name="test",
         description="Specific test case (i.e., test/file.py::test_name)",
         prompt="Test (i.e., test/file.py::test_name)",
-        default_str="",
+        allow_empty=True,
     ),
     env=Env(name="TEST", default="{ctx.input.test}", link_to_os=False),
     cwd=_DIR,
