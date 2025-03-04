@@ -1,3 +1,7 @@
+# 1.2.1
+
+- Fixing Fastapp generator by adding `os.path.abspath`
+
 # 1.2.0
 
 - When creating any `Input`, use `default` keyword instead of `default_str`.
@@ -9,4 +13,4 @@
 
 # 1.0.0
 
-Big rewrite, there are major incaompatibility with version `0.x.x`
+- Big rewrite, there are major incaompatibility with version `0.x.x`

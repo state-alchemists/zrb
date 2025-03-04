@@ -17,8 +17,8 @@ from zrb.util.string.conversion import (
 
 
 def is_gateway_navigation_config_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(
-        APP_DIR, "module", "gateway", "config", "navigation.py"
+    return file_path == os.path.abspath(
+        os.path.join(APP_DIR, "module", "gateway", "config", "navigation.py")
     )
 
 
@@ -76,106 +76,126 @@ def get_existing_auth_migration_xcom_key(ctx: AnyContext) -> str:
 
 def is_in_app_schema_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
-        os.path.join(APP_DIR, "schema", to_snake_case(ctx.input.entity))
+        os.path.abspath(
+            os.path.join(APP_DIR, "schema", to_snake_case(ctx.input.entity))
+        )
     )
 
 
 def is_in_module_entity_test_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
-        os.path.join(
-            APP_DIR,
-            "test",
-            to_snake_case(ctx.input.module),
-            to_snake_case(ctx.input.entity),
+        os.path.abspath(
+            os.path.join(
+                APP_DIR,
+                "test",
+                to_snake_case(ctx.input.module),
+                to_snake_case(ctx.input.entity),
+            )
         )
     )
 
 
 def is_in_module_entity_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
-        os.path.join(
-            APP_DIR,
-            "module",
-            to_snake_case(ctx.input.module),
-            "service",
-            to_snake_case(ctx.input.entity),
+        os.path.abspath(
+            os.path.join(
+                APP_DIR,
+                "module",
+                to_snake_case(ctx.input.module),
+                "service",
+                to_snake_case(ctx.input.entity),
+            )
         )
     )
 
 
 def is_module_route_file(ctx: AnyContext, file_path: str) -> bool:
-    module_route_file = os.path.join(
-        APP_DIR,
-        "module",
-        to_snake_case(ctx.input.module),
-        "route.py",
+    module_route_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            to_snake_case(ctx.input.module),
+            "route.py",
+        )
     )
     return file_path == module_route_file
 
 
 def is_module_migration_metadata_file(ctx: AnyContext, file_path: str) -> bool:
-    module_migration_metadata_file = os.path.join(
-        APP_DIR,
-        "module",
-        to_snake_case(ctx.input.module),
-        "migration_metadata.py",
+    module_migration_metadata_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            to_snake_case(ctx.input.module),
+            "migration_metadata.py",
+        )
     )
     return file_path == module_migration_metadata_file
 
 
 def is_module_client_file(ctx: AnyContext, file_path: str) -> bool:
-    module_any_client_file = os.path.join(
-        APP_DIR,
-        "module",
-        to_snake_case(ctx.input.module),
-        "client",
-        f"{to_snake_case(ctx.input.module)}_client.py",
+    module_any_client_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            to_snake_case(ctx.input.module),
+            "client",
+            f"{to_snake_case(ctx.input.module)}_client.py",
+        )
     )
     return file_path == module_any_client_file
 
 
 def is_module_api_client_file(ctx: AnyContext, file_path: str) -> bool:
-    module_api_client_file = os.path.join(
-        APP_DIR,
-        "module",
-        to_snake_case(ctx.input.module),
-        "client",
-        f"{to_snake_case(ctx.input.module)}_api_client.py",
+    module_api_client_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            to_snake_case(ctx.input.module),
+            "client",
+            f"{to_snake_case(ctx.input.module)}_api_client.py",
+        )
     )
     return file_path == module_api_client_file
 
 
 def is_module_direct_client_file(ctx: AnyContext, file_path: str) -> bool:
-    module_direct_client_file = os.path.join(
-        APP_DIR,
-        "module",
-        to_snake_case(ctx.input.module),
-        "client",
-        f"{to_snake_case(ctx.input.module)}_direct_client.py",
+    module_direct_client_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            to_snake_case(ctx.input.module),
+            "client",
+            f"{to_snake_case(ctx.input.module)}_direct_client.py",
+        )
     )
     return file_path == module_direct_client_file
 
 
 def is_module_gateway_subroute_file(ctx: AnyContext, file_path: str) -> bool:
-    module_gateway_subroute_file = os.path.join(
-        APP_DIR,
-        "module",
-        "gateway",
-        "subroute",
-        f"{to_snake_case(ctx.input.module)}.py",
+    module_gateway_subroute_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            "gateway",
+            "subroute",
+            f"{to_snake_case(ctx.input.module)}.py",
+        )
     )
     return file_path == module_gateway_subroute_file
 
 
 def is_module_gateway_subroute_view_file(ctx: AnyContext, file_path: str) -> bool:
-    module_gateway_subroute_file = os.path.join(
-        APP_DIR,
-        "module",
-        "gateway",
-        "view",
-        "content",
-        f"{to_kebab_case(ctx.input.module)}",
-        f"{to_kebab_case(ctx.input.entity)}.html",
+    module_gateway_subroute_file = os.path.abspath(
+        os.path.join(
+            APP_DIR,
+            "module",
+            "gateway",
+            "view",
+            "content",
+            f"{to_kebab_case(ctx.input.module)}",
+            f"{to_kebab_case(ctx.input.entity)}.html",
+        )
     )
     return file_path == module_gateway_subroute_file
 

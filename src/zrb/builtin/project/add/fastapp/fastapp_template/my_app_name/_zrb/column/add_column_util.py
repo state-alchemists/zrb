@@ -6,11 +6,7 @@ from bs4 import BeautifulSoup, formatter
 from my_app_name._zrb.config import APP_DIR
 
 from zrb.context.any_context import AnyContext
-from zrb.util.codemod.modify_class import append_code_to_class
-from zrb.util.codemod.modify_class_parent import prepend_parent_class
 from zrb.util.codemod.modify_class_property import append_property_to_class
-from zrb.util.codemod.modify_function import append_code_to_function
-from zrb.util.codemod.modify_module import prepend_code_to_module
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import (
     to_human_case,
@@ -20,7 +16,7 @@ from zrb.util.string.conversion import (
 )
 
 
-def update_fastapp_schema(ctx: AnyContext):
+def update_my_app_name_schema(ctx: AnyContext):
     snake_entity_name = to_snake_case(ctx.input.entity)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
     snake_column_name = to_snake_case(ctx.input.column)
@@ -64,7 +60,7 @@ def _get_default_column_value(data_type: str) -> str:
     return "None"
 
 
-def update_fastapp_ui(ctx: AnyContext):
+def update_my_app_name_ui(ctx: AnyContext):
     kebab_module_name = to_kebab_case(ctx.input.module)
     kebab_entity_name = to_kebab_case(ctx.input.entity)
     snake_column_name = to_snake_case(ctx.input.column)
@@ -237,7 +233,7 @@ def _alter_js_function_returned_array(
     return new_html
 
 
-def update_fastapp_test_create(ctx: AnyContext):
+def update_my_app_name_test_create(ctx: AnyContext):
     snake_module_name = to_snake_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
     test_file_path = os.path.join(
@@ -253,7 +249,7 @@ def update_fastapp_test_create(ctx: AnyContext):
     write_file(test_file_path, new_code)
 
 
-def update_fastapp_test_read(ctx: AnyContext):
+def update_my_app_name_test_read(ctx: AnyContext):
     snake_module_name = to_snake_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
     test_file_path = os.path.join(
@@ -269,7 +265,7 @@ def update_fastapp_test_read(ctx: AnyContext):
     write_file(test_file_path, new_code)
 
 
-def update_fastapp_test_update(ctx: AnyContext):
+def update_my_app_name_test_update(ctx: AnyContext):
     snake_module_name = to_snake_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
     test_file_path = os.path.join(
@@ -285,7 +281,7 @@ def update_fastapp_test_update(ctx: AnyContext):
     write_file(test_file_path, new_code)
 
 
-def update_fastapp_test_delete(ctx: AnyContext):
+def update_my_app_name_test_delete(ctx: AnyContext):
     snake_module_name = to_snake_case(ctx.input.module)
     snake_entity_name = to_snake_case(ctx.input.entity)
     test_file_path = os.path.join(

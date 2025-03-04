@@ -7,4 +7,4 @@ logging.basicConfig(
 )
 
 # Create a logger for your application
-logger: logging.Logger = logging.getLogger("fastapp")
+logger: logging.Logger = logging.getLogger("my-app-name")

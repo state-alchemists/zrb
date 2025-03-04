@@ -16,41 +16,47 @@ from zrb.util.string.conversion import (
 
 
 def is_app_config_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(APP_DIR, "config.py")
+    return file_path == os.path.abspath(os.path.join(APP_DIR, "config.py"))
 
 
 def is_app_main_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(APP_DIR, "main.py")
+    return file_path == os.path.abspath(os.path.join(APP_DIR, "main.py"))
 
 
 def is_gateway_route_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(APP_DIR, "module", "gateway", "route.py")
+    return file_path == os.path.abspath(
+        os.path.join(APP_DIR, "module", "gateway", "route.py")
+    )
 
 
 def is_gateway_navigation_config_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(
-        APP_DIR, "module", "gateway", "config", "navigation.py"
+    return file_path == os.path.abspath(
+        os.path.join(APP_DIR, "module", "gateway", "config", "navigation.py")
     )
 
 
 def is_app_zrb_task_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(APP_DIR, "_zrb", "task.py")
+    return file_path == os.path.abspath(os.path.join(APP_DIR, "_zrb", "task.py"))
 
 
 def is_app_zrb_config_file(ctx: AnyContext, file_path: str) -> bool:
-    return file_path == os.path.join(APP_DIR, "_zrb", "config.py")
+    return file_path == os.path.abspath(os.path.join(APP_DIR, "_zrb", "config.py"))
 
 
 def is_in_module_dir(ctx: AnyContext, file_path: str) -> bool:
     return file_path.startswith(
-        os.path.join(APP_DIR, "module", to_snake_case(ctx.input.module))
+        os.path.abspath(
+            os.path.join(APP_DIR, "module", to_snake_case(ctx.input.module))
+        )
     )
 
 
 def is_gateway_module_subroute_file(ctx: AnyContext, file_path: str) -> bool:
     module_subroute_file_name = f"{to_snake_case(ctx.input.module)}.py"
-    return file_path == os.path.join(
-        APP_DIR, "module", "gateway", "subroute", module_subroute_file_name
+    return file_path == os.path.abspath(
+        os.path.join(
+            APP_DIR, "module", "gateway", "subroute", module_subroute_file_name
+        )
     )
 
 
