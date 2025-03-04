@@ -22,7 +22,7 @@ install_tmux = CmdTask(
         name="tmux-config",
         description="Tmux config file",
         prompt="Tmux config file",
-        default_str="~/.tmux.conf",
+        default="~/.tmux.conf",
     ),
     description="📺 Setup `tmux`.",
     group=setup_group,

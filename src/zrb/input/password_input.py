@@ -1,6 +1,6 @@
 import getpass
-from collections.abc import Callable
 
+from zrb.attr.type import StrAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
 
@@ -11,7 +11,7 @@ class PasswordInput(BaseInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default_str: str | Callable[[AnySharedContext], str] = "",
+        default: StrAttr = "",
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
@@ -20,7 +20,7 @@ class PasswordInput(BaseInput):
             name=name,
             description=description,
             prompt=prompt,
-            default_str=default_str,
+            default=default,
             auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,

@@ -8,7 +8,7 @@ run_env_input = OptionInput(
     description="Running environment",
     prompt="Running Environment",
     options=["dev", "prod"],
-    default_str="prod",
+    default="prod",
 )
 
 new_module_input = StrInput(
@@ -37,14 +37,14 @@ plural_entity_input = StrInput(
     name="plural",
     description="Plural entity name",
     prompt="Plural entity name",
-    default_str=lambda ctx: pluralize(ctx.input.entity),
+    default=lambda ctx: pluralize(ctx.input.entity),
 )
 
 new_entity_column_input = StrInput(
     name="column",
     description="Entity's column name",
     prompt="New entity's column name",
-    default_str="name",
+    default="name",
 )
 
 new_column_input = StrInput(

@@ -1,6 +1,7 @@
-from zrb.attr.type import StrAttr
+from zrb.attr.type import BoolAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
+from zrb.util.attr import get_bool_attr
 from zrb.util.string.conversion import to_boolean
 
 
@@ -10,7 +11,7 @@ class BoolInput(BaseInput):
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default_str: StrAttr = "False",
+        default: BoolAttr = False,
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
@@ -19,7 +20,7 @@ class BoolInput(BaseInput):
             name=name,
             description=description,
             prompt=prompt,
-            default_str=default_str,
+            default=default,
             auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
@@ -39,6 +40,12 @@ class BoolInput(BaseInput):
                 "</select>",
             ]
         )
+
+    def get_default_str(self, shared_ctx: AnySharedContext) -> str:
+        default_value = get_bool_attr(
+            shared_ctx, self._default_value, auto_render=self._auto_render
+        )
+        return f"{default_value}"
 
     def _parse_str_value(self, str_value: str) -> bool:
         return to_boolean(str_value)
