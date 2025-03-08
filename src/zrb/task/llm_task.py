@@ -151,33 +151,40 @@ class LLMTask(BaseTask):
                 stylize_faint(">> ModelRequestNode: streaming partial request tokens")
             )
             async with node.stream(agent_run.ctx) as request_stream:
-                is_first_part = True
+                is_streaming = False
                 async for event in request_stream:
                     if isinstance(event, PartStartEvent):
+                        if is_streaming:
+                            ctx.print("", plain=True)
                         ctx.print(
                             stylize_faint(
                                 f"[Request] Starting part {event.index}: {event.part!r}"
                             ),
                         )
+                        is_streaming = False
                     elif isinstance(event, PartDeltaEvent):
                         if isinstance(event.delta, TextPartDelta):
                             ctx.print(
                                 stylize_faint(f"{event.delta.content_delta}"),
                                 end="",
-                                plain=not is_first_part,
+                                plain=is_streaming,
                             )
                         elif isinstance(event.delta, ToolCallPartDelta):
                             ctx.print(
                                 stylize_faint(f"{event.delta.args_delta}"),
                                 end="",
-                                plain=not is_first_part,
+                                plain=is_streaming,
                             )
-                        is_first_part = False
+                        is_streaming = True
                     elif isinstance(event, FinalResultEvent):
+                        if is_streaming:
+                            ctx.print("", plain=True)
                         ctx.print(
                             stylize_faint(f"[Result] tool_name={event.tool_name}"),
                         )
-                ctx.print("", plain=True)
+                        is_streaming = False
+                if is_streaming:
+                    ctx.print("", plain=True)
         elif Agent.is_call_tools_node(node):
             # A handle-response node => The model returned some data, potentially calls a tool
             ctx.print(

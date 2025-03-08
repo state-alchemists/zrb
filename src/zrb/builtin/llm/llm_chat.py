@@ -5,6 +5,12 @@ from typing import Any
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
 from zrb.builtin.llm.tool.cli import run_shell_command
+from zrb.builtin.llm.tool.file import (
+    list_file,
+    read_source_code,
+    read_text_file,
+    write_text_file,
+)
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
@@ -13,6 +19,7 @@ from zrb.builtin.llm.tool.web import (
 )
 from zrb.config import (
     LLM_ALLOW_ACCESS_INTERNET,
+    LLM_ALLOW_ACCESS_LOCAL_FILE,
     LLM_ALLOW_ACCESS_SHELL,
     LLM_HISTORY_DIR,
     LLM_MODEL,
@@ -122,6 +129,13 @@ llm_chat: LLMTask = llm_group.add_task(
     ),
     alias="chat",
 )
+
+
+if LLM_ALLOW_ACCESS_LOCAL_FILE:
+    llm_chat.add_tool(read_source_code)
+    llm_chat.add_tool(list_file)
+    llm_chat.add_tool(read_text_file)
+    llm_chat.add_tool(write_text_file)
 
 if LLM_ALLOW_ACCESS_SHELL:
     llm_chat.add_tool(run_shell_command)
