@@ -101,6 +101,7 @@ RAG_EMBEDDING_MODEL = os.getenv(
 RAG_CHUNK_SIZE = int(os.getenv("ZRB_RAG_CHUNK_SIZE", "1024"))
 RAG_OVERLAP = int(os.getenv("ZRB_RAG_OVERLAP", "128"))
 RAG_MAX_RESULT_COUNT = int(os.getenv("ZRB_RAG_MAX_RESULT_COUNT", "5"))
+SERP_API_KEY = os.getenv("SERP_API_KEY", "")
 
 
 BANNER = f"""

@@ -5,13 +5,19 @@ from typing import Any
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
 from zrb.builtin.llm.tool.cli import run_shell_command
-from zrb.builtin.llm.tool.web import open_web_page, query_internet
+from zrb.builtin.llm.tool.web import (
+    create_search_internet_tool,
+    open_web_page,
+    search_arxiv,
+    search_wikipedia,
+)
 from zrb.config import (
     LLM_ALLOW_ACCESS_INTERNET,
     LLM_ALLOW_ACCESS_SHELL,
     LLM_HISTORY_DIR,
     LLM_MODEL,
     LLM_SYSTEM_PROMPT,
+    SERP_API_KEY,
 )
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
@@ -122,6 +128,9 @@ if LLM_ALLOW_ACCESS_SHELL:
 
 if LLM_ALLOW_ACCESS_INTERNET:
     llm_chat.add_tool(open_web_page)
-    llm_chat.add_tool(query_internet)
+    llm_chat.add_tool(search_wikipedia)
+    llm_chat.add_tool(search_arxiv)
+    if SERP_API_KEY != "":
+        llm_chat.add_tool(create_search_internet_tool(SERP_API_KEY))
     llm_chat.add_tool(get_current_location)
     llm_chat.add_tool(get_current_weather)
