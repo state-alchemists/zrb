@@ -93,7 +93,7 @@ class LLMTask(BaseTask):
             successor=successor,
         )
         self._model = model
-        self._model_settings = (model_settings,)
+        self._model_settings = model_settings
         self._agent = agent
         self._render_model = render_model
         self._system_prompt = system_prompt
@@ -135,11 +135,9 @@ class LLMTask(BaseTask):
             write_file(history_file, json.dumps(conversations, indent=2))
 
     def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
-        if isinstance(self._model_settings, ModelSettings):
-            return self._model_settings
         if callable(self._model_settings):
             return self._model_settings(ctx)
-        return None
+        return self._model_settings
 
     def _get_agent(self, ctx: AnyContext) -> Agent:
         if isinstance(self._agent, Agent):
