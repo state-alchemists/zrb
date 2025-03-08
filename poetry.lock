@@ -548,6 +548,28 @@ files = [
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
+name = "cohere"
+version = "5.14.0"
+description = ""
+optional = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "cohere-5.14.0-py3-none-any.whl", hash = "sha256:286b4ff66f9a59c06a30b8819fb8b2aee3354dc2f7dc83f19519da771e598a5e"},
+    {file = "cohere-5.14.0.tar.gz", hash = "sha256:fdbf2d4c54049b74c8f79ff8ed6fd149c4c2055d3b5eae57b9c70716e65c78fd"},
+]
+
+[package.dependencies]
+fastavro = ">=1.9.4,<2.0.0"
+httpx = ">=0.21.2"
+httpx-sse = "0.4.0"
+pydantic = ">=1.9.2"
+pydantic-core = ">=2.18.2,<3.0.0"
+requests = ">=2.0.0,<3.0.0"
+tokenizers = ">=0.15,<1"
+types-requests = ">=2.0.0,<3.0.0"
+typing_extensions = ">=4.0.0"
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -705,7 +727,7 @@ test-randomorder = ["pytest-randomly"]
 name = "deprecated"
 version = "1.2.15"
 description = "Python @deprecated decorator to deprecate old python classes, functions or methods."
-optional = true
+optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 files = [
     {file = "Deprecated-1.2.15-py2.py3-none-any.whl", hash = "sha256:353bc4a8ac4bfc96800ddab349d89c25dec1079f65fd53acdcc1e0b975b21320"},
@@ -865,6 +887,52 @@ uvicorn = {version = ">=0.15.0", extras = ["standard"]}
 
 [package.extras]
 standard = ["uvicorn[standard] (>=0.15.0)"]
+
+[[package]]
+name = "fastavro"
+version = "1.10.0"
+description = "Fast read/write of AVRO files"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "fastavro-1.10.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:1a9fe0672d2caf0fe54e3be659b13de3cad25a267f2073d6f4b9f8862acc31eb"},
+    {file = "fastavro-1.10.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:86dd0410770e0c99363788f0584523709d85e57bb457372ec5c285a482c17fe6"},
+    {file = "fastavro-1.10.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:190e80dc7d77d03a6a8597a026146b32a0bbe45e3487ab4904dc8c1bebecb26d"},
+    {file = "fastavro-1.10.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:bf570d63be9155c3fdc415f60a49c171548334b70fff0679a184b69c29b6bc61"},
+    {file = "fastavro-1.10.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:e07abb6798e95dccecaec316265e35a018b523d1f3944ad396d0a93cb95e0a08"},
+    {file = "fastavro-1.10.0-cp310-cp310-win_amd64.whl", hash = "sha256:37203097ed11d0b8fd3c004904748777d730cafd26e278167ea602eebdef8eb2"},
+    {file = "fastavro-1.10.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:d183c075f527ab695a27ae75f210d4a86bce660cda2f85ae84d5606efc15ef50"},
+    {file = "fastavro-1.10.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d7a95a2c0639bffd7c079b59e9a796bfc3a9acd78acff7088f7c54ade24e4a77"},
+    {file = "fastavro-1.10.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0a678153b5da1b024a32ec3f611b2e7afd24deac588cb51dd1b0019935191a6d"},
+    {file = "fastavro-1.10.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:67a597a5cfea4dddcf8b49eaf8c2b5ffee7fda15b578849185bc690ec0cd0d8f"},
+    {file = "fastavro-1.10.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:1fd689724760b17f69565d8a4e7785ed79becd451d1c99263c40cb2d6491f1d4"},
+    {file = "fastavro-1.10.0-cp311-cp311-win_amd64.whl", hash = "sha256:4f949d463f9ac4221128a51e4e34e2562f401e5925adcadfd28637a73df6c2d8"},
+    {file = "fastavro-1.10.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:cfe57cb0d72f304bd0dcc5a3208ca6a7363a9ae76f3073307d095c9d053b29d4"},
+    {file = "fastavro-1.10.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:74e517440c824cb65fb29d3e3903a9406f4d7c75490cef47e55c4c82cdc66270"},
+    {file = "fastavro-1.10.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:203c17d44cadde76e8eecb30f2d1b4f33eb478877552d71f049265dc6f2ecd10"},
+    {file = "fastavro-1.10.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:6575be7f2b5f94023b5a4e766b0251924945ad55e9a96672dc523656d17fe251"},
+    {file = "fastavro-1.10.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:fe471deb675ed2f01ee2aac958fbf8ebb13ea00fa4ce7f87e57710a0bc592208"},
+    {file = "fastavro-1.10.0-cp312-cp312-win_amd64.whl", hash = "sha256:567ff515f2a5d26d9674b31c95477f3e6022ec206124c62169bc2ffaf0889089"},
+    {file = "fastavro-1.10.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:82263af0adfddb39c85f9517d736e1e940fe506dfcc35bc9ab9f85e0fa9236d8"},
+    {file = "fastavro-1.10.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:566c193109ff0ff84f1072a165b7106c4f96050078a4e6ac7391f81ca1ef3efa"},
+    {file = "fastavro-1.10.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e400d2e55d068404d9fea7c5021f8b999c6f9d9afa1d1f3652ec92c105ffcbdd"},
+    {file = "fastavro-1.10.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:9b8227497f71565270f9249fc9af32a93644ca683a0167cfe66d203845c3a038"},
+    {file = "fastavro-1.10.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:8e62d04c65461b30ac6d314e4197ad666371e97ae8cb2c16f971d802f6c7f514"},
+    {file = "fastavro-1.10.0-cp313-cp313-win_amd64.whl", hash = "sha256:86baf8c9740ab570d0d4d18517da71626fe9be4d1142bea684db52bd5adb078f"},
+    {file = "fastavro-1.10.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:5bccbb6f8e9e5b834cca964f0e6ebc27ebe65319d3940b0b397751a470f45612"},
+    {file = "fastavro-1.10.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b0132f6b0b53f61a0a508a577f64beb5de1a5e068a9b4c0e1df6e3b66568eec4"},
+    {file = "fastavro-1.10.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ca37a363b711202c6071a6d4787e68e15fa3ab108261058c4aae853c582339af"},
+    {file = "fastavro-1.10.0-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:cf38cecdd67ca9bd92e6e9ba34a30db6343e7a3bedf171753ee78f8bd9f8a670"},
+    {file = "fastavro-1.10.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:f4dd10e0ed42982122d20cdf1a88aa50ee09e5a9cd9b39abdffb1aa4f5b76435"},
+    {file = "fastavro-1.10.0-cp39-cp39-win_amd64.whl", hash = "sha256:aaef147dc14dd2d7823246178fd06fc5e477460e070dc6d9e07dd8193a6bc93c"},
+    {file = "fastavro-1.10.0.tar.gz", hash = "sha256:47bf41ac6d52cdfe4a3da88c75a802321321b37b663a900d12765101a5d6886f"},
+]
+
+[package.extras]
+codecs = ["cramjam", "lz4", "zstandard"]
+lz4 = ["lz4"]
+snappy = ["cramjam"]
+zstandard = ["zstandard"]
 
 [[package]]
 name = "fastembed"
@@ -1318,6 +1386,17 @@ socks = ["socksio (==1.*)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "httpx-sse"
+version = "0.4.0"
+description = "Consume Server-Sent Event (SSE) messages with HTTPX."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "httpx-sse-0.4.0.tar.gz", hash = "sha256:1e81a3a3070ce322add1d3529ed42eb5f70817f45ed6ec915ab753f961139721"},
+    {file = "httpx_sse-0.4.0-py3-none-any.whl", hash = "sha256:f329af6eae57eaa2bdfd962b42524764af68075ea87370a2de920af5341e318f"},
+]
+
+[[package]]
 name = "huggingface-hub"
 version = "0.27.1"
 description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
@@ -1383,7 +1462,7 @@ all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2
 name = "importlib-metadata"
 version = "8.5.0"
 description = "Read metadata from Python packages"
-optional = true
+optional = false
 python-versions = ">=3.8"
 files = [
     {file = "importlib_metadata-8.5.0-py3-none-any.whl", hash = "sha256:45e54197d28b7a7f1559e60b95e7c567032b602131fbd588f1497f47880aa68b"},
@@ -2079,13 +2158,13 @@ sympy = "*"
 
 [[package]]
 name = "openai"
-version = "1.59.6"
+version = "1.65.4"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "openai-1.59.6-py3-none-any.whl", hash = "sha256:b28ed44eee3d5ebe1a3ea045ee1b4b50fea36ecd50741aaa5ce5a5559c900cb6"},
-    {file = "openai-1.59.6.tar.gz", hash = "sha256:c7670727c2f1e4473f62fea6fa51475c8bc098c9ffb47bfb9eef5be23c747934"},
+    {file = "openai-1.65.4-py3-none-any.whl", hash = "sha256:15566d46574b94eae3d18efc2f9a4ebd1366d1d44bfc1bdafeea7a5cf8271bcb"},
+    {file = "openai-1.65.4.tar.gz", hash = "sha256:0b08c58625d556f5c6654701af1023689c173eb0989ce8f73c7fd0eb22203c76"},
 ]
 
 [package.dependencies]
@@ -2106,7 +2185,7 @@ realtime = ["websockets (>=13,<15)"]
 name = "opentelemetry-api"
 version = "1.29.0"
 description = "OpenTelemetry Python API"
-optional = true
+optional = false
 python-versions = ">=3.8"
 files = [
     {file = "opentelemetry_api-1.29.0-py3-none-any.whl", hash = "sha256:5fcd94c4141cc49c736271f3e1efb777bebe9cc535759c54c936cca4f1b312b8"},
@@ -2753,54 +2832,59 @@ timezone = ["tzdata"]
 
 [[package]]
 name = "pydantic-ai"
-version = "0.0.19"
+version = "0.0.31"
 description = "Agent Framework / shim to use Pydantic with LLMs"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_ai-0.0.19-py3-none-any.whl", hash = "sha256:4cd53e779f00ee29bb628094075ddc52128669cfee49a49c1b8c5d9ac90fc4c0"},
-    {file = "pydantic_ai-0.0.19.tar.gz", hash = "sha256:ec2dfd87f72e439ad044bf0b392709f8ca53c27990818a08d6eebfba30181a7e"},
+    {file = "pydantic_ai-0.0.31-py3-none-any.whl", hash = "sha256:94352f6881d01ba70f3ea0828375ba44f6b7b64f982b788854b0bc2d952ddea2"},
+    {file = "pydantic_ai-0.0.31.tar.gz", hash = "sha256:7ec3f65710ca0e2103df17bee6264bd954fba786e19e8bea1d7579a602fdb08d"},
 ]
 
 [package.dependencies]
-pydantic-ai-slim = {version = "0.0.19", extras = ["anthropic", "graph", "groq", "mistral", "openai", "vertexai"]}
+pydantic-ai-slim = {version = "0.0.31", extras = ["anthropic", "cohere", "groq", "mistral", "openai", "vertexai"]}
 
 [package.extras]
-examples = ["pydantic-ai-examples (==0.0.19)"]
+examples = ["pydantic-ai-examples (==0.0.31)"]
 logfire = ["logfire (>=2.3)"]
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "0.0.19"
+version = "0.0.31"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_ai_slim-0.0.19-py3-none-any.whl", hash = "sha256:b4edc7abcfc976c406e44dccafa7043f6d35977ba3f2e72e8df7bcb03c8bbaa7"},
-    {file = "pydantic_ai_slim-0.0.19.tar.gz", hash = "sha256:ea3d4b30f91e9d59599b4ce69973f579327e071cf22ca5c296a985520e407420"},
+    {file = "pydantic_ai_slim-0.0.31-py3-none-any.whl", hash = "sha256:58e5bc3de2c3380657c73ecacd6710600ffc859307cde63c58522243374cf859"},
+    {file = "pydantic_ai_slim-0.0.31.tar.gz", hash = "sha256:9d0aaef31feb5719036e1e40fc1953a51edc3f58bc9dffbc0304dd5b28d3d0aa"},
 ]
 
 [package.dependencies]
 anthropic = {version = ">=0.40.0", optional = true, markers = "extra == \"anthropic\""}
+cohere = {version = ">=5.13.11", optional = true, markers = "extra == \"cohere\""}
 eval-type-backport = ">=0.2.0"
+exceptiongroup = {version = "*", markers = "python_version < \"3.11\""}
 google-auth = {version = ">=2.36.0", optional = true, markers = "extra == \"vertexai\""}
 griffe = ">=1.3.2"
 groq = {version = ">=0.12.0", optional = true, markers = "extra == \"groq\""}
-httpx = ">=0.27.2"
+httpx = ">=0.27"
 logfire-api = ">=1.2.0"
 mistralai = {version = ">=1.2.5", optional = true, markers = "extra == \"mistral\""}
-openai = {version = ">=1.54.3", optional = true, markers = "extra == \"openai\""}
+openai = {version = ">=1.65.1", optional = true, markers = "extra == \"openai\""}
+opentelemetry-api = ">=1.28.0"
 pydantic = ">=2.10"
-pydantic-graph = {version = "0.0.19", optional = true, markers = "extra == \"graph\""}
+pydantic-graph = "0.0.31"
 requests = {version = ">=2.32.3", optional = true, markers = "extra == \"vertexai\""}
 
 [package.extras]
 anthropic = ["anthropic (>=0.40.0)"]
-graph = ["pydantic-graph (==0.0.19)"]
+cohere = ["cohere (>=5.13.11)"]
+duckduckgo = ["duckduckgo-search (>=7.0.0)"]
 groq = ["groq (>=0.12.0)"]
 logfire = ["logfire (>=2.3)"]
 mistral = ["mistralai (>=1.2.5)"]
-openai = ["openai (>=1.54.3)"]
+openai = ["openai (>=1.65.1)"]
+tavily = ["tavily-python (>=0.5.0)"]
 vertexai = ["google-auth (>=2.36.0)", "requests (>=2.32.3)"]
 
 [[package]]
@@ -2917,17 +3001,17 @@ typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
 name = "pydantic-graph"
-version = "0.0.19"
+version = "0.0.31"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_graph-0.0.19-py3-none-any.whl", hash = "sha256:8d9fd21584af2b700e710c933d8ffb50fe15e3489ff2626392d6197d7c76d696"},
-    {file = "pydantic_graph-0.0.19.tar.gz", hash = "sha256:e5dc3cba7f08859f96704db9ecbe68e0b2c084d0112dba77c66f135c587812dd"},
+    {file = "pydantic_graph-0.0.31-py3-none-any.whl", hash = "sha256:1def20c791aa8002a32a6ea89106c7280a67d9b79e4b9a21f770f2e394d36850"},
+    {file = "pydantic_graph-0.0.31.tar.gz", hash = "sha256:4f48b5335c35d762f92f8adf8cbd5430303e4537d50b3af44cbc94e82872d3f9"},
 ]
 
 [package.dependencies]
-httpx = ">=0.27.2"
+httpx = ">=0.27"
 logfire-api = ">=1.2.0"
 pydantic = ">=2.10"
 
@@ -3609,6 +3693,20 @@ shellingham = ">=1.3.0"
 typing-extensions = ">=3.7.4.3"
 
 [[package]]
+name = "types-requests"
+version = "2.32.0.20250306"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "types_requests-2.32.0.20250306-py3-none-any.whl", hash = "sha256:25f2cbb5c8710b2022f8bbee7b2b66f319ef14aeea2f35d80f18c9dbf3b60a0b"},
+    {file = "types_requests-2.32.0.20250306.tar.gz", hash = "sha256:0962352694ec5b2f95fda877ee60a159abdf84a0fc6fdace599f20acb41a03d1"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -3934,7 +4032,7 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 name = "wrapt"
 version = "1.17.0"
 description = "Module for decorators, wrappers and monkey patching."
-optional = true
+optional = false
 python-versions = ">=3.8"
 files = [
     {file = "wrapt-1.17.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2a0c23b8319848426f305f9cb0c98a6e32ee68a36264f45948ccf8e7d2b941f8"},
@@ -4008,7 +4106,7 @@ files = [
 name = "zipp"
 version = "3.21.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "zipp-3.21.0-py3-none-any.whl", hash = "sha256:ac1bbe05fd2991f160ebce24ffbac5f6d11d83dc90891255885223d42b3cd931"},
@@ -4029,4 +4127,4 @@ rag = ["chromadb", "pdfplumber"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "78e1d84d56c4da0a403045fcb295bd8ba9e0fea6f45d4e19e1ab50aee128fe89"
+content-hash = "55d6e85dacd0953921011d35bb182d992b4ab9928b604982a05e80b6ab38a5c6"

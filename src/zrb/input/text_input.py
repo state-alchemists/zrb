@@ -69,16 +69,17 @@ class TextInput(BaseInput):
         )
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
-        prompt_message = (
-            f"{self.comment_start}{super().prompt_message}{self.comment_end}"
+        prompt_message = super().prompt_message
+        comment_prompt_message = (
+            f"{self.comment_start}{prompt_message}{self.comment_end}"
         )
-        prompt_message_eol = f"{prompt_message}\n"
+        comment_prompt_message_eol = f"{comment_prompt_message}\n"
         default_value = self.get_default_str(shared_ctx)
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=self._extension
         ) as temp_file:
             temp_file_name = temp_file.name
-            temp_file.write(prompt_message_eol.encode())
+            temp_file.write(comment_prompt_message_eol.encode())
             # Pre-fill with default content
             if default_value:
                 temp_file.write(default_value.encode())
@@ -87,7 +88,8 @@ class TextInput(BaseInput):
         subprocess.call([self._editor, temp_file_name])
         # Read the edited content
         edited_content = read_file(temp_file_name)
-        parts = [text.strip() for text in edited_content.split(prompt_message, 1)]
+        parts = [text.strip() for text in edited_content.split(comment_prompt_message, 1)]
         edited_content = "\n".join(parts).lstrip()
         os.remove(temp_file_name)
+        print(f"{prompt_message}: {edited_content}")
         return edited_content

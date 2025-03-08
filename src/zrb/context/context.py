@@ -104,7 +104,7 @@ class Context(AnyContext):
     ):
         message = sep.join([f"{value}" for value in values])
         if plain:
-            self.append_to_shared_log(remove_style(message))
+            # self.append_to_shared_log(remove_style(message))
             print(message, sep=sep, end=end, file=file, flush=flush)
             return
         color = self._color
