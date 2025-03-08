@@ -88,7 +88,7 @@ class Context(AnyContext):
             return template
         return int(self.render(template))
 
-    def render_float(self, template: str) -> float:
+    def render_float(self, template: str | float) -> float:
         if isinstance(template, float):
             return template
         return float(self.render(template))
@@ -102,6 +102,7 @@ class Context(AnyContext):
         flush: bool = True,
         plain: bool = False,
     ):
+        sep = " " if sep is None else sep
         message = sep.join([f"{value}" for value in values])
         if plain:
             self.append_to_shared_log(remove_style(message))
@@ -132,6 +133,7 @@ class Context(AnyContext):
         flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.DEBUG:
+            sep = " " if sep is None else sep
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_log(f"[DEBUG] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -145,6 +147,7 @@ class Context(AnyContext):
         flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.INFO:
+            sep = " " if sep is None else sep
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_log(f"[INFO] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -158,6 +161,7 @@ class Context(AnyContext):
         flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.INFO:
+            sep = " " if sep is None else sep
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_warning(f"[WARNING] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -171,6 +175,7 @@ class Context(AnyContext):
         flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.ERROR:
+            sep = " " if sep is None else sep
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_error(f"[ERROR] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
@@ -184,6 +189,7 @@ class Context(AnyContext):
         flush: bool = True,
     ):
         if self._shared_ctx.get_logging_level() <= logging.CRITICAL:
+            sep = " " if sep is None else sep
             message = sep.join([f"{value}" for value in values])
             stylized_message = stylize_error(f"[CRITICAL] {message}")
             self.print(stylized_message, sep=sep, end=end, file=file, flush=flush)
