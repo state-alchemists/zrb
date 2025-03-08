@@ -88,7 +88,9 @@ class TextInput(BaseInput):
         subprocess.call([self._editor, temp_file_name])
         # Read the edited content
         edited_content = read_file(temp_file_name)
-        parts = [text.strip() for text in edited_content.split(comment_prompt_message, 1)]
+        parts = [
+            text.strip() for text in edited_content.split(comment_prompt_message, 1)
+        ]
         edited_content = "\n".join(parts).lstrip()
         os.remove(temp_file_name)
         print(f"{prompt_message}: {edited_content}")

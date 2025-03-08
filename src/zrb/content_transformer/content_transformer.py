@@ -1,4 +1,5 @@
 import fnmatch
+import os
 import re
 from collections.abc import Callable
 
@@ -40,7 +41,12 @@ class ContentTransformer(AnyContentTransformer):
                     return True
             except re.error:
                 pass
-            return fnmatch.fnmatch(file_path, pattern)
+            if os.sep not in pattern and (
+                os.altsep is None or os.altsep not in pattern
+            ):
+                # Pattern like "*.txt" – match only the basename.
+                return fnmatch.fnmatch(file_path, os.path.basename(file_path))
+            return fnmatch.fnmatch(file_path, file_path)
 
     def transform_file(self, ctx: AnyContext, file_path: str):
         if callable(self._transform_file):

@@ -4,7 +4,6 @@ from collections.abc import Callable
 from typing import Any
 
 from pydantic_ai import Agent, Tool
-from pydantic_ai.models import Model
 from pydantic_ai.messages import (
     FinalResultEvent,
     FunctionToolCallEvent,
@@ -15,6 +14,7 @@ from pydantic_ai.messages import (
     TextPartDelta,
     ToolCallPartDelta,
 )
+from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import StrAttr, fstring
@@ -25,7 +25,7 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.util.attr import get_str_attr, get_attr
+from zrb.util.attr import get_attr, get_str_attr
 from zrb.util.cli.style import stylize_faint
 from zrb.util.file import read_file, write_file
 from zrb.util.run import run_async
@@ -44,7 +44,9 @@ class LLMTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        model: Callable[[AnySharedContext], Model | str | fstring] | Model | None = LLM_MODEL,
+        model: (
+            Callable[[AnySharedContext], Model | str | fstring] | Model | None
+        ) = LLM_MODEL,
         model_settings: (
             ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
         ) = None,
