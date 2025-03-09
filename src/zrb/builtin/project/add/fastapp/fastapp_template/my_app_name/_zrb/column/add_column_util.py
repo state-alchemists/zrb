@@ -2,7 +2,7 @@ import os
 import re
 import textwrap
 
-from bs4 import BeautifulSoup, formatter
+from bs4 import BeautifulSoup, Tag, formatter
 from my_app_name._zrb.config import APP_DIR
 
 from zrb.context.any_context import AnyContext
@@ -65,6 +65,7 @@ def update_my_app_name_ui(ctx: AnyContext):
     kebab_entity_name = to_kebab_case(ctx.input.entity)
     snake_column_name = to_snake_case(ctx.input.column)
     human_column_name = to_human_case(ctx.input.column).title()
+    column_type = ctx.input.type
     subroute_file_path = os.path.join(
         APP_DIR,
         "module",
@@ -85,18 +86,21 @@ def update_my_app_name_ui(ctx: AnyContext):
         form_id="crud-create-form",
         column_label=human_column_name,
         column_name=snake_column_name,
+        column_type=column_type,
     )
     new_code = _add_input_to_form(
         new_code,
         form_id="crud-update-form",
         column_label=human_column_name,
         column_name=snake_column_name,
+        column_type=column_type,
     )
     new_code = _add_input_to_form(
         new_code,
         form_id="crud-delete-form",
         column_label=human_column_name,
         column_name=snake_column_name,
+        column_type=column_type,
     )
     # JS Function
     new_code = _alter_js_function_returned_array(
@@ -140,7 +144,7 @@ def _add_th_before_last(html_str, table_id, th_content):
 
 
 def _add_input_to_form(
-    html_str: str, form_id: str, column_label: str, column_name: str
+    html_str: str, form_id: str, column_label: str, column_name: str, column_type: str
 ) -> str:
     soup = BeautifulSoup(html_str, "html.parser")
     # Find the form by id.
@@ -151,9 +155,7 @@ def _add_input_to_form(
     new_label = soup.new_tag("label")
     new_label.append(f"{column_label}: ")
     # Create a new input element with the provided column name.
-    new_input = soup.new_tag(
-        "input", attrs={"type": "text", "name": column_name, "required": "required"}
-    )
+    new_input = _get_html_input(soup, column_name, column_type)
     new_label.append(new_input)
     # Look for a footer element inside the form.
     footer = form.find("footer")
@@ -166,6 +168,26 @@ def _add_input_to_form(
     return soup.prettify(
         formatter=formatter.HTMLFormatter(indent=_infer_html_indent_width(html_str))
     )
+
+
+def _get_html_input(soup: BeautifulSoup, column_name: str, column_type: str) -> Tag:
+    # Map your custom types to HTML input types.
+    type_mapping = {
+        "str": "text",
+        "int": "number",
+        "float": "number",
+        "bool": "checkbox",
+        "datetime": "datetime-local",
+        "date": "date",
+    }
+    # Get the corresponding HTML input type; default to "text" if not found.
+    html_input_type = type_mapping.get(column_type, "text")
+    # Create the new input tag with the appropriate attributes.
+    new_input = soup.new_tag(
+        "input",
+        attrs={"type": html_input_type, "name": column_name, "required": "required"},
+    )
+    return new_input
 
 
 def _infer_html_indent_width(html_str: str) -> int:

@@ -116,19 +116,38 @@ const UTIL = {
 
     setFormData(form, data) {
         for (const key in data) {
-            // Only search within this form for an element with the matching name
             const element = form.querySelector(`[name="${key}"]`);
-            if (element) {
-                // For checkboxes or radio buttons, update each matching element within the form
-                if (element.type === 'checkbox' || element.type === 'radio') {
-                    const elements = form.querySelectorAll(`[name="${key}"]`);
-                    elements.forEach(el => {
-                        el.checked = (el.value === data[key]);
+            if (!element) {
+                continue;
+            }
+            const value = data[key];
+            // Handle checkboxes and radio buttons
+            if (element.type === 'checkbox' || element.type === 'radio') {
+                const elements = form.querySelectorAll(`[name="${key}"]`);
+                elements.forEach(el => {
+                    // If value is an array, check if this option is included;
+                    // otherwise compare to a single value.
+                    if (Array.isArray(value)) {
+                        el.checked = value.includes(el.value);
+                    } else {
+                        el.checked = (el.value === value);
+                    }
+                });
+            }
+            // Handle select elements
+            else if (element.tagName === "SELECT") {
+                if (element.multiple && Array.isArray(value)) {
+                    // For multi-select, mark options as selected if their value is in the array.
+                    Array.from(element.options).forEach(option => {
+                        option.selected = value.includes(option.value);
                     });
                 } else {
-                    // For other types of inputs, selects, and textareas, simply set the value
-                    element.value = data[key];
+                    element.value = value;
                 }
+            }
+            // Handle all other inputs (including textarea)
+            else {
+                element.value = value;
             }
         }
     },
@@ -139,7 +158,13 @@ const UTIL = {
             if (element.type === "checkbox" || element.type === "radio") {
                 element.checked = element.defaultChecked; // Restore default checked state
             } else if (element.tagName === "SELECT") {
-                element.selectedIndex = 0; // Select the first option by default
+                if (element.multiple) {
+                    // Deselect all options for multi-select.
+                    Array.from(element.options).forEach(option => option.selected = false);
+                } else {
+                    // Select the first option by default
+                    element.selectedIndex = 0;
+                }
             } else {
                 element.value = element.defaultValue || ""; // Reset to default value or empty
             }
@@ -150,10 +175,13 @@ const UTIL = {
     getFormData(form) {
         const formData = new FormData(form);
         const data = {};
-        // Convert FormData to a plain object
-        formData.forEach((value, key) => {
-            data[key] = value;
-        });
+        // Iterate over each key in the FormData
+        for (let key of formData.keys()) {
+            // Get all values associated with the key
+            const values = formData.getAll(key);
+            // If multiple values are found, store them as an array; otherwise, just store the single value.
+            data[key] = values.length > 1 ? values : values[0];
+        }
         return data;
     },
 
