@@ -7,11 +7,10 @@ from sqlmodel import Field, SQLModel
 
 class RoleBase(SQLModel):
     name: str
+    description: str = ""
 
 
 class RoleCreate(RoleBase):
-    description: str
-
     def with_audit(self, created_by: str) -> "RoleCreateWithAudit":
         return RoleCreateWithAudit(**self.model_dump(), created_by=created_by)
 

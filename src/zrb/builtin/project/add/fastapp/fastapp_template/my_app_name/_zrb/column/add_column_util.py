@@ -230,7 +230,7 @@ def _alter_js_function_returned_array(
     #  3. Captures the newline and leading whitespace (indent) of the return statement.
     #  4. Captures the rest of the return line.
     pattern = (
-        r"(function\s+"
+        r"("
         + re.escape(js_function_name)
         + r"\s*\([^)]*\)\s*\{)"  # group1: function header
         r"([\s\S]*?)"  # group2: code before return

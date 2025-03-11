@@ -1,51 +1,72 @@
 const CRUD_UTIL = {
 
-    renderPagination(paginationComponent, crudState, total, fetchFunction = "fetchRows") {
-        const totalPages = Math.ceil(total / crudState.pageSize);
+    renderPagination(paginationComponent, crudApp, total) {
+        const { pageSize, currentPage } = crudApp.state;
+        const totalPages = Math.ceil(total / pageSize);
         paginationComponent.innerHTML = "";
-        // Ensure left alignment (if not already handled by PicoCSS or external CSS)
+        // Ensure left alignment
         paginationComponent.style.textAlign = "left";
-        let paginationHTML = "";
-        // Only show "First" and "Previous" if we're not on page 1
-        if (crudState.currentPage > 1) {
-            paginationHTML += `<button class="secondary" onclick="${fetchFunction}(1)">&laquo;</button>`;
-            paginationHTML += `<button class="secondary" onclick="${fetchFunction}(${crudState.currentPage - 1})">&lt;</button>`;
+        let buttons = [];
+        // "First" and "Previous" buttons if not on the first page
+        if (currentPage > 1) {
+            buttons.push({ label: "&laquo;", page: 1 });
+            buttons.push({ label: "&lt;", page: currentPage - 1 });
         }
         if (totalPages <= 5) {
-            // If total pages are few, simply list them all
+            // List all pages
             for (let i = 1; i <= totalPages; i++) {
-                paginationHTML += `<button class="secondary" onclick="${fetchFunction}(${i})" ${i === crudState.currentPage ? "disabled" : ""}>${i}</button>`;
+                buttons.push({ label: i, page: i });
             }
         } else {
-            // Always show first page
-            paginationHTML += `<button class="secondary" onclick="${fetchFunction}(1)" ${crudState.currentPage === 1 ? "disabled" : ""}>1</button>`;
-            // Determine start and end for the page range around current page
-            const start = Math.max(2, crudState.currentPage - 1);
-            const end = Math.min(totalPages - 1, crudState.currentPage + 1);
-            // Add ellipsis if there's a gap between first page and the start of the range
+            // Always show the first page
+            buttons.push({ label: "1", page: 1, disabled: currentPage === 1 });
+            const start = Math.max(2, currentPage - 1);
+            const end = Math.min(totalPages - 1, currentPage + 1);
+            // Add ellipsis if there's a gap
             if (start > 2) {
-                paginationHTML += `<span style="padding: 0 5px;">...</span>`;
+                buttons.push({ label: "...", isSpan: true });
             }
-            // Render the range around the current page
+            // Pages around current page
             for (let i = start; i <= end; i++) {
-                paginationHTML += `<button class="secondary" onclick="${fetchFunction}(${i})" ${i === crudState.currentPage ? "disabled" : ""}>${i}</button>`;
+                buttons.push({ label: i, page: i });
             }
-            // Add ellipsis if there's a gap between the end of the range and the last page
             if (end < totalPages - 1) {
-                paginationHTML += `<span style="padding: 0 5px;">...</span>`;
+                buttons.push({ label: "...", isSpan: true });
             }
-            // Always show last page
-            paginationHTML += `<button class="secondary" onclick="${fetchFunction}(${totalPages})" ${crudState.currentPage === totalPages ? "disabled" : ""}>${totalPages}</button>`;
+            // Always show the last page
+            buttons.push({ label: totalPages, page: totalPages, disabled: currentPage === totalPages });
         }
-        // Only show "Next" and "Last" if we're not on the last page
-        if (crudState.currentPage < totalPages) {
-            paginationHTML += `<button class="secondary" onclick="${fetchFunction}(${crudState.currentPage + 1})">&gt;</button>`;
-            paginationHTML += `<button class="secondary" onclick="${fetchFunction}(${totalPages})">&raquo;</button>`;
+        // "Next" and "Last" buttons if not on the last page
+        if (currentPage < totalPages) {
+            buttons.push({ label: "&gt;", page: currentPage + 1 });
+            buttons.push({ label: "&raquo;", page: totalPages });
         }
-        paginationComponent.innerHTML = paginationHTML;
+        // Render buttons and spans
+        buttons.forEach(btn => {
+            if (btn.isSpan) {
+                paginationComponent.insertAdjacentHTML("beforeend", `<span style="padding: 0 5px;">${btn.label}</span>`);
+            } else {
+                const buttonEl = document.createElement("button");
+                buttonEl.className = "secondary";
+                buttonEl.innerHTML = btn.label;
+                if (btn.disabled) {
+                    buttonEl.disabled = true;
+                } else {
+                    buttonEl.dataset.page = btn.page;
+                }
+                paginationComponent.appendChild(buttonEl);
+            }
+        });
+        // Attach event listeners to pagination buttons
+        paginationComponent.querySelectorAll("button[data-page]").forEach(button => {
+            button.addEventListener("click", () => {
+                const page = parseInt(button.dataset.page);
+                crudApp.fetchRows(page);
+            });
+        });
     },
 
-    splitUnescaped(query, delimiter=",") {
+    splitUnescaped(query, delimiter = ",") {
         const parts = [];
         let current = "";
         let escaped = false;

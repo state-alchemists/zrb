@@ -1,0 +1,362 @@
+<link rel="stylesheet" href="/static/crud/style.css">
+
+<main id="crud-app" 
+    class="container"
+    data-page-size='{{ page_size | tojson }}'
+    data-page='{{ page | tojson }}'
+    data-sort='{{ sort | tojson }}'
+    data-filter='{{ filter | tojson }}'
+    data-allow-create='{{ allow_create | tojson }}'
+    data-allow-update='{{ allow_update | tojson }}'
+    data-allow-delete='{{ allow_delete | tojson }}'>
+    <article>
+        <h1>Role</h1>
+
+        <fieldset id="crud-table-fieldset" role="group" class="grid">
+            <input id="crud-filter-input" placeholder="🔍 Filter" aria-label="Search" />
+            <button id="crud-search-button">🔍 Search</button>
+            {% if allow_create %}
+            <button id="crud-show-create-button" class="contrast">➕ Add</button>
+            {% endif %}
+        </fieldset>
+
+        <div id="crud-table-container">
+            <table id="crud-table" class="striped">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Permissions</th>
+                        {% if allow_update or allow_delete %}
+                        <th scope="col">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="crud-pagination"></div>
+
+        {% if allow_create %}
+        <dialog id="crud-create-form-dialog">
+            <article>
+                <h2>New Role</h2>
+                <form id="crud-create-form">
+                    <label>
+                        Name:
+                        <input type="text" name="name" required>
+                    </label>
+                    <label>
+                        Description:
+                        <input type="text" name="description" required>
+                    </label>
+                    <label>
+                        Permission Names:
+                        <textarea name="permission_names" required>[]</textarea>
+                    </label>
+                    <footer>
+                        <button id="crud-create-button">➕ Save</button>
+                        <button id="crud-cancel-create-button" class="secondary">❌ Cancel</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        {% endif %}
+
+        {% if allow_update %}
+        <dialog id="crud-update-form-dialog">
+            <article>
+                <h2>Update Role</h2>
+                <form id="crud-update-form">
+                    <label>
+                        Name:
+                        <input type="text" name="name" required>
+                    </label>
+                    <label>
+                        Description:
+                        <input type="text" name="description" required>
+                    </label>
+                    <label>
+                        Permission Names:
+                        <textarea name="permission_names" required></textarea>
+                    </label>
+                    <footer>
+                        <button id="crud-update-button">✏️ Save</button>
+                        <button id="crud-cancel-update-button" class="secondary">❌ Cancel</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        {% endif %}
+
+        {% if allow_delete %}
+        <dialog id="crud-delete-form-dialog">
+            <article>
+                <h2>Delete Role</h2>
+                <form id="crud-delete-form">
+                    <label>
+                        Name:
+                        <input type="text" name="name" readonly>
+                    </label>
+                    <label>
+                        Description:
+                        <input type="text" name="description" readonly>
+                    </label>
+                    <label>
+                        Permission Names:
+                        <textarea name="permission_names" readonly></textarea>
+                    </label>
+                    <footer>
+                        <button id="crud-cancel-delete-button" class="secondary">❌ Cancel</button>
+                        <button id="crud-delete-button">🗑️ Delete</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        {% endif %}
+
+        <dialog id="crud-alert-dialog">
+            <article>
+                <h2 id="crud-alert-title">Error</h2>
+                <pre id="crud-alert-message"></pre>
+                <footer>
+                    <button id="crud-alert-close-button">Close</button>
+                </footer>
+            </article>
+        </dialog>
+    </article>
+</main>
+
+<script src="/static/crud/util.js"></script>
+<script>
+    class CrudApp {
+        constructor(apiUrl, initialState) {
+            this.apiUrl = apiUrl;
+            this.state = { ...initialState };
+            this.init();
+        }
+
+        init() {
+            // Cache common elements
+            this.filterInput = document.getElementById("crud-filter-input");
+            this.searchButton = document.getElementById("crud-search-button");
+            this.filterInput.value = this.state.filter;
+
+            this.filterInput.addEventListener("change", (e) => this.applySearch(e));
+            this.searchButton.addEventListener("click", (e) => this.applySearch(e));
+
+            // Attach optional events if elements exist
+            this.attachEvent("crud-show-create-button", this.showCreateForm.bind(this));
+            this.attachEvent("crud-create-button", this.createRow.bind(this));
+            this.attachEvent("crud-cancel-create-button", this.hideCreateForm.bind(this));
+            this.attachEvent("crud-update-button", this.updateRow.bind(this));
+            this.attachEvent("crud-cancel-update-button", this.hideUpdateForm.bind(this));
+            this.attachEvent("crud-delete-button", this.deleteRow.bind(this));
+            this.attachEvent("crud-cancel-delete-button", this.hideDeleteForm.bind(this));
+            this.attachEvent("crud-alert-close-button", this.hideAlert.bind(this));
+
+            // Initial data fetch
+            this.fetchRows(this.state.currentPage);
+        }
+
+        attachEvent(elementId, handler) {
+            const el = document.getElementById(elementId);
+            if (el) el.addEventListener("click", handler);
+        }
+
+        async applySearch(event) {
+            if (event) event.preventDefault();
+            this.state.filter = this.filterInput.value;
+            await this.fetchRows(this.state.currentPage);
+        }
+
+        async fetchRows(page = null) {
+            try {
+                if (page !== null) {
+                    this.state.currentPage = page;
+                }
+                const defaultSearchColumn = "name";
+                // Update address bar
+                const searchParam = CRUD_UTIL.getSearchParam(this.state, defaultSearchColumn, false);
+                const newUrl = `${window.location.pathname}?${searchParam}`;
+                window.history.pushState({ path: newUrl }, "", newUrl);
+
+                // Fetch table data
+                const apiSearchParam = CRUD_UTIL.getSearchParam(this.state, defaultSearchColumn, true);
+                const result = await UTIL.fetchAPI(`${this.apiUrl}?${apiSearchParam}`, { method: "GET" });
+                this.renderRows(result.data);
+                const crudPagination = document.getElementById("crud-pagination");
+                CRUD_UTIL.renderPagination(crudPagination, this, result.count);
+            } catch (error) {
+                console.error("Error fetching items:", error);
+            }
+        }
+
+        renderRows(rows) {
+            const tableBody = document.querySelector("#crud-table tbody");
+            let tableBodyHTML = "";
+            rows.forEach(row => {
+                const rowComponents = this.getRowComponents(row);
+                let actionColumn = "";
+                if (this.state.allowUpdate) {
+                    actionColumn += `<button class="contrast" data-id="${row.id}" data-action="edit">✏️ Edit</button>`;
+                }
+                if (this.state.allowDelete) {
+                    actionColumn += `<button class="secondary" data-id="${row.id}" data-action="delete">🗑️ Delete</button>`;
+                }
+                if (this.state.allowUpdate || this.state.allowDelete) {
+                    actionColumn = `<td><fieldset class="grid" role="group">${actionColumn}</fieldset></td>`;
+                }
+                tableBodyHTML += `<tr>${rowComponents.join('')}${actionColumn}</tr>`;
+            });
+            tableBody.innerHTML = tableBodyHTML;
+            this.attachRowActionListeners();
+        }
+
+        attachRowActionListeners() {
+            document.querySelectorAll('button[data-action="edit"]').forEach(button => {
+                button.addEventListener("click", () => {
+                    this.showUpdateForm(button.getAttribute("data-id"));
+                });
+            });
+            document.querySelectorAll('button[data-action="delete"]').forEach(button => {
+                button.addEventListener("click", () => {
+                    this.showDeleteForm(button.getAttribute("data-id"));
+                });
+            });
+        }
+
+        getRowComponents(row) {
+            const rowComponents = [
+                `<td>${row.id}</td>`,
+                `<td>${row.name}</td>`,
+                `<td>${row.description}</td>`,
+                `<td>${row.permission_names.join(", ")}</td>`
+            ];
+            return rowComponents;
+        }
+
+        // Create methods
+        showCreateForm(event = null) {
+            if (event) event.preventDefault();
+            const createDialog = document.getElementById("crud-create-form-dialog");
+            const createForm = document.getElementById("crud-create-form");
+            UTIL.clearFormData(createForm);
+            createDialog.showModal();
+        }
+
+        async createRow(event = null) {
+            if (event) event.preventDefault();
+            try {
+                const createForm = document.getElementById("crud-create-form");
+                const formData = UTIL.getFormData(createForm);
+                formData.permission_names = JSON.parse(formData.permission_names);
+                await UTIL.fetchAPI(this.apiUrl, { method: "POST", body: JSON.stringify(formData) });
+                await this.fetchRows();
+                this.hideCreateForm();
+            } catch (error) {
+                console.error(error);
+                this.showAlert("Create Role Error", error);
+            }
+        }
+
+        hideCreateForm(event = null) {
+            if (event) event.preventDefault();
+            document.getElementById("crud-create-form-dialog").close();
+        }
+
+        // Update methods
+        async showUpdateForm(id) {
+            this.state.updatedRowId = id;
+            const updateDialog = document.getElementById("crud-update-form-dialog");
+            const updateForm = document.getElementById("crud-update-form");
+            const rawFormData = await UTIL.fetchAPI(`${this.apiUrl}/${id}`, { method: "GET" });
+            const { permission_names, ...formData } = rawFormData;
+            UTIL.setFormData(updateForm, formData);
+            updateForm.querySelector('[name="permission_names"]').value = JSON.stringify(permission_names);
+            updateDialog.showModal();
+        }
+
+        async updateRow(event = null) {
+            if (event) event.preventDefault();
+            try {
+                const updateForm = document.getElementById("crud-update-form");
+                const formData = UTIL.getFormData(updateForm);
+                formData.permission_names = JSON.parse(formData.permission_names);
+                await UTIL.fetchAPI(`${this.apiUrl}/${this.state.updatedRowId}`, {
+                    method: "PUT",
+                    body: JSON.stringify(formData)
+                });
+                await this.fetchRows();
+                this.hideUpdateForm();
+            } catch (error) {
+                console.error(error);
+                this.showAlert("Update Role Error", error);
+            }
+        }
+
+        hideUpdateForm(event = null) {
+            if (event) event.preventDefault();
+            document.getElementById("crud-update-form-dialog").close();
+        }
+
+        // Delete methods
+        async showDeleteForm(id) {
+            this.state.deletedRowId = id;
+            const deleteDialog = document.getElementById("crud-delete-form-dialog");
+            const deleteForm = document.getElementById("crud-delete-form");
+            const rawFormData = await UTIL.fetchAPI(`${this.apiUrl}/${id}`, { method: "GET" });
+            const { permission_names, ...formData } = rawFormData;
+            UTIL.setFormData(deleteForm, formData);
+            deleteForm.querySelector('[name="permission_names"]').value = JSON.stringify(permission_names);
+            deleteDialog.showModal();
+        }
+
+        async deleteRow(event = null) {
+            if (event) event.preventDefault();
+            try {
+                await UTIL.fetchAPI(`${this.apiUrl}/${this.state.deletedRowId}`, { method: "DELETE" });
+                await this.fetchRows();
+                this.hideDeleteForm();
+            } catch (error) {
+                console.error(error);
+                this.showAlert("Delete Role Error", error);
+            }
+        }
+
+        hideDeleteForm(event = null) {
+            if (event) event.preventDefault();
+            document.getElementById("crud-delete-form-dialog").close();
+        }
+
+        // Alert methods
+        showAlert(title, error) {
+            const alertDialog = document.getElementById("crud-alert-dialog");
+            document.getElementById("crud-alert-title").textContent = title;
+            document.getElementById("crud-alert-message").textContent = error.message || String(error);
+            alertDialog.showModal();
+        }
+
+        hideAlert(event = null) {
+            if (event) event.preventDefault();
+            document.getElementById("crud-alert-dialog").close();
+        }
+    }
+
+    // Initialize the CrudApp on DOM ready
+    document.addEventListener("DOMContentLoaded", () => {
+        const app = document.getElementById("crud-app");
+        new CrudApp("/api/v1/roles", {
+            pageSize: JSON.parse(app.dataset.pageSize),
+            currentPage: JSON.parse(app.dataset.page),
+            sort: JSON.parse(app.dataset.sort),
+            filter: JSON.parse(app.dataset.filter),
+            allowCreate: JSON.parse(app.dataset.allowCreate),
+            allowUpdate: JSON.parse(app.dataset.allowUpdate),
+            allowDelete: JSON.parse(app.dataset.allowDelete),
+            updatedRowId: null,
+            deletedRowId: null,
+        });
+    });
+</script>

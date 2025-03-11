@@ -111,6 +111,8 @@ class UserDBRepository(
                         )
                     )
                 )
+        if len(data_dict_list) == 0:
+            return
         async with self._session_scope() as session:
             await self._execute_statement(
                 session, insert(UserRole).values(data_dict_list)
@@ -120,7 +122,7 @@ class UserDBRepository(
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,
-                delete(UserRole).where(UserRole.user_id._in(user_ids)),
+                delete(UserRole).where(UserRole.user_id.in_(user_ids)),
             )
 
     async def get_by_credentials(self, username: str, password: str) -> UserResponse:

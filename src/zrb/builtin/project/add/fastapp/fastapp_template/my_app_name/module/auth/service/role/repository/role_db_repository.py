@@ -94,6 +94,8 @@ class RoleDBRepository(
                         )
                     )
                 )
+        if len(data_dict_list) == 0:
+            return
         # Insert rolePermissions
         async with self._session_scope() as session:
             await self._execute_statement(
@@ -104,5 +106,5 @@ class RoleDBRepository(
         async with self._session_scope() as session:
             await self._execute_statement(
                 session,
-                delete(RolePermission).where(RolePermission.role_id._in(role_ids)),
+                delete(RolePermission).where(RolePermission.role_id.in_(role_ids)),
             )
