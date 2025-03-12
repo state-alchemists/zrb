@@ -130,7 +130,7 @@ const UTIL = {
                     if (Array.isArray(value)) {
                         el.checked = value.includes(el.value);
                     } else {
-                        el.checked = (el.value === value);
+                        el.checked = (value === true) || (el.value == value);
                     }
                 });
             }
