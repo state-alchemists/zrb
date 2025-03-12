@@ -14,6 +14,7 @@ class IntInput(BaseInput):
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
+        always_prompt: bool = True,
     ):
         super().__init__(
             name=name,
@@ -23,6 +24,7 @@ class IntInput(BaseInput):
             auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
+            always_prompt=always_prompt,
         )
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:

@@ -19,6 +19,7 @@ class TextInput(BaseInput):
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
+        always_prompt: bool = True,
         editor: str = DEFAULT_EDITOR,
         extension: str = ".txt",
         comment_start: str | None = None,
@@ -32,6 +33,7 @@ class TextInput(BaseInput):
             auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
+            always_prompt=always_prompt,
         )
         self._editor = editor
         self._extension = extension

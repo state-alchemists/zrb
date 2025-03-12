@@ -5,10 +5,10 @@ from zrb.task.any_task import AnyTask
 
 
 def get_run_kwargs(
-    task: AnyTask, args: list[str], kwargs: dict[str, str], prompt: bool = True
+    task: AnyTask, args: list[str], kwargs: dict[str, str], cli_mode: bool
 ) -> tuple[Any]:
     arg_index = 0
-    str_kwargs = {key: val for key, val in kwargs.items()}
+    str_kwargs = {key: f"{val}" for key, val in kwargs.items()}
     run_kwargs = {**str_kwargs}
     shared_ctx = SharedContext(args=args)
     for task_input in task.inputs:
@@ -21,7 +21,7 @@ def get_run_kwargs(
             task_input.update_shared_context(shared_ctx, run_kwargs[task_input.name])
             arg_index += 1
         else:
-            if prompt:
+            if cli_mode and task_input.always_prompt:
                 str_value = task_input.prompt_cli_str(shared_ctx)
             else:
                 str_value = task_input.get_default_str(shared_ctx)

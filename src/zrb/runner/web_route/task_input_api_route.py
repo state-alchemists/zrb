@@ -41,7 +41,7 @@ def serve_task_input_api(
                 return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
             query_dict = json.loads(query)
             run_kwargs = get_run_kwargs(
-                task=task, args=[], kwargs=query_dict, prompt=False
+                task=task, args=[], kwargs=query_dict, cli_mode=False
             )
             return run_kwargs
         return JSONResponse(content={"detail": "Not found"}, status_code=404)

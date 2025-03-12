@@ -2,6 +2,8 @@ import json
 import os
 from typing import Any
 
+from pydantic_ai.models import Model
+
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
 from zrb.builtin.llm.tool.cli import run_shell_command
@@ -26,11 +28,14 @@ from zrb.config import (
     LLM_SYSTEM_PROMPT,
     SERP_API_KEY,
 )
+from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.llm_task import LLMTask
+from zrb.util.attr import get_attr
 from zrb.util.file import read_file, write_file
 from zrb.util.string.conversion import to_pascal_case
 
@@ -85,23 +90,53 @@ def _write_chat_conversation(
     write_file(last_session_file_path, current_session_name)
 
 
-llm_chat: LLMTask = llm_group.add_task(
-    LLMTask(
-        name="llm-chat",
-        input=[
+class _LLMChat(LLMTask):
+
+    _default_model: Model | str | None = None
+
+    def set_default_model(self, model: Model | str):
+        self._default_model = model
+
+    @property
+    def inputs(self) -> list[AnyInput]:
+        task_inputs = super().inputs
+        model_input_default = LLM_MODEL if self._default_model is None else "default"
+        return [
             StrInput(
                 "model",
                 description="LLM Model",
                 prompt="LLM Model",
-                default=LLM_MODEL,
+                default=model_input_default,
                 allow_positional_parsing=False,
+                always_prompt=False,
             ),
+            *task_inputs,
+        ]
+
+    def _get_model(self, ctx: AnyContext) -> str | Model | None:
+        if ctx.input.model == "default":
+            if self._default_model is not None:
+                return self._default_model
+            return super()._get_model(ctx)
+        model = get_attr(
+            ctx, ctx.input.model, "ollama_chat/llama3.1", auto_render=self._render_model
+        )
+        if isinstance(model, (Model, str)) or model is None:
+            return model
+        raise ValueError("Invalid model")
+
+
+llm_chat: LLMTask = llm_group.add_task(
+    _LLMChat(
+        name="llm-chat",
+        input=[
             TextInput(
                 "system-prompt",
                 description="System prompt",
                 prompt="System prompt",
                 default=LLM_SYSTEM_PROMPT,
                 allow_positional_parsing=False,
+                always_prompt=False,
             ),
             BoolInput(
                 "start-new",
@@ -109,6 +144,7 @@ llm_chat: LLMTask = llm_group.add_task(
                 prompt="Start new conversation (LLM will forget everything)",
                 default=False,
                 allow_positional_parsing=False,
+                always_prompt=False,
             ),
             TextInput("message", description="User message", prompt="Your message"),
             PreviousSessionInput(
@@ -117,12 +153,12 @@ llm_chat: LLMTask = llm_group.add_task(
                 prompt="Previous conversation session (can be empty)",
                 allow_positional_parsing=False,
                 allow_empty=True,
+                always_prompt=False,
             ),
         ],
         conversation_history_reader=_read_chat_conversation,
         conversation_history_writer=_write_chat_conversation,
         description="Chat with LLM",
-        model="{ctx.input.model}",
         system_prompt="{ctx.input['system-prompt']}",
         message="{ctx.input.message}",
         retries=0,

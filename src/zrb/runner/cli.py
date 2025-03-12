@@ -33,7 +33,7 @@ class Cli(Group):
         if "h" in kwargs or "help" in kwargs:
             self._show_task_info(node)
             return
-        run_kwargs = get_run_kwargs(task=node, args=args, kwargs=kwargs, prompt=True)
+        run_kwargs = get_run_kwargs(task=node, args=args, kwargs=kwargs, cli_mode=True)
         try:
             result = self._run_task(node, args, run_kwargs)
             if result is not None:

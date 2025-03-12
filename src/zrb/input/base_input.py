@@ -17,6 +17,7 @@ class BaseInput(AnyInput):
         auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
+        always_prompt: bool = True,
     ):
         self._name = name
         self._description = description
@@ -25,6 +26,7 @@ class BaseInput(AnyInput):
         self._auto_render = auto_render
         self._allow_empty = allow_empty
         self._allow_positional_parsing = allow_positional_parsing
+        self._always_prompt = always_prompt
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
@@ -36,6 +38,10 @@ class BaseInput(AnyInput):
     @property
     def description(self) -> str:
         return self._description if self._description is not None else self.name
+
+    @property
+    def always_prompt(self) -> bool:
+        return self._always_prompt
 
     @property
     def prompt_message(self) -> str:

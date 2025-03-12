@@ -1,3 +1,12 @@
+# 1.2.3
+
+- Introduce `always_prompt` parameter for input
+
+# 1.2.2
+
+- Fix and refactor FastApp CRUD
+
+
 # 1.2.1
 
 - Fixing Fastapp generator by adding `os.path.abspath`

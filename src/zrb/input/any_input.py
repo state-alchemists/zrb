@@ -16,6 +16,11 @@ class AnyInput(ABC):
 
     @property
     @abstractmethod
+    def always_prompt(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def prompt_message(self) -> str:
         pass
 
