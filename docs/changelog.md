@@ -1,5 +1,6 @@
-# 1.2.3
+# 1.3.0
 
+- Introduce `llm_chat.set_default_model`, remove `llm_chat.set_model`
 - Introduce `always_prompt` parameter for input
 
 # 1.2.2

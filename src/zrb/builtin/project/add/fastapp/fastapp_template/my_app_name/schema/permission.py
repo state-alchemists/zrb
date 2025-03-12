@@ -25,7 +25,9 @@ class PermissionUpdate(SQLModel):
     description: str | None = None
 
     def with_audit(self, updated_by: str) -> "PermissionUpdateWithAudit":
-        return PermissionUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
+        return PermissionUpdateWithAudit(
+            **self.model_dump(exclude_none=True), updated_by=updated_by
+        )
 
 
 class PermissionUpdateWithAudit(PermissionUpdate):

@@ -143,13 +143,15 @@ class UserService(BaseService):
     async def create_user_bulk(
         self, data: list[UserCreateWithRolesAndAudit]
     ) -> list[UserResponse]:
-        role_names = [row.get_role_names() for row in data]
-        data = [row.get_user_create_with_audit() for row in data]
-        users = await self.user_repository.create_bulk(data)
+        bulk_role_names = [row.get_role_names() for row in data]
+        for role_names in bulk_role_names:
+            await self.user_repository.validate_role_names(role_names)
+        bulk_user_data = [row.get_user_create_with_audit() for row in data]
+        users = await self.user_repository.create_bulk(bulk_user_data)
         if len(users) > 0:
             created_by = users[0].created_by
             await self.user_repository.add_roles(
-                data={user.id: role_names[i] for i, user in enumerate(users)},
+                data={user.id: bulk_role_names[i] for i, user in enumerate(users)},
                 created_by=created_by,
             )
         return await self.user_repository.get_by_ids([user.id for user in users])
@@ -161,8 +163,9 @@ class UserService(BaseService):
     )
     async def create_user(self, data: UserCreateWithRolesAndAudit) -> UserResponse:
         role_names = data.get_role_names()
-        data = data.get_user_create_with_audit()
-        user = await self.user_repository.create(data)
+        await self.user_repository.validate_role_names(role_names)
+        user_data = data.get_user_create_with_audit()
+        user = await self.user_repository.create(user_data)
         await self.user_repository.add_roles(
             data={user.id: role_names}, created_by=user.created_by
         )
@@ -176,14 +179,18 @@ class UserService(BaseService):
     async def update_user_bulk(
         self, user_ids: list[str], data: UserUpdateWithRolesAndAudit
     ) -> list[UserResponse]:
-        role_names = [row.get_role_names() for row in data]
-        user_data = [row.get_user_create_with_audit() for row in data]
-        await self.user_repository.update_bulk(user_ids, user_data)
+        bulk_role_names = [row.get_role_names() for row in data]
+        for role_names in bulk_role_names:
+            await self.user_repository.validate_role_names(role_names)
+        bulk_user_data = [row.get_user_update_with_audit() for row in data]
+        await self.user_repository.update_bulk(user_ids, bulk_user_data)
         if len(user_ids) > 0:
-            updated_by = user_data[0].updated_by
+            updated_by = bulk_user_data[0].updated_by
             await self.user_repository.remove_all_roles(user_ids)
             await self.user_repository.add_roles(
-                data={user_id: role_names[i] for i, user_id in enumerate(user_ids)},
+                data={
+                    user_id: bulk_role_names[i] for i, user_id in enumerate(user_ids)
+                },
                 updated_by=updated_by,
             )
         return await self.user_repository.get_by_ids(user_ids)
@@ -197,6 +204,7 @@ class UserService(BaseService):
         self, user_id: str, data: UserUpdateWithRolesAndAudit
     ) -> UserResponse:
         role_names = data.get_role_names()
+        await self.user_repository.validate_role_names(role_names)
         user_data = data.get_user_update_with_audit()
         await self.user_repository.update(user_id, user_data)
         await self.user_repository.remove_all_roles([user_id])

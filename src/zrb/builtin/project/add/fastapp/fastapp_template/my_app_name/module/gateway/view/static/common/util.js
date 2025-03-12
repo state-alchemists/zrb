@@ -175,13 +175,40 @@ const UTIL = {
     getFormData(form) {
         const formData = new FormData(form);
         const data = {};
-        // Iterate over each key in the FormData
-        for (let key of formData.keys()) {
-            // Get all values associated with the key
-            const values = formData.getAll(key);
-            // If multiple values are found, store them as an array; otherwise, just store the single value.
-            data[key] = values.length > 1 ? values : values[0];
+        // Populate data from FormData (this covers inputs, textareas, selects, and checked radio buttons)
+        for (const [key, value] of formData.entries()) {
+            // If key already exists, it’s part of a multi-value field.
+            if (key in data) {
+                if (!Array.isArray(data[key])) {
+                    data[key] = [data[key]];
+                }
+                data[key].push(value);
+            } else {
+                data[key] = value;
+            }
         }
+        // Process all checkbox inputs.
+        const checkboxes = form.querySelectorAll("input[type='checkbox']");
+        // Use a Set to iterate over unique checkbox names.
+        const checkboxNames = new Set();
+        checkboxes.forEach(el => checkboxNames.add(el.name));
+        checkboxNames.forEach(name => {
+            const elems = form.querySelectorAll(`input[type='checkbox'][name="${name}"]`);
+            if (elems.length === 1) {
+                // Unique checkbox: convert its presence in formData to a boolean.
+                // If it wasn’t included by FormData (because it was unchecked), default to false.
+                data[name] = elems[0].checked;
+            } else {
+                // Multiple checkboxes: ensure the value is an array.
+                // If none of the checkboxes were checked, ensure an empty array is returned.
+                if (!(name in data)) {
+                    data[name] = [];
+                } else if (!Array.isArray(data[name])) {
+                    // This case can happen if only one checkbox in the group was checked.
+                    data[name] = [data[name]];
+                }
+            }
+        });
         return data;
     },
 

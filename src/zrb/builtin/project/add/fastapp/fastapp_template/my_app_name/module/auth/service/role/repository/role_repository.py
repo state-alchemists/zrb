@@ -19,6 +19,10 @@ class RoleRepository(ABC):
         """Get roles by ids"""
 
     @abstractmethod
+    async def validate_permission_names(self, permission_names: list[str]):
+        """Validate Permission names"""
+
+    @abstractmethod
     async def add_permissions(self, data: dict[str, list[str]], created_by: str):
         """Adding permissions to roles"""
 

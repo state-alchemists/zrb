@@ -3,6 +3,7 @@ from typing import Any
 
 import ulid
 from my_app_name.common.base_db_repository import BaseDBRepository
+from my_app_name.common.error import InvalidValueError
 from my_app_name.module.auth.service.role.repository.role_repository import (
     RoleRepository,
 )
@@ -64,6 +65,20 @@ class RoleDBRepository(
             )
             for data in role_map.values()
         ]
+
+    async def validate_permission_names(self, permission_names: list[str]):
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session,
+                select(Permission.name).where(Permission.name.in_(permission_names)),
+            )
+            existing_permissions = {row[0] for row in result.all()}
+            # Identify any missing permission names
+            missing_permissions = set(permission_names) - existing_permissions
+            if missing_permissions:
+                raise InvalidValueError(
+                    f"Permission(s) not found: {', '.join(missing_permissions)}"
+                )
 
     async def add_permissions(self, data: dict[str, list[str]], created_by: str):
         now = datetime.datetime.now(datetime.timezone.utc)

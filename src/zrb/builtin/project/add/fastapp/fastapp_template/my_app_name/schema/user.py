@@ -51,7 +51,9 @@ class UserUpdate(SQLModel):
     active: bool | None = None
 
     def with_audit(self, updated_by: str) -> "UserUpdateWithAudit":
-        return UserUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
+        return UserUpdateWithAudit(
+            **self.model_dump(exclude_none=True), updated_by=updated_by
+        )
 
 
 class UserUpdateWithAudit(UserUpdate):
@@ -62,7 +64,9 @@ class UserUpdateWithRoles(UserUpdate):
     role_names: list[str] | None = None
 
     def with_audit(self, updated_by: str) -> "UserUpdateWithRolesAndAudit":
-        return UserUpdateWithRolesAndAudit(**self.model_dump(), updated_by=updated_by)
+        return UserUpdateWithRolesAndAudit(
+            **self.model_dump(exclude_none=True), updated_by=updated_by
+        )
 
 
 class UserUpdateWithRolesAndAudit(UserUpdateWithRoles):
@@ -70,7 +74,9 @@ class UserUpdateWithRolesAndAudit(UserUpdateWithRoles):
 
     def get_user_update_with_audit(self) -> UserUpdateWithAudit:
         data = {
-            key: val for key, val in self.model_dump().items() if key != "role_names"
+            key: val
+            for key, val in self.model_dump(exclude_none=True).items()
+            if key != "role_names"
         }
         return UserUpdateWithAudit(**data)
 

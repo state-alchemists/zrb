@@ -3,7 +3,7 @@ from typing import Any
 
 import ulid
 from my_app_name.common.base_db_repository import BaseDBRepository
-from my_app_name.common.error import NotFoundError, UnauthorizedError
+from my_app_name.common.error import InvalidValueError, NotFoundError, UnauthorizedError
 from my_app_name.module.auth.service.user.repository.user_repository import (
     UserRepository,
 )
@@ -86,6 +86,19 @@ class UserDBRepository(
             )
             for data in user_map.values()
         ]
+
+    async def validate_role_names(self, role_names: list[str]):
+        async with self._session_scope() as session:
+            result = await self._execute_statement(
+                session, select(Role.name).where(Role.name.in_(role_names))
+            )
+            existing_roles = {row[0] for row in result.all()}
+            # Identify any missing role names
+            missing_roles = set(role_names) - existing_roles
+            if missing_roles:
+                raise InvalidValueError(
+                    f"Role(s) not found: {', '.join(missing_roles)}"
+                )
 
     async def add_roles(self, data: dict[str, list[str]], created_by: str):
         now = datetime.datetime.now(datetime.timezone.utc)

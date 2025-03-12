@@ -21,6 +21,10 @@ class UserRepository(ABC):
         """Get users by ids"""
 
     @abstractmethod
+    async def validate_role_names(self, role_names: list[str]):
+        """Validate Role names"""
+
+    @abstractmethod
     async def add_roles(self, data: dict[str, list[str]], created_by: str):
         """Add roles to user"""
 

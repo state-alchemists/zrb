@@ -22,7 +22,9 @@ class MyEntityUpdate(SQLModel):
     my_column: str | None = None
 
     def with_audit(self, updated_by: str) -> "MyEntityUpdateWithAudit":
-        return MyEntityUpdateWithAudit(**self.model_dump(), updated_by=updated_by)
+        return MyEntityUpdateWithAudit(
+            **self.model_dump(exclude_none=True), updated_by=updated_by
+        )
 
 
 class MyEntityUpdateWithAudit(MyEntityUpdate):
