@@ -1,3 +1,8 @@
+# 1.3.1
+
+- Fix CRUD filter parsing on UI
+- Automatically create migration when adding new column
+
 # 1.3.0
 
 - Introduce `llm_chat.set_default_model`, remove `llm_chat.set_model`

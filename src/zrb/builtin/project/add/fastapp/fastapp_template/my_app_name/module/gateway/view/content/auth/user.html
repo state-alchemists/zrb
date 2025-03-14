@@ -2,13 +2,13 @@
 
 <main id="crud-app" 
     class="container"
-    data-page-size='{{ page_size | tojson }}'
-    data-page='{{ page | tojson }}'
-    data-sort='{{ sort | tojson }}'
-    data-filter='{{ filter | tojson }}'
-    data-allow-create='{{ allow_create | tojson }}'
-    data-allow-update='{{ allow_update | tojson }}'
-    data-allow-delete='{{ allow_delete | tojson }}'>
+    data-page-size='{{ page_size | tojson | safe }}'
+    data-page='{{ page | tojson | safe }}'
+    data-sort='{{ sort | tojson | safe }}'
+    data-filter='{{ filter | tojson | safe }}'
+    data-allow-create='{{ allow_create | tojson | safe }}'
+    data-allow-update='{{ allow_update | tojson | safe }}'
+    data-allow-delete='{{ allow_delete | tojson | safe }}'>
     <article>
         <h1>User</h1>
 
@@ -263,7 +263,7 @@
             try {
                 const createForm = document.getElementById("crud-create-form");
                 const formData = UTIL.getFormData(createForm);
-                formData.role_names = JSON.parse(formData.role_names);
+                formData.role_names = UTIL.tryParseJSON(formData.role_names);
                 await UTIL.fetchAPI(this.apiUrl, { method: "POST", body: JSON.stringify(formData) });
                 await this.fetchRows();
                 this.hideCreateForm();
@@ -298,7 +298,7 @@
                 if (!formData.password) {
                     delete formData.password;
                 }
-                formData.role_names = JSON.parse(formData.role_names);
+                formData.role_names = UTIL.tryParseJSON(formData.role_names);
                 await UTIL.fetchAPI(`${this.apiUrl}/${this.state.updatedRowId}`, {
                     method: "PUT",
                     body: JSON.stringify(formData)
@@ -363,13 +363,13 @@
     document.addEventListener("DOMContentLoaded", () => {
         const app = document.getElementById("crud-app");
         new CrudApp("/api/v1/users", {
-            pageSize: JSON.parse(app.dataset.pageSize),
-            currentPage: JSON.parse(app.dataset.page),
-            sort: JSON.parse(app.dataset.sort),
-            filter: JSON.parse(app.dataset.filter),
-            allowCreate: JSON.parse(app.dataset.allowCreate),
-            allowUpdate: JSON.parse(app.dataset.allowUpdate),
-            allowDelete: JSON.parse(app.dataset.allowDelete),
+            pageSize: UTIL.tryParseJSON(app.dataset.pageSize),
+            currentPage: UTIL.tryParseJSON(app.dataset.page),
+            sort: UTIL.tryParseJSON(app.dataset.sort),
+            filter: UTIL.tryParseJSON(app.dataset.filter),
+            allowCreate: UTIL.tryParseJSON(app.dataset.allowCreate),
+            allowUpdate: UTIL.tryParseJSON(app.dataset.allowUpdate),
+            allowDelete: UTIL.tryParseJSON(app.dataset.allowDelete),
             updatedRowId: null,
             deletedRowId: null,
         });
