@@ -242,6 +242,7 @@ class LLMTask(BaseTask):
             system_prompt=self._get_system_prompt(ctx),
             tools=tools,
             model_settings=self._get_model_settings(ctx),
+            retries=3,
         )
 
     def _get_model(self, ctx: AnyContext) -> str | Model | None:
