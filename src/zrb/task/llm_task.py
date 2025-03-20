@@ -23,6 +23,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
+from zrb.llm_config import LLMConfig, llm_config as default_llm_config
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_str_attr
@@ -46,11 +47,15 @@ class LLMTask(BaseTask):
         env: list[AnyEnv | None] | AnyEnv | None = None,
         model: (
             Callable[[AnySharedContext], Model | str | fstring] | Model | None
-        ) = LLM_MODEL,
+        ) = None,
+        render_model: bool = True,
+        model_base_url: StrAttr = None,
+        render_model_base_url: bool = True,
+        model_api_key: StrAttr = None,
+        render_model_api_key: bool = True,
         model_settings: (
             ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
         ) = None,
-        render_model: bool = True,
         agent: Agent | Callable[[AnySharedContext], Agent] | None = None,
         system_prompt: StrAttr | None = LLM_SYSTEM_PROMPT,
         render_system_prompt: bool = True,
@@ -105,9 +110,13 @@ class LLMTask(BaseTask):
             successor=successor,
         )
         self._model = model
+        self._render_model = render_model
+        self._model_base_url = model_base_url
+        self._render_model_base_url = render_model_base_url
+        self._model_api_key = model_api_key
+        self._render_model_api_key = render_model_api_key
         self._model_settings = model_settings
         self._agent = agent
-        self._render_model = render_model
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
         self._message = message
@@ -247,11 +256,34 @@ class LLMTask(BaseTask):
 
     def _get_model(self, ctx: AnyContext) -> str | Model | None:
         model = get_attr(
-            ctx, self._model, "ollama_chat/llama3.1", auto_render=self._render_model
+            ctx, self._model, "", auto_render=self._render_model
         )
+        if model is None:
+            return default_llm_config.get_model()
+        if isinstance(model, str):
+            llm_config = LLMConfig()
+        if isinstance(model, Model):
+            return model
+
         if isinstance(model, (Model, str)) or model is None:
             return model
-        raise ValueError("Invalid model")
+        raise ValueError(f"Invalid model: {model}")
+
+    def _get_model_base_url(self, ctx: AnyContext) -> str | None:
+        base_url = get_attr(
+            ctx, self._model_base_url, None, auto_render=self._render_model_base_url
+        )
+        if isinstance(base_url, str) or base_url is None:
+            return base_url
+        raise ValueError(f"Invalid model base URL: {base_url}")
+
+    def _get_model_api_key(self, ctx: AnyContext) -> str | None:
+        api_key = get_attr(
+            ctx, self._model_api_key, None, auto_render=self._render_model_api_key
+        )
+        if isinstance(api_key, str) or api_key is None:
+            return api_key
+        raise ValueError(f"Invalid model base URL: {api_key}")
 
     def _get_system_prompt(self, ctx: AnyContext) -> str:
         return get_str_attr(

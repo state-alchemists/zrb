@@ -31,6 +31,13 @@ def _get_log_level(level: str) -> int:
     return logging.WARNING
 
 
+def _get_llm_model() -> str | None:
+    llm_model = os.getenv("ZRB_LLM_MODEL", "")    
+    if llm_model == "":
+        return None
+    return llm_model
+
+
 DEFAULT_SHELL = os.getenv("ZRB_SHELL", _get_current_shell())
 DEFAULT_EDITOR = os.getenv("ZRB_EDITOR", "nano")
 INIT_MODULES_STR = os.getenv("ZRB_INIT_MODULES", "")
@@ -75,7 +82,7 @@ WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(
 WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60")
 )
-LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
+LLM_MODEL = _get_llm_model()
 
 _DEFAULT_PROMPT = (
     "You are a helpful AI assistant capable of using various tools to answer user queries. When solving a problem:\n"

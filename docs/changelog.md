@@ -1,3 +1,7 @@
+# 1.3.2
+
+- Introduce LLMConfig
+
 # 1.3.1
 
 - Fix CRUD filter parsing on UI
