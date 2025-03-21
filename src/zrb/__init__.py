@@ -33,6 +33,7 @@ from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
+from zrb.llm_config import llm_config
 from zrb.runner.cli import cli
 from zrb.runner.web_config.config_factory import web_config
 from zrb.runner.web_schema.user import User
@@ -101,6 +102,7 @@ assert ContentTransformer
 assert Scaffolder
 assert Scheduler
 assert cli
+assert llm_config
 assert Xcom
 assert web_config
 assert User

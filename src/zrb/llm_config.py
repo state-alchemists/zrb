@@ -28,13 +28,9 @@ class LLMConfig:
         return self._model_name if self._model_name is not None else None
 
     def _get_model_provider(self) -> OpenAIProvider:
-        if self._base_url is not None and self._api_key is not None:
-            return OpenAIProvider(base_url=self._base_url, api_key=self._api_key)
-        if self._base_url is not None:
-            return OpenAIProvider(api_key=self._api_key)
-        if self._api_key is None:
-            return OpenAIProvider(base_url=self._base_url)
-        return "openai"
+        if self._base_url is None and self._api_key is None:
+            return "openai"
+        return OpenAIProvider(base_url=self._base_url, api_key=self._api_key)
 
     def get_default_model(self) -> Model | str | None:
         if self._default_model is not None:

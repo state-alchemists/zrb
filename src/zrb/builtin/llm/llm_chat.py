@@ -142,8 +142,12 @@ llm_chat: LLMTask = llm_group.add_task(
             ),
         ],
         model=lambda ctx: None if ctx.input.model == "" else ctx.input.model,
-        model_base_url=lambda ctx: None if ctx.input.base_url == "" else ctx.input.base_url,
-        model_api_key=lambda ctx: None if ctx.input.api_key == "" else ctx.input.api_key,
+        model_base_url=lambda ctx: (
+            None if ctx.input.base_url == "" else ctx.input.base_url
+        ),
+        model_api_key=lambda ctx: (
+            None if ctx.input.api_key == "" else ctx.input.api_key
+        ),
         conversation_history_reader=_read_chat_conversation,
         conversation_history_writer=_write_chat_conversation,
         description="Chat with LLM",

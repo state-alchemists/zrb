@@ -261,13 +261,13 @@ class LLMTask(BaseTask):
                 model_name=model,
                 base_url=get_attr(
                     ctx,
-                    self._model_base_url,
+                    self._get_model_base_url(ctx),
                     None,
                     auto_render=self._render_model_base_url,
                 ),
                 api_key=get_attr(
                     ctx,
-                    self._model_api_key,
+                    self._get_model_api_key(ctx),
                     None,
                     auto_render=self._render_model_api_key,
                 ),

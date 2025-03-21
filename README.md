@@ -9,31 +9,33 @@ Zrb allows you to write your automation tasks in Python. For example, you can de
 
 ```python
 import os
-from zrb import cli, LLMTask, CmdTask, StrInput
+from zrb import cli, llm_config, LLMTask, CmdTask, StrInput, Group
 from zrb.builtin.llm.tool.file import read_all_files, write_text_file
 from pydantic_ai.models.openai import OpenAIModel
-
+from pydantic_ai.providers.openai import OpenAIProvider
 
 CURRENT_DIR = os.getcwd()
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL_NAME = os.getenv(
-    "AGENT_MODEL_NAME", "anthropic/claude-3.7-sonnet"
+
+# Setup default LLM Config
+llm_config.set_default_model(
+    OpenAIModel(
+        model_name="gpt-4o",
+        provider=OpenAIProvider(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv("OPENROUTER_API_KEY", "")
+        )
+    )
 )
 
+# Make UML group
+uml_group = cli.add_group(Group(name="uml", description="UML related tasks"))
 
-# Defining a LLM Task to create a Plantuml script based on source code in current directory.
-# User can choose the diagram type. By default it is "state diagram"
-make_uml = cli.add_task(
+# Generate UML script
+make_uml_script = uml_group.add_task(
     LLMTask(
-        name="make-uml",
+        name="make-script",
         description="Creating plantuml diagram based on source code in current directory",
         input=StrInput(name="diagram", default="state diagram"),
-        model=OpenAIModel(
-            OPENROUTER_MODEL_NAME,
-            base_url=OPENROUTER_BASE_URL,
-            api_key=OPENROUTER_API_KEY,
-        ),
         message=(
             f"Read source code in {CURRENT_DIR}, "
             "make a {ctx.input.diagram} in plantuml format. "
@@ -47,9 +49,9 @@ make_uml = cli.add_task(
 )
 
 # Defining a Cmd Task to transform Plantuml script into a png image.
-make_png = cli.add_task(
+make_uml_image = uml_group.add_task(
     CmdTask(
-        name="make-png",
+        name="make-image",
         description="Creating png based on source code in current directory",
         input=StrInput(name="diagram", default="state diagram"),
         cmd="plantuml -tpng '{ctx.input.diagram}.uml'",
@@ -58,19 +60,19 @@ make_png = cli.add_task(
 )
 
 # Making sure that make_png has make_uml as its dependency.
-make_uml >> make_png
+make_uml_script >> make_uml_image
 ```
 
 Once defined, your automation tasks are immediately accessible from the CLI. You can then invoke the tasks by invoking.
 
 ```bash
-zrb make-png --diagram "state diagram"
+zrb uml make-image --diagram "state diagram"
 ```
 
 Or you can invoke the tasks without parameter.
 
 ```bash
-zrb make-png
+zrb uml make-image
 ```
 
 At this point, Zrb will politely ask you to provide the diagram type.

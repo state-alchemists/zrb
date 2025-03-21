@@ -39,7 +39,8 @@ Zrb can be configured using the following [environment variables](recipes/others
 
 ## LLM (Language Model) Configuration
 
-- `ZRB_LLM_MODEL`: LLM model to use. Default: `ollama_chat/llama3.1`
+- `ZRB_LLM_MODEL`: LLM model to use. Default: Empty. Possible values: `llama3.1:latest`
+- `ZRB_LLM_BASE_URL`: LLM model to use. Default: Empty. Possible values: `http://localhost:11434/v1`
 - `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM. Default: `You are a helpful assistant`
 - `ZRB_LLM_HISTORY_FILE`: File to store LLM conversation history. Default: `~/.zrb-llm-history.json`
 - `ZRB_LLM_ACCESS_FILE`: Whether to allow LLM to access files. Default: `1` (true)
