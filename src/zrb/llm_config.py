@@ -47,7 +47,7 @@ class LLMConfig:
             provider=self._get_model_provider(),
         )
 
-    def set_model(self, model: Model | str | None):
+    def set_default_model(self, model: Model | str | None):
         self._default_model = model
 
 
