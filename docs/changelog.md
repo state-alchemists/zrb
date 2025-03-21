@@ -1,6 +1,10 @@
-# 1.3.2
+# 1.4.0
 
 - Introduce LLMConfig
+- Rename tool and update signatures:
+    - Rename `list_file` to `list_files`
+    - Rename `read_source_code` to `read_all_files`
+    - Remove parameter `extensions`, add parameters `included_patterns` and `excluded_patterns`.
 
 # 1.3.1
 
