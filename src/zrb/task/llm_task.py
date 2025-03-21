@@ -257,6 +257,7 @@ class LLMTask(BaseTask):
         if model is None:
             return default_llm_config.get_default_model()
         if isinstance(model, str):
+            print("MODEL", model)
             llm_config = LLMConfig(
                 model_name=model,
                 base_url=get_attr(

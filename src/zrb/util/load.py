@@ -9,22 +9,6 @@ from typing import Any
 pattern = re.compile("[^a-zA-Z0-9]")
 
 
-def load_zrb_init(dir_path: str | None = None) -> Any | None:
-    if dir_path is None:
-        dir_path = os.getcwd()
-    # get path list from current path to the absolute root
-    current_path = os.path.abspath(dir_path)
-    path_list = [current_path]
-    while current_path != os.path.dirname(current_path):  # Stop at root
-        current_path = os.path.dirname(current_path)
-        path_list.append(current_path)
-    # loop from root to current path to load zrb_init
-    for current_path in path_list[::-1]:
-        script_path = os.path.join(current_path, "zrb_init.py")
-        if os.path.isfile(script_path):
-            load_file(script_path)
-
-
 @lru_cache
 def load_file(script_path: str, sys_path_index: int = 0) -> Any | None:
     if not os.path.isfile(script_path):

@@ -18,13 +18,11 @@ from zrb.util.cli.style import (
     stylize_section_header,
 )
 from zrb.util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
-from zrb.util.load import load_zrb_init
 from zrb.util.string.conversion import double_quote
 
 
 class Cli(Group):
     def run(self, args: list[str] = []):
-        load_zrb_init()
         kwargs, args = self._extract_kwargs_from_args(args)
         node, node_path, args = extract_node_from_args(self, args)
         if isinstance(node, Group):
