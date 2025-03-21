@@ -4,7 +4,7 @@ import os
 from zrb.util.file import read_file, write_file
 
 
-def list_file(
+def list_files(
     directory: str = ".",
     included_patterns: list[str] = [
         "*.py",
@@ -52,7 +52,7 @@ def write_text_file(file: str, content: str):
     return write_file(os.path.abspath(file), content)
 
 
-def read_all(
+def read_all_files(
     directory: str = ".",
     included_patterns: list[str] = [
         "*.py",
@@ -69,7 +69,7 @@ def read_all(
     and do not match any of the excluded glob patterns.
     Patterns are evaluated using glob-style matching.
     """
-    files = list_file(directory, included_patterns, excluded_patterns)
+    files = list_files(directory, included_patterns, excluded_patterns)
     for index, file in enumerate(files):
         content = read_text_file(file)
         files[index] = f"# {file}\n```\n{content}\n```"

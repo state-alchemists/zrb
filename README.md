@@ -10,7 +10,7 @@ Zrb allows you to write your automation tasks in Python. For example, you can de
 ```python
 import os
 from zrb import cli, LLMTask, CmdTask, StrInput
-from zrb.builtin.llm.tool.file import read_source_code, write_text_file
+from zrb.builtin.llm.tool.file import read_all_files, write_text_file
 from pydantic_ai.models.openai import OpenAIModel
 
 
@@ -40,7 +40,7 @@ make_uml = cli.add_task(
             f"Write the script into {CURRENT_DIR}/{{ctx.input.diagram}}.uml"
         ),
         tools=[
-            read_source_code,
+            read_all_files,
             write_text_file,
         ],
     )
