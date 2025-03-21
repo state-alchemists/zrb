@@ -75,7 +75,6 @@ WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(
 WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60")
 )
-LLM_MODEL = os.getenv("ZRB_LLM_MODEL", "ollama_chat/llama3.1")
 
 _DEFAULT_PROMPT = (
     "You are a helpful AI assistant capable of using various tools to answer user queries. When solving a problem:\n"
