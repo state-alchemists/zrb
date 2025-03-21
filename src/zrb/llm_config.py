@@ -1,10 +1,11 @@
 import os
+
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 
-class LLMConfig():
+class LLMConfig:
 
     def __init__(
         self,
@@ -12,9 +13,15 @@ class LLMConfig():
         base_url: str | None = None,
         api_key: str | None = None,
     ):
-        self._model_name = os.getenv("ZRB_LLM_MODEL", None)
-        self._base_url = os.getenv("ZRB_LLM_BASE_URL", None)
-        self._api_key = os.getenv("ZRB_LLM_API_KEY", None)
+        self._model_name = (
+            model_name if model_name is not None else os.getenv("ZRB_LLM_MODEL", None)
+        )
+        self._base_url = (
+            base_url if base_url is not None else os.getenv("ZRB_LLM_BASE_URL", None)
+        )
+        self._api_key = (
+            api_key if api_key is not None else os.getenv("ZRB_LLM_API_KEY", None)
+        )
         self._default_model = None
 
     def _get_model_name(self) -> str | None:

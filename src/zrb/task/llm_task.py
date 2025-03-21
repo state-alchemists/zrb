@@ -23,7 +23,8 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
-from zrb.llm_config import LLMConfig, llm_config as default_llm_config
+from zrb.llm_config import LLMConfig
+from zrb.llm_config import llm_config as default_llm_config
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_str_attr
@@ -255,9 +256,7 @@ class LLMTask(BaseTask):
         )
 
     def _get_model(self, ctx: AnyContext) -> str | Model | None:
-        model = get_attr(
-            ctx, self._model, "", auto_render=self._render_model
-        )
+        model = get_attr(ctx, self._model, "", auto_render=self._render_model)
         if model is None:
             return default_llm_config.get_model()
         if isinstance(model, str):

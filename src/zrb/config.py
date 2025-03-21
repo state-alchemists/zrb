@@ -32,7 +32,7 @@ def _get_log_level(level: str) -> int:
 
 
 def _get_llm_model() -> str | None:
-    llm_model = os.getenv("ZRB_LLM_MODEL", "")    
+    llm_model = os.getenv("ZRB_LLM_MODEL", "")
     if llm_model == "":
         return None
     return llm_model
