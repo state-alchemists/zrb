@@ -18,7 +18,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import StrAttr, fstring
-from zrb.config import LLM_MODEL, LLM_SYSTEM_PROMPT
+from zrb.config import LLM_SYSTEM_PROMPT
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
@@ -129,9 +129,6 @@ class LLMTask(BaseTask):
         self._conversation_history_file = conversation_history_file
         self._render_history_file = render_history_file
         self._max_call_iteration = max_call_iteration
-
-    def set_model(self, model: Model | str):
-        self._model = model
 
     def add_tool(self, tool: ToolOrCallable):
         self._additional_tools.append(tool)
@@ -256,16 +253,26 @@ class LLMTask(BaseTask):
         )
 
     def _get_model(self, ctx: AnyContext) -> str | Model | None:
-        model = get_attr(ctx, self._model, "", auto_render=self._render_model)
+        model = get_attr(ctx, self._model, None, auto_render=self._render_model)
         if model is None:
-            return default_llm_config.get_model()
+            return default_llm_config.get_default_model()
         if isinstance(model, str):
-            llm_config = LLMConfig()
-        if isinstance(model, Model):
-            return model
-
-        if isinstance(model, (Model, str)) or model is None:
-            return model
+            llm_config = LLMConfig(
+                model_name=model,
+                base_url=get_attr(
+                    ctx,
+                    self._model_base_url,
+                    None,
+                    auto_render=self._render_model_base_url,
+                ),
+                api_key=get_attr(
+                    ctx,
+                    self._model_api_key,
+                    None,
+                    auto_render=self._render_model_api_key,
+                ),
+            )
+            return llm_config.get_default_model()
         raise ValueError(f"Invalid model: {model}")
 
     def _get_model_base_url(self, ctx: AnyContext) -> str | None:

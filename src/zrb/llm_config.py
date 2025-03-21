@@ -36,7 +36,7 @@ class LLMConfig:
             return OpenAIProvider(base_url=self._base_url)
         return "openai"
 
-    def get_model(self) -> Model | str | None:
+    def get_default_model(self) -> Model | str | None:
         if self._default_model is not None:
             return self._default_model
         model_name = self._get_model_name()
