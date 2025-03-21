@@ -19,10 +19,6 @@ def list_file(
     """
     all_files: list[str] = []
     for root, dirs, files in os.walk(directory):
-        # Optionally, prune excluded directories here to avoid walking them
-        dirs[:] = [
-            d for d in dirs if not any(fnmatch.fnmatch(d, pat) for pat in excluded_patterns)
-        ]
         for filename in files:
             if any(fnmatch.fnmatch(filename, pat) for pat in included_patterns):
                 full_path = os.path.join(root, filename)
@@ -46,7 +42,7 @@ def write_text_file(file: str, content: str):
     return write_file(os.path.abspath(file), content)
 
 
-def read_source_code(
+def read_all(
     directory: str = ".",
     included_patterns: list[str] = ["*.py", "*.go", "*.js", "*.ts", "*.java", "*.c", "*.cpp"],
     excluded_patterns: list[str] = [],
