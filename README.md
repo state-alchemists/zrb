@@ -31,7 +31,7 @@ Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you cr
 
 ---
 
-## 🛠 Getting Started
+## 🛠️ Getting Started
 
 ### Quick Installation
 
@@ -51,7 +51,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 
 ### Your First Task
 
-Create a file at /home/<your-user-name>/zrb_init.py with the following content:
+Create a file at `/home/<your-user-name>/zrb_init.py` with the following content:
 
 
 ```python
@@ -97,27 +97,39 @@ make_uml_image = uml_group.add_task(
 make_uml_script >> make_uml_image
 ```
 
-Once defined, your automation tasks are immediately accessible from the CLI. You can then invoke the tasks by invoking.
+You have just define two automation tasks.
+
+The first one use LLM to read files in your current directory and create a `PlantUML script` on that directory.
+
+The second task turn the PlantUML script into a `*.png` file. The second task depends on the first task and both of them are located under the same group.
+
+You can run the tasks by invoking `zrb uml make-script` or `zrb uml make-image` respectively.
+
+When you run zrb, it automatically searches for a file named `zrb_init.py` starting from your current directory and moving upward through its parent directories. This design lets you set up common automation tasks in a central location—like placing a `zrb_init.py` in your home directory (`/home/<your-user>/zrb_init.py`)—so that your tasks are available across all your projects.
+
+Now, go to your project and create a state diagram:
 
 ```bash
+git clone git@github.com:jjinux/gotetris.git
+cd gotetris
 zrb uml make-image --diagram "state diagram"
 ```
 
-Or you can invoke the tasks without parameter.
+You can also invoke the task without specifying parameter.
 
 ```bash
 zrb uml make-image
 ```
 
-At this point, Zrb will politely ask you to provide the diagram type.
+Once you do so, Zrb will ask you to provide the diagram type.
 
 ```
 diagram [state diagram]:
 ```
 
-You can just press enter if you want to use the default value.
+You can just press enter if you want to use the default value (i.e., in this case `state diagram`).
 
-Finally, you can run Zrb as a server and make your tasks available for non technical users by invoking the following command.
+Finally, you can also serve the tasks via a Web UI interface by invoking the following command:
 
 ```bash
 zrb server start
@@ -127,48 +139,37 @@ You will have a nice web interface running on `http://localhost:12123`
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 
-Now, let's see how Zrb generate the state diagram. Based on the source code in your current directory, Zrb will generate a `state diagram.uml` and transform it into `state diagram.png`.
+Now, let's see how things work in detail. First, Zrb generates a `state diagram.uml` in your current directory, it then transform the UML script into a PNG image `state diagram.png`.
 
 ![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
 
-See the [getting started guide](https://github.com/state-alchemists/zrb/blob/main/docs/recipes/getting-started/README.md) for more information. Or just watch the demo:
 
-[![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
+# 🎥 Demo & Documentation
 
-
-# 🫰 Installing Zrb
-
-You can install Zrb as a pip package by invoking the following command:
-
-```bash
-pip install --pre zrb
-```
-
-Alternatively, you can also use our installation script to install Zrb along with some prerequisites:
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
-```
-
-# 🐞 Bug Report + Feature Request
-
-You can submit bug reports and feature requests by creating a new [issue](https://github.com/state-alchemists/zrb/issues) on Zrb's GitHub Repositories. When reporting a bug or requesting a feature, please be sure to:
-
-- Include the version of Zrb you are using (i.e., `zrb version`)
-- Tell us what you have tried
-- Tell us what you expect
-- Tell us what you get
-
-We will also welcome your [pull requests and contributions](https://github.com/state-alchemists/zrb/pulls).
+- **Step by step guide:** [Getting started with Zrb](https://github.com/state-alchemists/zrb/blob/main/docs/recipes/getting-started/README.md).
+- **Full documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
+- **Video demo:** [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
 
-# ☕ Donation
+# 🤝 Join the Community
 
-Help Red Skull to click the donation button:
+- **Bug Reports & Feature Requests:** Create an [issue](https://github.com/state-alchemists/zrb/issues) on Zrb's GitHub Repositories and include:
+    - Your Zrb version (i.e., `zrb version`).
+    - Steps you’ve taken and what you expected versus what happened
+- **Contributions:** We welcome pull requests! Check out our [contribution guidelines](https://github.com/state-alchemists/zrb/pulls).
+
+
+# ☕ Support The Project
+
+If you find Zrb valuable, please consider donating:
 
 [![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com/donation)
 
 # 🎉 Fun Fact
+
+Did you know?
+
+Zrb is named after `Zaruba`, a powerful support tool from the Garo universe!
 
 > Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
 
