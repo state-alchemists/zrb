@@ -4,28 +4,37 @@
 
 # 🤖 Zrb: Your Automation Powerhouse
 
-Zrb allows you to write your automation tasks in Python. For example, you can define the following script in your home directory (`/home/<your-user-name>/zrb_init.py`).
+**Unlock the full potential of automation in your computer!**  
+
+Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you create custom automation workflows effortlessly. Whether you’re building CI/CD pipelines, code generators, or custom development scripts, Zrb is designed to make automation simple and effective.
+
+---
+
+## 🚀 Why Zrb?
+
+- **Easy Automation with Python:** Write your tasks in Python and let Zrb handle the rest.
+- **Seamless Integration:** Utilize built-in support for LLM tasks, command execution, and more.
+- **Custom Workflows:** Chain tasks, set dependencies, and build robust automation pipelines.
+- **Developer-Friendly:** Quick to install and get started, with clear documentation and examples.
+- **Web Interface:** Run Zrb as a server to make tasks accessible even to non-technical team members.
+
+---
+
+## 🔥 Key Features
+
+- **LLM Integration:** Leverage state-of-the-art language models to generate code, diagrams, and documentation.
+- **Task Chaining:** Easily define dependencies between tasks to create complex workflows.
+- **CLI & Server Mode:** Run tasks directly from the command line or through a user-friendly web UI.
+- **Flexible Input Handling:** Defaults, prompts, and command-line parameters to suit any workflow.
+- **Extensible & Open Source:** Contribute, customize, or extend Zrb to fit your unique needs.
 
 
 ```python
 import os
 from zrb import cli, llm_config, LLMTask, CmdTask, StrInput, Group
 from zrb.builtin.llm.tool.file import read_all_files, write_text_file
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
 
 CURRENT_DIR = os.getcwd()
-
-# Setup default LLM Config
-llm_config.set_default_model(
-    OpenAIModel(
-        model_name="gpt-4o",
-        provider=OpenAIProvider(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY", "")
-        )
-    )
-)
 
 # Make UML group
 uml_group = cli.add_group(Group(name="uml", description="UML related tasks"))
