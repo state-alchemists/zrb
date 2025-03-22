@@ -4,9 +4,10 @@
 
 # 🤖 Zrb: Your Automation Powerhouse
 
-**Unlock the full potential of automation in your computer!**  
 
-Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you create custom automation workflows effortlessly. Whether you’re building CI/CD pipelines, code generators, or custom development scripts, Zrb is designed to make automation simple and effective.
+**Unlock the full potential of automation in your projects!**
+
+Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you create custom automation workflows effortlessly. Whether you’re building CI/CD pipelines, code generators, or unique automation scripts, Zrb is designed to simplify and supercharge your workflow.
 
 ---
 
@@ -27,6 +28,30 @@ Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you cr
 - **CLI & Server Mode:** Run tasks directly from the command line or through a user-friendly web UI.
 - **Flexible Input Handling:** Defaults, prompts, and command-line parameters to suit any workflow.
 - **Extensible & Open Source:** Contribute, customize, or extend Zrb to fit your unique needs.
+
+---
+
+## 🛠 Getting Started
+
+### Quick Installation
+
+Install Zrb via pip:
+
+```bash
+pip install zrb
+
+```
+
+Or run our installation script to set up Zrb along with all prerequisites:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
+
+```
+
+### Your First Task
+
+Create a file at /home/<your-user-name>/zrb_init.py with the following content:
 
 
 ```python
