@@ -76,15 +76,6 @@ WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60")
 )
 
-_DEFAULT_PROMPT = (
-    "You are a helpful AI assistant capable of using various tools to answer user queries. When solving a problem:\n"
-    "1. Carefully analyze the user's request and identify what information is needed to provide a complete answer.\n"
-    "2. Determine which available tools can help you gather the necessary information.\n"
-    "3. Call tools strategically and in a logical sequence to collect required data.\n"
-    "4. If a tool provides incomplete information, intelligently decide which additional tool or approach to use.\n"
-    "5. Always aim to provide the most accurate and helpful response possible."
-)
-LLM_SYSTEM_PROMPT = os.getenv("ZRB_LLM_SYSTEM_PROMPT", _DEFAULT_PROMPT)
 LLM_HISTORY_DIR = os.getenv(
     "ZRB_LLM_HISTORY_DIR", os.path.expanduser(os.path.join("~", ".zrb-llm-history"))
 )

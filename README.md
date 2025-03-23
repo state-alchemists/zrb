@@ -9,7 +9,6 @@
 
 Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you create custom automation workflows effortlessly. Whether you’re building CI/CD pipelines, code generators, or unique automation scripts, Zrb is designed to simplify and supercharge your workflow.
 
----
 
 ## 🚀 Why Zrb?
 
@@ -19,7 +18,6 @@ Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you cr
 - **Developer-Friendly:** Quick to install and get started, with clear documentation and examples.
 - **Web Interface:** Run Zrb as a server to make tasks accessible even to non-technical team members.
 
----
 
 ## 🔥 Key Features
 
@@ -29,11 +27,8 @@ Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you cr
 - **Flexible Input Handling:** Defaults, prompts, and command-line parameters to suit any workflow.
 - **Extensible & Open Source:** Contribute, customize, or extend Zrb to fit your unique needs.
 
----
 
-## 🛠️ Getting Started
-
-### Quick Installation
+# 🛠️ Installation
 
 Install Zrb via pip:
 
@@ -49,7 +44,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 
 ```
 
-### Your First Task
+# 🍲 Quick Start
 
 Create a file at `/home/<your-user-name>/zrb_init.py` with the following content:
 
@@ -148,7 +143,8 @@ Now, let's see how things work in detail. First, Zrb generates a `state diagram.
 
 - **Step by step guide:** [Getting started with Zrb](https://github.com/state-alchemists/zrb/blob/main/docs/recipes/getting-started/README.md).
 - **Full documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
-- **Video demo:** [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
+- **Video demo:**
+  [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
 
 # 🤝 Join the Community

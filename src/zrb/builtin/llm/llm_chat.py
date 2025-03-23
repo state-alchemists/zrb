@@ -22,7 +22,6 @@ from zrb.config import (
     LLM_ALLOW_ACCESS_LOCAL_FILE,
     LLM_ALLOW_ACCESS_SHELL,
     LLM_HISTORY_DIR,
-    LLM_SYSTEM_PROMPT,
     SERP_API_KEY,
 )
 from zrb.context.any_shared_context import AnySharedContext
@@ -119,7 +118,7 @@ llm_chat: LLMTask = llm_group.add_task(
                 "system-prompt",
                 description="System prompt",
                 prompt="System prompt",
-                default=LLM_SYSTEM_PROMPT,
+                default="",
                 allow_positional_parsing=False,
                 always_prompt=False,
             ),
@@ -141,17 +140,19 @@ llm_chat: LLMTask = llm_group.add_task(
                 always_prompt=False,
             ),
         ],
-        model=lambda ctx: None if ctx.input.model == "" else ctx.input.model,
+        model=lambda ctx: None if ctx.input.model.strip() == "" else ctx.input.model,
         model_base_url=lambda ctx: (
-            None if ctx.input.base_url == "" else ctx.input.base_url
+            None if ctx.input.base_url.strip() == "" else ctx.input.base_url
         ),
         model_api_key=lambda ctx: (
-            None if ctx.input.api_key == "" else ctx.input.api_key
+            None if ctx.input.api_key.strip() == "" else ctx.input.api_key
         ),
         conversation_history_reader=_read_chat_conversation,
         conversation_history_writer=_write_chat_conversation,
         description="Chat with LLM",
-        system_prompt="{ctx.input.system_prompt}",
+        system_prompt=lambda ctx: (
+            None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
+        ),
         message="{ctx.input.message}",
         retries=0,
     ),

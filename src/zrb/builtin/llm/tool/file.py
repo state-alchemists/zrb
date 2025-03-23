@@ -127,12 +127,12 @@ def _should_exclude(full_path: str, excluded_patterns: list[str]) -> bool:
 
 
 def read_text_file(file: str) -> str:
-    """Read a text file"""
+    """Read a text file and return a string containing the file content."""
     return read_file(os.path.abspath(file))
 
 
 def write_text_file(file: str, content: str):
-    """Write a text file"""
+    """Write content to a text file"""
     return write_file(os.path.abspath(file), content)
 
 

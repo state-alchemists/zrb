@@ -1,3 +1,7 @@
+# 1.4.2
+
+- Allow modify `default_system_prompt` via `llm_config`
+
 # 1.4.1
 
 - Avoid load file twice (in case of the `zrb_init.py` file in current directory is also existing on `ZRB_INIT_SCRIPTS`)

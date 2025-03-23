@@ -18,7 +18,6 @@ from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import StrAttr, fstring
-from zrb.config import LLM_SYSTEM_PROMPT
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
@@ -58,7 +57,7 @@ class LLMTask(BaseTask):
             ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
         ) = None,
         agent: Agent | Callable[[AnySharedContext], Agent] | None = None,
-        system_prompt: StrAttr | None = LLM_SYSTEM_PROMPT,
+        system_prompt: StrAttr | None = None,
         render_system_prompt: bool = True,
         message: StrAttr | None = None,
         tools: (
@@ -258,14 +257,14 @@ class LLMTask(BaseTask):
             return default_llm_config.get_default_model()
         if isinstance(model, str):
             llm_config = LLMConfig(
-                model_name=model,
-                base_url=get_attr(
+                default_model_name=model,
+                default_base_url=get_attr(
                     ctx,
                     self._get_model_base_url(ctx),
                     None,
                     auto_render=self._render_model_base_url,
                 ),
-                api_key=get_attr(
+                default_api_key=get_attr(
                     ctx,
                     self._get_model_api_key(ctx),
                     None,
@@ -292,12 +291,15 @@ class LLMTask(BaseTask):
         raise ValueError(f"Invalid model base URL: {api_key}")
 
     def _get_system_prompt(self, ctx: AnyContext) -> str:
-        return get_str_attr(
+        system_prompt = get_attr(
             ctx,
             self._system_prompt,
-            "You are a helpful assistant",
+            None,
             auto_render=self._render_system_prompt,
         )
+        if system_prompt is not None:
+            return system_prompt
+        return default_llm_config.get_default_system_prompt()
 
     def _get_message(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._message, "How are you?", auto_render=True)
