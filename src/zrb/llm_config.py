@@ -2,6 +2,7 @@ import os
 
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers import Provider
 from pydantic_ai.providers.openai import OpenAIProvider
 
 DEFAULT_SYSTEM_PROMPT = """
@@ -48,12 +49,15 @@ class LLMConfig:
             if default_system_prompt is not None
             else os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
         )
+        self._default_provider = None
         self._default_model = None
 
     def _get_model_name(self) -> str | None:
         return self._model_name if self._model_name is not None else None
 
-    def _get_model_provider(self) -> OpenAIProvider:
+    def get_default_model_provider(self) -> Provider | str:
+        if self._default_provider is not None:
+            return self._default_provider
         if self._model_base_url is None and self._model_api_key is None:
             return "openai"
         return OpenAIProvider(
@@ -73,7 +77,7 @@ class LLMConfig:
             return None
         return OpenAIModel(
             model_name=model_name,
-            provider=self._get_model_provider(),
+            provider=self.get_default_model_provider(),
         )
 
     def set_default_system_prompt(self, system_prompt: str):
@@ -87,6 +91,9 @@ class LLMConfig:
 
     def set_default_model_base_url(self, model_base_url: str):
         self._model_base_url = model_base_url
+
+    def set_default_provider(self, provider: Provider | str):
+        self._default_provider = provider
 
     def set_default_model(self, model: Model | str | None):
         self._default_model = model

@@ -256,21 +256,17 @@ class LLMTask(BaseTask):
         if model is None:
             return default_llm_config.get_default_model()
         if isinstance(model, str):
+            model_base_url = self._get_model_base_url(ctx)
+            model_api_key = self._get_model_api_key(ctx)
             llm_config = LLMConfig(
                 default_model_name=model,
-                default_base_url=get_attr(
-                    ctx,
-                    self._get_model_base_url(ctx),
-                    None,
-                    auto_render=self._render_model_base_url,
-                ),
-                default_api_key=get_attr(
-                    ctx,
-                    self._get_model_api_key(ctx),
-                    None,
-                    auto_render=self._render_model_api_key,
-                ),
+                default_base_url=model_base_url,
+                default_api_key=model_api_key,
             )
+            if model_base_url is None and model_api_key is None:
+                default_model_provider = default_llm_config.get_default_model_provider()
+                if default_model_provider is not None:
+                    llm_config.set_default_provider(default_model_provider)
             return llm_config.get_default_model()
         raise ValueError(f"Invalid model: {model}")
 
@@ -288,7 +284,7 @@ class LLMTask(BaseTask):
         )
         if isinstance(api_key, str) or api_key is None:
             return api_key
-        raise ValueError(f"Invalid model base URL: {api_key}")
+        raise ValueError(f"Invalid model API key: {api_key}")
 
     def _get_system_prompt(self, ctx: AnyContext) -> str:
         system_prompt = get_attr(
