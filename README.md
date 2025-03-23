@@ -44,10 +44,15 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 
 ```
 
-# 🍲 Quick Start
+# 🍲 Quick Start: Build Your First Automation Workflow
 
-Create a file at `/home/<your-user-name>/zrb_init.py` with the following content:
+Zrb empowers you to create custom automation tasks using Python. This guide shows you how to define two simple tasks: one to generate a PlantUML script from your source code and another to convert that script into a PNG image.
 
+## 1. Create Your Task Definition File
+
+Place a file named `zrb_init.py` in a directory that's accessible from your projects. Zrb will automatically search for this file by starting in your current directory and then moving upward (i.e., checking parent directories) until it finds one. This means if you place your `zrb_init.py` in your home directory (e.g., `/home/<your-user-name>/zrb_init.py`), the tasks defined there will be available for any project.
+
+Add the following content to your zrb_init.py:
 
 ```python
 import os
@@ -56,10 +61,10 @@ from zrb.builtin.llm.tool.file import read_all_files, write_text_file
 
 CURRENT_DIR = os.getcwd()
 
-# Make UML group
+# Create a group for UML-related tasks
 uml_group = cli.add_group(Group(name="uml", description="UML related tasks"))
 
-# Generate UML script
+# Task 1: Generate a PlantUML script from your source code
 make_uml_script = uml_group.add_task(
     LLMTask(
         name="make-script",
@@ -77,7 +82,7 @@ make_uml_script = uml_group.add_task(
     )
 )
 
-# Defining a Cmd Task to transform Plantuml script into a png image.
+# Task 2: Convert the PlantUML script into a PNG image
 make_uml_image = uml_group.add_task(
     CmdTask(
         name="make-image",
@@ -88,55 +93,66 @@ make_uml_image = uml_group.add_task(
     )
 )
 
-# Making sure that make_png has make_uml as its dependency.
+# Set up the dependency: the image task runs after the script is created
 make_uml_script >> make_uml_image
 ```
 
-You have just define two automation tasks.
+**What This Does**
 
-The first one use LLM to read files in your current directory and create a `PlantUML script` on that directory.
+- **Task 1 – make-script**:
 
-The second task turn the PlantUML script into a `*.png` file. The second task depends on the first task and both of them are located under the same group.
+    Uses an LLM to read all files in your current directory and generate a PlantUML script (e.g., `state diagram.uml`).
 
-You can run the tasks by invoking `zrb uml make-script` or `zrb uml make-image` respectively.
+- **Task 2 – make-image**:
 
-When you run zrb, it automatically searches for a file named `zrb_init.py` starting from your current directory and moving upward through its parent directories. This design lets you set up common automation tasks in a central location—like placing a `zrb_init.py` in your home directory (`/home/<your-user>/zrb_init.py`)—so that your tasks are available across all your projects.
+    Executes a command that converts the PlantUML script into a PNG image (e.g., `state diagram.png`). This task will run only after the script has been generated.
 
-Now, go to your project and create a state diagram:
 
-```bash
-git clone git@github.com:jjinux/gotetris.git
-cd gotetris
-zrb uml make-image --diagram "state diagram"
-```
+## 2. Run Your Tasks
 
-You can also invoke the task without specifying parameter.
+After setting up your tasks, you can execute them from any project. For example:
 
-```bash
-zrb uml make-image
-```
+- Clone/Create a Project:
 
-Once you do so, Zrb will ask you to provide the diagram type.
+    ```bash
+    git clone git@github.com:jjinux/gotetris.git
+    cd gotetris
+    ```
 
-```
-diagram [state diagram]:
-```
+- Create a state diagram:
 
-You can just press enter if you want to use the default value (i.e., in this case `state diagram`).
+    ```bash
+    zrb uml make-image --diagram "state diagram"
+    ```
 
-Finally, you can also serve the tasks via a Web UI interface by invoking the following command:
+- Or use the interactive mode:
+
+    ```bash
+    zrb uml make-image
+    ```
+
+    Zrb will prompt:
+
+    ```bash
+    diagram [state diagram]:
+    ```
+
+    Press **Enter** to use the default value
+
+![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
+
+
+## 3. Try Out the Web UI
+
+You can also serve your tasks through a user-friendly web interface:
 
 ```bash
 zrb server start
 ```
 
-You will have a nice web interface running on `http://localhost:12123`
+Then open your browser and visit `http://localhost:21213`
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
-
-Now, let's see how things work in detail. First, Zrb generates a `state diagram.uml` in your current directory, it then transform the UML script into a PNG image `state diagram.png`.
-
-![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
 
 
 # 🎥 Demo & Documentation
@@ -144,7 +160,8 @@ Now, let's see how things work in detail. First, Zrb generates a `state diagram.
 - **Step by step guide:** [Getting started with Zrb](https://github.com/state-alchemists/zrb/blob/main/docs/recipes/getting-started/README.md).
 - **Full documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
 - **Video demo:**
-  [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
+
+    [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
 
 # 🤝 Join the Community
