@@ -1,5 +1,7 @@
+import functools
 import json
 import os
+import traceback
 from collections.abc import Callable
 from typing import Any
 
@@ -201,6 +203,9 @@ class LLMTask(BaseTask):
             async with node.stream(agent_run.ctx) as handle_stream:
                 async for event in handle_stream:
                     if isinstance(event, FunctionToolCallEvent):
+                        # Fixing anthrophic claude when call function with empty parameter
+                        if event.part.args == "":
+                            event.part.args = {}
                         ctx.print(
                             stylize_faint(
                                 f"[Tools] The LLM calls tool={event.part.tool_name!r} with args={event.part.args} (tool_call_id={event.part.tool_call_id!r})"  # noqa
@@ -240,7 +245,7 @@ class LLMTask(BaseTask):
         )
         tools_or_callables.extend(self._additional_tools)
         tools = [
-            tool if isinstance(tool, Tool) else Tool(tool, takes_ctx=False)
+            tool if isinstance(tool, Tool) else Tool(_wrap_tool(tool), takes_ctx=False)
             for tool in tools_or_callables
         ]
         return Agent(
@@ -321,3 +326,16 @@ class LLMTask(BaseTask):
             "",
             auto_render=self._render_history_file,
         )
+
+
+def _wrap_tool(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            # Optionally, you can include more details from traceback if needed.
+            error_details = traceback.format_exc()
+            return f"Error: {e}\nDetails: {error_details}"
+
+    return wrapper
