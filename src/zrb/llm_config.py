@@ -21,6 +21,10 @@ Follow these instructions precisely:
 
 
 class LLMConfig:
+    """
+    Configuration class for managing LLM settings including model,
+    API credentials, and system prompts.
+    """
 
     def __init__(
         self,
@@ -29,6 +33,15 @@ class LLMConfig:
         default_api_key: str | None = None,
         default_system_prompt: str | None = None,
     ):
+        """
+        Initialize LLM configuration with provided values or environment variables.
+        
+        Args:
+            default_model_name: Model name to use, falls back to ZRB_LLM_MODEL env var
+            default_base_url: API base URL, falls back to ZRB_LLM_BASE_URL env var
+            default_api_key: API key, falls back to ZRB_LLM_API_KEY env var
+            default_system_prompt: System prompt, falls back to ZRB_LLM_SYSTEM_PROMPT env var
+        """
         self._model_name = (
             default_model_name
             if default_model_name is not None
