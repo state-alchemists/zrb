@@ -9,6 +9,8 @@ import ulid
 
 from zrb.config import (
     RAG_CHUNK_SIZE,
+    RAG_EMBEDDING_API_KEY,
+    RAG_EMBEDDING_BASE_URL,
     RAG_EMBEDDING_MODEL,
     RAG_MAX_RESULT_COUNT,
     RAG_OVERLAP,
@@ -35,24 +37,36 @@ def create_rag_from_directory(
     tool_name: str,
     tool_description: str,
     document_dir_path: str = "./documents",
-    model: str = RAG_EMBEDDING_MODEL,
     vector_db_path: str = "./chroma",
     vector_db_collection: str = "documents",
     chunk_size: int = RAG_CHUNK_SIZE,
     overlap: int = RAG_OVERLAP,
     max_result_count: int = RAG_MAX_RESULT_COUNT,
     file_reader: list[RAGFileReader] = [],
+    openai_api_key: str = RAG_EMBEDDING_API_KEY,
+    openai_base_url: str = RAG_EMBEDDING_BASE_URL,
+    openai_embedding_model: str = RAG_EMBEDDING_MODEL,
 ):
     async def retrieve(query: str) -> str:
         from chromadb import PersistentClient
         from chromadb.config import Settings
-        from fastembed import TextEmbedding
+        from openai import OpenAI
 
-        embedding_model = TextEmbedding(model_name=model)
-        client = PersistentClient(
+        # Initialize OpenAI client with custom URL if provided
+        client_args = {}
+        if openai_api_key:
+            client_args["api_key"] = openai_api_key
+        if openai_base_url:
+            client_args["base_url"] = openai_base_url
+        
+        # Initialize OpenAI client for embeddings
+        openai_client = OpenAI(**client_args)
+        
+        # Initialize ChromaDB client
+        chroma_client = PersistentClient(
             path=vector_db_path, settings=Settings(allow_reset=True)
         )
-        collection = client.get_or_create_collection(vector_db_collection)
+        collection = chroma_client.get_or_create_collection(vector_db_collection)
         # Track file changes using a hash-based approach
         hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
         previous_hashes = _load_hashes(hash_file_path)
@@ -89,8 +103,12 @@ def create_rag_from_directory(
                                 ),
                                 file=sys.stderr,
                             )
-                            embedding_result = list(embedding_model.embed([chunk]))
-                            vector = embedding_result[0]
+                            # Get embeddings using OpenAI
+                            embedding_response = openai_client.embeddings.create(
+                                input=chunk,
+                                model=openai_embedding_model
+                            )
+                            vector = embedding_response.data[0].embedding
                             collection.upsert(
                                 ids=[chunk_id],
                                 embeddings=[vector],
@@ -113,8 +131,12 @@ def create_rag_from_directory(
             )
         # Vectorize query and get related document chunks
         print(stylize_faint("Vectorizing query"), file=sys.stderr)
-        embedding_result = list(embedding_model.embed([query]))
-        query_vector = embedding_result[0]
+        # Get embeddings using OpenAI
+        embedding_response = openai_client.embeddings.create(
+            input=query,
+            model=openai_embedding_model
+        )
+        query_vector = embedding_response.data[0].embedding
         print(stylize_faint("Searching documents"), file=sys.stderr)
         results = collection.query(
             query_embeddings=query_vector,

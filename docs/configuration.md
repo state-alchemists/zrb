@@ -40,7 +40,8 @@ Zrb can be configured using the following [environment variables](recipes/others
 ## LLM (Language Model) Configuration
 
 - `ZRB_LLM_MODEL`: LLM model to use. Default: Empty. Possible values: `llama3.1:latest`
-- `ZRB_LLM_BASE_URL`: LLM model to use. Default: Empty. Possible values: `http://localhost:11434/v1`
+- `ZRB_LLM_BASE_URL`: Base URL for LLM API. Default: Empty. Possible values: `http://localhost:11434/v1`
+- `ZRB_LLM_API_KEY`: API key for the LLM provider. Default: Empty
 - `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM. Default: `You are a helpful assistant`
 - `ZRB_LLM_HISTORY_FILE`: File to store LLM conversation history. Default: `~/.zrb-llm-history.json`
 - `ZRB_LLM_ACCESS_FILE`: Whether to allow LLM to access files. Default: `1` (true)
@@ -48,7 +49,9 @@ Zrb can be configured using the following [environment variables](recipes/others
 
 ## RAG (Retrieval-Augmented Generation) Configuration
 
-- `ZRB_RAG_EMBEDDING_MODEL`: Embedding model for RAG. Default: `ollama/nomic-embed-text`
+- `ZRB_RAG_EMBEDDING_API_KEY`: API key for OpenAI embeddings. Default: empty
+- `ZRB_RAG_EMBEDDING_BASE_URL`: Base URL for OpenAI API. Default: empty
+- `ZRB_RAG_EMBEDDING_MODEL`: Embedding model for RAG. Default: `text-embedding-ada-002`
 - `ZRB_RAG_CHUNK_SIZE`: Chunk size for RAG. Default: `1024`
 - `ZRB_RAG_OVERLAP`: Overlap size for RAG chunks. Default: `128`
 - `ZRB_RAG_MAX_RESULT_COUNT`: Maximum number of results for RAG. Default: `5`

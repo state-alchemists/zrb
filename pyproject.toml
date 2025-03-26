@@ -52,11 +52,13 @@ python-jose = {extras = ["cryptography"], version = "^3.4.0"}
 ulid-py = "^1.1.0"
 pydantic-ai = "^0.0.42"
 fastembed = "^0.5.1"
+openai = "^1.10.0"
+playwright = "^1.43.0"
 psutil = "^6.1.1"
 
 [tool.poetry.extras]
 # poetry install -E rag
-rag = ["chromadb", "pdfplumber"]
+rag = ["chromadb", "pdfplumber", "openai"]
 
 [tool.poetry.group.dev.dependencies]
 alembic = "^1.14.0" # FastApp dependencies

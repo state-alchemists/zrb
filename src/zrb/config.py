@@ -85,9 +85,11 @@ LLM_HISTORY_FILE = os.getenv(
 LLM_ALLOW_ACCESS_LOCAL_FILE = to_boolean(os.getenv("ZRB_LLM_ACCESS_LOCAL_FILE", "1"))
 LLM_ALLOW_ACCESS_SHELL = to_boolean(os.getenv("ZRB_LLM_ACCESS_SHELL", "1"))
 LLM_ALLOW_ACCESS_INTERNET = to_boolean(os.getenv("ZRB_LLM_ACCESS_INTERNET", "1"))
-# noqa See: https://qdrant.github.io/fastembed/examples/Supported_Models/#supported-text-embedding-models
+# RAG Configuration
+RAG_EMBEDDING_API_KEY = os.getenv("ZRB_RAG_EMBEDDING_API_KEY", "")
+RAG_EMBEDDING_BASE_URL = os.getenv("ZRB_RAG_EMBEDDING_BASE_URL", "")
 RAG_EMBEDDING_MODEL = os.getenv(
-    "ZRB_RAG_EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1.5-Q"
+    "ZRB_RAG_EMBEDDING_MODEL", "text-embedding-ada-002"
 )
 RAG_CHUNK_SIZE = int(os.getenv("ZRB_RAG_CHUNK_SIZE", "1024"))
 RAG_OVERLAP = int(os.getenv("ZRB_RAG_OVERLAP", "128"))
