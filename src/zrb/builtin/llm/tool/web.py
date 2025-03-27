@@ -56,7 +56,6 @@ async def open_web_page(url: str) -> str:
             return {"content": response.text, "links_on_page": []}
 
     result = await get_page_content(url)
-    result = await get_page_content(url)
     # Parse the HTML content
     return json.dumps(parse_html_text(result["content"]))
 
