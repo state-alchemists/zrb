@@ -5,42 +5,57 @@ from typing import Annotated
 
 async def open_web_page(url: str) -> str:
     """Get content from a web page using a headless browser."""
-    from playwright.async_api import async_playwright
 
     async def get_page_content(page_url: str):
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            # Set user agent to mimic a regular browser
-            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            user_agent += "AppleWebKit/537.36 (KHTML, like Gecko) "
-            user_agent += "Chrome/91.0.4472.124 Safari/537.36"
-            await page.set_extra_http_headers({"User-Agent": user_agent})
-            try:
-                # Navigate to the URL with a timeout of 30 seconds
-                await page.goto(page_url, wait_until="networkidle", timeout=30000)
-                # Wait for the content to load
-                await page.wait_for_load_state("domcontentloaded")
-                # Get the page content
-                content = await page.content()
-                # Extract all links from the page
-                links = await page.eval_on_selector_all(
-                    "a[href]",
-                    """
-                    (elements) => elements.map(el => {
-                        const href = el.getAttribute('href');
-                        if (href && !href.startsWith('#') && !href.startsWith('/')) {
-                            return href;
-                        }
-                        return null;
-                    }).filter(href => href !== null)
-                """,
-                )
-                return {"content": content, "links_on_page": links}
-            finally:
-                await browser.close()
+        try:
+            from playwright.async_api import async_playwright
 
-    # Run the async function in the event loop
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                # Set user agent to mimic a regular browser
+                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                user_agent += "AppleWebKit/537.36 (KHTML, like Gecko) "
+                user_agent += "Chrome/91.0.4472.124 Safari/537.36"
+                await page.set_extra_http_headers({"User-Agent": user_agent})
+                try:
+                    # Navigate to the URL with a timeout of 30 seconds
+                    await page.goto(page_url, wait_until="networkidle", timeout=30000)
+                    # Wait for the content to load
+                    await page.wait_for_load_state("domcontentloaded")
+                    # Get the page content
+                    content = await page.content()
+                    # Extract all links from the page
+                    links = await page.eval_on_selector_all(
+                        "a[href]",
+                        """
+                        (elements) => elements.map(el => {
+                            const href = el.getAttribute('href');
+                            if (href && !href.startsWith('#') && !href.startsWith('/')) {
+                                return href;
+                            }
+                            return null;
+                        }).filter(href => href !== null)
+                    """,
+                    )
+                    return {"content": content, "links_on_page": links}
+                finally:
+                    await browser.close()
+        except ImportError:
+            import requests
+
+            response = requests.get(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
+                },
+            )
+            if response.status_code != 200:
+                msg = f"Unable to retrieve search results. Status code: {response.status_code}"
+                raise Exception(msg)
+            return {"content": response.text, "links_on_page": []}
+
+    result = await get_page_content(url)
     result = await get_page_content(url)
     # Parse the HTML content
     return json.dumps(parse_html_text(result["content"]))
