@@ -3,10 +3,8 @@ from collections.abc import Callable
 from typing import Annotated
 
 
-def open_web_page(url: str) -> str:
+async def open_web_page(url: str) -> str:
     """Get content from a web page using a headless browser."""
-    import asyncio
-
     from playwright.async_api import async_playwright
 
     async def get_page_content(page_url: str):
@@ -43,7 +41,7 @@ def open_web_page(url: str) -> str:
                 await browser.close()
 
     # Run the async function in the event loop
-    result = asyncio.run(get_page_content(url))
+    result = await get_page_content(url)
     # Parse the HTML content
     return json.dumps(parse_html_text(result["content"]))
 
