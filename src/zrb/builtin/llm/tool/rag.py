@@ -58,10 +58,8 @@ def create_rag_from_directory(
             client_args["api_key"] = openai_api_key
         if openai_base_url:
             client_args["base_url"] = openai_base_url
-        
         # Initialize OpenAI client for embeddings
         openai_client = OpenAI(**client_args)
-        
         # Initialize ChromaDB client
         chroma_client = PersistentClient(
             path=vector_db_path, settings=Settings(allow_reset=True)
@@ -105,8 +103,7 @@ def create_rag_from_directory(
                             )
                             # Get embeddings using OpenAI
                             embedding_response = openai_client.embeddings.create(
-                                input=chunk,
-                                model=openai_embedding_model
+                                input=chunk, model=openai_embedding_model
                             )
                             vector = embedding_response.data[0].embedding
                             collection.upsert(
@@ -133,8 +130,7 @@ def create_rag_from_directory(
         print(stylize_faint("Vectorizing query"), file=sys.stderr)
         # Get embeddings using OpenAI
         embedding_response = openai_client.embeddings.create(
-            input=query,
-            model=openai_embedding_model
+            input=query, model=openai_embedding_model
         )
         query_vector = embedding_response.data[0].embedding
         print(stylize_faint("Searching documents"), file=sys.stderr)

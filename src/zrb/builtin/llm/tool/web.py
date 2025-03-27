@@ -6,33 +6,29 @@ from typing import Annotated
 def open_web_page(url: str) -> str:
     """Get content from a web page using a headless browser."""
     import asyncio
+
     from playwright.async_api import async_playwright
 
     async def get_page_content(page_url: str):
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
-            
             # Set user agent to mimic a regular browser
             user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             user_agent += "AppleWebKit/537.36 (KHTML, like Gecko) "
             user_agent += "Chrome/91.0.4472.124 Safari/537.36"
-            await page.set_extra_http_headers({
-                "User-Agent": user_agent
-            })
-            
+            await page.set_extra_http_headers({"User-Agent": user_agent})
             try:
                 # Navigate to the URL with a timeout of 30 seconds
                 await page.goto(page_url, wait_until="networkidle", timeout=30000)
-                
                 # Wait for the content to load
                 await page.wait_for_load_state("domcontentloaded")
-                
                 # Get the page content
                 content = await page.content()
-                
                 # Extract all links from the page
-                links = await page.eval_on_selector_all("a[href]", """
+                links = await page.eval_on_selector_all(
+                    "a[href]",
+                    """
                     (elements) => elements.map(el => {
                         const href = el.getAttribute('href');
                         if (href && !href.startsWith('#') && !href.startsWith('/')) {
@@ -40,15 +36,14 @@ def open_web_page(url: str) -> str:
                         }
                         return null;
                     }).filter(href => href !== null)
-                """)
-                
+                """,
+                )
                 return {"content": content, "links_on_page": links}
             finally:
                 await browser.close()
 
     # Run the async function in the event loop
     result = asyncio.run(get_page_content(url))
-    
     # Parse the HTML content
     return json.dumps(parse_html_text(result["content"]))
 
