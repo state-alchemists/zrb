@@ -2704,7 +2704,7 @@ type = ["mypy (>=1.11.2)"]
 name = "playwright"
 version = "1.51.0"
 description = "A high-level API to automate web browsers"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "playwright-1.51.0-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:bcaaa3d5d73bda659bfb9ff2a288b51e85a91bd89eda86eaf8186550973e416a"},
@@ -3171,7 +3171,7 @@ yaml = ["pyyaml (>=6.0.1)"]
 name = "pyee"
 version = "12.1.1"
 description = "A rough port of Node.js's EventEmitter to Python with a few tricks of its own"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "pyee-12.1.1-py3-none-any.whl", hash = "sha256:18a19c650556bb6b32b406d7f017c8f513aceed1ef7ca618fb65de7bd2d347ef"},
@@ -4352,9 +4352,11 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 type = ["pytest-mypy"]
 
 [extras]
+all = ["chromadb", "openai", "pdfplumber", "playwright"]
+playwright = ["playwright"]
 rag = ["chromadb", "openai", "pdfplumber"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "56e6dac949b37ec466d68b435cd98216636349c0b18bd524e892d1791d26a446"
+content-hash = "af0a3ce63b76f4748ce7bc1903c56c9be2ef81f205f6e73837f4ea72c63a3d77"

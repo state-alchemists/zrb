@@ -60,6 +60,7 @@ psutil = "^6.1.1"
 # poetry install -E rag
 rag = ["chromadb", "pdfplumber", "openai"]
 playwright = ["playwright"]
+all = ["chromadb", "pdfplumber", "openai", "playwright"]
 
 [tool.poetry.group.dev.dependencies]
 alembic = "^1.14.0" # FastApp dependencies

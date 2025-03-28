@@ -56,8 +56,10 @@ Add the following content to your zrb_init.py:
 
 ```python
 import os
-from zrb import cli, llm_config, LLMTask, CmdTask, StrInput, Group
-from zrb.builtin.llm.tool.file import read_all_files, write_text_file
+from zrb import cli, LLMTask, CmdTask, StrInput, Group
+from zrb.builtin.llm.tool.file import (
+    read_text_file, list_files, write_text_file
+)
 
 CURRENT_DIR = os.getcwd()
 
@@ -71,12 +73,13 @@ make_uml_script = uml_group.add_task(
         description="Creating plantuml diagram based on source code in current directory",
         input=StrInput(name="diagram", default="state diagram"),
         message=(
-            f"Read source code in {CURRENT_DIR}, "
+            f"Read all necessary files in {CURRENT_DIR}, "
             "make a {ctx.input.diagram} in plantuml format. "
             f"Write the script into {CURRENT_DIR}/{{ctx.input.diagram}}.uml"
         ),
         tools=[
-            read_all_files,
+            list_files,
+            read_text_file,
             write_text_file,
         ],
     )
