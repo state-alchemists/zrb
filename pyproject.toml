@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "1.4.2"
+version = "1.4.3"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -52,11 +52,15 @@ python-jose = {extras = ["cryptography"], version = "^3.4.0"}
 ulid-py = "^1.1.0"
 pydantic-ai = "^0.0.42"
 fastembed = "^0.5.1"
+openai = {version = "^1.10.0", optional = true}
+playwright = {version = "^1.43.0", optional = true}
 psutil = "^6.1.1"
 
 [tool.poetry.extras]
 # poetry install -E rag
-rag = ["chromadb", "pdfplumber"]
+rag = ["chromadb", "pdfplumber", "openai"]
+playwright = ["playwright"]
+all = ["chromadb", "pdfplumber", "openai", "playwright"]
 
 [tool.poetry.group.dev.dependencies]
 alembic = "^1.14.0" # FastApp dependencies

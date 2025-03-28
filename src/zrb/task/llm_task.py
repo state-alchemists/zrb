@@ -1,4 +1,5 @@
 import functools
+import inspect
 import json
 import os
 import traceback
@@ -330,9 +331,9 @@ class LLMTask(BaseTask):
 
 def _wrap_tool(func):
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
+            return await run_async(func(*args, **kwargs))
         except Exception as e:
             # Optionally, you can include more details from traceback if needed.
             error_details = traceback.format_exc()

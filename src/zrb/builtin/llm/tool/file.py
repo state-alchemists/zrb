@@ -93,6 +93,7 @@ def list_files(
     """List all files in a directory that match any of the included glob patterns
     and do not reside in any directory matching an excluded pattern.
     Patterns are evaluated using glob-style matching.
+    included_patterns and excluded_patterns already has sane default values.
     """
     all_files: list[str] = []
     for root, dirs, files in os.walk(directory):
@@ -144,6 +145,7 @@ def read_all_files(
     """Read all files in a directory that match any of the included glob patterns
     and do not match any of the excluded glob patterns.
     Patterns are evaluated using glob-style matching.
+    included_patterns and excluded_patterns already has sane default values.
     """
     files = list_files(directory, included_patterns, excluded_patterns)
     for index, file in enumerate(files):

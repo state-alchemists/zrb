@@ -7,7 +7,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 DEFAULT_SYSTEM_PROMPT = """
 You have access to tools.
-Your goal to to answer user queries accurately.
+Your goal is to answer user queries accurately.
 Follow these instructions precisely:
 1. ALWAYS use available tools to gather information BEFORE asking the user questions
 2. For tools that require arguments: provide arguments in valid JSON format
