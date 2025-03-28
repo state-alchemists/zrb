@@ -1,3 +1,7 @@
+# 1.4.3
+
+- Update tools, use playwright if necessary
+
 # 1.4.2
 
 - Allow modify `default_system_prompt` via `llm_config`
