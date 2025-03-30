@@ -7,16 +7,13 @@ async def open_web_page(url: str) -> str:
     """Get content from a web page using a headless browser."""
 
     async def get_page_content(page_url: str):
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
         try:
             from playwright.async_api import async_playwright
 
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
-                # Set user agent to mimic a regular browser
-                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                user_agent += "AppleWebKit/537.36 (KHTML, like Gecko) "
-                user_agent += "Chrome/91.0.4472.124 Safari/537.36"
                 await page.set_extra_http_headers({"User-Agent": user_agent})
                 try:
                     # Navigate to the URL with a timeout of 30 seconds
@@ -44,12 +41,7 @@ async def open_web_page(url: str) -> str:
         except ImportError:
             import requests
 
-            response = requests.get(
-                url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
-                },
-            )
+            response = requests.get(url, headers={"User-Agent": user_agent})
             if response.status_code != 200:
                 msg = f"Unable to retrieve search results. Status code: {response.status_code}"
                 raise Exception(msg)
