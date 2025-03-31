@@ -58,8 +58,9 @@ Add the following content to your zrb_init.py:
 import os
 from zrb import cli, LLMTask, CmdTask, StrInput, Group
 from zrb.builtin.llm.tool.file import (
-    read_text_file, list_files, write_text_file
+    list_files, read_from_file, search_files, write_to_file
 )
+
 
 CURRENT_DIR = os.getcwd()
 
@@ -78,9 +79,7 @@ make_uml_script = uml_group.add_task(
             f"Write the script into {CURRENT_DIR}/{{ctx.input.diagram}}.uml"
         ),
         tools=[
-            list_files,
-            read_text_file,
-            write_text_file,
+            list_files, read_from_file, search_files, write_to_file
         ],
     )
 )

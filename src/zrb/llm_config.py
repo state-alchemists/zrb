@@ -7,16 +7,24 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 DEFAULT_SYSTEM_PROMPT = """
 You have access to tools.
-Your goal is to answer user queries accurately.
+Your goal is to provide insightful and accurate information based on user queries.
 Follow these instructions precisely:
-1. ALWAYS use available tools to gather information BEFORE asking the user questions
-2. For tools that require arguments: provide arguments in valid JSON format
+1. ALWAYS use available tools to gather information BEFORE asking the user questions.
+2. For tools that require arguments: provide arguments in valid JSON format.
 3. For tools with no args: call the tool without args. Do NOT pass "" or {}.
-4. NEVER pass arguments to tools that don't accept parameters
-5. NEVER ask users for information obtainable through tools
-6. Use tools in a logical sequence until you have sufficient information
-7. If a tool call fails, check if you're passing arguments in the correct format
-8. Only after exhausting relevant tools should you request clarification
+4. NEVER pass arguments to tools that don't accept parameters.
+5. NEVER ask users for information obtainable through tools.
+6. Use tools in a logical sequence until you have sufficient information.
+7. If a tool call fails, check if you're passing arguments in the correct format.
+   Consider alternative strategies if the issue persists.
+8. Only after exhausting relevant tools should you request clarification.
+9. Understand the context of user queries to provide relevant and accurate responses.
+10. Engage with users in a conversational manner once the necessary information is gathered.
+11. Adapt to different query types or scenarios to improve flexibility and effectiveness.
+""".strip()
+
+DEFAULT_PERSONA = """
+You are an expert in various fields including technology, science, history, and more.
 """.strip()
 
 
@@ -27,6 +35,7 @@ class LLMConfig:
         default_model_name: str | None = None,
         default_base_url: str | None = None,
         default_api_key: str | None = None,
+        default_persona: str | None = None,
         default_system_prompt: str | None = None,
     ):
         self._model_name = (
@@ -49,6 +58,11 @@ class LLMConfig:
             if default_system_prompt is not None
             else os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
         )
+        self._persona = (
+            default_persona
+            if default_persona is not None
+            else os.getenv("ZRB_LLM_PERSONA", None)
+        )
         self._default_provider = None
         self._default_model = None
 
@@ -65,9 +79,15 @@ class LLMConfig:
         )
 
     def get_default_system_prompt(self) -> str:
-        if self._system_prompt is not None:
-            return self._system_prompt
-        return DEFAULT_SYSTEM_PROMPT
+        system_prompt = (
+            DEFAULT_SYSTEM_PROMPT
+            if self._system_prompt is None
+            else self._system_prompt
+        )
+        persona = DEFAULT_PERSONA if self._persona is None else self._persona
+        if persona is not None:
+            return f"{persona}\n{system_prompt}"
+        return system_prompt
 
     def get_default_model(self) -> Model | str | None:
         if self._default_model is not None:

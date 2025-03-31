@@ -1,3 +1,7 @@
+# 1.4.4
+
+- Remove `read_all_files` as it might use all token
+
 # 1.4.3
 
 - Update tools, use playwright if necessary

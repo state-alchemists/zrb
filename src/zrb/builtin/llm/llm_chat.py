@@ -6,10 +6,11 @@ from zrb.builtin.group import llm_group
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
 from zrb.builtin.llm.tool.cli import run_shell_command
 from zrb.builtin.llm.tool.file import (
+    apply_diff,
     list_files,
-    read_all_files,
-    read_text_file,
-    write_text_file,
+    read_from_file,
+    search_files,
+    write_to_file,
 )
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
@@ -161,10 +162,11 @@ llm_chat: LLMTask = llm_group.add_task(
 
 
 if LLM_ALLOW_ACCESS_LOCAL_FILE:
-    llm_chat.add_tool(read_all_files)
     llm_chat.add_tool(list_files)
-    llm_chat.add_tool(read_text_file)
-    llm_chat.add_tool(write_text_file)
+    llm_chat.add_tool(read_from_file)
+    llm_chat.add_tool(write_to_file)
+    llm_chat.add_tool(search_files)
+    llm_chat.add_tool(apply_diff)
 
 if LLM_ALLOW_ACCESS_SHELL:
     llm_chat.add_tool(run_shell_command)
