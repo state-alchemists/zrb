@@ -1,6 +1,12 @@
-# 1.4.4
+# 1.5.0
 
 - Remove `read_all_files` as it might use all token
+- Roo Code style tools:
+    - Rename `read_text_file` to `read_from_file`
+    - Rename `write_text_file` to `write_to_file`
+    - Introduce `search_files`
+    - Introduce `apply_diff`
+- Add `filter` parameter on todo tasks
 
 # 1.4.3
 
