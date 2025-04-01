@@ -1,3 +1,7 @@
+# 1.5.1
+
+- Remove dependency to `fastembed`
+
 # 1.5.0
 
 - Remove `read_all_files` as it might use all token
