@@ -176,8 +176,10 @@ test_generator_group = test_group.add_group(
     description="🔄 Remove generated resources",
 )
 async def remove_generated(ctx: AnyContext):
-    ctx.print("Remove generated resources")
-    shutil.rmtree(os.path.join(_DIR, "playground", "generated"))
+    generated_dir = os.path.join(_DIR, "playground", "generated")
+    if os.path.exists(generated_dir):
+        ctx.print("Remove generated resources")
+        shutil.rmtree(generated_dir)
 
 
 @make_task(
