@@ -146,6 +146,17 @@ publish_group = cli.add_group(
     Group(name="publish", description="📦 Publication related command")
 )
 
+publish_code = publish_group.add_task(
+    CmdTask(
+        name="publish-zrb-code",
+        description="Publish Zrb code",
+        cwd=_DIR,
+        cmd=f"git tag -a {_VERSION} -m {_VERSION}",
+    ),
+    alias="code",
+)
+format_code >> publish_code
+
 publish_pip = publish_group.add_task(
     CmdTask(
         name="publish-zrb-to-pip",
