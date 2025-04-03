@@ -146,6 +146,17 @@ publish_group = cli.add_group(
     Group(name="publish", description="📦 Publication related command")
 )
 
+publish_code = publish_group.add_task(
+    CmdTask(
+        name="publish-zrb-code",
+        description="Publish Zrb code",
+        cwd=_DIR,
+        cmd=f"git tag -a {_VERSION} -m {_VERSION}",
+    ),
+    alias="code",
+)
+format_code >> publish_code
+
 publish_pip = publish_group.add_task(
     CmdTask(
         name="publish-zrb-to-pip",
@@ -176,8 +187,10 @@ test_generator_group = test_group.add_group(
     description="🔄 Remove generated resources",
 )
 async def remove_generated(ctx: AnyContext):
-    ctx.print("Remove generated resources")
-    shutil.rmtree(os.path.join(_DIR, "playground", "generated"))
+    generated_dir = os.path.join(_DIR, "playground", "generated")
+    if os.path.exists(generated_dir):
+        ctx.print("Remove generated resources")
+        shutil.rmtree(generated_dir)
 
 
 @make_task(

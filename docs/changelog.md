@@ -1,3 +1,7 @@
+# 1.5.2
+
+- Handle tools with empty parameters by adding `dummy` parameter (fix gemini behavior)
+
 # 1.5.1
 
 - Remove dependency to `fastembed`

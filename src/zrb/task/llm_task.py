@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 import json
@@ -6,6 +7,7 @@ import traceback
 from collections.abc import Callable
 from typing import Any
 
+from openai import APIError
 from pydantic_ai import Agent, Tool
 from pydantic_ai.messages import (
     FinalResultEvent,
@@ -139,16 +141,31 @@ class LLMTask(BaseTask):
         history = await self._read_conversation_history(ctx)
         user_prompt = self._get_message(ctx)
         agent = self._get_agent(ctx)
-        async with agent.iter(
-            user_prompt=user_prompt,
-            message_history=ModelMessagesTypeAdapter.validate_python(history),
-        ) as agent_run:
-            async for node in agent_run:
-                # Each node represents a step in the agent's execution
-                await self._print_node(ctx, agent_run, node)
-        new_history = json.loads(agent_run.result.all_messages_json())
-        await self._write_conversation_history(ctx, new_history)
-        return agent_run.result.data
+        try:
+            async with agent.iter(
+                user_prompt=user_prompt,
+                message_history=ModelMessagesTypeAdapter.validate_python(history),
+            ) as agent_run:
+                async for node in agent_run:
+                    # Each node represents a step in the agent's execution
+                    # Reference: https://ai.pydantic.dev/agents/#streaming
+                    try:
+                        await self._print_node(ctx, agent_run, node)
+                    except APIError as e:
+                        # Extract detailed error information from the response
+                        error_details = _extract_api_error_details(e)
+                        ctx.log_error(f"API Error: {error_details}")
+                        raise
+                    except Exception as e:
+                        ctx.log_error(f"Error processing node: {str(e)}")
+                        ctx.log_error(f"Error type: {type(e).__name__}")
+                        raise
+                new_history = json.loads(agent_run.result.all_messages_json())
+                await self._write_conversation_history(ctx, new_history)
+                return agent_run.result.data
+        except Exception as e:
+            ctx.log_error(f"Error in agent execution: {str(e)}")
+            raise
 
     async def _print_node(self, ctx: AnyContext, agent_run: Any, node: Any):
         if Agent.is_user_prompt_node(node):
@@ -204,9 +221,20 @@ class LLMTask(BaseTask):
             async with node.stream(agent_run.ctx) as handle_stream:
                 async for event in handle_stream:
                     if isinstance(event, FunctionToolCallEvent):
-                        # Fixing anthrophic claude when call function with empty parameter
-                        if event.part.args == "":
+                        # Handle empty arguments across different providers
+                        if event.part.args == "" or event.part.args is None:
                             event.part.args = {}
+                        elif isinstance(
+                            event.part.args, str
+                        ) and event.part.args.strip() in ["null", "{}"]:
+                            # Some providers might send "null" or "{}" as a string
+                            event.part.args = {}
+                        # Handle dummy property if present (from our schema sanitization)
+                        if (
+                            isinstance(event.part.args, dict)
+                            and "_dummy" in event.part.args
+                        ):
+                            del event.part.args["_dummy"]
                         ctx.print(
                             stylize_faint(
                                 f"[Tools] The LLM calls tool={event.part.tool_name!r} with args={event.part.args} (tool_call_id={event.part.tool_call_id!r})"  # noqa
@@ -330,13 +358,101 @@ class LLMTask(BaseTask):
 
 
 def _wrap_tool(func):
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        try:
-            return await run_async(func(*args, **kwargs))
-        except Exception as e:
-            # Optionally, you can include more details from traceback if needed.
-            error_details = traceback.format_exc()
-            return f"Error: {e}\nDetails: {error_details}"
+    sig = inspect.signature(func)
+    if len(sig.parameters) == 0:
 
-    return wrapper
+        @functools.wraps(func)
+        async def wrapper(_dummy=None):
+            try:
+                return await run_async(func())
+            except Exception as e:
+                # Optionally, you can include more details from traceback if needed.
+                error_details = traceback.format_exc()
+                return f"Error: {e}\nDetails: {error_details}"
+
+        new_sig = inspect.Signature(
+            parameters=[
+                inspect.Parameter(
+                    "_dummy", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
+                )
+            ]
+        )
+        # Override the wrapper's signature so introspection yields a non-empty schema.
+        wrapper.__signature__ = new_sig
+        return wrapper
+    else:
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await run_async(func(*args, **kwargs))
+            except Exception as e:
+                # Optionally, you can include more details from traceback if needed.
+                error_details = traceback.format_exc()
+                return f"Error: {e}\nDetails: {error_details}"
+
+        return wrapper
+
+
+def _extract_api_error_details(error: APIError) -> str:
+    """Extract detailed error information from an APIError."""
+    details = f"{error.message}"
+    # Try to parse the error body as JSON
+    if error.body:
+        try:
+            if isinstance(error.body, str):
+                body_json = json.loads(error.body)
+            elif isinstance(error.body, bytes):
+                body_json = json.loads(error.body.decode("utf-8"))
+            else:
+                body_json = error.body
+            # Extract error details from the JSON structure
+            if isinstance(body_json, dict):
+                if "error" in body_json:
+                    error_obj = body_json["error"]
+                    if isinstance(error_obj, dict):
+                        if "message" in error_obj:
+                            details += f"\nProvider message: {error_obj['message']}"
+                        if "code" in error_obj:
+                            details += f"\nError code: {error_obj['code']}"
+                        if "status" in error_obj:
+                            details += f"\nStatus: {error_obj['status']}"
+                # Check for metadata that might contain provider-specific information
+                if "metadata" in body_json and isinstance(body_json["metadata"], dict):
+                    metadata = body_json["metadata"]
+                    if "provider_name" in metadata:
+                        details += f"\nProvider: {metadata['provider_name']}"
+                    if "raw" in metadata:
+                        try:
+                            raw_json = json.loads(metadata["raw"])
+                            if "error" in raw_json and isinstance(
+                                raw_json["error"], dict
+                            ):
+                                raw_error = raw_json["error"]
+                                if "message" in raw_error:
+                                    details += (
+                                        f"\nRaw error message: {raw_error['message']}"
+                                    )
+                        except (KeyError, TypeError, ValueError):
+                            # If we can't parse the raw JSON, just include it as is
+                            details += f"\nRaw error data: {metadata['raw']}"
+        except json.JSONDecodeError:
+            # If we can't parse the JSON, include the raw body
+            details += f"\nRaw error body: {error.body}"
+        except Exception as e:
+            # Catch any other exceptions during parsing
+            details += f"\nError parsing error body: {str(e)}"
+    # Include request information if available
+    if hasattr(error, "request") and error.request:
+        if hasattr(error.request, "method") and hasattr(error.request, "url"):
+            details += f"\nRequest: {error.request.method} {error.request.url}"
+        # Include a truncated version of the request content if available
+        if hasattr(error.request, "content") and error.request.content:
+            content = error.request.content
+            if isinstance(content, bytes):
+                try:
+                    content = content.decode("utf-8")
+                except UnicodeDecodeError:
+                    content = str(content)
+            details += f"\nRequest content: {content}"
+    return details

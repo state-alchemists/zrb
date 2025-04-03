@@ -16,7 +16,7 @@ def serve_cli():
         zrb_init_path_list = _get_zrb_init_path_list()
         # load init scripts
         for init_script in INIT_SCRIPTS:
-            abs_init_script = os.path.abspath(init_script)
+            abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
                 load_file(abs_init_script, -1)
         # load zrb init
