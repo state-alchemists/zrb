@@ -38,27 +38,27 @@ class LLMConfig:
         default_persona: str | None = None,
         default_system_prompt: str | None = None,
     ):
-        self._model_name = (
+        self._default_model_name = (
             default_model_name
             if default_model_name is not None
             else os.getenv("ZRB_LLM_MODEL", None)
         )
-        self._model_base_url = (
+        self._default_model_base_url = (
             default_base_url
             if default_base_url is not None
             else os.getenv("ZRB_LLM_BASE_URL", None)
         )
-        self._model_api_key = (
+        self._default_model_api_key = (
             default_api_key
             if default_api_key is not None
             else os.getenv("ZRB_LLM_API_KEY", None)
         )
-        self._system_prompt = (
+        self._default_system_prompt = (
             default_system_prompt
             if default_system_prompt is not None
             else os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
         )
-        self._persona = (
+        self._default_persona = (
             default_persona
             if default_persona is not None
             else os.getenv("ZRB_LLM_PERSONA", None)
@@ -67,24 +67,24 @@ class LLMConfig:
         self._default_model = None
 
     def _get_model_name(self) -> str | None:
-        return self._model_name if self._model_name is not None else None
+        return self._default_model_name if self._default_model_name is not None else None
 
     def get_default_model_provider(self) -> Provider | str:
         if self._default_provider is not None:
             return self._default_provider
-        if self._model_base_url is None and self._model_api_key is None:
+        if self._default_model_base_url is None and self._default_model_api_key is None:
             return "openai"
         return OpenAIProvider(
-            base_url=self._model_base_url, api_key=self._model_api_key
+            base_url=self._default_model_base_url, api_key=self._default_model_api_key
         )
 
     def get_default_system_prompt(self) -> str:
         system_prompt = (
             DEFAULT_SYSTEM_PROMPT
-            if self._system_prompt is None
-            else self._system_prompt
+            if self._default_system_prompt is None
+            else self._default_system_prompt
         )
-        persona = DEFAULT_PERSONA if self._persona is None else self._persona
+        persona = DEFAULT_PERSONA if self._default_persona is None else self._default_persona
         if persona is not None:
             return f"{persona}\n{system_prompt}"
         return system_prompt
@@ -100,17 +100,20 @@ class LLMConfig:
             provider=self.get_default_model_provider(),
         )
 
+    def set_default_persona(self, persona: str):
+        self._default_persona = persona
+
     def set_default_system_prompt(self, system_prompt: str):
-        self._system_prompt = system_prompt
+        self._default_system_prompt = system_prompt
 
     def set_default_model_name(self, model_name: str):
-        self._model_name = model_name
+        self._default_model_name = model_name
 
     def set_default_model_api_key(self, model_api_key: str):
-        self._model_api_key = model_api_key
+        self._default_model_api_key = model_api_key
 
     def set_default_model_base_url(self, model_base_url: str):
-        self._model_base_url = model_base_url
+        self._default_model_base_url = model_base_url
 
     def set_default_provider(self, provider: Provider | str):
         self._default_provider = provider

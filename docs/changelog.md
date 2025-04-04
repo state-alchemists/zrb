@@ -1,3 +1,7 @@
+# 1.5.3
+
+- Add `set_default_persona` to LLM config
+
 # 1.5.2
 
 - Handle tools with empty parameters by adding `dummy` parameter (fix gemini behavior)

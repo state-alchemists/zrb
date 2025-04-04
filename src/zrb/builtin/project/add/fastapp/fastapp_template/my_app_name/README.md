@@ -23,14 +23,14 @@ Here's how you can use the `as_api_client` and `as_direct_client` methods:
 
 ```python
 # Using as_api_client
-from myapp.config import APP_AUTH_BASE_URL
-from myapp.module.auth.service.permission.permission_service_factory import permission_service
+from my_app_name.config import APP_AUTH_BASE_URL
+from my_app_name.module.auth.service.permission.permission_service_factory import permission_service
 
 # Create an API client for the permission service
 permission_api_client = permission_service.as_api_client(base_url=APP_AUTH_BASE_URL)
 
 # Using as_direct_client
-from myapp.module.auth.service.role.role_service_factory import role_service
+from my_app_name.module.auth.service.role.role_service_factory import role_service
 
 # Create a direct client for the role service
 role_direct_client = role_service.as_direct_client()
@@ -85,13 +85,13 @@ My App Name follows a modular-monolith architecture. Each module (e.g., Auth, Li
 
 The application utilizes the Factory pattern extensively, particularly for creating client, service, and repository instances. This allows the application to switch between different implementations based on configuration settings.
 
-**Example (`myapp/module/auth/client/auth_client_factory.py`):**
+**Example (`my_app_name/module/auth/client/auth_client_factory.py`):**
 
 ```python
-from myapp.config import APP_COMMUNICATION
-from myapp.module.auth.client.auth_api_client import AuthAPIClient
-from myapp.module.auth.client.auth_client import AuthClient
-from myapp.module.auth.client.auth_direct_client import AuthDirectClient
+from my_app_name.config import APP_COMMUNICATION
+from my_app_name.module.auth.client.auth_api_client import AuthAPIClient
+from my_app_name.module.auth.client.auth_client import AuthClient
+from my_app_name.module.auth.client.auth_direct_client import AuthDirectClient
 
 # Selects the client based on the configuration
 if APP_COMMUNICATION == "direct":
@@ -100,24 +100,24 @@ elif APP_COMMUNICATION == "api":
     auth_client: AuthClient = AuthAPIClient()      # Used in Microservices mode
 ```
 
-By changing the `APP_COMMUNICATION` variable in `myapp/config.py`, you can switch how modules communicate without changing the core module logic. Similar factories exist for services and repositories (e.g., switching between database and in-memory implementations based on `APP_REPOSITORY_TYPE`).
+By changing the `APP_COMMUNICATION` variable in `my_app_name/config.py`, you can switch how modules communicate without changing the core module logic. Similar factories exist for services and repositories (e.g., switching between database and in-memory implementations based on `APP_REPOSITORY_TYPE`).
 
 ## Key Folders and Files
 
--   `myapp/config.py`: Central configuration file (database connections, communication mode, etc.).
--   `myapp/main.py`: Main application entry point.
--   `myapp/common/`: Shared utilities, base classes (e.g., `app_factory.py`, `base_service.py`).
--   `myapp/module/`: Contains the application modules (e.g., `auth`, `library`, `gateway`).
-    -   `myapp/module/<module_name>/`: Each module directory typically contains:
+-   `my_app_name/config.py`: Central configuration file (database connections, communication mode, etc.).
+-   `my_app_name/main.py`: Main application entry point.
+-   `my_app_name/common/`: Shared utilities, base classes (e.g., `app_factory.py`, `base_service.py`).
+-   `my_app_name/module/`: Contains the application modules (e.g., `auth`, `library`, `gateway`).
+    -   `my_app_name/module/<module_name>/`: Each module directory typically contains:
         -   `client/`: Client interfaces (`*_client.py`, `*_api_client.py`, `*_direct_client.py`) and factories (`*_client_factory.py`).
         -   `service/`: Business logic implementation (`*_service.py`) and factories (`*_service_factory.py`).
         -   `repository/`: Data access logic (`*_repository.py`, `*_db_repository.py`) and factories (`*_repository_factory.py`).
         -   `route.py`: API or UI routes for the module.
         -   `schema/`: Data transfer objects or database models (if applicable).
         -   `migration/`: Database migration scripts (if using Alembic).
--   `myapp/schema/`: Shared data schemas used across modules.
--   `myapp/test/`: Unit and integration tests.
--   `myapp/_zrb/`: Tooling scripts (likely for code generation or automation).
+-   `my_app_name/schema/`: Shared data schemas used across modules.
+-   `my_app_name/test/`: Unit and integration tests.
+-   `my_app_name/_zrb/`: Tooling scripts (likely for code generation or automation).
 
 
 ## Principles
