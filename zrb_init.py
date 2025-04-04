@@ -151,7 +151,7 @@ publish_code = publish_group.add_task(
         name="publish-zrb-code",
         description="Publish Zrb code",
         cwd=_DIR,
-        cmd=f"git tag -a {_VERSION} -m {_VERSION}",
+        cmd=[f"git tag -a {_VERSION} -m {_VERSION}", f"git push -u origin {_VERSION}"],
     ),
     alias="code",
 )

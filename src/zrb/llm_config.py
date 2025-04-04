@@ -67,7 +67,9 @@ class LLMConfig:
         self._default_model = None
 
     def _get_model_name(self) -> str | None:
-        return self._default_model_name if self._default_model_name is not None else None
+        return (
+            self._default_model_name if self._default_model_name is not None else None
+        )
 
     def get_default_model_provider(self) -> Provider | str:
         if self._default_provider is not None:
@@ -84,7 +86,9 @@ class LLMConfig:
             if self._default_system_prompt is None
             else self._default_system_prompt
         )
-        persona = DEFAULT_PERSONA if self._default_persona is None else self._default_persona
+        persona = (
+            DEFAULT_PERSONA if self._default_persona is None else self._default_persona
+        )
         if persona is not None:
             return f"{persona}\n{system_prompt}"
         return system_prompt
