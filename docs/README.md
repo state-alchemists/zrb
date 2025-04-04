@@ -14,3 +14,5 @@
 - [Configuration](configuration.md)
 - [Maintainer Guide](maintainer-guide.md)
 - [Changelog](changelog.md)
+- [Android Setup (Termux)](android_setup.md)
+- [CI/CD Integration](ci_cd.md)
