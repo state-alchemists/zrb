@@ -9,6 +9,7 @@ from typing import Any
 
 from openai import APIError
 from pydantic_ai import Agent, Tool
+from pydantic_ai.mcp import MCPServer
 from pydantic_ai.messages import (
     FinalResultEvent,
     FunctionToolCallEvent,
@@ -54,9 +55,9 @@ class LLMTask(BaseTask):
             Callable[[AnySharedContext], Model | str | fstring] | Model | None
         ) = None,
         render_model: bool = True,
-        model_base_url: StrAttr = None,
+        model_base_url: StrAttr | None = None,
         render_model_base_url: bool = True,
-        model_api_key: StrAttr = None,
+        model_api_key: StrAttr | None = None,
         render_model_api_key: bool = True,
         model_settings: (
             ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
@@ -68,6 +69,7 @@ class LLMTask(BaseTask):
         tools: (
             list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
         ) = [],
+        mcp_servers: list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]] = [],
         conversation_history: (
             ListOfDict | Callable[[AnySharedContext], ListOfDict]
         ) = [],
@@ -127,6 +129,8 @@ class LLMTask(BaseTask):
         self._message = message
         self._tools = tools
         self._additional_tools: list[ToolOrCallable] = []
+        self._mcp_srvers = mcp_servers
+        self._additional_mcp_servers: list[MCPServer] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
         self._conversation_history_writer = conversation_history_writer
