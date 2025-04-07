@@ -1,6 +1,6 @@
 import asyncio
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 from zrb.attr.type import BoolAttr, fstring
@@ -64,7 +64,7 @@ class BaseTask(AnyTask):
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
 
-    def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask:
+    def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask | list[AnyTask]:
         try:
             if isinstance(other, AnyTask):
                 other.append_upstream(self)
@@ -123,7 +123,9 @@ class BaseTask(AnyTask):
         return [task_input for task_input in inputs if task_input is not None]
 
     def __combine_inputs(
-        self, inputs: list[AnyInput], other_inputs: list[AnyInput] | AnyInput
+        self,
+        inputs: list[AnyInput],
+        other_inputs: list[AnyInput | None] | AnyInput | None,
     ):
         input_names = [task_input.name for task_input in inputs]
         if isinstance(other_inputs, AnyInput):
@@ -429,7 +431,7 @@ class BaseTask(AnyTask):
             session.get_task_status(self).reset()
             # defer this action
             ctx.log_info("Running")
-            action_coro = asyncio.create_task(
+            action_coro: Coroutine = asyncio.create_task(
                 run_async(self.__exec_action_and_retry(session))
             )
             session.defer_action(self, action_coro)

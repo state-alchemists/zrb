@@ -1,4 +1,3 @@
-import copy
 import functools
 import inspect
 import json
@@ -9,6 +8,7 @@ from typing import Any
 
 from openai import APIError
 from pydantic_ai import Agent, Tool
+from pydantic_ai.mcp import MCPServer
 from pydantic_ai.messages import (
     FinalResultEvent,
     FunctionToolCallEvent,
@@ -54,9 +54,9 @@ class LLMTask(BaseTask):
             Callable[[AnySharedContext], Model | str | fstring] | Model | None
         ) = None,
         render_model: bool = True,
-        model_base_url: StrAttr = None,
+        model_base_url: StrAttr | None = None,
         render_model_base_url: bool = True,
-        model_api_key: StrAttr = None,
+        model_api_key: StrAttr | None = None,
         render_model_api_key: bool = True,
         model_settings: (
             ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
@@ -67,6 +67,9 @@ class LLMTask(BaseTask):
         message: StrAttr | None = None,
         tools: (
             list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
+        ) = [],
+        mcp_servers: (
+            list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]
         ) = [],
         conversation_history: (
             ListOfDict | Callable[[AnySharedContext], ListOfDict]
@@ -127,6 +130,8 @@ class LLMTask(BaseTask):
         self._message = message
         self._tools = tools
         self._additional_tools: list[ToolOrCallable] = []
+        self._mcp_servers = mcp_servers
+        self._additional_mcp_servers: list[MCPServer] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
         self._conversation_history_writer = conversation_history_writer
@@ -137,32 +142,36 @@ class LLMTask(BaseTask):
     def add_tool(self, tool: ToolOrCallable):
         self._additional_tools.append(tool)
 
+    def add_mcp_server(self, mcp_server: MCPServer):
+        self._additional_mcp_servers.append(mcp_server)
+
     async def _exec_action(self, ctx: AnyContext) -> Any:
         history = await self._read_conversation_history(ctx)
         user_prompt = self._get_message(ctx)
         agent = self._get_agent(ctx)
         try:
-            async with agent.iter(
-                user_prompt=user_prompt,
-                message_history=ModelMessagesTypeAdapter.validate_python(history),
-            ) as agent_run:
-                async for node in agent_run:
-                    # Each node represents a step in the agent's execution
-                    # Reference: https://ai.pydantic.dev/agents/#streaming
-                    try:
-                        await self._print_node(ctx, agent_run, node)
-                    except APIError as e:
-                        # Extract detailed error information from the response
-                        error_details = _extract_api_error_details(e)
-                        ctx.log_error(f"API Error: {error_details}")
-                        raise
-                    except Exception as e:
-                        ctx.log_error(f"Error processing node: {str(e)}")
-                        ctx.log_error(f"Error type: {type(e).__name__}")
-                        raise
-                new_history = json.loads(agent_run.result.all_messages_json())
-                await self._write_conversation_history(ctx, new_history)
-                return agent_run.result.data
+            async with agent.run_mcp_servers():
+                async with agent.iter(
+                    user_prompt=user_prompt,
+                    message_history=ModelMessagesTypeAdapter.validate_python(history),
+                ) as agent_run:
+                    async for node in agent_run:
+                        # Each node represents a step in the agent's execution
+                        # Reference: https://ai.pydantic.dev/agents/#streaming
+                        try:
+                            await self._print_node(ctx, agent_run, node)
+                        except APIError as e:
+                            # Extract detailed error information from the response
+                            error_details = _extract_api_error_details(e)
+                            ctx.log_error(f"API Error: {error_details}")
+                            raise
+                        except Exception as e:
+                            ctx.log_error(f"Error processing node: {str(e)}")
+                            ctx.log_error(f"Error type: {type(e).__name__}")
+                            raise
+                    new_history = json.loads(agent_run.result.all_messages_json())
+                    await self._write_conversation_history(ctx, new_history)
+                    return agent_run.result.data
         except Exception as e:
             ctx.log_error(f"Error in agent execution: {str(e)}")
             raise
@@ -277,10 +286,15 @@ class LLMTask(BaseTask):
             tool if isinstance(tool, Tool) else Tool(_wrap_tool(tool), takes_ctx=False)
             for tool in tools_or_callables
         ]
+        mcp_servers = list(
+            self._mcp_servers(ctx) if callable(self._mcp_servers) else self._mcp_servers
+        )
+        mcp_servers.extend(self._additional_mcp_servers)
         return Agent(
             self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),
             tools=tools,
+            mcp_servers=mcp_servers,
             model_settings=self._get_model_settings(ctx),
             retries=3,
         )
