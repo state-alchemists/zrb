@@ -129,7 +129,7 @@ class LLMTask(BaseTask):
         self._message = message
         self._tools = tools
         self._additional_tools: list[ToolOrCallable] = []
-        self._mcp_srvers = mcp_servers
+        self._mcp_servers = mcp_servers
         self._additional_mcp_servers: list[MCPServer] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
@@ -140,6 +140,9 @@ class LLMTask(BaseTask):
 
     def add_tool(self, tool: ToolOrCallable):
         self._additional_tools.append(tool)
+    
+    def add_mcp_server(self, mcp_server: MCPServer):
+        self._additional_mcp_servers.append(mcp_server)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         history = await self._read_conversation_history(ctx)
@@ -281,10 +284,14 @@ class LLMTask(BaseTask):
             tool if isinstance(tool, Tool) else Tool(_wrap_tool(tool), takes_ctx=False)
             for tool in tools_or_callables
         ]
+        mcp_servers = list(
+            self._mcp_servers(ctx) if callable(self._mcp_servers) else self._mcp_servers
+        )
         return Agent(
             self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),
             tools=tools,
+            mcp_servers=mcp_servers,
             model_settings=self._get_model_settings(ctx),
             retries=3,
         )

@@ -107,7 +107,7 @@ class BaseTask(AnyTask):
         envs = []
         for upstream in self.upstreams:
             envs += upstream.envs
-        if isinstance(self._envs,uAnyEnv):
+        if isinstance(self._envs, AnyEnv):
             envs.append(self._envs)
         elif self._envs is not None:
             envs += self._envs
