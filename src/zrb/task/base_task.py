@@ -123,7 +123,9 @@ class BaseTask(AnyTask):
         return [task_input for task_input in inputs if task_input is not None]
 
     def __combine_inputs(
-        self, inputs: list[AnyInput], other_inputs: list[AnyInput | None] | AnyInput | None
+        self,
+        inputs: list[AnyInput],
+        other_inputs: list[AnyInput | None] | AnyInput | None,
     ):
         input_names = [task_input.name for task_input in inputs]
         if isinstance(other_inputs, AnyInput):
