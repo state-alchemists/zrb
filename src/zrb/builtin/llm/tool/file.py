@@ -1,510 +1,374 @@
 import fnmatch
+import json
 import os
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 from zrb.util.file import read_file as _read_file
 from zrb.util.file import write_file as _write_file
 
-# Common directories and files to exclude from file operations
-_DEFAULT_EXCLUDES = [
-    # Version control
-    ".git",
-    ".svn",
-    ".hg",
-    # Dependencies and packages
-    "node_modules",
-    "venv",
-    ".venv",
-    "env",
-    ".env",
-    # Build and cache
-    "__pycache__",
-    "*.pyc",
-    "build",
-    "dist",
-    "target",
-    # IDE and editor files
-    ".idea",
-    ".vscode",
-    "*.swp",
-    "*.swo",
-    # OS-specific
-    ".DS_Store",
-    "Thumbs.db",
-    # Temporary and backup files
-    "*.tmp",
-    "*.bak",
-    "*.log",
-]
-
-# Maximum number of lines to read before truncating
-_MAX_LINES_BEFORE_TRUNCATION = 1000
-
-# Number of context lines to show around method definitions when truncating
-_CONTEXT_LINES = 5
-
 
 def list_files(
-    path: str = ".",
-    recursive: bool = True,
-    file_pattern: Optional[str] = None,
-    excluded_patterns: list[str] = _DEFAULT_EXCLUDES,
-) -> list[str]:
+    path: str = ".", recursive: bool = True, include_hidden: bool = False
+) -> str:
     """
-    List files in a directory that match specified patterns.
-
+    Request to list files and directories within the specified directory.
+    If recursive is true, it will list all files and directories recursively.
+    If recursive is false or not provided, it will only list the top-level contents.
     Args:
-        path: The path of the directory to list contents for
-            (relative to the current working directory)
-        recursive: Whether to list files recursively.
-            Use True for recursive listing, False for top-level only.
-        file_pattern: Optional glob pattern to filter files.
-            None by default (all files will be included).
-        excluded_patterns: List of glob patterns to exclude. By default, contains sane values
-            to exclude common directories and files like version control, build artifacts,
-            and temporary files.
-
+        path: (required) The path of the directory to list contents for (relative to the CWD)
+        recursive: (optional) Whether to list files recursively.
+            Use true for recursive listing, false or omit for top-level only.
+        include_hidden: (optional) Whether to include hidden files/directories.
+            Defaults to False (exclude hidden files).
     Returns:
-        A list of file paths matching the criteria
+        A JSON string containing a list of file paths or an error message.
+        Example success: '{"files": ["file1.txt", "subdir/file2.py"]}'
+        Example error: '{"error": "Error listing files: [Errno 2] No such file..."}'
     """
-    all_files: list[str] = []
-
-    if recursive:
-        for root, dirs, files in os.walk(path):
-            # Filter out excluded directories to avoid descending into them
-            dirs[:] = [
-                d
-                for d in dirs
-                if not _should_exclude(os.path.join(root, d), excluded_patterns)
-            ]
-
-            for filename in files:
-                full_path = os.path.join(root, filename)
-                # If file_pattern is None, include all files, otherwise match the pattern
-                if file_pattern is None or fnmatch.fnmatch(filename, file_pattern):
-                    if not _should_exclude(full_path, excluded_patterns):
-                        all_files.append(full_path)
-    else:
-        # Non-recursive listing (top-level only)
-        try:
-            for item in os.listdir(path):
-                full_path = os.path.join(path, item)
-                if os.path.isfile(full_path):
-                    # If file_pattern is None, include all files, otherwise match the pattern
-                    if file_pattern is None or fnmatch.fnmatch(item, file_pattern):
-                        if not _should_exclude(full_path, excluded_patterns):
-                            all_files.append(full_path)
-        except (FileNotFoundError, PermissionError) as e:
-            print(f"Error listing files in {path}: {e}")
-
-    return sorted(all_files)
-
-
-def _should_exclude(
-    full_path: str, excluded_patterns: list[str] = _DEFAULT_EXCLUDES
-) -> bool:
-    """
-    Return True if the file at full_path should be excluded based on
-    the list of excluded_patterns. Patterns that include a path separator
-    are applied to the full normalized path; otherwise they are matched
-    against each individual component of the path.
-
-    Args:
-        full_path: The full path to check
-        excluded_patterns: List of patterns to exclude
-
-    Returns:
-        True if the path should be excluded, False otherwise
-    """
-    norm_path = os.path.normpath(full_path)
-    path_parts = norm_path.split(os.sep)
-
-    for pat in excluded_patterns:
-        # If the pattern seems intended for full path matching (contains a separator)
-        if os.sep in pat or "/" in pat:
-            if fnmatch.fnmatch(norm_path, pat):
-                return True
+    all_files: List[str] = []
+    abs_path = os.path.abspath(path)
+    try:
+        if recursive:
+            for root, dirs, files in os.walk(abs_path):
+                # Skip hidden directories (like .git) for performance and relevance
+                dirs[:] = [d for d in dirs if include_hidden or not _is_hidden(d)]
+                for filename in files:
+                    # Skip hidden files
+                    if include_hidden or not _is_hidden(filename):
+                        all_files.append(os.path.join(root, filename))
         else:
-            # Otherwise check each part of the path
-            if any(fnmatch.fnmatch(part, pat) for part in path_parts):
-                return True
-            # Also check the filename against the pattern
-            if os.path.isfile(full_path) and fnmatch.fnmatch(
-                os.path.basename(full_path), pat
-            ):
-                return True
+            # Non-recursive listing (top-level only)
+            for item in os.listdir(abs_path):
+                full_path = os.path.join(abs_path, item)
+                # Include both files and directories if not recursive
+                if include_hidden or not _is_hidden(
+                    item
+                ):  # Skip hidden items unless included
+                    all_files.append(full_path)
 
-    return False
+        # Return paths relative to the original path requested
+        try:
+            rel_files = [
+                os.path.relpath(f, os.path.dirname(abs_path)) for f in all_files
+            ]
+            return json.dumps({"files": sorted(rel_files)})
+        except (
+            ValueError
+        ) as e:  # Handle case where path is '.' and abs_path is CWD root
+            if "path is on mount '" in str(e) and "' which is not on mount '" in str(e):
+                # If paths are on different mounts, just use absolute paths
+                rel_files = all_files
+                return json.dumps({"files": sorted(rel_files)})
+            raise
+    except Exception as e:
+        raise Exception(f"Error listing files in {path}: {e}")
+
+
+def _is_hidden(path: str) -> bool:
+    """Check if path is hidden (starts with '.')."""
+    return os.path.basename(path).startswith(".")
 
 
 def read_from_file(
     path: str,
     start_line: Optional[int] = None,
     end_line: Optional[int] = None,
-    auto_truncate: bool = False,
 ) -> str:
     """
-    Read the contents of a file at the specified path.
-
+    Request to read the contents of a file at the specified path. Use this when you need
+    to examine the contents of an existing file you do not know the contents of, for example
+    to analyze code, review text files, or extract information from configuration files.
+    The output includes line numbers prefixed to each line (e.g. "1 | const x = 1"),
+    making it easier to reference specific lines when creating diffs or discussing code.
+    By specifying start_line and end_line parameters, you can efficiently read specific
+    portions of large files without loading the entire file into memory. Automatically
+    extracts raw text from PDF and DOCX files. May not be suitable for other types of
+    binary files, as it returns the raw content as a string.
     Args:
-        path: The path of the file to read (relative to the current working directory)
-        start_line: The starting line number to read from (1-based).
-            If not provided, starts from the beginning.
-        end_line: The ending line number to read to (1-based, inclusive).
-            If not provided, reads to the end.
-        auto_truncate: Whether to automatically truncate large files when start_line
-            and end_line are not specified. If true and the file exceeds a certain
-            line threshold, it will return a subset of lines with information about
-            the total line count and method definitions. Default is False for backward
-            compatibility, but setting to True is recommended for large files.
-
+        path: (required) The path of the file to read (relative to the CWD)
+        start_line: (optional) The starting line number to read from (1-based).
+            If not provided, it starts from the beginning of the file.
+        end_line: (optional) The ending line number to read to (1-based, inclusive).
+            If not provided, it reads to the end of the file.
     Returns:
-        A string containing the file content, with line numbers prefixed to each line.
-        For truncated files, includes summary information.
+        A JSON string containing the file path, content, and line range, or an error.
+        Example success: '{"path": "f.py", "content": "...", "start_line": 1, "end_line": 2}'
+        Example error: '{"error": "File not found: data.txt"}'
     """
     try:
         abs_path = os.path.abspath(path)
-
-        # Read the entire file content
+        # Check if file exists
+        if not os.path.exists(abs_path):
+            return json.dumps({"error": f"File {path} does not exist"})
         content = _read_file(abs_path)
         lines = content.splitlines()
         total_lines = len(lines)
-
-        # Determine if we should truncate
-        should_truncate = (
-            auto_truncate
-            and start_line is None
-            and end_line is None
-            and total_lines > _MAX_LINES_BEFORE_TRUNCATION
-        )
-
         # Adjust line indices (convert from 1-based to 0-based)
         start_idx = (start_line - 1) if start_line is not None else 0
         end_idx = end_line if end_line is not None else total_lines
-
         # Validate indices
         if start_idx < 0:
             start_idx = 0
         if end_idx > total_lines:
             end_idx = total_lines
-
-        if should_truncate:
-            # Find method definitions and their line ranges
-            method_info = _find_method_definitions(lines)
-
-            # Create a truncated view with method definitions
-            result_lines = []
-
-            # Add file info header
-            result_lines.append(f"File: {path} (truncated, {total_lines} lines total)")
-            result_lines.append("")
-
-            # Add beginning of file (first 100 lines)
-            first_chunk = min(100, total_lines // 3)
-            for i in range(first_chunk):
-                result_lines.append(f"{i+1} | {lines[i]}")
-
-            result_lines.append("...")
-            omitted_msg = (
-                f"[{first_chunk+1} - {total_lines-100}] Lines omitted for brevity"
-            )
-            result_lines.append(omitted_msg)
-            result_lines.append("...")
-
-            # Add end of file (last 100 lines)
-            for i in range(max(first_chunk, total_lines - 100), total_lines):
-                result_lines.append(f"{i+1} | {lines[i]}")
-
-            # Add method definitions summary
-            if method_info:
-                result_lines.append("")
-                result_lines.append("Method definitions found:")
-                for method in method_info:
-                    method_line = (
-                        f"- {method['name']} "
-                        f"(lines {method['start_line']}-{method['end_line']})"
-                    )
-                    result_lines.append(method_line)
-
-            return "\n".join(result_lines)
-        else:
-            # Return the requested range with line numbers
-            result_lines = []
-            for i in range(start_idx, end_idx):
-                result_lines.append(f"{i+1} | {lines[i]}")
-
-            return "\n".join(result_lines)
-
+        if start_idx > end_idx:
+            start_idx = end_idx
+        # Select the lines for the result
+        selected_lines = lines[start_idx:end_idx]
+        content_result = "\n".join(selected_lines)
+        return json.dumps(
+            {
+                "path": path,
+                "content": content_result,
+                "start_line": start_idx + 1,  # Convert back to 1-based for output
+                "end_line": end_idx,  # end_idx is already exclusive upper bound
+                "total_lines": total_lines,
+            }
+        )
     except Exception as e:
-        return f"Error reading file {path}: {str(e)}"
+        raise Exception(f"Error reading file {path}: {e}")
 
 
-def _find_method_definitions(lines: List[str]) -> List[Dict[str, Union[str, int]]]:
+def write_to_file(path: str, content: str, line_count: int) -> str:
     """
-    Find method definitions in the given lines of code.
-
+    Request to write full content to a file at the specified path. If the file exists,
+    it will be overwritten with the provided content. If the file doesn't exist,
+    it will be created. This tool will automatically create any directories needed
+    to write the file.
     Args:
-        lines: List of code lines to analyze
-
+        path: (required) The path of the file to write to (relative to the CWD)
+        content: (required) The content to write to the file. ALWAYS provide the COMPLETE
+            intended content of the file, without any truncation or omissions. You MUST
+            include ALL parts of the file, even if they haven't been modified. Do NOT
+            include the line numbers in the content though, just the actual content
+            of the file.
+        line_count: (required) The number of lines in the file. Make sure to compute
+            this based on the actual content of the file, not the number of lines
+            in the content you're providing.
     Returns:
-        List of dictionaries containing method name, start line, and end line
+        A JSON string indicating success or failure, including any warnings.
+        Example success: '{"success": true, "path": "new_config.json"}'
+        Example success with warning: '{"success": true, "path": "f.txt", "warning": "..."}'
+        Example error: '{"success": false, "error": "Permission denied: /etc/hosts"}'
     """
-    method_info = []
-
-    # Simple regex patterns for common method/function definitions
-    patterns = [
-        # Python
-        r"^\s*def\s+([a-zA-Z0-9_]+)\s*\(",
-        # JavaScript/TypeScript
-        r"^\s*(function\s+([a-zA-Z0-9_]+)|([a-zA-Z0-9_]+)\s*=\s*function|"
-        r"\s*([a-zA-Z0-9_]+)\s*\([^)]*\)\s*{)",
-        # Java/C#/C++
-        r"^\s*(?:public|private|protected|static|final|abstract|synchronized)?"
-        r"\s+(?:[a-zA-Z0-9_<>[\]]+\s+)+([a-zA-Z0-9_]+)\s*\(",
-    ]
-
-    current_method = None
-
-    for i, line in enumerate(lines):
-        # Check if this line starts a method definition
-        for pattern in patterns:
-            match = re.search(pattern, line)
-            if match:
-                # If we were tracking a method, close it
-                if current_method:
-                    current_method["end_line"] = i
-                    method_info.append(current_method)
-
-                # Start tracking a new method
-                method_name = next(
-                    group for group in match.groups() if group is not None
-                )
-                current_method = {
-                    "name": method_name,
-                    "start_line": i + 1,  # 1-based line numbering
-                    "end_line": None,
-                }
-                break
-
-        # Check for method end (simplistic approach)
-        if current_method and line.strip() == "}":
-            current_method["end_line"] = i + 1
-            method_info.append(current_method)
-            current_method = None
-
-    # Close any open method at the end of the file
-    if current_method:
-        current_method["end_line"] = len(lines)
-        method_info.append(current_method)
-
-    return method_info
-
-
-def write_to_file(path: str, content: str) -> bool:
-    """
-    Write content to a file at the specified path.
-
-    Args:
-        path: The path of the file to write to (relative to the current working directory)
-        content: The content to write to the file
-
-    Returns:
-        True if successful, False otherwise
-    """
+    actual_lines = len(content.splitlines())
+    warning = None
+    if actual_lines != line_count:
+        warning = (
+            f"Provided line_count ({line_count}) does not match actual "
+            f"content lines ({actual_lines}) for file {path}"
+        )
     try:
+        abs_path = os.path.abspath(path)
         # Ensure directory exists
-        directory = os.path.dirname(os.path.abspath(path))
+        directory = os.path.dirname(abs_path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-
-        # Write the content
-        _write_file(os.path.abspath(path), content)
-        return True
+        _write_file(abs_path, content)
+        result_data = {"success": True, "path": path}
+        if warning:
+            result_data["warning"] = warning
+        return json.dumps(result_data)
     except Exception as e:
-        print(f"Error writing to file {path}: {str(e)}")
-        return False
+        raise Exception(f"Error writing file {e}")
 
 
 def search_files(
-    path: str, regex: str, file_pattern: Optional[str] = None, context_lines: int = 2
+    path: str,
+    regex: str,
+    file_pattern: Optional[str] = None,
+    include_hidden: bool = False,
 ) -> str:
     """
-    Search for a regex pattern across files in a specified directory.
-
+    Request to perform a regex search across files in a specified directory,
+    providing context-rich results. This tool searches for patterns or specific
+    content across multiple files, displaying each match with encapsulating context.
     Args:
-        path: The path of the directory to search in
-            (relative to the current working directory)
-        regex: The regular expression pattern to search for
-        file_pattern: Optional glob pattern to filter files.
-            Default is None, which includes all files. Only specify this if you need to
-            filter to specific file types (but in most cases, leaving as None is better).
-        context_lines: Number of context lines to show before and after each match.
-            Default is 2, which provides good context without overwhelming output.
-
+        path: (required) The path of the directory to search in (relative to the CWD).
+              This directory will be recursively searched.
+        regex: (required) The regular expression pattern to search for. Uses Rust regex syntax.
+               (Note: Python's `re` module will be used here, which has similar syntax)
+        file_pattern: (optional) Glob pattern to filter files (e.g., '*.ts').
+                      If not provided, searches all files (*).
+        include_hidden: (optional) Whether to include hidden files.
+                      Defaults to False (exclude hidden files).
     Returns:
-        A string containing the search results with context
+        A JSON string containing the search results or an error message.
+        Example success: '{"summary": "Found 5 matches...", "results": [{"file":"f.py", ...}]}'
+        Example no match: '{"summary": "No matches found...", "results": []}'
+        Example error: '{"error": "Invalid regex: ..."}'
     """
     try:
-        # Compile the regex pattern
         pattern = re.compile(regex)
-
-        # Get the list of files to search
-        files = list_files(path, recursive=True, file_pattern=file_pattern)
-
-        results = []
-        match_count = 0
-
-        for file_path in files:
-            try:
-                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-                    lines = f.readlines()
-
-                file_matches = []
-
-                for i, line in enumerate(lines):
-                    if pattern.search(line):
-                        # Determine context range
-                        start = max(0, i - context_lines)
-                        end = min(len(lines), i + context_lines + 1)
-
-                        # Add file header if this is the first match in the file
-                        if not file_matches:
-                            file_matches.append(
-                                f"\n{'-' * 80}\n{file_path}\n{'-' * 80}"
-                            )
-
-                        # Add separator if this isn't the first match and isn't contiguous
-                        # with previous
-                        if (
-                            file_matches
-                            and file_matches[-1] != f"Line {start+1}-{end}:"
-                        ):
-                            file_matches.append(f"\nLine {start+1}-{end}:")
-
-                        # Add context lines
-                        for j in range(start, end):
-                            prefix = ">" if j == i else " "
-                            file_matches.append(f"{prefix} {j+1}: {lines[j].rstrip()}")
-
-                        match_count += 1
-
-                if file_matches:
-                    results.extend(file_matches)
-
-            except Exception as e:
-                results.append(f"Error reading {file_path}: {str(e)}")
-
-        if not results:
-            return f"No matches found for pattern '{regex}' in {path}"
-
-        # Count unique files by counting headers
-        file_count = len([r for r in results if r.startswith("-" * 80)])
-        summary = f"Found {match_count} matches in {file_count} files:\n"
-        return summary + "\n".join(results)
-
+    except re.error as e:
+        raise Exception(f"Invalid regex pattern: {e}")
+    search_results = {"summary": "", "results": []}
+    match_count = 0
+    searched_file_count = 0
+    file_match_count = 0
+    try:
+        abs_path = os.path.abspath(path)
+        for root, dirs, files in os.walk(abs_path):
+            # Skip hidden directories
+            dirs[:] = [d for d in dirs if include_hidden or not _is_hidden(d)]
+            for filename in files:
+                # Skip hidden files
+                if not include_hidden and _is_hidden(filename):
+                    continue
+                # Apply file pattern filter if provided
+                if file_pattern and not fnmatch.fnmatch(filename, file_pattern):
+                    continue
+                file_path = os.path.join(root, filename)
+                rel_file_path = os.path.relpath(file_path, os.getcwd())
+                searched_file_count += 1
+                try:
+                    matches = _get_file_matches(file_path, pattern)
+                    if matches:
+                        file_match_count += 1
+                        match_count += len(matches)
+                        search_results["results"].append(
+                            {"file": rel_file_path, "matches": matches}
+                        )
+                except IOError as e:
+                    search_results["results"].append(
+                        {"file": rel_file_path, "error": str(e)}
+                    )
+        if match_count == 0:
+            search_results["summary"] = (
+                f"No matches found for pattern '{regex}' in path '{path}' "
+                f"(searched {searched_file_count} files)."
+            )
+        else:
+            search_results["summary"] = (
+                f"Found {match_count} matches in {file_match_count} files "
+                f"(searched {searched_file_count} files)."
+            )
+        return json.dumps(search_results, indent=2)  # Pretty print for readability
     except Exception as e:
-        return f"Error searching files: {str(e)}"
+        raise Exception(f"Error searching files: {e}")
 
 
-def apply_diff(path: str, diff: str, start_line: int, end_line: int) -> bool:
+def _get_file_matches(
+    file_path: str, pattern: re.Pattern, context_lines: int = 2
+) -> List[Dict[str, Any]]:
+    """Search for regex matches in a file with context."""
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+        matches = []
+        for line_idx, line in enumerate(lines):
+            if pattern.search(line):
+                line_num = line_idx + 1
+                context_start = max(0, line_idx - context_lines)
+                context_end = min(len(lines), line_idx + context_lines + 1)
+                match_data = {
+                    "line_number": line_num,
+                    "line_content": line.rstrip(),
+                    "context_before": [
+                        lines[j].rstrip() for j in range(context_start, line_idx)
+                    ],
+                    "context_after": [
+                        lines[j].rstrip() for j in range(line_idx + 1, context_end)
+                    ],
+                }
+                matches.append(match_data)
+        return matches
+    except Exception as e:
+        raise IOError(f"Error reading {file_path}: {str(e)}")
+
+
+def apply_diff(path: str, diff: str) -> str:
     """
-    Replace existing code using a search and replace block.
-
+    Request to replace existing code using a search and replace block.
+    This tool allows for precise, surgical replaces to files by specifying exactly
+    what content to search for and what to replace it with.
+    The tool will maintain proper indentation and formatting while making changes.
+    Only a single operation is allowed per tool use.
+    The SEARCH section must exactly match existing content including whitespace
+    and indentation.
+    If you're not confident in the exact content to search for, use the read_file tool
+    first to get the exact content.
     Args:
-        path: The path of the file to modify (relative to the current working directory)
-        diff: The search/replace block defining the changes
-        start_line: The line number where the search block starts (1-based)
-        end_line: The line number where the search block ends (1-based)
-
+        path: (required) The path of the file to modify (relative to the CWD)
+        diff: (required) The search/replace block defining the changes.
+              Format:
+              <<<<<<< SEARCH
+              :start_line:START_LINE_NUMBER
+              :end_line:END_LINE_NUMBER
+              -------
+              [exact content to find including whitespace]
+              =======
+              [new content to replace with]
+              >>>>>>> REPLACE
     Returns:
-        True if successful, False otherwise
-
-    The diff format should be:
-    ```
-    <<<<<<< SEARCH
-    [exact content to find including whitespace]
-    =======
-    [new content to replace with]
-    >>>>>>> REPLACE
-    ```
+        A JSON string indicating success or failure.
     """
     try:
-        # Read the file
+        start_line, end_line, search_content, replace_content = _parse_diff(diff)
         abs_path = os.path.abspath(path)
+        if not os.path.exists(abs_path):
+            return json.dumps(
+                {"success": False, "path": path, "error": f"File not found at {path}"}
+            )
         content = _read_file(abs_path)
         lines = content.splitlines()
-
-        # Validate line numbers
         if start_line < 1 or end_line > len(lines) or start_line > end_line:
-            print(
-                f"Invalid line range: {start_line}-{end_line} (file has {len(lines)} lines)"
+            return json.dumps(
+                {
+                    "success": False,
+                    "path": path,
+                    "error": (
+                        f"Invalid line range {start_line}-{end_line} "
+                        f"for file with {len(lines)} lines."
+                    ),
+                }
             )
-            return False
-
-        # Parse the diff
-        search_content, replace_content = _parse_diff(diff)
-        if search_content is None or replace_content is None:
-            print("Invalid diff format")
-            return False
-
-        # Extract the content to be replaced
         original_content = "\n".join(lines[start_line - 1 : end_line])
-
-        # Verify the search content matches
         if original_content != search_content:
-            print("Search content does not match the specified lines in the file")
-            return False
-
-        # Replace the content
+            error_message = (
+                f"Search content does not match file content at "
+                f"lines {start_line}-{end_line}.\n"
+                f"Expected ({len(search_content.splitlines())} lines):\n"
+                f"---\n{search_content}\n---\n"
+                f"Actual ({len(lines[start_line-1:end_line])} lines):\n"
+                f"---\n{original_content}\n---"
+            )
+            return json.dumps({"success": False, "path": path, "error": error_message})
         new_lines = (
             lines[: start_line - 1] + replace_content.splitlines() + lines[end_line:]
         )
         new_content = "\n".join(new_lines)
-
-        # Write the modified content back to the file
+        if content.endswith("\n"):
+            new_content += "\n"
         _write_file(abs_path, new_content)
-        return True
-
+        return json.dumps({"success": True, "path": path})
     except Exception as e:
-        print(f"Error applying diff to {path}: {str(e)}")
-        return False
+        raise Exception(f"Error applying diff on {path}: {e}")
 
 
-def _parse_diff(diff: str) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Parse a diff string to extract search and replace content.
-
-    Args:
-        diff: The diff string to parse
-
-    Returns:
-        A tuple of (search_content, replace_content), or (None, None) if parsing fails
-    """
-    try:
-        # Split the diff into sections
-        search_marker = "<<<<<<< SEARCH"
-        separator = "======="
-        replace_marker = ">>>>>>> REPLACE"
-
-        if (
-            search_marker not in diff
-            or separator not in diff
-            or replace_marker not in diff
-        ):
-            return None, None
-
-        # Extract search content
-        search_start = diff.index(search_marker) + len(search_marker)
-        search_end = diff.index(separator)
-        search_content = diff[search_start:search_end].strip()
-
-        # Extract replace content
-        replace_start = diff.index(separator) + len(separator)
-        replace_end = diff.index(replace_marker)
-        replace_content = diff[replace_start:replace_end].strip()
-
-        return search_content, replace_content
-
-    except Exception:
-        return None, None
+def _parse_diff(diff: str) -> tuple[int, int, str, str]:
+    """Parse diff content into components."""
+    search_marker = "<<<<<<< SEARCH"
+    meta_marker = "-------"
+    separator = "======="
+    replace_marker = ">>>>>>> REPLACE"
+    search_start_idx = diff.find(search_marker)
+    meta_start_idx = diff.find(meta_marker)
+    separator_idx = diff.find(separator)
+    replace_end_idx = diff.find(replace_marker)
+    if any(
+        idx == -1
+        for idx in [search_start_idx, meta_start_idx, separator_idx, replace_end_idx]
+    ):
+        raise ValueError("Invalid diff format - missing markers")
+    meta_content = diff[search_start_idx + len(search_marker) : meta_start_idx].strip()
+    start_line = int(re.search(r":start_line:(\d+)", meta_content).group(1))
+    end_line = int(re.search(r":end_line:(\d+)", meta_content).group(1))
+    search_content = diff[meta_start_idx + len(meta_marker) : separator_idx].strip(
+        "\r\n"
+    )
+    replace_content = diff[separator_idx + len(separator) : replace_end_idx].strip(
+        "\r\n"
+    )
+    return start_line, end_line, search_content, replace_content

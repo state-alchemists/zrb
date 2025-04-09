@@ -382,7 +382,7 @@ def _wrap_tool(func):
             except Exception as e:
                 # Optionally, you can include more details from traceback if needed.
                 error_details = traceback.format_exc()
-                return f"Error: {e}\nDetails: {error_details}"
+                return json.dumps({"error": f"{e}", "details": f"{error_details}"})
 
         new_sig = inspect.Signature(
             parameters=[
@@ -403,7 +403,7 @@ def _wrap_tool(func):
             except Exception as e:
                 # Optionally, you can include more details from traceback if needed.
                 error_details = traceback.format_exc()
-                return f"Error: {e}\nDetails: {error_details}"
+                return json.dumps({"error": f"{e}", "details": f"{error_details}"})
 
         return wrapper
 
