@@ -1,3 +1,11 @@
+# 1.5.5
+
+- Make LLM tools return JSON
+
+# 1.5.4
+
+- Introduce MCP Server
+
 # 1.5.3
 
 - Add `set_default_persona` to LLM config
