@@ -3,7 +3,7 @@ import re
 
 
 def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(os.path.abspath(os.path.expanduser(file_path)), "r", encoding="utf-8") as f:
         content = f.read()
     for key, val in replace_map.items():
         content = content.replace(key, val)
@@ -21,5 +21,5 @@ def write_file(file_path: str, content: str | list[str]):
     content = content.rstrip("\n")
     if should_add_eol:
         content += "\n"
-    with open(file_path, "w") as f:
+    with open(os.path.abspath(os.path.expanduser(file_path)), "w") as f:
         f.write(content)

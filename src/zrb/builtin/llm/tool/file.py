@@ -27,7 +27,7 @@ def list_files(
         Example error: '{"error": "Error listing files: [Errno 2] No such file..."}'
     """
     all_files: List[str] = []
-    abs_path = os.path.abspath(path)
+    abs_path = os.path.abspath(os.path.expanduser(path))
     try:
         if recursive:
             for root, dirs, files in os.walk(abs_path):
@@ -97,7 +97,7 @@ def read_from_file(
         Example error: '{"error": "File not found: data.txt"}'
     """
     try:
-        abs_path = os.path.abspath(path)
+        abs_path = os.path.abspath(os.path.expanduser(path))
         # Check if file exists
         if not os.path.exists(abs_path):
             return json.dumps({"error": f"File {path} does not exist"})
@@ -160,7 +160,7 @@ def write_to_file(path: str, content: str, line_count: int) -> str:
             f"content lines ({actual_lines}) for file {path}"
         )
     try:
-        abs_path = os.path.abspath(path)
+        abs_path = os.path.abspath(os.path.expanduser(path))
         # Ensure directory exists
         directory = os.path.dirname(abs_path)
         if directory and not os.path.exists(directory):
@@ -178,7 +178,7 @@ def search_files(
     path: str,
     regex: str,
     file_pattern: Optional[str] = None,
-    include_hidden: bool = False,
+    include_hidden: bool = True,
 ) -> str:
     """
     Request to perform a regex search across files in a specified directory,
@@ -192,7 +192,7 @@ def search_files(
         file_pattern: (optional) Glob pattern to filter files (e.g., '*.ts').
                       If not provided, searches all files (*).
         include_hidden: (optional) Whether to include hidden files.
-                      Defaults to False (exclude hidden files).
+                      Defaults to True (include hidden files).
     Returns:
         A JSON string containing the search results or an error message.
         Example success: '{"summary": "Found 5 matches...", "results": [{"file":"f.py", ...}]}'
@@ -208,7 +208,7 @@ def search_files(
     searched_file_count = 0
     file_match_count = 0
     try:
-        abs_path = os.path.abspath(path)
+        abs_path = os.path.abspath(os.path.expanduser(path))
         for root, dirs, files in os.walk(abs_path):
             # Skip hidden directories
             dirs[:] = [d for d in dirs if include_hidden or not _is_hidden(d)]
@@ -306,7 +306,7 @@ def apply_diff(path: str, diff: str) -> str:
     """
     try:
         start_line, end_line, search_content, replace_content = _parse_diff(diff)
-        abs_path = os.path.abspath(path)
+        abs_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.exists(abs_path):
             return json.dumps(
                 {"success": False, "path": path, "error": f"File not found at {path}"}
