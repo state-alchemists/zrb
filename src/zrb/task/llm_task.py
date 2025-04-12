@@ -104,6 +104,7 @@ class LLMTask(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        conversation_context: dict[str, Any] | None = None
     ):
         super().__init__(
             name=name,
@@ -147,6 +148,7 @@ class LLMTask(BaseTask):
         self._conversation_history_file = conversation_history_file
         self._render_history_file = render_history_file
         self._max_call_iteration = max_call_iteration
+        self._conversation_context = conversation_context
 
     def add_tool(self, tool: ToolOrCallable):
         self._additional_tools.append(tool)
