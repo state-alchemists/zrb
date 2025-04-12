@@ -30,15 +30,18 @@ def serve_cli():
     try:
         # load init modules
         for init_module in INIT_MODULES:
+            root_logger.info(f"Loading {init_module}")
             load_module(init_module)
         zrb_init_path_list = _get_zrb_init_path_list()
         # load init scripts
         for init_script in INIT_SCRIPTS:
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
+                root_logger.info(f"Loading {abs_init_script}")
                 load_file(abs_init_script, -1)
         # load zrb init
         for zrb_init_path in zrb_init_path_list:
+            root_logger.info(f"Loading {zrb_init_path}")
             load_file(zrb_init_path)
         # run the CLI
         cli.run(sys.argv[1:])
