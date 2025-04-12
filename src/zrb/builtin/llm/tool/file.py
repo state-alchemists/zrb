@@ -2,7 +2,7 @@ import fnmatch
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from zrb.util.file import read_file as _read_file
 from zrb.util.file import write_file as _write_file
@@ -35,7 +35,7 @@ def list_files(
     path: str = ".",
     recursive: bool = True,
     include_hidden: bool = False,
-    excluded_patterns: Optional[List[str]] = None,
+    excluded_patterns: Optional[list[str]] = None,
 ) -> str:
     """List files/directories in a path, excluding specified patterns.
     Args:
@@ -49,7 +49,7 @@ def list_files(
     Raises:
         Exception: If an error occurs.
     """
-    all_files: List[str] = []
+    all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     # Determine effective exclusion patterns
     patterns_to_exclude = (
@@ -123,7 +123,7 @@ def _is_hidden(path: str) -> bool:
     return os.path.basename(path).startswith(".")
 
 
-def _is_excluded(name: str, patterns: List[str]) -> bool:
+def _is_excluded(name: str, patterns: list[str]) -> bool:
     """Check if a name/path matches any exclusion patterns."""
     for pattern in patterns:
         if fnmatch(name, pattern):
@@ -304,7 +304,7 @@ def search_files(
 
 def _get_file_matches(
     file_path: str, pattern: re.Pattern, context_lines: int = 2
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Search for regex matches in a file with context."""
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
