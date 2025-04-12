@@ -1,14 +1,32 @@
+import logging
 import os
 import sys
 
-from zrb.config import INIT_MODULES, INIT_SCRIPTS
+from zrb.config import INIT_MODULES, INIT_SCRIPTS, LOGGING_LEVEL
 from zrb.runner.cli import cli
-from zrb.util.cli.style import stylize_error, stylize_warning
+from zrb.util.cli.style import stylize_error, stylize_faint, stylize_warning
 from zrb.util.group import NodeNotFoundError
 from zrb.util.load import load_file, load_module
 
 
+# Custom Formatter for faint styling
+class FaintFormatter(logging.Formatter):
+    def format(self, record):
+        log_msg = super().format(record)
+        return stylize_faint(log_msg)
+
+
 def serve_cli():
+    # --- Configure Root Logger with FaintFormatter ---
+    root_logger = logging.getLogger()
+    root_logger.setLevel(LOGGING_LEVEL)
+    # Remove existing handlers to avoid duplicates/default formatting
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    handler = logging.StreamHandler()
+    handler.setFormatter(FaintFormatter(logging.BASIC_FORMAT))
+    root_logger.addHandler(handler)
+    # --- End Logging Configuration ---
     try:
         # load init modules
         for init_module in INIT_MODULES:

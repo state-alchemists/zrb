@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from collections.abc import Callable
+from textwrap import dedent
 
 import ulid
 
@@ -20,6 +21,8 @@ from zrb.util.file import read_file
 
 
 class RAGFileReader:
+    """Helper class to define custom file readers based on glob patterns."""
+
     def __init__(self, glob_pattern: str, read: Callable[[str], str]):
         self.glob_pattern = glob_pattern
         self.read = read
@@ -47,7 +50,14 @@ def create_rag_from_directory(
     openai_base_url: str = RAG_EMBEDDING_BASE_URL,
     openai_embedding_model: str = RAG_EMBEDDING_MODEL,
 ):
+    """Create a RAG retrieval tool function for LLM use.
+    This factory configures and returns an async function that takes a query,
+    updates a vector database if needed, performs a similarity search,
+    and returns relevant document chunks.
+    """
+
     async def retrieve(query: str) -> str:
+        # Docstring will be set dynamically below
         from chromadb import PersistentClient
         from chromadb.config import Settings
         from openai import OpenAI
@@ -141,7 +151,14 @@ def create_rag_from_directory(
         return json.dumps(results)
 
     retrieve.__name__ = tool_name
-    retrieve.__doc__ = tool_description
+    retrieve.__doc__ = dedent(
+        f"""{tool_description}
+        Args:
+            query (str): The user query to search for in documents.
+        Returns:
+            str: JSON string with search results: {{"ids": [...], "documents": [...], ...}}
+    """
+    )
     return retrieve
 
 

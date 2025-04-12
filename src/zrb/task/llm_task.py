@@ -4,9 +4,10 @@ import json
 import os
 import traceback
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Optional
 
 from openai import APIError
+from pydantic import BaseModel
 from pydantic_ai import Agent, Tool
 from pydantic_ai.mcp import MCPServer
 from pydantic_ai.messages import (
@@ -38,6 +39,14 @@ from zrb.util.run import run_async
 
 ListOfDict = list[dict[str, Any]]
 ToolOrCallable = Tool | Callable
+
+
+# Define a structured error model for tool execution failures
+class ToolExecutionError(BaseModel):
+    tool_name: str
+    error_type: str
+    message: str
+    details: Optional[str] = None
 
 
 class LLMTask(BaseTask):
@@ -282,10 +291,16 @@ class LLMTask(BaseTask):
             self._tools(ctx) if callable(self._tools) else self._tools
         )
         tools_or_callables.extend(self._additional_tools)
-        tools = [
-            tool if isinstance(tool, Tool) else Tool(_wrap_tool(tool), takes_ctx=False)
-            for tool in tools_or_callables
-        ]
+        tools = []
+        for tool_or_callable in tools_or_callables:
+            if isinstance(tool_or_callable, Tool):
+                tools.append(tool_or_callable)
+            else:
+                # Inspect original callable for 'ctx' parameter
+                original_sig = inspect.signature(tool_or_callable)
+                takes_ctx = "ctx" in original_sig.parameters
+                wrapped_tool = _wrap_tool(tool_or_callable)
+                tools.append(Tool(wrapped_tool, takes_ctx=takes_ctx))
         mcp_servers = list(
             self._mcp_servers(ctx) if callable(self._mcp_servers) else self._mcp_servers
         )
@@ -371,19 +386,63 @@ class LLMTask(BaseTask):
         )
 
 
-def _wrap_tool(func):
-    sig = inspect.signature(func)
-    if len(sig.parameters) == 0:
+def _wrap_tool(func: Callable) -> Callable:
+    """Wraps a tool function to handle exceptions and context propagation.
 
-        @functools.wraps(func)
-        async def wrapper(_dummy=None):
-            try:
-                return await run_async(func())
-            except Exception as e:
-                # Optionally, you can include more details from traceback if needed.
-                error_details = traceback.format_exc()
-                return json.dumps({"error": f"{e}", "details": f"{error_details}"})
+    - Catches exceptions during tool execution and returns a structured
+      JSON error message (`ToolExecutionError`).
+    - Inspects the original function signature for a 'ctx' parameter.
+      If found, the wrapper will accept 'ctx' and pass it to the function.
+    - If the original function has no parameters, injects a dummy '_dummy'
+      parameter into the wrapper's signature to ensure schema generation
+      for pydantic-ai.
 
+    Args:
+        func: The tool function (sync or async) to wrap.
+
+    Returns:
+        An async wrapper function.
+    """
+    original_sig = inspect.signature(func)
+    needs_ctx = "ctx" in original_sig.parameters
+    takes_no_args = len(original_sig.parameters) == 0
+
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        ctx_arg = None
+        if needs_ctx:
+            if args:
+                ctx_arg = args[0]
+                args = args[1:]  # Remove ctx from args for the actual call if needed
+            elif "ctx" in kwargs:
+                ctx_arg = kwargs.pop("ctx")
+
+        try:
+            # Remove dummy argument if it was added for no-arg functions
+            if takes_no_args and "_dummy" in kwargs:
+                del kwargs["_dummy"]
+
+            if needs_ctx:
+                # Ensure ctx is passed correctly, even if original func had only ctx
+                if ctx_arg is None:
+                    # This case should ideally not happen if takes_ctx is True in Tool
+                    raise ValueError("Context (ctx) was expected but not provided.")
+                # Call with context
+                return await run_async(func(ctx_arg, *args, **kwargs))
+            else:
+                # Call without context
+                return await run_async(func(*args, **kwargs))
+        except Exception as e:
+            error_model = ToolExecutionError(
+                tool_name=func.__name__,
+                error_type=type(e).__name__,
+                message=str(e),
+                details=traceback.format_exc(),
+            )
+            return error_model.model_dump_json()
+
+    if takes_no_args:
+        # Inject dummy parameter for schema generation if original func took no args
         new_sig = inspect.Signature(
             parameters=[
                 inspect.Parameter(
@@ -391,21 +450,21 @@ def _wrap_tool(func):
                 )
             ]
         )
-        # Override the wrapper's signature so introspection yields a non-empty schema.
         wrapper.__signature__ = new_sig
-        return wrapper
-    else:
+    elif needs_ctx:
+        # Adjust signature if ctx was the *only* parameter originally
+        # This ensures the wrapper signature matches what pydantic-ai expects
+        params = list(original_sig.parameters.values())
+        if len(params) == 1 and params[0].name == "ctx":
+            new_sig = inspect.Signature(
+                parameters=[
+                    inspect.Parameter("ctx", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                ]
+            )
+            wrapper.__signature__ = new_sig
+        # Otherwise, the original signature (including ctx) is fine for the wrapper
 
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                return await run_async(func(*args, **kwargs))
-            except Exception as e:
-                # Optionally, you can include more details from traceback if needed.
-                error_details = traceback.format_exc()
-                return json.dumps({"error": f"{e}", "details": f"{error_details}"})
-
-        return wrapper
+    return wrapper
 
 
 def _extract_api_error_details(error: APIError) -> str:

@@ -1,14 +1,22 @@
 import json
-from typing import Annotated, Literal
+from typing import Literal
 
 
-def get_current_location() -> (
-    Annotated[str, "JSON string representing latitude and longitude"]
-):  # noqa
-    """Get the user's current location. This function take no argument."""
+def get_current_location() -> str:
+    """Get current location (latitude, longitude) based on IP address.
+    Returns:
+        str: JSON string representing latitude and longitude.
+    Raises:
+        requests.RequestException: If the API request fails.
+    """
     import requests
 
-    return json.dumps(requests.get("http://ip-api.com/json?fields=lat,lon").json())
+    try:
+        response = requests.get("http://ip-api.com/json?fields=lat,lon", timeout=5)
+        response.raise_for_status()
+        return json.dumps(response.json())
+    except requests.RequestException as e:
+        raise requests.RequestException(f"Failed to get location: {e}") from None
 
 
 def get_current_weather(
@@ -16,16 +24,30 @@ def get_current_weather(
     longitude: float,
     temperature_unit: Literal["celsius", "fahrenheit"],
 ) -> str:
-    """Get the current weather in a given location."""
+    """Get current weather for a specific location.
+    Args:
+        latitude (float): Latitude coordinate.
+        longitude (float): Longitude coordinate.
+        temperature_unit (Literal["celsius", "fahrenheit"]): Temperature unit.
+    Returns:
+        str: JSON string with weather data.
+    Raises:
+        requests.RequestException: If the API request fails.
+    """
     import requests
 
-    resp = requests.get(
-        "https://api.open-meteo.com/v1/forecast",
-        params={
-            "latitude": latitude,
-            "longitude": longitude,
-            "temperature_unit": temperature_unit,
-            "current_weather": True,
-        },
-    )
-    return json.dumps(resp.json())
+    try:
+        response = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "temperature_unit": temperature_unit,
+                "current_weather": True,
+            },
+            timeout=5,
+        )
+        response.raise_for_status()
+        return json.dumps(response.json())
+    except requests.RequestException as e:
+        raise requests.RequestException(f"Failed to get weather data: {e}") from None

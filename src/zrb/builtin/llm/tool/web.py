@@ -1,10 +1,16 @@
 import json
 from collections.abc import Callable
-from typing import Annotated
+
+# Annotated import removed
 
 
 async def open_web_page(url: str) -> str:
-    """Get content from a web page using a headless browser."""
+    """Get parsed text content and links from a web page URL.
+    Args:
+        url (str): The URL of the web page to open.
+    Returns:
+        str: JSON: {"content": "parsed text content", "links_on_page": ["url1", ...]}
+    """
 
     async def get_page_content(page_url: str):
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
@@ -53,11 +59,14 @@ async def open_web_page(url: str) -> str:
 
 
 def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
-    def search_internet(
-        query: Annotated[str, "Search query"],
-        num_results: Annotated[int, "Search result count, by default 10"] = 10,
-    ) -> str:
-        """Search factual information from the internet by using Google."""
+    def search_internet(query: str, num_results: int = 10) -> str:
+        """Search the internet using SerpApi (Google Search) and return parsed results.
+        Args:
+            query (str): Search query.
+            num_results (int): Search result count. Defaults to 10.
+        Returns:
+            str: JSON: {"content": "parsed text content", "links_on_page": ["url1", ...]}
+        """
         import requests
 
         response = requests.get(
@@ -82,8 +91,13 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
     return search_internet
 
 
-def search_wikipedia(query: Annotated[str, "Search query"]) -> str:
-    """Search on wikipedia"""
+def search_wikipedia(query: str) -> str:
+    """Search Wikipedia using its API.
+    Args:
+        query (str): Search query.
+    Returns:
+        str: JSON from Wikipedia API: {"batchcomplete": ..., "query": {"search": [...]}}
+    """
     import requests
 
     params = {"action": "query", "list": "search", "srsearch": query, "format": "json"}
@@ -91,11 +105,14 @@ def search_wikipedia(query: Annotated[str, "Search query"]) -> str:
     return response.json()
 
 
-def search_arxiv(
-    query: Annotated[str, "Search query"],
-    num_results: Annotated[int, "Search result count, by default 10"] = 10,
-) -> str:
-    """Search on Arxiv"""
+def search_arxiv(query: str, num_results: int = 10) -> str:
+    """Search ArXiv for papers using its API.
+    Args:
+        query (str): Search query.
+        num_results (int): Search result count. Defaults to 10.
+    Returns:
+        str: XML string from ArXiv API containing search results.
+    """
     import requests
 
     params = {"search_query": f"all:{query}", "start": 0, "max_results": num_results}
