@@ -3,7 +3,9 @@ import re
 
 
 def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
-    with open(os.path.abspath(os.path.expanduser(file_path)), "r", encoding="utf-8") as f:
+    with open(
+        os.path.abspath(os.path.expanduser(file_path)), "r", encoding="utf-8"
+    ) as f:
         content = f.read()
     for key, val in replace_map.items():
         content = content.replace(key, val)
