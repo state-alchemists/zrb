@@ -7,17 +7,43 @@ from typing import Any, Dict, List, Optional
 from zrb.util.file import read_file as _read_file
 from zrb.util.file import write_file as _write_file
 
+DEFAULT_EXCLUDED_PATTERNS = [
+    # Common Python artifacts
+    "__pycache__", "*.pyc", "*.pyo", "*.pyd", ".Python",
+    "build", "develop-eggs", "dist", "downloads", "eggs", ".eggs",
+    "lib", "lib64", "parts", "sdist", "var", "wheels",
+    "share/python-wheels", "*.egg-info", ".installed.cfg", "*.egg", "MANIFEST",
+    # Virtual environments
+    ".env", ".venv", "env", "venv", "ENV", "VENV",
+    # Editor/IDE specific
+    ".idea", ".vscode", "*.swp", "*.swo", "*.swn",
+    # OS specific
+    ".DS_Store", "Thumbs.db",
+    # Version control
+    ".git", ".hg", ".svn",
+    # Node.js
+    "node_modules", "npm-debug.log*", "yarn-debug.log*", "yarn-error.log*",
+    # Test/Coverage artifacts
+    ".history", ".tox", ".nox", ".coverage", ".coverage.*", ".cache",
+    ".pytest_cache", ".hypothesis", "htmlcov",
+    # Compiled files
+    "*.so", "*.dylib", "*.dll",
+]
+
 
 def list_files(
     path: str = ".",
     recursive: bool = True,
     include_hidden: bool = False,
+    excluded_patterns: Optional[List[str]] = None,
 ) -> str:
-    """List files/directories in a path.
+    """List files/directories in a path, excluding specified patterns.
     Args:
         path (str): Path to list. Pass exactly as provided, including '~'. Defaults to ".".
         recursive (bool): List recursively. Defaults to True.
         include_hidden (bool): Include hidden files/dirs. Defaults to False.
+        excluded_patterns (Optional[List[str]]): List of glob patterns to exclude.
+            Defaults to a comprehensive list of common temporary/artifact patterns.
     Returns:
         str: JSON string: {"files": ["file1.txt", ...]} or {"error": "..."}
     Raises:
@@ -25,25 +51,46 @@ def list_files(
     """
     all_files: List[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
+    # Determine effective exclusion patterns
+    patterns_to_exclude = (
+        excluded_patterns
+        if excluded_patterns is not None
+        else DEFAULT_EXCLUDED_PATTERNS
+    )
     try:
         if recursive:
-            for root, dirs, files in os.walk(abs_path):
-                # Skip hidden directories (like .git) for performance and relevance
-                dirs[:] = [d for d in dirs if include_hidden or not _is_hidden(d)]
+            for root, dirs, files in os.walk(abs_path, topdown=True):
+                # Filter directories in-place
+                dirs[:] = [
+                    d
+                    for d in dirs
+                    if (include_hidden or not _is_hidden(d))
+                    and not _is_excluded(d, patterns_to_exclude)
+                ]
+                # Process files
                 for filename in files:
-                    # Skip hidden files
-                    if include_hidden or not _is_hidden(filename):
-                        all_files.append(os.path.join(root, filename))
+                    if (include_hidden or not _is_hidden(filename)) and not _is_excluded(
+                        filename, patterns_to_exclude
+                    ):
+                        full_path = os.path.join(root, filename)
+                        # Check rel path for patterns like '**/node_modules/*'
+                        rel_full_path = os.path.relpath(
+                            full_path, abs_path
+                        )
+                        is_rel_path_excluded = _is_excluded(
+                            rel_full_path, patterns_to_exclude
+                        )
+                        if not is_rel_path_excluded:
+                            all_files.append(full_path)
         else:
             # Non-recursive listing (top-level only)
             for item in os.listdir(abs_path):
                 full_path = os.path.join(abs_path, item)
                 # Include both files and directories if not recursive
-                if include_hidden or not _is_hidden(
-                    item
-                ):  # Skip hidden items unless included
+                if (include_hidden or not _is_hidden(item)) and not _is_excluded(
+                    item, patterns_to_exclude
+                ):
                     all_files.append(full_path)
-
         # Return paths relative to the original path requested
         try:
             rel_files = [
@@ -74,6 +121,20 @@ def _is_hidden(path: str) -> bool:
     """
     # Extract just the basename to check if it starts with a dot
     return os.path.basename(path).startswith(".")
+
+
+def _is_excluded(name: str, patterns: List[str]) -> bool:
+    """Check if a name/path matches any exclusion patterns."""
+    for pattern in patterns:
+        if fnmatch(name, pattern):
+            return True
+        # Split the path using the OS path separator.
+        parts = name.split(os.path.sep)
+        # Check each part of the path.
+        for part in parts:
+            if fnmatch.fnmatch(part, pattern):
+                return True
+    return False
 
 
 def read_from_file(
