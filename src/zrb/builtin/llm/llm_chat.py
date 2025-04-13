@@ -27,7 +27,6 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.llm_task import LLMTask
 
-
 llm_chat: LLMTask = llm_group.add_task(
     LLMTask(
         name="llm-chat",

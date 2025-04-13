@@ -81,11 +81,13 @@ class LLMTask(BaseTask):
             | list  # Allow raw list (old format)
         ) = ConversationHistoryData(),  # Default to an empty model instance
         conversation_history_reader: (
-            Callable[[AnySharedContext], ConversationHistoryData | dict | list | None] | None
+            Callable[[AnySharedContext], ConversationHistoryData | dict | list | None]
+            | None
             # Allow returning raw dict/list or None
         ) = None,
         conversation_history_writer: (
-            Callable[[AnySharedContext, ConversationHistoryData], None] | None
+            Callable[[AnySharedContext, ConversationHistoryData], None]
+            | None
             # Writer expects the model instance
         ) = None,
         conversation_history_file: StrAttr | None = None,
@@ -168,7 +170,9 @@ class LLMTask(BaseTask):
             async with agent.run_mcp_servers():
                 async with agent.iter(
                     user_prompt=user_prompt,
-                    message_history=ModelMessagesTypeAdapter.validate_python(history_list),
+                    message_history=ModelMessagesTypeAdapter.validate_python(
+                        history_list
+                    ),
                 ) as agent_run:
                     async for node in agent_run:
                         # Each node represents a step in the agent's execution
@@ -402,7 +406,9 @@ class LLMTask(BaseTask):
 
     def _get_conversation_context(self, ctx: AnyContext) -> dict[str, Any]:
         """Retrieves the conversation context."""
-        context = get_attr(ctx, self._conversation_context, {}, auto_render=False) # Context usually shouldn't be rendered # noqa
+        context = get_attr(
+            ctx, self._conversation_context, {}, auto_render=False
+        )  # Context usually shouldn't be rendered # noqa
         if isinstance(context, dict):
             return context
         ctx.log_warning(

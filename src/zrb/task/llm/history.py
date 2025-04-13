@@ -36,7 +36,9 @@ class ConversationHistoryData(BaseModel):
                     if instance:
                         return instance
             except Exception as e:
-                ctx.log_warning(f"Error executing conversation history reader: {e}. Ignoring.")
+                ctx.log_warning(
+                    f"Error executing conversation history reader: {e}. Ignoring."
+                )
         # Priority 2: History file
         if file_path and os.path.isfile(file_path):
             try:

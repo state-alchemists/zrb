@@ -74,4 +74,3 @@ def _get_zrb_init_path_list() -> list[str]:
         if os.path.isfile(zrb_init_path):
             zrb_init_path_list.append(zrb_init_path)
     return zrb_init_path_list
-

@@ -25,4 +25,3 @@ class PreviousSessionInput(StrInput):
                 f"<script>{script}</script>",
             ]
         )
-
