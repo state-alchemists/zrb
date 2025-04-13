@@ -1,13 +1,9 @@
-import functools
 import inspect
 import json
-import os
-import traceback
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 from openai import APIError
-from pydantic import BaseModel
 from pydantic_ai import Agent, Tool
 from pydantic_ai.mcp import MCPServer
 from pydantic_ai.messages import (
@@ -32,21 +28,17 @@ from zrb.llm_config import LLMConfig
 from zrb.llm_config import llm_config as default_llm_config
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
+from zrb.task.llm.error import extract_api_error_details
+from zrb.task.llm.history import ConversationHistoryData
+from zrb.task.llm.tool_wrapper import wrap_tool
 from zrb.util.attr import get_attr, get_str_attr
 from zrb.util.cli.style import stylize_faint
-from zrb.util.file import read_file, write_file
+from zrb.util.file import write_file
 from zrb.util.run import run_async
 
 ListOfDict = list[dict[str, Any]]
+# Removed old ConversationHistoryData type alias
 ToolOrCallable = Tool | Callable
-
-
-# Define a structured error model for tool execution failures
-class ToolExecutionError(BaseModel):
-    tool_name: str
-    error_type: str
-    message: str
-    details: Optional[str] = None
 
 
 class LLMTask(BaseTask):
@@ -81,13 +73,20 @@ class LLMTask(BaseTask):
             list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]
         ) = [],
         conversation_history: (
-            ListOfDict | Callable[[AnySharedContext], ListOfDict]
-        ) = [],
+            ConversationHistoryData  # Use the new BaseModel
+            | Callable[
+                [AnySharedContext], ConversationHistoryData | dict | list
+            ]  # Allow returning raw dict/list too
+            | dict  # Allow raw dict
+            | list  # Allow raw list (old format)
+        ) = ConversationHistoryData(),  # Default to an empty model instance
         conversation_history_reader: (
-            Callable[[AnySharedContext], ListOfDict] | None
+            Callable[[AnySharedContext], ConversationHistoryData | dict | list | None] | None
+            # Allow returning raw dict/list or None
         ) = None,
         conversation_history_writer: (
-            Callable[[AnySharedContext, ListOfDict], None] | None
+            Callable[[AnySharedContext, ConversationHistoryData], None] | None
+            # Writer expects the model instance
         ) = None,
         conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
@@ -104,7 +103,9 @@ class LLMTask(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
-        conversation_context: dict[str, Any] | None = None
+        conversation_context: (
+            dict[str, Any] | Callable[[AnySharedContext], dict[str, Any]] | None
+        ) = None,
     ):
         super().__init__(
             name=name,
@@ -157,14 +158,17 @@ class LLMTask(BaseTask):
         self._additional_mcp_servers.append(mcp_server)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        history = await self._read_conversation_history(ctx)
+        history_data: ConversationHistoryData = await self._read_conversation_history(
+            ctx
+        )  # Now returns the model instance
+        history_list = history_data.history  # Access history via attribute
         user_prompt = self._get_message(ctx)
         agent = self._get_agent(ctx)
         try:
             async with agent.run_mcp_servers():
                 async with agent.iter(
                     user_prompt=user_prompt,
-                    message_history=ModelMessagesTypeAdapter.validate_python(history),
+                    message_history=ModelMessagesTypeAdapter.validate_python(history_list),
                 ) as agent_run:
                     async for node in agent_run:
                         # Each node represents a step in the agent's execution
@@ -173,15 +177,21 @@ class LLMTask(BaseTask):
                             await self._print_node(ctx, agent_run, node)
                         except APIError as e:
                             # Extract detailed error information from the response
-                            error_details = _extract_api_error_details(e)
+                            error_details = extract_api_error_details(e)
                             ctx.log_error(f"API Error: {error_details}")
                             raise
                         except Exception as e:
                             ctx.log_error(f"Error processing node: {str(e)}")
                             ctx.log_error(f"Error type: {type(e).__name__}")
                             raise
-                    new_history = json.loads(agent_run.result.all_messages_json())
-                    await self._write_conversation_history(ctx, new_history)
+                    new_history_list = json.loads(agent_run.result.all_messages_json())
+                    data_to_write = ConversationHistoryData(
+                        context=self._get_conversation_context(ctx),
+                        history=new_history_list,
+                    )
+                    await self._write_conversation_history(
+                        ctx, data_to_write
+                    )  # Pass the model instance
                     return agent_run.result.data
         except Exception as e:
             ctx.log_error(f"Error in agent execution: {str(e)}")
@@ -271,13 +281,16 @@ class LLMTask(BaseTask):
             ctx.print(stylize_faint(f"{agent_run.result.data}"))
 
     async def _write_conversation_history(
-        self, ctx: AnyContext, conversations: list[Any]
+        self, ctx: AnyContext, history_data: ConversationHistoryData
     ):
+        # Expects the model instance
         if self._conversation_history_writer is not None:
-            await run_async(self._conversation_history_writer(ctx, conversations))
+            # Pass the model instance directly to the writer
+            await run_async(self._conversation_history_writer(ctx, history_data))
         history_file = self._get_history_file(ctx)
         if history_file != "":
-            write_file(history_file, json.dumps(conversations, indent=2))
+            # Use model_dump_json for serialization
+            write_file(history_file, history_data.model_dump_json(indent=2))
 
     def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
         if callable(self._model_settings):
@@ -301,7 +314,7 @@ class LLMTask(BaseTask):
                 # Inspect original callable for 'ctx' parameter
                 original_sig = inspect.signature(tool_or_callable)
                 takes_ctx = "ctx" in original_sig.parameters
-                wrapped_tool = _wrap_tool(tool_or_callable)
+                wrapped_tool = wrap_tool(tool_or_callable)
                 tools.append(Tool(wrapped_tool, takes_ctx=takes_ctx))
         mcp_servers = list(
             self._mcp_servers(ctx) if callable(self._mcp_servers) else self._mcp_servers
@@ -365,19 +378,19 @@ class LLMTask(BaseTask):
     def _get_message(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._message, "How are you?", auto_render=True)
 
-    async def _read_conversation_history(self, ctx: AnyContext) -> ListOfDict:
-        if self._conversation_history_reader is not None:
-            return await run_async(self._conversation_history_reader(ctx))
-        if callable(self._conversation_history):
-            return self._conversation_history(ctx)
+    async def _read_conversation_history(
+        self, ctx: AnyContext
+    ) -> ConversationHistoryData:  # Returns the model instance
+        """Reads conversation history using the ConversationHistoryData model's logic."""
         history_file = self._get_history_file(ctx)
-        if (
-            len(self._conversation_history) == 0
-            and history_file != ""
-            and os.path.isfile(history_file)
-        ):
-            return json.loads(read_file(history_file))
-        return self._conversation_history
+        # Pass all potential sources to the class method
+        return await ConversationHistoryData.read_from_sources(
+            ctx=ctx,
+            reader=self._conversation_history_reader,
+            file_path=history_file,
+            attribute_value=self._conversation_history,
+            default_value=ConversationHistoryData(),  # Provide the default instance
+        )
 
     def _get_history_file(self, ctx: AnyContext) -> str:
         return get_str_attr(
@@ -387,147 +400,13 @@ class LLMTask(BaseTask):
             auto_render=self._render_history_file,
         )
 
-
-def _wrap_tool(func: Callable) -> Callable:
-    """Wraps a tool function to handle exceptions and context propagation.
-
-    - Catches exceptions during tool execution and returns a structured
-      JSON error message (`ToolExecutionError`).
-    - Inspects the original function signature for a 'ctx' parameter.
-      If found, the wrapper will accept 'ctx' and pass it to the function.
-    - If the original function has no parameters, injects a dummy '_dummy'
-      parameter into the wrapper's signature to ensure schema generation
-      for pydantic-ai.
-
-    Args:
-        func: The tool function (sync or async) to wrap.
-
-    Returns:
-        An async wrapper function.
-    """
-    original_sig = inspect.signature(func)
-    needs_ctx = "ctx" in original_sig.parameters
-    takes_no_args = len(original_sig.parameters) == 0
-
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        ctx_arg = None
-        if needs_ctx:
-            if args:
-                ctx_arg = args[0]
-                args = args[1:]  # Remove ctx from args for the actual call if needed
-            elif "ctx" in kwargs:
-                ctx_arg = kwargs.pop("ctx")
-
-        try:
-            # Remove dummy argument if it was added for no-arg functions
-            if takes_no_args and "_dummy" in kwargs:
-                del kwargs["_dummy"]
-
-            if needs_ctx:
-                # Ensure ctx is passed correctly, even if original func had only ctx
-                if ctx_arg is None:
-                    # This case should ideally not happen if takes_ctx is True in Tool
-                    raise ValueError("Context (ctx) was expected but not provided.")
-                # Call with context
-                return await run_async(func(ctx_arg, *args, **kwargs))
-            else:
-                # Call without context
-                return await run_async(func(*args, **kwargs))
-        except Exception as e:
-            error_model = ToolExecutionError(
-                tool_name=func.__name__,
-                error_type=type(e).__name__,
-                message=str(e),
-                details=traceback.format_exc(),
-            )
-            return error_model.model_dump_json()
-
-    if takes_no_args:
-        # Inject dummy parameter for schema generation if original func took no args
-        new_sig = inspect.Signature(
-            parameters=[
-                inspect.Parameter(
-                    "_dummy", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
-                )
-            ]
+    def _get_conversation_context(self, ctx: AnyContext) -> dict[str, Any]:
+        """Retrieves the conversation context."""
+        context = get_attr(ctx, self._conversation_context, {}, auto_render=False) # Context usually shouldn't be rendered # noqa
+        if isinstance(context, dict):
+            return context
+        ctx.log_warning(
+            f"Conversation context resolved to type {type(context)}, expected dict. "
+            "Returning empty context."
         )
-        wrapper.__signature__ = new_sig
-    elif needs_ctx:
-        # Adjust signature if ctx was the *only* parameter originally
-        # This ensures the wrapper signature matches what pydantic-ai expects
-        params = list(original_sig.parameters.values())
-        if len(params) == 1 and params[0].name == "ctx":
-            new_sig = inspect.Signature(
-                parameters=[
-                    inspect.Parameter("ctx", inspect.Parameter.POSITIONAL_OR_KEYWORD)
-                ]
-            )
-            wrapper.__signature__ = new_sig
-        # Otherwise, the original signature (including ctx) is fine for the wrapper
-
-    return wrapper
-
-
-def _extract_api_error_details(error: APIError) -> str:
-    """Extract detailed error information from an APIError."""
-    details = f"{error.message}"
-    # Try to parse the error body as JSON
-    if error.body:
-        try:
-            if isinstance(error.body, str):
-                body_json = json.loads(error.body)
-            elif isinstance(error.body, bytes):
-                body_json = json.loads(error.body.decode("utf-8"))
-            else:
-                body_json = error.body
-            # Extract error details from the JSON structure
-            if isinstance(body_json, dict):
-                if "error" in body_json:
-                    error_obj = body_json["error"]
-                    if isinstance(error_obj, dict):
-                        if "message" in error_obj:
-                            details += f"\nProvider message: {error_obj['message']}"
-                        if "code" in error_obj:
-                            details += f"\nError code: {error_obj['code']}"
-                        if "status" in error_obj:
-                            details += f"\nStatus: {error_obj['status']}"
-                # Check for metadata that might contain provider-specific information
-                if "metadata" in body_json and isinstance(body_json["metadata"], dict):
-                    metadata = body_json["metadata"]
-                    if "provider_name" in metadata:
-                        details += f"\nProvider: {metadata['provider_name']}"
-                    if "raw" in metadata:
-                        try:
-                            raw_json = json.loads(metadata["raw"])
-                            if "error" in raw_json and isinstance(
-                                raw_json["error"], dict
-                            ):
-                                raw_error = raw_json["error"]
-                                if "message" in raw_error:
-                                    details += (
-                                        f"\nRaw error message: {raw_error['message']}"
-                                    )
-                        except (KeyError, TypeError, ValueError):
-                            # If we can't parse the raw JSON, just include it as is
-                            details += f"\nRaw error data: {metadata['raw']}"
-        except json.JSONDecodeError:
-            # If we can't parse the JSON, include the raw body
-            details += f"\nRaw error body: {error.body}"
-        except Exception as e:
-            # Catch any other exceptions during parsing
-            details += f"\nError parsing error body: {str(e)}"
-    # Include request information if available
-    if hasattr(error, "request") and error.request:
-        if hasattr(error.request, "method") and hasattr(error.request, "url"):
-            details += f"\nRequest: {error.request.method} {error.request.url}"
-        # Include a truncated version of the request content if available
-        if hasattr(error.request, "content") and error.request.content:
-            content = error.request.content
-            if isinstance(content, bytes):
-                try:
-                    content = content.decode("utf-8")
-                except UnicodeDecodeError:
-                    content = str(content)
-            details += f"\nRequest content: {content}"
-    return details
+        return {}
