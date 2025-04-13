@@ -173,7 +173,7 @@ publish_group.add_task(publish_docker, alias="docker")
 publish_all = publish_group.add_task(
     Task(name="publish-all", description="Publish Zrb"), alias="all"
 )
-publish_all << [publish_pip, publish_docker]
+publish_all << [publish_pip, publish_docker, publish_code]
 
 # GENERATOR TEST =============================================================
 
