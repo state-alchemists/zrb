@@ -92,7 +92,7 @@ class LLMTask(BaseTask):
         render_history_file: bool = True,
         summarize_history: BoolAttr = True,
         render_summarize_history: bool = True,
-        history_summarization_threshold: IntAttr = 3,  # -1 means no summarization trigger
+        history_summarization_threshold: IntAttr = 5,  # -1 means no summarization trigger
         render_history_summarization_threshold: bool = True,
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,

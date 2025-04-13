@@ -9,7 +9,6 @@ from zrb.util.file import read_dir, read_file
 
 def get_default_context(user_message: str) -> dict[str, Any]:
     references = re.findall(r"@(\S+)", user_message)
-    print("REFERENCES", references)
     current_references = []
 
     for ref in references:
