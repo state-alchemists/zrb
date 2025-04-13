@@ -1,3 +1,8 @@
+# 1.5.7
+
+- Add line numbers back
+
+
 # 1.5.6
 
 - Expand `~` as home directory correctly on LLM tool

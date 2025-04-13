@@ -4,8 +4,7 @@ import os
 import re
 from typing import Any, Optional
 
-from zrb.util.file import read_file as _read_file
-from zrb.util.file import write_file as _write_file
+from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 DEFAULT_EXCLUDED_PATTERNS = [
     # Common Python artifacts
@@ -182,7 +181,7 @@ def read_from_file(
     start_line: Optional[int] = None,
     end_line: Optional[int] = None,
 ) -> str:
-    """Read file content (or specific lines) at a path.
+    """Read file content (or specific lines) at a path, including line numbers.
     Args:
         path (str): Path to read. Pass exactly as provided, including '~'.
         start_line (Optional[int]): Starting line number (1-based).
@@ -191,6 +190,7 @@ def read_from_file(
             Defaults to None (end of file).
     Returns:
         str: JSON: {"path": "...", "content": "...", "start_line": N, ...} or {"error": "..."}
+        The content includes line numbers.
     Raises:
         Exception: If an error occurs.
     """
@@ -199,7 +199,7 @@ def read_from_file(
         # Check if file exists
         if not os.path.exists(abs_path):
             return json.dumps({"error": f"File {path} does not exist"})
-        content = _read_file(abs_path)
+        content = read_file_with_line_numbers(abs_path)
         lines = content.splitlines()
         total_lines = len(lines)
         # Adjust line indices (convert from 1-based to 0-based)
@@ -259,7 +259,7 @@ def write_to_file(
         directory = os.path.dirname(abs_path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-        _write_file(abs_path, content)
+        write_file(abs_path, content)
         result_data = {"success": True, "path": path}
         if warning:
             result_data["warning"] = warning
@@ -391,6 +391,7 @@ def apply_diff(
         replace_marker (str): Marker for end of replacement block.
             Defaults to ">>>>>> REPLACE".
     SEARCH block must exactly match file content including whitespace/indentation.
+    SEARCH block should NOT contains line numbers
     Format example:
         [Search Marker, e.g., <<<<<< SEARCH]
         :start_line:10
@@ -414,7 +415,7 @@ def apply_diff(
             return json.dumps(
                 {"success": False, "path": path, "error": f"File not found at {path}"}
             )
-        content = _read_file(abs_path)
+        content = read_file(abs_path)
         lines = content.splitlines()
         if start_line < 1 or end_line > len(lines) or start_line > end_line:
             return json.dumps(
@@ -444,7 +445,7 @@ def apply_diff(
         new_content = "\n".join(new_lines)
         if content.endswith("\n"):
             new_content += "\n"
-        _write_file(abs_path, new_content)
+        write_file(abs_path, new_content)
         return json.dumps({"success": True, "path": path})
     except ValueError as e:
         raise ValueError(f"Error parsing diff: {e}")

@@ -4,7 +4,7 @@ import platform
 import re
 from typing import Any
 
-from zrb.util.file import read_dir, read_file
+from zrb.util.file import read_dir, read_file_with_line_numbers
 
 
 def get_default_context(user_message: str) -> dict[str, Any]:
@@ -14,12 +14,13 @@ def get_default_context(user_message: str) -> dict[str, Any]:
     for ref in references:
         resource_path = os.path.abspath(os.path.expanduser(ref))
         if os.path.isfile(resource_path):
-            content = read_file(resource_path)
+            content = read_file_with_line_numbers(resource_path)
             current_references.append(
                 {
                     "reference": ref,
                     "name": resource_path,
                     "type": "file",
+                    "note": "line numbers are included in the content",
                     "content": content,
                 }
             )

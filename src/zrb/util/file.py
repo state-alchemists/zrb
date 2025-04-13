@@ -12,6 +12,15 @@ def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
     return content
 
 
+def read_file_with_line_numbers(
+    file_path: str, replace_map: dict[str, str] = {}
+) -> str:
+    content = read_file(file_path, replace_map)
+    lines = content.splitlines()
+    numbered_lines = [f"{i + 1} | {line}" for i, line in enumerate(lines)]
+    return "\n".join(numbered_lines)
+
+
 def read_dir(dir_path: str) -> list[str]:
     return [f for f in os.listdir(os.path.abspath(os.path.expanduser(dir_path)))]
 
