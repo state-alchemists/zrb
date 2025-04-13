@@ -23,16 +23,14 @@ class ConversationHistoryData(BaseModel):
         ctx: AnyContext,
         reader: Callable[[AnyContext], dict[str, Any] | list | None] | None,
         file_path: str | None,
-        attribute_value: Any,
-        default_value: "ConversationHistoryData",
-    ) -> "ConversationHistoryData":
+    ) -> Optional["ConversationHistoryData"]:
         """Reads conversation history from various sources with priority."""
         # Priority 1: Reader function
         if reader:
             try:
                 raw_data = await run_async(reader(ctx))
                 if raw_data:
-                    instance = cls._parse_and_validate(ctx, raw_data, "reader")
+                    instance = cls.parse_and_validate(ctx, raw_data, "reader")
                     if instance:
                         return instance
             except Exception as e:
@@ -44,7 +42,7 @@ class ConversationHistoryData(BaseModel):
             try:
                 content = read_file(file_path)
                 raw_data = json.loads(content)
-                instance = cls._parse_and_validate(ctx, raw_data, f"file '{file_path}'")
+                instance = cls.parse_and_validate(ctx, raw_data, f"file '{file_path}'")
                 if instance:
                     return instance
             except json.JSONDecodeError:
@@ -57,27 +55,11 @@ class ConversationHistoryData(BaseModel):
                     f"Error reading history file '{file_path}': {e}. "
                     "Ignoring file content."
                 )
-        # Priority 3: Callable or direct conversation_history attribute
-        raw_data_attr: Any = None
-        if callable(attribute_value):
-            try:
-                raw_data_attr = attribute_value(ctx)
-            except Exception as e:
-                ctx.log_warning(
-                    f"Error executing callable conversation_history attribute: {e}. "
-                    "Ignoring."
-                )
-        else:
-            raw_data_attr = attribute_value
-        if raw_data_attr:
-            instance = cls._parse_and_validate(ctx, raw_data_attr, "attribute")
-            if instance:
-                return instance
-        # Fallback: Return default value
-        return default_value
+        # If neither reader nor file provided valid data
+        return None
 
     @classmethod
-    def _parse_and_validate(
+    def parse_and_validate(
         cls, ctx: AnyContext, data: Any, source: str
     ) -> Optional["ConversationHistoryData"]:
         """Parses raw data into ConversationHistoryData, handling validation & old formats."""

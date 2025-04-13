@@ -12,6 +12,10 @@ def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
     return content
 
 
+def read_dir(dir_path: str) -> list[str]:
+    return [f for f in os.listdir(os.path.abspath(os.path.expanduser(dir_path)))]
+
+
 def write_file(file_path: str, content: str | list[str]):
     if isinstance(content, list):
         content = "\n".join([line for line in content if line is not None])

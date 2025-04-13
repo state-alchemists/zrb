@@ -166,7 +166,7 @@ def _is_hidden(path: str) -> bool:
 def _is_excluded(name: str, patterns: list[str]) -> bool:
     """Check if a name/path matches any exclusion patterns."""
     for pattern in patterns:
-        if fnmatch(name, pattern):
+        if fnmatch.fnmatch(name, pattern):
             return True
         # Split the path using the OS path separator.
         parts = name.split(os.path.sep)

@@ -1,6 +1,8 @@
 # 1.5.6
 
 - Expand `~` as home directory correctly on LLM tool
+- Improve tools
+- Introduce summarization + context enhancement on LLMTask
 
 # 1.5.5
 
