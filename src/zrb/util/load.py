@@ -23,6 +23,8 @@ def load_file(script_path: str, sys_path_index: int = 0) -> Any | None:
     # Add script dir path to Python path
     os.environ["PYTHONPATH"] = _get_new_python_path(script_dir_path)
     spec = importlib.util.spec_from_file_location(module_name, script_path)
+    if spec is None:
+        return None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

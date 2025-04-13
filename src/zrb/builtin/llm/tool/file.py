@@ -9,25 +9,67 @@ from zrb.util.file import write_file as _write_file
 
 DEFAULT_EXCLUDED_PATTERNS = [
     # Common Python artifacts
-    "__pycache__", "*.pyc", "*.pyo", "*.pyd", ".Python",
-    "build", "develop-eggs", "dist", "downloads", "eggs", ".eggs",
-    "lib", "lib64", "parts", "sdist", "var", "wheels",
-    "share/python-wheels", "*.egg-info", ".installed.cfg", "*.egg", "MANIFEST",
+    "__pycache__",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".Python",
+    "build",
+    "develop-eggs",
+    "dist",
+    "downloads",
+    "eggs",
+    ".eggs",
+    "lib",
+    "lib64",
+    "parts",
+    "sdist",
+    "var",
+    "wheels",
+    "share/python-wheels",
+    "*.egg-info",
+    ".installed.cfg",
+    "*.egg",
+    "MANIFEST",
     # Virtual environments
-    ".env", ".venv", "env", "venv", "ENV", "VENV",
+    ".env",
+    ".venv",
+    "env",
+    "venv",
+    "ENV",
+    "VENV",
     # Editor/IDE specific
-    ".idea", ".vscode", "*.swp", "*.swo", "*.swn",
+    ".idea",
+    ".vscode",
+    "*.swp",
+    "*.swo",
+    "*.swn",
     # OS specific
-    ".DS_Store", "Thumbs.db",
+    ".DS_Store",
+    "Thumbs.db",
     # Version control
-    ".git", ".hg", ".svn",
+    ".git",
+    ".hg",
+    ".svn",
     # Node.js
-    "node_modules", "npm-debug.log*", "yarn-debug.log*", "yarn-error.log*",
+    "node_modules",
+    "npm-debug.log*",
+    "yarn-debug.log*",
+    "yarn-error.log*",
     # Test/Coverage artifacts
-    ".history", ".tox", ".nox", ".coverage", ".coverage.*", ".cache",
-    ".pytest_cache", ".hypothesis", "htmlcov",
+    ".history",
+    ".tox",
+    ".nox",
+    ".coverage",
+    ".coverage.*",
+    ".cache",
+    ".pytest_cache",
+    ".hypothesis",
+    "htmlcov",
     # Compiled files
-    "*.so", "*.dylib", "*.dll",
+    "*.so",
+    "*.dylib",
+    "*.dll",
 ]
 
 
@@ -69,14 +111,12 @@ def list_files(
                 ]
                 # Process files
                 for filename in files:
-                    if (include_hidden or not _is_hidden(filename)) and not _is_excluded(
-                        filename, patterns_to_exclude
-                    ):
+                    if (
+                        include_hidden or not _is_hidden(filename)
+                    ) and not _is_excluded(filename, patterns_to_exclude):
                         full_path = os.path.join(root, filename)
                         # Check rel path for patterns like '**/node_modules/*'
-                        rel_full_path = os.path.relpath(
-                            full_path, abs_path
-                        )
+                        rel_full_path = os.path.relpath(full_path, abs_path)
                         is_rel_path_excluded = _is_excluded(
                             rel_full_path, patterns_to_exclude
                         )
@@ -126,7 +166,7 @@ def _is_hidden(path: str) -> bool:
 def _is_excluded(name: str, patterns: list[str]) -> bool:
     """Check if a name/path matches any exclusion patterns."""
     for pattern in patterns:
-        if fnmatch(name, pattern):
+        if fnmatch.fnmatch(name, pattern):
             return True
         # Split the path using the OS path separator.
         parts = name.split(os.path.sep)

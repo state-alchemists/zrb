@@ -31,6 +31,7 @@ def _get_log_level(level: str) -> int:
     return logging.WARNING
 
 
+LOGGER = logging.getLogger()
 DEFAULT_SHELL = os.getenv("ZRB_SHELL", _get_current_shell())
 DEFAULT_EDITOR = os.getenv("ZRB_EDITOR", "nano")
 INIT_MODULES_STR = os.getenv("ZRB_INIT_MODULES", "")
