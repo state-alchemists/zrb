@@ -62,7 +62,7 @@ async def summarize_history(
             # Update context with the new summary
             conversation_context["history_summary"] = summary_text
             ctx.log_info("History summarized and added/updated in context.")
-            ctx.log_info(f"Conversaion summary: {summary_text}")
+            ctx.log_info(f"Conversation summary: {summary_text}")
         else:
             ctx.log_warning("History summarization failed or returned no data.")
     except Exception as e:

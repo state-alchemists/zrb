@@ -152,13 +152,14 @@ def create_rag_from_directory(
 
     retrieve.__name__ = tool_name
     retrieve.__doc__ = dedent(
-        f"""{tool_description}
+        f"""
+        {tool_description}
         Args:
             query (str): The user query to search for in documents.
         Returns:
             str: JSON string with search results: {{"ids": [...], "documents": [...], ...}}
-    """
-    )
+        """
+    ).strip()
     return retrieve
 
 

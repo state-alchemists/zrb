@@ -353,8 +353,8 @@ class LLMTask(BaseTask):
             {json.dumps(enriched_context)}
             # User Message
             {user_message}
-            """.strip()
-        )
+            """
+        ).strip()
 
     def _get_user_message(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._message, "How are you?", auto_render=True)

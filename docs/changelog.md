@@ -1,3 +1,7 @@
+# 1.5.8
+
+- Improve summarization trigger
+
 # 1.5.7
 
 - Add line numbers back
