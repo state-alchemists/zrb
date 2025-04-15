@@ -25,6 +25,7 @@ from zrb.task.llm.history import ConversationHistoryData, ListOfDict
 from zrb.task.llm.history_summarizer import SummarizationConfig, summarize_history
 from zrb.task.llm.tool_wrapper import wrap_tool
 from zrb.util.attr import get_attr, get_bool_attr, get_int_attr, get_str_attr
+from zrb.util.cli.style import stylize_faint
 from zrb.util.file import write_file
 from zrb.util.run import run_async
 
@@ -241,6 +242,7 @@ class LLMTask(BaseTask):
                 await self._write_conversation_history(
                     ctx, data_to_write
                 )  # Pass the model instance
+                ctx.print(stylize_faint(f"{agent_run.result.usage()}"))
                 return agent_run.result.data
         except Exception as e:
             ctx.log_error(f"Error in agent execution: {str(e)}")
@@ -438,7 +440,12 @@ class LLMTask(BaseTask):
     def _get_should_summarize_history(
         self, ctx: AnyContext, history_list: ListOfDict
     ) -> bool:
-        history_len = len(history_list)
+        history_len = 0
+        for history in history_list:
+            if "parts" in history:
+                history_len += len(history["parts"])
+            else:
+                history_len += 1
         if history_len == 0:
             return False
         summarization_threshold = self._get_history_summarization_threshold(ctx)
