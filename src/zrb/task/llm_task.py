@@ -35,6 +35,7 @@ from zrb.task.llm.prompt import (
     get_system_prompt,
 )
 from zrb.util.cli.style import stylize_faint
+from zrb.xcom.xcom import Xcom
 
 ToolOrCallable = Tool | Callable
 
@@ -188,44 +189,6 @@ class LLMTask(BaseTask):
     def set_history_summarization_threshold(self, summarization_threshold: int):
         self._history_summarization_threshold = summarization_threshold
 
-    async def _run_agent_and_save_history(
-        self,
-        ctx: AnyContext,
-        agent: Agent,
-        user_prompt: str,
-        history_list: ListOfDict,
-        conversation_context: dict[str, Any],
-    ) -> Any:
-        """Executes the agent, processes results, and saves history."""
-        try:
-            agent_run = await run_agent_iteration(
-                ctx=ctx,
-                agent=agent,
-                user_prompt=user_prompt,
-                history_list=history_list,
-            )
-            if agent_run:
-                new_history_list = json.loads(agent_run.result.all_messages_json())
-                data_to_write = ConversationHistoryData(
-                    context=conversation_context,  # Save the final context state
-                    history=new_history_list,
-                )
-                await write_conversation_history(
-                    ctx=ctx,
-                    history_data=data_to_write,
-                    conversation_history_writer=self._conversation_history_writer,
-                    conversation_history_file_attr=self._conversation_history_file,
-                    render_history_file=self._render_history_file,
-                )
-                ctx.print(stylize_faint(f"{agent_run.result.usage()}"))
-                return agent_run.result.data
-            else:
-                ctx.log_warning("Agent run did not produce a result.")
-                return None  # Or handle as appropriate
-        except Exception as e:
-            ctx.log_error(f"Error during agent execution or history saving: {str(e)}")
-            raise  # Re-raise the exception after logging
-
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # Get dependent configurations first
         model_settings = get_model_settings(ctx, self._model_settings)
@@ -312,3 +275,46 @@ class LLMTask(BaseTask):
         return await self._run_agent_and_save_history(
             ctx, agent, user_prompt, history_list, conversation_context
         )
+
+    async def _run_agent_and_save_history(
+        self,
+        ctx: AnyContext,
+        agent: Agent,
+        user_prompt: str,
+        history_list: ListOfDict,
+        conversation_context: dict[str, Any],
+    ) -> Any:
+        """Executes the agent, processes results, and saves history."""
+        try:
+            agent_run = await run_agent_iteration(
+                ctx=ctx,
+                agent=agent,
+                user_prompt=user_prompt,
+                history_list=history_list,
+            )
+            if agent_run:
+                new_history_list = json.loads(agent_run.result.all_messages_json())
+                data_to_write = ConversationHistoryData(
+                    context=conversation_context,  # Save the final context state
+                    history=new_history_list,
+                )
+                await write_conversation_history(
+                    ctx=ctx,
+                    history_data=data_to_write,
+                    conversation_history_writer=self._conversation_history_writer,
+                    conversation_history_file_attr=self._conversation_history_file,
+                    render_history_file=self._render_history_file,
+                )
+                xcom_usage_key = f"{self.name}-usage"
+                if xcom_usage_key not in ctx.xcom:
+                    ctx.xcom[xcom_usage_key] = Xcom([])
+                usage = agent_run.result.usage()
+                ctx.xcom.get(xcom_usage_key).push(usage)
+                ctx.print(stylize_faint(f"[USAGE] {usage}"))
+                return agent_run.result.data
+            else:
+                ctx.log_warning("Agent run did not produce a result.")
+                return None  # Or handle as appropriate
+        except Exception as e:
+            ctx.log_error(f"Error during agent execution or history saving: {str(e)}")
+            raise  # Re-raise the exception after logging

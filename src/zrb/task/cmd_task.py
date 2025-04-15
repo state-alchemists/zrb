@@ -130,7 +130,8 @@ class CmdTask(BaseTask):
             partial(ctx.print, plain=True) if self._should_plain_print else ctx.print
         )
         xcom_pid_key = f"{self.name}-pid"
-        ctx.xcom[xcom_pid_key] = Xcom([])
+        if xcom_pid_key not in ctx.xcom:
+            ctx.xcom[xcom_pid_key] = Xcom([])
         cmd_result, return_code = await run_command(
             cmd=[shell, shell_flag, cmd_script],
             cwd=cwd,

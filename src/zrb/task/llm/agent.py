@@ -1,9 +1,9 @@
 import inspect
 from collections.abc import Callable
-from typing import Any
 
 from openai import APIError
 from pydantic_ai import Agent, Tool
+from pydantic_ai.agent import AgentRun
 from pydantic_ai.mcp import MCPServer
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import Model
@@ -103,7 +103,7 @@ async def run_agent_iteration(
     agent: Agent,
     user_prompt: str,
     history_list: ListOfDict,
-) -> Any:
+) -> AgentRun:
     """
     Runs a single iteration of the agent execution loop.
 
