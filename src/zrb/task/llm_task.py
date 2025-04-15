@@ -183,20 +183,26 @@ class LLMTask(BaseTask):
     def set_history_summarization_threshold(self, summarization_threshold: int):
         self._history_summarization_threshold = summarization_threshold
 
-    async def _exec_action(self, ctx: AnyContext) -> Any:
-        history_data: ConversationHistoryData = await self._read_conversation_history(
-            ctx
-        )
-        # Extract history list and conversation context
+    async def _prepare_initial_state(
+        self, ctx: AnyContext
+    ) -> tuple[ListOfDict, dict[str, Any]]:
+        """Reads history and prepares the initial conversation context."""
+        history_data: ConversationHistoryData = await self._read_conversation_history(ctx)
         history_list = history_data.history
         conversation_context = self._get_conversation_context(ctx)
-        # Merge history context without overwriting existing keys
+        # Merge history context from loaded data without overwriting existing keys
         for key, value in history_data.context.items():
             if key not in conversation_context:
                 conversation_context[key] = value
-        # Enrich context based on history (if enabled)
+        return history_list, conversation_context
+
+    async def _maybe_enrich_context(
+        self, ctx: AnyContext, history_list: ListOfDict, conversation_context: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Enriches context based on history if enabled."""
         if self._get_should_enrich_context(ctx, history_list):
-            conversation_context = await enrich_context(
+            ctx.log_info("Enriching conversation context based on history...")
+            return await enrich_context(
                 ctx=ctx,
                 config=EnrichmentConfig(
                     model=self._get_model(ctx),
@@ -206,11 +212,15 @@ class LLMTask(BaseTask):
                 conversation_context=conversation_context,
                 history_list=history_list,
             )
-        # Get history handling parameters
+        return conversation_context
+
+    async def _maybe_summarize_history(
+        self, ctx: AnyContext, history_list: ListOfDict, conversation_context: dict[str, Any]
+    ) -> tuple[ListOfDict, dict[str, Any]]:
+        """Summarizes history and updates context if enabled and threshold met."""
         if self._get_should_summarize_history(ctx, history_list):
-            ctx.log_info("Summarize previous conversation")
-            # Summarize the part to be removed and update context
-            conversation_context = await summarize_history(
+            ctx.log_info("Summarizing previous conversation...")
+            updated_context = await summarize_history(
                 ctx=ctx,
                 config=SummarizationConfig(
                     model=self._get_model(ctx),
@@ -221,11 +231,34 @@ class LLMTask(BaseTask):
                 history_list=history_list,  # Pass the full list for context
             )
             # Truncate the history list after summarization
-            history_list = []
-        # Construct user prompt
-        user_prompt = self._get_user_prompt(ctx, conversation_context)
-        # Create and run agent
-        agent = self._get_agent(ctx)
+            return [], updated_context
+        return history_list, conversation_context
+
+    def _build_user_prompt(
+        self, ctx: AnyContext, conversation_context: dict[str, Any]
+    ) -> str:
+        """Constructs the final user prompt including context."""
+        user_message = self._get_user_message(ctx)
+        # Combine default context, conversation context (potentially enriched/summarized)
+        enriched_context = {**get_default_context(user_message), **conversation_context}
+        return dedent(
+            f"""
+            # Context
+            {json.dumps(enriched_context)}
+            # User Message
+            {user_message}
+            """
+        ).strip()
+
+    async def _run_agent_and_save_history(
+        self,
+        ctx: AnyContext,
+        agent: Agent,
+        user_prompt: str,
+        history_list: ListOfDict,
+        conversation_context: dict[str, Any],
+    ) -> Any:
+        """Executes the agent, processes results, and saves history."""
         try:
             agent_run = await run_agent_iteration(
                 ctx=ctx,
@@ -236,17 +269,38 @@ class LLMTask(BaseTask):
             if agent_run:
                 new_history_list = json.loads(agent_run.result.all_messages_json())
                 data_to_write = ConversationHistoryData(
-                    context=conversation_context,
+                    context=conversation_context,  # Save the final context state
                     history=new_history_list,
                 )
-                await self._write_conversation_history(
-                    ctx, data_to_write
-                )  # Pass the model instance
+                await self._write_conversation_history(ctx, data_to_write)
                 ctx.print(stylize_faint(f"{agent_run.result.usage()}"))
                 return agent_run.result.data
+            else:
+                ctx.log_warning("Agent run did not produce a result.")
+                return None  # Or handle as appropriate
         except Exception as e:
-            ctx.log_error(f"Error in agent execution: {str(e)}")
-            raise
+            ctx.log_error(f"Error during agent execution or history saving: {str(e)}")
+            raise  # Re-raise the exception after logging
+
+    async def _exec_action(self, ctx: AnyContext) -> Any:
+        # 1. Prepare initial state (read history, get initial context)
+        history_list, conversation_context = await self._prepare_initial_state(ctx)
+        # 2. Enrich context (optional)
+        conversation_context = await self._maybe_enrich_context(
+            ctx, history_list, conversation_context
+        )
+        # 3. Summarize history (optional, modifies history_list and context)
+        history_list, conversation_context = await self._maybe_summarize_history(
+            ctx, history_list, conversation_context
+        )
+        # 4. Build the final user prompt
+        user_prompt = self._build_user_prompt(ctx, conversation_context)
+        # 5. Get the agent instance
+        agent = self._get_agent(ctx)
+        # 6. Run the agent iteration and save the results/history
+        return await self._run_agent_and_save_history(
+            ctx, agent, user_prompt, history_list, conversation_context
+        )
 
     async def _write_conversation_history(
         self, ctx: AnyContext, history_data: ConversationHistoryData
@@ -265,11 +319,8 @@ class LLMTask(BaseTask):
             return self._model_settings(ctx)
         return self._model_settings
 
-    def _get_agent(self, ctx: AnyContext) -> Agent:
-        if isinstance(self._agent, Agent):
-            return self._agent
-        if callable(self._agent):
-            return self._agent(ctx)
+    def _create_agent_instance(self, ctx: AnyContext) -> Agent:
+        """Creates a new Agent instance with configured tools and servers."""
         tools_or_callables = list(
             self._tools(ctx) if callable(self._tools) else self._tools
         )
@@ -279,24 +330,41 @@ class LLMTask(BaseTask):
             if isinstance(tool_or_callable, Tool):
                 tools.append(tool_or_callable)
             else:
-                # Inspect original callable for 'ctx' parameter
-                # This ctx refer to pydantic AI's ctx, not task ctx.
+                # Inspect original callable for 'ctx' parameter (pydantic-ai context)
                 original_sig = inspect.signature(tool_or_callable)
                 takes_ctx = "ctx" in original_sig.parameters
                 wrapped_tool = wrap_tool(tool_or_callable)
                 tools.append(Tool(wrapped_tool, takes_ctx=takes_ctx))
+
         mcp_servers = list(
             self._mcp_servers(ctx) if callable(self._mcp_servers) else self._mcp_servers
         )
         mcp_servers.extend(self._additional_mcp_servers)
+
         return Agent(
-            self._get_model(ctx),
+            model=self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),
             tools=tools,
             mcp_servers=mcp_servers,
             model_settings=self._get_model_settings(ctx),
-            retries=3,
+            retries=3,  # Consider making retries configurable?
         )
+
+    def _get_agent(self, ctx: AnyContext) -> Agent:
+        """Retrieves the configured Agent instance or creates one if necessary."""
+        if isinstance(self._agent, Agent):
+            return self._agent
+        if callable(self._agent):
+            agent_instance = self._agent(ctx)
+            if not isinstance(agent_instance, Agent):
+                err_msg = (
+                    "Callable agent factory did not return an Agent instance, "
+                    f"got: {type(agent_instance)}"
+                )
+                raise TypeError(err_msg)
+            return agent_instance
+        # If no agent provided, create one using the configuration
+        return self._create_agent_instance(ctx)
 
     def _get_model(self, ctx: AnyContext) -> str | Model | None:
         model = get_attr(ctx, self._model, None, auto_render=self._render_model)
@@ -343,20 +411,6 @@ class LLMTask(BaseTask):
         if system_prompt is not None:
             return system_prompt
         return default_llm_config.get_default_system_prompt()
-
-    def _get_user_prompt(
-        self, ctx: AnyContext, conversation_context: dict[str, Any]
-    ) -> str:
-        user_message = self._get_user_message(ctx)
-        enriched_context = {**get_default_context(user_message), **conversation_context}
-        return dedent(
-            f"""
-            # Context
-            {json.dumps(enriched_context)}
-            # User Message
-            {user_message}
-            """
-        ).strip()
 
     def _get_user_message(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._message, "How are you?", auto_render=True)
@@ -440,18 +494,13 @@ class LLMTask(BaseTask):
     def _get_should_summarize_history(
         self, ctx: AnyContext, history_list: ListOfDict
     ) -> bool:
-        history_len = 0
-        for history in history_list:
-            if "parts" in history:
-                history_len += len(history["parts"])
-            else:
-                history_len += 1
-        if history_len == 0:
+        history_part_len = self._get_history_part_len(history_list)
+        if history_part_len == 0:
             return False
         summarization_threshold = self._get_history_summarization_threshold(ctx)
         if summarization_threshold == -1:
             return False
-        if summarization_threshold > history_len:
+        if summarization_threshold > history_part_len:
             return False
         return get_bool_attr(
             ctx,
@@ -459,6 +508,16 @@ class LLMTask(BaseTask):
             False,
             auto_render=self._render_summarize_history,
         )
+
+    def _get_history_part_len(self, history_list: ListOfDict) -> int:
+        """Each history item might contains several parts"""
+        history_part_len = 0
+        for history in history_list:
+            if "parts" in history:
+                history_part_len += len(history["parts"])
+            else:
+                history_part_len += 1
+        return history_part_len
 
     def _get_history_summarization_threshold(self, ctx: AnyContext) -> int:
         # Use get_int_attr with -1 as default (no limit)
