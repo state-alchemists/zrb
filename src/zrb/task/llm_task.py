@@ -1,7 +1,5 @@
-import inspect
 import json
 from collections.abc import Callable
-from textwrap import dedent
 from typing import Any
 
 from pydantic_ai import Agent, Tool
@@ -14,23 +12,32 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
-from zrb.llm_config import LLMConfig
-from zrb.llm_config import llm_config as default_llm_config
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.task.llm.agent_runner import run_agent_iteration
-from zrb.task.llm.context_enricher import EnrichmentConfig, enrich_context
-from zrb.task.llm.default_context import get_default_context
 from zrb.task.llm.history import ConversationHistoryData, ListOfDict
-from zrb.task.llm.history_summarizer import SummarizationConfig, summarize_history
-from zrb.task.llm.tool_wrapper import wrap_tool
-from zrb.util.attr import get_attr, get_bool_attr, get_int_attr, get_str_attr
 from zrb.util.cli.style import stylize_faint
-from zrb.util.file import write_file
-from zrb.util.run import run_async
 
-# ListOfDict moved to history.py
-# Removed old ConversationHistoryData type alias
+from zrb.task.llm.agent import get_agent, run_agent_iteration
+from zrb.task.llm.config import (
+    get_model,
+    get_model_settings,
+)
+from zrb.task.llm.context import (
+    get_conversation_context,
+    maybe_enrich_context,
+)
+from zrb.task.llm.history import (
+    maybe_summarize_history,
+    prepare_initial_state,
+    write_conversation_history,
+)
+from zrb.task.llm.prompt import (
+    build_user_prompt,
+    get_context_enrichment_prompt,
+    get_summarization_prompt,
+    get_system_prompt,
+)
+
 ToolOrCallable = Tool | Callable
 
 
@@ -183,73 +190,6 @@ class LLMTask(BaseTask):
     def set_history_summarization_threshold(self, summarization_threshold: int):
         self._history_summarization_threshold = summarization_threshold
 
-    async def _prepare_initial_state(
-        self, ctx: AnyContext
-    ) -> tuple[ListOfDict, dict[str, Any]]:
-        """Reads history and prepares the initial conversation context."""
-        history_data: ConversationHistoryData = await self._read_conversation_history(ctx)
-        history_list = history_data.history
-        conversation_context = self._get_conversation_context(ctx)
-        # Merge history context from loaded data without overwriting existing keys
-        for key, value in history_data.context.items():
-            if key not in conversation_context:
-                conversation_context[key] = value
-        return history_list, conversation_context
-
-    async def _maybe_enrich_context(
-        self, ctx: AnyContext, history_list: ListOfDict, conversation_context: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Enriches context based on history if enabled."""
-        if self._get_should_enrich_context(ctx, history_list):
-            ctx.log_info("Enriching conversation context based on history...")
-            return await enrich_context(
-                ctx=ctx,
-                config=EnrichmentConfig(
-                    model=self._get_model(ctx),
-                    settings=self._get_model_settings(ctx),
-                    prompt=self._get_context_enrichment_prompt(ctx),
-                ),
-                conversation_context=conversation_context,
-                history_list=history_list,
-            )
-        return conversation_context
-
-    async def _maybe_summarize_history(
-        self, ctx: AnyContext, history_list: ListOfDict, conversation_context: dict[str, Any]
-    ) -> tuple[ListOfDict, dict[str, Any]]:
-        """Summarizes history and updates context if enabled and threshold met."""
-        if self._get_should_summarize_history(ctx, history_list):
-            ctx.log_info("Summarizing previous conversation...")
-            updated_context = await summarize_history(
-                ctx=ctx,
-                config=SummarizationConfig(
-                    model=self._get_model(ctx),
-                    settings=self._get_model_settings(ctx),
-                    prompt=self._get_summarization_prompt(ctx),
-                ),
-                conversation_context=conversation_context,
-                history_list=history_list,  # Pass the full list for context
-            )
-            # Truncate the history list after summarization
-            return [], updated_context
-        return history_list, conversation_context
-
-    def _build_user_prompt(
-        self, ctx: AnyContext, conversation_context: dict[str, Any]
-    ) -> str:
-        """Constructs the final user prompt including context."""
-        user_message = self._get_user_message(ctx)
-        # Combine default context, conversation context (potentially enriched/summarized)
-        enriched_context = {**get_default_context(user_message), **conversation_context}
-        return dedent(
-            f"""
-            # Context
-            {json.dumps(enriched_context)}
-            # User Message
-            {user_message}
-            """
-        ).strip()
-
     async def _run_agent_and_save_history(
         self,
         ctx: AnyContext,
@@ -272,7 +212,13 @@ class LLMTask(BaseTask):
                     context=conversation_context,  # Save the final context state
                     history=new_history_list,
                 )
-                await self._write_conversation_history(ctx, data_to_write)
+                await write_conversation_history(
+                    ctx=ctx,
+                    history_data=data_to_write,
+                    conversation_history_writer=self._conversation_history_writer,
+                    conversation_history_file_attr=self._conversation_history_file,
+                    render_history_file=self._render_history_file,
+                )
                 ctx.print(stylize_faint(f"{agent_run.result.usage()}"))
                 return agent_run.result.data
             else:
@@ -283,289 +229,88 @@ class LLMTask(BaseTask):
             raise  # Re-raise the exception after logging
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
+        # Get dependent configurations first
+        model_settings = get_model_settings(ctx, self._model_settings)
+        model = get_model(
+            ctx=ctx,
+            model_attr=self._model,
+            render_model=self._render_model,
+            model_base_url_attr=self._model_base_url,
+            render_model_base_url=self._render_model_base_url,
+            model_api_key_attr=self._model_api_key,
+            render_model_api_key=self._render_model_api_key,
+        )
+        context_enrichment_prompt = get_context_enrichment_prompt(
+            ctx=ctx,
+            context_enrichment_prompt_attr=self._context_enrichment_prompt,
+            render_context_enrichment_prompt=self._render_context_enrichment_prompt,
+        )
+        summarization_prompt = get_summarization_prompt(
+            ctx=ctx,
+            summarization_prompt_attr=self._summarization_prompt,
+            render_summarization_prompt=self._render_summarization_prompt,
+        )
+        system_prompt = get_system_prompt(
+            ctx=ctx,
+            system_prompt_attr=self._system_prompt,
+            render_system_prompt=self._render_system_prompt,
+        )
         # 1. Prepare initial state (read history, get initial context)
-        history_list, conversation_context = await self._prepare_initial_state(ctx)
+        history_list, conversation_context = await prepare_initial_state(
+            ctx=ctx,
+            conversation_history_reader=self._conversation_history_reader,
+            conversation_history_file_attr=self._conversation_history_file,
+            render_history_file=self._render_history_file,
+            conversation_history_attr=self._conversation_history,
+            conversation_context_getter=lambda c: get_conversation_context(
+                c, self._conversation_context
+            ),
+        )
         # 2. Enrich context (optional)
-        conversation_context = await self._maybe_enrich_context(
-            ctx, history_list, conversation_context
+        conversation_context = await maybe_enrich_context(
+            ctx=ctx,
+            history_list=history_list,
+            conversation_context=conversation_context,
+            should_enrich_context_attr=self._should_enrich_context,
+            render_enrich_context=self._render_enrich_context,
+            model=model,
+            model_settings=model_settings,
+            context_enrichment_prompt=context_enrichment_prompt,
         )
         # 3. Summarize history (optional, modifies history_list and context)
-        history_list, conversation_context = await self._maybe_summarize_history(
-            ctx, history_list, conversation_context
+        history_list, conversation_context = await maybe_summarize_history(
+            ctx=ctx,
+            history_list=history_list,
+            conversation_context=conversation_context,
+            should_summarize_history_attr=self._should_summarize_history,
+            render_summarize_history=self._render_summarize_history,
+            history_summarization_threshold_attr=self._history_summarization_threshold,
+            render_history_summarization_threshold=(
+                self._render_history_summarization_threshold
+            ),
+            model=model,
+            model_settings=model_settings,
+            summarization_prompt=summarization_prompt,
         )
         # 4. Build the final user prompt
-        user_prompt = self._build_user_prompt(ctx, conversation_context)
+        user_prompt = build_user_prompt(
+            ctx=ctx,
+            message_attr=self._message,
+            conversation_context=conversation_context,
+        )
         # 5. Get the agent instance
-        agent = self._get_agent(ctx)
+        agent = get_agent(
+            ctx=ctx,
+            agent_attr=self._agent,
+            model=model,
+            system_prompt=system_prompt,
+            model_settings=model_settings,
+            tools_attr=self._tools,
+            additional_tools=self._additional_tools,
+            mcp_servers_attr=self._mcp_servers,
+            additional_mcp_servers=self._additional_mcp_servers,
+        )
         # 6. Run the agent iteration and save the results/history
         return await self._run_agent_and_save_history(
             ctx, agent, user_prompt, history_list, conversation_context
         )
-
-    async def _write_conversation_history(
-        self, ctx: AnyContext, history_data: ConversationHistoryData
-    ):
-        # Expects the model instance
-        if self._conversation_history_writer is not None:
-            # Pass the model instance directly to the writer
-            await run_async(self._conversation_history_writer(ctx, history_data))
-        history_file = self._get_history_file(ctx)
-        if history_file != "":
-            # Use model_dump_json for serialization
-            write_file(history_file, history_data.model_dump_json(indent=2))
-
-    def _get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
-        if callable(self._model_settings):
-            return self._model_settings(ctx)
-        return self._model_settings
-
-    def _create_agent_instance(self, ctx: AnyContext) -> Agent:
-        """Creates a new Agent instance with configured tools and servers."""
-        tools_or_callables = list(
-            self._tools(ctx) if callable(self._tools) else self._tools
-        )
-        tools_or_callables.extend(self._additional_tools)
-        tools = []
-        for tool_or_callable in tools_or_callables:
-            if isinstance(tool_or_callable, Tool):
-                tools.append(tool_or_callable)
-            else:
-                # Inspect original callable for 'ctx' parameter (pydantic-ai context)
-                original_sig = inspect.signature(tool_or_callable)
-                takes_ctx = "ctx" in original_sig.parameters
-                wrapped_tool = wrap_tool(tool_or_callable)
-                tools.append(Tool(wrapped_tool, takes_ctx=takes_ctx))
-
-        mcp_servers = list(
-            self._mcp_servers(ctx) if callable(self._mcp_servers) else self._mcp_servers
-        )
-        mcp_servers.extend(self._additional_mcp_servers)
-
-        return Agent(
-            model=self._get_model(ctx),
-            system_prompt=self._get_system_prompt(ctx),
-            tools=tools,
-            mcp_servers=mcp_servers,
-            model_settings=self._get_model_settings(ctx),
-            retries=3,  # Consider making retries configurable?
-        )
-
-    def _get_agent(self, ctx: AnyContext) -> Agent:
-        """Retrieves the configured Agent instance or creates one if necessary."""
-        if isinstance(self._agent, Agent):
-            return self._agent
-        if callable(self._agent):
-            agent_instance = self._agent(ctx)
-            if not isinstance(agent_instance, Agent):
-                err_msg = (
-                    "Callable agent factory did not return an Agent instance, "
-                    f"got: {type(agent_instance)}"
-                )
-                raise TypeError(err_msg)
-            return agent_instance
-        # If no agent provided, create one using the configuration
-        return self._create_agent_instance(ctx)
-
-    def _get_model(self, ctx: AnyContext) -> str | Model | None:
-        model = get_attr(ctx, self._model, None, auto_render=self._render_model)
-        if model is None:
-            return default_llm_config.get_default_model()
-        if isinstance(model, str):
-            model_base_url = self._get_model_base_url(ctx)
-            model_api_key = self._get_model_api_key(ctx)
-            llm_config = LLMConfig(
-                default_model_name=model,
-                default_base_url=model_base_url,
-                default_api_key=model_api_key,
-            )
-            if model_base_url is None and model_api_key is None:
-                default_model_provider = default_llm_config.get_default_model_provider()
-                if default_model_provider is not None:
-                    llm_config.set_default_provider(default_model_provider)
-            return llm_config.get_default_model()
-        raise ValueError(f"Invalid model: {model}")
-
-    def _get_model_base_url(self, ctx: AnyContext) -> str | None:
-        base_url = get_attr(
-            ctx, self._model_base_url, None, auto_render=self._render_model_base_url
-        )
-        if isinstance(base_url, str) or base_url is None:
-            return base_url
-        raise ValueError(f"Invalid model base URL: {base_url}")
-
-    def _get_model_api_key(self, ctx: AnyContext) -> str | None:
-        api_key = get_attr(
-            ctx, self._model_api_key, None, auto_render=self._render_model_api_key
-        )
-        if isinstance(api_key, str) or api_key is None:
-            return api_key
-        raise ValueError(f"Invalid model API key: {api_key}")
-
-    def _get_system_prompt(self, ctx: AnyContext) -> str:
-        system_prompt = get_attr(
-            ctx,
-            self._system_prompt,
-            None,
-            auto_render=self._render_system_prompt,
-        )
-        if system_prompt is not None:
-            return system_prompt
-        return default_llm_config.get_default_system_prompt()
-
-    def _get_user_message(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._message, "How are you?", auto_render=True)
-
-    def _get_summarization_prompt(self, ctx: AnyContext) -> str:
-        summarization_prompt = get_attr(
-            ctx,
-            self._summarization_prompt,
-            None,
-            auto_render=self._render_summarization_prompt,
-        )
-        if summarization_prompt is not None:
-            return summarization_prompt
-        return default_llm_config.get_default_summarization_prompt()
-
-    def _get_should_enrich_context(
-        self, ctx: AnyContext, history_list: ListOfDict
-    ) -> bool:
-        if len(history_list) == 0:
-            return False
-        return get_bool_attr(
-            ctx,
-            self._should_enrich_context,
-            True,  # Default to True if not specified
-            auto_render=self._render_enrich_context,
-        )
-
-    def _get_context_enrichment_prompt(self, ctx: AnyContext) -> str:
-        context_enrichment_prompt = get_attr(
-            ctx,
-            self._context_enrichment_prompt,
-            None,
-            auto_render=self._render_context_enrichment_prompt,
-        )
-        if context_enrichment_prompt is not None:
-            return context_enrichment_prompt
-        return default_llm_config.get_default_context_enrichment_prompt()
-
-    async def _read_conversation_history(
-        self, ctx: AnyContext
-    ) -> ConversationHistoryData:  # Returns the model instance
-        """Reads conversation history from reader, file, or attribute, with validation."""
-        history_file = self._get_history_file(ctx)
-        # Priority 1 & 2: Reader and File (handled by ConversationHistoryData)
-        history_data = await ConversationHistoryData.read_from_sources(
-            ctx=ctx,
-            reader=self._conversation_history_reader,
-            file_path=history_file,
-        )
-        if history_data:
-            return history_data
-        # Priority 3: Callable or direct conversation_history attribute
-        raw_data_attr: Any = None
-        if callable(self._conversation_history):
-            try:
-                raw_data_attr = await run_async(self._conversation_history(ctx))
-            except Exception as e:
-                ctx.log_warning(
-                    f"Error executing callable conversation_history attribute: {e}. "
-                    "Ignoring."
-                )
-        if raw_data_attr is None:
-            raw_data_attr = self._conversation_history
-        if raw_data_attr:
-            history_data = ConversationHistoryData.parse_and_validate(
-                ctx, raw_data_attr, "attribute"
-            )
-            if history_data:
-                return history_data
-        # Fallback: Return default value
-        return ConversationHistoryData()
-
-    def _get_history_file(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx,
-            self._conversation_history_file,
-            "",
-            auto_render=self._render_history_file,
-        )
-
-    def _get_should_summarize_history(
-        self, ctx: AnyContext, history_list: ListOfDict
-    ) -> bool:
-        history_part_len = self._get_history_part_len(history_list)
-        if history_part_len == 0:
-            return False
-        summarization_threshold = self._get_history_summarization_threshold(ctx)
-        if summarization_threshold == -1:
-            return False
-        if summarization_threshold > history_part_len:
-            return False
-        return get_bool_attr(
-            ctx,
-            self._should_summarize_history,
-            False,
-            auto_render=self._render_summarize_history,
-        )
-
-    def _get_history_part_len(self, history_list: ListOfDict) -> int:
-        """Each history item might contains several parts"""
-        history_part_len = 0
-        for history in history_list:
-            if "parts" in history:
-                history_part_len += len(history["parts"])
-            else:
-                history_part_len += 1
-        return history_part_len
-
-    def _get_history_summarization_threshold(self, ctx: AnyContext) -> int:
-        # Use get_int_attr with -1 as default (no limit)
-        try:
-            return get_int_attr(
-                ctx,
-                self._history_summarization_threshold,
-                -1,
-                auto_render=self._render_history_summarization_threshold,
-            )
-        except ValueError as e:
-            ctx.log_warning(
-                f"Could not convert history_summarization_threshold to int: {e}. "
-                "Defaulting to -1 (no threshold)."
-            )
-            return -1
-
-    def _get_conversation_context(self, ctx: AnyContext) -> dict[str, Any]:
-        """
-        Retrieves the conversation context.
-        If a value in the context dict is callable, it executes it with ctx.
-        """
-        raw_context = get_attr(
-            ctx, self._conversation_context, {}, auto_render=False
-        )  # Context usually shouldn't be rendered
-        if not isinstance(raw_context, dict):
-            ctx.log_warning(
-                f"Conversation context resolved to type {type(raw_context)}, "
-                "expected dict. Returning empty context."
-            )
-            return {}
-        # If conversation_context contains callable value, execute them.
-        processed_context: dict[str, Any] = {}
-        for key, value in raw_context.items():
-            if callable(value):
-                try:
-                    # Check if the callable expects 'ctx'
-                    sig = inspect.signature(value)
-                    if "ctx" in sig.parameters:
-                        processed_context[key] = value(ctx)
-                    else:
-                        processed_context[key] = value()
-                except Exception as e:
-                    ctx.log_warning(
-                        f"Error executing callable for context key '{key}': {e}. "
-                        "Skipping."
-                    )
-                    processed_context[key] = None
-            else:
-                processed_context[key] = value
-        return processed_context
