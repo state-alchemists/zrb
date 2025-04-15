@@ -12,9 +12,9 @@ from pydantic_ai.settings import ModelSettings
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.error import extract_api_error_details
-from zrb.task.llm.typing import ListOfDict
 from zrb.task.llm.print_node import print_node
 from zrb.task.llm.tool_wrapper import wrap_tool
+from zrb.task.llm.typing import ListOfDict
 
 ToolOrCallable = Tool | Callable
 
@@ -24,15 +24,15 @@ def create_agent_instance(
     model: str | Model | None,
     system_prompt: str,
     model_settings: ModelSettings | None,
-    tools_attr: list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]],
+    tools_attr: (
+        list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
+    ),
     additional_tools: list[ToolOrCallable],
     mcp_servers_attr: list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]],
     additional_mcp_servers: list[MCPServer],
 ) -> Agent:
     """Creates a new Agent instance with configured tools and servers."""
-    tools_or_callables = list(
-        tools_attr(ctx) if callable(tools_attr) else tools_attr
-    )
+    tools_or_callables = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools_or_callables.extend(additional_tools)
     tools = []
     for tool_or_callable in tools_or_callables:
@@ -66,7 +66,9 @@ def get_agent(
     model: str | Model | None,
     system_prompt: str,
     model_settings: ModelSettings | None,
-    tools_attr: list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]],
+    tools_attr: (
+        list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
+    ),
     additional_tools: list[ToolOrCallable],
     mcp_servers_attr: list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]],
     additional_mcp_servers: list[MCPServer],

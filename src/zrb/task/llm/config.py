@@ -13,7 +13,9 @@ from zrb.util.attr import get_attr
 
 def get_model_settings(
     ctx: AnyContext,
-    model_settings_attr: ModelSettings | Callable[[AnySharedContext], ModelSettings] | None,
+    model_settings_attr: (
+        ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
+    ),
 ) -> ModelSettings | None:
     """Gets the model settings, resolving callables if necessary."""
     if callable(model_settings_attr):
@@ -41,9 +43,7 @@ def get_model_api_key(
     render_model_api_key: bool,
 ) -> str | None:
     """Gets the model API key, rendering if configured."""
-    api_key = get_attr(
-        ctx, model_api_key_attr, None, auto_render=render_model_api_key
-    )
+    api_key = get_attr(ctx, model_api_key_attr, None, auto_render=render_model_api_key)
     if isinstance(api_key, str) or api_key is None:
         return api_key
     raise ValueError(f"Invalid model API key: {api_key}")
@@ -66,9 +66,7 @@ def get_model(
         model_base_url = get_model_base_url(
             ctx, model_base_url_attr, render_model_base_url
         )
-        model_api_key = get_model_api_key(
-            ctx, model_api_key_attr, render_model_api_key
-        )
+        model_api_key = get_model_api_key(ctx, model_api_key_attr, render_model_api_key)
         llm_config = LLMConfig(
             default_model_name=model,
             default_base_url=model_base_url,

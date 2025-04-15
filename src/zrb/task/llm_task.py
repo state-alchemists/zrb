@@ -14,29 +14,27 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.task.llm.history import ConversationHistoryData, ListOfDict
-from zrb.util.cli.style import stylize_faint
-
 from zrb.task.llm.agent import get_agent, run_agent_iteration
 from zrb.task.llm.config import (
     get_model,
     get_model_settings,
 )
-from zrb.task.llm.context import (
-    get_conversation_context,
-    maybe_enrich_context,
-)
+from zrb.task.llm.context import get_conversation_context
+from zrb.task.llm.context_enrichment import maybe_enrich_context
 from zrb.task.llm.history import (
-    maybe_summarize_history,
+    ConversationHistoryData,
+    ListOfDict,
     prepare_initial_state,
     write_conversation_history,
 )
+from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
     build_user_prompt,
     get_context_enrichment_prompt,
     get_summarization_prompt,
     get_system_prompt,
 )
+from zrb.util.cli.style import stylize_faint
 
 ToolOrCallable = Tool | Callable
 
