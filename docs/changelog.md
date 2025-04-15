@@ -1,5 +1,6 @@
 # 1.5.8
 
+- Refactor LLMTask
 - Improve summarization trigger
 
 # 1.5.7
