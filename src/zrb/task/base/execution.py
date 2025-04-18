@@ -5,13 +5,13 @@ from zrb.context.any_context import AnyContext
 from zrb.util.attr import get_bool_attr
 from zrb.util.run import run_async
 from zrb.xcom.xcom import Xcom
+from zrb.session.any_session import AnySession
 
 if TYPE_CHECKING:
-    from zrb.session.any_session import AnySession
-    from zrb.task.base_task import BaseTask  # Import BaseTask for type hints
+    from zrb.task.base_task import BaseTask
 
 
-async def execute_task_chain(task: "BaseTask", session: "AnySession"):
+async def execute_task_chain(task: "BaseTask", session: AnySession):
     """
     Executes the task and its downstream successors if conditions are met.
     """
@@ -29,7 +29,7 @@ async def execute_task_chain(task: "BaseTask", session: "AnySession"):
     return result
 
 
-async def execute_task_action(task: "BaseTask", session: "AnySession"):
+async def execute_task_action(task: "BaseTask", session: AnySession):
     """
     Executes a single task's action, handling conditions and readiness checks.
     """
@@ -48,7 +48,7 @@ async def execute_task_action(task: "BaseTask", session: "AnySession"):
     return await run_async(execute_action_until_ready(task, session))
 
 
-def check_execute_condition(task: "BaseTask", session: "AnySession") -> bool:
+def check_execute_condition(task: "BaseTask", session: AnySession) -> bool:
     """
     Evaluates the task's execute_condition attribute.
     """
@@ -57,7 +57,7 @@ def check_execute_condition(task: "BaseTask", session: "AnySession") -> bool:
     return get_bool_attr(ctx, execute_condition_attr, True, auto_render=True)
 
 
-async def execute_action_until_ready(task: "BaseTask", session: "AnySession"):
+async def execute_action_until_ready(task: "BaseTask", session: AnySession):
     """
     Manages the execution of the task's action, coordinating with readiness checks.
     """
@@ -134,7 +134,7 @@ async def execute_action_until_ready(task: "BaseTask", session: "AnySession"):
     return None
 
 
-async def execute_action_with_retry(task: "BaseTask", session: "AnySession") -> Any:
+async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> Any:
     """
     Executes the task's core action (`_exec_action`) with retry logic,
     handling success (triggering successors) and failure (triggering fallbacks).
@@ -234,9 +234,9 @@ async def execute_successors(task: "BaseTask", session: "AnySession"):
         await asyncio.gather(*successor_coros)
     else:
         ctx.log_debug("No successors to execute.")
-
-
-def skip_successors(task: "BaseTask", session: "AnySession"):
+    
+    
+def skip_successors(task: "BaseTask", session: AnySession):
     """Marks all successor tasks as skipped."""
     ctx = task.get_ctx(session)
     successors = task.successors
@@ -246,9 +246,9 @@ def skip_successors(task: "BaseTask", session: "AnySession"):
             # Check if already skipped to avoid redundant logging/state changes
             if not session.get_task_status(successor).is_skipped:
                 session.get_task_status(successor).mark_as_skipped()
-
-
-async def execute_fallbacks(task: "BaseTask", session: "AnySession"):
+        
+        
+async def execute_fallbacks(task: "BaseTask", session: AnySession):
     """Executes all fallback tasks."""
     ctx = task.get_ctx(session)
     fallbacks = task.fallbacks
@@ -260,9 +260,9 @@ async def execute_fallbacks(task: "BaseTask", session: "AnySession"):
         await asyncio.gather(*fallback_coros)
     else:
         ctx.log_debug("No fallbacks to execute.")
+    
 
-
-def skip_fallbacks(task: "BaseTask", session: "AnySession"):
+def skip_fallbacks(task: "BaseTask", session: AnySession):
     """Marks all fallback tasks as skipped."""
     ctx = task.get_ctx(session)
     fallbacks = task.fallbacks

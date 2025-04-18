@@ -1,12 +1,10 @@
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from zrb.task.any_task import AnyTask
+# No specific imports needed from typing for these changes
+from zrb.task.any_task import AnyTask
 
 
 def handle_rshift(
-    left_task: "AnyTask", right_operand: "AnyTask | list[AnyTask]"
-) -> "AnyTask | list[AnyTask]":
+    left_task: AnyTask, right_operand: AnyTask | list[AnyTask]
+) -> AnyTask | list[AnyTask]:
     """
     Implements the >> operator logic: left_task becomes an upstream for right_operand.
     Modifies the right_operand(s) by calling append_upstream.
@@ -27,8 +25,8 @@ def handle_rshift(
 
 
 def handle_lshift(
-    left_task: "AnyTask", right_operand: "AnyTask | list[AnyTask]"
-) -> "AnyTask":
+    left_task: AnyTask, right_operand: AnyTask | list[AnyTask]
+) -> AnyTask:
     """
     Implements the << operator logic: right_operand becomes an upstream for left_task.
     Modifies the left_task by calling append_upstream.

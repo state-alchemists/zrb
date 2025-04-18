@@ -1,16 +1,14 @@
 import asyncio
-from typing import TYPE_CHECKING
 
 from zrb.util.run import run_async
 from zrb.xcom.xcom import Xcom
-
-if TYPE_CHECKING:
-    from zrb.session.any_session import AnySession
-    from zrb.task.base_task import BaseTask
+from zrb.session.any_session import AnySession
+from zrb.task.base_task import BaseTask
+from zrb.task.base.execution import execute_action_with_retry
 
 
 async def monitor_task_readiness(
-    task: "BaseTask", session: "AnySession", action_coro: asyncio.Task
+    task: BaseTask, session: AnySession, action_coro: asyncio.Task
 ):
     """
     Monitors the readiness of a task after its initial execution.
@@ -58,8 +56,7 @@ async def monitor_task_readiness(
                 )
                 # Check if all checks actually completed successfully
                 all_checks_completed = all(
-                    session.get_task_status(check).is_completed
-                    for check in readiness_checks
+                    session.get_task_status(check).is_completed for check in readiness_checks
                 )
                 if all_checks_completed:
                     ctx.log_info("Readiness check OK.")
@@ -121,8 +118,6 @@ async def monitor_task_readiness(
             # Re-execute the action (with retries)
             ctx.log_info("Re-executing task action...")
             # Import dynamically to avoid circular dependency
-            from zrb.task.base.execution import execute_action_with_retry
-
             new_action_coro = asyncio.create_task(
                 run_async(execute_action_with_retry(task, session))
             )

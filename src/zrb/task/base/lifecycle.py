@@ -1,22 +1,18 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any
 
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.base.context import fill_shared_context_envs, fill_shared_context_inputs
 from zrb.util.run import run_async
 
-if TYPE_CHECKING:
-    from zrb.session.any_session import AnySession
-    from zrb.task.any_task import AnyTask
-
-    # Avoid importing BaseTask directly if possible to reduce coupling
-    # Use AnyTask where the full BaseTask implementation isn't strictly needed
+from zrb.session.any_session import AnySession
+from zrb.task.any_task import AnyTask
 
 
 async def run_and_cleanup(
-    task: "AnyTask",
-    session: Optional["AnySession"] = None,
+    task: AnyTask,
+    session: AnySession | None = None,
     str_kwargs: dict[str, str] = {},
 ) -> Any:
     """
@@ -66,8 +62,8 @@ async def run_and_cleanup(
 
 
 async def run_task_async(
-    task: "AnyTask",
-    session: Optional["AnySession"] = None,
+    task: AnyTask,
+    session: AnySession | None = None,
     str_kwargs: dict[str, str] = {},
 ) -> Any:
     """
@@ -86,7 +82,7 @@ async def run_task_async(
     return result
 
 
-async def execute_root_tasks(task: "AnyTask", session: "AnySession"):
+async def execute_root_tasks(task: AnyTask, session: AnySession):
     """
     Identifies and executes the root tasks required for the main task,
     manages session state logging, and handles overall execution flow.
@@ -164,9 +160,9 @@ async def execute_root_tasks(task: "AnyTask", session: "AnySession"):
             session.state_logger.write(session.as_state_log())
 
         ctx.log_debug(f"Final session state: {session}")  # Log final session details
-
-
-async def log_session_state(task: "AnyTask", session: "AnySession"):
+    
+    
+async def log_session_state(task: AnyTask, session: AnySession):
     """
     Periodically logs the session state until the session is terminated.
     """
