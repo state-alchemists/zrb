@@ -69,8 +69,8 @@ def combine_inputs(
         if task_input.name not in input_names:
             existing_inputs.append(task_input)
             input_names.append(task_input.name)  # Update names list
-        
-        
+
+
 def get_combined_envs(task: "BaseTask") -> list[AnyEnv]:
     """
     Aggregates environment variables from the task and its upstreams.

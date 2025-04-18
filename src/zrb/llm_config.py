@@ -73,6 +73,9 @@ class LLMConfig:
         default_system_prompt: str | None = None,
         default_summarization_prompt: str | None = None,
         default_context_enrichment_prompt: str | None = None,
+        default_summarize_history: bool | None = None,
+        default_history_summarization_threshold: int | None = None,
+        default_enrich_context: bool | None = None,
     ):
         self._default_model_name = (
             default_model_name
@@ -108,6 +111,21 @@ class LLMConfig:
             default_context_enrichment_prompt
             if default_context_enrichment_prompt is not None
             else os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", None)
+        )
+        self._default_summarize_history = (
+            default_summarize_history
+            if default_summarize_history is not None
+            else os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true").lower() == "true"
+        )
+        self._default_history_summarization_threshold = (
+            default_history_summarization_threshold
+            if default_history_summarization_threshold is not None
+            else int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD", "5"))
+        )
+        self._default_enrich_context = (
+            default_enrich_context
+            if default_enrich_context is not None
+            else os.getenv("ZRB_LLM_ENRICH_CONTEXT", "false").lower() == "true"
         )
         self._default_provider = None
         self._default_model = None
@@ -164,6 +182,15 @@ class LLMConfig:
             provider=self.get_default_model_provider(),
         )
 
+    def get_default_summarize_history(self) -> bool:
+        return self._default_summarize_history
+
+    def get_default_history_summarization_threshold(self) -> int:
+        return self._default_history_summarization_threshold
+
+    def get_default_enrich_context(self) -> bool:
+        return self._default_enrich_context
+
     def set_default_persona(self, persona: str):
         self._default_persona = persona
 
@@ -190,6 +217,19 @@ class LLMConfig:
 
     def set_default_model(self, model: Model | str | None):
         self._default_model = model
+
+    def set_default_summarize_history(self, summarize_history: bool):
+        self._default_summarize_history = summarize_history
+
+    def set_default_history_summarization_threshold(
+        self, history_summarization_threshold: int
+    ):
+        self._default_history_summarization_threshold = (
+            history_summarization_threshold
+        )
+
+    def set_default_enrich_context(self, enrich_context: bool):
+        self._default_enrich_context = enrich_context
 
 
 llm_config = LLMConfig()

@@ -2,10 +2,10 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
+from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
 from zrb.util.run import run_async
 from zrb.xcom.xcom import Xcom
-from zrb.session.any_session import AnySession
 
 if TYPE_CHECKING:
     from zrb.task.base_task import BaseTask
@@ -234,8 +234,8 @@ async def execute_successors(task: "BaseTask", session: "AnySession"):
         await asyncio.gather(*successor_coros)
     else:
         ctx.log_debug("No successors to execute.")
-    
-    
+
+
 def skip_successors(task: "BaseTask", session: AnySession):
     """Marks all successor tasks as skipped."""
     ctx = task.get_ctx(session)
@@ -246,8 +246,8 @@ def skip_successors(task: "BaseTask", session: AnySession):
             # Check if already skipped to avoid redundant logging/state changes
             if not session.get_task_status(successor).is_skipped:
                 session.get_task_status(successor).mark_as_skipped()
-        
-        
+
+
 async def execute_fallbacks(task: "BaseTask", session: AnySession):
     """Executes all fallback tasks."""
     ctx = task.get_ctx(session)
@@ -260,7 +260,7 @@ async def execute_fallbacks(task: "BaseTask", session: AnySession):
         await asyncio.gather(*fallback_coros)
     else:
         ctx.log_debug("No fallbacks to execute.")
-    
+
 
 def skip_fallbacks(task: "BaseTask", session: AnySession):
     """Marks all fallback tasks as skipped."""

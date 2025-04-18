@@ -1,12 +1,11 @@
-from typing import TYPE_CHECKING, TypeVar
+from typing import TypeVar
 
-if TYPE_CHECKING:
-    from zrb.task.any_task import AnyTask
+from zrb.task.any_task import AnyTask
 
 T = TypeVar("T", bound="AnyTask")
 
 
-def get_dependency_list(task: "AnyTask", attr_name: str) -> list["AnyTask"]:
+def get_dependency_list(task: AnyTask, attr_name: str) -> list[AnyTask]:
     """
     Safely retrieves a list of dependencies (upstreams, fallbacks, etc.)
     from a task attribute, handling None or single-task values.
@@ -23,7 +22,7 @@ def get_dependency_list(task: "AnyTask", attr_name: str) -> list["AnyTask"]:
 
 
 def append_dependency(
-    task: T, attr_name: str, dependencies_to_add: "AnyTask | list[AnyTask]"
+    task: T, attr_name: str, dependencies_to_add: AnyTask | list[AnyTask]
 ) -> None:
     """
     Appends one or more dependencies to the specified attribute list of a task,

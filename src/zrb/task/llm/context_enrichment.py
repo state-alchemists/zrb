@@ -10,6 +10,7 @@ from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import BoolAttr
 from zrb.context.any_context import AnyContext
+from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr
@@ -90,16 +91,18 @@ async def enrich_context(
 def should_enrich_context(
     ctx: AnyContext,
     history_list: ListOfDict,
-    should_enrich_context_attr: BoolAttr,
+    should_enrich_context_attr: BoolAttr | None,  # Allow None
     render_enrich_context: bool,
 ) -> bool:
     """Determines if context enrichment should occur based on history and config."""
     if len(history_list) == 0:
         return False
+    # Use llm_config default if attribute is None
+    default_value = llm_config.get_default_enrich_context()
     return get_bool_attr(
         ctx,
         should_enrich_context_attr,
-        True,  # Default to True if not specified
+        default_value,  # Pass the default from llm_config
         auto_render=render_enrich_context,
     )
 
@@ -108,7 +111,7 @@ async def maybe_enrich_context(
     ctx: AnyContext,
     history_list: ListOfDict,
     conversation_context: dict[str, Any],
-    should_enrich_context_attr: BoolAttr,
+    should_enrich_context_attr: BoolAttr | None,  # Allow None
     render_enrich_context: bool,
     model: str | Model | None,
     model_settings: ModelSettings | None,

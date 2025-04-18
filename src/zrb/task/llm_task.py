@@ -15,6 +15,7 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.task.llm.agent import get_agent, run_agent_iteration
+# No longer need llm_config here
 from zrb.task.llm.config import (
     get_model,
     get_model_settings,
@@ -67,7 +68,7 @@ class LLMTask(BaseTask):
         message: StrAttr | None = None,
         summarization_prompt: StrAttr | None = None,
         render_summarization_prompt: bool = True,
-        enrich_context: BoolAttr = False,
+        enrich_context: BoolAttr | None = None,  # Default to None
         render_enrich_context: bool = True,
         context_enrichment_prompt: StrAttr | None = None,
         render_context_enrichment_prompt: bool = True,
@@ -97,9 +98,9 @@ class LLMTask(BaseTask):
         ) = None,
         conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
-        summarize_history: BoolAttr = True,
+        summarize_history: BoolAttr | None = None,  # Default to None
         render_summarize_history: bool = True,
-        history_summarization_threshold: IntAttr = 5,  # -1 means no summarization trigger
+        history_summarization_threshold: IntAttr | None = None,  # Default to None
         render_history_summarization_threshold: bool = True,
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,

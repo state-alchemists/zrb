@@ -2,12 +2,11 @@ import asyncio
 from typing import Any
 
 from zrb.context.shared_context import SharedContext
+from zrb.session.any_session import AnySession
 from zrb.session.session import Session
+from zrb.task.any_task import AnyTask
 from zrb.task.base.context import fill_shared_context_envs, fill_shared_context_inputs
 from zrb.util.run import run_async
-
-from zrb.session.any_session import AnySession
-from zrb.task.any_task import AnyTask
 
 
 async def run_and_cleanup(
@@ -160,8 +159,8 @@ async def execute_root_tasks(task: AnyTask, session: AnySession):
             session.state_logger.write(session.as_state_log())
 
         ctx.log_debug(f"Final session state: {session}")  # Log final session details
-    
-    
+
+
 async def log_session_state(task: AnyTask, session: AnySession):
     """
     Periodically logs the session state until the session is terminated.

@@ -119,7 +119,6 @@ class BaseTask(AnyTask):
             self._fallbacks = []
         elif not isinstance(self._fallbacks, list):
             self._fallbacks = [self._fallbacks]
-
         to_add = fallbacks if isinstance(fallbacks, list) else [fallbacks]
         for fb in to_add:
             if fb not in self._fallbacks:
@@ -140,7 +139,6 @@ class BaseTask(AnyTask):
             self._successors = []
         elif not isinstance(self._successors, list):
             self._successors = [self._successors]
-
         to_add = successors if isinstance(successors, list) else [successors]
         for succ in to_add:
             if succ not in self._successors:
@@ -161,7 +159,6 @@ class BaseTask(AnyTask):
             self._readiness_checks = []
         elif not isinstance(self._readiness_checks, list):
             self._readiness_checks = [self._readiness_checks]
-
         to_add = (
             readiness_checks
             if isinstance(readiness_checks, list)
@@ -186,7 +183,6 @@ class BaseTask(AnyTask):
             self._upstreams = []
         elif not isinstance(self._upstreams, list):
             self._upstreams = [self._upstreams]
-
         to_add = upstreams if isinstance(upstreams, list) else [upstreams]
         for up in to_add:
             if up not in self._upstreams:

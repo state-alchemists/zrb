@@ -1,10 +1,10 @@
 import asyncio
 
+from zrb.session.any_session import AnySession
+from zrb.task.base.execution import execute_action_with_retry
+from zrb.task.base_task import BaseTask
 from zrb.util.run import run_async
 from zrb.xcom.xcom import Xcom
-from zrb.session.any_session import AnySession
-from zrb.task.base_task import BaseTask
-from zrb.task.base.execution import execute_action_with_retry
 
 
 async def monitor_task_readiness(
@@ -56,7 +56,8 @@ async def monitor_task_readiness(
                 )
                 # Check if all checks actually completed successfully
                 all_checks_completed = all(
-                    session.get_task_status(check).is_completed for check in readiness_checks
+                    session.get_task_status(check).is_completed
+                    for check in readiness_checks
                 )
                 if all_checks_completed:
                     ctx.log_info("Readiness check OK.")
