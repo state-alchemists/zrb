@@ -12,12 +12,28 @@ if TYPE_CHECKING:
 
 
 class AnyTask(ABC):
-    """Abstract base class representing a task in the system.
+    """Abstract base class defining the interface for all executable tasks within Zrb.
 
-    This class defines the interface for tasks, including methods for retrieving
-    task metadata (such as name, color, and description), handling inputs and
-    environment variables, and managing task dependencies (upstreams and fallbacks).
-    It also includes methods for running tasks synchronously or asynchronously.
+    This interface specifies the essential properties and methods that any concrete
+    task implementation must provide. It covers:
+
+    - **Metadata:** Properties like `name`, `description`, `color`, and `icon` for
+      identification and UI representation.
+    - **Configuration:** Properties for defining `inputs` (user-provided parameters)
+      and `envs` (environment variables).
+    - **Execution Control:** Properties like `cli_only` to restrict execution context.
+    - **Dependency Management:** Properties for `upstreams` (prerequisites),
+      `fallbacks` (error handling), `successors` (post-completion tasks), and
+      `readiness_checks` (for long-running tasks). Methods like `append_*` allow
+      programmatic modification of these dependencies.
+    - **Context Management:** `get_ctx` method to retrieve the task's specific
+      execution context.
+    - **Execution Methods:** `run` (synchronous) and `async_run` (asynchronous)
+      entry points, along with internal execution helpers (`exec_root_tasks`,
+      `exec_chain`, `exec`) defining the execution lifecycle.
+
+    Concrete task classes (like `BaseTask`) inherit from `AnyTask` and provide
+    the actual implementation for these abstract members.
     """
 
     @property

@@ -8,6 +8,7 @@ from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
+from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
@@ -26,7 +27,7 @@ def get_history_part_len(history_list: ListOfDict) -> int:
 
 def get_history_summarization_threshold(
     ctx: AnyContext,
-    history_summarization_threshold_attr: IntAttr,
+    history_summarization_threshold_attr: IntAttr | None,
     render_history_summarization_threshold: bool,
 ) -> int:
     """Gets the history summarization threshold, handling defaults and errors."""
@@ -34,7 +35,8 @@ def get_history_summarization_threshold(
         return get_int_attr(
             ctx,
             history_summarization_threshold_attr,
-            -1,  # Default to -1 (no threshold)
+            # Use llm_config default if attribute is None
+            llm_config.get_default_history_summarization_threshold(),
             auto_render=render_history_summarization_threshold,
         )
     except ValueError as e:
@@ -48,9 +50,9 @@ def get_history_summarization_threshold(
 def should_summarize_history(
     ctx: AnyContext,
     history_list: ListOfDict,
-    should_summarize_history_attr: BoolAttr,
+    should_summarize_history_attr: BoolAttr | None,  # Allow None
     render_summarize_history: bool,
-    history_summarization_threshold_attr: IntAttr,
+    history_summarization_threshold_attr: IntAttr | None,  # Allow None
     render_history_summarization_threshold: bool,
 ) -> bool:
     """Determines if history summarization should occur based on length and config."""
@@ -69,7 +71,8 @@ def should_summarize_history(
     return get_bool_attr(
         ctx,
         should_summarize_history_attr,
-        False,  # Default to False if not specified
+        # Use llm_config default if attribute is None
+        llm_config.get_default_summarize_history(),
         auto_render=render_summarize_history,
     )
 
@@ -137,9 +140,9 @@ async def maybe_summarize_history(
     ctx: AnyContext,
     history_list: ListOfDict,
     conversation_context: dict[str, Any],
-    should_summarize_history_attr: BoolAttr,
+    should_summarize_history_attr: BoolAttr | None,  # Allow None
     render_summarize_history: bool,
-    history_summarization_threshold_attr: IntAttr,
+    history_summarization_threshold_attr: IntAttr | None,  # Allow None
     render_history_summarization_threshold: bool,
     model: str | Model | None,
     model_settings: ModelSettings | None,
