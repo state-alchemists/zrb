@@ -224,9 +224,7 @@ class LLMConfig:
     def set_default_history_summarization_threshold(
         self, history_summarization_threshold: int
     ):
-        self._default_history_summarization_threshold = (
-            history_summarization_threshold
-        )
+        self._default_history_summarization_threshold = history_summarization_threshold
 
     def set_default_enrich_context(self, enrich_context: bool):
         self._default_enrich_context = enrich_context
