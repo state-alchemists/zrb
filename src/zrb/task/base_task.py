@@ -20,7 +20,6 @@ from zrb.task.base.execution import (
 )
 from zrb.task.base.lifecycle import execute_root_tasks, run_and_cleanup, run_task_async
 from zrb.task.base.operators import handle_lshift, handle_rshift
-from zrb.task.base.representation import get_task_repr
 
 
 class BaseTask(AnyTask):
@@ -69,7 +68,7 @@ class BaseTask(AnyTask):
         self._action = action
 
     def __repr__(self):
-        return get_task_repr(self)
+        return f"<{self.__class__.__name__} name={self.name}>"
 
     def __rshift__(self, other: AnyTask | list[AnyTask]) -> AnyTask | list[AnyTask]:
         return handle_rshift(self, other)
