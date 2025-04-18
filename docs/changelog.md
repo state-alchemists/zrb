@@ -1,7 +1,12 @@
+# 1.5.9
+
+- Update Pydantic AI to 0.1.2
+- Refactor BaseTask
+
 # 1.5.8
 
 - Refactor LLMTask
-- Improve summarization trigger
+- Improve summarization trigger to count part of messages
 
 # 1.5.7
 
