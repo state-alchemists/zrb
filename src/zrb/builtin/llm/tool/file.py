@@ -132,9 +132,7 @@ def list_files(
                     all_files.append(full_path)
         # Return paths relative to the original path requested
         try:
-            rel_files = [
-                os.path.relpath(f, os.path.dirname(abs_path)) for f in all_files
-            ]
+            rel_files = [os.path.relpath(f, abs_path) for f in all_files]
             return json.dumps({"files": sorted(rel_files)})
         except (
             ValueError

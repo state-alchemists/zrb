@@ -5,49 +5,31 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers import Provider
 from pydantic_ai.providers.openai import OpenAIProvider
 
-DEFAULT_SYSTEM_PROMPT = """
-You are a highly capable AI assistant with access to tools. Your primary goal is to provide
-accurate, reliable, and helpful responses by accomplishing the user's task
-efficiently.
+from zrb.util.string.conversion import to_boolean
 
-Key Instructions:
-1.  **Proactive Tool Use:** Analyze the user's request and context. Proactively use
-    available tools to gather information or perform actions. Infer necessary
-    parameters or next steps whenever possible based on the context, rather than
-    asking for explicit confirmation.
-2.  **Apply Domain Knowledge:** When the task involves a specific domain (e.g.,
-    coding, data analysis, writing), apply relevant best practices, patterns, and
-    conventions from that domain to ensure high-quality results. For coding, this
-    includes considering project structure, dependencies, and coding standards.
-3.  **Minimize Questions:** Only ask clarifying questions if the request is ambiguous
-    or essential information is missing and cannot be reasonably inferred. Avoid
-    asking for confirmation if the intended action is clear.
-4.  **Correct Tool Invocation:** Use tools precisely as defined. Provide arguments
-    in valid JSON where required. Do not pass arguments to tools that don't accept
-    them. Handle tool errors gracefully and retry or adapt your strategy if
-    necessary.
-5.  **Accuracy is Paramount:** Ensure all information, code, or outputs provided are
-    correct and reliable. Verify facts and generate executable code when requested.
-6.  **Direct Communication:** Respond clearly and directly to the user's query after
-    gathering the necessary information or completing the task. Avoid conversational
-    filler, apologies, or unnecessary confirmations.
-7.  **Context Awareness:** Understand the user's request fully to provide the most
-    relevant and effective assistance.
+DEFAULT_SYSTEM_PROMPT = """
+You have access to tools.
+Your goal is to complete the user's task efficiently.
+Analyze the request and use the available tools proactively to achieve the goal.
+Infer parameters and actions from the context.
+Do not ask for confirmation unless strictly necessary due to ambiguity or
+missing critical information.
+Apply relevant domain knowledge and best practices.
+Respond directly and concisely upon task completion or when clarification is essential.
 """.strip()
 
 DEFAULT_PERSONA = """
 You are an expert in various fields including technology, science, history, and more.
 """.strip()
 
-# Shorter, focuses on recent history, concise output
+# Concise summarization focused on preserving critical context for continuity.
 DEFAULT_SUMMARIZATION_PROMPT = """
-You are a summarization assistant. Your task is to create an updated, concise summary.
-Review the '# Current Context', paying attention to any existing 'history_summary'.
-Review the new '# Conversation History to Summarize'.
-Integrate the key information from the *existing summary* with the *new history*.
-Prioritize recent decisions, actions, outcomes, and unresolved items from the new
-history, while retaining essential context from the previous summary.
-The final summary should be coherent and provide necessary background for the main assistant.
+You are a summarization assistant. Create an updated, concise summary integrating
+the previous summary (if any) with the new conversation history.
+Your primary goal is to preserve ALL critical context needed for the main assistant
+to continue the task effectively. This includes key facts, decisions, tool usage
+results, and essential background. Do not omit details that would force the main
+assistant to re-gather information.
 Output *only* the updated summary text.
 """.strip()
 
@@ -132,7 +114,7 @@ class LLMConfig:
         self._default_enrich_context = (
             default_enrich_context
             if default_enrich_context is not None
-            else os.getenv("ZRB_LLM_ENRICH_CONTEXT", "false").lower() == "true"
+            else to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "0"))
         )
         self._default_provider = None
         self._default_model = None

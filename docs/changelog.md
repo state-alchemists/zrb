@@ -1,5 +1,7 @@
 # 1.5.10
 
+- Make LLM prompt shorter
+- Fix broken link on zrb base task and the helper on `execute_root` method
 - Remove Onnx runtime from poetry.lock
 
 # 1.5.9
