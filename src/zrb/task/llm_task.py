@@ -32,9 +32,9 @@ from zrb.task.llm.history import (
 from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
     build_user_prompt,
+    get_combined_system_prompt,
     get_context_enrichment_prompt,
     get_summarization_prompt,
-    get_system_prompt,
 )
 from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
@@ -64,12 +64,16 @@ class LLMTask(BaseTask):
             ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
         ) = None,
         agent: Agent | Callable[[AnySharedContext], Agent] | None = None,
+        persona: StrAttr | None = None,
+        render_persona: bool = True,
         system_prompt: StrAttr | None = None,
         render_system_prompt: bool = True,
+        special_instruction_prompt: StrAttr | None = None,
+        render_special_instruction_prompt: bool = True,
         message: StrAttr | None = None,
         summarization_prompt: StrAttr | None = None,
         render_summarization_prompt: bool = True,
-        enrich_context: BoolAttr | None = None,  # Default to None
+        enrich_context: BoolAttr | None = None,
         render_enrich_context: bool = True,
         context_enrichment_prompt: StrAttr | None = None,
         render_context_enrichment_prompt: bool = True,
@@ -80,28 +84,23 @@ class LLMTask(BaseTask):
             list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]
         ) = [],
         conversation_history: (
-            ConversationHistoryData  # Use the new BaseModel
-            | Callable[
-                [AnySharedContext], ConversationHistoryData | dict | list
-            ]  # Allow returning raw dict/list too
-            | dict  # Allow raw dict
-            | list  # Allow raw list (old format)
-        ) = ConversationHistoryData(),  # Default to an empty model instance
+            ConversationHistoryData
+            | Callable[[AnySharedContext], ConversationHistoryData | dict | list]
+            | dict
+            | list
+        ) = ConversationHistoryData(),
         conversation_history_reader: (
             Callable[[AnySharedContext], ConversationHistoryData | dict | list | None]
             | None
-            # Allow returning raw dict/list or None
         ) = None,
         conversation_history_writer: (
-            Callable[[AnySharedContext, ConversationHistoryData], None]
-            | None
-            # Writer expects the model instance
+            Callable[[AnySharedContext, ConversationHistoryData], None] | None
         ) = None,
         conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
-        summarize_history: BoolAttr | None = None,  # Default to None
+        summarize_history: BoolAttr | None = None,
         render_summarize_history: bool = True,
-        history_summarization_threshold: IntAttr | None = None,  # Default to None
+        history_summarization_threshold: IntAttr | None = None,
         render_history_summarization_threshold: bool = True,
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
@@ -149,8 +148,12 @@ class LLMTask(BaseTask):
         self._render_model_api_key = render_model_api_key
         self._model_settings = model_settings
         self._agent = agent
+        self._persona = persona
+        self._render_persona = render_persona
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
+        self._special_instruction_prompt = special_instruction_prompt
+        self._render_special_instruction_prompt = render_special_instruction_prompt
         self._message = message
         self._summarization_prompt = summarization_prompt
         self._render_summarization_prompt = render_summarization_prompt
@@ -213,10 +216,15 @@ class LLMTask(BaseTask):
             summarization_prompt_attr=self._summarization_prompt,
             render_summarization_prompt=self._render_summarization_prompt,
         )
-        system_prompt = get_system_prompt(
+        # Get the combined system prompt using the new getter
+        system_prompt = get_combined_system_prompt(
             ctx=ctx,
+            persona_attr=self._persona,
+            render_persona=self._render_persona,
             system_prompt_attr=self._system_prompt,
             render_system_prompt=self._render_system_prompt,
+            special_instruction_prompt_attr=self._special_instruction_prompt,
+            render_special_instruction_prompt=self._render_special_instruction_prompt,
         )
         # 1. Prepare initial state (read history, get initial context)
         history_list, conversation_context = await prepare_initial_state(
