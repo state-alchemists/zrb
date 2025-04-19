@@ -1,3 +1,7 @@
+# 1.5.10
+
+- Remove Onnx runtime from poetry.lock
+
 # 1.5.9
 
 - Update Pydantic AI to 0.1.2
