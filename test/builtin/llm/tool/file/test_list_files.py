@@ -152,11 +152,3 @@ def test_list_files_generic_exception(temp_dir, monkeypatch):
 
     with pytest.raises(RuntimeError, match="Unexpected error listing files in"):
         list_files(path=temp_dir)
-
-
-# Note: Testing ValueError for different mounts is complex and platform-dependent.
-# The current implementation handles it by falling back to absolute paths.
-# We will rely on the fact that the code path exists and is covered by the fallback logic
-# rather than trying to force a cross-mount scenario in a standard test fixture.
-# If a reliable way to mock os.path.relpath for this specific ValueError is found,
-# a dedicated test could be added later.
