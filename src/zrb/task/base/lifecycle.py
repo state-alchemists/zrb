@@ -77,7 +77,7 @@ async def run_task_async(
     fill_shared_context_envs(session.shared_ctx)  # Inject OS env vars
 
     # Start the execution chain from the root tasks
-    result = await run_async(execute_root_tasks(task, session))
+    result = await task.exec_root_tasks(session)
     return result
 
 

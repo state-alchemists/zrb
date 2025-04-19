@@ -12,7 +12,6 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base_trigger import BaseTrigger
 from zrb.util.attr import get_str_attr
 from zrb.util.cron import match_cron
-from zrb.xcom.xcom import Xcom
 
 
 class Scheduler(BaseTrigger):
@@ -77,6 +76,6 @@ class Scheduler(BaseTrigger):
             ctx.print(f"Current time: {now}")
             if match_cron(cron_pattern, now):
                 ctx.print(f"Matching {now} with pattern: {cron_pattern}")
-                xcom: Xcom = ctx.xcom[self.queue_name]
+                xcom = self.get_exchange_xcom(ctx.session)
                 xcom.push(now)
             await asyncio.sleep(60)
