@@ -190,7 +190,7 @@ create_clorine = cli.add_task(
 )
 
 create_salt = cli.add_task(
-    Task(name="create-salt", action=create_long_process("Create clorine", 2))
+    Task(name="create-salt", action=create_long_process("Create salt", 2))
 )
 create_natrium >> create_salt
 create_clorine >> create_salt
