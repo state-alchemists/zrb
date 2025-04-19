@@ -194,6 +194,22 @@ class BaseTask(AnyTask):
     def run(
         self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
+        """
+        Synchronously runs the task and its dependencies, handling async setup and cleanup.
+
+        Uses `asyncio.run()` internally, which creates a new event loop.
+        WARNING: Do not call this method from within an already running asyncio
+        event loop, as it will raise a RuntimeError. Use `async_run` instead
+        if you are in an async context.
+
+        Args:
+            session (AnySession | None): The session to use. If None, a new one
+                might be created implicitly.
+            str_kwargs (dict[str, str]): String-based key-value arguments for inputs.
+
+        Returns:
+            Any: The final result of the main task execution.
+        """
         # Use asyncio.run() to execute the async cleanup wrapper
         return asyncio.run(run_and_cleanup(self, session, str_kwargs))
 
