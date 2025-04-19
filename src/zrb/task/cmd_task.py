@@ -255,14 +255,14 @@ class CmdTask(BaseTask):
     def __render_single_cmd_val(
         self, ctx: AnyContext, single_cmd_val: SingleCmdVal
     ) -> str | None:
+        if isinstance(single_cmd_val, AnyCmdVal):
+            return single_cmd_val.to_str(ctx)
         if callable(single_cmd_val):
             return single_cmd_val(ctx)
         if isinstance(single_cmd_val, str):
             if self._render_cmd:
                 return ctx.render(single_cmd_val)
             return single_cmd_val
-        if isinstance(single_cmd_val, AnyCmdVal):
-            return single_cmd_val.to_str(ctx)
         return None
 
     def __get_multiline_repr(self, text: str) -> str:
