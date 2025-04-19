@@ -92,6 +92,10 @@ def list_files(
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
+    # Explicitly check if path exists before proceeding
+    if not os.path.exists(abs_path):
+        # Raise FileNotFoundError, which is a subclass of OSError
+        raise FileNotFoundError(f"Path does not exist: {path}")
     # Determine effective exclusion patterns
     patterns_to_exclude = (
         excluded_patterns
@@ -150,14 +154,17 @@ def list_files(
 
 def _is_hidden(path: str) -> bool:
     """
-    Check if path is hidden (starts with '.').
+    Check if path is hidden (starts with '.') but ignore '.' and '..'.
     Args:
         path: File or directory path to check
     Returns:
         True if the path is hidden, False otherwise
     """
-    # Extract just the basename to check if it starts with a dot
-    return os.path.basename(path).startswith(".")
+    basename = os.path.basename(path)
+    # Ignore '.' and '..' as they are not typically considered hidden in listings
+    if basename == "." or basename == "..":
+        return False
+    return basename.startswith(".")
 
 
 def _is_excluded(name: str, patterns: list[str]) -> bool:
@@ -373,41 +380,27 @@ def _get_file_matches(
 
 def apply_diff(
     path: str,
-    diff: str,
-    search_marker: str = "<<<<<< SEARCH",
-    meta_marker: str = "------",
-    separator: str = "======",
-    replace_marker: str = ">>>>>> REPLACE",
+    start_line: int,
+    end_line: int,
+    search_content: str,
+    replace_content: str,
 ) -> str:
-    """Apply a precise search/replace diff to a file.
+    """Apply a precise search/replace to a file based on line numbers and content.
     Args:
         path (str): Path to modify. Pass exactly as provided, including '~'.
-        diff (str): Search/replace block defining changes (see format example below).
-        search_marker (str): Marker for start of search block. Defaults to "<<<<<< SEARCH".
-        meta_marker (str): Marker for start of content to search for. Defaults to "------".
-        separator (str): Marker separating search/replace content. Defaults to "======".
-        replace_marker (str): Marker for end of replacement block.
-            Defaults to ">>>>>> REPLACE".
-    SEARCH block must exactly match file content including whitespace/indentation.
-    SEARCH block should NOT contains line numbers
-    Format example:
-        [Search Marker, e.g., <<<<<< SEARCH]
-        :start_line:10
-        :end_line:15
-        [Meta Marker, e.g., ------]
-        [exact content to find including whitespace]
-        [Separator, e.g., ======]
-        [new content to replace with]
-        [Replace Marker, e.g., >>>>>> REPLACE]
+        start_line (int): The 1-based starting line number of the content to replace.
+        end_line (int): The 1-based ending line number (inclusive) of the content to replace.
+        search_content (str): The exact content expected to be found in the specified
+            line range. Must exactly match file content including whitespace/indentation,
+            excluding line numbers.
+        replace_content (str): The new content to replace the search_content with.
+            Excluding line numbers.
     Returns:
         str: JSON: {"success": true, "path": "f.py"} or {"success": false, "error": "..."}
     Raises:
         Exception: If an error occurs.
     """
     try:
-        start_line, end_line, search_content, replace_content = _parse_diff(
-            diff, search_marker, meta_marker, separator, replace_marker
-        )
         abs_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.exists(abs_path):
             return json.dumps(
@@ -451,62 +444,3 @@ def apply_diff(
         raise OSError(f"Error applying diff to {path}: {e}")
     except Exception as e:
         raise RuntimeError(f"Unexpected error applying diff to {path}: {e}")
-
-
-def _parse_diff(
-    diff: str,
-    search_marker: str,
-    meta_marker: str,
-    separator: str,
-    replace_marker: str,
-) -> tuple[int, int, str, str]:
-    """
-    Parse diff content into components.
-    Args:
-        diff: The diff content to parse
-        search_marker: Marker indicating the start of the search block
-        meta_marker: Marker indicating the start of the content to search for
-        separator: Marker separating search content from replacement content
-        replace_marker: Marker indicating the end of the replacement block
-    Returns:
-        Tuple of (start_line, end_line, search_content, replace_content)
-    Raises:
-        ValueError: If diff format is invalid or missing required markers
-        ValueError: If start_line or end_line cannot be parsed
-    """
-    # Find all marker positions
-    search_start_idx = diff.find(search_marker)
-    meta_start_idx = diff.find(meta_marker)
-    separator_idx = diff.find(separator)
-    replace_end_idx = diff.find(replace_marker)
-    # Validate all markers are present
-    missing_markers = []
-    if search_start_idx == -1:
-        missing_markers.append("search marker")
-    if meta_start_idx == -1:
-        missing_markers.append("meta marker")
-    if separator_idx == -1:
-        missing_markers.append("separator")
-    if replace_end_idx == -1:
-        missing_markers.append("replace marker")
-    if missing_markers:
-        raise ValueError(f"Invalid diff format - missing: {', '.join(missing_markers)}")
-    # Extract metadata
-    meta_content = diff[search_start_idx + len(search_marker) : meta_start_idx].strip()
-    # Parse line numbers
-    start_line_match = re.search(r":start_line:(\d+)", meta_content)
-    end_line_match = re.search(r":end_line:(\d+)", meta_content)
-    if not start_line_match:
-        raise ValueError("Missing start_line in diff metadata")
-    if not end_line_match:
-        raise ValueError("Missing end_line in diff metadata")
-    start_line = int(start_line_match.group(1))
-    end_line = int(end_line_match.group(1))
-    # Extract content sections
-    search_content = diff[meta_start_idx + len(meta_marker) : separator_idx].strip(
-        "\r\n"
-    )
-    replace_content = diff[separator_idx + len(separator) : replace_end_idx].strip(
-        "\r\n"
-    )
-    return start_line, end_line, search_content, replace_content
