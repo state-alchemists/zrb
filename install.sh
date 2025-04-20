@@ -52,6 +52,7 @@ register_local_venv() {
     echo 'if [ -f "${HOME}/.local-venv/bin/activate" ]' >> $1
     echo 'then' >> $1
     echo '    source "${HOME}/.local-venv/bin/activate"' >> $1
+    echo "    eval \"\$(zrb shell autocomplete $2)\"" >> $1
     echo 'fi' >> $1
 }
 
@@ -63,12 +64,12 @@ create_and_register_local_venv() {
     # register local venv to .zshrc
     if command_exists zsh
     then
-        register_local_venv "$HOME/.zshrc"
+        register_local_venv "$HOME/.zshrc" "zsh"
     fi
     # register local venv to .bashrc
     if command_exists bash
     then
-        register_local_venv "$HOME/.bashrc"
+        register_local_venv "$HOME/.bashrc" "bash"
     fi
 }
 

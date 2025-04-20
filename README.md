@@ -34,14 +34,13 @@ Install Zrb via pip:
 
 ```bash
 pip install zrb
-
+# pip install --pre zrb
 ```
 
 Or run our installation script to set up Zrb along with all prerequisites:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
-
 ```
 
 # 🍲 Quick Start: Build Your First Automation Workflow
@@ -159,7 +158,6 @@ Then open your browser and visit `http://localhost:21213`
 
 # 🎥 Demo & Documentation
 
-- **Step by step guide:** [Getting started with Zrb](https://github.com/state-alchemists/zrb/blob/main/docs/recipes/getting-started/README.md).
 - **Full documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
 - **Video demo:**
 
