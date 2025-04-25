@@ -77,6 +77,8 @@ class LLMTask(BaseTask):
         render_enrich_context: bool = True,
         context_enrichment_prompt: StrAttr | None = None,
         render_context_enrichment_prompt: bool = True,
+        context_enrichment_threshold: IntAttr | None = None,
+        render_context_enrichment_threshold: bool = True,
         tools: (
             list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
         ) = [],
@@ -161,6 +163,8 @@ class LLMTask(BaseTask):
         self._render_enrich_context = render_enrich_context
         self._context_enrichment_prompt = context_enrichment_prompt
         self._render_context_enrichment_prompt = render_context_enrichment_prompt
+        self._context_enrichment_threshold = context_enrichment_threshold
+        self._render_context_enrichment_threshold = render_context_enrichment_threshold
         self._tools = tools
         self._additional_tools: list[ToolOrCallable] = []
         self._mcp_servers = mcp_servers
@@ -187,6 +191,9 @@ class LLMTask(BaseTask):
 
     def set_should_enrich_context(self, enrich_context: bool):
         self._should_enrich_context = enrich_context
+
+    def set_context_enrichment_threshold(self, enrichment_threshold: int):
+        self._context_enrichment_threshold = enrichment_threshold
 
     def set_should_summarize_history(self, summarize_history: bool):
         self._should_summarize_history = summarize_history
@@ -244,6 +251,8 @@ class LLMTask(BaseTask):
             conversation_context=conversation_context,
             should_enrich_context_attr=self._should_enrich_context,
             render_enrich_context=self._render_enrich_context,
+            context_enrichment_threshold_attr=self._context_enrichment_threshold,
+            render_context_enrichment_threshold=self._render_context_enrichment_threshold,
             model=model,
             model_settings=model_settings,
             context_enrichment_prompt=context_enrichment_prompt,

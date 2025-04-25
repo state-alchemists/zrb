@@ -60,6 +60,7 @@ class LLMConfig:
         default_summarize_history: bool | None = None,
         default_history_summarization_threshold: int | None = None,
         default_enrich_context: bool | None = None,
+        default_context_enrichment_threshold: int | None = None,
     ):
         self._default_model_name = (
             default_model_name
@@ -104,7 +105,7 @@ class LLMConfig:
         self._default_summarize_history = (
             default_summarize_history
             if default_summarize_history is not None
-            else os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true").lower() == "true"
+            else to_boolean(os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true"))
         )
         self._default_history_summarization_threshold = (
             default_history_summarization_threshold
@@ -114,7 +115,12 @@ class LLMConfig:
         self._default_enrich_context = (
             default_enrich_context
             if default_enrich_context is not None
-            else to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "0"))
+            else to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "true"))
+        )
+        self._default_context_enrichment_threshold = (
+            default_context_enrichment_threshold
+            if default_context_enrichment_threshold is not None
+            else int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD", "5"))
         )
         self._default_provider = None
         self._default_model = None
@@ -186,6 +192,9 @@ class LLMConfig:
     def get_default_enrich_context(self) -> bool:
         return self._default_enrich_context
 
+    def get_default_context_enrichment_threshold(self) -> int:
+        return self._default_context_enrichment_threshold
+
     def set_default_persona(self, persona: str):
         self._default_persona = persona
 
@@ -226,6 +235,9 @@ class LLMConfig:
 
     def set_default_enrich_context(self, enrich_context: bool):
         self._default_enrich_context = enrich_context
+
+    def set_default_context_enrichment_threshold(self, context_enrichment_threshold: int):
+        self._default_context_enrichment_threshold = context_enrichment_threshold
 
 
 llm_config = LLMConfig()

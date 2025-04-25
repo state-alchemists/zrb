@@ -14,7 +14,7 @@ from zrb.util.file import read_dir, read_file_with_line_numbers
 
 def get_default_context(user_message: str) -> dict[str, Any]:
     """Generates default context including time, OS, and file references."""
-    references = re.findall(r"@(\S+)", user_message)
+    references = re.findall(r"(?<!\w)@([^.,!?;:\s]+)[.,!?;:]*", user_message)
     current_references = []
 
     for ref in references:
