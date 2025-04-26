@@ -235,6 +235,22 @@ cli.add_task(task2)
 # cli.add_task(task2)
 ```
 
+## 7. CmdPath is now a class
+
+**0.x.x:**
+```python
+from zrb import CmdTask
+
+task = CmdTask(cmd_path=os.path.join("dir", "command.sh"))
+```
+
+**1.x.x:**
+```python
+from zrb import CmdTask, CmdPath
+
+task = CmdTask(cmd=CmdPath(os.path.join("dir", "command.sh")))
+```
+
 ## Available Task Types
 
 Zrb 1.x.x provides several built-in task types to handle various operations:
