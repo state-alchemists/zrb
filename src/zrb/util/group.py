@@ -32,8 +32,12 @@ def extract_node_from_args(
         if web_only and task is not None and task.cli_only:
             task = None
         group = node.get_group_by_alias(name)
-        if group is not None and len(get_all_subtasks(group, web_only)) == 0:
-            # If group doesn't contain any task, then ignore its existence
+        # Only ignore empty groups if web_only is True
+        if (
+            group is not None
+            and web_only
+            and len(get_all_subtasks(group, web_only)) == 0
+        ):
             group = None
         if task is None and group is None:
             raise NodeNotFoundError(
@@ -68,6 +72,8 @@ def get_node_path(group: AnyGroup, node: AnyGroup | AnyTask) -> list[str] | None
     """
     if group is None:
         return []
+    if group == node:  # Handle the case where the target is the starting group
+        return [group.name]
     if isinstance(node, AnyTask):
         for alias, subtask in group.subtasks.items():
             if subtask == node:
