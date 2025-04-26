@@ -186,22 +186,30 @@ def deploy(ctx: Context, *args: Any, **kwargs: Any):
     ctx.print('Ok')
 ```
 
-## 5. `Env` Definition
+## 5. Task Environment Variables
 
-The `Env` class is still used, but the parameter name for linking to the OS environment variable has changed from `link_to_os` to `link_to_os`. Also, you can now use `EnvMap` or `EnvFile` for defining multiple environment variables or loading from a `.env` file.
+In 0.x.x, `Task` used separate parameters `envs` and `env_files` for defining environment variables and loading from `.env` files. In 1.x.x, both are unified under the single `env` parameter, which accepts a list containing `Env` and `EnvFile` objects.
 
 **0.x.x:**
 ```python
-from zrb import Env
+from zrb import CmdTask, Env, EnvFile
 
-my_env = Env(name='MY_VAR', default='default', link_to_os=True)
+task = CmdTask(
+    envs=[Env(name='MY_VAR', default='value')],
+    env_files=[EnvFile(path='.env')]
+)
 ```
 
 **1.x.x:**
 ```python
-from zrb import Env
+from zrb import CmdTask, Env, EnvFile
 
-my_env = Env(name='MY_VAR', default='default', link_to_os=True) # 'link_to_os' is now 'link_to_os'
+task = CmdTask(
+    env=[
+        Env(name='MY_VAR', default='value'),
+        EnvFile(path='.env')
+    ]
+)
 ```
 
 ## 6. Upstream Dependencies
@@ -263,6 +271,7 @@ Zrb 1.x.x provides several built-in task types to handle various operations:
 *   [`Task`](./task/types/task.md): The base class for creating custom Python tasks (used with `@make_task`).
 *   [`TcpCheck`](./task/types/tcp_check.md): For performing TCP port health checks.
 
+
 ### Migrating from DockerComposeTask
 
 The `DockerComposeTask` from 0.x.x has been removed in 1.x.x. You can achieve the same functionality by using the `CmdTask` to execute `docker compose` commands.
@@ -273,8 +282,8 @@ from zrb import DockerComposeTask, runner
 
 # Assuming a docker-compose.yml file exists
 docker_up_task = DockerComposeTask(
-    name='docker-up',
-    command='up'
+    name="docker-up",
+    command="up"
 )
 
 runner.register(docker_up_task)
@@ -287,10 +296,36 @@ from zrb import CmdTask, cli
 # Assuming a docker-compose.yml file exists
 docker_up_task = cli.add_task(
     CmdTask(
-        name='docker-up',
-        cmd='docker compose up -d'
+        name="docker-up",
+        cmd="docker compose up -d"
     )
 )
 ```
+
+## Using LlmTask for Migration Assistance
+
+Zrb 1.x.x introduces the `LlmTask`, which can be used to interact with Language Model APIs. This can be a powerful tool to assist with migrating your existing 0.x.x tasks to the 1.x.x format.
+
+You could define an `LlmTask` that takes your 0.x.x task definition code as input and uses an LLM to generate the equivalent 1.x.x code. While this requires setting up the `LlmTask` and potentially configuring access to an LLM API, it can automate repetitive migration tasks, especially for large projects.
+
+Example (conceptual):
+```python
+from zrb import LlmTask, cli, StrInput
+
+migration_task = cli.add_task(
+    LlmTask(
+        name="migrate-task",
+        input=StrInput(name="old_task_code", description="Paste your 0.x.x task code here"),
+        # Configure your LLM API and prompt here
+        message="Convert the following Zrb 0.x.x task definition to 1.x.x:\n\n{{input.old_task_code}}. You can find the guide at @~/zrb/docs/upgrading_guide_0_to_1.md",
+        tools=[
+            list_files, read_from_file, search_files, write_to_file
+        ],
+        # ... other LlmTask parameters
+    )
+)
+```
+
+This is just a conceptual example. The actual implementation would depend on the specific LLM API and the complexity of your task definitions.
 
 🔖 [Documentation Home](../README.md)
