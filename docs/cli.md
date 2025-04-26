@@ -1,3 +1,4 @@
+🔖 [Documentation Home](../../README.md)
 # CLI
 
 The `cli` module provides the command-line interface for Zrb. The `cli` object is an instance of the `Cli` class, which inherits from `Group`. This means that the `cli` object can contain tasks and subgroups, and it can be used to run tasks from the command line.
@@ -6,9 +7,11 @@ The `cli` module provides the command-line interface for Zrb. The `cli` object i
 
 ## Key Features
 
-*   **Task Execution:** The `run` method is used to execute tasks from the command line.
-*   **Group Management:** The `add_group` method is used to add subgroups to the CLI.
-*   **Task Registration:** The `add_task` method or `@make_task` decorator is used to register tasks with the CLI.
+The `cli` object provides the following key functionalities:
+
+*   **Task Execution:** The `run` method is used to execute tasks from the command line. This is the entry point for running your defined tasks.
+*   **Group Management:** The `add_group` method is used to add subgroups to the CLI. This allows you to organize tasks hierarchically.
+*   **Task Registration:** The `add_task` method or `@make_task` decorator is used to register tasks with the CLI. This makes your tasks discoverable and executable.
 
 ## Example
 
@@ -71,9 +74,5 @@ To make a task accessible from the command line or web interface, it must be reg
    cli.add_group(my_group)
    my_group.add_task(my_task)
    ```
-
-## Usage
-
-Tasks and groups are defined in Python code (typically in a `zrb_init.py` file). The Zrb runner will then execute the tasks and groups in the order specified by their dependencies. Tasks can be added to groups using the `add_task` method, and subgroups can be added to groups using the `add_group` method. Dependencies between tasks can be defined using the `>>` operator (e.g., `task1 >> task2` means that `task2` depends on `task1`). The `cli` object is used to register tasks and groups with the command-line interface, allowing them to be executed from the command line.
 
 [Back to Documentation](../README.md)

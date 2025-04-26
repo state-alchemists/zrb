@@ -1,6 +1,8 @@
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > Scheduler
+
 # Scheduler
 
-The `Scheduler` task is a specialized task type that inherits from `BaseTrigger`. It is designed to trigger other tasks based on a defined schedule using cron-like syntax. When the schedule matches the current time, the `Scheduler` task pushes data (the current time) to its XCom queue, which can then be consumed by a linked `Callback` task.
+The `Scheduler` task is a specialized task type that inherits from `BaseTrigger`. It is designed to trigger other tasks based on a defined schedule using cron-like syntax. When the schedule matches the current time, the `Scheduler` task pushes data (the current time) to its XCom queue, which can then be consumed by a linked `Callback` task. XCom (Cross-Communication) is a mechanism in Zrb that allows tasks to exchange small amounts of data.
 
 Here's an example of how to use `Scheduler`:
 

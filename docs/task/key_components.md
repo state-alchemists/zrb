@@ -98,13 +98,15 @@ When a task has upstream dependencies, it will only execute after all its upstre
 
 ## 4. Other Key Features
 
-* **Name:** A unique identifier for the task (`name` property).
-* **Description:** A human-readable explanation of the task's purpose (`description` property).
-* **CLI Only:** Indicates whether the task is only executable from the command line (`cli_only` property).
-* **Execute Condition:** A boolean attribute that determines whether the task should be executed.
-* **Fallbacks:** A list of tasks that should be executed if this task fails (`fallbacks` property).
-* **Successors:** A list of tasks that should be executed after this task completes successfully (`successors` property).
-* **Readiness Checks:** Tasks that verify if a service or application is ready before proceeding with downstream tasks (`readiness_check` parameter). See [Readiness Checks](readiness_checks.md) for details.
-* **Retries:** Specifies the number of times a task should be retried if it fails.
+Beyond inputs, environment variables, and dependencies, tasks have several other key properties:
 
-[Back to Task](README.md)
+* **Name:** A unique identifier for the task (`name` property). Used to reference the task from the CLI or other tasks.
+* **Description:** A human-readable explanation of the task's purpose (`description` property).
+* **CLI Only:** Indicates whether the task is only executable from the command line (`cli_only` property). If true, the task will not be available in the web interface.
+*   **Execute Condition:** A boolean attribute (`execute_condition` property) that determines whether the task should be executed. This can be a simple boolean value or a Jinja2 template string that evaluates to true or false based on the context (e.g., inputs, environment variables).
+*   **Fallbacks:** A list of tasks (`fallbacks` property) that should be executed if this task fails. Useful for defining alternative actions in case of errors.
+*   **Successors:** A list of tasks (`successors` property) that should be executed after this task completes successfully. Similar to `upstream`, but defines tasks that run *after* the current task.
+* **Readiness Checks:** Tasks that verify if a service or application is ready before proceeding with downstream tasks (`readiness_check` parameter). See [Readiness Checks](readiness_checks.md) for details.
+*   **Retries:** Specifies the number of times a task should be retried if it fails (`retries` property). Helps in handling transient errors.
+
+🔖 [Documentation Home](../../README.md) > [Task](../README.md) > Key Components

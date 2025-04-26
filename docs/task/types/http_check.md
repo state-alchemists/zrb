@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > HttpCheck
+
 # HttpCheck
 
 The `HttpCheck` task is a specialized task type used for checking the readiness of an HTTP endpoint. It's commonly used as a `readiness_check` for other tasks that depend on a web service being available.

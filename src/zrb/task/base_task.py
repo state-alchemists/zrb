@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -66,6 +67,9 @@ class BaseTask(AnyTask):
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
     ):
+        caller_frame = inspect.stack()[1]
+        self.__decl_file = caller_frame.filename
+        self.__decl_line = caller_frame.lineno
         self._name = name
         self._color = color
         self._icon = icon
@@ -259,5 +263,17 @@ class BaseTask(AnyTask):
         Returns:
             Any: The result of the action execution.
         """
-        # Delegate to the helper function for the default behavior
-        return await run_default_action(self, ctx)
+        try:
+            # Delegate to the helper function for the default behavior
+            return await run_default_action(self, ctx)
+        except BaseException as e:
+            additional_error_note = (
+                f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"
+            )
+            ctx.log_error(additional_error_note)
+            if hasattr(e, "add_note"):
+                e.add_note(additional_error_note)
+            else:
+                # fallback: use the __notes__ attribute directly
+                e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
+            raise e

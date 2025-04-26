@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../README.md) > Changelog
+
 # 1.5.12
 
 - Introduce `append_tool` and `append_mcp_server` to `LLMTask`

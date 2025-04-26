@@ -194,3 +194,6 @@ create_salt = cli.add_task(
 )
 create_natrium >> create_salt
 create_clorine >> create_salt
+
+
+cli.add_task(Task(name="test-error", action="{ctx.input.oraumum}"))

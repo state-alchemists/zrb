@@ -1,4 +1,4 @@
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md) > Configuration
 
 # Configuration
 
@@ -152,6 +152,8 @@ Zrb can be configured using the following environment variables (see "Setting En
     - Possible values: Any positive integer
 
 # Setting Environment Variables
+
+Environment variables are a standard way to configure software without modifying its code. By setting these variables, you can customize Zrb's behavior to fit your needs and environment.
 
 An environment variable is a user-definable value that can affect the way running processes will behave on a computer.
 

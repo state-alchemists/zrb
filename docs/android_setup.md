@@ -1,3 +1,4 @@
+🔖 [Documentation Home](../README.md) > Setting Up Zrb on Android with Termux and Proot
 # Setting Up Zrb on Android with Termux and Proot
 
 This guide explains how to install and run Zrb on an Android device using Termux and Proot. This allows you to use Zrb's powerful task automation capabilities directly on your phone.

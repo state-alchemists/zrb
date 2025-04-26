@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > RsyncTask
+
 # RsyncTask
 
 The `RsyncTask` is a specialized task type that extends `CmdTask` to simplify file synchronization using the `rsync` command. It provides parameters specifically for configuring source and destination paths, including support for remote hosts via SSH.

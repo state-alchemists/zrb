@@ -1,4 +1,4 @@
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md) > Upgrading Guide
 
 # Upgrading Guide from 0.x.x to 1.x.x
 
@@ -198,4 +198,4 @@ cli.add_task(task2)
 # cli.add_task(task2)
 ```
 
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md)

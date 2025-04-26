@@ -1,3 +1,4 @@
+🔖 [Documentation Home](../../README.md)
 # Group
 
 A Group is a collection of tasks and subgroups that are organized together. Groups provide a way to structure and manage complex workflows. Groups are defined by inheriting from `AnyGroup` (or directly using the `Group` class).
@@ -6,10 +7,12 @@ A Group is a collection of tasks and subgroups that are organized together. Grou
 
 ## Key Features
 
-*   **Name:** A unique identifier for the group (`name` property).
-*   **Description:** A human-readable explanation of the group's purpose (`description` property).
-*   **Subtasks:** A dictionary of tasks that belong to the group (`subtasks` property).
-*   **Subgroups:** A dictionary of subgroups that belong to the group (`subgroups` property).
+Groups have the following key properties:
+
+*   **Name:** A unique identifier for the group (`name` property). Used to reference the group from the CLI or other groups.
+*   **Description:** A human-readable explanation of the group's purpose (`description` property). Displayed in the CLI and web interface.
+*   **Subtasks:** A dictionary of tasks that belong to the group (`subtasks` property). You can add tasks using the `add_task()` method.
+*   **Subgroups:** A dictionary of subgroups that belong to the group (`subgroups` property). You can add subgroups using the `add_group()` method.
 
 ## Example
 

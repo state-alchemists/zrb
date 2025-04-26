@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > LLMTask
+
 # LLMTask
 
 A task for interacting with language models.
@@ -13,8 +15,7 @@ chat_task = LLMTask(
     system_prompt="You are a helpful programming assistant"
 )
 
-# Create an LLM task with tools
-from pydantic_ai import Tool
+# LLMTasks can be provided with "tools," which are functions or capabilities that the language model can use to perform actions or access external information.
 
 def get_weather(location: str) -> str:
     """Get the weather for a location"""
@@ -24,7 +25,7 @@ weather_chat = LLMTask(
     name="weather-chat",
     description="Chat about weather",
     message="What's the weather like in New York?",
-    tools=[Tool(get_weather)]
+    tools=[get_weather]
 )
 
 cli.add_task(chat_task)
@@ -55,6 +56,8 @@ llm_config.set_default_enrich_context(True)
 Settings configured via `llm_config` can be overridden by parameters provided directly to the `LLMTask` constructor.
 
 ### Subagents and `create_sub_agent_tool`
+
+`LLMTask` supports the concept of subagents, which are specialized agents (essentially, other LLMTasks with their own configurations and tools) that can be used as tools by the main LLM. This allows you to delegate specific tasks or access specialized knowledge to a subagent, breaking down complex problems. You can create a subagent tool using the `create_sub_agent_tool` function.
 
 `LLMTask` supports the concept of subagents, which are specialized agents that can be used as tools by the main LLM. This allows you to delegate specific tasks or access specialized knowledge to a subagent. You can create a subagent tool using the `create_sub_agent_tool` function.
 

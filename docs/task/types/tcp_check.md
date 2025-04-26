@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > TcpCheck
+
 # TcpCheck
 
 The `TcpCheck` task is a specialized task type used for checking the readiness of a TCP port on a specific host. It's commonly used as a `readiness_check` for other tasks that depend on a service listening on a TCP port (e.g., a database, a custom server).

@@ -1,8 +1,10 @@
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md) > Inputs
 
 # Inputs
 
-Inputs allow tasks to receive parameters from users or other tasks. Zrb provides several input types:
+Inputs allow tasks to receive parameters from users or other tasks, providing flexibility and interactivity. They are distinct from environment variables, which are typically used for configuration.
+
+Zrb provides several input types:
 
 ```python
 from zrb import Task, StrInput, IntInput, FloatInput, BoolInput, OptionInput, cli
@@ -28,4 +30,4 @@ cli.add_task(task)  # Don't forget to register the task
 
 Inputs can be accessed in the task's action via the `ctx.input` object.
 
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md)

@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > BaseTask
+
 # BaseTask
 
 The `BaseTask` is the fundamental building block for all other task types in Zrb. It provides the core structure and capabilities for defining and executing tasks. While `BaseTask` is highly versatile and can technically handle most use cases, Zrb offers more specialized task types (like `CmdTask`, `LLMTask`, `Scaffolder`, etc.) that are often more convenient and provide domain-specific features. You will typically use these specialized tasks or the simple `Task` alias (which is just a `BaseTask`) for most of your needs.

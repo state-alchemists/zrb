@@ -1,6 +1,6 @@
 # Readiness Checks
 
-Readiness checks are special tasks that verify if a service or application is ready before proceeding with downstream tasks. This is particularly useful for tasks that start services, servers, or containers.
+Readiness checks are special tasks that verify if a service or application is ready before proceeding with downstream tasks. Readiness checks are themselves tasks, meaning you can use any task type suitable for verification, such as `HttpCheck` or a custom Python task. For more information on different task types, see the [Task Types section in the Task documentation](../README.md#task-types). This is particularly useful for tasks that start services, servers, or containers.
 
 Zrb provides built-in readiness check tasks:
 
@@ -163,4 +163,4 @@ When a task with readiness checks completes:
 
 This ensures that downstream tasks only run when the system is in the expected state, preventing race conditions and timing issues.
 
-[Back to Task](README.md)
+🔖 [Documentation Home](../../README.md) > [Task](../README.md) > Readiness Checks

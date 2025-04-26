@@ -1,6 +1,8 @@
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md) > Environment Variables
 
 # Environment Variables
+
+This document explains how to define and access environment variables within your Zrb tasks. For information on configuring Zrb itself using environment variables, see the [Configuration](configuration.md) guide.
 
 Environment variables allow tasks to access system or user-defined environment variables:
 
@@ -81,4 +83,4 @@ task = Task(
 )
 ```
 
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md)
