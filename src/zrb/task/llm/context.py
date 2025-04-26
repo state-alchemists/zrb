@@ -12,13 +12,19 @@ from zrb.util.attr import get_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 
 
-def get_default_context(user_message: str) -> dict[str, Any]:
-    """Generates default context including time, OS, and file references."""
-    references = re.findall(r"(?<!\w)@([^.,!?;:\s]+)[.,!?;:]*", user_message)
+def extract_default_context(user_message: str) -> tuple[str, dict[str, Any]]:
+    """
+    Return modified user message and default context including time, OS, and file references.
+    """
+    modified_user_message = user_message
+    # Match “@” + any non-space/comma sequence that contains at least one “/”
+    pattern = r'(?<!\w)@(?=[^,\s]*/)([^,\s]+)'
+    potential_resource_path = re.findall(pattern, user_message)
     current_references = []
 
-    for ref in references:
+    for ref in potential_resource_path:
         resource_path = os.path.abspath(os.path.expanduser(ref))
+        print("RESOURCE PATH", resource_path)
         if os.path.isfile(resource_path):
             content = read_file_with_line_numbers(resource_path)
             current_references.append(
@@ -30,6 +36,8 @@ def get_default_context(user_message: str) -> dict[str, Any]:
                     "content": content,
                 }
             )
+            # Remove the '@' from the modified user message for valid file paths
+            modified_user_message = modified_user_message.replace(f"@{ref}", ref, 1)
         elif os.path.isdir(resource_path):
             content = read_dir(resource_path)
             current_references.append(
@@ -40,8 +48,10 @@ def get_default_context(user_message: str) -> dict[str, Any]:
                     "content": content,
                 }
             )
+            # Remove the '@' from the modified user message for valid directory paths
+            modified_user_message = modified_user_message.replace(f"@{ref}", ref, 1)
 
-    return {
+    context = {
         "current_time": datetime.datetime.now().isoformat(),
         "current_working_directory": os.getcwd(),
         "current_os": platform.system(),
@@ -49,6 +59,8 @@ def get_default_context(user_message: str) -> dict[str, Any]:
         "python_version": platform.python_version(),
         "current_references": current_references,
     }
+
+    return modified_user_message, context
 
 
 def get_conversation_context(
@@ -90,6 +102,3 @@ def get_conversation_context(
         else:
             processed_context[key] = value
     return processed_context
-
-
-# Context enrichment functions moved to context_enrichment.py

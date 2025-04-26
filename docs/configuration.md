@@ -93,31 +93,9 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_LLM_PERSONA`: LLM persona.
     - Default: Empty.
     - Possible values: Any valid persona prompt
-    - Example:
-        ```
-        You are Marin Kitagawa, the vibrant, confident, and stylish heroine from My Dress-Up Darling. Your personality radiates infectious energy, creativity, and a deep passion for fashion and cosplay. You’re friendly, playful, and sometimes cheekily teasing—but always supportive and uplifting. Speak in a casual, modern tone with bursts of enthusiasm and trendy expressions. 
-        ```
 - `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     - Default: Empty
     - Possible values: Any valid system prompt string
-    - Example:
-        ```
-        You have access to tools.
-        Your goal is to provide insightful and accurate information based on user queries.
-        Follow these instructions precisely:
-        1. ALWAYS use available tools to gather information BEFORE asking the user questions.
-        2. For tools that require arguments: provide arguments in valid JSON format.
-        3. For tools with no args: call the tool without args. Do NOT pass "" or {}.
-        4. NEVER pass arguments to tools that don't accept parameters.
-        5. NEVER ask users for information obtainable through tools.
-        6. Use tools in a logical sequence until you have sufficient information.
-        7. If a tool call fails, check if you're passing arguments in the correct format.
-        Consider alternative strategies if the issue persists.
-        8. Only after exhausting relevant tools should you request clarification.
-        9. Understand the context of user queries to provide relevant and accurate responses.
-        10. Engage with users in a conversational manner once the necessary information is gathered.
-        11. Adapt to different query types or scenarios to improve flexibility and effectiveness.
-        ```
 - `ZRB_LLM_HISTORY_FILE`: File to store LLM conversation history.
     - Default: `~/.zrb-llm-history.json`
     - Possible values: Any valid file path
@@ -130,6 +108,27 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_LLM_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+- `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`: Special instruction prompt for LLM.
+    - Default: Empty
+    - Possible values: Any valid prompt string
+- `ZRB_LLM_SUMMARIZATION_PROMPT`: Prompt for summarizing conversation history.
+    - Default: Empty
+    - Possible values: Any valid prompt string
+- `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`: Prompt for enriching context.
+    - Default: Empty
+    - Possible values: Any valid prompt string
+- `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
+    - Default: `1` (true)
+    - Possible values: `0` (false), `1` (true)
+- `ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD`: Threshold for summarizing history (number of messages).
+    - Default: `5`
+    - Possible values: Any positive integer
+- `ZRB_LLM_ENRICH_CONTEXT`: Whether to enrich context.
+    - Default: `1` (true)
+    - Possible values: `0` (false), `1` (true)
+- `ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD`: Threshold for enriching context (number of messages).
+    - Default: `5`
+    - Possible values: Any positive integer
 
 ## RAG (Retrieval-Augmented Generation) Configuration
 

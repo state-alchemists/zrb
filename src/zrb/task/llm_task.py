@@ -184,9 +184,15 @@ class LLMTask(BaseTask):
         self._conversation_context = conversation_context
 
     def add_tool(self, tool: ToolOrCallable):
+        self.append_tool(tool)
+
+    def append_tool(self, tool: ToolOrCallable):
         self._additional_tools.append(tool)
 
     def add_mcp_server(self, mcp_server: MCPServer):
+        self.append_mcp_server(mcp_server)
+
+    def append_mcp_server(self, mcp_server: MCPServer):
         self._additional_mcp_servers.append(mcp_server)
 
     def set_should_enrich_context(self, enrich_context: bool):

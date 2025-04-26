@@ -1,8 +1,6 @@
 import json
 from collections.abc import Callable
 
-# Annotated import removed
-
 
 async def open_web_page(url: str) -> str:
     """Get parsed text content and links from a web page URL.

@@ -93,7 +93,7 @@ llm_chat: LLMTask = llm_group.add_task(
         ),
         conversation_history_reader=read_chat_conversation,
         conversation_history_writer=write_chat_conversation,
-        description="Chat with LLM",
+        description="💬 Chat with LLM",
         system_prompt=lambda ctx: (
             None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
         ),

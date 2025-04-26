@@ -129,9 +129,7 @@ def should_enrich_context(
         context_enrichment_threshold_attr,
         render_context_enrichment_threshold,
     )
-    if enrichment_threshold == -1:
-        return False
-    if enrichment_threshold > history_len:
+    if enrichment_threshold == -1 or enrichment_threshold > history_len:
         return False
     return get_bool_attr(
         ctx,
