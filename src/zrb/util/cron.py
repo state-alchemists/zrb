@@ -2,7 +2,20 @@ import datetime
 
 
 def parse_cron_field(field: str, min_value: int, max_value: int):
-    """Parse a cron field with support for wildcards (*), ranges, lists, and steps."""
+    """
+    Parse a cron field string into a set of integer values.
+
+    Supports wildcards (*), ranges (e.g., 1-5), lists (e.g., 1,3,5),
+    and step values (e.g., */5, 1-10/2).
+
+    Args:
+        field (str): The cron field string (e.g., "*", "1-5", "*/10").
+        min_value (int): The minimum allowed value for the field.
+        max_value (int): The maximum allowed value for the field.
+
+    Returns:
+        set[int]: A set of integer values represented by the cron field.
+    """
     values = set()
     if field == "*":
         return set(range(min_value, max_value + 1))
@@ -34,7 +47,16 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
 
 
 def handle_special_cron_patterns(pattern: str, dt: datetime.datetime):
-    """Handle special cron patterns like @yearly, @monthly, etc."""
+    """
+    Check if a datetime object matches a special cron pattern.
+
+    Args:
+        pattern (str): The special cron pattern (e.g., "@yearly", "@monthly").
+        dt (datetime.datetime): The datetime object to check.
+
+    Returns:
+        bool: True if the datetime matches the pattern, False otherwise.
+    """
     if pattern == "@yearly" or pattern == "@annually":
         return dt.month == 1 and dt.day == 1 and dt.hour == 0 and dt.minute == 0
     elif pattern == "@monthly":
@@ -53,7 +75,19 @@ def handle_special_cron_patterns(pattern: str, dt: datetime.datetime):
 
 
 def match_cron(cron_pattern: str, dt: datetime.datetime):
-    """Check if a datetime object matches a cron pattern, including special cases."""
+    """
+    Check if a datetime object matches a cron pattern.
+
+    Supports standard cron format (minute hour day month day_of_week)
+    and special patterns (e.g., "@yearly", "@monthly").
+
+    Args:
+        cron_pattern (str): The cron pattern string.
+        dt (datetime.datetime): The datetime object to check.
+
+    Returns:
+        bool: True if the datetime matches the cron pattern, False otherwise.
+    """
     # Handle special cron patterns
     if cron_pattern.startswith("@"):
         return handle_special_cron_patterns(cron_pattern, dt)

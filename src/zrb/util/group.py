@@ -9,6 +9,21 @@ class NodeNotFoundError(ValueError):
 def extract_node_from_args(
     root_group: AnyGroup, args: list[str], web_only: bool = False
 ) -> tuple[AnyGroup | AnyTask, list[str], list[str]]:
+    """
+    Extract a node (Group or Task) from a list of command-line arguments.
+
+    Args:
+        root_group (AnyGroup): The root group to start the search from.
+        args (list[str]): The list of command-line arguments.
+        web_only (bool): If True, only consider tasks that are not CLI-only.
+
+    Returns:
+        tuple[AnyGroup | AnyTask, list[str], list[str]]: A tuple containing the
+            extracted node, the path to the node, and any residual arguments.
+
+    Raises:
+        NodeNotFoundError: If no matching task or group is found for a given argument.
+    """
     node = root_group
     node_path = []
     residual_args = []
@@ -40,6 +55,17 @@ def extract_node_from_args(
 
 
 def get_node_path(group: AnyGroup, node: AnyGroup | AnyTask) -> list[str] | None:
+    """
+    Get the path (aliases) to a specific node within a group hierarchy.
+
+    Args:
+        group (AnyGroup): The group to search within.
+        node (AnyGroup | AnyTask): The target node.
+
+    Returns:
+        list[str] | None: A list of aliases representing the path to the node,
+            or None if the node is not found.
+    """
     if group is None:
         return []
     if isinstance(node, AnyTask):
@@ -60,6 +86,16 @@ def get_node_path(group: AnyGroup, node: AnyGroup | AnyTask) -> list[str] | None
 def get_non_empty_subgroups(
     group: AnyGroup, web_only: bool = False
 ) -> dict[str, AnyGroup]:
+    """
+    Get subgroups that contain at least one task.
+
+    Args:
+        group (AnyGroup): The group to search within.
+        web_only (bool): If True, only consider tasks that are not CLI-only.
+
+    Returns:
+        dict[str, AnyGroup]: A dictionary of subgroups that are not empty.
+    """
     return {
         alias: subgroup
         for alias, subgroup in group.subgroups.items()
@@ -68,6 +104,16 @@ def get_non_empty_subgroups(
 
 
 def get_subtasks(group: AnyGroup, web_only: bool = False) -> dict[str, AnyTask]:
+    """
+    Get the direct subtasks of a group.
+
+    Args:
+        group (AnyGroup): The group to search within.
+        web_only (bool): If True, only include tasks that are not CLI-only.
+
+    Returns:
+        dict[str, AnyTask]: A dictionary of subtasks.
+    """
     return {
         alias: subtask
         for alias, subtask in group.subtasks.items()
@@ -76,6 +122,16 @@ def get_subtasks(group: AnyGroup, web_only: bool = False) -> dict[str, AnyTask]:
 
 
 def get_all_subtasks(group: AnyGroup, web_only: bool = False) -> list[AnyTask]:
+    """
+    Get all subtasks (including nested ones) within a group hierarchy.
+
+    Args:
+        group (AnyGroup): The group to search within.
+        web_only (bool): If True, only include tasks that are not CLI-only.
+
+    Returns:
+        list[AnyTask]: A list of all subtasks.
+    """
     subtasks = [
         subtask
         for subtask in group.subtasks.values()
