@@ -137,7 +137,9 @@ def build_user_prompt(
     """Constructs the final user prompt including context."""
     original_user_message = get_user_message(ctx, message_attr)
     # Combine default context, conversation context (potentially enriched/summarized)
-    modified_user_message, default_context = extract_default_context(original_user_message)
+    modified_user_message, default_context = extract_default_context(
+        original_user_message
+    )
     enriched_context = {**default_context, **conversation_context}
     return dedent(
         f"""

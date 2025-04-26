@@ -18,7 +18,7 @@ def extract_default_context(user_message: str) -> tuple[str, dict[str, Any]]:
     """
     modified_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
-    pattern = r'(?<!\w)@(?=[^,\s]*/)([^,\s]+)'
+    pattern = r"(?<!\w)@(?=[^,\s]*/)([^,\s]+)"
     potential_resource_path = re.findall(pattern, user_message)
     current_references = []
 

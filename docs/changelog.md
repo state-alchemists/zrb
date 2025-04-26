@@ -1,3 +1,13 @@
+# 1.5.12
+
+- Introduce `append_tool` and `append_mcp_server` to `LLMTask`
+- Add `sub_agent`
+- Add `context_enrichment_threshold` to `LLMConfig` and `LLMTask`
+
+# 1.5.11
+
+- Add tests
+
 # 1.5.10
 
 - Make LLM prompt shorter

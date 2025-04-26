@@ -1,58 +1,107 @@
 import functools
 import inspect
 import traceback
+import typing
 from collections.abc import Callable
 
+from pydantic_ai import RunContext, Tool
+
+from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.run import run_async
 
 
-def wrap_tool(func: Callable) -> Callable:
-    """Wraps a tool function to handle exceptions and context propagation.
-
-    - Catches exceptions during tool execution and returns a structured
-      JSON error message (`ToolExecutionError`).
-    - Inspects the original function signature for a 'ctx' parameter.
-      If found, the wrapper will accept 'ctx' and pass it to the function.
-    - If the original function has no parameters, injects a dummy '_dummy'
-      parameter into the wrapper's signature to ensure schema generation
-      for pydantic-ai.
-
-    Args:
-        func: The tool function (sync or async) to wrap.
-
-    Returns:
-        An async wrapper function.
-    """
+def wrap_tool(func: Callable, ctx: AnyContext) -> Tool:
+    """Wraps a tool function to handle exceptions and context propagation."""
     original_sig = inspect.signature(func)
-    needs_ctx = "ctx" in original_sig.parameters
+    # Use helper function for clarity
+    needs_run_context_for_pydantic = _has_context_parameter(original_sig, RunContext)
+    needs_any_context_for_injection = _has_context_parameter(original_sig, AnyContext)
     takes_no_args = len(original_sig.parameters) == 0
+    # Pass individual flags to the wrapper creator
+    wrapper = _create_wrapper(func, original_sig, ctx, needs_any_context_for_injection)
+    # Adjust signature - _adjust_signature determines exclusions based on type
+    _adjust_signature(wrapper, original_sig, takes_no_args)
+    # takes_ctx in pydantic-ai Tool is specifically for RunContext
+    return Tool(wrapper, takes_ctx=needs_run_context_for_pydantic)
+
+
+def _has_context_parameter(original_sig: inspect.Signature, context_type: type) -> bool:
+    """
+    Checks if the function signature includes a parameter with the specified
+    context type annotation.
+    """
+    return any(
+        _is_annotated_with_context(param.annotation, context_type)
+        for param in original_sig.parameters.values()
+    )
+
+
+def _is_annotated_with_context(param_annotation, context_type):
+    """
+    Checks if the parameter annotation is the specified context type
+    or a generic type containing it (e.g., Optional[ContextType]).
+    """
+    if param_annotation is inspect.Parameter.empty:
+        return False
+    if param_annotation is context_type:
+        return True
+    # Check for generic types like Optional[ContextType] or Union[ContextType, ...]
+    origin = typing.get_origin(param_annotation)
+    args = typing.get_args(param_annotation)
+    if origin is not None and args:
+        # Check if context_type is one of the arguments of the generic type
+        return any(arg is context_type for arg in args)
+    return False
+
+
+def _create_wrapper(
+    func: Callable,
+    original_sig: inspect.Signature,
+    ctx: AnyContext,  # Accept ctx
+    needs_any_context_for_injection: bool,
+) -> Callable:
+    """Creates the core wrapper function."""
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        ctx_arg = None
-        if needs_ctx:
-            if args:
-                ctx_arg = args[0]
-                args = args[1:]  # Remove ctx from args for the actual call if needed
-            elif "ctx" in kwargs:
-                ctx_arg = kwargs.pop("ctx")
+        # Identify AnyContext parameter name from the original signature if needed
+        any_context_param_name = None
+
+        if needs_any_context_for_injection:
+            for param in original_sig.parameters.values():
+                if _is_annotated_with_context(param.annotation, AnyContext):
+                    any_context_param_name = param.name
+                    break  # Found it, no need to continue
+
+            if any_context_param_name is None:
+                # This should not happen if needs_any_context_for_injection is True,
+                # but check for safety
+                raise ValueError(
+                    "AnyContext parameter name not found in function signature."
+                )
+            # Inject the captured ctx into kwargs. This will overwrite if the LLM
+            # somehow provided it.
+            kwargs[any_context_param_name] = ctx
+
+        # If the dummy argument was added for schema generation and is present in kwargs,
+        # remove it before calling the original function, unless the original function
+        # actually expects a parameter named '_dummy'.
+        if "_dummy" in kwargs and "_dummy" not in original_sig.parameters:
+            del kwargs["_dummy"]
 
         try:
-            # Remove dummy argument if it was added for no-arg functions
-            if takes_no_args and "_dummy" in kwargs:
-                del kwargs["_dummy"]
-
-            if needs_ctx:
-                # Ensure ctx is passed correctly, even if original func had only ctx
-                if ctx_arg is None:
-                    # This case should ideally not happen if takes_ctx is True in Tool
-                    raise ValueError("Context (ctx) was expected but not provided.")
-                # Call with context
-                return await run_async(func(ctx_arg, *args, **kwargs))
-            else:
-                # Call without context
-                return await run_async(func(*args, **kwargs))
+            # Call the original function.
+            # pydantic-ai is responsible for injecting RunContext if takes_ctx is True.
+            # Our wrapper injects AnyContext if needed.
+            # The arguments received by the wrapper (*args, **kwargs) are those
+            # provided by the LLM, potentially with RunContext already injected by
+            # pydantic-ai if takes_ctx is True. We just need to ensure AnyContext
+            # is injected if required by the original function.
+            # The dummy argument handling is moved to _adjust_signature's logic
+            # for schema generation, it's not needed here before calling the actual
+            # function.
+            return await run_async(func(*args, **kwargs))
         except Exception as e:
             error_model = ToolExecutionError(
                 tool_name=func.__name__,
@@ -62,8 +111,32 @@ def wrap_tool(func: Callable) -> Callable:
             )
             return error_model.model_dump_json()
 
-    if takes_no_args:
-        # Inject dummy parameter for schema generation if original func took no args
+    return wrapper
+
+
+def _adjust_signature(
+    wrapper: Callable, original_sig: inspect.Signature, takes_no_args: bool
+):
+    """Adjusts the wrapper function's signature for schema generation."""
+    # The wrapper's signature should represent the arguments the *LLM* needs to provide.
+    # The LLM does not provide RunContext (pydantic-ai injects it) or AnyContext
+    # (we inject it). So, the wrapper's signature should be the original signature,
+    # minus any parameters annotated with RunContext or AnyContext.
+
+    params_for_schema = [
+        param
+        for param in original_sig.parameters.values()
+        if not _is_annotated_with_context(param.annotation, RunContext)
+        and not _is_annotated_with_context(param.annotation, AnyContext)
+    ]
+
+    # If after removing context parameters, there are no parameters left,
+    # and the original function took no args, keep the dummy.
+    # If after removing context parameters, there are no parameters left,
+    # but the original function *did* take args (only context), then the schema
+    # should have no parameters.
+    if not params_for_schema and takes_no_args:
+        # Keep the dummy if the original function truly had no parameters
         new_sig = inspect.Signature(
             parameters=[
                 inspect.Parameter(
@@ -71,18 +144,7 @@ def wrap_tool(func: Callable) -> Callable:
                 )
             ]
         )
-        wrapper.__signature__ = new_sig
-    elif needs_ctx:
-        # Adjust signature if ctx was the *only* parameter originally
-        # This ensures the wrapper signature matches what pydantic-ai expects
-        params = list(original_sig.parameters.values())
-        if len(params) == 1 and params[0].name == "ctx":
-            new_sig = inspect.Signature(
-                parameters=[
-                    inspect.Parameter("ctx", inspect.Parameter.POSITIONAL_OR_KEYWORD)
-                ]
-            )
-            wrapper.__signature__ = new_sig
-        # Otherwise, the original signature (including ctx) is fine for the wrapper
+    else:
+        new_sig = inspect.Signature(parameters=params_for_schema)
 
-    return wrapper
+    wrapper.__signature__ = new_sig

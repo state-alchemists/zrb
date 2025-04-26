@@ -72,8 +72,8 @@ async def enrich_context(
             user_prompt=user_prompt_data,  # Pass the formatted data as user prompt
             history_list=[],  # Enrichment agent doesn't need prior history itself
         )
-        if enrichment_run and enrichment_run.result.data:
-            response = enrichment_run.result.data.response
+        if enrichment_run and enrichment_run.result.output:
+            response = enrichment_run.result.output.response
             if response:
                 conversation_context.update(response)
                 ctx.log_info("Context enriched based on history.")
