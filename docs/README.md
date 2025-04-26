@@ -16,3 +16,4 @@
 - [Changelog](changelog.md)
 - [Android Setup (Termux)](android_setup.md)
 - [CI/CD Integration](ci_cd.md)
+- [Upgrading Guide from 0.x.x to 1.x.x](upgrading_guide_0_to_1.md)
