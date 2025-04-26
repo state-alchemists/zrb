@@ -8,6 +8,10 @@ The core concepts of Tasks, Groups, and dependencies remain, but their definitio
 
 Here's a breakdown of the key changes:
 
+## Session and Context
+
+Zrb 1.x.x introduces the concepts of `Session` and `Context`. Each task run operates within its own `Session`, providing isolation. The `Context` object, passed to task actions, contains session-specific information, including environment variables, inputs, and access to utilities like `ctx.print`. This isolation ensures that concurrent task runs do not interfere with each other.
+
 ## Simple Example
 
 Here's a quick look at how a basic task definition and registration differs between 0.x.x and 1.x.x:
@@ -134,7 +138,7 @@ The `@python_task` decorator has been renamed to `@make_task` and is used to tur
 from zrb import python_task, runner
 
 @python_task(name='my-decorated-task')
-def my_decorated_task(ctx):
+def my_decorated_task(*args, **kwargs):
     print("This is a decorated task")
 
 runner.register(my_decorated_task)
@@ -147,6 +151,39 @@ from zrb import make_task, cli
 @make_task(name='my-decorated-task', group=cli) # Register directly with cli
 def my_decorated_task(ctx):
     print("This is a decorated task")
+```
+
+### Printing Output
+
+In 0.x.x, you would typically use `task.print_out` to print output within a `@python_task`. In 1.x.x, you should use `ctx.print`.
+
+**0.x.x:**
+```python
+from zrb import python_task, runner, Task
+from typing import Any
+
+@python_task(
+    name='deploy',
+    # ... other parameters
+)
+def deploy(*args: Any, **kwargs: Any):
+    task: Task = kwargs.get('_task')
+    task.print_out('Ok')
+```
+
+**1.x.x:**
+```python
+from zrb import make_task, cli
+from zrb.context import Context
+from typing import Any
+
+@make_task(
+    name='deploy',
+    group=cli, # Assuming it's registered with cli
+    # ... other parameters
+)
+def deploy(ctx: Context, *args: Any, **kwargs: Any):
+    ctx.print('Ok')
 ```
 
 ## 5. `Env` Definition
@@ -196,6 +233,48 @@ cli.add_task(task2)
 # task1 >> task2
 # cli.add_task(task1)
 # cli.add_task(task2)
+```
+
+## Available Task Types
+
+Zrb 1.x.x provides several built-in task types to handle various operations:
+
+*   [`CmdTask`](./task/types/cmd_task.md): For executing shell commands.
+*   [`HttpCheck`](./task/types/http_check.md): For performing HTTP health checks.
+*   [`LlmTask`](./task/types/llm_task.md): For integrating with Language Model APIs.
+*   [`RsyncTask`](./task/types/rsync_task.md): For synchronizing files and directories using rsync.
+*   [`Scaffolder`](./task/types/scaffolder.md): For generating files from templates.
+*   [`Task`](./task/types/task.md): The base class for creating custom Python tasks (used with `@make_task`).
+*   [`TcpCheck`](./task/types/tcp_check.md): For performing TCP port health checks.
+
+### Migrating from DockerComposeTask
+
+The `DockerComposeTask` from 0.x.x has been removed in 1.x.x. You can achieve the same functionality by using the `CmdTask` to execute `docker compose` commands.
+
+**0.x.x:**
+```python
+from zrb import DockerComposeTask, runner
+
+# Assuming a docker-compose.yml file exists
+docker_up_task = DockerComposeTask(
+    name='docker-up',
+    command='up'
+)
+
+runner.register(docker_up_task)
+```
+
+**1.x.x:**
+```python
+from zrb import CmdTask, cli
+
+# Assuming a docker-compose.yml file exists
+docker_up_task = cli.add_task(
+    CmdTask(
+        name='docker-up',
+        cmd='docker compose up -d'
+    )
+)
 ```
 
 🔖 [Documentation Home](../README.md)
