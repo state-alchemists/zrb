@@ -236,7 +236,9 @@ class LLMConfig:
     def set_default_enrich_context(self, enrich_context: bool):
         self._default_enrich_context = enrich_context
 
-    def set_default_context_enrichment_threshold(self, context_enrichment_threshold: int):
+    def set_default_context_enrichment_threshold(
+        self, context_enrichment_threshold: int
+    ):
         self._default_context_enrichment_threshold = context_enrichment_threshold
 
 
