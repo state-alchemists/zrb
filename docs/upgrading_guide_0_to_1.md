@@ -188,7 +188,7 @@ def deploy(ctx: Context, *args: Any, **kwargs: Any):
 
 ## 5. `Env` Definition
 
-The `Env` class is still used, but the parameter name for linking to the OS environment variable has changed from `link_to_os` to `link_to_os_env`. Also, you can now use `EnvMap` or `EnvFile` for defining multiple environment variables or loading from a `.env` file.
+The `Env` class is still used, but the parameter name for linking to the OS environment variable has changed from `link_to_os` to `link_to_os`. Also, you can now use `EnvMap` or `EnvFile` for defining multiple environment variables or loading from a `.env` file.
 
 **0.x.x:**
 ```python
@@ -201,7 +201,7 @@ my_env = Env(name='MY_VAR', default='default', link_to_os=True)
 ```python
 from zrb import Env
 
-my_env = Env(name='MY_VAR', default='default', link_to_os_env=True) # 'link_to_os' is now 'link_to_os_env'
+my_env = Env(name='MY_VAR', default='default', link_to_os=True) # 'link_to_os' is now 'link_to_os'
 ```
 
 ## 6. Upstream Dependencies
