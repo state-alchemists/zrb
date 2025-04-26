@@ -15,9 +15,9 @@ task = Task(
         FloatInput(name="height", description="Your height in meters", default=1.75),
         BoolInput(name="subscribe", description="Subscribe to newsletter", default=True),
         OptionInput(
-            name="color", 
-            description="Favorite color", 
-            options=["red", "green", "blue"], 
+            name="color",
+            description="Favorite color",
+            options=["red", "green", "blue"],
             default="blue"
         )
     ],
@@ -26,7 +26,7 @@ task = Task(
 cli.add_task(task)  # Don't forget to register the task
 ```
 
-Inputs can be accessed in the task's action via the `ctx.input` object.
+Inputs can be accessed in the task's action via the `ctx.input` object. For a comprehensive guide on all available input types and how to use them, refer to the [Inputs documentation](../../input.md).
 
 ## 2. Environment Variables
 
@@ -46,68 +46,22 @@ task = Task(
 cli.add_task(task)
 ```
 
-Environment variables can be accessed in the task's action via the `ctx.env` object.
-
-Zrb provides several ways to define environment variables:
-
-### Env
-
-The basic environment variable class that links to OS environment variables:
+Environment variables can be accessed in the task's action via the `ctx.env` object. Zrb provides several ways to define environment variables, including `Env`, `EnvMap`, and `EnvFile`.
 
 ```python
-from zrb import Task, Env, cli
+from zrb import Env, EnvMap, EnvFile
 
-task = Task(
-    name="env-example",
-    env=Env(
-        name="API_KEY",       # Name of the variable in ctx.env
-        default="",           # Default value if not found in OS
-        link_to_os=True,      # Whether to look for the variable in OS environment
-        os_name="MY_API_KEY"  # Optional: custom OS environment variable name
-    ),
-    action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}")
-)
+# Basic Env linking to OS variable
+my_env = Env(name='MY_VAR', default='default', link_to_os=True)
+
+# EnvMap for multiple variables
+my_env_map = EnvMap(vars={"VAR1": "value1", "VAR2": "value2"})
+
+# EnvFile for loading from .env
+my_env_file = EnvFile(path=".env")
 ```
 
-### EnvMap
-
-Define multiple environment variables at once:
-
-```python
-from zrb import Task, EnvMap, cli
-
-task = Task(
-    name="env-map-example",
-    env=EnvMap(
-        vars={
-            "API_KEY": "default-key",
-            "DEBUG": "false",
-            "PORT": "8080"
-        },
-        link_to_os=True,      # Whether to look for variables in OS environment
-        os_prefix="APP"       # Optional: prefix for OS environment variables (APP_API_KEY, etc.)
-    ),
-    action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}, Port: {ctx.env.PORT}")
-)
-```
-
-### EnvFile
-
-Load environment variables from a .env file:
-
-```python
-from zrb import Task, EnvFile, cli
-
-task = Task(
-    name="env-file-example",
-    env=EnvFile(
-        path=".env",          # Path to the .env file
-        link_to_os=True,      # Whether to look for variables in OS environment
-        os_prefix="APP"       # Optional: prefix for OS environment variables
-    ),
-    action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}")
-)
-```
+For a comprehensive guide on defining environment variables using `Env`, `EnvMap`, and `EnvFile`, refer to the [Environment Variables documentation](../../env.md).
 
 ## 3. Dependencies (Upstream Tasks)
 
@@ -122,8 +76,8 @@ task3 = Task(name="task3", action=lambda ctx: print("Task 3"))
 
 # Method 1: Using the upstream parameter
 task3 = Task(
-    name="task3", 
-    upstream=[task1, task2], 
+    name="task3",
+    upstream=[task1, task2],
     action=lambda ctx: print("Task 3")
 )
 

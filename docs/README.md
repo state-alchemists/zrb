@@ -9,6 +9,8 @@
   - [Complete Example](task/complete_example.md)
 - [Group](group/README.md)
 - [CLI](cli/README.md)
+- [Environment Variables](env.md)
+- [Inputs](input.md)
 
 ## Other Documentation
 - [Configuration](configuration.md)

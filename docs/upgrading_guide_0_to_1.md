@@ -1,3 +1,5 @@
+🔖 [Table of Contents](README.md)
+
 # Upgrading Guide from 0.x.x to 1.x.x
 
 Zrb 1.x.x introduced significant changes and improvements over the 0.x.x series. This guide will help you migrate your existing Zrb task definitions from the old structure to the new one.
@@ -195,3 +197,5 @@ cli.add_task(task2)
 # cli.add_task(task1)
 # cli.add_task(task2)
 ```
+
+🔖 [Table of Contents](README.md)
