@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../README.md) > Task Types > TcpCheck
+
 # Task
 
 A Task represents a single unit of work within a Zrb project. Tasks are the fundamental building blocks of Zrb workflows, encapsulating specific actions that need to be performed. These actions can range from running shell commands to executing Python code or interacting with language models.
@@ -8,7 +10,7 @@ A Task represents a single unit of work within a Zrb project. Tasks are the fund
 
 - [Creating Tasks](creating_tasks.md)
 - [Key Components](key_components.md)
-- Task Types
+- [Task Types](./types/README.md)
   - [BaseTask](types/base_task.md)
   - [CmdTask](types/cmd_task.md)
   - [HttpCheck](types/http_check.md)

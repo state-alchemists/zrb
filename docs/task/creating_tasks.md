@@ -17,6 +17,18 @@ my_task = Task(
 cli.add_task(my_task)  # Register with CLI to make it accessible
 ```
 
+Zrb provides several built-in task types (like `CmdTask`, `LLMTask`, `Scaffolder`, etc.) that you can directly instantiate.
+Here are some commonly used built-in task types you can directly instantiate:
+
+- [`CmdTask`](./types/cmd_task.md): For executing shell commands.
+- [`LLMTask`](./types/llm_task.md): For integrating with Language Model APIs.
+- [`Scaffolder`](./types/scaffolder.md): For creating files and directories from templates.
+- [`RsyncTask`](./types/rsync_task.md): For synchronizing files and directories.
+- [`HttpCheck`](./types/http_check.md): For performing HTTP health checks.
+- [`TcpCheck`](./types/tcp_check.md): For performing TCP port health checks.
+- [`Scheduler`](./types/scheduler.md): For triggering tasks based on a schedule.
+
+
 **When to use**: Best for simple tasks where you need to create and configure tasks programmatically. Good for dynamic task creation or when you need to create multiple similar tasks with slight variations.
 
 ## 2. Class definition

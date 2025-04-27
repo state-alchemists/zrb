@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > Task Types > Scaffolder
+🔖 [Documentation Home](../../../README.md) > [Task](../../README.md) > [Task Types](../README.md) > Scaffolder
 
 # Scaffolder
 
