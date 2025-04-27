@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md)
+🔖 [Documentation Home](../README.md)
 # CLI
 
 The `cli` module provides the command-line interface for Zrb. The `cli` object is an instance of the `Cli` class, which inherits from `Group`. This means that the `cli` object can contain tasks and subgroups, and it can be used to run tasks from the command line.

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md)
+🔖 [Documentation Home](../README.md)
 # Group
 
 A Group is a collection of tasks and subgroups that are organized together. Groups provide a way to structure and manage complex workflows. Groups are defined by inheriting from `AnyGroup` (or directly using the `Group` class).
