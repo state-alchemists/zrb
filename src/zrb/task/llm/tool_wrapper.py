@@ -3,16 +3,22 @@ import inspect
 import traceback
 import typing
 from collections.abc import Callable
-
-from pydantic_ai import RunContext, Tool
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.run import run_async
 
+if TYPE_CHECKING:
+    from pydantic_ai import Tool
+else:
+    Tool = Any
+
 
 def wrap_tool(func: Callable, ctx: AnyContext) -> Tool:
     """Wraps a tool function to handle exceptions and context propagation."""
+    from pydantic_ai import RunContext, Tool
+
     original_sig = inspect.signature(func)
     # Use helper function for clarity
     needs_run_context_for_pydantic = _has_context_parameter(original_sig, RunContext)
@@ -122,6 +128,8 @@ def _adjust_signature(
     # The LLM does not provide RunContext (pydantic-ai injects it) or AnyContext
     # (we inject it). So, the wrapper's signature should be the original signature,
     # minus any parameters annotated with RunContext or AnyContext.
+
+    from pydantic_ai import RunContext
 
     params_for_schema = [
         param

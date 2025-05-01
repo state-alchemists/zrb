@@ -1,11 +1,18 @@
 import json
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic_ai import Agent, Tool
-from pydantic_ai.mcp import MCPServer
-from pydantic_ai.models import Model
-from pydantic_ai.settings import ModelSettings
+if TYPE_CHECKING:
+    from pydantic_ai import Agent, Tool
+    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+else:
+    Agent = Any
+    Tool = Any
+    MCPServer = Any
+    Model = Any
+    ModelSettings = Any
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr, fstring
 from zrb.context.any_context import AnyContext
@@ -39,7 +46,10 @@ from zrb.task.llm.prompt import (
 from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
 
-ToolOrCallable = Tool | Callable
+if TYPE_CHECKING:
+    ToolOrCallable = Tool | Callable
+else:
+    ToolOrCallable = Any
 
 
 class LLMTask(BaseTask):
@@ -80,10 +90,11 @@ class LLMTask(BaseTask):
         context_enrichment_threshold: IntAttr | None = None,
         render_context_enrichment_threshold: bool = True,
         tools: (
-            list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
+            list["ToolOrCallable"]
+            | Callable[[AnySharedContext], list["ToolOrCallable"]]
         ) = [],
         mcp_servers: (
-            list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]
+            list["MCPServer"] | Callable[[AnySharedContext], list["MCPServer"]]
         ) = [],
         conversation_history: (
             ConversationHistoryData
@@ -166,9 +177,9 @@ class LLMTask(BaseTask):
         self._context_enrichment_threshold = context_enrichment_threshold
         self._render_context_enrichment_threshold = render_context_enrichment_threshold
         self._tools = tools
-        self._additional_tools: list[ToolOrCallable] = []
+        self._additional_tools: list["ToolOrCallable"] = []
         self._mcp_servers = mcp_servers
-        self._additional_mcp_servers: list[MCPServer] = []
+        self._additional_mcp_servers: list["MCPServer"] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
         self._conversation_history_writer = conversation_history_writer
