@@ -1,3 +1,4 @@
+🔖 [Documentation Home](../README.md) > CI/CD Integration
 # CI/CD Integration for Zrb Projects
 
 This guide provides examples of how to set up Continuous Integration and Continuous Deployment (CI/CD) pipelines for your Zrb projects using popular platforms like GitHub Actions and GitLab CI.

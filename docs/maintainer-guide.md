@@ -1,4 +1,4 @@
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md) > Maintainer Guide
 
 # Maintainer Guide
 
@@ -29,4 +29,4 @@ docker login -U stalchmst
 zrb publish all
 ```
 
-🔖 [Table of Contents](README.md)
+🔖 [Documentation Home](../README.md)

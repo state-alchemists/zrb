@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -23,6 +24,26 @@ from zrb.task.base.operators import handle_lshift, handle_rshift
 
 
 class BaseTask(AnyTask):
+    """
+    Implements a concrete task class `BaseTask` derived from the abstract base class `AnyTask`.
+
+    This class serves as a robust and flexible task implementation that can be tailored for
+    various execution scenarios within the Zrb framework. It supports functionalities such as:
+
+    - **Task Definition and Initialization:** Setting up task attributes like `name`, `color`,
+    `icon`, `description`, `cli_only`, `inputs`, `envs`, `action`, among others.
+    - **Dependency Management:** Managing task dependencies using properties and methods to
+    append upstreams, fallbacks, readiness checks, and successors, ensuring tasks are executed
+    in the correct order and conditions.
+    - **Execution Control:** Contains methods for both synchronous (`run`) and asynchronous
+    execution (`async_run`), alongside internal task lifecycle methods (`exec_root_tasks`,
+    `exec_chain`, `exec`).
+    - **Readiness and Monitoring:** Supports readiness checks, retry mechanisms, and monitoring
+    before task execution to ensure the task is executed under proper conditions.
+    - **Operator Overloading:** Implements operators to handle task chaining and dependencies
+    conveniently.
+    """
+
     def __init__(
         self,
         name: str,
@@ -46,6 +67,9 @@ class BaseTask(AnyTask):
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
     ):
+        caller_frame = inspect.stack()[1]
+        self.__decl_file = caller_frame.filename
+        self.__decl_line = caller_frame.lineno
         self._name = name
         self._color = color
         self._icon = icon
@@ -239,5 +263,17 @@ class BaseTask(AnyTask):
         Returns:
             Any: The result of the action execution.
         """
-        # Delegate to the helper function for the default behavior
-        return await run_default_action(self, ctx)
+        try:
+            # Delegate to the helper function for the default behavior
+            return await run_default_action(self, ctx)
+        except BaseException as e:
+            additional_error_note = (
+                f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"
+            )
+            ctx.log_error(additional_error_note)
+            if hasattr(e, "add_note"):
+                e.add_note(additional_error_note)
+            else:
+                # fallback: use the __notes__ attribute directly
+                e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
+            raise e

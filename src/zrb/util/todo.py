@@ -44,6 +44,12 @@ class TodoTaskModel(BaseModel):
         return values
 
     def get_additional_info_length(self):
+        """
+        Calculate the length of the additional information string (projects, contexts, keyval).
+
+        Returns:
+            int: The length of the combined additional information string.
+        """
         results = []
         for project in self.projects:
             results.append(f"@{project}")
@@ -64,6 +70,15 @@ TODO_TXT_PATTERN = re.compile(
 
 
 def cascade_todo_task(todo_task: TodoTaskModel):
+    """
+    Populate default values for a TodoTaskModel if they are missing.
+
+    Args:
+        todo_task (TodoTaskModel): The todo task model to cascade.
+
+    Returns:
+        TodoTaskModel: The todo task model with default values populated.
+    """
     if todo_task.creation_date is None:
         todo_task.creation_date = datetime.date.today()
     if "id" not in todo_task.keyval:
@@ -74,6 +89,16 @@ def cascade_todo_task(todo_task: TodoTaskModel):
 def select_todo_task(
     todo_list: list[TodoTaskModel], keyword: str
 ) -> TodoTaskModel | None:
+    """
+    Select a todo task from a list based on a keyword matching ID or description.
+
+    Args:
+        todo_list (list[TodoTaskModel]): The list of todo tasks.
+        keyword (str): The keyword to search for.
+
+    Returns:
+        TodoTaskModel | None: The matched todo task, or None if no match is found.
+    """
     for todo_task in todo_list:
         id = todo_task.keyval.get("id", "")
         if keyword.lower().strip() == id.lower().strip():
@@ -94,6 +119,15 @@ def select_todo_task(
 
 
 def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
+    """
+    Load a list of todo tasks from a todo.txt file.
+
+    Args:
+        todo_file_path (str): The path to the todo.txt file.
+
+    Returns:
+        list[TodoTaskModel]: A sorted list of todo tasks.
+    """
     todo_lines = read_file(todo_file_path).strip().split("\n")
     todo_list: list[TodoTaskModel] = []
     for todo_line in todo_lines:
@@ -114,6 +148,13 @@ def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
 
 
 def save_todo_list(todo_file_path: str, todo_list: list[TodoTaskModel]):
+    """
+    Save a list of todo tasks to a todo.txt file.
+
+    Args:
+        todo_file_path (str): The path to the todo.txt file.
+        todo_list (list[TodoTaskModel]): The list of todo tasks to save.
+    """
     write_file(
         todo_file_path, [todo_task_to_line(todo_task) for todo_task in todo_list]
     )
@@ -159,14 +200,30 @@ def line_to_todo_task(line: str) -> TodoTaskModel:
 
 
 def _parse_date(date_str: str | None) -> datetime.date | None:
-    """Parses a date string in the format YYYY-MM-DD."""
+    """
+    Parses a date string in the format YYYY-MM-DD.
+
+    Args:
+        date_str (str | None): The date string to parse.
+
+    Returns:
+        datetime.date | None: The parsed date object, or None if the input is None.
+    """
     if date_str:
         return datetime.date.fromisoformat(date_str)
     return None
 
 
 def todo_task_to_line(task: TodoTaskModel) -> str:
-    """Converts a TodoTask instance back into a todo.txt formatted line."""
+    """
+    Converts a TodoTask instance back into a todo.txt formatted line.
+
+    Args:
+        task (TodoTaskModel): The todo task instance.
+
+    Returns:
+        str: The todo.txt formatted line.
+    """
     parts = []
     # Add completion mark if task is completed
     if task.completed:
@@ -195,6 +252,16 @@ def todo_task_to_line(task: TodoTaskModel) -> str:
 
 
 def get_visual_todo_list(todo_list: list[TodoTaskModel], filter: str) -> str:
+    """
+    Generate a visual representation of a filtered todo list.
+
+    Args:
+        todo_list (list[TodoTaskModel]): The list of todo tasks.
+        filter (str): The filter string in todo.txt format.
+
+    Returns:
+        str: A formatted string representing the filtered todo list.
+    """
     todo_filter = line_to_todo_task(filter)
     filtered_todo_list = []
     for todo_task in todo_list:
@@ -249,6 +316,17 @@ def get_visual_todo_list(todo_list: list[TodoTaskModel], filter: str) -> str:
 def get_visual_todo_header(
     terminal_width: int, max_desc_length: int, max_additional_info_length: int
 ) -> str:
+    """
+    Generate the header string for the visual todo list.
+
+    Args:
+        terminal_width (int): The width of the terminal.
+        max_desc_length (int): The maximum length of the description column.
+        max_additional_info_length (int): The maximum length of the additional info column.
+
+    Returns:
+        str: The formatted header string.
+    """
     priority_caption = "".ljust(_PRIORITY_WIDTH)
     completed_caption = "".ljust(_COMPLETED_WIDTH)
     completed_at_caption = "COMPLETED AT".rjust(_COMPLETED_AT_WIDTH)
@@ -276,6 +354,18 @@ def get_visual_todo_line(
     max_additional_info_length: int,
     todo_task: TodoTaskModel,
 ) -> str:
+    """
+    Generate a single line string for a todo task in the visual todo list.
+
+    Args:
+        terminal_width (int): The width of the terminal.
+        max_desc_length (int): The maximum length of the description column.
+        max_additional_info_length (int): The maximum length of the additional info column.
+        todo_task (TodoTaskModel): The todo task to format.
+
+    Returns:
+        str: The formatted line string for the todo task.
+    """
     completed = "[x]" if todo_task.completed else "[ ]"
     priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
     completed_at = stylize_yellow(_date_to_str(todo_task.completion_date))
@@ -325,6 +415,23 @@ def _get_line_str(
     description: str,
     additional_info: str,
 ):
+    """
+    Helper function to format a line string based on terminal width.
+
+    Args:
+        terminal_width (int): The width of the terminal.
+        description_width (int): The width of the description column.
+        additional_info_width (int): The width of the additional info column.
+        priority (str): The formatted priority string.
+        completed (str): The formatted completed status string.
+        completed_at (str): The formatted completed at date string.
+        created_at (str): The formatted created at date string.
+        description (str): The formatted description string.
+        additional_info (str): The formatted additional info string.
+
+    Returns:
+        str: The formatted line string.
+    """
     gap = "".ljust(_GAP_WIDTH)
     if terminal_width >= _get_minimum_width(
         [
@@ -368,6 +475,15 @@ def _get_line_str(
 
 
 def _get_minimum_width(field_widths: list[int]) -> int:
+    """
+    Helper function to calculate the minimum width required for a list of fields.
+
+    Args:
+        field_widths (list[int]): A list of widths for each field.
+
+    Returns:
+        int: The minimum total width required.
+    """
     gap_width = _GAP_WIDTH * (len(field_widths) - 1)
     return sum(field_width for field_width in field_widths) + gap_width
 
@@ -375,6 +491,16 @@ def _get_minimum_width(field_widths: list[int]) -> int:
 def get_visual_todo_card(
     todo_task: TodoTaskModel, log_work_list: list[dict[str, str]]
 ) -> str:
+    """
+    Generate a visual card representation of a todo task with log work.
+
+    Args:
+        todo_task (TodoTaskModel): The todo task to display.
+        log_work_list (list[dict[str, str]]): A list of log work entries for the task.
+
+    Returns:
+        str: A formatted string representing the todo task card.
+    """
     description = todo_task.description
     status = "TODO"
     if todo_task.completed:
@@ -420,19 +546,46 @@ def get_visual_todo_card(
 
 
 def _date_to_str(date: datetime.date | None) -> str:
+    """
+    Helper function to format a date object as a string.
+
+    Args:
+        date (datetime.date | None): The date object to format.
+
+    Returns:
+        str: The formatted date string, or an empty string if the input is None.
+    """
     if date is None:
         return "".ljust(14)
     return date.strftime("%a %Y-%m-%d")
 
 
 def add_duration(duration1: str, duration2: str) -> str:
+    """
+    Add two duration strings.
+
+    Args:
+        duration1 (str): The first duration string.
+        duration2 (str): The second duration string.
+
+    Returns:
+        str: The sum of the two durations as a formatted string.
+    """
     total_seconds = parse_duration(duration1) + parse_duration(duration2)
     # Format and return the result
     return _format_duration(total_seconds)
 
 
 def parse_duration(duration: str) -> int:
-    """Parse a duration string into total seconds."""
+    """
+    Parse a duration string into total seconds.
+
+    Args:
+        duration (str): The duration string to parse.
+
+    Returns:
+        int: The total duration in seconds.
+    """
     units = {"M": 2592000, "w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1}
     total_seconds = 0
     match = re.findall(r"(\d+)([Mwdhms])", duration)
@@ -442,7 +595,15 @@ def parse_duration(duration: str) -> int:
 
 
 def _format_duration(total_seconds: int) -> str:
-    """Format total seconds into a duration string."""
+    """
+    Format total seconds into a duration string.
+
+    Args:
+        total_seconds (int): The total duration in seconds.
+
+    Returns:
+        str: The formatted duration string.
+    """
     units = [
         ("w", 604800),  # 7 days in a week
         ("d", 86400),  # 24 hours in a day

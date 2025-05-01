@@ -11,6 +11,17 @@ pattern = re.compile("[^a-zA-Z0-9]")
 
 @lru_cache
 def load_file(script_path: str, sys_path_index: int = 0) -> Any | None:
+    """
+    Load a Python module from a file path.
+
+    Args:
+        script_path (str): The path to the Python script.
+        sys_path_index (int): The index to insert the script directory into sys.path.
+
+    Returns:
+        Any | None: The loaded module object, or None if the file does not
+            exist or cannot be loaded.
+    """
     if not os.path.isfile(script_path):
         return None
     module_name = pattern.sub("", script_path)
@@ -31,6 +42,15 @@ def load_file(script_path: str, sys_path_index: int = 0) -> Any | None:
 
 
 def _get_new_python_path(dir_path: str) -> str:
+    """
+    Helper function to update the PYTHONPATH environment variable.
+
+    Args:
+        dir_path (str): The directory path to add to PYTHONPATH.
+
+    Returns:
+        str: The new value for the PYTHONPATH environment variable.
+    """
     current_python_path = os.getenv("PYTHONPATH")
     if current_python_path is None or current_python_path == "":
         return dir_path
@@ -40,5 +60,14 @@ def _get_new_python_path(dir_path: str) -> str:
 
 
 def load_module(module_name: str) -> Any:
+    """
+    Load a Python module by its name.
+
+    Args:
+        module_name (str): The name of the module to load.
+
+    Returns:
+        Any: The loaded module object.
+    """
     module = importlib.import_module(module_name)
     return module

@@ -15,9 +15,9 @@ task = Task(
         FloatInput(name="height", description="Your height in meters", default=1.75),
         BoolInput(name="subscribe", description="Subscribe to newsletter", default=True),
         OptionInput(
-            name="color", 
-            description="Favorite color", 
-            options=["red", "green", "blue"], 
+            name="color",
+            description="Favorite color",
+            options=["red", "green", "blue"],
             default="blue"
         )
     ],
@@ -26,7 +26,7 @@ task = Task(
 cli.add_task(task)  # Don't forget to register the task
 ```
 
-Inputs can be accessed in the task's action via the `ctx.input` object.
+Inputs can be accessed in the task's action via the `ctx.input` object. For a comprehensive guide on all available input types and how to use them, refer to the [Inputs documentation](../../input.md).
 
 ## 2. Environment Variables
 
@@ -46,68 +46,22 @@ task = Task(
 cli.add_task(task)
 ```
 
-Environment variables can be accessed in the task's action via the `ctx.env` object.
-
-Zrb provides several ways to define environment variables:
-
-### Env
-
-The basic environment variable class that links to OS environment variables:
+Environment variables can be accessed in the task's action via the `ctx.env` object. Zrb provides several ways to define environment variables, including `Env`, `EnvMap`, and `EnvFile`.
 
 ```python
-from zrb import Task, Env, cli
+from zrb import Env, EnvMap, EnvFile
 
-task = Task(
-    name="env-example",
-    env=Env(
-        name="API_KEY",       # Name of the variable in ctx.env
-        default="",           # Default value if not found in OS
-        link_to_os=True,      # Whether to look for the variable in OS environment
-        os_name="MY_API_KEY"  # Optional: custom OS environment variable name
-    ),
-    action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}")
-)
+# Basic Env linking to OS variable
+my_env = Env(name='MY_VAR', default='default', link_to_os=True)
+
+# EnvMap for multiple variables
+my_env_map = EnvMap(vars={"VAR1": "value1", "VAR2": "value2"})
+
+# EnvFile for loading from .env
+my_env_file = EnvFile(path=".env")
 ```
 
-### EnvMap
-
-Define multiple environment variables at once:
-
-```python
-from zrb import Task, EnvMap, cli
-
-task = Task(
-    name="env-map-example",
-    env=EnvMap(
-        vars={
-            "API_KEY": "default-key",
-            "DEBUG": "false",
-            "PORT": "8080"
-        },
-        link_to_os=True,      # Whether to look for variables in OS environment
-        os_prefix="APP"       # Optional: prefix for OS environment variables (APP_API_KEY, etc.)
-    ),
-    action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}, Port: {ctx.env.PORT}")
-)
-```
-
-### EnvFile
-
-Load environment variables from a .env file:
-
-```python
-from zrb import Task, EnvFile, cli
-
-task = Task(
-    name="env-file-example",
-    env=EnvFile(
-        path=".env",          # Path to the .env file
-        link_to_os=True,      # Whether to look for variables in OS environment
-        os_prefix="APP"       # Optional: prefix for OS environment variables
-    ),
-    action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}")
-)
-```
+For a comprehensive guide on defining environment variables using `Env`, `EnvMap`, and `EnvFile`, refer to the [Environment Variables documentation](../../env.md).
 
 ## 3. Dependencies (Upstream Tasks)
 
@@ -122,8 +76,8 @@ task3 = Task(name="task3", action=lambda ctx: print("Task 3"))
 
 # Method 1: Using the upstream parameter
 task3 = Task(
-    name="task3", 
-    upstream=[task1, task2], 
+    name="task3",
+    upstream=[task1, task2],
     action=lambda ctx: print("Task 3")
 )
 
@@ -144,13 +98,15 @@ When a task has upstream dependencies, it will only execute after all its upstre
 
 ## 4. Other Key Features
 
-* **Name:** A unique identifier for the task (`name` property).
-* **Description:** A human-readable explanation of the task's purpose (`description` property).
-* **CLI Only:** Indicates whether the task is only executable from the command line (`cli_only` property).
-* **Execute Condition:** A boolean attribute that determines whether the task should be executed.
-* **Fallbacks:** A list of tasks that should be executed if this task fails (`fallbacks` property).
-* **Successors:** A list of tasks that should be executed after this task completes successfully (`successors` property).
-* **Readiness Checks:** Tasks that verify if a service or application is ready before proceeding with downstream tasks (`readiness_check` parameter). See [Readiness Checks](readiness_checks.md) for details.
-* **Retries:** Specifies the number of times a task should be retried if it fails.
+Beyond inputs, environment variables, and dependencies, tasks have several other key properties:
 
-[Back to Task](README.md)
+* **Name:** A unique identifier for the task (`name` property). Used to reference the task from the CLI or other tasks.
+* **Description:** A human-readable explanation of the task's purpose (`description` property).
+* **CLI Only:** Indicates whether the task is only executable from the command line (`cli_only` property). If true, the task will not be available in the web interface.
+*   **Execute Condition:** A boolean attribute (`execute_condition` property) that determines whether the task should be executed. This can be a simple boolean value or a Jinja2 template string that evaluates to true or false based on the context (e.g., inputs, environment variables).
+*   **Fallbacks:** A list of tasks (`fallbacks` property) that should be executed if this task fails. Useful for defining alternative actions in case of errors.
+*   **Successors:** A list of tasks (`successors` property) that should be executed after this task completes successfully. Similar to `upstream`, but defines tasks that run *after* the current task.
+* **Readiness Checks:** Tasks that verify if a service or application is ready before proceeding with downstream tasks (`readiness_check` parameter). See [Readiness Checks](readiness_checks.md) for details.
+*   **Retries:** Specifies the number of times a task should be retried if it fails (`retries` property). Helps in handling transient errors.
+
+🔖 [Documentation Home](../../README.md) > [Task](../README.md) > Key Components

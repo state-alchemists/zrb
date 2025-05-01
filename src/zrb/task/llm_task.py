@@ -77,6 +77,8 @@ class LLMTask(BaseTask):
         render_enrich_context: bool = True,
         context_enrichment_prompt: StrAttr | None = None,
         render_context_enrichment_prompt: bool = True,
+        context_enrichment_threshold: IntAttr | None = None,
+        render_context_enrichment_threshold: bool = True,
         tools: (
             list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
         ) = [],
@@ -161,6 +163,8 @@ class LLMTask(BaseTask):
         self._render_enrich_context = render_enrich_context
         self._context_enrichment_prompt = context_enrichment_prompt
         self._render_context_enrichment_prompt = render_context_enrichment_prompt
+        self._context_enrichment_threshold = context_enrichment_threshold
+        self._render_context_enrichment_threshold = render_context_enrichment_threshold
         self._tools = tools
         self._additional_tools: list[ToolOrCallable] = []
         self._mcp_servers = mcp_servers
@@ -180,13 +184,22 @@ class LLMTask(BaseTask):
         self._conversation_context = conversation_context
 
     def add_tool(self, tool: ToolOrCallable):
+        self.append_tool(tool)
+
+    def append_tool(self, tool: ToolOrCallable):
         self._additional_tools.append(tool)
 
     def add_mcp_server(self, mcp_server: MCPServer):
+        self.append_mcp_server(mcp_server)
+
+    def append_mcp_server(self, mcp_server: MCPServer):
         self._additional_mcp_servers.append(mcp_server)
 
     def set_should_enrich_context(self, enrich_context: bool):
         self._should_enrich_context = enrich_context
+
+    def set_context_enrichment_threshold(self, enrichment_threshold: int):
+        self._context_enrichment_threshold = enrichment_threshold
 
     def set_should_summarize_history(self, summarize_history: bool):
         self._should_summarize_history = summarize_history
@@ -244,6 +257,8 @@ class LLMTask(BaseTask):
             conversation_context=conversation_context,
             should_enrich_context_attr=self._should_enrich_context,
             render_enrich_context=self._render_enrich_context,
+            context_enrichment_threshold_attr=self._context_enrichment_threshold,
+            render_context_enrichment_threshold=self._render_context_enrichment_threshold,
             model=model,
             model_settings=model_settings,
             context_enrichment_prompt=context_enrichment_prompt,
@@ -321,7 +336,7 @@ class LLMTask(BaseTask):
                 usage = agent_run.result.usage()
                 ctx.xcom.get(xcom_usage_key).push(usage)
                 ctx.print(stylize_faint(f"[USAGE] {usage}"))
-                return agent_run.result.data
+                return agent_run.result.output
             else:
                 ctx.log_warning("Agent run did not produce a result.")
                 return None  # Or handle as appropriate

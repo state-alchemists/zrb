@@ -1,4 +1,3 @@
-import inspect
 from collections.abc import Callable
 
 from openai import APIError
@@ -32,6 +31,7 @@ def create_agent_instance(
     additional_mcp_servers: list[MCPServer],
 ) -> Agent:
     """Creates a new Agent instance with configured tools and servers."""
+    # Get tools
     tools_or_callables = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools_or_callables.extend(additional_tools)
     tools = []
@@ -39,17 +39,14 @@ def create_agent_instance(
         if isinstance(tool_or_callable, Tool):
             tools.append(tool_or_callable)
         else:
-            # Inspect original callable for 'ctx' parameter (pydantic-ai context)
-            original_sig = inspect.signature(tool_or_callable)
-            takes_ctx = "ctx" in original_sig.parameters
-            wrapped_tool = wrap_tool(tool_or_callable)
-            tools.append(Tool(wrapped_tool, takes_ctx=takes_ctx))
-
+            # Pass ctx to wrap_tool
+            tools.append(wrap_tool(tool_or_callable, ctx))
+    # Get MCP Servers
     mcp_servers = list(
         mcp_servers_attr(ctx) if callable(mcp_servers_attr) else mcp_servers_attr
     )
     mcp_servers.extend(additional_mcp_servers)
-
+    # Return Agent
     return Agent(
         model=model,
         system_prompt=system_prompt,

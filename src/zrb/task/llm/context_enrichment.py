@@ -8,12 +8,12 @@ from pydantic_ai import Agent
 from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
-from zrb.attr.type import BoolAttr
+from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.typing import ListOfDict
-from zrb.util.attr import get_bool_attr
+from zrb.util.attr import get_bool_attr, get_int_attr
 
 
 class EnrichmentConfig(BaseModel):
@@ -62,7 +62,7 @@ async def enrich_context(
         mcp_servers=[],
         model_settings=config.settings,
         retries=config.retries,
-        result_type=EnrichmentResult,
+        output_type=EnrichmentResult,
     )
 
     try:
@@ -72,8 +72,8 @@ async def enrich_context(
             user_prompt=user_prompt_data,  # Pass the formatted data as user prompt
             history_list=[],  # Enrichment agent doesn't need prior history itself
         )
-        if enrichment_run and enrichment_run.result.data:
-            response = enrichment_run.result.data.response
+        if enrichment_run and enrichment_run.result.output:
+            response = enrichment_run.result.output.response
             if response:
                 conversation_context.update(response)
                 ctx.log_info("Context enriched based on history.")
@@ -88,21 +88,53 @@ async def enrich_context(
     return conversation_context
 
 
+def get_context_enrichment_threshold(
+    ctx: AnyContext,
+    context_enrichment_threshold_attr: IntAttr | None,
+    render_context_enrichment_threshold: bool,
+) -> int:
+    """Gets the context enrichment threshold, handling defaults and errors."""
+    try:
+        return get_int_attr(
+            ctx,
+            context_enrichment_threshold_attr,
+            # Use llm_config default if attribute is None
+            llm_config.get_default_context_enrichment_threshold(),
+            auto_render=render_context_enrichment_threshold,
+        )
+    except ValueError as e:
+        ctx.log_warning(
+            f"Could not convert context_enrichment_threshold to int: {e}. "
+            "Defaulting to -1 (no threshold)."
+        )
+        return -1
+
+
 def should_enrich_context(
     ctx: AnyContext,
     history_list: ListOfDict,
     should_enrich_context_attr: BoolAttr | None,  # Allow None
     render_enrich_context: bool,
+    context_enrichment_threshold_attr: IntAttr | None,
+    render_context_enrichment_threshold: bool,
 ) -> bool:
-    """Determines if context enrichment should occur based on history and config."""
-    if len(history_list) == 0:
+    """
+    Determines if context enrichment should occur based on history, threshold, and config.
+    """
+    history_len = len(history_list)
+    if history_len == 0:
         return False
-    # Use llm_config default if attribute is None
-    default_value = llm_config.get_default_enrich_context()
+    enrichment_threshold = get_context_enrichment_threshold(
+        ctx,
+        context_enrichment_threshold_attr,
+        render_context_enrichment_threshold,
+    )
+    if enrichment_threshold == -1 or enrichment_threshold > history_len:
+        return False
     return get_bool_attr(
         ctx,
         should_enrich_context_attr,
-        default_value,  # Pass the default from llm_config
+        llm_config.get_default_enrich_context(),
         auto_render=render_enrich_context,
     )
 
@@ -111,15 +143,22 @@ async def maybe_enrich_context(
     ctx: AnyContext,
     history_list: ListOfDict,
     conversation_context: dict[str, Any],
-    should_enrich_context_attr: BoolAttr | None,  # Allow None
+    should_enrich_context_attr: BoolAttr | None,
     render_enrich_context: bool,
+    context_enrichment_threshold_attr: IntAttr | None,
+    render_context_enrichment_threshold: bool,
     model: str | Model | None,
     model_settings: ModelSettings | None,
     context_enrichment_prompt: str,
 ) -> dict[str, Any]:
-    """Enriches context based on history if enabled."""
+    """Enriches context based on history if enabled and threshold met."""
     if should_enrich_context(
-        ctx, history_list, should_enrich_context_attr, render_enrich_context
+        ctx,
+        history_list,
+        should_enrich_context_attr,
+        render_enrich_context,
+        context_enrichment_threshold_attr,
+        render_context_enrichment_threshold,
     ):
         # Use the enrich_context function now defined in this file
         return await enrich_context(

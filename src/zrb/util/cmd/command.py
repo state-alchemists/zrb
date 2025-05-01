@@ -10,6 +10,16 @@ from zrb.cmd.cmd_result import CmdResult
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
+    """
+    Check a command script for the use of unrecommended or non-POSIX compliant commands.
+
+    Args:
+        cmd_script (str): The command script string to check.
+
+    Returns:
+        dict[str, str]: A dictionary where keys are the violating commands/patterns
+            and values are the reasons they are unrecommended.
+    """
     banned_commands = {
         "<(": "Process substitution isn't POSIX compliant and causes trouble",
         "column": "Command isn't included in Ubuntu packages and is not POSIX compliant",
@@ -96,6 +106,14 @@ async def run_command(
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
+    """
+    Kill a process and its children given the parent process ID.
+
+    Args:
+        pid (int): The process ID of the parent process.
+        print_method (Callable[..., None] | None): A method to print status messages.
+            Defaults to the built-in print function.
+    """
     actual_print_method = print_method if print_method is not None else print
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)

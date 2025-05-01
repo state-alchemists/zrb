@@ -10,6 +10,22 @@ def append_property_to_class(
     annotation: str,
     default_value: str,
 ) -> str:
+    """
+    Append a property with type annotation and default value to a specified class.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class to modify.
+        property_name (str): The name of the property to add.
+        annotation (str): The type annotation for the property as a string.
+        default_value (str): The default value for the property as a string.
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class is not found in the code.
+    """
     return _modify_class_property(
         original_code, class_name, property_name, annotation, default_value, APPEND
     )
@@ -22,6 +38,22 @@ def prepend_property_to_class(
     annotation: str,
     default_value: str,
 ) -> str:
+    """
+    Prepend a property with type annotation and default value to a specified class.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class to modify.
+        property_name (str): The name of the property to add.
+        annotation (str): The type annotation for the property as a string.
+        default_value (str): The default value for the property as a string.
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class is not found in the code.
+    """
     return _modify_class_property(
         original_code, class_name, property_name, annotation, default_value, PREPEND
     )
@@ -35,6 +67,23 @@ def _modify_class_property(
     default_value: str,
     mode: int,
 ) -> str:
+    """
+    Modify a class by adding a property with type annotation and default value.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class to modify.
+        property_name (str): The name of the property to add.
+        annotation (str): The type annotation for the property as a string.
+        default_value (str): The default value for the property as a string.
+        mode (int): The modification mode (PREPEND or APPEND).
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class is not found in the code.
+    """
     # Parse the original code into a module
     module = cst.parse_module(original_code)
     # Initialize transformer with the class name, property name, annotation, and default value
@@ -51,6 +100,11 @@ def _modify_class_property(
 
 
 class _ClassPropertyModifier(cst.CSTTransformer):
+    """
+    A LibCST transformer to add a property with type annotation and default
+    value to a ClassDef node.
+    """
+
     def __init__(
         self,
         class_name: str,
@@ -59,6 +113,16 @@ class _ClassPropertyModifier(cst.CSTTransformer):
         default_value: str,
         mode: int,
     ):
+        """
+        Initialize the transformer.
+
+        Args:
+            class_name (str): The name of the target class.
+            property_name (str): The name of the property to add.
+            annotation (str): The type annotation for the property as a string.
+            default_value (str): The default value for the property as a string.
+            mode (int): The modification mode (PREPEND or APPEND).
+        """
         self.class_name = class_name
         self.property_name = property_name
         self.annotation = cst.Annotation(cst.parse_expression(annotation))
@@ -69,6 +133,9 @@ class _ClassPropertyModifier(cst.CSTTransformer):
     def leave_ClassDef(
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
+        """
+        Called when leaving a ClassDef node. Adds the property to the target class.
+        """
         # Check if this is the target class
         if original_node.name.value == self.class_name:
             self.class_found = True

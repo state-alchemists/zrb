@@ -6,24 +6,85 @@ from zrb.util.codemod.modification_mode import APPEND, PREPEND, REPLACE
 def replace_method_code(
     original_code: str, class_name: str, method_name: str, new_code: str
 ) -> str:
+    """
+    Replace the entire code body of a specified method within a class.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class containing the method.
+        method_name (str): The name of the method to modify.
+        new_code (str): The new code body for the method as a string.
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class or method is not found in the code.
+    """
     return _modify_method(original_code, class_name, method_name, new_code, REPLACE)
 
 
 def prepend_code_to_method(
     original_code: str, class_name: str, method_name: str, new_code: str
 ) -> str:
+    """
+    Prepend code to the body of a specified method within a class.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class containing the method.
+        method_name (str): The name of the method to modify.
+        new_code (str): The code to prepend as a string.
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class or method is not found in the code.
+    """
     return _modify_method(original_code, class_name, method_name, new_code, PREPEND)
 
 
 def append_code_to_method(
     original_code: str, class_name: str, method_name: str, new_code: str
 ) -> str:
+    """
+    Append code to the body of a specified method within a class.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class containing the method.
+        method_name (str): The name of the method to modify.
+        new_code (str): The code to append as a string.
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class or method is not found in the code.
+    """
     return _modify_method(original_code, class_name, method_name, new_code, APPEND)
 
 
 def _modify_method(
     original_code: str, class_name: str, method_name: str, new_code: str, mode: int
 ) -> str:
+    """
+    Modify the code body of a specified method within a class.
+
+    Args:
+        original_code (str): The original Python code as a string.
+        class_name (str): The name of the class containing the method.
+        method_name (str): The name of the method to modify.
+        new_code (str): The code to add/replace as a string.
+        mode (int): The modification mode (PREPEND, APPEND, or REPLACE).
+
+    Returns:
+        str: The modified Python code as a string.
+
+    Raises:
+        ValueError: If the specified class or method is not found in the code.
+    """
     # Parse the original code into a module
     module = cst.parse_module(original_code)
     # Initialize the transformer with the necessary information
@@ -40,7 +101,20 @@ def _modify_method(
 
 
 class _MethodModifier(cst.CSTTransformer):
+    """
+    A LibCST transformer to modify the code body of a method within a ClassDef node.
+    """
+
     def __init__(self, class_name: str, method_name: str, new_code: str, mode: int):
+        """
+        Initialize the transformer.
+
+        Args:
+            class_name (str): The name of the target class.
+            method_name (str): The name of the target method.
+            new_code (str): The new code body as a string.
+            mode (int): The modification mode (PREPEND, APPEND, or REPLACE).
+        """
         self.class_name = class_name
         self.method_name = method_name
         # Use parse_module to handle multiple statements
@@ -52,6 +126,9 @@ class _MethodModifier(cst.CSTTransformer):
     def leave_ClassDef(
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
+        """
+        Called when leaving a ClassDef node. Modifies the body of the target method.
+        """
         # Check if the class matches the target class
         if original_node.name.value == self.class_name:
             self.class_found = True

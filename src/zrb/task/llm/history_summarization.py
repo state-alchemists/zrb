@@ -64,9 +64,7 @@ def should_summarize_history(
         history_summarization_threshold_attr,
         render_history_summarization_threshold,
     )
-    if summarization_threshold == -1:  # -1 means no summarization trigger
-        return False
-    if summarization_threshold > history_part_len:
+    if summarization_threshold == -1 or summarization_threshold > history_part_len:
         return False
     return get_bool_attr(
         ctx,
@@ -122,8 +120,8 @@ async def summarize_history(
             user_prompt=summarization_user_prompt,
             history_list=[],  # Summarization agent doesn't need prior history
         )
-        if summary_run and summary_run.result.data:
-            summary_text = str(summary_run.result.data)
+        if summary_run and summary_run.result.output:
+            summary_text = str(summary_run.result.output)
             # Update context with the new summary
             conversation_context["history_summary"] = summary_text
             ctx.log_info("History summarized and added/updated in context.")

@@ -5,7 +5,7 @@ from typing import Any
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config as default_llm_config
-from zrb.task.llm.context import get_default_context  # Updated import
+from zrb.task.llm.context import extract_default_context
 from zrb.util.attr import get_attr, get_str_attr
 
 
@@ -135,14 +135,17 @@ def build_user_prompt(
     conversation_context: dict[str, Any],
 ) -> str:
     """Constructs the final user prompt including context."""
-    user_message = get_user_message(ctx, message_attr)
+    original_user_message = get_user_message(ctx, message_attr)
     # Combine default context, conversation context (potentially enriched/summarized)
-    enriched_context = {**get_default_context(user_message), **conversation_context}
+    modified_user_message, default_context = extract_default_context(
+        original_user_message
+    )
+    enriched_context = {**default_context, **conversation_context}
     return dedent(
         f"""
         # Context
         {json.dumps(enriched_context)}
         # User Message
-        {user_message}
+        {modified_user_message}
         """
     ).strip()
