@@ -1,12 +1,23 @@
 from collections.abc import Callable
+from typing import Any, TYPE_CHECKING
 
-from openai import APIError
-from pydantic_ai import Agent, Tool
-from pydantic_ai.agent import AgentRun
-from pydantic_ai.mcp import MCPServer
-from pydantic_ai.messages import ModelMessagesTypeAdapter
-from pydantic_ai.models import Model
-from pydantic_ai.settings import ModelSettings
+if TYPE_CHECKING:
+    from openai import APIError
+    from pydantic_ai import Agent, Tool
+    from pydantic_ai.agent import AgentRun
+    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai.messages import ModelMessagesTypeAdapter
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+else:
+    APIError = Any
+    Agent = Any
+    Tool = Any
+    AgentRun = Any
+    MCPServer = Any
+    ModelMessagesTypeAdapter = Any
+    Model = Any
+    ModelSettings = Any
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
