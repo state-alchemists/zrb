@@ -1,8 +1,12 @@
 import json
-from typing import Optional
+from typing import Any, Optional, TYPE_CHECKING
 
-from openai import APIError
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from openai import APIError
+else:
+    APIError = Any
 
 
 # Define a structured error model for tool execution failures

@@ -1,22 +1,21 @@
 from collections.abc import Callable
 from typing import Any
 
-from pydantic_ai import Agent
-from pydantic_ai.messages import (
-    FinalResultEvent,
-    FunctionToolCallEvent,
-    FunctionToolResultEvent,
-    PartDeltaEvent,
-    PartStartEvent,
-    TextPartDelta,
-    ToolCallPartDelta,
-)
-
 from zrb.util.cli.style import stylize_faint
 
 
 async def print_node(print_func: Callable, agent_run: Any, node: Any):
     """Prints the details of an agent execution node using a provided print function."""
+    from pydantic_ai import Agent
+    from pydantic_ai.messages import (
+        FinalResultEvent,
+        FunctionToolCallEvent,
+        FunctionToolResultEvent,
+        PartDeltaEvent,
+        PartStartEvent,
+        TextPartDelta,
+        ToolCallPartDelta,
+    )
     if Agent.is_user_prompt_node(node):
         # A user prompt node => The user has provided input
         print_func(stylize_faint(f">> UserPromptNode: {node.user_prompt}"))

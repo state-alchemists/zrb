@@ -3,12 +3,17 @@ import inspect
 import traceback
 import typing
 from collections.abc import Callable
-
-from pydantic_ai import RunContext, Tool
+from typing import Any, TYPE_CHECKING
 
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.run import run_async
+
+if TYPE_CHECKING:
+    # from pydantic_ai import RunContext, Tool
+    from pydantic_ai import Tool
+else:
+    Tool = Any
 
 
 def wrap_tool(func: Callable, ctx: AnyContext) -> Tool:
@@ -123,6 +128,7 @@ def _adjust_signature(
     # (we inject it). So, the wrapper's signature should be the original signature,
     # minus any parameters annotated with RunContext or AnyContext.
 
+    from pydantic_ai import RunContext
     params_for_schema = [
         param
         for param in original_sig.parameters.values()
