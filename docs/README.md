@@ -94,7 +94,7 @@ Tasks are the fundamental units of work in Zrb. Each task represents a specific 
 *   [Overview of Tasks](./task/README.md)
 *   [Creating Tasks](./task/creating_tasks.md)
 *   [Key Components of a Task](./task/key_components.md)
-*   [Built-in Task Types](./task/types/task.md) (Includes links to `CmdTask`, `LLMTask`, `Scaffolder`, etc.)
+*   [Built-in Task Types](./task/types/README.md) (Includes links to `CmdTask`, `LLMTask`, `Scaffolder`, etc.)
 
 ### Groups
 
