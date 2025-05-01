@@ -1,9 +1,13 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.5.14
+
+- Implement lazy load for all pydantic ai and openai dependency
+
 # 1.5.13
 
 - Add note to task execution error for better traceability
-- Implement lazy load for all pydantic ai and openai dependency
+- Fix docs
 
 # 1.5.12
 
