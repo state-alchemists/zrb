@@ -1,7 +1,11 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Any, Callable
 
-from pydantic_ai.models import Model
-from pydantic_ai.settings import ModelSettings
+if TYPE_CHECKING:
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+else:
+    Model = Any
+    ModelSettings = Any
 
 from zrb.attr.type import StrAttr, fstring
 from zrb.context.any_context import AnyContext
@@ -59,6 +63,8 @@ def get_model(
     render_model_api_key: bool,
 ) -> str | Model | None:
     """Gets the model instance or name, handling defaults and configuration."""
+    from pydantic_ai.models import Model
+
     model = get_attr(ctx, model_attr, None, auto_render=render_model)
     if model is None:
         return default_llm_config.get_default_model()

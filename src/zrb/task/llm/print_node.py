@@ -16,6 +16,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
         TextPartDelta,
         ToolCallPartDelta,
     )
+
     if Agent.is_user_prompt_node(node):
         # A user prompt node => The user has provided input
         print_func(stylize_faint(f">> UserPromptNode: {node.user_prompt}"))

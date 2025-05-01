@@ -1,6 +1,6 @@
 import json
 from collections.abc import Callable
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
@@ -90,7 +90,8 @@ class LLMTask(BaseTask):
         context_enrichment_threshold: IntAttr | None = None,
         render_context_enrichment_threshold: bool = True,
         tools: (
-            list["ToolOrCallable"] | Callable[[AnySharedContext], list["ToolOrCallable"]]
+            list["ToolOrCallable"]
+            | Callable[[AnySharedContext], list["ToolOrCallable"]]
         ) = [],
         mcp_servers: (
             list["MCPServer"] | Callable[[AnySharedContext], list["MCPServer"]]

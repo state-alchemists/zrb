@@ -1,10 +1,7 @@
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
-from pydantic_ai import Agent
-from pydantic_ai.models import Model
-from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
@@ -12,6 +9,13 @@ from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
+
+if TYPE_CHECKING:
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+else:
+    Model = Any
+    ModelSettings = Any
 
 
 def get_history_part_len(history_list: ListOfDict) -> int:
@@ -90,6 +94,8 @@ async def summarize_history(
     history_list: ListOfDict,
 ) -> dict[str, Any]:
     """Runs an LLM call to summarize history and update the context."""
+    from pydantic_ai import Agent
+
     ctx.log_info("Attempting to summarize conversation history...")
 
     summarization_agent = Agent(

@@ -1,5 +1,5 @@
 import os
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -139,6 +139,7 @@ class LLMConfig:
         if self._default_model_base_url is None and self._default_model_api_key is None:
             return "openai"
         from pydantic_ai.providers.openai import OpenAIProvider
+
         return OpenAIProvider(
             base_url=self._default_model_base_url, api_key=self._default_model_api_key
         )
@@ -183,6 +184,7 @@ class LLMConfig:
         if model_name is None:
             return None
         from pydantic_ai.models.openai import OpenAIModel
+
         return OpenAIModel(
             model_name=model_name,
             provider=self.get_default_model_provider(),
