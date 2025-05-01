@@ -61,7 +61,12 @@ def serve_cli():
         sys.exit(1)
 
 
+_zrb_init_path_list_cache = None
+
 def _get_zrb_init_path_list() -> list[str]:
+    global _zrb_init_path_list_cache
+    if _zrb_init_path_list_cache is not None:
+        return _zrb_init_path_list_cache
     current_path = os.path.abspath(os.getcwd())
     dir_path_list = [current_path]
     while current_path != os.path.dirname(current_path):  # Stop at root
@@ -73,4 +78,5 @@ def _get_zrb_init_path_list() -> list[str]:
         LOGGER.info(f"Finding {zrb_init_path}")
         if os.path.isfile(zrb_init_path):
             zrb_init_path_list.append(zrb_init_path)
+    _zrb_init_path_list_cache = zrb_init_path_list
     return zrb_init_path_list
