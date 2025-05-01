@@ -1,12 +1,22 @@
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
-from openai import APIError
-from pydantic_ai import Agent, Tool
-from pydantic_ai.agent import AgentRun
-from pydantic_ai.mcp import MCPServer
-from pydantic_ai.messages import ModelMessagesTypeAdapter
-from pydantic_ai.models import Model
-from pydantic_ai.settings import ModelSettings
+if TYPE_CHECKING:
+    from openai import APIError
+    from pydantic_ai import Agent, Tool
+    from pydantic_ai.agent import AgentRun
+    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+else:
+    APIError = Any
+    Agent = Any
+    Tool = Any
+    AgentRun = Any
+    MCPServer = Any
+    ModelMessagesTypeAdapter = Any
+    Model = Any
+    ModelSettings = Any
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -32,6 +42,8 @@ def create_agent_instance(
 ) -> Agent:
     """Creates a new Agent instance with configured tools and servers."""
     # Get tools
+    from pydantic_ai import Agent, Tool
+
     tools_or_callables = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools_or_callables.extend(additional_tools)
     tools = []
@@ -71,6 +83,8 @@ def get_agent(
     additional_mcp_servers: list[MCPServer],
 ) -> Agent:
     """Retrieves the configured Agent instance or creates one if necessary."""
+    from pydantic_ai import Agent
+
     if isinstance(agent_attr, Agent):
         return agent_attr
     if callable(agent_attr):
@@ -116,6 +130,8 @@ async def run_agent_iteration(
     Raises:
         Exception: If any error occurs during agent execution.
     """
+    from pydantic_ai.messages import ModelMessagesTypeAdapter
+
     async with agent.run_mcp_servers():
         async with agent.iter(
             user_prompt=user_prompt,

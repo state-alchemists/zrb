@@ -1,12 +1,9 @@
 import json
 import traceback
 from textwrap import dedent
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
-from pydantic_ai import Agent
-from pydantic_ai.models import Model
-from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
@@ -14,6 +11,15 @@ from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
+
+if TYPE_CHECKING:
+    from pydantic_ai import Agent
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+else:
+    Agent = Any
+    Model = Any
+    ModelSettings = Any
 
 
 class EnrichmentConfig(BaseModel):

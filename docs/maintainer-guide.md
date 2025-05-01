@@ -29,4 +29,15 @@ docker login -U stalchmst
 zrb publish all
 ```
 
+# Inspecting Import Performance
+
+To inspect import peformance, you can run the following command:
+
+```bash
+pip install benchmark-imports
+python -m benchmark_imports zrb
+```
+
+You can use the result to decide whether a module/dependency should be lazy-loaded or not.
+
 🔖 [Documentation Home](../README.md)
