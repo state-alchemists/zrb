@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.5.15
+
+- Fix typing problem in enrich context because of invalid lazy load implementation
+
 # 1.5.14
 
 - Implement lazy load for all pydantic ai and openai dependency

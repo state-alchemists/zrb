@@ -13,11 +13,9 @@ from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 else:
-    Agent = Any
     Model = Any
     ModelSettings = Any
 
@@ -41,6 +39,8 @@ async def enrich_context(
     history_list: ListOfDict,
 ) -> dict[str, Any]:
     """Runs an LLM call to extract key info and merge it into the context."""
+    from pydantic_ai import Agent
+
     ctx.log_info("Attempting to enrich conversation context...")
     # Prepare context and history for the enrichment prompt
     try:
@@ -166,7 +166,6 @@ async def maybe_enrich_context(
         context_enrichment_threshold_attr,
         render_context_enrichment_threshold,
     ):
-        # Use the enrich_context function now defined in this file
         return await enrich_context(
             ctx=ctx,
             config=EnrichmentConfig(
