@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.5.17
+
+- Fix bug on add_git_subtree task, caused by missing parameter
+
 # 1.5.16
 
 - Add new builtin tasks related to JWT, UUID, and HTTP requests
