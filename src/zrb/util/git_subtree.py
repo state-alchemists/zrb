@@ -70,7 +70,7 @@ async def add_subtree(
             name already exists.
         Exception: If the git command returns a non-zero exit code.
     """
-    config = load_config()
+    config = load_config(repo_dir)
     if os.path.isdir(prefix):
         raise ValueError(f"Directory exists: {prefix}")
     if name in config.data:
