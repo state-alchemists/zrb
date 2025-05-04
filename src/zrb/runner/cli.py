@@ -4,6 +4,7 @@ from typing import Any
 from zrb.config import BANNER, VERSION, WEB_HTTP_PORT
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
+from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 from zrb.runner.common_util import get_run_kwargs
 from zrb.runner.web_app import create_web_app
@@ -25,7 +26,7 @@ class Cli(Group):
     def run(self, args: list[str] = []):
         kwargs, args = self._extract_kwargs_from_args(args)
         node, node_path, args = extract_node_from_args(self, args)
-        if isinstance(node, Group):
+        if isinstance(node, AnyGroup):
             self._show_group_info(node)
             return
         if "h" in kwargs or "help" in kwargs:
@@ -88,7 +89,7 @@ class Cli(Group):
                 print(f"  --{task_input_name}: {task_input.description}")
             print()
 
-    def _show_group_info(self, group: Group):
+    def _show_group_info(self, group: AnyGroup):
         if group.banner != "":
             print(group.banner)
             print()

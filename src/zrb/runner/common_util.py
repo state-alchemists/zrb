@@ -6,7 +6,7 @@ from zrb.task.any_task import AnyTask
 
 def get_run_kwargs(
     task: AnyTask, args: list[str], kwargs: dict[str, str], cli_mode: bool
-) -> tuple[Any]:
+) -> dict[str, str]:
     arg_index = 0
     str_kwargs = {key: f"{val}" for key, val in kwargs.items()}
     run_kwargs = {**str_kwargs}
