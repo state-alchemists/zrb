@@ -215,7 +215,7 @@ def archive_todo(ctx: AnyContext):
     # Save the new todo list and add the archived ones
     save_todo_list(archive_file_path, archived_todo_list)
     save_todo_list(todo_file_path, working_todo_list)
-    return get_visual_todo_list(todo_list, filter=ctx.input.filter)
+    return get_visual_todo_list(working_todo_list, filter=ctx.input.filter)
 
 
 @make_task(

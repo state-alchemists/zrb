@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.5.16
+
+- Add new builtin tasks related to JWT, UUID, and HTTP requests
+- Add builtin tasks to validate md5 and base64
+
 # 1.5.15
 
 - Fix typing problem in enrich context because of invalid lazy load implementation

@@ -32,3 +32,27 @@ def decode_base64(ctx: AnyContext) -> str:
     result = base64.b64decode(ctx.input.text.encode()).decode()
     ctx.print(result)
     return result
+
+
+@make_task(
+    name="validate-base64",
+    input=StrInput(
+        name="text",
+        description="Text to validate",
+        prompt="Enter text to validate as base64",
+    ),
+    description="✅ Validate base64 text",
+    group=base64_group,
+    alias="validate",
+)
+def validate_base64(ctx: AnyContext) -> bool:
+    import base64
+    import binascii
+
+    try:
+        base64.b64decode(ctx.input.text.encode()).decode()
+        ctx.print("Valid base64")
+        return True
+    except (binascii.Error, UnicodeDecodeError):
+        ctx.print("Invalid base64")
+        return False

@@ -2,6 +2,15 @@ from zrb.group.group import Group
 from zrb.runner.cli import cli
 
 base64_group = cli.add_group(Group(name="base64", description="📄 Base64 operations"))
+uuid_group = cli.add_group(Group(name="uuid", description="🆔 UUID operations"))
+uuid_v1_group = uuid_group.add_group(Group(name="v1", description="UUID V1 operations"))
+uuid_v3_group = uuid_group.add_group(Group(name="v3", description="UUID V3 operations"))
+uuid_v4_group = uuid_group.add_group(Group(name="v4", description="UUID V4 operations"))
+uuid_v5_group = uuid_group.add_group(Group(name="v5", description="UUID V5 operations"))
+ulid_group = cli.add_group(Group(name="ulid", description="🔢 ULID operations"))
+jwt_group = cli.add_group(Group(name="jwt", description="🔒 JWT encode/decode"))
+http_group = cli.add_group(Group(name="http", description="🌐 HTTP request operations"))
+
 random_group = cli.add_group(Group(name="random", description="🔀 Random operation"))
 git_group = cli.add_group(Group(name="git", description="🌱 Git related commands"))
 git_branch_group = git_group.add_group(
