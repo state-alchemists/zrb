@@ -30,7 +30,9 @@ def show_task_page(
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
     _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
     web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
-    web_jargon = CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+    web_jargon = (
+        CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+    )
     auth_link = get_html_auth_link(user)
     session.register_task(task)
     ctx = task.get_ctx(session)

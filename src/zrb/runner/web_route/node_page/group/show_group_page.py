@@ -23,7 +23,9 @@ def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str)
     )
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
     web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
-    web_jargon = CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+    web_jargon = (
+        CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+    )
     url_parts = url.split("/")
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)

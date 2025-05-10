@@ -22,7 +22,7 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.llm_task import LLMTask
 
-llm_chat = llm_group.add_task(
+llm_chat: LLMTask = llm_group.add_task(
     LLMTask(
         name="llm-chat",
         input=[
@@ -95,7 +95,7 @@ llm_chat = llm_group.add_task(
         message="{ctx.input.message}",
         retries=0,
     ),
-    alias="chat"
+    alias="chat",
 )
 
 if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
