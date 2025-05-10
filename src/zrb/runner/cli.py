@@ -23,6 +23,13 @@ from zrb.util.string.conversion import double_quote
 
 
 class Cli(Group):
+
+    @property
+    def banner(self) -> str:
+        if self._banner is None:
+            return CFG.BANNER
+        return self._banner
+
     def run(self, args: list[str] = []):
         kwargs, args = self._extract_kwargs_from_args(args)
         node, node_path, args = extract_node_from_args(self, args)
@@ -147,7 +154,7 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=CFG.BANNER)
+cli = Cli(name="zrb", description="Your Automation Powerhouse")
 
 
 @make_task(

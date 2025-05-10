@@ -7,6 +7,19 @@ from textwrap import dedent
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
 
+_DEFAULT_BANNER = """
+                bb
+   zzzzz rr rr  bb
+     zz  rrr  r bbbbbb
+    zz   rr     bb   bb
+   zzzzz rr     bbbbbb   {VERSION} Janggala
+   _ _ . .  . _ .  _ . . .
+Your Automation Powerhouse
+☕ Donate at: https://stalchmst.com/donation
+🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+🐤 Follow us at: https://twitter.com/zarubastalchmst
+"""
+
 
 class Config:
     @property
@@ -258,23 +271,7 @@ class Config:
     @property
     def BANNER(self) -> str:
         return fstring_format(
-            os.getenv(
-                "ZRB_BANNER",
-                dedent(
-                    """
-                                    bb
-                       zzzzz rr rr  bb
-                         zz  rrr  r bbbbbb
-                        zz   rr     bb   bb
-                       zzzzz rr     bbbbbb   {VERSION} Janggala
-                       _ _ . .  . _ .  _ . . .
-                    Your Automation Powerhouse
-                    ☕ Donate at: https://stalchmst.com/donation
-                    🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-                    🐤 Follow us at: https://twitter.com/zarubastalchmst
-                    """
-                ).strip(),
-            ),
+            os.getenv("ZRB_BANNER", _DEFAULT_BANNER),
             {"VERSION": self.VERSION},
         )
 

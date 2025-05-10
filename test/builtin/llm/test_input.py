@@ -19,9 +19,7 @@ def mock_shared_context():
 
 
 @mock.patch("zrb.builtin.llm.input.read_file")
-@mock.patch(
-    "zrb.builtin.llm.input.os.path.dirname"
-)  # Mock dirname to control file path
+@mock.patch("zrb.builtin.llm.input.os.path.dirname")
 def test_previous_session_input_to_html(
     mock_dirname, mock_read_file, mock_shared_context
 ):
