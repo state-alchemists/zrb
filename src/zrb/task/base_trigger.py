@@ -104,7 +104,10 @@ class BaseTrigger(BaseTask):
         for callback in self.callbacks:
             xcom_dict = DotDict({self.queue_name: Xcom([data])})
             callback_session = Session(
-                shared_ctx=SharedContext(xcom=xcom_dict),
+                shared_ctx=SharedContext(
+                    input=dict(session.shared_ctx.input),
+                    xcom=xcom_dict,
+                ),
                 parent=session,
                 root_group=session.root_group,
             )
