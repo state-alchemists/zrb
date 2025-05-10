@@ -1,8 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
-# 1.5.18
+# 1.6.0
 
-- Introduce `ZRB_INIT_FILE_NAME` configuration.
+- Introduce `ZRB_INIT_FILE_NAME`, `ZRB_BANNER`, `ZRB_WEB_TITLE`, `ZRB_WEB_JARGON`, `ZRB_WEB_HOMEPAGE_INTRO` configuration.
+- Change Configuration mechanism, use `zrb.config.CFG` that allows lazy load.
 
 # 1.5.17
 

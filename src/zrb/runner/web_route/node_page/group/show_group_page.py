@@ -22,6 +22,8 @@ def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str)
         )
     )
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+    web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
+    web_jargon = CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
     url_parts = url.split("/")
     parent_url_parts = url_parts[:-2] + [""]
     parent_url = "/".join(parent_url_parts)
@@ -32,17 +34,17 @@ def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str)
         fstring_format(
             _GLOBAL_TEMPLATE,
             {
-                "web_title": CFG.WEB_TITLE,
+                "web_title": f"{web_title} | {group.name}",
                 "content": fstring_format(
                     _VIEW_TEMPLATE,
                     {
+                        "web_title": web_title,
+                        "web_jargon": web_jargon,
                         "group_info": group_info,
                         "task_info": task_info,
                         "name": group.name,
                         "description": group.description,
                         "auth_link": auth_link,
-                        "root_name": root_group.name,
-                        "root_description": root_group.description,
                         "url": url,
                         "parent_url": parent_url,
                     },

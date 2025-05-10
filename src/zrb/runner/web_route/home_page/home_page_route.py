@@ -36,6 +36,8 @@ def serve_home_page(
             os.path.join(os.path.dirname(_DIR), "static", "global_template.html")
         )
         _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+        web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
+        web_jargon = CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
         user = await get_user_from_request(web_config, request)
         group_info = get_html_subgroup_info(user, "/ui/", root_group)
         task_info = get_html_subtask_info(user, "/ui/", root_group)
@@ -44,12 +46,12 @@ def serve_home_page(
             fstring_format(
                 _GLOBAL_TEMPLATE,
                 {
-                    "web_title": CFG.WEB_TITLE,
+                    "web_title": web_title,
                     "content": fstring_format(
                         _VIEW_TEMPLATE,
                         {
-                            "web_title": CFG.WEB_TITLE,
-                            "web_jargon": CFG.WEB_JARGON,
+                            "web_title": web_title,
+                            "web_jargon": web_jargon,
                             "web_homepage_intro": CFG.WEB_HOMEPAGE_INTRO,
                             "group_info": group_info,
                             "task_info": task_info,

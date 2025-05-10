@@ -270,7 +270,10 @@ class BaseTask(AnyTask):
             additional_error_note = (
                 f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"
             )
-            ctx.log_error(additional_error_note)
+            if not isinstance(e, KeyboardInterrupt):
+                # if error is KeyboardInterrupt, don't print anything
+                ctx.log_error(additional_error_note)
+            # Add definition location to the error
             if hasattr(e, "add_note"):
                 e.add_note(additional_error_note)
             else:
