@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.5.18
+
+- Introduce `ZRB_INIT_FILE_NAME` configuration.
+
 # 1.5.17
 
 - Fix bug on add_git_subtree task, caused by missing parameter

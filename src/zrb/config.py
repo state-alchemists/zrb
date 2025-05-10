@@ -46,6 +46,7 @@ INIT_SCRIPTS = (
     if INIT_SCRIPTS_STR != ""
     else []
 )
+INIT_FILE_NAME = os.getenv("ZRB_INIT_FILE_NAME", "zrb_init.py")
 LOGGING_LEVEL = _get_log_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
 LOAD_BUILTIN = to_boolean(os.getenv("ZRB_LOAD_BUILTIN", "1"))
 WARN_UNRECOMMENDED_COMMAND = to_boolean(
@@ -76,7 +77,9 @@ WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(
 WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60")
 )
-
+WEB_TITLE = os.getenv("ZRB_WEB_TITLE", "Zrb")
+WEB_JARGON = os.getenv("ZRB_WEB_JARGON", "Your Automation PowerHouse")
+WEB_HOMEPAGE_INTRO = os.getenv("ZRB_WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface")
 LLM_HISTORY_DIR = os.getenv(
     "ZRB_LLM_HISTORY_DIR", os.path.expanduser(os.path.join("~", ".zrb-llm-history"))
 )
@@ -91,7 +94,6 @@ RAG_CHUNK_SIZE = int(os.getenv("ZRB_RAG_CHUNK_SIZE", "1024"))
 RAG_OVERLAP = int(os.getenv("ZRB_RAG_OVERLAP", "128"))
 RAG_MAX_RESULT_COUNT = int(os.getenv("ZRB_RAG_MAX_RESULT_COUNT", "5"))
 SERP_API_KEY = os.getenv("SERP_API_KEY", "")
-
 
 BANNER = f"""
                 bb

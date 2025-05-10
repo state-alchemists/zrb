@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from zrb.config import INIT_MODULES, INIT_SCRIPTS, LOGGER, LOGGING_LEVEL
+from zrb.config import INIT_MODULES, INIT_FILE_NAME, INIT_SCRIPTS, LOGGER, LOGGING_LEVEL
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_faint, stylize_warning
 from zrb.util.group import NodeNotFoundError
@@ -69,7 +69,7 @@ def _get_zrb_init_path_list() -> list[str]:
         dir_path_list.append(current_path)
     zrb_init_path_list = []
     for current_path in dir_path_list[::-1]:
-        zrb_init_path = os.path.join(current_path, "zrb_init.py")
+        zrb_init_path = os.path.join(current_path, INIT_FILE_NAME)
         LOGGER.info(f"Finding {zrb_init_path}")
         if os.path.isfile(zrb_init_path):
             zrb_init_path_list.append(zrb_init_path)

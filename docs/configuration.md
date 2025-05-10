@@ -18,6 +18,9 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_INIT_SCRIPTS`: Colon-separated list of scripts to initialize.
     - Default: Empty
     - Possible values: Any valid script paths separated by colons
+- `ZRB_INIT_FILE_NAME`: Init file name.
+    - Default: `zrb_init.py`
+    - Possible values: Any valid file name relative to directory path.
 - `ZRB_LOGGING_LEVEL`: Sets the logging level.
     - Default: `WARNING`
     - Possible values: `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
