@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 from collections.abc import Callable
 
-from zrb.config import DEFAULT_EDITOR
+from zrb.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
 from zrb.util.file import read_file
@@ -20,7 +20,7 @@ class TextInput(BaseInput):
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
-        editor: str = DEFAULT_EDITOR,
+        editor: str = CFG.DEFAULT_EDITOR,
         extension: str = ".txt",
         comment_start: str | None = None,
         comment_end: str | None = None,

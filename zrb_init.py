@@ -20,7 +20,7 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.config import DEFAULT_SHELL
+from zrb.config import CFG
 from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file
 from zrb.util.load import load_file
@@ -298,7 +298,7 @@ if os.path.isfile(generated_zrb_init_path):
 
 
 async def _run_shell_script(ctx: AnyContext, script: str) -> Any:
-    shell = DEFAULT_SHELL
+    shell = CFG.DEFAULT_SHELL
     flag = "/c" if shell.lower() == "powershell" else "-c"
     cmd_result, return_code = await run_command(
         cmd=[shell, flag, script],

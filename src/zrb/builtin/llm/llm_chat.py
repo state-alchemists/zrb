@@ -16,12 +16,7 @@ from zrb.builtin.llm.tool.web import (
     search_arxiv,
     search_wikipedia,
 )
-from zrb.config import (
-    LLM_ALLOW_ACCESS_INTERNET,
-    LLM_ALLOW_ACCESS_LOCAL_FILE,
-    LLM_ALLOW_ACCESS_SHELL,
-    SERP_API_KEY,
-)
+from zrb.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
@@ -104,21 +99,21 @@ llm_chat: LLMTask = llm_group.add_task(
 )
 
 
-if LLM_ALLOW_ACCESS_LOCAL_FILE:
+if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
     llm_chat.add_tool(list_files)
     llm_chat.add_tool(read_from_file)
     llm_chat.add_tool(write_to_file)
     llm_chat.add_tool(search_files)
     llm_chat.add_tool(apply_diff)
 
-if LLM_ALLOW_ACCESS_SHELL:
+if CFG.LLM_ALLOW_ACCESS_SHELL:
     llm_chat.add_tool(run_shell_command)
 
-if LLM_ALLOW_ACCESS_INTERNET:
+if CFG.LLM_ALLOW_ACCESS_INTERNET:
     llm_chat.add_tool(open_web_page)
     llm_chat.add_tool(search_wikipedia)
     llm_chat.add_tool(search_arxiv)
-    if SERP_API_KEY != "":
-        llm_chat.add_tool(create_search_internet_tool(SERP_API_KEY))
+    if CFG.SERP_API_KEY != "":
+        llm_chat.add_tool(create_search_internet_tool(CFG.SERP_API_KEY))
     llm_chat.add_tool(get_current_location)
     llm_chat.add_tool(get_current_weather)

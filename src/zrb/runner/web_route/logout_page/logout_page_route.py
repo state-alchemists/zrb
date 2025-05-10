@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from zrb.config import WEB_TITLE
+from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_util.html import get_html_auth_link
@@ -35,7 +35,7 @@ def serve_logout_page(
             fstring_format(
                 _GLOBAL_TEMPLATE,
                 {
-                    "web_title": WEB_TITLE,
+                    "web_title": CFG.WEB_TITLE,
                     "content": fstring_format(
                         _VIEW_TEMPLATE,
                         {

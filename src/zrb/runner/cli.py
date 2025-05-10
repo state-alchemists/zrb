@@ -1,7 +1,7 @@
 import sys
 from typing import Any
 
-from zrb.config import BANNER, VERSION, WEB_HTTP_PORT
+from zrb.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
@@ -147,14 +147,14 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=BANNER)
+cli = Cli(name="zrb", description="Your Automation Powerhouse", banner=CFG.BANNER)
 
 
 @make_task(
     name="version", description="🌟 Get current Zrb version", retries=0, group=cli
 )
 def get_version(_: AnyContext):
-    return VERSION
+    return CFG.VERSION
 
 
 server_group = cli.add_group(
@@ -174,5 +174,7 @@ async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
     app = create_web_app(cli, web_config, session_state_logger)
-    server = Server(Config(app=app, host="0.0.0.0", port=WEB_HTTP_PORT, loop="asyncio"))
+    server = Server(
+        Config(app=app, host="0.0.0.0", port=CFG.WEB_HTTP_PORT, loop="asyncio")
+    )
     await server.serve()

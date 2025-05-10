@@ -1,6 +1,6 @@
 import os
 
-from zrb.config import WEB_TITLE
+from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_schema.user import User
 from zrb.runner.web_util.html import (
@@ -32,7 +32,7 @@ def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str)
         fstring_format(
             _GLOBAL_TEMPLATE,
             {
-                "web_title": WEB_TITLE,
+                "web_title": CFG.WEB_TITLE,
                 "content": fstring_format(
                     _VIEW_TEMPLATE,
                     {

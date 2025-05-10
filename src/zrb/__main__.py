@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from zrb.config import INIT_FILE_NAME, INIT_MODULES, INIT_SCRIPTS, LOGGER, LOGGING_LEVEL
+from zrb.config import CFG
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_faint, stylize_warning
 from zrb.util.group import NodeNotFoundError
@@ -23,29 +23,29 @@ class FaintFormatter(logging.Formatter):
 
 
 def serve_cli():
-    LOGGER.setLevel(LOGGING_LEVEL)
+    CFG.LOGGER.setLevel(CFG.LOGGING_LEVEL)
     # Remove existing handlers to avoid duplicates/default formatting
-    for handler in LOGGER.handlers[:]:
-        LOGGER.removeHandler(handler)
+    for handler in CFG.LOGGER.handlers[:]:
+        CFG.LOGGER.removeHandler(handler)
     handler = logging.StreamHandler()
     handler.setFormatter(FaintFormatter())
-    LOGGER.addHandler(handler)
+    CFG.LOGGER.addHandler(handler)
     # --- End Logging Configuration ---
     try:
         # load init modules
-        for init_module in INIT_MODULES:
-            LOGGER.info(f"Loading {init_module}")
+        for init_module in CFG.INIT_MODULES:
+            CFG.LOGGER.info(f"Loading {init_module}")
             load_module(init_module)
         zrb_init_path_list = _get_zrb_init_path_list()
         # load init scripts
-        for init_script in INIT_SCRIPTS:
+        for init_script in CFG.INIT_SCRIPTS:
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
-                LOGGER.info(f"Loading {abs_init_script}")
+                CFG.LOGGER.info(f"Loading {abs_init_script}")
                 load_file(abs_init_script, -1)
         # load zrb init
         for zrb_init_path in zrb_init_path_list:
-            LOGGER.info(f"Loading {zrb_init_path}")
+            CFG.LOGGER.info(f"Loading {zrb_init_path}")
             load_file(zrb_init_path)
         # run the CLI
         cli.run(sys.argv[1:])
@@ -69,8 +69,8 @@ def _get_zrb_init_path_list() -> list[str]:
         dir_path_list.append(current_path)
     zrb_init_path_list = []
     for current_path in dir_path_list[::-1]:
-        zrb_init_path = os.path.join(current_path, INIT_FILE_NAME)
-        LOGGER.info(f"Finding {zrb_init_path}")
+        zrb_init_path = os.path.join(current_path, CFG.INIT_FILE_NAME)
+        CFG.LOGGER.info(f"Finding {zrb_init_path}")
         if os.path.isfile(zrb_init_path):
             zrb_init_path_list.append(zrb_init_path)
     return zrb_init_path_list

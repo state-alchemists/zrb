@@ -1,7 +1,7 @@
 import datetime
 from typing import Any
 
-from zrb.config import LOGGING_LEVEL
+from zrb.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession
@@ -25,7 +25,7 @@ class SharedContext(AnySharedContext):
         args: list[Any] = [],
         env: dict[str, str] = {},
         xcom: dict[str, Xcom] = {},
-        logging_level: int = LOGGING_LEVEL,
+        logging_level: int = CFG.LOGGING_LEVEL,
     ):
         self.__logging_level = logging_level
         self._input = DotDict(input)

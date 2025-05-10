@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from zrb.config import WEB_HOMEPAGE_INTRO, WEB_JARGON, WEB_TITLE
+from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_util.html import (
@@ -44,13 +44,13 @@ def serve_home_page(
             fstring_format(
                 _GLOBAL_TEMPLATE,
                 {
-                    "web_title": WEB_TITLE,
+                    "web_title": CFG.WEB_TITLE,
                     "content": fstring_format(
                         _VIEW_TEMPLATE,
                         {
-                            "web_title": WEB_TITLE,
-                            "web_jargon": WEB_JARGON,
-                            "web_homepage_intro": WEB_HOMEPAGE_INTRO,
+                            "web_title": CFG.WEB_TITLE,
+                            "web_jargon": CFG.WEB_JARGON,
+                            "web_homepage_intro": CFG.WEB_HOMEPAGE_INTRO,
                             "group_info": group_info,
                             "task_info": task_info,
                             "name": root_group.name,

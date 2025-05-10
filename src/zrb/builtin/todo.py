@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 from zrb.builtin.group import todo_group
-from zrb.config import TODO_DIR, TODO_RETENTION, TODO_VISUAL_FILTER
+from zrb.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
@@ -33,7 +33,7 @@ def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
         allow_empty=True,
         allow_positional_parsing=allow_positional_parsing,
         always_prompt=False,
-        default=TODO_VISUAL_FILTER,
+        default=CFG.TODO_VISUAL_FILTER,
     )
 
 
@@ -70,12 +70,12 @@ def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
     alias="add",
 )
 def add_todo(ctx: AnyContext):
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
     else:
-        os.makedirs(TODO_DIR, exist_ok=True)
+        os.makedirs(CFG.TODO_DIR, exist_ok=True)
     todo_list.append(
         cascade_todo_task(
             TodoTaskModel(
@@ -106,7 +106,7 @@ def add_todo(ctx: AnyContext):
     alias="list",
 )
 def list_todo(ctx: AnyContext):
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
@@ -121,7 +121,7 @@ def list_todo(ctx: AnyContext):
     alias="show",
 )
 def show_todo(ctx: AnyContext):
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -137,7 +137,7 @@ def show_todo(ctx: AnyContext):
     # Update todo task
     todo_task = cascade_todo_task(todo_task)
     task_id = todo_task.keyval.get("id", "")
-    log_work_path = os.path.join(TODO_DIR, "log-work", f"{task_id}.json")
+    log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
     log_work_list = []
     if os.path.isfile(log_work_path):
         log_work_list = json.loads(read_file(log_work_path))
@@ -155,7 +155,7 @@ def show_todo(ctx: AnyContext):
     alias="complete",
 )
 def complete_todo(ctx: AnyContext):
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
@@ -185,11 +185,11 @@ def complete_todo(ctx: AnyContext):
     alias="archive",
 )
 def archive_todo(ctx: AnyContext):
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
-    retention_duration = datetime.timedelta(seconds=parse_duration(TODO_RETENTION))
+    retention_duration = datetime.timedelta(seconds=parse_duration(CFG.TODO_RETENTION))
     threshold_date = datetime.date.today() - retention_duration
     new_archived_todo_list = [
         todo_task
@@ -204,9 +204,9 @@ def archive_todo(ctx: AnyContext):
     if len(new_archived_todo_list) == 0:
         ctx.print("No completed task to archive")
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
-    archive_file_path = os.path.join(TODO_DIR, "archive.txt")
-    if not os.path.isdir(TODO_DIR):
-        os.make_dirs(TODO_DIR, exist_ok=True)
+    archive_file_path = os.path.join(CFG.TODO_DIR, "archive.txt")
+    if not os.path.isdir(CFG.TODO_DIR):
+        os.make_dirs(CFG.TODO_DIR, exist_ok=True)
     # Get archived todo list
     archived_todo_list = []
     if os.path.isfile(archive_file_path):
@@ -246,7 +246,7 @@ def archive_todo(ctx: AnyContext):
     alias="log",
 )
 def log_todo(ctx: AnyContext):
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
         todo_list = load_todo_list(todo_file_path)
@@ -264,7 +264,7 @@ def log_todo(ctx: AnyContext):
     # Save todo list
     save_todo_list(todo_file_path, todo_list)
     # Add log work
-    log_work_dir = os.path.join(TODO_DIR, "log-work")
+    log_work_dir = os.path.join(CFG.TODO_DIR, "log-work")
     os.makedirs(log_work_dir, exist_ok=True)
     log_work_file_path = os.path.join(
         log_work_dir, f"{todo_task.keyval.get('id')}.json"
@@ -286,7 +286,7 @@ def log_todo(ctx: AnyContext):
     write_file(log_work_file_path, json.dumps(log_work, indent=2))
     # get log work list
     task_id = todo_task.keyval.get("id", "")
-    log_work_path = os.path.join(TODO_DIR, "log-work", f"{task_id}.json")
+    log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
     log_work_list = []
     if os.path.isfile(log_work_path):
         log_work_list = json.loads(read_file(log_work_path))
@@ -333,14 +333,14 @@ def edit_todo(ctx: AnyContext):
         if line.strip() != ""
     ]
     new_content = "\n".join(todo_task_to_line(todo_task) for todo_task in todo_list)
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     write_file(todo_file_path, new_content)
     todo_list = load_todo_list(todo_file_path)
     return get_visual_todo_list(todo_list, filter=ctx.input.filter)
 
 
 def _get_todo_txt_content() -> str:
-    todo_file_path = os.path.join(TODO_DIR, "todo.txt")
+    todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     if not os.path.isfile(todo_file_path):
         return ""
     return read_file(todo_file_path)

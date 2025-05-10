@@ -8,14 +8,7 @@ from textwrap import dedent
 
 import ulid
 
-from zrb.config import (
-    RAG_CHUNK_SIZE,
-    RAG_EMBEDDING_API_KEY,
-    RAG_EMBEDDING_BASE_URL,
-    RAG_EMBEDDING_MODEL,
-    RAG_MAX_RESULT_COUNT,
-    RAG_OVERLAP,
-)
+from zrb.config import CFG
 from zrb.util.cli.style import stylize_error, stylize_faint
 from zrb.util.file import read_file
 
@@ -42,13 +35,13 @@ def create_rag_from_directory(
     document_dir_path: str = "./documents",
     vector_db_path: str = "./chroma",
     vector_db_collection: str = "documents",
-    chunk_size: int = RAG_CHUNK_SIZE,
-    overlap: int = RAG_OVERLAP,
-    max_result_count: int = RAG_MAX_RESULT_COUNT,
+    chunk_size: int = CFG.RAG_CHUNK_SIZE,
+    overlap: int = CFG.RAG_OVERLAP,
+    max_result_count: int = CFG.RAG_MAX_RESULT_COUNT,
     file_reader: list[RAGFileReader] = [],
-    openai_api_key: str = RAG_EMBEDDING_API_KEY,
-    openai_base_url: str = RAG_EMBEDDING_BASE_URL,
-    openai_embedding_model: str = RAG_EMBEDDING_MODEL,
+    openai_api_key: str = CFG.RAG_EMBEDDING_API_KEY,
+    openai_base_url: str = CFG.RAG_EMBEDDING_BASE_URL,
+    openai_embedding_model: str = CFG.RAG_EMBEDDING_MODEL,
 ):
     """Create a RAG retrieval tool function for LLM use.
     This factory configures and returns an async function that takes a query,
