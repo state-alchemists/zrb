@@ -50,7 +50,9 @@ def serve_task_session_api(
                 return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
             session_name = residual_args[0] if residual_args else None
             if not session_name:
-                shared_ctx = SharedContext(env=dict(os.environ))
+                shared_ctx = SharedContext(
+                    env={**dict(os.environ), "_ZRB_WEB_ENV": "1"}
+                )
                 session = Session(shared_ctx=shared_ctx, root_group=root_group)
                 coro = asyncio.create_task(task.async_run(session, str_kwargs=inputs))
                 coroutines.append(coro)

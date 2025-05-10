@@ -29,6 +29,10 @@ def show_task_page(
     )
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
     _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
+    web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
+    web_jargon = (
+        CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+    )
     auth_link = get_html_auth_link(user)
     session.register_task(task)
     ctx = task.get_ctx(session)
@@ -60,15 +64,15 @@ def show_task_page(
         fstring_format(
             _GLOBAL_TEMPLATE,
             {
-                "web_title": CFG.WEB_TITLE,
+                "web_title": f"{web_title} | {task.name}",
                 "content": fstring_format(
                     _VIEW_TEMPLATE,
                     {
+                        "web_title": web_title,
+                        "web_jargon": web_jargon,
                         "name": task.name,
                         "description": task.description,
                         "auth_link": auth_link,
-                        "root_name": root_group.name,
-                        "root_description": root_group.description,
                         "url": url,
                         "parent_url": parent_url,
                         "task_inputs": "\n".join(input_html_list),

@@ -1,4 +1,5 @@
 from zrb.builtin.group import llm_group
+from zrb.builtin.llm.chat_session import read_user_prompt
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
 from zrb.builtin.llm.input import PreviousSessionInput
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
@@ -16,69 +17,74 @@ from zrb.builtin.llm.tool.web import (
     search_arxiv,
     search_wikipedia,
 )
+from zrb.callback.callback import Callback
 from zrb.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
+from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
+
+_llm_chat_inputs = [
+    StrInput(
+        "model",
+        description="LLM Model",
+        prompt="LLM Model",
+        default="",
+        allow_positional_parsing=False,
+        always_prompt=False,
+        allow_empty=True,
+    ),
+    StrInput(
+        "base-url",
+        description="LLM API Base URL",
+        prompt="LLM API Base URL",
+        default="",
+        allow_positional_parsing=False,
+        always_prompt=False,
+        allow_empty=True,
+    ),
+    StrInput(
+        "api-key",
+        description="LLM API Key",
+        prompt="LLM API Key",
+        default="",
+        allow_positional_parsing=False,
+        always_prompt=False,
+        allow_empty=True,
+    ),
+    TextInput(
+        "system-prompt",
+        description="System prompt",
+        prompt="System prompt",
+        default="",
+        allow_positional_parsing=False,
+        always_prompt=False,
+    ),
+    BoolInput(
+        "start-new",
+        description="Start new conversation (LLM will forget everything)",
+        prompt="Start new conversation (LLM will forget everything)",
+        default=False,
+        allow_positional_parsing=False,
+        always_prompt=False,
+    ),
+    TextInput("message", description="User message", prompt="Your message"),
+    PreviousSessionInput(
+        "previous-session",
+        description="Previous conversation session",
+        prompt="Previous conversation session (can be empty)",
+        allow_positional_parsing=False,
+        allow_empty=True,
+        always_prompt=False,
+    ),
+]
 
 llm_chat: LLMTask = llm_group.add_task(
     LLMTask(
         name="llm-chat",
-        input=[
-            StrInput(
-                "model",
-                description="LLM Model",
-                prompt="LLM Model",
-                default="",
-                allow_positional_parsing=False,
-                always_prompt=False,
-                allow_empty=True,
-            ),
-            StrInput(
-                "base-url",
-                description="LLM API Base URL",
-                prompt="LLM API Base URL",
-                default="",
-                allow_positional_parsing=False,
-                always_prompt=False,
-                allow_empty=True,
-            ),
-            StrInput(
-                "api-key",
-                description="LLM API Key",
-                prompt="LLM API Key",
-                default="",
-                allow_positional_parsing=False,
-                always_prompt=False,
-                allow_empty=True,
-            ),
-            TextInput(
-                "system-prompt",
-                description="System prompt",
-                prompt="System prompt",
-                default="",
-                allow_positional_parsing=False,
-                always_prompt=False,
-            ),
-            BoolInput(
-                "start-new",
-                description="Start new conversation (LLM will forget everything)",
-                prompt="Start new conversation (LLM will forget everything)",
-                default=False,
-                allow_positional_parsing=False,
-                always_prompt=False,
-            ),
-            TextInput("message", description="User message", prompt="Your message"),
-            PreviousSessionInput(
-                "previous-session",
-                description="Previous conversation session",
-                prompt="Previous conversation session (can be empty)",
-                allow_positional_parsing=False,
-                allow_empty=True,
-                always_prompt=False,
-            ),
-        ],
+        input=_llm_chat_inputs,
+        description="💬 Chat with LLM",
         model=lambda ctx: None if ctx.input.model.strip() == "" else ctx.input.model,
         model_base_url=lambda ctx: (
             None if ctx.input.base_url.strip() == "" else ctx.input.base_url
@@ -88,7 +94,6 @@ llm_chat: LLMTask = llm_group.add_task(
         ),
         conversation_history_reader=read_chat_conversation,
         conversation_history_writer=write_chat_conversation,
-        description="💬 Chat with LLM",
         system_prompt=lambda ctx: (
             None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
         ),
@@ -98,6 +103,28 @@ llm_chat: LLMTask = llm_group.add_task(
     alias="chat",
 )
 
+llm_group.add_task(
+    BaseTrigger(
+        name="converse",
+        input=_llm_chat_inputs,
+        queue_name="chat_trigger",
+        action=read_user_prompt,
+        callback=Callback(
+            task=llm_chat,
+            input_mapping={
+                "model": "{ctx.xcom.chat_trigger.peek().get('model')}",
+                "base-url": "{ctx.xcom.chat_trigger.peek().get('base_url')}",
+                "api-key": "{ctx.xcom.chat_trigger.peek().get('api_key')}",
+                "system-prompt": "{ctx.xcom.chat_trigger.peek().get('system_prompt')}",
+                "system_prompt": "{ctx.xcom.chat_trigger.peek().get('system_prompt')}",
+                "start-new": "{ctx.xcom.chat_trigger.peek().get('start_new')}",
+                "previous-session": "{ctx.xcom.chat_trigger.peek().get('previous_session')}",
+                "message": "{ctx.xcom.chat_trigger.peek().get('message')}",
+            },
+        ),
+        retries=0,
+    )
+)
 
 if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
     llm_chat.add_tool(list_files)
