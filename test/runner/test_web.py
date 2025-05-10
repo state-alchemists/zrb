@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from uvicorn import Config, Server
 
+from zrb.config import CFG  # Import CFG
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
 from zrb.runner.web_app import create_web_app
@@ -74,13 +75,13 @@ class TestRunWebServer(unittest.TestCase):
         with TestClient(self.app) as client:
             response = client.get("/")
             self.assertEqual(response.status_code, 200)
-            self.assertIn("root", response.text)
+            self.assertIn(CFG.WEB_TITLE, response.text)
 
     def test_ui_home_page(self):
         with TestClient(self.app) as client:
             response = client.get("/ui")
             self.assertEqual(response.status_code, 200)
-            self.assertIn("root", response.text)
+            self.assertIn(CFG.WEB_TITLE, response.text)
 
     def test_static_found(self):
         with TestClient(self.app) as client:

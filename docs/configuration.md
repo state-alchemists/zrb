@@ -9,33 +9,45 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_SHELL`: Sets the shell to use.
     - Default: Determined automatically based on the system
     - Possible values: `zsh`, `bash`, `PowerShell`
+
 - `ZRB_EDITOR`: Sets the default text editor.
     - Default: `nano`
     - Possible values: Any installed text editor
+
 - `ZRB_INIT_MODULES`: Colon-separated list of modules to initialize.
     - Default: Empty
     - Possible values: Any valid module paths separated by colons
+
 - `ZRB_INIT_SCRIPTS`: Colon-separated list of scripts to initialize.
     - Default: Empty
     - Possible values: Any valid script paths separated by colons
+
 - `ZRB_INIT_FILE_NAME`: Init file name.
     - Default: `zrb_init.py`
     - Possible values: Any valid file name relative to directory path.
+
 - `ZRB_LOGGING_LEVEL`: Sets the logging level.
     - Default: `WARNING`
     - Possible values: `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+
 - `ZRB_LOAD_BUILTIN`: Whether to load built-in modules.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_WARN_UNRECOMMENDED_COMMAND`: Whether to show warnings for unrecommended commands.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
+- `ZRB_BANNER`: Banner text displayed on startup.
+    - Default: Default Zrb banner
+    - Possible values: Any string (supports f-string formatting with `{VERSION}`)
 
 ## Directories and Files
 
 - `ZRB_SESSION_LOG_DIR`: Directory for session logs.
     - Default: `~/.zrb-session`
     - Possible values: Any valid directory path
+
 - `ZRB_TODO_DIR`: Directory for todo files.
     - Default: `~/todo`
     - Possible values: Any valid directory path
@@ -54,81 +66,117 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_WEB_HTTP_PORT`: HTTP port for the web interface.
     - Default: `21213`
     - Possible values: Any valid port number
+
 - `ZRB_WEB_GUEST_USERNAME`: Username for guest access.
     - Default: `user`
     - Possible values: Any valid username string
+
 - `ZRB_WEB_SUPERADMIN_USERNAME`: Username for super admin.
     - Default: `admin`
     - Possible values: Any valid username string
+
 - `ZRB_WEB_SUPERADMIN_PASSWORD`: Password for super admin.
     - Default: `admin`
     - Possible values: Any valid password string
+
 - `ZRB_WEB_ACCESS_TOKEN_COOKIE_NAME`: Cookie name for access token.
     - Default: `access_token`
     - Possible values: Any valid cookie name
+
 - `ZRB_WEB_REFRESH_TOKEN_COOKIE_NAME`: Cookie name for refresh token.
     - Default: `refresh_token`
     - Possible values: Any valid cookie name
+
 - `ZRB_WEB_SECRET`: Secret key for web interface.
     - Default: `zrb`
     - Possible values: Any string (longer strings provide better security)
+
 - `ZRB_WEB_ENABLE_AUTH`: Whether to enable authentication.
     - Default: `0` (false)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access token in minutes.
     - Default: `30`
     - Possible values: Any positive integer
+
 - `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES`: Expiration time for refresh token in minutes.
     - Default: `60`
     - Possible values: Any positive integer
+
+- `ZRB_WEB_TITLE`: Title for the web interface.
+    - Default: `Zrb`
+    - Possible values: Any string
+
+- `ZRB_WEB_JARGON`: Jargon/tagline for the web interface.
+    - Default: `Your Automation PowerHouse`
+    - Possible values: Any string
+
+- `ZRB_WEB_HOMEPAGE_INTRO`: Introduction text for the web homepage.
+    - Default: `Welcome to Zrb Web Interface`
+    - Possible values: Any string
 
 ## LLM (Language Model) Configuration
 
 - `ZRB_LLM_MODEL`: LLM model to use.
     - Default: Empty
     - Possible values: `llama3.1:latest`, `gpt-4`, `gpt-3.5-turbo`, etc.
+
 - `ZRB_LLM_BASE_URL`: Base URL for LLM API.
     - Default: Empty
     - Possible values: `http://localhost:11434/v1`, `https://api.openai.com/v1`, etc.
+
 - `ZRB_LLM_API_KEY`: API key for the LLM provider.
     - Default: Empty
     - Possible values: Any valid API key for the chosen provider
+
 - `ZRB_LLM_PERSONA`: LLM persona.
     - Default: Empty.
     - Possible values: Any valid persona prompt
+
 - `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     - Default: Empty
     - Possible values: Any valid system prompt string
-- `ZRB_LLM_HISTORY_FILE`: File to store LLM conversation history.
-    - Default: `~/.zrb-llm-history.json`
-    - Possible values: Any valid file path
-- `ZRB_LLM_ACCESS_FILE`: Whether to allow LLM to access files.
+
+- `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
+    - Default: `~/.zrb-llm-history`
+    - Possible values: Any valid directory path
+
+- `ZRB_LLM_ACCESS_LOCAL_FILE`: Whether to allow LLM to access local files.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_LLM_ACCESS_INTERNET`: Whether to allow LLM Chat Agent to access internet.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_LLM_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`: Special instruction prompt for LLM.
     - Default: Empty
     - Possible values: Any valid prompt string
+
 - `ZRB_LLM_SUMMARIZATION_PROMPT`: Prompt for summarizing conversation history.
     - Default: Empty
     - Possible values: Any valid prompt string
+
 - `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`: Prompt for enriching context.
     - Default: Empty
     - Possible values: Any valid prompt string
+
 - `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD`: Threshold for summarizing history (number of messages).
     - Default: `5`
     - Possible values: Any positive integer
+
 - `ZRB_LLM_ENRICH_CONTEXT`: Whether to enrich context.
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
+
 - `ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD`: Threshold for enriching context (number of messages).
     - Default: `5`
     - Possible values: Any positive integer
@@ -138,21 +186,32 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_RAG_EMBEDDING_API_KEY`: API key for OpenAI embeddings.
     - Default: Empty
     - Possible values: Any valid OpenAI API key
+
 - `ZRB_RAG_EMBEDDING_BASE_URL`: Base URL for OpenAI API.
     - Default: Empty
     - Possible values: `https://api.openai.com/v1` or any valid API endpoint
+
 - `ZRB_RAG_EMBEDDING_MODEL`: Embedding model for RAG.
     - Default: `text-embedding-ada-002`
     - Possible values: Any valid embedding model name
+
 - `ZRB_RAG_CHUNK_SIZE`: Chunk size for RAG.
     - Default: `1024`
     - Possible values: Any positive integer
+
 - `ZRB_RAG_OVERLAP`: Overlap size for RAG chunks.
     - Default: `128`
     - Possible values: Any non-negative integer
+
 - `ZRB_RAG_MAX_RESULT_COUNT`: Maximum number of results for RAG.
     - Default: `5`
     - Possible values: Any positive integer
+
+## SerpAPI Configuration
+
+- `SERP_API_KEY`: API key for SerpAPI.
+    - Default: Empty
+    - Possible values: Any valid SerpAPI key
 
 # Setting Environment Variables
 

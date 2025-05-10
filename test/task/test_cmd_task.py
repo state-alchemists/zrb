@@ -1,10 +1,12 @@
 from functools import partial
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch  # Add PropertyMock
 
 import pytest
 
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import AnyCmdVal
+
+# CFG import will be removed as it's no longer directly used in this test file for patching
 from zrb.context.any_context import AnyContext
 from zrb.task.cmd_task import CmdTask
 from zrb.xcom.xcom import Xcom
@@ -160,17 +162,16 @@ async def test_cmd_task_exec_action_remote():
 
 def test_cmd_task_get_should_warn_unrecommended_commands():
     """Test _get_should_warn_unrecommended_commands method."""
-    # Test with default WARN_UNRECOMMENDED_COMMAND
-    with patch("zrb.task.cmd_task.WARN_UNRECOMMENDED_COMMAND", True):
-        task = CmdTask(
-            name="test_warn_default_true", warn_unrecommended_command=None
-        )  # Create new instance
+    # Test with default WARN_UNRECOMMENDED_COMMAND by patching the Config class property
+    patch_target = "zrb.config.Config.WARN_UNRECOMMENDED_COMMAND"
+    with patch(patch_target, new_callable=PropertyMock) as mock_warn_prop:
+        mock_warn_prop.return_value = True
+        task = CmdTask(name="test_warn_default_true", warn_unrecommended_command=None)
         assert task._get_should_warn_unrecommended_commands() is True
 
-    with patch("zrb.task.cmd_task.WARN_UNRECOMMENDED_COMMAND", False):
-        task = CmdTask(
-            name="test_warn_default_false", warn_unrecommended_command=None
-        )  # Create new instance
+    with patch(patch_target, new_callable=PropertyMock) as mock_warn_prop:
+        mock_warn_prop.return_value = False
+        task = CmdTask(name="test_warn_default_false", warn_unrecommended_command=None)
         assert task._get_should_warn_unrecommended_commands() is False
 
     # Test with explicit warn_unrecommended_command=True

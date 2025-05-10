@@ -5,6 +5,7 @@ import platform
 from textwrap import dedent
 
 from zrb.util.string.conversion import to_boolean
+from zrb.util.string.format import fstring_format
 
 
 class Config:
@@ -160,6 +161,54 @@ class Config:
         return os.getenv("ZRB_WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface")
 
     @property
+    def LLM_MODEL(self) -> str | None:
+        return os.getenv("ZRB_LLM_MODEL", None)
+
+    @property
+    def LLM_BASE_URL(self) -> str | None:
+        return os.getenv("ZRB_LLM_BASE_URL", None)
+
+    @property
+    def LLM_API_KEY(self) -> str | None:
+        return os.getenv("ZRB_LLM_API_KEY", None)
+
+    @property
+    def LLM_SYSTEM_PROMPT(self) -> str | None:
+        return os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
+
+    @property
+    def LLM_PERSONA(self) -> str | None:
+        return os.getenv("ZRB_LLM_PERSONA", None)
+
+    @property
+    def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
+        return os.getenv("ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", None)
+
+    @property
+    def LLM_SUMMARIZATION_PROMPT(self) -> str | None:
+        return os.getenv("ZRB_LLM_SUMMARIZATION_PROMPT", None)
+
+    @property
+    def LLM_CONTEXT_ENRICHMENT_PROMPT(self) -> str | None:
+        return os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", None)
+
+    @property
+    def LLM_SUMMARIZE_HISTORY(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true"))
+
+    @property
+    def LLM_HISTORY_SUMMARIZATION_THRESHOLD(self) -> int:
+        return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD", "5"))
+
+    @property
+    def LLM_ENRICH_CONTEXT(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "true"))
+
+    @property
+    def LLM_CONTEXT_ENRICHMENT_THRESHOLD(self) -> int:
+        return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD", "5"))
+
+    @property
     def LLM_HISTORY_DIR(self) -> str:
         return os.getenv(
             "ZRB_LLM_HISTORY_DIR",
@@ -208,20 +257,26 @@ class Config:
 
     @property
     def BANNER(self) -> str:
-        return dedent(
-            f"""
-                            bb
-               zzzzz rr rr  bb
-                 zz  rrr  r bbbbbb
-                zz   rr     bb   bb
-               zzzzz rr     bbbbbb   {self.VERSION} Janggala
-               _ _ . .  . _ .  _ . . .
-            Your Automation Powerhouse
-            ☕ Donate at: https://stalchmst.com/donation
-            🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
-            🐤 Follow us at: https://twitter.com/zarubastalchmst
-            """
-        ).strip()
+        return fstring_format(
+            os.getenv(
+                "ZRB_BANNER",
+                dedent(
+                    """
+                                    bb
+                       zzzzz rr rr  bb
+                         zz  rrr  r bbbbbb
+                        zz   rr     bb   bb
+                       zzzzz rr     bbbbbb   {VERSION} Janggala
+                       _ _ . .  . _ .  _ . . .
+                    Your Automation Powerhouse
+                    ☕ Donate at: https://stalchmst.com/donation
+                    🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+                    🐤 Follow us at: https://twitter.com/zarubastalchmst
+                    """
+                ).strip(),
+            ),
+            {"VERSION": self.VERSION},
+        )
 
 
 CFG = Config()

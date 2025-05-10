@@ -25,7 +25,7 @@ class SharedContext(AnySharedContext):
         args: list[Any] = [],
         env: dict[str, str] = {},
         xcom: dict[str, Xcom] = {},
-        logging_level: int = CFG.LOGGING_LEVEL,
+        logging_level: int | None = None,
     ):
         self.__logging_level = logging_level
         self._input = DotDict(input)
@@ -79,6 +79,8 @@ class SharedContext(AnySharedContext):
         self._session = session
 
     def get_logging_level(self) -> int:
+        if self.__logging_level is None:
+            return CFG.LOGGING_LEVEL
         return self.__logging_level
 
     def render(self, template: str) -> str:

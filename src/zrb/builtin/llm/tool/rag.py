@@ -35,13 +35,13 @@ def create_rag_from_directory(
     document_dir_path: str = "./documents",
     vector_db_path: str = "./chroma",
     vector_db_collection: str = "documents",
-    chunk_size: int = CFG.RAG_CHUNK_SIZE,
-    overlap: int = CFG.RAG_OVERLAP,
-    max_result_count: int = CFG.RAG_MAX_RESULT_COUNT,
+    chunk_size: int | None = None,
+    overlap: int | None = None,
+    max_result_count: int | None = None,
     file_reader: list[RAGFileReader] = [],
-    openai_api_key: str = CFG.RAG_EMBEDDING_API_KEY,
-    openai_base_url: str = CFG.RAG_EMBEDDING_BASE_URL,
-    openai_embedding_model: str = CFG.RAG_EMBEDDING_MODEL,
+    openai_api_key: str | None = None,
+    openai_base_url: str | None = None,
+    openai_embedding_model: str | None = None,
 ):
     """Create a RAG retrieval tool function for LLM use.
     This factory configures and returns an async function that takes a query,
@@ -57,10 +57,33 @@ def create_rag_from_directory(
 
         # Initialize OpenAI client with custom URL if provided
         client_args = {}
-        if openai_api_key:
-            client_args["api_key"] = openai_api_key
-        if openai_base_url:
-            client_args["base_url"] = openai_base_url
+        # Initialize OpenAI client with custom URL if provided
+        client_args = {}
+        api_key_val = (
+            openai_api_key if openai_api_key is not None else CFG.RAG_EMBEDDING_API_KEY
+        )
+        base_url_val = (
+            openai_base_url
+            if openai_base_url is not None
+            else CFG.RAG_EMBEDDING_BASE_URL
+        )
+        embedding_model_val = (
+            openai_embedding_model
+            if openai_embedding_model is not None
+            else CFG.RAG_EMBEDDING_MODEL
+        )
+        chunk_size_val = chunk_size if chunk_size is not None else CFG.RAG_CHUNK_SIZE
+        overlap_val = overlap if overlap is not None else CFG.RAG_OVERLAP
+        max_result_count_val = (
+            max_result_count
+            if max_result_count is not None
+            else CFG.RAG_MAX_RESULT_COUNT
+        )
+
+        if api_key_val:
+            client_args["api_key"] = api_key_val
+        if base_url_val:
+            client_args["base_url"] = base_url_val
         # Initialize OpenAI client for embeddings
         openai_client = OpenAI(**client_args)
         # Initialize ChromaDB client
@@ -94,8 +117,8 @@ def create_rag_from_directory(
                     collection.delete(where={"file_path": relative_path})
                     content = _read_txt_content(file_path, file_reader)
                     file_id = ulid.new().str
-                    for i in range(0, len(content), chunk_size - overlap):
-                        chunk = content[i : i + chunk_size]
+                    for i in range(0, len(content), chunk_size_val - overlap_val):
+                        chunk = content[i : i + chunk_size_val]
                         if chunk:
                             chunk_id = ulid.new().str
                             print(
@@ -106,7 +129,7 @@ def create_rag_from_directory(
                             )
                             # Get embeddings using OpenAI
                             embedding_response = openai_client.embeddings.create(
-                                input=chunk, model=openai_embedding_model
+                                input=chunk, model=embedding_model_val
                             )
                             vector = embedding_response.data[0].embedding
                             collection.upsert(
@@ -133,13 +156,13 @@ def create_rag_from_directory(
         print(stylize_faint("Vectorizing query"), file=sys.stderr)
         # Get embeddings using OpenAI
         embedding_response = openai_client.embeddings.create(
-            input=query, model=openai_embedding_model
+            input=query, model=embedding_model_val
         )
         query_vector = embedding_response.data[0].embedding
         print(stylize_faint("Searching documents"), file=sys.stderr)
         results = collection.query(
             query_embeddings=query_vector,
-            n_results=max_result_count,
+            n_results=max_result_count_val,
         )
         return json.dumps(results)
 

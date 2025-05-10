@@ -25,7 +25,9 @@ from zrb.util.todo import (
 )
 
 
-def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
+def _get_filter_input(
+    allow_positional_parsing: bool = False, default: str | None = None
+) -> StrInput:
     return StrInput(
         name="filter",
         description="Visual filter",
@@ -33,7 +35,7 @@ def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
         allow_empty=True,
         allow_positional_parsing=allow_positional_parsing,
         always_prompt=False,
-        default=CFG.TODO_VISUAL_FILTER,
+        default=default if default is not None else CFG.TODO_VISUAL_FILTER,
     )
 
 

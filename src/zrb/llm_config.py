@@ -1,4 +1,3 @@
-import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -8,7 +7,7 @@ else:
     Model = Any
     Provider = Any
 
-from zrb.util.string.conversion import to_boolean
+from zrb.config import CFG
 
 DEFAULT_SYSTEM_PROMPT = """
 You have access to tools.
@@ -65,72 +64,30 @@ class LLMConfig:
         default_enrich_context: bool | None = None,
         default_context_enrichment_threshold: int | None = None,
     ):
-        self._default_model_name = (
-            default_model_name
-            if default_model_name is not None
-            else os.getenv("ZRB_LLM_MODEL", None)
-        )
-        self._default_model_base_url = (
-            default_base_url
-            if default_base_url is not None
-            else os.getenv("ZRB_LLM_BASE_URL", None)
-        )
-        self._default_model_api_key = (
-            default_api_key
-            if default_api_key is not None
-            else os.getenv("ZRB_LLM_API_KEY", None)
-        )
-        self._default_system_prompt = (
-            default_system_prompt
-            if default_system_prompt is not None
-            else os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
-        )
-        self._default_persona = (
-            default_persona
-            if default_persona is not None
-            else os.getenv("ZRB_LLM_PERSONA", None)
-        )
-        self._default_special_instruction_prompt = (
-            default_special_instruction_prompt
-            if default_special_instruction_prompt is not None
-            else os.getenv("ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", None)
-        )
-        self._default_summarization_prompt = (
-            default_summarization_prompt
-            if default_summarization_prompt is not None
-            else os.getenv("ZRB_LLM_SUMMARIZATION_PROMPT", None)
-        )
-        self._default_context_enrichment_prompt = (
-            default_context_enrichment_prompt
-            if default_context_enrichment_prompt is not None
-            else os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", None)
-        )
-        self._default_summarize_history = (
-            default_summarize_history
-            if default_summarize_history is not None
-            else to_boolean(os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true"))
-        )
+        self._default_model_name = default_model_name
+        self._default_model_base_url = default_base_url
+        self._default_model_api_key = default_api_key
+        self._default_persona = default_persona
+        self._default_system_prompt = default_system_prompt
+        self._default_special_instruction_prompt = default_special_instruction_prompt
+        self._default_summarization_prompt = default_summarization_prompt
+        self._default_context_enrichment_prompt = default_context_enrichment_prompt
+        self._default_summarize_history = default_summarize_history
         self._default_history_summarization_threshold = (
             default_history_summarization_threshold
-            if default_history_summarization_threshold is not None
-            else int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD", "5"))
         )
-        self._default_enrich_context = (
-            default_enrich_context
-            if default_enrich_context is not None
-            else to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "true"))
-        )
+        self._default_enrich_context = default_enrich_context
         self._default_context_enrichment_threshold = (
             default_context_enrichment_threshold
-            if default_context_enrichment_threshold is not None
-            else int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD", "5"))
         )
         self._default_provider = None
         self._default_model = None
 
     def _get_model_name(self) -> str | None:
         return (
-            self._default_model_name if self._default_model_name is not None else None
+            self._default_model_name
+            if self._default_model_name is not None
+            else CFG.LLM_MODEL
         )
 
     def get_default_model_provider(self) -> Provider | str:
@@ -146,35 +103,53 @@ class LLMConfig:
 
     def get_default_system_prompt(self) -> str:
         return (
-            DEFAULT_SYSTEM_PROMPT
-            if self._default_system_prompt is None
-            else self._default_system_prompt
+            self._default_system_prompt
+            if self._default_system_prompt is not None
+            else (
+                CFG.LLM_SYSTEM_PROMPT
+                if CFG.LLM_SYSTEM_PROMPT is not None
+                else DEFAULT_SYSTEM_PROMPT
+            )
         )
 
     def get_default_persona(self) -> str:
         return (
-            DEFAULT_PERSONA if self._default_persona is None else self._default_persona
+            self._default_persona
+            if self._default_persona is not None
+            else (CFG.LLM_PERSONA if CFG.LLM_PERSONA is not None else DEFAULT_PERSONA)
         )
 
     def get_default_special_instruction_prompt(self) -> str:
         return (
-            DEFAULT_SPECIAL_INSTRUCTION_PROMPT
-            if self._default_special_instruction_prompt is None
-            else self._default_special_instruction_prompt
+            self._default_special_instruction_prompt
+            if self._default_special_instruction_prompt is not None
+            else (
+                CFG.LLM_SPECIAL_INSTRUCTION_PROMPT
+                if CFG.LLM_SPECIAL_INSTRUCTION_PROMPT is not None
+                else DEFAULT_SPECIAL_INSTRUCTION_PROMPT
+            )
         )
 
     def get_default_summarization_prompt(self) -> str:
         return (
-            DEFAULT_SUMMARIZATION_PROMPT
-            if self._default_summarization_prompt is None
-            else self._default_summarization_prompt
+            self._default_summarization_prompt
+            if self._default_summarization_prompt is not None
+            else (
+                CFG.LLM_SUMMARIZATION_PROMPT
+                if CFG.LLM_SUMMARIZATION_PROMPT is not None
+                else DEFAULT_SUMMARIZATION_PROMPT
+            )
         )
 
     def get_default_context_enrichment_prompt(self) -> str:
         return (
-            DEFAULT_CONTEXT_ENRICHMENT_PROMPT
-            if self._default_context_enrichment_prompt is None
-            else self._default_context_enrichment_prompt
+            self._default_context_enrichment_prompt
+            if self._default_context_enrichment_prompt is not None
+            else (
+                CFG.LLM_CONTEXT_ENRICHMENT_PROMPT
+                if CFG.LLM_CONTEXT_ENRICHMENT_PROMPT is not None
+                else DEFAULT_CONTEXT_ENRICHMENT_PROMPT
+            )
         )
 
     def get_default_model(self) -> Model | str | None:
@@ -191,16 +166,32 @@ class LLMConfig:
         )
 
     def get_default_summarize_history(self) -> bool:
-        return self._default_summarize_history
+        return (
+            self._default_summarize_history
+            if self._default_summarize_history is not None
+            else CFG.LLM_SUMMARIZE_HISTORY
+        )
 
     def get_default_history_summarization_threshold(self) -> int:
-        return self._default_history_summarization_threshold
+        return (
+            self._default_history_summarization_threshold
+            if self._default_history_summarization_threshold is not None
+            else CFG.LLM_HISTORY_SUMMARIZATION_THRESHOLD
+        )
 
     def get_default_enrich_context(self) -> bool:
-        return self._default_enrich_context
+        return (
+            self._default_enrich_context
+            if self._default_enrich_context is not None
+            else CFG.LLM_ENRICH_CONTEXT
+        )
 
     def get_default_context_enrichment_threshold(self) -> int:
-        return self._default_context_enrichment_threshold
+        return (
+            self._default_context_enrichment_threshold
+            if self._default_context_enrichment_threshold is not None
+            else CFG.LLM_CONTEXT_ENRICHMENT_THRESHOLD
+        )
 
     def set_default_persona(self, persona: str):
         self._default_persona = persona

@@ -20,7 +20,7 @@ class TextInput(BaseInput):
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
-        editor: str = CFG.DEFAULT_EDITOR,
+        editor: str | None = None,
         extension: str = ".txt",
         comment_start: str | None = None,
         comment_end: str | None = None,
@@ -85,11 +85,14 @@ class TextInput(BaseInput):
             # Pre-fill with default content
             if default_value:
                 temp_file.write(default_value.encode())
-            temp_file.flush()
-        # Open the editor
-        subprocess.call([self._editor, temp_file_name])
-        # Read the edited content
-        edited_content = read_file(temp_file_name)
+                temp_file.flush()
+            # Open the editor
+            editor_cmd = (
+                self._editor if self._editor is not None else CFG.DEFAULT_EDITOR
+            )
+            subprocess.call([editor_cmd, temp_file_name])
+            # Read the edited content
+            edited_content = read_file(temp_file_name)
         parts = [
             text.strip() for text in edited_content.split(comment_prompt_message, 1)
         ]
