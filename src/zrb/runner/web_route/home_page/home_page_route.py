@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from zrb.config import WEB_TITLE, WEB_JARGON, WEB_HOMEPAGE_INTRO
+from zrb.config import WEB_HOMEPAGE_INTRO, WEB_JARGON, WEB_TITLE
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_util.html import (
@@ -56,8 +56,8 @@ def serve_home_page(
                             "name": root_group.name,
                             "description": root_group.description,
                             "auth_link": auth_link,
-                        }
-                    )
+                        },
+                    ),
                 },
             )
         )

@@ -30,7 +30,7 @@ def show_error_page(user: User, root_group: AnyGroup, status_code: int, message:
                         "auth_link": auth_link,
                         "error_status_code": status_code,
                         "error_message": message,
-                    },            
+                    },
                 ),
             },
         ),

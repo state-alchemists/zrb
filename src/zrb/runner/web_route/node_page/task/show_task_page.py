@@ -23,7 +23,9 @@ def show_task_page(
 
     _DIR = os.path.dirname(__file__)
     _GLOBAL_TEMPLATE = read_file(
-        os.path.join(os.path.dirname(os.path.dirname(_DIR)), "static", "global_template.html")
+        os.path.join(
+            os.path.dirname(os.path.dirname(_DIR)), "static", "global_template.html"
+        )
     )
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
     _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
