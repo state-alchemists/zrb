@@ -1,16 +1,36 @@
+"""
+This module provides functions for managing interactive chat sessions with an LLM.
+
+It handles reading user input, triggering the LLM task, and managing the
+conversation flow via XCom.
+"""
+
 import asyncio
 
 from zrb.context.any_context import AnyContext
-from zrb.util.cli.style import stylize_faint
-from zrb.xcom.xcom import Xcom
+from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
 
 
 async def read_user_prompt(ctx: AnyContext) -> str:
+    """
+    Reads user input from the CLI for an interactive chat session.
+
+    Handles special commands like /bye, /multi, /end, and /help.
+    Triggers the LLM task and waits for the result.
+
+    Args:
+        ctx: The context object for the task.
+
+    Returns:
+        The final result from the LLM session.
+    """
+    _show_info(ctx)
     final_result = ""
+    ctx.print(stylize_faint("🧑 >> ") + f"{ctx.input.message}", plain=True)
     result = await _trigger_ask_and_wait_for_result(
         ctx,
         user_prompt=ctx.input.message,
-        previous_session=ctx.input.previous_session,
+        previous_session_name=ctx.input.previous_session,
         start_new=ctx.input.start_new,
     )
     if ctx.env.get("_ZRB_WEB_ENV", "0") != "0":
@@ -22,7 +42,8 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     user_inputs = []
     while True:
         await asyncio.sleep(0.01)
-        user_input = input(stylize_faint("🧑 >> "))
+        ctx.print(stylize_faint("🧑 >> "), end="", plain=True)
+        user_input = input()
         # Handle special input
         if user_input.strip().lower() in ("/bye", "/quit"):
             user_prompt = "\n".join(user_inputs)
@@ -58,60 +79,116 @@ async def read_user_prompt(ctx: AnyContext) -> str:
 async def _trigger_ask_and_wait_for_result(
     ctx: AnyContext,
     user_prompt: str,
-    previous_session: str = "",
+    previous_session_name: str | None = None,
     start_new: bool = False,
 ) -> str | None:
+    """
+    Triggers the LLM ask task and waits for the result via XCom.
+
+    Args:
+        ctx: The context object for the task.
+        user_prompt: The user's message to send to the LLM.
+        previous_session_name: The name of the previous chat session (optional).
+        start_new: Whether to start a new conversation (optional).
+
+    Returns:
+        The result from the LLM task, or None if the user prompt is empty.
+    """
     if user_prompt.strip() == "":
         return None
-    _trigger_ask(ctx, user_prompt, previous_session, start_new)
-    result = await _wait_llm_response(ctx)
-    ctx.print(stylize_faint("🤖 >> ") + result)
+    await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
+    result = await _wait_ask_result(ctx)
+    ctx.print(stylize_faint("🤖 >> ") + result, plain=True)
     return result
 
 
 def get_llm_ask_input_mapping(callback_ctx: AnyContext):
+    """
+    Generates the input mapping for the LLM ask task from the callback context.
+
+    Args:
+        callback_ctx: The context object for the callback.
+
+    Returns:
+        A dictionary containing the input mapping for the LLM ask task.
+    """
     data = callback_ctx.xcom.ask_trigger.pop()
     return {
-        "model": data.get("model"),
-        "base-url": data.get("base_url"),
-        "api-key": data.get("api_key"),
-        "system-prompt": data.get("system_prompt"),
+        "model": callback_ctx.input.model,
+        "base-url": callback_ctx.input.base_url,
+        "api-key": callback_ctx.input.api_key,
+        "system-prompt": callback_ctx.input.system_prompt,
         "start-new": data.get("start_new"),
-        "previous-session": data.get("previous_session"),
+        "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),
     }
 
 
-def _trigger_ask(
-    callback_ctx: AnyContext,
+async def _trigger_ask(
+    ctx: AnyContext,
     user_prompt: str,
-    previous_session: str = "",
+    previous_session_name: str | None = None,
     start_new: bool = False,
 ):
-    callback_ctx.xcom["ask_trigger"].push(
+    """
+    Triggers the LLM ask task by pushing data to the 'ask_trigger' XCom queue.
+
+    Args:
+        ctx: The context object for the task.
+        user_prompt: The user's message to send to the LLM.
+        previous_session_name: The name of the previous chat session (optional).
+        start_new: Whether to start a new conversation (optional).
+    """
+    if previous_session_name is None:
+        previous_session_name = await _wait_ask_session_name(ctx)
+    ctx.xcom["ask_trigger"].push(
         {
-            "previous_session": previous_session,
+            "previous_session_name": previous_session_name,
             "start_new": start_new,
             "message": user_prompt,
-            "model": callback_ctx.input.model,
-            "base_url": callback_ctx.input.base_url,
-            "api_key": callback_ctx.input.api_key,
-            "system_prompt": callback_ctx.input.system_prompt,
         }
     )
 
 
-async def _wait_llm_response(ctx: AnyContext):
-    if "ask_result" not in ctx.xcom:
-        ctx.xcom["ask_result"] = Xcom([])
-    while len(ctx.xcom.ask_result) == 0:
+async def _wait_ask_result(ctx: AnyContext) -> str:
+    """
+    Waits for and retrieves the LLM task result from the 'ask_result' XCom queue.
+
+    Args:
+        ctx: The context object for the task.
+
+    Returns:
+        The result string from the LLM task.
+    """
+    while "ask_result" not in ctx.xcom or len(ctx.xcom.ask_result) == 0:
         await asyncio.sleep(0.1)
     return ctx.xcom.ask_result.pop()
 
 
+async def _wait_ask_session_name(ctx: AnyContext) -> str:
+    """
+    Waits for and retrieves the LLM chat session name from the 'ask_session_name' XCom queue.
+
+    Args:
+        ctx: The context object for the task.
+
+    Returns:
+        The session name string.
+    """
+    while "ask_session_name" not in ctx.xcom or len(ctx.xcom.ask_session_name) == 0:
+        await asyncio.sleep(0.1)
+    return ctx.xcom.ask_session_name.pop()
+
+
 def _show_info(ctx: AnyContext):
+    """
+    Displays the available chat session commands to the user.
+
+    Args:
+        ctx: The context object for the task.
+    """
     ctx.print(
-        stylize_faint(
+        stylize_bold_yellow(
             "\n".join(
                 [
                     "/bye:   Quit from chat session",
@@ -120,5 +197,6 @@ def _show_info(ctx: AnyContext):
                     "/help:  Show this message",
                 ]
             )
-        )
+        ),
+        plain=True,
     )
