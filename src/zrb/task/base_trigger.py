@@ -111,7 +111,11 @@ class BaseTrigger(BaseTask):
                 parent=session,
                 root_group=session.root_group,
             )
-            coros.append(asyncio.create_task(callback.async_run(callback_session)))
+            coros.append(
+                asyncio.create_task(
+                    callback.async_run(parent_session=session, session=callback_session)
+                )
+            )
         await asyncio.gather(*coros)
 
     def get_exchange_xcom(self, session: AnySession) -> Xcom:
