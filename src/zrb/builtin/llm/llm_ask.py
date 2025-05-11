@@ -1,5 +1,5 @@
 from zrb.builtin.group import llm_group
-from zrb.builtin.llm.chat_session import read_user_prompt
+from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
 from zrb.builtin.llm.input import PreviousSessionInput
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
@@ -25,7 +25,7 @@ from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
 
-_llm_chat_inputs = [
+_llm_ask_inputs = [
     StrInput(
         "model",
         description="LLM Model",
@@ -80,11 +80,11 @@ _llm_chat_inputs = [
     ),
 ]
 
-llm_chat: LLMTask = llm_group.add_task(
+llm_ask: LLMTask = llm_group.add_task(
     LLMTask(
-        name="llm-chat",
-        input=_llm_chat_inputs,
-        description="💬 Chat with LLM",
+        name="llm-ask",
+        input=_llm_ask_inputs,
+        description="❓ Ask LLM",
         model=lambda ctx: None if ctx.input.model.strip() == "" else ctx.input.model,
         model_base_url=lambda ctx: (
             None if ctx.input.base_url.strip() == "" else ctx.input.base_url
@@ -100,47 +100,42 @@ llm_chat: LLMTask = llm_group.add_task(
         message="{ctx.input.message}",
         retries=0,
     ),
-    alias="chat",
+    alias="ask",
 )
 
 llm_group.add_task(
     BaseTrigger(
-        name="converse",
-        input=_llm_chat_inputs,
-        queue_name="chat_trigger",
+        name="llm-chat",
+        input=_llm_ask_inputs,
+        description="💬 Chat with LLM",
+        queue_name="ask_trigger",
         action=read_user_prompt,
         callback=Callback(
-            task=llm_chat,
-            input_mapping={
-                "model": "{ctx.xcom.chat_trigger.peek().get('model')}",
-                "base-url": "{ctx.xcom.chat_trigger.peek().get('base_url')}",
-                "api-key": "{ctx.xcom.chat_trigger.peek().get('api_key')}",
-                "system-prompt": "{ctx.xcom.chat_trigger.peek().get('system_prompt')}",
-                "system_prompt": "{ctx.xcom.chat_trigger.peek().get('system_prompt')}",
-                "start-new": "{ctx.xcom.chat_trigger.peek().get('start_new')}",
-                "previous-session": "{ctx.xcom.chat_trigger.peek().get('previous_session')}",
-                "message": "{ctx.xcom.chat_trigger.peek().get('message')}",
-            },
+            task=llm_ask,
+            input_mapping=get_llm_ask_input_mapping,
+            result_queue="ask_result",
         ),
         retries=0,
-    )
+        cli_only=True,
+    ),
+    alias="chat",
 )
 
 if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
-    llm_chat.add_tool(list_files)
-    llm_chat.add_tool(read_from_file)
-    llm_chat.add_tool(write_to_file)
-    llm_chat.add_tool(search_files)
-    llm_chat.add_tool(apply_diff)
+    llm_ask.add_tool(list_files)
+    llm_ask.add_tool(read_from_file)
+    llm_ask.add_tool(write_to_file)
+    llm_ask.add_tool(search_files)
+    llm_ask.add_tool(apply_diff)
 
 if CFG.LLM_ALLOW_ACCESS_SHELL:
-    llm_chat.add_tool(run_shell_command)
+    llm_ask.add_tool(run_shell_command)
 
 if CFG.LLM_ALLOW_ACCESS_INTERNET:
-    llm_chat.add_tool(open_web_page)
-    llm_chat.add_tool(search_wikipedia)
-    llm_chat.add_tool(search_arxiv)
+    llm_ask.add_tool(open_web_page)
+    llm_ask.add_tool(search_wikipedia)
+    llm_ask.add_tool(search_arxiv)
     if CFG.SERP_API_KEY != "":
-        llm_chat.add_tool(create_search_internet_tool(CFG.SERP_API_KEY))
-    llm_chat.add_tool(get_current_location)
-    llm_chat.add_tool(get_current_weather)
+        llm_ask.add_tool(create_search_internet_tool(CFG.SERP_API_KEY))
+    llm_ask.add_tool(get_current_location)
+    llm_ask.add_tool(get_current_weather)

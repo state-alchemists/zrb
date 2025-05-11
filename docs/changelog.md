@@ -4,6 +4,10 @@
 
 - Introduce `ZRB_INIT_FILE_NAME`, `ZRB_BANNER`, `ZRB_WEB_TITLE`, `ZRB_WEB_JARGON`, `ZRB_WEB_HOMEPAGE_INTRO` configuration.
 - Change Configuration mechanism, use `zrb.config.CFG` that allows lazy load.
+- Breaking changes: 
+    - `zrb.builtin.llm.llm_chat` is now `zrb.builtin.llm.llm_ask`
+    - We now have `llm_ask` for one time interaction, replacing the old `llm_chat`
+    - The new `llm_chat` can only be accessed via CLI
 
 # 1.5.17
 
