@@ -30,7 +30,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
             async for event in request_stream:
                 if isinstance(event, PartStartEvent):
                     if is_streaming:
-                        print_func("", plain=True)
+                        print_func("")
                     print_func(
                         stylize_faint(
                             f"[Request] Starting part {event.index}: {event.part!r}"
@@ -42,24 +42,22 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                         print_func(
                             stylize_faint(f"{event.delta.content_delta}"),
                             end="",
-                            plain=is_streaming,
                         )
                     elif isinstance(event.delta, ToolCallPartDelta):
                         print_func(
                             stylize_faint(f"{event.delta.args_delta}"),
                             end="",
-                            plain=is_streaming,
                         )
                     is_streaming = True
                 elif isinstance(event, FinalResultEvent):
                     if is_streaming:
-                        print_func("", plain=True)
+                        print_func("")
                     print_func(
                         stylize_faint(f"[Result] tool_name={event.tool_name}"),
                     )
                     is_streaming = False
             if is_streaming:
-                print_func("", plain=True)
+                print_func("")
     elif Agent.is_call_tools_node(node):
         # A handle-response node => The model returned some data, potentially calls a tool
         print_func(
@@ -95,4 +93,5 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                     )
     elif Agent.is_end_node(node):
         # Once an End node is reached, the agent run is complete
-        print_func(stylize_faint(f"{agent_run.result.data}"))
+        print_func(stylize_faint("[End of Response]"))
+        # print_func(stylize_faint(f"{agent_run.result.data}"))

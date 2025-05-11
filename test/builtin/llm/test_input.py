@@ -59,7 +59,7 @@ def test_previous_session_input_to_html(
     )
 
     # Check the generated HTML structure
-    expected_input_tag = f'<input name="{input_name}" placeholder="{input_description}" value="{input_default}" />'
+    expected_input_tag = f'<input name="{input_name}" placeholder="{input_description}" value="{input_default}" />'  # noqa
     expected_script_tag = (
         f"<script>{js_content}</script>"  # JS content is returned directly by mock
     )

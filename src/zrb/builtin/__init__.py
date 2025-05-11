@@ -9,7 +9,7 @@ from zrb.builtin.git import (
 from zrb.builtin.git_subtree import git_add_subtree, git_pull_subtree, git_push_subtree
 from zrb.builtin.http import generate_curl, http_request
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
-from zrb.builtin.llm.llm_chat import llm_chat
+from zrb.builtin.llm.llm_ask import llm_ask
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
 from zrb.builtin.project.add.fastapp.fastapp_task import add_fastapp_to_project
 from zrb.builtin.project.create.project_task import create_project
@@ -55,7 +55,7 @@ assert validate_base64
 assert encode_jwt
 assert decode_jwt
 assert validate_jwt
-assert llm_chat
+assert llm_ask
 assert hash_md5
 assert sum_md5
 assert validate_md5

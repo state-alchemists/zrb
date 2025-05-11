@@ -85,7 +85,7 @@ class TextInput(BaseInput):
             # Pre-fill with default content
             if default_value:
                 temp_file.write(default_value.encode())
-                temp_file.flush()
+            temp_file.flush()
             # Open the editor
             editor_cmd = (
                 self._editor if self._editor is not None else CFG.DEFAULT_EDITOR

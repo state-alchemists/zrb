@@ -141,7 +141,7 @@ async def run_agent_iteration(
                 # Each node represents a step in the agent's execution
                 # Reference: https://ai.pydantic.dev/agents/#streaming
                 try:
-                    await print_node(ctx.print, agent_run, node)
+                    await print_node(_get_plain_printer(ctx), agent_run, node)
                 except APIError as e:
                     # Extract detailed error information from the response
                     error_details = extract_api_error_details(e)
@@ -152,3 +152,12 @@ async def run_agent_iteration(
                     ctx.log_error(f"Error type: {type(e).__name__}")
                     raise
             return agent_run
+
+
+def _get_plain_printer(ctx: AnyContext):
+    def printer(*args, **kwargs):
+        if "plain" not in kwargs:
+            kwargs["plain"] = True
+        return ctx.print(*args, **kwargs)
+
+    return printer
