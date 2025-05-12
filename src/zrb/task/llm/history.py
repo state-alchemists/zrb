@@ -1,6 +1,7 @@
 import json
 import os
 from collections.abc import Callable
+from copy import deepcopy
 from typing import Any, Optional
 
 from pydantic import BaseModel
@@ -175,3 +176,36 @@ async def write_conversation_history(
     )
     if history_file != "":
         write_file(history_file, history_data.model_dump_json(indent=2))
+
+
+def replace_system_prompt_in_history_list(
+    history_list: ListOfDict, replacement: str = "<main LLM system prompt>"
+) -> ListOfDict:
+    """
+    Returns a new history list where any part with part_kind 'system-prompt'
+    has its 'content' replaced with the given replacement string.
+    Args:
+        history: List of history items (each item is a dict with a 'parts' list).
+        replacement: The string to use in place of system-prompt content.
+
+    Returns:
+        A deep-copied list of history items with system-prompt content replaced.
+    """
+    new_history = deepcopy(history_list)
+    for item in new_history:
+        parts = item.get("parts", [])
+        for part in parts:
+            if part.get("part_kind") == "system-prompt":
+                part["content"] = replacement
+    return new_history
+
+
+def count_part_in_history_list(history_list: ListOfDict) -> int:
+    """Calculates the total number of 'parts' in a history list."""
+    history_part_len = 0
+    for history in history_list:
+        if "parts" in history:
+            history_part_len += len(history["parts"])
+        else:
+            history_part_len += 1
+    return history_part_len

@@ -26,9 +26,10 @@ You are an expert in various fields including technology, science, history, and 
 
 # Concise summarization focused on preserving critical context for continuity.
 DEFAULT_SUMMARIZATION_PROMPT = """
-You are a summarization assistant. Create an updated, concise summary integrating
-the previous summary (if any) with the new conversation history.
-Your primary goal is to preserve ALL critical context needed for the main assistant
+You are a summarization assistant.
+Your goal is to help main assistant to continue the conversation by creating an updated,
+concise summary integrating the previous summary (if any) with the new conversation history.
+Preserve ALL critical context needed for the main assistant
 to continue the task effectively. This includes key facts, decisions, tool usage
 results, and essential background. Do not omit details that would force the main
 assistant to re-gather information.
@@ -37,11 +38,13 @@ Output *only* the updated summary text.
 
 DEFAULT_CONTEXT_ENRICHMENT_PROMPT = """
 You are an information extraction assistant.
+Your goal is to help main assistant to continue the conversation by extracting
+important informations.
 Analyze the conversation history and current context to extract key facts like
 user_name, user_roles, preferences, goals, etc.
 Return only a JSON object containing a single key "response", whose value is
-another JSON object with these details.
-If nothing is found, output {"response": {}}.
+another JSON object with these details (i.e., {"response": {"context_name": "value"}}).
+If no context can be extracted, return {"response": {}}.
 """.strip()
 
 DEFAULT_SPECIAL_INSTRUCTION_PROMPT = ""  # Default to empty

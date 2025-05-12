@@ -2,14 +2,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from openai import APIError
     from pydantic_ai import Agent, Tool
     from pydantic_ai.agent import AgentRun
     from pydantic_ai.mcp import MCPServer
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 else:
-    APIError = Any
     Agent = Any
     Tool = Any
     AgentRun = Any
@@ -130,6 +128,7 @@ async def run_agent_iteration(
     Raises:
         Exception: If any error occurs during agent execution.
     """
+    from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
     async with agent.run_mcp_servers():

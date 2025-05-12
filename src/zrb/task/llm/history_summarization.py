@@ -7,8 +7,13 @@ from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
+from zrb.task.llm.history import (
+    count_part_in_history_list,
+    replace_system_prompt_in_history_list,
+)
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
+from zrb.util.cli.style import stylize_faint
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -16,17 +21,6 @@ if TYPE_CHECKING:
 else:
     Model = Any
     ModelSettings = Any
-
-
-def get_history_part_len(history_list: ListOfDict) -> int:
-    """Calculates the total number of 'parts' in a history list."""
-    history_part_len = 0
-    for history in history_list:
-        if "parts" in history:
-            history_part_len += len(history["parts"])
-        else:
-            history_part_len += 1
-    return history_part_len
 
 
 def get_history_summarization_threshold(
@@ -60,15 +54,15 @@ def should_summarize_history(
     render_history_summarization_threshold: bool,
 ) -> bool:
     """Determines if history summarization should occur based on length and config."""
-    history_part_len = get_history_part_len(history_list)
-    if history_part_len == 0:
+    history_part_count = count_part_in_history_list(history_list)
+    if history_part_count == 0:
         return False
     summarization_threshold = get_history_summarization_threshold(
         ctx,
         history_summarization_threshold_attr,
         render_history_summarization_threshold,
     )
-    if summarization_threshold == -1 or summarization_threshold > history_part_len:
+    if summarization_threshold == -1 or summarization_threshold > history_part_count:
         return False
     return get_bool_attr(
         ctx,
@@ -111,15 +105,18 @@ async def summarize_history(
     try:
         context_json = json.dumps(conversation_context)
         history_to_summarize_json = json.dumps(history_list)
-        summarization_user_prompt = (
-            f"# Current Context\n{context_json}\n\n"
-            f"# Conversation History to Summarize\n{history_to_summarize_json}"
+        summarization_user_prompt = "\n".join(
+            [
+                f"Current Context: {context_json}",
+                f"Conversation History to Summarize: {history_to_summarize_json}",
+            ]
         )
     except Exception as e:
         ctx.log_warning(f"Error formatting context/history for summarization: {e}")
         return conversation_context  # Return original context if formatting fails
 
     try:
+        ctx.print(stylize_faint("[Summarization Triggered]"), plain=True)
         summary_run = await run_agent_iteration(
             ctx=ctx,
             agent=summarization_agent,
@@ -128,6 +125,8 @@ async def summarize_history(
         )
         if summary_run and summary_run.result.output:
             summary_text = str(summary_run.result.output)
+            usage = summary_run.result.usage()
+            ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
             # Update context with the new summary
             conversation_context["history_summary"] = summary_text
             ctx.log_info("History summarized and added/updated in context.")
@@ -153,9 +152,10 @@ async def maybe_summarize_history(
     summarization_prompt: str,
 ) -> tuple[ListOfDict, dict[str, Any]]:
     """Summarizes history and updates context if enabled and threshold met."""
+    shorten_history_list = replace_system_prompt_in_history_list(history_list)
     if should_summarize_history(
         ctx,
-        history_list,
+        shorten_history_list,
         should_summarize_history_attr,
         render_summarize_history,
         history_summarization_threshold_attr,
@@ -170,7 +170,7 @@ async def maybe_summarize_history(
                 prompt=summarization_prompt,
             ),
             conversation_context=conversation_context,
-            history_list=history_list,  # Pass the full list for context
+            history_list=shorten_history_list,  # Pass the full list for context
         )
         # Truncate the history list after summarization
         return [], updated_context

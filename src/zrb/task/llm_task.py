@@ -249,8 +249,7 @@ class LLMTask(BaseTask):
             special_instruction_prompt_attr=self._special_instruction_prompt,
             render_special_instruction_prompt=self._render_special_instruction_prompt,
         )
-        # 1. Prepare initial state (read history, get initial context)
-        conversation_context = get_conversation_context(ctx, self._conversation_context)
+        # 1. Prepare initial state (read history from previous session)
         conversation_history = await read_conversation_history(
             ctx=ctx,
             conversation_history_reader=self._conversation_history_reader,
@@ -259,6 +258,10 @@ class LLMTask(BaseTask):
             conversation_history_attr=self._conversation_history,
         )
         history_list = conversation_history.history
+        conversation_context = {
+            **conversation_history.context,
+            **get_conversation_context(ctx, self._conversation_context),
+        }
         # 2. Enrich context (optional)
         conversation_context = await maybe_enrich_context(
             ctx=ctx,
@@ -297,9 +300,6 @@ class LLMTask(BaseTask):
             ]
         )
         # 5. Get the agent instance
-        # print("FINAL SYSTEM PROMPT", final_system_prompt)
-        # print("FINAL USER PROMPT", final_user_prompt)
-        # print("HISTORY_LIST", history_list)
         agent = get_agent(
             ctx=ctx,
             agent_attr=self._agent,
@@ -350,7 +350,7 @@ class LLMTask(BaseTask):
                     ctx.xcom[xcom_usage_key] = Xcom([])
                 usage = agent_run.result.usage()
                 ctx.xcom.get(xcom_usage_key).push(usage)
-                ctx.print(stylize_faint(f"[USAGE] {usage}"), plain=True)
+                ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
                 return agent_run.result.output
             else:
                 ctx.log_warning("Agent run did not produce a result.")

@@ -1,6 +1,5 @@
 import json
 import traceback
-from textwrap import dedent
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
@@ -9,8 +8,13 @@ from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config
 from zrb.task.llm.agent import run_agent_iteration
+from zrb.task.llm.history import (
+    count_part_in_history_list,
+    replace_system_prompt_in_history_list,
+)
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
+from zrb.util.cli.style import stylize_faint
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -47,15 +51,13 @@ async def enrich_context(
         context_json = json.dumps(conversation_context)
         history_json = json.dumps(history_list)
         # The user prompt will now contain the dynamic data
-        user_prompt_data = dedent(
-            f"""
-            Analyze the following
-            # Current Context
-            {context_json}
-            # Conversation History
-            {history_json}
-        """
-        ).strip()
+        user_prompt_data = "\n".join(
+            [
+                "Extract context from the following conversation info",
+                f"Existing Context: {context_json}",
+                f"Conversation History: {history_json}",
+            ]
+        )
     except Exception as e:
         ctx.log_warning(f"Error formatting context/history for enrichment: {e}")
         return conversation_context  # Return original context if formatting fails
@@ -72,6 +74,7 @@ async def enrich_context(
     )
 
     try:
+        ctx.print(stylize_faint("[Context Enrichment Triggered]"), plain=True)
         enrichment_run = await run_agent_iteration(
             ctx=ctx,
             agent=enrichment_agent,
@@ -80,6 +83,8 @@ async def enrich_context(
         )
         if enrichment_run and enrichment_run.result.output:
             response = enrichment_run.result.output.response
+            usage = enrichment_run.result.usage()
+            ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
             if response:
                 conversation_context.update(response)
                 ctx.log_info("Context enriched based on history.")
@@ -127,15 +132,15 @@ def should_enrich_context(
     """
     Determines if context enrichment should occur based on history, threshold, and config.
     """
-    history_len = len(history_list)
-    if history_len == 0:
+    history_part_count = count_part_in_history_list(history_list)
+    if history_part_count == 0:
         return False
     enrichment_threshold = get_context_enrichment_threshold(
         ctx,
         context_enrichment_threshold_attr,
         render_context_enrichment_threshold,
     )
-    if enrichment_threshold == -1 or enrichment_threshold > history_len:
+    if enrichment_threshold == -1 or enrichment_threshold > history_part_count:
         return False
     return get_bool_attr(
         ctx,
@@ -158,9 +163,10 @@ async def maybe_enrich_context(
     context_enrichment_prompt: str,
 ) -> dict[str, Any]:
     """Enriches context based on history if enabled and threshold met."""
+    shorten_history_list = replace_system_prompt_in_history_list(history_list)
     if should_enrich_context(
         ctx,
-        history_list,
+        shorten_history_list,
         should_enrich_context_attr,
         render_enrich_context,
         context_enrichment_threshold_attr,
@@ -174,6 +180,6 @@ async def maybe_enrich_context(
                 prompt=context_enrichment_prompt,
             ),
             conversation_context=conversation_context,
-            history_list=history_list,
+            history_list=shorten_history_list,
         )
     return conversation_context
