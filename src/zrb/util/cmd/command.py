@@ -64,11 +64,25 @@ async def run_command(
         stream, print_method: Callable[..., None], max_lines: int
     ) -> str:
         lines = []
+        if hasattr(stream, "_limit"):
+            stream._limit = 1024 * 1024 * 10
         while True:
-            line = await stream.readline()
+            line = None
+            try:
+                line = await stream.readline()
+            except asyncio.exceptions.LimitOverrunError as e:
+                # Recover by reading a limited chunk instead
+                await stream.read(e.consumed)
+                line = b"<output line too long>"
+            except BaseException as e:
+                line = f"Error while reading stream {type(e)} {e}"
+                pass
             if not line:
                 break
-            line = line.decode("utf-8").rstrip()
+            try:
+                line = line.decode("utf-8").rstrip()
+            except Exception:
+                pass
             lines.append(line)
             if len(lines) > max_lines:
                 lines.pop(0)  # Keep only the last max_lines
