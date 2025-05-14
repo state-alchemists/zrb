@@ -73,7 +73,7 @@ async def run_command(
                 line = await stream.readline()
                 line = line.decode("utf-8").rstrip()
             except asyncio.exceptions.CancelledError:
-                break
+                pass
             except asyncio.exceptions.LimitOverrunError as e:
                 # Recover by reading a limited chunk instead
                 await stream.read(e.consumed)
