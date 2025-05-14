@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.2
+
+- Handle long lines of CmdTask output
+
 # 1.6.1
 
 - Fix LLMTask summarization and context enrichment mechanism
