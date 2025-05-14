@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.3
+
+- Patch: Handle cmd output that is not decodable (already a string)
+
 # 1.6.2
 
 - Handle long lines of CmdTask output

@@ -71,7 +71,6 @@ async def run_command(
             line = None
             try:
                 line = await stream.readline()
-                line = line.decode("utf-8").rstrip()
             except asyncio.exceptions.CancelledError:
                 pass
             except asyncio.exceptions.LimitOverrunError as e:
@@ -83,6 +82,10 @@ async def run_command(
                 pass
             if not line:
                 break
+            try:
+                line = line.decode("utf-8").rstrip()
+            except Exception:
+                pass
             lines.append(line)
             if len(lines) > max_lines:
                 lines.pop(0)  # Keep only the last max_lines
