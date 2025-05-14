@@ -87,6 +87,7 @@ async def run_command(
             if len(lines) > max_lines:
                 lines.pop(0)  # Keep only the last max_lines
             print_method(line)
+        print("LINES", lines)
         return "\n".join(lines)
 
     actual_print_method = print_method if print_method is not None else print
