@@ -214,7 +214,8 @@ async def commit(
     )
     if exit_code != 0:
         ignored_error_message = "nothing to commit, working tree clean"
-        print(cmd_result.error, cmd_result.output)
+        print("ERROR", cmd_result.error)
+        pritn("OUTPUT", cmd_result.output)
         if (
             ignored_error_message not in cmd_result.error
             and ignored_error_message not in cmd_result.output
