@@ -24,11 +24,20 @@ from zrb.util.string.conversion import double_quote
 
 class Cli(Group):
 
+    def __init__(self):
+        super().__init__(name="_zrb")
+
+    @property
+    def name(self):
+        return CFG.ROOT_GROUP_NAME
+
+    @property
+    def description(self):
+        return CFG.ROOT_GROUP_DESCRIPTION
+
     @property
     def banner(self) -> str:
-        if self._banner is None:
-            return CFG.BANNER
-        return self._banner
+        return CFG.BANNER
 
     def run(self, args: list[str] = []):
         kwargs, args = self._extract_kwargs_from_args(args)
@@ -154,7 +163,7 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-cli = Cli(name=CFG.ROOT_GROUP_NAME, description=CFG.ROOT_GROUP_DESCRIPTION)
+cli = Cli()
 
 
 @make_task(

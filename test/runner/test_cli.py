@@ -3,7 +3,7 @@ from zrb.runner.cli import Cli
 
 
 def test_show_info_for_existing_group():
-    cli = Cli(name="zrb")
+    cli = Cli()
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
     math_group.add_task(
@@ -18,7 +18,7 @@ def test_show_info_for_existing_group():
 
 
 def test_show_info_for_inexisting_group():
-    cli = Cli(name="zrb")
+    cli = Cli()
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
     math_group.add_task(
@@ -33,7 +33,7 @@ def test_show_info_for_inexisting_group():
 
 
 def test_show_help_for_existing_task():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(
         Task(
             name="hello",
@@ -50,7 +50,7 @@ def test_show_help_for_existing_task():
 
 
 def test_run_existing_task():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(Task(name="hello", action="Hello World"))
     error = None
     try:
@@ -61,7 +61,7 @@ def test_run_existing_task():
 
 
 def test_show_help_for_inexisting_task():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(Task(name="hello", action="Hello world"))
     error = None
     try:
@@ -72,7 +72,7 @@ def test_show_help_for_inexisting_task():
 
 
 def test_run_inexisting_task():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(Task(name="hello", action="Hello world"))
     error = None
     try:
@@ -83,14 +83,14 @@ def test_run_inexisting_task():
 
 
 def test_run_simple_task():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(Task(name="hello", action="Hello world"))
     result = cli.run(args=["hello"])
     assert result == "Hello world"
 
 
 def test_run_simple_task_with_keyword_arguments_as_inputs():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(
         Task(
             name="add",
@@ -106,7 +106,7 @@ def test_run_simple_task_with_keyword_arguments_as_inputs():
 
 
 def test_run_simple_task_with_arguments_as_inputs():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(
         Task(
             name="add",
@@ -122,7 +122,7 @@ def test_run_simple_task_with_arguments_as_inputs():
 
 
 def test_run_simple_task_with_arguments():
-    cli = Cli(name="zrb")
+    cli = Cli()
     cli.add_task(Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}"))
     result = cli.run(args=["add", "4", "5"])
     assert result == "9"

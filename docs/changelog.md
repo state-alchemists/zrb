@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.5
+
+- Breaking change: `Cli` constructor no longer has any parameter.
+
 # 1.6.4
 
 - Add `ZRB_ROOT_GROUP_NAME` and `ZRB_ROOT_GROUP_DESCRIPTION`
