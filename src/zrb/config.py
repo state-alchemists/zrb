@@ -2,7 +2,6 @@ import importlib.metadata as metadata
 import logging
 import os
 import platform
-from textwrap import dedent
 
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
@@ -54,6 +53,14 @@ class Config:
             if init_modules_str != ""
             else []
         )
+
+    @property
+    def ROOT_GROUP_NAME(self) -> str:
+        return os.getenv("ZRB_ROOT_GROUP_NAME", "zrb")
+
+    @property
+    def ROOT_GROUP_DESCRIPTION(self) -> str:
+        return os.getenv("ZRB_ROOT_GROUP_DESCRIPTION", "Your Automation Powerhouse")
 
     @property
     def INIT_SCRIPTS(self) -> list[str]:

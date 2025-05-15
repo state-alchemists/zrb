@@ -154,7 +154,7 @@ class Cli(Group):
         return kwargs, residual_args
 
 
-cli = Cli(name="zrb", description="Your Automation Powerhouse")
+cli = Cli(name=CFG.ROOT_GROUP_NAME, description=CFG.ROOT_GROUP_DESCRIPTION)
 
 
 @make_task(
