@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.6
+
+Make version overrideable by using `_ZRB_CUSTOM_VERSION` environment.
+
 # 1.6.5
 
 - Breaking change: `Cli` constructor no longer has any parameter.
