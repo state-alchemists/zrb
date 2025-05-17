@@ -123,6 +123,7 @@ def run_arasaka_cli():
     os.environ["ZRB_WEB_JARGON"] = ARASAKA_JARGON
     os.environ["ZRB_ROOT_GROUP_NAME"] = "arasaka" # Set the root command name
     os.environ["ZRB_ROOT_GROUP_DESCRIPTION"] = ARASAKA_JARGON
+    os.environ["_ZRB_CUSTOM_VERSION"] = VERSION
     os.environ["ZRB_INIT_FILE_NAME"] = "arasaka_init.py" # Specify your init file name
 
     # --- Run the Zrb CLI ---
