@@ -31,6 +31,7 @@ This documentation is your starting point to learn about Zrb, understand its cor
     *   [Troubleshooting](./troubleshooting/)
     *   [Maintainer Guide](./maintainer-guide.md)
     *   [Changelog](./changelog.md)
+    *   [Creating a Custom Zrb Powered CLI](./creating-custom-zrb-powered-cli)
 *   [Demo & Community](#demo--community)
 
 ## Introduction

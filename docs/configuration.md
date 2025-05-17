@@ -26,6 +26,14 @@ Zrb can be configured using the following environment variables (see "Setting En
     - Default: `zrb_init.py`
     - Possible values: Any valid file name relative to directory path.
 
+- `ZRB_ROOT_GROUP_NAME`: Sets the name of the root command group.
+    - Default: `zrb`
+    - Possible values: Any string
+
+- `ZRB_ROOT_GROUP_DESCRIPTION`: Sets the description of the root command group.
+    - Default: `Your Automation Powerhouse`
+    - Possible values: Any string
+
 - `ZRB_LOGGING_LEVEL`: Sets the logging level.
     - Default: `WARNING`
     - Possible values: `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
@@ -41,6 +49,10 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_BANNER`: Banner text displayed on startup.
     - Default: Default Zrb banner
     - Possible values: Any string (supports f-string formatting with `{VERSION}`)
+
+- `_ZRB_CUSTOM_VERSION`: Sets a custom version string to override the default version.
+    - Default: Empty
+    - Possible values: Any string
 
 ## Directories and Files
 
@@ -118,23 +130,23 @@ Zrb can be configured using the following environment variables (see "Setting En
 ## LLM (Language Model) Configuration
 
 - `ZRB_LLM_MODEL`: LLM model to use.
-    - Default: Empty
+    - Default: None
     - Possible values: `llama3.1:latest`, `gpt-4`, `gpt-3.5-turbo`, etc.
 
 - `ZRB_LLM_BASE_URL`: Base URL for LLM API.
-    - Default: Empty
+    - Default: None
     - Possible values: `http://localhost:11434/v1`, `https://api.openai.com/v1`, etc.
 
 - `ZRB_LLM_API_KEY`: API key for the LLM provider.
-    - Default: Empty
+    - Default: None
     - Possible values: Any valid API key for the chosen provider
 
 - `ZRB_LLM_PERSONA`: LLM persona.
-    - Default: Empty.
+    - Default: None
     - Possible values: Any valid persona prompt
 
 - `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
-    - Default: Empty
+    - Default: None
     - Possible values: Any valid system prompt string
 
 - `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
@@ -154,15 +166,15 @@ Zrb can be configured using the following environment variables (see "Setting En
     - Possible values: `0` (false), `1` (true)
 
 - `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`: Special instruction prompt for LLM.
-    - Default: Empty
+    - Default: None
     - Possible values: Any valid prompt string
 
 - `ZRB_LLM_SUMMARIZATION_PROMPT`: Prompt for summarizing conversation history.
-    - Default: Empty
+    - Default: None
     - Possible values: Any valid prompt string
 
 - `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`: Prompt for enriching context.
-    - Default: Empty
+    - Default: None
     - Possible values: Any valid prompt string
 
 - `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
@@ -184,11 +196,11 @@ Zrb can be configured using the following environment variables (see "Setting En
 ## RAG (Retrieval-Augmented Generation) Configuration
 
 - `ZRB_RAG_EMBEDDING_API_KEY`: API key for OpenAI embeddings.
-    - Default: Empty
+    - Default: None
     - Possible values: Any valid OpenAI API key
 
 - `ZRB_RAG_EMBEDDING_BASE_URL`: Base URL for OpenAI API.
-    - Default: Empty
+    - Default: None
     - Possible values: `https://api.openai.com/v1` or any valid API endpoint
 
 - `ZRB_RAG_EMBEDDING_MODEL`: Embedding model for RAG.

@@ -126,6 +126,9 @@ class Config:
 
     @property
     def VERSION(self) -> str:
+        custom_version = os.getenv("_ZRB_CUSTOM_VERSION", "")
+        if custom_version != "":
+            return custom_version
         return metadata.version("zrb")
 
     @property

@@ -166,9 +166,7 @@ class Cli(Group):
 cli = Cli()
 
 
-@make_task(
-    name="version", description="🌟 Get current Zrb version", retries=0, group=cli
-)
+@make_task(name="version", description="🌟 Get current version", retries=0, group=cli)
 def get_version(_: AnyContext):
     return CFG.VERSION
 
