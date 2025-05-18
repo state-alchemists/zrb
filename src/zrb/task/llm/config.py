@@ -85,7 +85,7 @@ def get_model(
         if model_base_url is None and model_api_key is None:
             default_model_provider = llm_config.default_model_provider
             if default_model_provider is not None:
-                new_llm_config.set_default_provider(default_model_provider)
+                new_llm_config.set_default_model_provider(default_model_provider)
         return new_llm_config.default_model
     # If it's already a Model instance, return it directly
     if isinstance(model, Model):

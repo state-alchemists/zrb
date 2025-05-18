@@ -68,7 +68,9 @@ class LLMConfig:
         default_history_summarization_threshold: int | None = None,
         default_enrich_context: bool | None = None,
         default_context_enrichment_threshold: int | None = None,
+        default_model: Model | None = None,
         default_model_settings: ModelSettings | None = None,
+        default_model_provider: Provider | None = None,
     ):
         self._default_model_name = default_model_name
         self._default_model_base_url = default_base_url
@@ -87,8 +89,8 @@ class LLMConfig:
             default_context_enrichment_threshold
         )
         self._default_model_settings = default_model_settings
-        self._default_provider = None
-        self._default_model = None
+        self._default_model_provider = default_model_provider
+        self._default_model = default_model
 
     @property
     def default_model_name(self) -> str | None:
@@ -121,8 +123,8 @@ class LLMConfig:
 
     @property
     def default_model_provider(self) -> Provider | str:
-        if self._default_provider is not None:
-            return self._default_provider
+        if self._default_model_provider is not None:
+            return self._default_model_provider
         if self.default_model_base_url is None and self.default_model_api_key is None:
             return "openai"
         from pydantic_ai.providers.openai import OpenAIProvider
@@ -233,8 +235,8 @@ class LLMConfig:
     def set_default_model_base_url(self, model_base_url: str):
         self._default_model_base_url = model_base_url
 
-    def set_default_provider(self, provider: Provider | str):
-        self._default_provider = provider
+    def set_default_model_provider(self, provider: Provider | str):
+        self._default_model_provider = provider
 
     def set_default_model(self, model: Model | str):
         self._default_model = model

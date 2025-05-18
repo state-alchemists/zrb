@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.8
+
+- Rename `set_default_provider` to `set_default_model_provider` on `LLMConfig`
+- Add `default_model` and `default_model_provider` to `LLMConfig`'s contsructor
+
 # 1.6.7
 
 - Add `default_model_settings` config in `llm_config`.
