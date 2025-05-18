@@ -34,7 +34,7 @@ def get_history_summarization_threshold(
             ctx,
             history_summarization_threshold_attr,
             # Use llm_config default if attribute is None
-            llm_config.get_default_history_summarization_threshold(),
+            llm_config.default_history_summarization_threshold,
             auto_render=render_history_summarization_threshold,
         )
     except ValueError as e:
@@ -68,7 +68,7 @@ def should_summarize_history(
         ctx,
         should_summarize_history_attr,
         # Use llm_config default if attribute is None
-        llm_config.get_default_summarize_history(),
+        llm_config.default_summarize_history,
         auto_render=render_summarize_history,
     )
 

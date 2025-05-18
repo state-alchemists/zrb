@@ -188,15 +188,13 @@ def _show_info(ctx: AnyContext):
         ctx: The context object for the task.
     """
     ctx.print(
-        stylize_bold_yellow(
-            "\n".join(
-                [
-                    "/bye:   Quit from chat session",
-                    "/multi: Start multiline input",
-                    "/end:   End multiline input",
-                    "/help:  Show this message",
-                ]
-            )
+        "\n".join(
+            [
+                f"{stylize_bold_yellow('/bye')}   {stylize_faint('Quit from chat session')}",
+                f"{stylize_bold_yellow('/multi')} {stylize_faint('Start multiline input')}",
+                f"{stylize_bold_yellow('/end')}   {stylize_faint('End multiline input')}",
+                f"{stylize_bold_yellow('/help')}  {stylize_faint('Show this message')}",
+            ]
         ),
         plain=True,
     )

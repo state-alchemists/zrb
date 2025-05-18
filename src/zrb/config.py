@@ -44,15 +44,13 @@ class Config:
     @property
     def INIT_MODULES(self) -> list[str]:
         init_modules_str = os.getenv("ZRB_INIT_MODULES", "")
-        return (
-            [
+        if init_modules_str != "":
+            return [
                 module.strip()
                 for module in init_modules_str.split(":")
                 if module.strip() != ""
             ]
-            if init_modules_str != ""
-            else []
-        )
+        return []
 
     @property
     def ROOT_GROUP_NAME(self) -> str:
@@ -65,15 +63,13 @@ class Config:
     @property
     def INIT_SCRIPTS(self) -> list[str]:
         init_scripts_str = os.getenv("ZRB_INIT_SCRIPTS", "")
-        return (
-            [
+        if init_scripts_str != "":
+            return [
                 script.strip()
                 for script in init_scripts_str.split(":")
                 if script.strip() != ""
             ]
-            if init_scripts_str != ""
-            else []
-        )
+        return []
 
     @property
     def INIT_FILE_NAME(self) -> str:

@@ -1,6 +1,6 @@
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
-from zrb.llm_config import llm_config as default_llm_config
+from zrb.llm_config import llm_config as llm_config
 from zrb.util.attr import get_attr, get_str_attr
 
 
@@ -18,7 +18,7 @@ def get_persona(
     )
     if persona is not None:
         return persona
-    return default_llm_config.get_default_persona() or ""
+    return llm_config.default_persona or ""
 
 
 def get_base_system_prompt(
@@ -35,7 +35,7 @@ def get_base_system_prompt(
     )
     if system_prompt is not None:
         return system_prompt
-    return default_llm_config.get_default_system_prompt() or ""
+    return llm_config.default_system_prompt or ""
 
 
 def get_special_instruction_prompt(
@@ -52,7 +52,7 @@ def get_special_instruction_prompt(
     )
     if special_instruction is not None:
         return special_instruction
-    return default_llm_config.get_default_special_instruction_prompt() or ""
+    return llm_config.default_special_instruction_prompt or ""
 
 
 def get_combined_system_prompt(
@@ -104,7 +104,7 @@ def get_summarization_prompt(
     )
     if summarization_prompt is not None:
         return summarization_prompt
-    return default_llm_config.get_default_summarization_prompt()
+    return llm_config.default_summarization_prompt
 
 
 def get_context_enrichment_prompt(
@@ -121,4 +121,4 @@ def get_context_enrichment_prompt(
     )
     if context_enrichment_prompt is not None:
         return context_enrichment_prompt
-    return default_llm_config.get_default_context_enrichment_prompt()
+    return llm_config.default_context_enrichment_prompt

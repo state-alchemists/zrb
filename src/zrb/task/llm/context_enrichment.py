@@ -110,7 +110,7 @@ def get_context_enrichment_threshold(
             ctx,
             context_enrichment_threshold_attr,
             # Use llm_config default if attribute is None
-            llm_config.get_default_context_enrichment_threshold(),
+            llm_config.default_context_enrichment_threshold,
             auto_render=render_context_enrichment_threshold,
         )
     except ValueError as e:
@@ -145,7 +145,7 @@ def should_enrich_context(
     return get_bool_attr(
         ctx,
         should_enrich_context_attr,
-        llm_config.get_default_enrich_context(),
+        llm_config.default_enrich_context,
         auto_render=render_enrich_context,
     )
 

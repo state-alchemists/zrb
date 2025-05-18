@@ -1,8 +1,12 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.7
+
+- Add `default_model_settings` config in `llm_config`.
+
 # 1.6.6
 
-Make version overrideable by using `_ZRB_CUSTOM_VERSION` environment.
+- Make version overrideable by using `_ZRB_CUSTOM_VERSION` environment.
 
 # 1.6.5
 
