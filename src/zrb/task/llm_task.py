@@ -328,7 +328,7 @@ class LLMTask(BaseTask):
                 user_prompt=user_prompt,
                 history_list=history_list,
             )
-            if agent_run:
+            if agent_run and agent_run.result:
                 new_history_list = json.loads(agent_run.result.all_messages_json())
                 data_to_write = ConversationHistoryData(
                     context=conversation_context,  # Save the final context state

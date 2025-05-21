@@ -89,7 +89,7 @@ class Context(AnyContext):
         return int(self.render(template))
 
     def render_float(self, template: str | float) -> float:
-        if isinstance(template, float):
+        if isinstance(template, float) or isinstance(template, int):
             return template
         return float(self.render(template))
 
