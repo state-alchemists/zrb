@@ -4,7 +4,7 @@ from functools import partial
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
-from zrb.config import DEFAULT_SHELL, WARN_UNRECOMMENDED_COMMAND
+from zrb.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -149,7 +149,7 @@ class CmdTask(BaseTask):
 
     def _get_should_warn_unrecommended_commands(self):
         if self._should_warn_unrecommended_command is None:
-            return WARN_UNRECOMMENDED_COMMAND
+            return CFG.WARN_UNRECOMMENDED_COMMAND
         return self._should_warn_unrecommended_command
 
     def _check_unrecommended_commands(
@@ -170,7 +170,7 @@ class CmdTask(BaseTask):
 
     def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(
-            ctx, self._shell, DEFAULT_SHELL, auto_render=self._render_shell
+            ctx, self._shell, CFG.DEFAULT_SHELL, auto_render=self._render_shell
         )
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:

@@ -21,33 +21,34 @@ def mock_shared_context():
 
 
 @pytest.fixture(autouse=True)
-def mock_llm_history_dir(monkeypatch):
+def mock_llm_history_dir(monkeypatch, tmp_path):
     """Ensure LLM_HISTORY_DIR uses a temporary directory for tests."""
-    temp_dir = "/tmp/test_llm_history"
-    monkeypatch.setattr(history_module, "LLM_HISTORY_DIR", temp_dir)
-    # Clean up before and after test if needed
-    if os.path.exists(temp_dir):
-        for f in os.listdir(temp_dir):
+    llm_history_path = tmp_path / "test_llm_history"
+    llm_history_path.mkdir(parents=True, exist_ok=True)
+    temp_dir_str = str(llm_history_path)
+
+    # Create a mock CFG object that has the desired LLM_HISTORY_DIR
+    # and copy other attributes from the original CFG to keep other functionalities.
+    original_cfg = history_module.CFG
+    mock_cfg = mock.MagicMock(spec=original_cfg)
+
+    # Copy attributes from original_cfg to mock_cfg
+    # This ensures that other parts of CFG are still available if needed by the tests
+    # and only LLM_HISTORY_DIR is overridden.
+    for attr_name in dir(original_cfg):
+        if not attr_name.startswith("__"):  # Exclude magic methods
             try:
-                os.remove(os.path.join(temp_dir, f))
-            except OSError:  # Ignore if file was already removed or is a directory
-                pass
-        try:
-            os.rmdir(temp_dir)
-        except OSError:  # Ignore if directory is not empty or doesn't exist
-            pass
-    yield temp_dir
-    # Post-test cleanup
-    if os.path.exists(temp_dir):
-        for f in os.listdir(temp_dir):
-            try:
-                os.remove(os.path.join(temp_dir, f))
-            except OSError:
-                pass
-        try:
-            os.rmdir(temp_dir)
-        except OSError:
-            pass
+                setattr(mock_cfg, attr_name, getattr(original_cfg, attr_name))
+            except AttributeError:  # Some attributes might not be settable on MagicMock
+                pass  # Or handle specific cases if necessary
+
+    mock_cfg.LLM_HISTORY_DIR = temp_dir_str
+
+    # Patch the CFG object within the history_module's scope
+    monkeypatch.setattr(history_module, "CFG", mock_cfg)
+
+    yield temp_dir_str
+    # Pytest's tmp_path fixture handles cleanup of the temporary directory.
 
 
 # --- Tests for read_chat_conversation ---

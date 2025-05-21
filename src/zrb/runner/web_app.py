@@ -2,7 +2,7 @@ import asyncio
 import sys
 from typing import TYPE_CHECKING
 
-from zrb.config import BANNER, VERSION
+from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_route.docs_route import serve_docs
@@ -37,7 +37,7 @@ def create_web_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        for line in BANNER.split("\n") + [
+        for line in CFG.BANNER.split("\n") + [
             f"Zrb Server running on http://localhost:{web_config.port}"
         ]:
             print(line, file=sys.stderr)
@@ -48,7 +48,7 @@ def create_web_app(
 
     app = FastAPI(
         title="Zrb",
-        version=VERSION,
+        version=CFG.VERSION,
         summary="Your Automation Powerhouse",
         lifespan=lifespan,
         docs_url=None,

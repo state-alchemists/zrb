@@ -1,19 +1,3 @@
-// Hamburger menu functionality
-const hamburgerMenu = document.querySelector('.hamburger-menu');
-const layoutContainer = document.querySelector('.layout-container');
-
-hamburgerMenu.addEventListener('click', function() {
-    layoutContainer.classList.toggle('menu-active');
-});
-
-// Close menu when clicking outside
-document.addEventListener('click', function(event) {
-    if (!layoutContainer.contains(event.target) && !hamburgerMenu.contains(event.target)) {
-        layoutContainer.classList.remove('menu-active');
-    }
-});
-
-// Theme switcher functionality
 const themeSelect = document.getElementById('theme-select');
 
 function setTheme(theme) {

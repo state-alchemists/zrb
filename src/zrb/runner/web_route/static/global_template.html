@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="light dark">
+        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="icon" href="/static/favicon-32x32.png" sizes="32x32" type="image/png">
+        <title>{web_title}</title>
+        <link rel="stylesheet" href="/static/common.css">
+    </head>
+    <body>
+        <div class="theme-switcher">
+            <label for="theme-select">Theme:</label>
+            <select id="theme-select">
+                <option value="auto">🌗 Auto</option>
+                <option value="light">☀️ Light</option>
+                <option value="dark">🌙 Dark</option>
+            </select>
+        </div>
+        <div class="layout-container">
+            {content}
+        </div>
+    </body>
+    <script src="/refresh-token.js"></script>
+    <script src="/static/common.js"></script>
+</html>

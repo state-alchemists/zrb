@@ -1,6 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
+from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_config.config import WebConfig
 from zrb.runner.web_util.html import get_html_auth_link
@@ -24,16 +25,25 @@ def serve_login_page(
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
     async def login(request: Request) -> HTMLResponse:
         _DIR = os.path.dirname(__file__)
+        _GLOBAL_TEMPLATE = read_file(
+            os.path.join(os.path.dirname(_DIR), "static", "global_template.html")
+        )
         _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
         user = await get_user_from_request(web_config, request)
         auth_link = get_html_auth_link(user)
         return HTMLResponse(
             fstring_format(
-                _VIEW_TEMPLATE,
+                _GLOBAL_TEMPLATE,
                 {
-                    "name": root_group.name,
-                    "description": root_group.description,
-                    "auth_link": auth_link,
+                    "web_title": CFG.WEB_TITLE,
+                    "content": fstring_format(
+                        _VIEW_TEMPLATE,
+                        {
+                            "name": root_group.name,
+                            "description": root_group.description,
+                            "auth_link": auth_link,
+                        },
+                    ),
                 },
             )
         )

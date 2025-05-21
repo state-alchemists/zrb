@@ -5,6 +5,8 @@ import pytest
 
 from zrb import __main__
 
+# CFG import removed as patches will target zrb.config.Config
+
 
 @pytest.fixture
 def mock_os_path(tmp_path):
@@ -74,7 +76,9 @@ def test_get_zrb_init_path_list_finds_files(mock_os_path):
         str(nested_dir / "zrb_init.py"),
     ]
     # Mock logger to avoid side effects during test
-    with mock.patch("zrb.__main__.LOGGER") as mock_logger:
+    with mock.patch(
+        "zrb.config.Config.LOGGER", new_callable=mock.MagicMock
+    ) as mock_logger:
         found_paths = __main__._get_zrb_init_path_list()
         assert found_paths == expected_paths
         # Check if logger was called for finding attempts
@@ -115,14 +119,17 @@ def test_get_zrb_init_path_list_no_files(tmp_path):
         "os.path.isfile", mock_isfile
     ):
         # Mock logger to avoid side effects during test
-        with mock.patch("zrb.__main__.LOGGER") as mock_logger:
+        patch_target_logger = "zrb.config.Config.LOGGER"
+        with mock.patch(
+            patch_target_logger, new_callable=mock.MagicMock
+        ) as mock_logger:
             found_paths = __main__._get_zrb_init_path_list()
             assert found_paths == []
             # Check if logger was called for finding attempts
             assert mock_logger.info.call_count > 0
 
 
-@mock.patch("zrb.__main__.LOGGER")
+@mock.patch("zrb.config.Config.LOGGER", new_callable=mock.MagicMock)
 @mock.patch("zrb.__main__.logging.StreamHandler")
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
@@ -130,9 +137,19 @@ def test_get_zrb_init_path_list_no_files(tmp_path):
 @mock.patch("zrb.__main__._get_zrb_init_path_list")
 @mock.patch("zrb.__main__.cli.run")
 @mock.patch("sys.argv", ["zrb", "test-task"])
-@mock.patch("zrb.__main__.INIT_MODULES", ["init.module1"])
-@mock.patch("zrb.__main__.INIT_SCRIPTS", ["init.script1"])
+@mock.patch(
+    "zrb.config.Config.INIT_MODULES",
+    new_callable=mock.PropertyMock,
+    return_value=["init.module1"],
+)
+@mock.patch(
+    "zrb.config.Config.INIT_SCRIPTS",
+    new_callable=mock.PropertyMock,
+    return_value=["init.script1"],
+)
 def test_serve_cli_normal_execution(
+    mock_init_scripts_prop,
+    mock_init_modules_prop,
     mock_cli_run,
     mock_get_zrb_init,
     mock_load_file,
@@ -159,7 +176,7 @@ def test_serve_cli_normal_execution(
     mock_cli_run.assert_called_once_with(["test-task"])
 
 
-@mock.patch("zrb.__main__.LOGGER")
+@mock.patch("zrb.config.Config.LOGGER", new_callable=mock.MagicMock)
 @mock.patch("zrb.__main__.logging.StreamHandler")
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
@@ -186,7 +203,7 @@ def test_serve_cli_keyboard_interrupt(
     mock_exit.assert_called_once_with(1)
 
 
-@mock.patch("zrb.__main__.LOGGER")
+@mock.patch("zrb.config.Config.LOGGER", new_callable=mock.MagicMock)
 @mock.patch("zrb.__main__.logging.StreamHandler")
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
@@ -210,7 +227,7 @@ def test_serve_cli_runtime_error_event_loop_closed(
     mock_exit.assert_called_once_with(1)
 
 
-@mock.patch("zrb.__main__.LOGGER")
+@mock.patch("zrb.config.Config.LOGGER", new_callable=mock.MagicMock)
 @mock.patch("zrb.__main__.logging.StreamHandler")
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
@@ -235,7 +252,7 @@ def test_serve_cli_runtime_error_other(
     mock_exit.assert_not_called()
 
 
-@mock.patch("zrb.__main__.LOGGER")
+@mock.patch("zrb.config.Config.LOGGER", new_callable=mock.MagicMock)
 @mock.patch("zrb.__main__.logging.StreamHandler")
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")

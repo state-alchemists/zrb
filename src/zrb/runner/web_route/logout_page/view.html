@@ -1,41 +1,23 @@
-<!doctype html>
-<html lang="en">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark">
-    <link rel="stylesheet" href="/static/pico.min.css">
-    <link rel="icon" href="/static/favicon-32x32.png" sizes="32x32" type="image/png">
-    <title>Zrb</title>
-    <link rel="stylesheet" href="/static/common.css">
-</head>
-
-<body>
-    <header class="container">
-        <hgroup>
-            <h1>{name}</h1>
-            <p>{description}</p>
-            <nav>
-                <ul>
-                    <li><a href="/">🏠 Home</a></li>
-                    <li><a href="/docs">💻 API Documentation</a></li>
-                </ul>
-            </nav>
-        </hgroup>
-    </header>
-    <main class="container">
-        <article>
-            <h2>Ready to log out?</h2>
-            <p>You are currently logged in as <strong>{user.username}</strong>.</p>
-            <div class="button-group">
-                <button class="primary" onclick="logout()">🚪 Logout</button>
-                <button class="secondary" onclick="window.history.back()">🔙 Cancel</button>
-            </div>
-        </article>
-    </main>
-    <script src="/static/logout/event.js"></script>
-    <script src="/refresh-token.js"></script>
-</body>
-
-</html>
+<header class="container">
+    <hgroup>
+        <h1>{name}</h1>
+        <p>{description}</p>
+        <nav>
+            <ul>
+                <li><a href="/">🏠 Home</a></li>
+                <li><a href="/docs">💻 API Documentation</a></li>
+            </ul>
+        </nav>
+    </hgroup>
+</header>
+<main class="container">
+    <article>
+        <h2>Ready to log out?</h2>
+        <p>You are currently logged in as <strong>{user.username}</strong>.</p>
+        <div class="button-group">
+            <button class="primary" onclick="logout()">🚪 Logout</button>
+            <button class="secondary" onclick="window.history.back()">🔙 Cancel</button>
+        </div>
+    </article>
+</main>
+<script src="/static/logout/event.js"></script>

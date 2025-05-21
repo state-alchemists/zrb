@@ -9,3 +9,24 @@ header hgroup {
 nav ul {
     padding: 0;
 }
+.theme-switcher {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 1000;
+}
+
+.theme-switcher select {
+    padding: 0.25rem 2rem 0.25rem 0.25rem;
+    font-size: 0.875rem;
+    margin: 0;
+    height: auto;
+}
+
+.theme-switcher label {
+    font-size: 0.875rem;
+    margin: 0 0.5rem 0 0;
+}

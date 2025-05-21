@@ -156,7 +156,17 @@ async def test_git_pull_subtree_handles_error(
     mock_get_repo_dir.assert_called_once_with(print_method=mock_context.print)
     mock_load_config.assert_called_once_with("/fake/repo")
     mock_pull_subtree.assert_called_once()  # Called once before failing
-    mock_context.log_error.assert_called_once()  # Error should be logged
+    # Check that log_error was called with the specific "Pull failed" exception
+    assert mock_context.log_error.called, "log_error was not called"
+    found_expected_pull_log = False
+    for call_args in mock_context.log_error.call_args_list:
+        args, _ = call_args
+        if args and isinstance(args[0], Exception) and str(args[0]) == "Pull failed":
+            found_expected_pull_log = True
+            break
+    assert (
+        found_expected_pull_log
+    ), "log_error was not called with Exception('Pull failed')"
 
 
 # --- Tests for git_push_subtree ---
@@ -249,4 +259,14 @@ async def test_git_push_subtree_handles_error(
     mock_get_repo_dir.assert_called_once_with(print_method=mock_context.print)
     mock_load_config.assert_called_once_with("/fake/repo")
     mock_push_subtree.assert_called_once()  # Called once before failing
-    mock_context.log_error.assert_called_once()  # Error should be logged
+    # Check that log_error was called with the specific "Push failed" exception
+    assert mock_context.log_error.called, "log_error was not called"
+    found_expected_push_log = False
+    for call_args in mock_context.log_error.call_args_list:
+        args, _ = call_args
+        if args and isinstance(args[0], Exception) and str(args[0]) == "Push failed":
+            found_expected_push_log = True
+            break
+    assert (
+        found_expected_push_log
+    ), "log_error was not called with Exception('Push failed')"

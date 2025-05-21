@@ -1,6 +1,7 @@
 import json
 import os
 
+from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_schema.user import User
 from zrb.runner.web_util.html import get_html_auth_link
@@ -21,10 +22,18 @@ def show_task_page(
     from fastapi.responses import HTMLResponse
 
     _DIR = os.path.dirname(__file__)
+    _GLOBAL_TEMPLATE = read_file(
+        os.path.join(
+            os.path.dirname(os.path.dirname(_DIR)), "static", "global_template.html"
+        )
+    )
     _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
     _TASK_INPUT_TEMPLATE = read_file(os.path.join(_DIR, "partial", "input.html"))
+    web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
+    web_jargon = (
+        CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+    )
     auth_link = get_html_auth_link(user)
-
     session.register_task(task)
     ctx = task.get_ctx(session)
     url_parts = url.split("/")
@@ -53,26 +62,32 @@ def show_task_page(
     session_name = args[0] if len(args) > 0 else ""
     return HTMLResponse(
         fstring_format(
-            _VIEW_TEMPLATE,
+            _GLOBAL_TEMPLATE,
             {
-                "name": task.name,
-                "description": task.description,
-                "auth_link": auth_link,
-                "root_name": root_group.name,
-                "root_description": root_group.description,
-                "url": url,
-                "parent_url": parent_url,
-                "task_inputs": "\n".join(input_html_list),
-                "ui_url": ui_url,
-                "json_cfg": json.dumps(
+                "web_title": f"{web_title} | {task.name}",
+                "content": fstring_format(
+                    _VIEW_TEMPLATE,
                     {
-                        "CURRENT_URL": url,
-                        "SESSION_API_URL": session_api_url,
-                        "INPUT_API_URL": input_api_url,
-                        "UI_URL": ui_url,
-                        "SESSION_NAME": session_name,
-                        "PAGE": 0,
-                    }
+                        "web_title": web_title,
+                        "web_jargon": web_jargon,
+                        "name": task.name,
+                        "description": task.description,
+                        "auth_link": auth_link,
+                        "url": url,
+                        "parent_url": parent_url,
+                        "task_inputs": "\n".join(input_html_list),
+                        "ui_url": ui_url,
+                        "json_cfg": json.dumps(
+                            {
+                                "CURRENT_URL": url,
+                                "SESSION_API_URL": session_api_url,
+                                "INPUT_API_URL": input_api_url,
+                                "UI_URL": ui_url,
+                                "SESSION_NAME": session_name,
+                                "PAGE": 0,
+                            }
+                        ),
+                    },
                 ),
             },
         )

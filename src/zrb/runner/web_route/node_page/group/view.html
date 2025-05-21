@@ -1,37 +1,22 @@
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="color-scheme" content="light dark">
-        <link rel="stylesheet" href="/static/pico.min.css">
-        <link rel="icon" href="/static/favicon-32x32.png" sizes="32x32" type="image/png">
-        <title>Zrb</title>
-        <link rel="stylesheet" href="/static/common.css">
-    </head>
-    <body>
-        <header class="container">
-            <hgroup>
-                <h1>{root_name}</h1>
-                <p>{root_description}</p>
-                <nav>
-                    <ul>
-                        <li><a href="/">🏠 Home</a></li>
-                        <li><a href="{parent_url}">🔙 Parent</a></li>
-                        <li><a href="/docs">💻 API Documentation</a></li>
-                    </ul>
-                    <ul>
-                        <li>{auth_link}</li>
-                    </ul>
-                </nav>
-            </hgroup>
-        </header>
-        <main class="container">
-                <h3>{name}</h3>
-                <p>{description}</p>
-                {group_info}
-                {task_info}
-        </main>
-    </body>
-    <script src="/refresh-token.js"></script>
-</html>
+<header class="container">
+    <hgroup>
+        <h1>{web_title}</h1>
+        <p>{web_jargon}</p>
+        <nav>
+            <ul>
+                <li><a href="/">🏠 Home</a></li>
+                <li><a href="{parent_url}">🔙 Parent</a></li>
+                <li><a href="/docs">💻 API Documentation</a></li>
+            </ul>
+            <ul>
+                <li>{auth_link}</li>
+            </ul>
+        </nav>
+    </hgroup>
+</header>
+<main class="container">
+        <h3>{name}</h3>
+        <p>{description}</p>
+        {group_info}
+        {task_info}
+</main>

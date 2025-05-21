@@ -1,5 +1,47 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.8
+
+- Rename `set_default_provider` to `set_default_model_provider` on `LLMConfig`
+- Add `default_model` and `default_model_provider` to `LLMConfig`'s contsructor
+
+# 1.6.7
+
+- Add `default_model_settings` config in `llm_config`.
+
+# 1.6.6
+
+- Make version overrideable by using `_ZRB_CUSTOM_VERSION` environment.
+
+# 1.6.5
+
+- Breaking change: `Cli` constructor no longer has any parameter.
+
+# 1.6.4
+
+- Add `ZRB_ROOT_GROUP_NAME` and `ZRB_ROOT_GROUP_DESCRIPTION`
+
+# 1.6.3
+
+- Patch: Handle cmd output that is not decodable (already a string)
+
+# 1.6.2
+
+- Handle long lines of CmdTask output
+
+# 1.6.1
+
+- Fix LLMTask summarization and context enrichment mechanism
+
+# 1.6.0
+
+- Introduce `ZRB_INIT_FILE_NAME`, `ZRB_BANNER`, `ZRB_WEB_TITLE`, `ZRB_WEB_JARGON`, `ZRB_WEB_HOMEPAGE_INTRO` configuration.
+- Change Configuration mechanism, use `zrb.config.CFG` that allows lazy load.
+- Breaking changes: 
+    - `zrb.builtin.llm.llm_chat` is now `zrb.builtin.llm.llm_ask`
+    - We now have `llm_ask` for one time interaction, replacing the old `llm_chat`
+    - The new `llm_chat` can only be accessed via CLI
+
 # 1.5.17
 
 - Fix bug on add_git_subtree task, caused by missing parameter

@@ -73,9 +73,7 @@ def get_conversation_context(
     Retrieves the conversation context.
     If a value in the context dict is callable, it executes it with ctx.
     """
-    raw_context = get_attr(
-        ctx, conversation_context_attr, {}, auto_render=False
-    )  # Context usually shouldn't be rendered
+    raw_context = get_attr(ctx, conversation_context_attr, {}, auto_render=False)
     if not isinstance(raw_context, dict):
         ctx.log_warning(
             f"Conversation context resolved to type {type(raw_context)}, "

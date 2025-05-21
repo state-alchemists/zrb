@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any
 
-from zrb.config import LLM_HISTORY_DIR
+from zrb.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.history import ConversationHistoryData
 from zrb.util.file import read_file, write_file
@@ -17,7 +17,7 @@ def read_chat_conversation(ctx: AnySharedContext) -> dict[str, Any] | list | Non
         return None  # Indicate no history to load
     previous_session_name = ctx.input.previous_session
     if not previous_session_name:  # Check for empty string or None
-        last_session_file_path = os.path.join(LLM_HISTORY_DIR, "last-session")
+        last_session_file_path = os.path.join(CFG.LLM_HISTORY_DIR, "last-session")
         if os.path.isfile(last_session_file_path):
             previous_session_name = read_file(last_session_file_path).strip()
             if not previous_session_name:  # Handle empty last-session file
@@ -25,7 +25,7 @@ def read_chat_conversation(ctx: AnySharedContext) -> dict[str, Any] | list | Non
         else:
             return None  # No previous session specified and no last session found
     conversation_file_path = os.path.join(
-        LLM_HISTORY_DIR, f"{previous_session_name}.json"
+        CFG.LLM_HISTORY_DIR, f"{previous_session_name}.json"
     )
     if not os.path.isfile(conversation_file_path):
         ctx.log_warning(f"History file not found: {conversation_file_path}")
@@ -55,19 +55,19 @@ def write_chat_conversation(
     ctx: AnySharedContext, history_data: ConversationHistoryData
 ):
     """Writes the conversation history data (including context) to a session file."""
-    os.makedirs(LLM_HISTORY_DIR, exist_ok=True)
+    os.makedirs(CFG.LLM_HISTORY_DIR, exist_ok=True)
     current_session_name = ctx.session.name
     if not current_session_name:
         ctx.log_warning("Cannot write history: Session name is empty.")
         return
     conversation_file_path = os.path.join(
-        LLM_HISTORY_DIR, f"{current_session_name}.json"
+        CFG.LLM_HISTORY_DIR, f"{current_session_name}.json"
     )
     try:
         # Use model_dump_json to serialize the Pydantic model
         write_file(conversation_file_path, history_data.model_dump_json(indent=2))
         # Update the last-session pointer
-        last_session_file_path = os.path.join(LLM_HISTORY_DIR, "last-session")
+        last_session_file_path = os.path.join(CFG.LLM_HISTORY_DIR, "last-session")
         write_file(last_session_file_path, current_session_name)
     except Exception as e:
         ctx.log_error(f"Error writing history file '{conversation_file_path}': {e}")

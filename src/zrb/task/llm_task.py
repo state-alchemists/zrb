@@ -22,26 +22,24 @@ from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.task.llm.agent import get_agent, run_agent_iteration
-
-# No longer need llm_config here
 from zrb.task.llm.config import (
     get_model,
     get_model_settings,
 )
-from zrb.task.llm.context import get_conversation_context
+from zrb.task.llm.context import extract_default_context, get_conversation_context
 from zrb.task.llm.context_enrichment import maybe_enrich_context
 from zrb.task.llm.history import (
     ConversationHistoryData,
     ListOfDict,
-    prepare_initial_state,
+    read_conversation_history,
     write_conversation_history,
 )
 from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
-    build_user_prompt,
     get_combined_system_prompt,
     get_context_enrichment_prompt,
     get_summarization_prompt,
+    get_user_message,
 )
 from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
@@ -240,6 +238,7 @@ class LLMTask(BaseTask):
             summarization_prompt_attr=self._summarization_prompt,
             render_summarization_prompt=self._render_summarization_prompt,
         )
+        user_message = get_user_message(ctx, self._message)
         # Get the combined system prompt using the new getter
         system_prompt = get_combined_system_prompt(
             ctx=ctx,
@@ -250,17 +249,19 @@ class LLMTask(BaseTask):
             special_instruction_prompt_attr=self._special_instruction_prompt,
             render_special_instruction_prompt=self._render_special_instruction_prompt,
         )
-        # 1. Prepare initial state (read history, get initial context)
-        history_list, conversation_context = await prepare_initial_state(
+        # 1. Prepare initial state (read history from previous session)
+        conversation_history = await read_conversation_history(
             ctx=ctx,
             conversation_history_reader=self._conversation_history_reader,
             conversation_history_file_attr=self._conversation_history_file,
             render_history_file=self._render_history_file,
             conversation_history_attr=self._conversation_history,
-            conversation_context_getter=lambda c: get_conversation_context(
-                c, self._conversation_context
-            ),
         )
+        history_list = conversation_history.history
+        conversation_context = {
+            **conversation_history.context,
+            **get_conversation_context(ctx, self._conversation_context),
+        }
         # 2. Enrich context (optional)
         conversation_context = await maybe_enrich_context(
             ctx=ctx,
@@ -289,18 +290,21 @@ class LLMTask(BaseTask):
             model_settings=model_settings,
             summarization_prompt=summarization_prompt,
         )
-        # 4. Build the final user prompt
-        user_prompt = build_user_prompt(
-            ctx=ctx,
-            message_attr=self._message,
-            conversation_context=conversation_context,
+        # 4. Build the final user prompt and system prompt
+        final_user_prompt, default_context = extract_default_context(user_message)
+        final_system_prompt = "\n".join(
+            [
+                system_prompt,
+                "# Context",
+                json.dumps({**default_context, **conversation_context}),
+            ]
         )
         # 5. Get the agent instance
         agent = get_agent(
             ctx=ctx,
             agent_attr=self._agent,
             model=model,
-            system_prompt=system_prompt,
+            system_prompt=final_system_prompt,
             model_settings=model_settings,
             tools_attr=self._tools,
             additional_tools=self._additional_tools,
@@ -309,7 +313,7 @@ class LLMTask(BaseTask):
         )
         # 6. Run the agent iteration and save the results/history
         return await self._run_agent_and_save_history(
-            ctx, agent, user_prompt, history_list, conversation_context
+            ctx, agent, final_user_prompt, history_list, conversation_context
         )
 
     async def _run_agent_and_save_history(
@@ -346,7 +350,7 @@ class LLMTask(BaseTask):
                     ctx.xcom[xcom_usage_key] = Xcom([])
                 usage = agent_run.result.usage()
                 ctx.xcom.get(xcom_usage_key).push(usage)
-                ctx.print(stylize_faint(f"[USAGE] {usage}"))
+                ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
                 return agent_run.result.output
             else:
                 ctx.log_warning("Agent run did not produce a result.")

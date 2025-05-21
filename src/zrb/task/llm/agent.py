@@ -2,14 +2,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from openai import APIError
     from pydantic_ai import Agent, Tool
     from pydantic_ai.agent import AgentRun
     from pydantic_ai.mcp import MCPServer
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 else:
-    APIError = Any
     Agent = Any
     Tool = Any
     AgentRun = Any
@@ -130,6 +128,7 @@ async def run_agent_iteration(
     Raises:
         Exception: If any error occurs during agent execution.
     """
+    from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
     async with agent.run_mcp_servers():
@@ -141,7 +140,7 @@ async def run_agent_iteration(
                 # Each node represents a step in the agent's execution
                 # Reference: https://ai.pydantic.dev/agents/#streaming
                 try:
-                    await print_node(ctx.print, agent_run, node)
+                    await print_node(_get_plain_printer(ctx), agent_run, node)
                 except APIError as e:
                     # Extract detailed error information from the response
                     error_details = extract_api_error_details(e)
@@ -152,3 +151,12 @@ async def run_agent_iteration(
                     ctx.log_error(f"Error type: {type(e).__name__}")
                     raise
             return agent_run
+
+
+def _get_plain_printer(ctx: AnyContext):
+    def printer(*args, **kwargs):
+        if "plain" not in kwargs:
+            kwargs["plain"] = True
+        return ctx.print(*args, **kwargs)
+
+    return printer

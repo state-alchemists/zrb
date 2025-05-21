@@ -19,9 +19,7 @@ def mock_shared_context():
 
 
 @mock.patch("zrb.builtin.llm.input.read_file")
-@mock.patch(
-    "zrb.builtin.llm.input.os.path.dirname"
-)  # Mock dirname to control file path
+@mock.patch("zrb.builtin.llm.input.os.path.dirname")
 def test_previous_session_input_to_html(
     mock_dirname, mock_read_file, mock_shared_context
 ):
@@ -61,7 +59,7 @@ def test_previous_session_input_to_html(
     )
 
     # Check the generated HTML structure
-    expected_input_tag = f'<input name="{input_name}" placeholder="{input_description}" value="{input_default}" />'
+    expected_input_tag = f'<input name="{input_name}" placeholder="{input_description}" value="{input_default}" />'  # noqa
     expected_script_tag = (
         f"<script>{js_content}</script>"  # JS content is returned directly by mock
     )

@@ -1,6 +1,7 @@
 import json
 import os
 from collections.abc import Callable
+from copy import deepcopy
 from typing import Any, Optional
 
 from pydantic import BaseModel
@@ -177,66 +178,34 @@ async def write_conversation_history(
         write_file(history_file, history_data.model_dump_json(indent=2))
 
 
-async def prepare_initial_state(
-    ctx: AnyContext,
-    conversation_history_reader: (
-        Callable[[AnySharedContext], ConversationHistoryData | dict | list | None]
-        | None
-    ),
-    conversation_history_file_attr: StrAttr | None,
-    render_history_file: bool,
-    conversation_history_attr: (
-        ConversationHistoryData
-        | Callable[[AnySharedContext], ConversationHistoryData | dict | list]
-        | dict
-        | list
-    ),
-    conversation_context_getter: Callable[[AnyContext], dict[str, Any]],
-) -> tuple[ListOfDict, dict[str, Any]]:
-    """Reads history and prepares the initial conversation context."""
-    history_data: ConversationHistoryData = await read_conversation_history(
-        ctx,
-        conversation_history_reader,
-        conversation_history_file_attr,
-        render_history_file,
-        conversation_history_attr,
-    )
-    # Clean the history list to remove context from historical user prompts
-    cleaned_history_list = []
-    for interaction in history_data.history:
-        cleaned_history_list.append(
-            remove_context_from_interaction_history(interaction)
-        )
-    conversation_context = conversation_context_getter(ctx)
-    # Merge history context from loaded data without overwriting existing keys
-    for key, value in history_data.context.items():
-        if key not in conversation_context:
-            conversation_context[key] = value
-    # Return the CLEANED history list
-    return cleaned_history_list, conversation_context
+def replace_system_prompt_in_history_list(
+    history_list: ListOfDict, replacement: str = "<main LLM system prompt>"
+) -> ListOfDict:
+    """
+    Returns a new history list where any part with part_kind 'system-prompt'
+    has its 'content' replaced with the given replacement string.
+    Args:
+        history: List of history items (each item is a dict with a 'parts' list).
+        replacement: The string to use in place of system-prompt content.
+
+    Returns:
+        A deep-copied list of history items with system-prompt content replaced.
+    """
+    new_history = deepcopy(history_list)
+    for item in new_history:
+        parts = item.get("parts", [])
+        for part in parts:
+            if part.get("part_kind") == "system-prompt":
+                part["content"] = replacement
+    return new_history
 
 
-def remove_context_from_interaction_history(
-    interaction: dict[str, Any],
-) -> dict[str, Any]:
-    try:
-        cleaned_interaction = json.loads(json.dumps(interaction))
-    except Exception:
-        # Fallback to shallow copy if not JSON serializable (less safe)
-        cleaned_interaction = interaction.copy()
-    if "parts" in cleaned_interaction and isinstance(
-        cleaned_interaction["parts"], list
-    ):
-        for part in cleaned_interaction["parts"]:
-            is_user_prompt = part.get("part_kind") == "user-prompt"
-            has_str_content = isinstance(part.get("content"), str)
-            if is_user_prompt and has_str_content:
-                content = part["content"]
-                user_message_marker = "# User Message\n"
-                marker_index = content.find(user_message_marker)
-                if marker_index != -1:
-                    # Extract message after the marker and strip whitespace
-                    start_index = marker_index + len(user_message_marker)
-                    part["content"] = content[start_index:].strip()
-                # else: If marker not found, leave content as is (old format/error)
-    return cleaned_interaction
+def count_part_in_history_list(history_list: ListOfDict) -> int:
+    """Calculates the total number of 'parts' in a history list."""
+    history_part_len = 0
+    for history in history_list:
+        if "parts" in history:
+            history_part_len += len(history["parts"])
+        else:
+            history_part_len += 1
+    return history_part_len

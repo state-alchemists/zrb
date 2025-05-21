@@ -19,6 +19,13 @@ from zrb.xcom.xcom import Xcom
 
 
 class BaseTrigger(BaseTask):
+    """
+    A base class for tasks that act as triggers or schedulers.
+
+    It extends BaseTask and adds functionality for handling callbacks
+    and managing a queue for data exchange.
+    """
+
     def __init__(
         self,
         name: str,
@@ -44,6 +51,37 @@ class BaseTrigger(BaseTask):
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
     ):
+        """
+        Initializes a new instance of the BaseTrigger class.
+
+        Args:
+            name: The name of the trigger task.
+            color: The color to use for the task in the CLI output.
+            icon: The icon to display for the task.
+            description: A brief description of the task.
+            cli_only: If True, the task is only available in the CLI.
+            input: The input definition for the task.
+            env: The environment variable definition for the task.
+            action: The action to be performed by the task.
+            execute_condition: A condition that must be met for the task to execute.
+            queue_name: The name of the XCom queue used for data
+                exchange with callbacks. Whenever any data is added
+                to xcom[queue_name], the callback will be triggered.
+            callback: A single or list of callbacks to be executed after the trigger action.
+            retries: The number of times to retry the task on failure.
+            retry_period: The time to wait between retries.
+            readiness_check: A single or list of tasks to check for readiness before execution.
+            readiness_check_delay: The initial delay before starting
+                readiness checks.
+            readiness_check_period: The time to wait between readiness checks.
+            readiness_failure_threshold: The number of consecutive readiness
+                check failures before the task fails.
+            readiness_timeout: The maximum time to wait for readiness checks to pass.
+            monitor_readiness: If True, monitor readiness checks during execution.
+            upstream: A single or list of tasks that must complete before this task starts.
+            fallback: A single or list of tasks to run if this task fails.
+            successor: A single or list of tasks to run after this task completes successfully.
+        """
         super().__init__(
             name=name,
             color=color if color is not None else CYAN,
@@ -104,11 +142,18 @@ class BaseTrigger(BaseTask):
         for callback in self.callbacks:
             xcom_dict = DotDict({self.queue_name: Xcom([data])})
             callback_session = Session(
-                shared_ctx=SharedContext(xcom=xcom_dict),
+                shared_ctx=SharedContext(
+                    input=dict(session.shared_ctx.input),
+                    xcom=xcom_dict,
+                ),
                 parent=session,
                 root_group=session.root_group,
             )
-            coros.append(asyncio.create_task(callback.async_run(callback_session)))
+            coros.append(
+                asyncio.create_task(
+                    callback.async_run(parent_session=session, session=callback_session)
+                )
+            )
         await asyncio.gather(*coros)
 
     def get_exchange_xcom(self, session: AnySession) -> Xcom:

@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 from collections.abc import Callable
 
-from zrb.config import DEFAULT_EDITOR
+from zrb.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
 from zrb.util.file import read_file
@@ -20,7 +20,7 @@ class TextInput(BaseInput):
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
-        editor: str = DEFAULT_EDITOR,
+        editor: str | None = None,
         extension: str = ".txt",
         comment_start: str | None = None,
         comment_end: str | None = None,
@@ -58,6 +58,14 @@ class TextInput(BaseInput):
             return " -->"
         return ""
 
+    @property
+    def editor_cmd(self) -> str | None:
+        if self._editor is not None:
+            return self._editor
+        if CFG.DEFAULT_EDITOR != "":
+            return CFG.DEFAULT_EDITOR
+        return None
+
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = self.name
         description = self.description
@@ -71,6 +79,8 @@ class TextInput(BaseInput):
         )
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
+        if self.editor_cmd is None or self.editor_cmd.strip() == "":
+            return super()._prompt_cli_str(shared_ctx)
         prompt_message = super().prompt_message
         comment_prompt_message = (
             f"{self.comment_start}{prompt_message}{self.comment_end}"
@@ -86,10 +96,9 @@ class TextInput(BaseInput):
             if default_value:
                 temp_file.write(default_value.encode())
             temp_file.flush()
-        # Open the editor
-        subprocess.call([self._editor, temp_file_name])
-        # Read the edited content
-        edited_content = read_file(temp_file_name)
+            subprocess.call([self.editor_cmd, temp_file_name])
+            # Read the edited content
+            edited_content = read_file(temp_file_name)
         parts = [
             text.strip() for text in edited_content.split(comment_prompt_message, 1)
         ]

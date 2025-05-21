@@ -1,11 +1,6 @@
-import json
-from textwrap import dedent
-from typing import Any
-
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
-from zrb.llm_config import llm_config as default_llm_config
-from zrb.task.llm.context import extract_default_context
+from zrb.llm_config import llm_config as llm_config
 from zrb.util.attr import get_attr, get_str_attr
 
 
@@ -23,7 +18,7 @@ def get_persona(
     )
     if persona is not None:
         return persona
-    return default_llm_config.get_default_persona() or ""
+    return llm_config.default_persona or ""
 
 
 def get_base_system_prompt(
@@ -40,7 +35,7 @@ def get_base_system_prompt(
     )
     if system_prompt is not None:
         return system_prompt
-    return default_llm_config.get_default_system_prompt() or ""
+    return llm_config.default_system_prompt or ""
 
 
 def get_special_instruction_prompt(
@@ -57,7 +52,7 @@ def get_special_instruction_prompt(
     )
     if special_instruction is not None:
         return special_instruction
-    return default_llm_config.get_default_special_instruction_prompt() or ""
+    return llm_config.default_special_instruction_prompt or ""
 
 
 def get_combined_system_prompt(
@@ -109,7 +104,7 @@ def get_summarization_prompt(
     )
     if summarization_prompt is not None:
         return summarization_prompt
-    return default_llm_config.get_default_summarization_prompt()
+    return llm_config.default_summarization_prompt
 
 
 def get_context_enrichment_prompt(
@@ -126,26 +121,4 @@ def get_context_enrichment_prompt(
     )
     if context_enrichment_prompt is not None:
         return context_enrichment_prompt
-    return default_llm_config.get_default_context_enrichment_prompt()
-
-
-def build_user_prompt(
-    ctx: AnyContext,
-    message_attr: StrAttr | None,
-    conversation_context: dict[str, Any],
-) -> str:
-    """Constructs the final user prompt including context."""
-    original_user_message = get_user_message(ctx, message_attr)
-    # Combine default context, conversation context (potentially enriched/summarized)
-    modified_user_message, default_context = extract_default_context(
-        original_user_message
-    )
-    enriched_context = {**default_context, **conversation_context}
-    return dedent(
-        f"""
-        # Context
-        {json.dumps(enriched_context)}
-        # User Message
-        {modified_user_message}
-        """
-    ).strip()
+    return llm_config.default_context_enrichment_prompt
