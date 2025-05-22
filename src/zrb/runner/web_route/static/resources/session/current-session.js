@@ -25,7 +25,7 @@ const CURRENT_SESSION = {
                 resultTextarea.rows = resultLineCount <= 5 ? resultLineCount : 5;
                 // update text areas
                 resultTextarea.value = data.final_result;
-                logTextarea.value = data.log.join("\n");
+                logTextarea.value = data.log.join("");
                 // logTextarea.scrollTop = logTextarea.scrollHeight;
                 // visualize history
                 this.showCurrentSession(data.task_status, data.finished);

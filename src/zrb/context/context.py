@@ -107,6 +107,7 @@ class Context(AnyContext):
         if plain:
             # self.append_to_shared_log(remove_style(message))
             print(message, sep=sep, end=end, file=file, flush=flush)
+            self.append_to_shared_log(remove_style(f"{message}{end}"))
             return
         color = self._color
         icon = self._icon
@@ -120,7 +121,7 @@ class Context(AnyContext):
         now = datetime.datetime.now()
         formatted_time = now.strftime("%y%m%d %H:%M:%S.%f")[:19] + " "
         prefix = f"{formatted_time}{attempt_status} {padded_styled_task_name} ⬤ "
-        self.append_to_shared_log(remove_style(f"{prefix} {message}"))
+        self.append_to_shared_log(remove_style(f"{prefix} {message}{end}"))
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 
