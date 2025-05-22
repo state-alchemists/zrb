@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.6.9
+
+- Bug fix: plain logging not added to shared log
+
 # 1.6.8
 
 - Rename `set_default_provider` to `set_default_model_provider` on `LLMConfig`
