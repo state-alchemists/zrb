@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.7.0
+
+- (TODO) Watch file changes
+- (TODO) Fix blocking LLM error
+
 # 1.6.9
 
 - Bug fix: plain logging not added to shared log
