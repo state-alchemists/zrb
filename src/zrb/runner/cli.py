@@ -19,6 +19,7 @@ from zrb.util.cli.style import (
     stylize_section_header,
 )
 from zrb.util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
+from zrb.util.init_path import get_init_path_list
 from zrb.util.string.conversion import double_quote
 
 
@@ -189,6 +190,11 @@ async def start_server(_: AnyContext):
 
     app = create_web_app(cli, web_config, session_state_logger)
     server = Server(
-        Config(app=app, host="0.0.0.0", port=CFG.WEB_HTTP_PORT, loop="asyncio")
+        Config(
+            app=app,
+            host="0.0.0.0",
+            port=CFG.WEB_HTTP_PORT,
+            loop="asyncio",
+        )
     )
     await server.serve()

@@ -11,6 +11,7 @@ from zrb.builtin.llm.tool.file import (
     search_files,
     write_to_file,
 )
+from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
@@ -114,6 +115,7 @@ llm_group.add_task(
             task=llm_ask,
             input_mapping=get_llm_ask_input_mapping,
             result_queue="ask_result",
+            error_queue="ask_error",
             session_name_queue="ask_session_name",
         ),
         retries=0,
@@ -123,20 +125,41 @@ llm_group.add_task(
 )
 
 if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
-    llm_ask.add_tool(list_files)
-    llm_ask.add_tool(read_from_file)
-    llm_ask.add_tool(write_to_file)
-    llm_ask.add_tool(search_files)
-    llm_ask.add_tool(apply_diff)
+    llm_ask.append_tool(
+        list_files,
+        read_from_file,
+        write_to_file,
+        search_files,
+        apply_diff,
+        create_sub_agent_tool(
+            tool_name="analyze_file",
+            tool_description="\n".join(
+                [
+                    "Analyze file using LLM capability.",
+                    "This tool can do:",
+                    "- summarization",
+                    "- outline/structure extraction",
+                    "- code review",
+                    "- other tasks requiring deep understanding.",
+                    "Always use this tool to get deep understanding of file content",
+                ]
+            ),
+            sub_agent_system_prompt="\n".join(
+                [
+                    "You are a file analyzer assistant",
+                    "Your goal is to help the main asisstant by reading file",
+                    "and perform necessary indepth analysis required by the main assistant",
+                ]
+            ),
+            sub_agent_tools=[read_from_file, search_files],
+        ),
+    )
 
 if CFG.LLM_ALLOW_ACCESS_SHELL:
-    llm_ask.add_tool(run_shell_command)
+    llm_ask.append_tool(run_shell_command)
 
 if CFG.LLM_ALLOW_ACCESS_INTERNET:
-    llm_ask.add_tool(open_web_page)
-    llm_ask.add_tool(search_wikipedia)
-    llm_ask.add_tool(search_arxiv)
+    llm_ask.append_tool(open_web_page, search_wikipedia, search_arxiv)
     if CFG.SERP_API_KEY != "":
-        llm_ask.add_tool(create_search_internet_tool(CFG.SERP_API_KEY))
-    llm_ask.add_tool(get_current_location)
-    llm_ask.add_tool(get_current_weather)
+        llm_ask.append_tool(create_search_internet_tool(CFG.SERP_API_KEY))
+    llm_ask.append_tool(get_current_location, get_current_weather)

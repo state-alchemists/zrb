@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.7.0
+
+- Fix blocking LLM error.
+- Introduce `ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT`.
+- Add `analyze_file` tool.
+
 # 1.6.9
 
 - Bug fix: plain logging not added to shared log

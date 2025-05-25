@@ -98,7 +98,7 @@ async def _trigger_ask_and_wait_for_result(
         return None
     await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
-    ctx.print(stylize_faint("🤖 >> ") + result, plain=True)
+    ctx.print(f"{stylize_faint('🤖 >>')} {result}", plain=True)
     return result
 
 
@@ -150,7 +150,7 @@ async def _trigger_ask(
     )
 
 
-async def _wait_ask_result(ctx: AnyContext) -> str:
+async def _wait_ask_result(ctx: AnyContext) -> str | None:
     """
     Waits for and retrieves the LLM task result from the 'ask_result' XCom queue.
 
@@ -162,6 +162,9 @@ async def _wait_ask_result(ctx: AnyContext) -> str:
     """
     while "ask_result" not in ctx.xcom or len(ctx.xcom.ask_result) == 0:
         await asyncio.sleep(0.1)
+        if "ask_error" in ctx.xcom and len(ctx.xcom.ask_error) > 0:
+            ctx.xcom.ask_error.pop()
+            return None
     return ctx.xcom.ask_result.pop()
 
 

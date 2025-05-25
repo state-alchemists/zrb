@@ -932,6 +932,25 @@ files = [
 test = ["pytest (>=6)"]
 
 [[package]]
+name = "fasta2a"
+version = "0.2.7"
+description = "Convert an AI Agent into a A2A server! ✨"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "fasta2a-0.2.7-py3-none-any.whl", hash = "sha256:a5be834099ae9a615d3765212a414954711e9dd323b092c8e78b4769d04f7431"},
+    {file = "fasta2a-0.2.7.tar.gz", hash = "sha256:59e8e53bb67a45fd7eb7139759e3ebb528e98550e0a058451d5cb29ac1c58564"},
+]
+
+[package.dependencies]
+opentelemetry-api = ">=1.28.0"
+pydantic = ">=2.10"
+starlette = ">0.29.0"
+
+[package.extras]
+logfire = ["logfire (>=2.3)"]
+
+[[package]]
 name = "fastapi"
 version = "0.115.12"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
@@ -1129,6 +1148,26 @@ reauth = ["pyu2f (>=0.1.5)"]
 requests = ["requests (>=2.20.0,<3.0.0)"]
 testing = ["aiohttp (<3.10.0)", "aiohttp (>=3.6.2,<4.0.0)", "aioresponses", "cryptography (<39.0.0)", "cryptography (>=38.0.3)", "flask", "freezegun", "grpcio", "mock", "oauth2client", "packaging", "pyjwt (>=2.0)", "pyopenssl (<24.3.0)", "pyopenssl (>=20.0.0)", "pytest", "pytest-asyncio", "pytest-cov", "pytest-localserver", "pyu2f (>=0.1.5)", "requests (>=2.20.0,<3.0.0)", "responses", "urllib3"]
 urllib3 = ["packaging", "urllib3"]
+
+[[package]]
+name = "google-genai"
+version = "1.16.1"
+description = "GenAI Python SDK"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "google_genai-1.16.1-py3-none-any.whl", hash = "sha256:6ae5d24282244f577ca4f0d95c09f75ab29e556602c9d3531b70161e34cd2a39"},
+    {file = "google_genai-1.16.1.tar.gz", hash = "sha256:4b4ed4ed781a9d61e5ce0fef1486dd3a5d7ff0a73bd76b9633d21e687ab998df"},
+]
+
+[package.dependencies]
+anyio = ">=4.8.0,<5.0.0"
+google-auth = ">=2.14.1,<3.0.0"
+httpx = ">=0.28.1,<1.0.0"
+pydantic = ">=2.0.0,<3.0.0"
+requests = ">=2.28.1,<3.0.0"
+typing-extensions = ">=4.11.0,<5.0.0"
+websockets = ">=13.0.0,<15.1.0"
 
 [[package]]
 name = "googleapis-common-protos"
@@ -2835,31 +2874,31 @@ timezone = ["tzdata"]
 
 [[package]]
 name = "pydantic-ai"
-version = "0.1.8"
+version = "0.2.7"
 description = "Agent Framework / shim to use Pydantic with LLMs"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_ai-0.1.8-py3-none-any.whl", hash = "sha256:b9f190280122827750dda214a00bf479a9bb1e9d39de366b8b48b3f0b80462f4"},
-    {file = "pydantic_ai-0.1.8.tar.gz", hash = "sha256:2eaeb7695cf4c21e4a4a439ac3007e3158dabd9bea6e6eec81b3de323127452a"},
+    {file = "pydantic_ai-0.2.7-py3-none-any.whl", hash = "sha256:eca8adb84ddf3dcbba82a9931dd2aa587bb1534c67c79d53a658c9fb4bc1b70a"},
+    {file = "pydantic_ai-0.2.7.tar.gz", hash = "sha256:858b3b81d17b8e1d54c734d1bc072e881031caa01a747112b90f8ce4190522bd"},
 ]
 
 [package.dependencies]
-pydantic-ai-slim = {version = "0.1.8", extras = ["anthropic", "bedrock", "cli", "cohere", "evals", "groq", "mcp", "mistral", "openai", "vertexai"]}
+pydantic-ai-slim = {version = "0.2.7", extras = ["a2a", "anthropic", "bedrock", "cli", "cohere", "evals", "google", "groq", "mcp", "mistral", "openai", "vertexai"]}
 
 [package.extras]
-examples = ["pydantic-ai-examples (==0.1.8)"]
+examples = ["pydantic-ai-examples (==0.2.7)"]
 logfire = ["logfire (>=3.11.0)"]
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "0.1.8"
+version = "0.2.7"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_ai_slim-0.1.8-py3-none-any.whl", hash = "sha256:aac5b0da9125db6b2773b97c0653668470fcf52fd429558c021ae67a7f5ad0fa"},
-    {file = "pydantic_ai_slim-0.1.8.tar.gz", hash = "sha256:ffc2bd91ddd93e03fb7cf936d668a7091ae9fdeb1576f6dc3b8bc5b7b568630c"},
+    {file = "pydantic_ai_slim-0.2.7-py3-none-any.whl", hash = "sha256:06b92bfbe69cd71cf23da75217ef2f1edb333648a6955e82b386fb8fcb34152a"},
+    {file = "pydantic_ai_slim-0.2.7.tar.gz", hash = "sha256:9629c73d7084a4b6388c01bc2a99b6874ccb5705f8ed83ff390c8bf18dcc94a1"},
 ]
 
 [package.dependencies]
@@ -2869,7 +2908,9 @@ boto3 = {version = ">=1.35.74", optional = true, markers = "extra == \"bedrock\"
 cohere = {version = ">=5.13.11", optional = true, markers = "platform_system != \"Emscripten\" and extra == \"cohere\""}
 eval-type-backport = ">=0.2.0"
 exceptiongroup = {version = "*", markers = "python_version < \"3.11\""}
+fasta2a = {version = "0.2.7", optional = true, markers = "extra == \"a2a\""}
 google-auth = {version = ">=2.36.0", optional = true, markers = "extra == \"vertexai\""}
+google-genai = {version = ">=1.15.0", optional = true, markers = "extra == \"google\""}
 griffe = ">=1.3.2"
 groq = {version = ">=0.15.0", optional = true, markers = "extra == \"groq\""}
 httpx = ">=0.27"
@@ -2879,19 +2920,21 @@ openai = {version = ">=1.75.0", optional = true, markers = "extra == \"openai\""
 opentelemetry-api = ">=1.28.0"
 prompt-toolkit = {version = ">=3", optional = true, markers = "extra == \"cli\""}
 pydantic = ">=2.10"
-pydantic-evals = {version = "0.1.8", optional = true, markers = "extra == \"evals\""}
-pydantic-graph = "0.1.8"
+pydantic-evals = {version = "0.2.7", optional = true, markers = "extra == \"evals\""}
+pydantic-graph = "0.2.7"
 requests = {version = ">=2.32.2", optional = true, markers = "extra == \"vertexai\""}
 rich = {version = ">=13", optional = true, markers = "extra == \"cli\""}
 typing-inspection = ">=0.4.0"
 
 [package.extras]
+a2a = ["fasta2a (==0.2.7)"]
 anthropic = ["anthropic (>=0.49.0)"]
 bedrock = ["boto3 (>=1.35.74)"]
 cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "rich (>=13)"]
 cohere = ["cohere (>=5.13.11)"]
 duckduckgo = ["duckduckgo-search (>=7.0.0)"]
-evals = ["pydantic-evals (==0.1.8)"]
+evals = ["pydantic-evals (==0.2.7)"]
+google = ["google-genai (>=1.15.0)"]
 groq = ["groq (>=0.15.0)"]
 logfire = ["logfire (>=3.11.0)"]
 mcp = ["mcp (>=1.6.0)"]
@@ -3013,13 +3056,13 @@ typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
 name = "pydantic-evals"
-version = "0.1.8"
+version = "0.2.7"
 description = "Framework for evaluating stochastic code execution, especially code making use of LLMs"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_evals-0.1.8-py3-none-any.whl", hash = "sha256:3ac53f68567a2ae437aa5c904cfb379df32fd68580835d785f73f340435cc8e1"},
-    {file = "pydantic_evals-0.1.8.tar.gz", hash = "sha256:ea7fead14eafd7ab65bab27040a2095060b5825f3aded49a87047c29fb3a01fb"},
+    {file = "pydantic_evals-0.2.7-py3-none-any.whl", hash = "sha256:ca46fda834d85cc08802fe6342a81e795891813bf8eeff8c1fdef0a690b4fc5c"},
+    {file = "pydantic_evals-0.2.7.tar.gz", hash = "sha256:0cf5ce427b1da2bf68565dc5a7575e5827240b007e31c37db26319e729c3cbcf"},
 ]
 
 [package.dependencies]
@@ -3027,7 +3070,7 @@ anyio = ">=0"
 eval-type-backport = {version = ">=0", markers = "python_version < \"3.11\""}
 logfire-api = ">=1.2.0"
 pydantic = ">=2.10"
-pydantic-ai-slim = "0.1.8"
+pydantic-ai-slim = "0.2.7"
 pyyaml = ">=6.0.2"
 rich = ">=13.9.4"
 
@@ -3036,13 +3079,13 @@ logfire = ["logfire (>=2.3)"]
 
 [[package]]
 name = "pydantic-graph"
-version = "0.1.8"
+version = "0.2.7"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "pydantic_graph-0.1.8-py3-none-any.whl", hash = "sha256:6afd79f2784dc77a9dc389247d75d82eaf4206063026e1e19eece1caf910f81d"},
-    {file = "pydantic_graph-0.1.8.tar.gz", hash = "sha256:c32ef6fd9653be6b498074e1fe6a402e6c4c003ccf0ce0a80086ca602ae4ff6f"},
+    {file = "pydantic_graph-0.2.7-py3-none-any.whl", hash = "sha256:5567685c8bbc65f0690552b5948715e8b33f1d7e1c7ec1bb72187d84c1f27c45"},
+    {file = "pydantic_graph-0.2.7.tar.gz", hash = "sha256:d319e1693e0ae5e2c17b79b36e7e0ff63ee0b7cb8ca22f79480f51f287fe3a1a"},
 ]
 
 [package.dependencies]
@@ -4268,4 +4311,4 @@ rag = ["chromadb", "openai", "pdfplumber"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "f1bd31029948327c904223e0530dcf96fc2841b104a77d212565f29a507c9153"
+content-hash = "29b5db7d20c6ec928eb1f8a4d730dc70eeb26d22ea070528dc95a65ead520fb1"

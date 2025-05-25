@@ -200,6 +200,10 @@ class Config:
         return os.getenv("ZRB_LLM_PERSONA", None)
 
     @property
+    def LLM_CODE_REVIEW_INSTRUCTION_PROMPT(self) -> str | None:
+        return os.getenv("ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT", None)
+
+    @property
     def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
         return os.getenv("ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", None)
 
