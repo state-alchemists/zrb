@@ -55,7 +55,13 @@ async def enrich_context(
         user_prompt_data = "\n".join(
             [
                 "Extract context from the following conversation info.",
-                "Maintain the relevant context and remove the irrelevant ones.",
+                "Extract only contexts that will be relevant across multiple conversations, like",  # noqa
+                "- user name",
+                "- user hobby",
+                "- user's long life goal",
+                "- standard/SOP",
+                "- etc.",
+                "Always maintain the relevant context and remove the irrelevant ones.",
                 "Restructure the context in a helpful way",
                 "Keep the context small",
                 f"Existing Context: {context_json}",

@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.7.2
+
+- Improve context enrichment mechanism so that it won't override `history_summary`
+- Better prompting for `gpt-4o`
+
 # 1.7.1
 
 - Update context enrichment instruction
