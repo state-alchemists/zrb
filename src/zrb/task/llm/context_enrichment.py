@@ -47,6 +47,7 @@ async def enrich_context(
 
     ctx.log_info("Attempting to enrich conversation context...")
     # Prepare context and history for the enrichment prompt
+    history_summary = conversation_context.get("history_summary")
     try:
         context_json = json.dumps(conversation_context)
         history_json = json.dumps(history_list)
@@ -90,6 +91,7 @@ async def enrich_context(
             ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
             if response:
                 conversation_context = response
+                conversation_context["history_summary"] = history_summary
                 ctx.log_info("Context enriched based on history.")
                 ctx.log_info(
                     f"Updated conversation context: {json.dumps(conversation_context)}"

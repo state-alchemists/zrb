@@ -24,10 +24,12 @@ from zrb.task.make_task import make_task
     ],
 )
 def encode_jwt(ctx: AnyContext) -> str:
+    import json
+
     import jwt
 
     try:
-        payload = eval(ctx.input.payload)
+        payload = json.loads(ctx.input.payload)
         token = jwt.encode(
             payload=payload, key=ctx.input.secret, algorithm=ctx.input.algorithm
         )
