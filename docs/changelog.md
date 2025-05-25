@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.7.1
+
+- Update context enrichment instruction
+
 # 1.7.0
 
 - Fix blocking LLM error.

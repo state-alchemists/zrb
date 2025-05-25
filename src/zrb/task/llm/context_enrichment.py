@@ -54,7 +54,7 @@ async def enrich_context(
         user_prompt_data = "\n".join(
             [
                 "Extract context from the following conversation info.",
-                "Maintain the relevan context and remove the unrelevant ones.",
+                "Maintain the relevant context and remove the irrelevant ones.",
                 "Restructure the context in a helpful way",
                 "Keep the context small",
                 f"Existing Context: {context_json}",
@@ -89,7 +89,7 @@ async def enrich_context(
             usage = enrichment_run.result.usage()
             ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
             if response:
-                conversation_context.update(response)
+                conversation_context = response
                 ctx.log_info("Context enriched based on history.")
                 ctx.log_info(
                     f"Updated conversation context: {json.dumps(conversation_context)}"
