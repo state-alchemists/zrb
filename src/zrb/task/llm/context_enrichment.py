@@ -91,6 +91,7 @@ async def enrich_context(
             ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
             if response:
                 conversation_context = response
+                # Re inject history summary
                 conversation_context["history_summary"] = history_summary
                 ctx.log_info("Context enriched based on history.")
                 ctx.log_info(
