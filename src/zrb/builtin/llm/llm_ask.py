@@ -114,6 +114,7 @@ llm_group.add_task(
             task=llm_ask,
             input_mapping=get_llm_ask_input_mapping,
             result_queue="ask_result",
+            error_queue="ask_error",
             session_name_queue="ask_session_name",
         ),
         retries=0,
