@@ -135,11 +135,13 @@ if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
             tool_name="analyze_file",
             tool_description="\n".join(
                 [
-                    "Analyze file using LLM capability." "This tool can do:",
+                    "Analyze file using LLM capability.",
+                    "This tool can do:",
                     "- summarization",
                     "- outline/structure extraction",
                     "- code review",
                     "- other tasks requiring deep understanding.",
+                    "Always use this tool to get deep understanding of file content",
                 ]
             ),
             sub_agent_system_prompt="\n".join(

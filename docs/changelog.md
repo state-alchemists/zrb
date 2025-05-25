@@ -2,7 +2,9 @@
 
 # 1.7.0
 
-- Fix blocking LLM error
+- Fix blocking LLM error.
+- Introduce `ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT`.
+- Add `analyze_file` tool.
 
 # 1.6.9
 

@@ -165,6 +165,10 @@ Zrb can be configured using the following environment variables (see "Setting En
     - Default: `1` (true)
     - Possible values: `0` (false), `1` (true)
 
+- `ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT`: Code review instruction prompt for LLM.
+    - Default: None
+    - Possible values: Any valid prompt string
+
 - `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`: Special instruction prompt for LLM.
     - Default: None
     - Possible values: Any valid prompt string
