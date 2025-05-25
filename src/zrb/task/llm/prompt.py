@@ -52,7 +52,19 @@ def get_special_instruction_prompt(
     )
     if special_instruction is not None:
         return special_instruction
-    return llm_config.default_special_instruction_prompt or ""
+    aggregated_special_instruction = ""
+    if llm_config.default_code_review_instruction_prompt:
+        aggregated_special_instruction += "\n".join(
+            [
+                "# Code review instruction",
+                llm_config.default_code_review_instruction_prompt,
+            ]
+        )
+    if llm_config.default_special_instruction_prompt:
+        aggregated_special_instruction += "\n" + "\n".join(
+            ["# Code review instruction", llm_config.default_special_instruction_prompt]
+        )
+    return aggregated_special_instruction or ""
 
 
 def get_combined_system_prompt(

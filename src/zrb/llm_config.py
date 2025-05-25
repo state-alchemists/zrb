@@ -20,6 +20,8 @@ Do not ask for confirmation unless strictly necessary due to ambiguity or
 missing critical information.
 Apply relevant domain knowledge and best practices.
 Respond directly and concisely upon task completion or when clarification is essential.
+Make sure to always include all necessary information in your final answer.
+Remember that you have limited set of context.
 """.strip()
 
 DEFAULT_PERSONA = """
@@ -41,15 +43,35 @@ Output *only* the updated summary text.
 DEFAULT_CONTEXT_ENRICHMENT_PROMPT = """
 You are an information extraction assistant.
 Your goal is to help main assistant to continue the conversation by extracting
-important informations.
+important long-term/short-term informations.
 Analyze the conversation history and current context to extract key facts like
-user_name, user_roles, preferences, goals, etc.
+user_name, user_roles, user_address, etc.
 Return only a JSON object containing a single key "response", whose value is
 another JSON object with these details (i.e., {"response": {"context_name": "value"}}).
 If no context can be extracted, return {"response": {}}.
 """.strip()
 
 DEFAULT_SPECIAL_INSTRUCTION_PROMPT = ""  # Default to empty
+DEFAULT_CODE_REVIEW_INSTRUCTION_PROMPT = """
+Your goal is to review code provided by the user for correctness, readability, 
+performance, security, and maintainability.
+Follow these principles:
+1. **Correctness** Check whether the code performs the intended logic,
+    handles edge cases, and avoids obvious bugs.
+2. **Readability** Evaluate naming conventions, code structure, and clarity.
+    Suggest improvements where code could be more understandable.
+3. **Performance** Identify inefficient patterns or unnecessary operations. 
+    Recommend optimizations only when they provide meaningful benefit.
+4. **Security** Spot unsafe code, potential vulnerabilities, or bad practices
+    that could lead to security issues.
+5. **Consistency** Ensure the code adheres to common language idioms,
+    style guides, and project conventions.
+Provide clear, concise, and actionable feedback.
+Use inline code examples when helpful.
+Do not restate the code unnecessarily.
+Focus on meaningful insights that help the user improve the code quality.
+Avoid excessive nitpicking unless requested.
+""".strip()
 
 
 class LLMConfig:
@@ -62,6 +84,7 @@ class LLMConfig:
         default_persona: str | None = None,
         default_system_prompt: str | None = None,
         default_special_instruction_prompt: str | None = None,
+        default_code_review_instruction_prompt: str | None = None,
         default_summarization_prompt: str | None = None,
         default_context_enrichment_prompt: str | None = None,
         default_summarize_history: bool | None = None,
@@ -78,6 +101,9 @@ class LLMConfig:
         self._default_persona = default_persona
         self._default_system_prompt = default_system_prompt
         self._default_special_instruction_prompt = default_special_instruction_prompt
+        self._default_code_review_instruction_prompt = (
+            default_code_review_instruction_prompt
+        )
         self._default_summarization_prompt = default_summarization_prompt
         self._default_context_enrichment_prompt = default_context_enrichment_prompt
         self._default_summarize_history = default_summarize_history
@@ -148,6 +174,14 @@ class LLMConfig:
         if CFG.LLM_PERSONA is not None:
             return CFG.LLM_PERSONA
         return DEFAULT_PERSONA
+
+    @property
+    def default_code_review_instruction_prompt(self) -> str:
+        if self._default_code_review_instruction_prompt is not None:
+            return self._default_code_review_instruction_prompt
+        if CFG.LLM_CODE_REVIEW_INSTRUCTION_PROMPT is not None:
+            return CFG.LLM_CODE_REVIEW_INSTRUCTION_PROMPT
+        return DEFAULT_CODE_REVIEW_INSTRUCTION_PROMPT
 
     @property
     def default_special_instruction_prompt(self) -> str:

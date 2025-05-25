@@ -2,8 +2,7 @@
 
 # 1.7.0
 
-- (TODO) Watch file changes
-- (TODO) Fix blocking LLM error
+- Fix blocking LLM error
 
 # 1.6.9
 

@@ -6,6 +6,7 @@ from zrb.config import CFG
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_faint, stylize_warning
 from zrb.util.group import NodeNotFoundError
+from zrb.util.init_path import get_init_path_list
 from zrb.util.load import load_file, load_module
 
 
@@ -35,18 +36,27 @@ def serve_cli():
         # load init modules
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
-            load_module(init_module)
-        zrb_init_path_list = _get_zrb_init_path_list()
+            try:
+                load_module(init_module)
+            except BaseException as e:
+                print(stylize_error(f"{e}"), file=sys.stderr)
+        zrb_init_path_list = get_init_path_list()
         # load init scripts
         for init_script in CFG.INIT_SCRIPTS:
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
                 CFG.LOGGER.info(f"Loading {abs_init_script}")
-                load_file(abs_init_script, -1)
+                try:
+                    load_file(abs_init_script, -1)
+                except BaseException as e:
+                    print(stylize_error(f"{e}"), file=sys.stderr)
         # load zrb init
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
-            load_file(zrb_init_path)
+            try:
+                load_file(zrb_init_path)
+            except BaseException as e:
+                print(stylize_error(f"{e}"), file=sys.stderr)
         # run the CLI
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
@@ -59,18 +69,3 @@ def serve_cli():
     except NodeNotFoundError as e:
         print(stylize_error(f"{e}"), file=sys.stderr)
         sys.exit(1)
-
-
-def _get_zrb_init_path_list() -> list[str]:
-    current_path = os.path.abspath(os.getcwd())
-    dir_path_list = [current_path]
-    while current_path != os.path.dirname(current_path):  # Stop at root
-        current_path = os.path.dirname(current_path)
-        dir_path_list.append(current_path)
-    zrb_init_path_list = []
-    for current_path in dir_path_list[::-1]:
-        zrb_init_path = os.path.join(current_path, CFG.INIT_FILE_NAME)
-        CFG.LOGGER.info(f"Finding {zrb_init_path}")
-        if os.path.isfile(zrb_init_path):
-            zrb_init_path_list.append(zrb_init_path)
-    return zrb_init_path_list

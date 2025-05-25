@@ -53,7 +53,8 @@ async def enrich_context(
         # The user prompt will now contain the dynamic data
         user_prompt_data = "\n".join(
             [
-                "Extract context from the following conversation info",
+                "Extract context from the following conversation info.",
+                "Maintain the relevan context and remove the unrelevant ones.",
                 f"Existing Context: {context_json}",
                 f"Conversation History: {history_json}",
             ]

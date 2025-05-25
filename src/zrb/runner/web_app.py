@@ -47,7 +47,7 @@ def create_web_app(
         asyncio.gather(*_COROS)
 
     app = FastAPI(
-        title="Zrb",
+        title=CFG.WEB_TITLE,
         version=CFG.VERSION,
         summary="Your Automation Powerhouse",
         lifespan=lifespan,
