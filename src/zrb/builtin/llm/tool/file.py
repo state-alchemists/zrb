@@ -4,6 +4,8 @@ import os
 import re
 from typing import Any, Optional
 
+from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -444,3 +446,48 @@ def apply_diff(
         raise OSError(f"Error applying diff to {path}: {e}")
     except Exception as e:
         raise RuntimeError(f"Unexpected error applying diff to {path}: {e}")
+
+
+async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
+    """Analyze file using LLM capability to reduce context usage.
+    Use this tool for:
+    - summarization
+    - outline/structure extraction
+    - code review
+    - other tasks
+    Args:
+        path (str): File path to be analyze. Pass exactly as provided, including '~'.
+        query(str): Instruction to analyze the file
+    Returns:
+        str: The analysis result
+    Raises:
+        Exception: If an error occurs.
+    """
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.exists(abs_path):
+        return json.dumps(
+            {"success": False, "path": path, "error": f"File not found at {path}"}
+        )
+    _analyze_file = create_sub_agent_tool(
+        tool_name="analyze_file",
+        tool_description="analyze file with LLM capability",
+        sub_agent_system_prompt="\n".join(
+            [
+                "You are a file analyzer assistant",
+                "Your goal is to help the main asisstant by reading file",
+                "and perform necessary indepth analysis required by the main assistant",
+            ]
+        ),
+        sub_agent_tools=[read_from_file, search_files],
+    )
+    return await _analyze_file(
+        ctx,
+        "\n".join(
+            [
+                "# File path",
+                abs_path,
+                "# Instruction",
+                query,
+            ]
+        ),
+    )

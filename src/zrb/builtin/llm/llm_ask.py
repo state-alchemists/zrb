@@ -5,13 +5,13 @@ from zrb.builtin.llm.input import PreviousSessionInput
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
 from zrb.builtin.llm.tool.cli import run_shell_command
 from zrb.builtin.llm.tool.file import (
+    analyze_file,
     apply_diff,
     list_files,
     read_from_file,
     search_files,
     write_to_file,
 )
-from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
@@ -131,29 +131,7 @@ if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
         write_to_file,
         search_files,
         apply_diff,
-        create_sub_agent_tool(
-            tool_name="analyze_file",
-            tool_description="\n".join(
-                [
-                    "Always use this tool to analyze file using LLM capability.",
-                    "This tool can do:",
-                    "- summarization",
-                    "- outline/structure extraction",
-                    "- code review",
-                    "- other tasks requiring deep understanding.",
-                    "This tool ONLY HAVE SINGLE ARGUMENT: query",
-                    "Make sure to include the file path you want to analyze in the query",
-                ]
-            ),
-            sub_agent_system_prompt="\n".join(
-                [
-                    "You are a file analyzer assistant",
-                    "Your goal is to help the main asisstant by reading file",
-                    "and perform necessary indepth analysis required by the main assistant",
-                ]
-            ),
-            sub_agent_tools=[read_from_file, search_files],
-        ),
+        analyze_file,
     )
 
 if CFG.LLM_ALLOW_ACCESS_SHELL:
