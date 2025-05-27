@@ -201,11 +201,11 @@ def read_from_file(
     Raises:
         Exception: If an error occurs.
     """
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    # Check if file exists
+    if not os.path.exists(abs_path):
+        raise FileNotFoundError(f"File not found: {path}")
     try:
-        abs_path = os.path.abspath(os.path.expanduser(path))
-        # Check if file exists
-        if not os.path.exists(abs_path):
-            return json.dumps({"error": f"File {path} does not exist"})
         content = read_file_with_line_numbers(abs_path)
         lines = content.splitlines()
         total_lines = len(lines)
@@ -402,24 +402,15 @@ def apply_diff(
     Raises:
         Exception: If an error occurs.
     """
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.exists(abs_path):
+        raise FileNotFoundError(f"File not found: {path}")
     try:
-        abs_path = os.path.abspath(os.path.expanduser(path))
-        if not os.path.exists(abs_path):
-            return json.dumps(
-                {"success": False, "path": path, "error": f"File not found at {path}"}
-            )
         content = read_file(abs_path)
         lines = content.splitlines()
         if start_line < 1 or end_line > len(lines) or start_line > end_line:
-            return json.dumps(
-                {
-                    "success": False,
-                    "path": path,
-                    "error": (
-                        f"Invalid line range {start_line}-{end_line} "
-                        f"for file with {len(lines)} lines."
-                    ),
-                }
+            raise ValueError(
+                f"Invalid line range {start_line}-{end_line} for file with {len(lines)} lines"
             )
         original_content = "\n".join(lines[start_line - 1 : end_line])
         if original_content != search_content:
@@ -465,9 +456,8 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return json.dumps(
-            {"success": False, "path": path, "error": f"File not found at {path}"}
-        )
+        raise FileNotFoundError(f"File not found: {path}")
+    file_content = read_file(abs_path)
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
         tool_description="analyze file with LLM capability",
@@ -484,10 +474,12 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
         ctx,
         "\n".join(
             [
-                "# File path",
-                abs_path,
+                file_content,
                 "# Instruction",
                 query,
+                "# File path",
+                abs_path,
+                "# File content",
             ]
         ),
     )

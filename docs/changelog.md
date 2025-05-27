@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.7.4
+
+- Include file content while calling `analyze_file`
+- Builtin tools throw errors instead of returning JSON error message
+
 # 1.7.3
 
 - Make subagent lazy load

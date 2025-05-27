@@ -109,11 +109,8 @@ def test_read_from_file_invalid_range(sample_file):
 
 def test_read_from_file_not_exist(temp_dir):
     non_existent_path = os.path.join(temp_dir, "not_a_file.txt")
-    # The function now returns JSON error, not raises OSError directly
-    result = read_from_file(path=non_existent_path)
-    data = json.loads(result)
-    assert "error" in data
-    assert f"File {non_existent_path} does not exist" in data["error"]
+    with pytest.raises(FileNotFoundError, match="File not found:"):
+        read_from_file(path=non_existent_path)
 
 
 def test_read_from_file_empty(temp_dir):

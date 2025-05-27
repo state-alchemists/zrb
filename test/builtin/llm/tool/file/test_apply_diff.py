@@ -65,19 +65,14 @@ def test_apply_diff_file_not_found(temp_dir):
     start_line = 1
     end_line = 1
 
-    result = apply_diff(
-        path=non_existent_path,
-        start_line=start_line,
-        end_line=end_line,
-        search_content=search_content,
-        replace_content=replace_content,
-    )
-    data = json.loads(result)
-
-    assert data["success"] is False
-    assert data["path"] == non_existent_path
-    assert "error" in data
-    assert "File not found" in data["error"]
+    with pytest.raises(FileNotFoundError, match="File not found:"):
+        apply_diff(
+            path=non_existent_path,
+            start_line=start_line,
+            end_line=end_line,
+            search_content=search_content,
+            replace_content=replace_content,
+        )
 
 
 def test_apply_diff_invalid_line_range(sample_file):
@@ -86,43 +81,34 @@ def test_apply_diff_invalid_line_range(sample_file):
     replace_content = "New Line 1"
 
     # Start line < 1
-    result = apply_diff(
-        path=sample_file,
-        start_line=0,
-        end_line=1,
-        search_content=search_content,
-        replace_content=replace_content,
-    )
-    data = json.loads(result)
-    assert data["success"] is False
-    assert "error" in data
-    assert "Invalid line range" in data["error"]
+    with pytest.raises(ValueError, match="Invalid line range"):
+        apply_diff(
+            path=sample_file,
+            start_line=0,
+            end_line=1,
+            search_content=search_content,
+            replace_content=replace_content,
+        )
 
     # End line > total lines
-    result = apply_diff(
-        path=sample_file,
-        start_line=1,
-        end_line=10,
-        search_content=search_content,
-        replace_content=replace_content,
-    )
-    data = json.loads(result)
-    assert data["success"] is False
-    assert "error" in data
-    assert "Invalid line range" in data["error"]
+    with pytest.raises(ValueError, match="Invalid line range"):
+        apply_diff(
+            path=sample_file,
+            start_line=1,
+            end_line=10,
+            search_content=search_content,
+            replace_content=replace_content,
+        )
 
     # Start line > End line
-    result = apply_diff(
-        path=sample_file,
-        start_line=3,
-        end_line=1,
-        search_content="Line 3",
-        replace_content="New Line 3",
-    )
-    data = json.loads(result)
-    assert data["success"] is False
-    assert "error" in data
-    assert "Invalid line range" in data["error"]
+    with pytest.raises(ValueError, match="Invalid line range"):
+        apply_diff(
+            path=sample_file,
+            start_line=3,
+            end_line=1,
+            search_content="Line 3",
+            replace_content="New Line 3",
+        )
 
 
 def test_apply_diff_search_content_mismatch(sample_file):

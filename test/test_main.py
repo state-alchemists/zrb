@@ -5,8 +5,6 @@ import pytest
 
 from zrb import __main__
 
-# CFG import removed as patches will target zrb.config.Config
-
 
 @pytest.fixture
 def mock_os_path(tmp_path):
@@ -60,16 +58,9 @@ def mock_os_path(tmp_path):
     ):
         yield tmp_path, nested_dir
 
-    # Restore original functions if needed, though usually handled by mock context manager
-    # os.getcwd = original_getcwd
-    # os.path.abspath = original_abspath
-    # os.path.dirname = original_dirname
-    # os.path.isfile = original_isfile
-    # os.path.expanduser = original_expanduser
 
-
-def test_get_zrb_init_path_list_finds_files(mock_os_path):
-    """Test that _get_zrb_init_path_list finds zrb_init.py files correctly."""
+def test_get_init_path_list_finds_files(mock_os_path):
+    """Test that get_init_path_list finds zrb_init.py files correctly."""
     tmp_path, nested_dir = mock_os_path
     expected_paths = [
         str(tmp_path / "zrb_init.py"),
@@ -79,14 +70,14 @@ def test_get_zrb_init_path_list_finds_files(mock_os_path):
     with mock.patch(
         "zrb.config.Config.LOGGER", new_callable=mock.MagicMock
     ) as mock_logger:
-        found_paths = __main__._get_zrb_init_path_list()
+        found_paths = __main__.get_init_path_list()
         assert found_paths == expected_paths
         # Check if logger was called for finding attempts
         assert mock_logger.info.call_count > 0
 
 
-def test_get_zrb_init_path_list_no_files(tmp_path):
-    """Test that _get_zrb_init_path_list returns empty list when no files exist."""
+def test_get_init_path_list_no_files(tmp_path):
+    """Test that get_init_path_list returns empty list when no files exist."""
     original_abspath = os.path.abspath
     original_dirname = os.path.dirname
 
@@ -123,7 +114,7 @@ def test_get_zrb_init_path_list_no_files(tmp_path):
         with mock.patch(
             patch_target_logger, new_callable=mock.MagicMock
         ) as mock_logger:
-            found_paths = __main__._get_zrb_init_path_list()
+            found_paths = __main__.get_init_path_list()
             assert found_paths == []
             # Check if logger was called for finding attempts
             assert mock_logger.info.call_count > 0
@@ -134,7 +125,7 @@ def test_get_zrb_init_path_list_no_files(tmp_path):
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
 @mock.patch("zrb.__main__.load_file")
-@mock.patch("zrb.__main__._get_zrb_init_path_list")
+@mock.patch("zrb.__main__.get_init_path_list")
 @mock.patch("zrb.__main__.cli.run")
 @mock.patch("sys.argv", ["zrb", "test-task"])
 @mock.patch(
@@ -181,7 +172,7 @@ def test_serve_cli_normal_execution(
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
 @mock.patch("zrb.__main__.load_file")
-@mock.patch("zrb.__main__._get_zrb_init_path_list")
+@mock.patch("zrb.__main__.get_init_path_list")
 @mock.patch("zrb.__main__.cli.run", side_effect=KeyboardInterrupt)
 @mock.patch("sys.argv", ["zrb", "test-task"])
 @mock.patch("sys.exit")
@@ -208,7 +199,7 @@ def test_serve_cli_keyboard_interrupt(
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
 @mock.patch("zrb.__main__.load_file")
-@mock.patch("zrb.__main__._get_zrb_init_path_list")
+@mock.patch("zrb.__main__.get_init_path_list")
 @mock.patch("zrb.__main__.cli.run", side_effect=RuntimeError("event loop is closed"))
 @mock.patch("sys.argv", ["zrb", "test-task"])
 @mock.patch("sys.exit")
@@ -232,7 +223,7 @@ def test_serve_cli_runtime_error_event_loop_closed(
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
 @mock.patch("zrb.__main__.load_file")
-@mock.patch("zrb.__main__._get_zrb_init_path_list")
+@mock.patch("zrb.__main__.get_init_path_list")
 @mock.patch("zrb.__main__.cli.run", side_effect=RuntimeError("Some other error"))
 @mock.patch("sys.argv", ["zrb", "test-task"])
 @mock.patch("sys.exit")
@@ -257,7 +248,7 @@ def test_serve_cli_runtime_error_other(
 @mock.patch("zrb.__main__.FaintFormatter")
 @mock.patch("zrb.__main__.load_module")
 @mock.patch("zrb.__main__.load_file")
-@mock.patch("zrb.__main__._get_zrb_init_path_list")
+@mock.patch("zrb.__main__.get_init_path_list")
 @mock.patch(
     "zrb.__main__.cli.run", side_effect=__main__.NodeNotFoundError("Node not found")
 )
