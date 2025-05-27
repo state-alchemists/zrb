@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_schema.user import User
 
 if TYPE_CHECKING:

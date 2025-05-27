@@ -19,7 +19,7 @@ from zrb import (
     web_config,
 )
 
-web_config.enable_auth = True
+web_config.set_enable_auth(True)
 web_config.append_user(
     User(username="jack", password="jack", accessible_tasks=["ppn", "llm-chat"])
 )

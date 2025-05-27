@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_schema.token import Token
 
 if TYPE_CHECKING:

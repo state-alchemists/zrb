@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated
 
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_util.cookie import set_auth_cookie
 from zrb.runner.web_util.token import generate_tokens_by_credentials
 

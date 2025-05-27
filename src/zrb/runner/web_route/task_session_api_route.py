@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session

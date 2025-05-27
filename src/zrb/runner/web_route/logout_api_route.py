@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint

@@ -9,7 +9,7 @@ from zrb.config import CFG  # Import CFG
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
 from zrb.runner.web_app import create_web_app
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.task import Task
 

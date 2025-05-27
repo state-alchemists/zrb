@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_util.html import (
     get_html_auth_link,
     get_html_subgroup_info,

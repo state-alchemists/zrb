@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.util.file import read_file
 
 if TYPE_CHECKING:

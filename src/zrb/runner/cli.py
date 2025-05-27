@@ -8,7 +8,7 @@ from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 from zrb.runner.common_util import get_run_kwargs
 from zrb.runner.web_app import create_web_app
-from zrb.runner.web_config.config_factory import web_config
+from zrb.runner.web_config import web_config
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -19,7 +19,6 @@ from zrb.util.cli.style import (
     stylize_section_header,
 )
 from zrb.util.group import extract_node_from_args, get_non_empty_subgroups, get_subtasks
-from zrb.util.init_path import get_init_path_list
 from zrb.util.string.conversion import double_quote
 
 

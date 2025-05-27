@@ -1,14 +1,18 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.7.5
+
+- Make `web_config` lazy load.
+
 # 1.7.4
 
-- Include file content while calling `analyze_file`
-- Builtin tools throw errors instead of returning JSON error message
+- Include file content while calling `analyze_file`.
+- Builtin tools throw errors instead of returning JSON error message.
 
 # 1.7.3
 
-- Make subagent lazy load
-- Add `path` parameter to `analyze_file` tool
+- Make subagent lazy load.
+- Add `path` parameter to `analyze_file` tool.
 
 # 1.7.2
 

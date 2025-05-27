@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.task.any_task import AnyTask
 from zrb.util.group import NodeNotFoundError, extract_node_from_args

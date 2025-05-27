@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config.config import WebConfig
+from zrb.runner.web_config import WebConfig
 from zrb.runner.web_route.docs_route import serve_docs
 from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
 from zrb.runner.web_route.home_page.home_page_route import serve_home_page
@@ -37,8 +37,9 @@ def create_web_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        capitalized_group_name = CFG.ROOT_GROUP_NAME.capitalize()
         for line in CFG.BANNER.split("\n") + [
-            f"Zrb Server running on http://localhost:{web_config.port}"
+            f"{capitalized_group_name} Server running on http://localhost:{web_config.port}"
         ]:
             print(line, file=sys.stderr)
         yield
