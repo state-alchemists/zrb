@@ -19,21 +19,18 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
         ValueError: If an expression in the template fails to evaluate or the
             template is invalid.
     """
+    # Step 1: Replace escaped braces with unique tokens (temporary)
+    template = template.replace("{{", "\u0000").replace("}}", "\u0001")
 
-    def replace_expr(match):
-        """
-        Helper function to evaluate a single expression found in the template.
-        """
+    # Step 2: Replace real expressions {expr}
+    def eval_expr(match: re.Match) -> str:
         expr = match.group(1)
         try:
-            result = eval(expr, {}, data)
-            return str(result)
+            return str(eval(expr, {}, data))
         except Exception as e:
-            raise ValueError(f"Failed to evaluate expression: {expr}: {e}")
+            raise ValueError(f"Error evaluating expression '{expr}': {e}")
 
-    # Use regex to find and replace all expressions in curly braces
-    pattern = r"\{([^}]+)\}"
-    try:
-        return re.sub(pattern, replace_expr, template)
-    except Exception as e:
-        raise ValueError(f"Failed to parse template: {template}: {e}")
+    rendered = re.sub(r"\{([^{}]+)\}", eval_expr, template)
+
+    # Step 3: Restore escaped braces
+    return rendered.replace("\u0000", "{").replace("\u0001", "}")

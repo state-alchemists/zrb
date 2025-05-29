@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_route.docs_route import serve_docs
 from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
 from zrb.runner.web_route.home_page.home_page_route import serve_home_page
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 def create_web_app(
     root_group: AnyGroup,
-    web_config: WebConfig,
+    web_auth_config: WebAuthConfig,
     session_state_logger: AnySessionStateLogger,
 ) -> "FastAPI":
     from contextlib import asynccontextmanager
@@ -39,7 +39,7 @@ def create_web_app(
     async def lifespan(app: FastAPI):
         capitalized_group_name = CFG.ROOT_GROUP_NAME.capitalize()
         for line in CFG.BANNER.split("\n") + [
-            f"{capitalized_group_name} Server running on http://localhost:{web_config.port}"
+            f"{capitalized_group_name} Server running on http://localhost:{web_auth_config.port}"
         ]:
             print(line, file=sys.stderr)
         yield
@@ -55,16 +55,18 @@ def create_web_app(
         docs_url=None,
     )
 
-    serve_default_404(app, root_group, web_config)
-    serve_static_resources(app, web_config)
+    serve_default_404(app, root_group, web_auth_config)
+    serve_static_resources(app, web_auth_config)
     serve_docs(app)
-    serve_home_page(app, root_group, web_config)
-    serve_login_page(app, root_group, web_config)
-    serve_logout_page(app, root_group, web_config)
-    serve_node_page(app, root_group, web_config)
-    serve_login_api(app, web_config)
-    serve_logout_api(app, web_config)
-    serve_refresh_token_api(app, web_config)
-    serve_task_input_api(app, root_group, web_config)
-    serve_task_session_api(app, root_group, web_config, session_state_logger, _COROS)
+    serve_home_page(app, root_group, web_auth_config)
+    serve_login_page(app, root_group, web_auth_config)
+    serve_logout_page(app, root_group, web_auth_config)
+    serve_node_page(app, root_group, web_auth_config)
+    serve_login_api(app, web_auth_config)
+    serve_logout_api(app, web_auth_config)
+    serve_refresh_token_api(app, web_auth_config)
+    serve_task_input_api(app, root_group, web_auth_config)
+    serve_task_session_api(
+        app, root_group, web_auth_config, session_state_logger, _COROS
+    )
     return app

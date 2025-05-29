@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from zrb.config import CFG
+
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
@@ -12,6 +14,6 @@ def serve_docs(app: "FastAPI") -> None:
     async def swagger_ui_html():
         return get_swagger_ui_html(
             openapi_url="/openapi.json",
-            title="Zrb",
-            swagger_favicon_url="/static/favicon-32x32.png",
+            title=CFG.WEB_TITLE,
+            swagger_favicon_url=CFG.WEB_FAVICON_PATH,
         )

@@ -128,6 +128,36 @@ class Config:
         return metadata.version("zrb")
 
     @property
+    def WEB_CSS_PATH(self) -> list[str]:
+        web_css_path_str = os.getenv("ZRB_WEB_CSS_PATH", "")
+        if web_css_path_str != "":
+            return [
+                path.strip()
+                for path in web_css_path_str.split(":")
+                if path.strip() != ""
+            ]
+        return []
+
+    @property
+    def WEB_JS_PATH(self) -> list[str]:
+        web_js_path_str = os.getenv("ZRB_WEB_JS_PATH", "")
+        if web_js_path_str != "":
+            return [
+                path.strip()
+                for path in web_js_path_str.split(":")
+                if path.strip() != ""
+            ]
+        return []
+
+    @property
+    def WEB_FAVICON_PATH(self) -> str:
+        return os.getenv("ZRB_WEB_FAVICON_PATH", "/static/favicon-32x32.png")
+
+    @property
+    def WEB_COLOR(self) -> str:
+        return os.getenv("ZRB_WEB_COLOR", "")
+
+    @property
     def WEB_HTTP_PORT(self) -> int:
         return int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
 

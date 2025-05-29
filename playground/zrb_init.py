@@ -16,14 +16,14 @@ from zrb import (
     Xcom,
     cli,
     make_task,
-    web_config,
+    web_auth_config,
 )
 
-web_config.set_enable_auth(True)
-web_config.append_user(
+web_auth_config.set_enable_auth(True)
+web_auth_config.append_user(
     User(username="jack", password="jack", accessible_tasks=["ppn", "llm-chat"])
 )
-web_config.set_guest_accessible_tasks(["ppn"])
+web_auth_config.set_guest_accessible_tasks(["ppn"])
 
 
 @make_task(

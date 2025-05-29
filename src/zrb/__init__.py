@@ -35,7 +35,7 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.llm_config import llm_config
 from zrb.runner.cli import cli
-from zrb.runner.web_config import web_config
+from zrb.runner.web_auth_config import web_auth_config
 from zrb.runner.web_schema.user import User
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -106,7 +106,7 @@ assert Scheduler
 assert cli
 assert llm_config
 assert Xcom
-assert web_config
+assert web_auth_config
 assert User
 
 if CFG.LOAD_BUILTIN:

@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.util.file import read_file
 
 if TYPE_CHECKING:
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def serve_static_resources(app: "FastAPI", web_config: WebConfig) -> None:
+def serve_static_resources(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
     from fastapi import HTTPException
     from fastapi.responses import FileResponse, PlainTextResponse
     from fastapi.staticfiles import StaticFiles
@@ -30,7 +30,7 @@ def serve_static_resources(app: "FastAPI", web_config: WebConfig) -> None:
     async def refresh_token_js():
         return PlainTextResponse(
             content=_get_refresh_token_js(
-                60 * web_config.access_token_expire_minutes / 3
+                60 * web_auth_config.access_token_expire_minutes / 3
             ),
             media_type="application/javascript",
         )

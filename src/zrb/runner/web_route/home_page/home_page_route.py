@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_util.html import (
     get_html_auth_link,
     get_html_subgroup_info,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 def serve_home_page(
     app: "FastAPI",
     root_group: AnyGroup,
-    web_config: WebConfig,
+    web_auth_config: WebAuthConfig,
 ) -> None:
     from fastapi import Request
     from fastapi.responses import HTMLResponse
@@ -40,7 +40,7 @@ def serve_home_page(
         web_jargon = (
             CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
         )
-        user = await get_user_from_request(web_config, request)
+        user = await get_user_from_request(web_auth_config, request)
         group_info = get_html_subgroup_info(user, "/ui/", root_group)
         task_info = get_html_subtask_info(user, "/ui/", root_group)
         auth_link = get_html_auth_link(user)
@@ -48,7 +48,8 @@ def serve_home_page(
             fstring_format(
                 _GLOBAL_TEMPLATE,
                 {
-                    "web_title": web_title,
+                    "CFG": CFG,
+                    "root_group": root_group,
                     "content": fstring_format(
                         _VIEW_TEMPLATE,
                         {

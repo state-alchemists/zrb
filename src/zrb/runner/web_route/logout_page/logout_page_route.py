@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config import CFG
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_util.html import get_html_auth_link
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.util.file import read_file
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def serve_logout_page(
     app: "FastAPI",
     root_group: AnyGroup,
-    web_config: WebConfig,
+    web_auth_config: WebAuthConfig,
 ) -> None:
     from fastapi import Request
     from fastapi.responses import HTMLResponse
@@ -29,18 +29,23 @@ def serve_logout_page(
             os.path.join(os.path.dirname(_DIR), "static", "global_template.html")
         )
         _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
-        user = await get_user_from_request(web_config, request)
+        user = await get_user_from_request(web_auth_config, request)
+        web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
+        web_jargon = (
+            CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
+        )
         auth_link = get_html_auth_link(user)
         return HTMLResponse(
             fstring_format(
                 _GLOBAL_TEMPLATE,
                 {
-                    "web_title": CFG.WEB_TITLE,
+                    "CFG": CFG,
+                    "root_group": root_group,
                     "content": fstring_format(
                         _VIEW_TEMPLATE,
                         {
-                            "name": root_group.name,
-                            "description": root_group.description,
+                            "name": web_title,
+                            "description": web_jargon,
                             "auth_link": auth_link,
                             "user": user,
                         },

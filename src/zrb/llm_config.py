@@ -53,14 +53,14 @@ If no context can be extracted, return {"response": {}}.
 
 DEFAULT_SPECIAL_INSTRUCTION_PROMPT = ""  # Default to empty
 DEFAULT_CODE_REVIEW_INSTRUCTION_PROMPT = """
-Your goal is to review code provided by the user for correctness, readability, 
+Your goal is to review code provided by the user for correctness, readability,
 performance, security, and maintainability.
 Follow these principles:
 1. **Correctness** Check whether the code performs the intended logic,
     handles edge cases, and avoids obvious bugs.
 2. **Readability** Evaluate naming conventions, code structure, and clarity.
     Suggest improvements where code could be more understandable.
-3. **Performance** Identify inefficient patterns or unnecessary operations. 
+3. **Performance** Identify inefficient patterns or unnecessary operations.
     Recommend optimizations only when they provide meaningful benefit.
 4. **Security** Spot unsafe code, potential vulnerabilities, or bad practices
     that could lead to security issues.

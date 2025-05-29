@@ -278,14 +278,6 @@ test_generated_fastapp = test_generator_group.add_task(
 remove_generated >> test_generate >> [run_generated_fastapp, test_generated_fastapp]
 
 
-@make_task(
-    name="anu",
-    group=cli,
-)
-def anu(ctx):
-    return "anunaki"
-
-
 # PLAYGROUND ==================================================================
 
 playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
