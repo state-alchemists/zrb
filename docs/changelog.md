@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.0
+
+- Breaking change: Rename `web_config` to `web_auth_config`
+- Update `pico.css` to `2.1.1`
+- Add `ZRB_WEB_FAVICON_PATH`, `ZRB_WEB_JS_PATH`, `ZRB_WEB_CSS_PATH` and `ZRB_WEB_COLOR`
+
 # 1.7.5
 
 - Make `web_config` lazy load.

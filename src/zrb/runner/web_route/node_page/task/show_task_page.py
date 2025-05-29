@@ -64,7 +64,8 @@ def show_task_page(
         fstring_format(
             _GLOBAL_TEMPLATE,
             {
-                "web_title": f"{web_title} | {task.name}",
+                "CFG": CFG,
+                "root_group": root_group,
                 "content": fstring_format(
                     _VIEW_TEMPLATE,
                     {

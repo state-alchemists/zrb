@@ -8,7 +8,7 @@ from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 from zrb.runner.common_util import get_run_kwargs
 from zrb.runner.web_app import create_web_app
-from zrb.runner.web_config import web_config
+from zrb.runner.web_auth_config import web_auth_config
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -187,7 +187,7 @@ server_group = cli.add_group(
 async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
-    app = create_web_app(cli, web_config, session_state_logger)
+    app = create_web_app(cli, web_auth_config, session_state_logger)
     server = Server(
         Config(
             app=app,

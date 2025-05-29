@@ -36,7 +36,8 @@ def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str)
         fstring_format(
             _GLOBAL_TEMPLATE,
             {
-                "web_title": f"{web_title} | {group.name}",
+                "CFG": CFG,
+                "root_group": root_group,
                 "content": fstring_format(
                     _VIEW_TEMPLATE,
                     {

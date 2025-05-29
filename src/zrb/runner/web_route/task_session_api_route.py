@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 def serve_task_session_api(
     app: "FastAPI",
     root_group: AnyGroup,
-    web_config: WebConfig,
+    web_auth_config: WebAuthConfig,
     session_state_logger: AnySessionStateLogger,
     coroutines: list,
 ) -> None:
@@ -39,7 +39,7 @@ def serve_task_session_api(
         """
         Creating new session
         """
-        user = await get_user_from_request(web_config, request)
+        user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
             task, _, residual_args = extract_node_from_args(root_group, args)
@@ -75,7 +75,7 @@ def serve_task_session_api(
         """
         Getting existing session or sessions
         """
-        user = await get_user_from_request(web_config, request)
+        user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
             task, _, residual_args = extract_node_from_args(root_group, args)

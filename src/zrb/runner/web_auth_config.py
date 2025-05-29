@@ -5,7 +5,7 @@ from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
 
 
-class WebConfig:
+class WebAuthConfig:
     def __init__(
         self,
         port: int | None = None,
@@ -186,4 +186,4 @@ class WebConfig:
         return user
 
 
-web_config = WebConfig()
+web_auth_config = WebAuthConfig()

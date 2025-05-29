@@ -4,10 +4,11 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="light dark">
-        <link rel="stylesheet" href="/static/pico.min.css">
-        <link rel="icon" href="/static/favicon-32x32.png" sizes="32x32" type="image/png">
-        <title>{web_title}</title>
+        <link rel="stylesheet" href="/static/pico-css/pico{'.' + CFG.WEB_COLOR if CFG.WEB_COLOR != '' else ''}.min.css">
+        <link rel="icon" href="{CFG.WEB_FAVICON_PATH}" sizes="32x32" type="image/png">
+        <title>{CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name}</title>
         <link rel="stylesheet" href="/static/common.css">
+        {'\n'.join(['<link rel="stylesheet" href="' + path + '">' for path in CFG.WEB_CSS_PATH])}
     </head>
     <body>
         <div class="theme-switcher">
@@ -24,4 +25,6 @@
     </body>
     <script src="/refresh-token.js"></script>
     <script src="/static/common.js"></script>
+    {'\n'.join(['<script src="' + path + '"></script>' for path in CFG.WEB_JS_PATH])}
+
 </html>

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated
 
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_util.cookie import set_auth_cookie
 from zrb.runner.web_util.token import generate_tokens_by_credentials
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def serve_login_api(app: "FastAPI", web_config: WebConfig) -> None:
+def serve_login_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
     from fastapi import Depends, Response
     from fastapi.responses import JSONResponse
     from fastapi.security import OAuth2PasswordRequestForm
@@ -19,7 +19,7 @@ def serve_login_api(app: "FastAPI", web_config: WebConfig) -> None:
         response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
     ):
         token = generate_tokens_by_credentials(
-            web_config=web_config,
+            web_auth_config=web_auth_config,
             username=form_data.username,
             password=form_data.password,
         )
@@ -27,5 +27,5 @@ def serve_login_api(app: "FastAPI", web_config: WebConfig) -> None:
             return JSONResponse(
                 content={"detail": "Incorrect username or password"}, status_code=400
             )
-        set_auth_cookie(web_config, response, token)
+        set_auth_cookie(web_auth_config, response, token)
         return token

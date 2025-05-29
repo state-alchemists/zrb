@@ -75,6 +75,22 @@ Zrb can be configured using the following environment variables (see "Setting En
 
 ## Web Interface
 
+- `ZRB_WEB_FAVICON_PATH`: Favicon path
+    - Default: Empty
+    - Possible values: Any valid favicon path
+
+- `ZRB_WEB_CSS_PATH`: CSS path
+    - Default: Empty
+    - Possible values: Any valid CSS path, separated by `:`
+
+- `ZRB_WEB_JS_PATH`: JS path
+    - Default: Empty
+    - Possible values: Any valid JS path, separated by `:`
+
+- `ZRB_WEB_COLOR`: Web color theme
+    - Default: Empty
+    - Possible values: Any valid Pico CSS Theme Color, see [Pico CSS docs](https://picocss.com/docs/version-picker)
+
 - `ZRB_WEB_HTTP_PORT`: HTTP port for the web interface.
     - Default: `21213`
     - Possible values: Any valid port number

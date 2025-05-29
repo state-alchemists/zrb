@@ -9,7 +9,7 @@ from zrb.config import CFG  # Import CFG
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
 from zrb.runner.web_app import create_web_app
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.task import Task
 
@@ -43,7 +43,7 @@ class TestRunWebServer(unittest.TestCase):
         cls.port = 8080
         cls.app = create_web_app(
             cls.root_group,
-            WebConfig(
+            WebAuthConfig(
                 port=cls.port,
                 secret_key="zrb",
                 access_token_expire_minutes=30,
@@ -85,7 +85,7 @@ class TestRunWebServer(unittest.TestCase):
 
     def test_static_found(self):
         with TestClient(self.app) as client:
-            response = client.get("/static/pico.min.css")
+            response = client.get("/static/pico-css/pico.min.css")
             self.assertEqual(response.status_code, 200)
 
     def test_static_not_found(self):

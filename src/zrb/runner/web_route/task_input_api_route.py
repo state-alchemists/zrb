@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.task.any_task import AnyTask
 from zrb.util.group import NodeNotFoundError, extract_node_from_args
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def serve_task_input_api(
     app: "FastAPI",
     root_group: AnyGroup,
-    web_config: WebConfig,
+    web_auth_config: WebAuthConfig,
 ) -> None:
     from fastapi import Query, Request
     from fastapi.responses import JSONResponse
@@ -30,7 +30,7 @@ def serve_task_input_api(
         """
         Getting input completion for path
         """
-        user = await get_user_from_request(web_config, request)
+        user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
             task, _, _ = extract_node_from_args(root_group, args)

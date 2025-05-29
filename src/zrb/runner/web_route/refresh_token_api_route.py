@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_config import WebConfig
+from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.token import RefreshTokenRequest
 from zrb.runner.web_util.cookie import set_auth_cookie
 from zrb.runner.web_util.token import regenerate_tokens
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def serve_refresh_token_api(app: "FastAPI", web_config: WebConfig) -> None:
+def serve_refresh_token_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
     from fastapi import Cookie, Response
     from fastapi.responses import JSONResponse
 
@@ -19,7 +19,7 @@ def serve_refresh_token_api(app: "FastAPI", web_config: WebConfig) -> None:
         response: Response,
         body: RefreshTokenRequest = None,
         refresh_token_cookie: str = Cookie(
-            None, alias=web_config.refresh_token_cookie_name
+            None, alias=web_auth_config.refresh_token_cookie_name
         ),
     ):
         # Try to get the refresh token from the request body first
@@ -33,6 +33,6 @@ def serve_refresh_token_api(app: "FastAPI", web_config: WebConfig) -> None:
                 content={"detail": "Refresh token not provided"}, status_code=401
             )
         # Get token
-        new_token = regenerate_tokens(web_config, refresh_token)
-        set_auth_cookie(web_config, response, new_token)
+        new_token = regenerate_tokens(web_auth_config, refresh_token)
+        set_auth_cookie(web_auth_config, response, new_token)
         return new_token
