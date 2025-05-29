@@ -5,6 +5,7 @@
 - Breaking change: Rename `web_config` to `web_auth_config`
 - Update `pico.css` to `2.1.1`
 - Add `ZRB_WEB_FAVICON_PATH`, `ZRB_WEB_JS_PATH`, `ZRB_WEB_CSS_PATH` and `ZRB_WEB_COLOR`
+- `fstring_format` is now receiving `{{` and `}}` as escape character
 
 # 1.7.5
 
