@@ -1,25 +1,27 @@
-FROM python:3.10-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 # Create and set workdir
-RUN mkdir -p /project
 WORKDIR /project
 
-# Prepare apt
-RUN apt update --fix-missing && apt upgrade -y
-RUN apt update
-
-# Clean up apt
-RUN apt autoremove -yqq --purge && \
+# Prepare apt and install poetry in a single layer
+RUN apt update --fix-missing && \
+    apt upgrade -y && \
+    apt install -y --no-install-recommends curl && \
+    apt autoremove -yqq --purge && \
     apt clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install poetry
-RUN pip install poetry
+    rm -rf /var/lib/apt/lists/* && \
+    pip install poetry
 
 # Configure poetry to not use virtual environments
 RUN poetry config virtualenvs.create false
 
-# Install zrb
+# Copy only the dependency files first
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies
+RUN poetry install --without dev --no-root
+
+# Copy the rest of the application code
 COPY . .
 RUN poetry install --without dev
 
