@@ -2,7 +2,8 @@
 
 # 1.8.1
 
-- `read_file` and `analyze_file` is now handling `*.pdf`
+- `read_file` and `analyze_file` is now handling `*.pdf`.
+- Update `Dockerfile`, provide `dind` version.
 
 # 1.8.0
 

@@ -156,6 +156,32 @@ Then open your browser and visit `http://localhost:21213`
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 
 
+# 🐋 As Container
+
+Zrb has two version of container:
+- The normal version
+- The dind (Docker in Docker) version
+
+The dind version has builtin docker command, and is suitable to access host's docker CLI command.
+
+To run the normal version, you can execute:
+
+```bash
+# docker run -v <host-path>:<container-path> -it stalchmst/zrb:<version> <command>
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 docker ps
+```
+
+While to run the dind version, you can execute:
+
+```bash
+# docker run -v <host-path>:<container-path> -it stalchmst/zrb:<version>-dind <command>
+docker run \
+    -v ${HOME}:/zrb-home \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -it --rm stalchmst/zrb:1.8.1-dind docker ps
+```
+
+
 # 🎥 Demo & Documentation
 
 - **Full documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)

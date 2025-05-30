@@ -1,7 +1,9 @@
 FROM python:3.13-slim-bookworm
 
+ARG DIND=false
+
 # Create and set workdir
-WORKDIR /project
+WORKDIR /zrb-home
 
 # Prepare apt and install poetry in a single layer
 RUN apt update --fix-missing && \
@@ -24,5 +26,12 @@ RUN poetry install --without dev --no-root
 # Copy the rest of the application code
 COPY . .
 RUN poetry install --without dev
+
+RUN if [ "$DIND" = "true" ]; then \
+        apt update && \
+        apt install -y docker.io && \
+        apt clean && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
 
 CMD ["zrb", "server", "start"]

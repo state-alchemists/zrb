@@ -112,29 +112,26 @@ build_docker = docker_group.add_task(
         name="build-zrb-docker-image",
         description="Build Zrb docker image",
         cwd=_DIR,
-        cmd=f"docker build . -t stalchmst/zrb:{_VERSION}",
+        cmd=[
+            f"docker build . -t stalchmst/zrb:{_VERSION} -t stalchmst/zrb:latest",
+            f"docker build --build-arg DIND=true . -t stalchmst/zrb:{_VERSION}-dind -t stalchmst/zrb:latest-dind",  # noqa
+        ],
     ),
     alias="build",
 )
 format_code >> build_docker
-
-run_docker = docker_group.add_task(
-    CmdTask(
-        name="run-zrb-docker-container",
-        description="Run Zrb docker container",
-        cwd=_DIR,
-        cmd=f"docker run -p 21213:21213 --rm stalchmst/zrb:{_VERSION}",
-    ),
-    alias="run",
-)
-build_docker >> run_docker
 
 publish_docker = docker_group.add_task(
     CmdTask(
         name="publish-zrb-docker-image",
         description="Publish Zrb docker image",
         cwd=_DIR,
-        cmd=f"docker push stalchmst/zrb:{_VERSION}",
+        cmd=[
+            "docker push stalchmst/zrb:latest",
+            f"docker push stalchmst/zrb:{_VERSION}",
+            "docker push stalchmst/zrb:latest-dind",
+            f"docker push stalchmst/zrb:{_VERSION}-dind",
+        ],
     ),
     alias="publish",
 )
