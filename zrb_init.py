@@ -122,7 +122,7 @@ format_code >> build_docker
 
 build_docker_dind = docker_group.add_task(
     CmdTask(
-        name="build-zrb-docker-image",
+        name="build-zrb-docker-dind-image",
         description="Build Zrb docker image",
         cwd=_DIR,
         cmd=[
