@@ -1,8 +1,12 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.1
+
+- `read_file` and `analyze_file` is now handling `*.pdf`
+
 # 1.8.0
 
-- Breaking change: Rename `web_config` to `web_auth_config`
+- 💥 Breaking change: Rename `web_config` to `web_auth_config`
 - Update `pico.css` to `2.1.1`
 - Add `ZRB_WEB_FAVICON_PATH`, `ZRB_WEB_JS_PATH`, `ZRB_WEB_CSS_PATH` and `ZRB_WEB_COLOR`
 - `fstring_format` is now receiving `{{` and `}}` as escape character
@@ -55,7 +59,7 @@
 
 # 1.6.5
 
-- Breaking change: `Cli` constructor no longer has any parameter.
+- 💥 Breaking change: `Cli` constructor no longer has any parameter.
 
 # 1.6.4
 
@@ -77,7 +81,7 @@
 
 - Introduce `ZRB_INIT_FILE_NAME`, `ZRB_BANNER`, `ZRB_WEB_TITLE`, `ZRB_WEB_JARGON`, `ZRB_WEB_HOMEPAGE_INTRO` configuration.
 - Change Configuration mechanism, use `zrb.config.CFG` that allows lazy load.
-- Breaking changes: 
+- 💥 Breaking changes:
     - `zrb.builtin.llm.llm_chat` is now `zrb.builtin.llm.llm_ask`
     - We now have `llm_ask` for one time interaction, replacing the old `llm_chat`
     - The new `llm_chat` can only be accessed via CLI
@@ -213,7 +217,7 @@
 
 # 1.2.0
 
-- When creating any `Input`, use `default` keyword instead of `default_str`.
+- 💥 When creating any `Input`, use `default` keyword instead of `default_str`.
 
 # 1.1.0
 
@@ -222,4 +226,4 @@
 
 # 1.0.0
 
-- Big rewrite, there are major incaompatibility with version `0.x.x`
+- 💥 Big rewrite, there are major incaompatibility with version `0.x.x`

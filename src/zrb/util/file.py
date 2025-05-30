@@ -12,13 +12,31 @@ def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
     Returns:
         The content of the file with replacements applied.
     """
-    with open(
-        os.path.abspath(os.path.expanduser(file_path)), "r", encoding="utf-8"
-    ) as f:
-        content = f.read()
+    abs_file_path = os.path.abspath(os.path.expanduser(file_path))
+    is_pdf = abs_file_path.lower().endswith(".pdf")
+    content = (
+        _read_pdf_file_content(abs_file_path)
+        if is_pdf
+        else _read_text_file_content(abs_file_path)
+    )
     for key, val in replace_map.items():
         content = content.replace(key, val)
     return content
+
+
+def _read_text_file_content(file_path: str) -> str:
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return content
+
+
+def _read_pdf_file_content(file_path: str) -> str:
+    import pdfplumber
+
+    with pdfplumber.open(file_path) as pdf:
+        return "\n".join(
+            page.extract_text() for page in pdf.pages if page.extract_text()
+        )
 
 
 def read_file_with_line_numbers(

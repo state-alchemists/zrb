@@ -203,15 +203,4 @@ def _read_txt_content(file_path: str, file_reader: list[RAGFileReader]):
     for reader in file_reader:
         if reader.is_match(file_path):
             return reader.read(file_path)
-    if file_path.lower().endswith(".pdf"):
-        return _read_pdf(file_path)
     return read_file(file_path)
-
-
-def _read_pdf(file_path: str) -> str:
-    import pdfplumber
-
-    with pdfplumber.open(file_path) as pdf:
-        return "\n".join(
-            page.extract_text() for page in pdf.pages if page.extract_text()
-        )
