@@ -141,14 +141,25 @@ publish_docker = docker_group.add_task(
         cmd=[
             "docker push stalchmst/zrb:latest",
             f"docker push stalchmst/zrb:{_VERSION}",
-            "docker push stalchmst/zrb:latest-dind",
-            f"docker push stalchmst/zrb:{_VERSION}-dind",
         ],
     ),
     alias="publish",
 )
 build_docker >> publish_docker
-build_docker_dind >> publish_docker
+
+publish_docker_dind = docker_group.add_task(
+    CmdTask(
+        name="publish-zrb-docker-dind-image",
+        description="Publish Zrb docker image",
+        cwd=_DIR,
+        cmd=[
+            "docker push stalchmst/zrb:latest-dind",
+            f"docker push stalchmst/zrb:{_VERSION}-dind",
+        ],
+    ),
+    alias="publish-dind",
+)
+build_docker_dind >> publish_docker_dind
 
 # PUBLISH =====================================================================
 
@@ -179,11 +190,12 @@ publish_pip = publish_group.add_task(
 format_code >> publish_pip
 
 publish_group.add_task(publish_docker, alias="docker")
+publish_group.add_task(publish_docker_dind, alias="docker-dind")
 
 publish_all = publish_group.add_task(
     Task(name="publish-all", description="Publish Zrb"), alias="all"
 )
-publish_all << [publish_pip, publish_docker, publish_code]
+publish_all << [publish_pip, publish_docker, publish_docker_dind, publish_code]
 
 # GENERATOR TEST =============================================================
 
