@@ -168,7 +168,7 @@ To run the normal version, you can execute:
 
 ```bash
 # docker run -v <host-path>:<container-path> -it stalchmst/zrb:<version> <command>
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 docker ps
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 zrb
 ```
 
 While to run the dind version, you can execute:

@@ -106,60 +106,81 @@ format_code >> git_commit
 docker_group = cli.add_group(
     Group(name="docker", description="🐋 Docker related command")
 )
+docker_build_group = docker_group.add_group(
+    Group(name="build", description="Build images")
+)
+docker_publish_group = docker_group.add_group(
+    Group(name="publish", description="Publish images")
+)
 
-build_docker = docker_group.add_task(
+build_normal_docker_image = docker_build_group.add_task(
     CmdTask(
-        name="build-zrb-docker-image",
-        description="Build Zrb docker image",
+        name="build-zrb-normal-docker-image",
+        description="Build Zrb normal docker image",
         cwd=_DIR,
         cmd=[
             f"docker build . -t stalchmst/zrb:{_VERSION} -t stalchmst/zrb:latest",
         ],
     ),
-    alias="build",
+    alias="normal",
 )
-format_code >> build_docker
+format_code >> build_normal_docker_image
 
-build_docker_dind = docker_group.add_task(
+build_dind_docker_image = docker_build_group.add_task(
     CmdTask(
-        name="build-zrb-docker-dind-image",
-        description="Build Zrb docker image",
+        name="build-zrb-dind-docker-image",
+        description="Build Zrb dind docker image",
         cwd=_DIR,
         cmd=[
             f"docker build --build-arg DIND=true . -t stalchmst/zrb:{_VERSION}-dind -t stalchmst/zrb:latest-dind",  # noqa
         ],
     ),
-    alias="build-dind",
+    alias="dind",
 )
-format_code >> build_docker
+format_code >> build_dind_docker_image
 
-publish_docker = docker_group.add_task(
+build_docker_image = docker_build_group.add_task(
+    Task(name="build-zrb-docker-images"),
+    alias="all",
+)
+build_normal_docker_image >> build_docker_image
+build_dind_docker_image >> build_docker_image
+
+publish_normal_docker_image = docker_publish_group.add_task(
     CmdTask(
-        name="publish-zrb-docker-image",
-        description="Publish Zrb docker image",
+        name="publish-zrb-normal-docker-image",
+        description="Publish Zrb normal docker image",
         cwd=_DIR,
         cmd=[
             "docker push stalchmst/zrb:latest",
             f"docker push stalchmst/zrb:{_VERSION}",
         ],
     ),
-    alias="publish",
+    alias="normal",
 )
-build_docker >> publish_docker
+build_normal_docker_image >> publish_normal_docker_image
 
-publish_docker_dind = docker_group.add_task(
+publish_dind_docker_image = docker_publish_group.add_task(
     CmdTask(
-        name="publish-zrb-docker-dind-image",
-        description="Publish Zrb docker image",
+        name="publish-zrb-dind-docker-image",
+        description="Publish Zrb dind docker image",
         cwd=_DIR,
         cmd=[
             "docker push stalchmst/zrb:latest-dind",
             f"docker push stalchmst/zrb:{_VERSION}-dind",
         ],
     ),
-    alias="publish-dind",
+    alias="dind",
 )
-build_docker_dind >> publish_docker_dind
+build_dind_docker_image >> publish_dind_docker_image
+
+publish_docker_image = docker_publish_group.add_task(
+    Task(name="publish-zrb-docker-images"),
+    alias="all",
+)
+publish_normal_docker_image >> publish_docker_image
+publish_dind_docker_image >> publish_docker_image
+
 
 # PUBLISH =====================================================================
 
@@ -189,13 +210,12 @@ publish_pip = publish_group.add_task(
 )
 format_code >> publish_pip
 
-publish_group.add_task(publish_docker, alias="docker")
-publish_group.add_task(publish_docker_dind, alias="docker-dind")
+publish_group.add_task(publish_docker_image, alias="docker")
 
 publish_all = publish_group.add_task(
     Task(name="publish-all", description="Publish Zrb"), alias="all"
 )
-publish_all << [publish_pip, publish_docker, publish_docker_dind, publish_code]
+publish_all << [publish_pip, publish_docker_image, publish_code]
 
 # GENERATOR TEST =============================================================
 

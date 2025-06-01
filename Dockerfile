@@ -3,7 +3,7 @@ FROM python:3.13-slim-bookworm
 ARG DIND=false
 
 # Create and set workdir
-WORKDIR /zrb-home
+WORKDIR /zrb-bin
 
 # Prepare apt and install poetry in a single layer
 RUN apt update --fix-missing && \
@@ -26,6 +26,7 @@ RUN poetry install --without dev --no-root
 # Copy the rest of the application code
 COPY . .
 RUN poetry install --without dev
+WORKDIR /zrb-home
 
 RUN if [ "$DIND" = "true" ]; then \
         apt update && \
