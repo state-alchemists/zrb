@@ -294,11 +294,11 @@ On Windows, you can set environment variables using the following methods:
    ```
 
 2. Permanently:
-   a. Right-click on "This PC" or "My Computer" and select "Properties"
-   b. Click on "Advanced system settings"
-   c. Click on "Environment Variables"
-   d. Under "User variables" or "System variables", click "New"
-   e. Enter the variable name and value, then click "OK"
+- Right-click on "This PC" or "My Computer" and select "Properties"
+- Click on "Advanced system settings"
+- Click on "Environment Variables"
+- Under "User variables" or "System variables", click "New"
+- Enter the variable name and value, then click "OK"
 
 Alternatively, you can use the `setx` command in Command Prompt (run as administrator):
 
