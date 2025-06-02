@@ -156,31 +156,35 @@ Then open your browser and visit `http://localhost:21213`
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 
 
-# 🐋 As Container
+# 🐋 Running Zrb as a Container
 
-Zrb has two version of container:
-- The normal version
-- The dind (Docker in Docker) version
+Zrb can be run in a containerized environment, offering two distinct versions to suit different needs:
 
-The dind version has builtin docker command, and is suitable to access host's docker CLI command.
+- **Standard Version**: Ideal for general use cases where Docker CLI access is not required.
+- **Dind (Docker in Docker) Version**: Includes built-in Docker commands, perfect for scenarios where you need to access the host's Docker CLI.
 
-To run the normal version, you can execute:
+### Standard Version
+
+The standard version of the Zrb container is suitable for most automation tasks. To run this version, execute the following command:
 
 ```bash
-# docker run -v <host-path>:<container-path> -it stalchmst/zrb:<version> <command>
+# Replace <host-path> and <container-path> with your desired paths
 docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 zrb
 ```
 
-While to run the dind version, you can execute:
+### Dind Version
+
+The Dind version is tailored for advanced use cases where Docker commands need to be executed within the container. This version allows the container to interact with the host's Docker daemon. To run the Dind version, use the command below:
 
 ```bash
-# docker run -v <host-path>:<container-path> -it stalchmst/zrb:<version>-dind <command>
+# Replace <host-path> and <container-path> with your desired paths
 docker run \
     -v ${HOME}:/zrb-home \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -it --rm stalchmst/zrb:1.8.1-dind docker ps
 ```
 
+> **Note:** The Dind (Docker in Docker) version of the container is larger in size compared to the standard version due to the inclusion of Docker CLI tools. Consider this when choosing the appropriate version for your needs.
 
 # 🎥 Demo & Documentation
 
