@@ -51,9 +51,9 @@ another JSON object with these details (i.e., {"response": {"context_name": "val
 If no context can be extracted, return {"response": {}}.
 """.strip()
 
-DEFAULT_SPECIAL_INSTRUCTION_PROMPT = ""  # Default to empty
-DEFAULT_CODE_REVIEW_INSTRUCTION_PROMPT = """
-Your goal is to review code provided by the user for correctness, readability,
+DEFAULT_SPECIAL_INSTRUCTION_PROMPT = """
+# Coding and Code Review
+When asked to do coding/code review related task, you prioritize correctness, readability,
 performance, security, and maintainability.
 Follow these principles:
 1. **Correctness** Check whether the code performs the intended logic,
@@ -66,9 +66,10 @@ Follow these principles:
     that could lead to security issues.
 5. **Consistency** Ensure the code adheres to common language idioms,
     style guides, and project conventions.
-Provide clear, concise, and actionable feedback.
-Use inline code examples when helpful.
-Do not restate the code unnecessarily.
+
+## Code Review
+When asked to do code review, you provide clear, concise, and actionable feedback.
+Use inline code examples when helpful. Do not restate the code unnecessarily.
 Focus on meaningful insights that help the user improve the code quality.
 Avoid excessive nitpicking unless requested.
 """.strip()
@@ -84,7 +85,6 @@ class LLMConfig:
         default_persona: str | None = None,
         default_system_prompt: str | None = None,
         default_special_instruction_prompt: str | None = None,
-        default_code_review_instruction_prompt: str | None = None,
         default_summarization_prompt: str | None = None,
         default_context_enrichment_prompt: str | None = None,
         default_summarize_history: bool | None = None,
@@ -101,9 +101,6 @@ class LLMConfig:
         self._default_persona = default_persona
         self._default_system_prompt = default_system_prompt
         self._default_special_instruction_prompt = default_special_instruction_prompt
-        self._default_code_review_instruction_prompt = (
-            default_code_review_instruction_prompt
-        )
         self._default_summarization_prompt = default_summarization_prompt
         self._default_context_enrichment_prompt = default_context_enrichment_prompt
         self._default_summarize_history = default_summarize_history
@@ -174,14 +171,6 @@ class LLMConfig:
         if CFG.LLM_PERSONA is not None:
             return CFG.LLM_PERSONA
         return DEFAULT_PERSONA
-
-    @property
-    def default_code_review_instruction_prompt(self) -> str:
-        if self._default_code_review_instruction_prompt is not None:
-            return self._default_code_review_instruction_prompt
-        if CFG.LLM_CODE_REVIEW_INSTRUCTION_PROMPT is not None:
-            return CFG.LLM_CODE_REVIEW_INSTRUCTION_PROMPT
-        return DEFAULT_CODE_REVIEW_INSTRUCTION_PROMPT
 
     @property
     def default_special_instruction_prompt(self) -> str:

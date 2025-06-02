@@ -14,7 +14,7 @@ _DEFAULT_BANNER = """
    zzzzz rr     bbbbbb   {VERSION} Janggala
    _ _ . .  . _ .  _ . . .
 Your Automation Powerhouse
-☕ Donate at: https://stalchmst.com/donation
+☕ Donate at: https://stalchmst.com
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
 """
@@ -228,10 +228,6 @@ class Config:
     @property
     def LLM_PERSONA(self) -> str | None:
         return os.getenv("ZRB_LLM_PERSONA", None)
-
-    @property
-    def LLM_CODE_REVIEW_INSTRUCTION_PROMPT(self) -> str | None:
-        return os.getenv("ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT", None)
 
     @property
     def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:

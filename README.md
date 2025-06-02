@@ -202,7 +202,7 @@ docker run \
 
 If you find Zrb valuable, please consider donating:
 
-[![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com/donation)
+[![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com)
 
 # 🎉 Fun Fact
 

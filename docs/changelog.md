@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.2
+
+- 💥 Breaking change: Remove `ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT`
+
 # 1.8.1
 
 - `read_file` and `analyze_file` is now handling `*.pdf`.
