@@ -97,7 +97,7 @@ class Context(AnyContext):
         self,
         *values: object,
         sep: str | None = " ",
-        end: str | None = "\r\n",
+        end: str | None = "\n",
         file: TextIO | None = sys.stderr,
         flush: bool = True,
         plain: bool = False,

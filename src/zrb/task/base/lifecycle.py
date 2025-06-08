@@ -38,26 +38,28 @@ async def run_and_cleanup(
             ctx = task.get_ctx(session)  # Get context for logging
             ctx.log_info("Terminating session after run completion/error.")
             session.terminate()
-
         # Clean up other potentially running asyncio tasks (excluding the main one)
         # Be cautious with blanket cancellation if other background tasks are expected
-        pending = [
-            t for t in asyncio.all_tasks() if t is not main_task_coro and not t.done()
-        ]
-        if pending:
-            ctx = task.get_ctx(session)  # Get context for logging
-            ctx.log_debug(f"Cleaning up {len(pending)} pending asyncio tasks...")
-            for t in pending:
-                t.cancel()
-            try:
-                # Give cancelled tasks a moment to process cancellation
-                await asyncio.wait(pending, timeout=1.0)
-            except asyncio.CancelledError:
-                # Expected if tasks handle cancellation promptly
-                pass
-            except Exception as cleanup_exc:
-                # Log errors during cleanup if necessary
-                ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+        try:
+            pending = [
+                t for t in asyncio.all_tasks() if t is not main_task_coro and not t.done()
+            ]
+            if pending:
+                ctx = task.get_ctx(session)  # Get context for logging
+                ctx.log_debug(f"Cleaning up {len(pending)} pending asyncio tasks...")
+                for t in pending:
+                    t.cancel()
+                try:
+                    # Give cancelled tasks a moment to process cancellation
+                    await asyncio.wait(pending, timeout=1.0)
+                except asyncio.CancelledError:
+                    # Expected if tasks handle cancellation promptly
+                    pass
+                except Exception as cleanup_exc:
+                    # Log errors during cleanup if necessary
+                    ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+        except RuntimeError as cleanup_exc:
+            ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
 
 
 async def run_task_async(

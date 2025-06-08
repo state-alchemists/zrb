@@ -355,6 +355,22 @@ async def _run_shell_script(ctx: AnyContext, script: str) -> Any:
 
 ping_google = CmdTask(name="ping-google", cmd="ping google.com")
 ping_yahoo = CmdTask(name="ping-yahoo", cmd="ping yahoo.com")
+ping_facebook = CmdTask(name="ping-facebook", cmd="ping facebook.com")
+ping_twitter = CmdTask(name="ping-twitter", cmd="ping twitter.com")
+ping_linkedin = CmdTask(name="ping-linkedin", cmd="ping linked.in")
+ping = cli.add_task(
+    Task(
+        name="ping",
+        upstream=[
+            ping_google,
+            ping_yahoo,
+            ping_facebook,
+            ping_twitter,
+            ping_linkedin,
+        ],
+    )
+)
+
 fastapi = CmdTask(
     name="start-fastapi",
     cmd="fastapi run main.py --port 3000",
@@ -377,3 +393,24 @@ cli.add_task(
         upstream=[ping_google, ping_yahoo, fastapi, fastapi_lagi],
     )
 )
+
+
+@make_task(
+    name="test-ctrl-c",
+    description="Test Ctrl+C handling in Zrb without subprocesses",
+    retries=0,
+    group=cli,
+)
+async def test_ctrl_c(ctx: AnyContext):
+    import asyncio
+    ctx.print("Running test-ctrl-c. Press Ctrl+C to stop.")
+    try:
+        while True:
+            ctx.print("Still running...")
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        ctx.print("test-ctrl-c task cancelled.")
+    except KeyboardInterrupt:
+        ctx.print("KeyboardInterrupt caught in test-ctrl-c task.")
+    finally:
+        ctx.print("test-ctrl-c task finished.")

@@ -51,9 +51,9 @@ class Session(AnySession):
         self._shared_ctx = shared_ctx
         self._shared_ctx.set_session(self)
         self._parent = parent
-        self._action_coros: dict[AnyTask, Coroutine] = {}
-        self._monitoring_coros: dict[AnyTask, Coroutine] = {}
-        self._coros: list[Coroutine] = []
+        self._action_coros: dict[AnyTask, asyncio.Task] = {}
+        self._monitoring_coros: dict[AnyTask, asyncio.Task] = {}
+        self._coros: list[asyncio.Task] = []
         self._colors = [
             GREEN,
             YELLOW,
@@ -100,6 +100,12 @@ class Session(AnySession):
         self._is_terminated = True
         for task_status in self._task_status.values():
             task_status.mark_as_terminated()
+        for task in self._action_coros.values():
+            task.cancel()
+        for task in self._monitoring_coros.values():
+            task.cancel()
+        for task in self._coros:
+            task.cancel()
 
     @property
     def is_terminated(self) -> bool:
@@ -180,16 +186,17 @@ class Session(AnySession):
 
     def defer_monitoring(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
-        self._monitoring_coros[task] = coro
+        self._monitoring_coros[task] = asyncio.create_task(coro)
 
     def defer_action(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
-        self._action_coros[task] = coro
+        self._action_coros[task] = asyncio.create_task(coro)
 
     def defer_coro(self, coro: Coroutine):
-        self._coros.append(coro)
+        task = asyncio.create_task(coro)
+        self._coros.append(task)
         self._coros = [
-            existing_coro for existing_coro in self._coros if not existing_coro.done()
+            existing_task for existing_task in self._coros if not existing_task.done()
         ]
 
     async def wait_deferred(self):

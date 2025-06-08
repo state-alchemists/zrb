@@ -1,14 +1,45 @@
 import asyncio
 import os
+import psutil
 import re
 import sys
-from asyncio.subprocess import Process
+import unicodedata
+
 from collections import deque
 from collections.abc import Callable
-
-import psutil
-
 from zrb.cmd.cmd_result import CmdResult
+
+# 1) Build one big pattern for every VT-100 escape family
+ANSI_ALL_RE = re.compile(
+    r"""
+    \x1B(?:                           # ESC
+        \[ [0-?]* [ -/]* [@-~]        #   CSI … final
+      | \] .*? (?:\x07|\x1B\\)        #   OSC … BEL or ST
+      | P  .*? \x1B\\                 #   DCS … ST
+      | X  .                          #   SOS (one-byte)
+      | \^ .*? \x1B\\                 #   PM  … ST
+      | _  .*? \x1B\\                 #   APC … ST
+    )
+    """,
+    re.VERBOSE | re.DOTALL
+)
+
+# 2) Catch any remaining C0 controls except newline, tab, CR
+C0_RE = re.compile(r'[\x00-\x08\x0B-\x1F\x7F]')
+# 3) (Optionally) catch C1 controls in U+0080–U+009F
+C1_RE = re.compile(r'[\x80-\x9F]')
+
+
+def _sanitize(s: str) -> str:
+    prev = None
+    while prev != s:
+        prev = s
+        s = ANSI_ALL_RE.sub('', s)
+        s = C0_RE.sub('', s)
+        s = C1_RE.sub('', s)
+        s = s.replace("\r", "")
+        s = s.replace("\n", "")
+    return s.rstrip()
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
@@ -65,7 +96,7 @@ async def __read_stream(
     captured_lines = deque(maxlen=max_lines if max_lines > 0 else 0)
     while True:
         try:
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
             line_bytes = await stream.readline()
             if not line_bytes:
                 break
@@ -76,15 +107,18 @@ async def __read_stream(
             if max_lines > 0:
                 captured_lines.append(error_msg)
             break
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            raise
         except Exception:
             break
         decoded_line = line_bytes.decode("utf-8", errors="replace")
-        parts = decoded_line.rstrip().split("\r")
+        parts = decoded_line.replace("\r", "\n").splitlines()
         for part in parts:
-            clean_part = part
-            print_method(clean_part)
-            if max_lines > 0:
-                captured_lines.append(clean_part)
+            clean_part = part.rstrip()
+            if clean_part:
+                print_method(clean_part, end="\r\n")
+                if max_lines > 0:
+                    captured_lines.append(clean_part)
     return "\n".join(captured_lines)
 
 
@@ -129,10 +163,29 @@ async def run_command(
     stderr_task = asyncio.create_task(
         __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
     )
-    return_code = await cmd_process.wait()
-    stdout = await stdout_task
-    stderr = await stderr_task
-    return CmdResult(stdout, stderr), return_code
+    try:
+        return_code = await cmd_process.wait()
+        stdout = await stdout_task
+        stderr = await stderr_task
+        return CmdResult(stdout, stderr), return_code
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        # Give the process a chance to terminate gracefully
+        cmd_process.terminate()
+        try:
+            await asyncio.wait_for(cmd_process.wait(), timeout=2.0)
+        except asyncio.TimeoutError:
+            # If it doesn't terminate, kill it forcefully
+            actual_print_method(
+                f"Process {cmd_process.pid} did not terminate gracefully, killing."
+            )
+            kill_pid(cmd_process.pid, print_method=actual_print_method)
+        except Exception:
+            pass
+        # Final cleanup
+        stdout_task.cancel()
+        stderr_task.cancel()
+        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        raise
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
@@ -145,10 +198,13 @@ def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
             Defaults to the built-in print function.
     """
     actual_print_method = print_method if print_method is not None else print
-    parent = psutil.Process(pid)
-    children = parent.children(recursive=True)
-    for child in children:
-        actual_print_method(f"Killing child process {child.pid}")
-        child.terminate()
-    actual_print_method(f"Killing process {pid}")
-    parent.terminate()
+    try:
+        parent = psutil.Process(pid)
+        children = parent.children(recursive=True)
+        for child in children:
+            actual_print_method(f"Killing child process {child.pid}")
+            child.kill()
+        actual_print_method(f"Killing process {pid}")
+        parent.kill()
+    except psutil.NoSuchProcess:
+        actual_print_method(f"Process with pid: {pid} already terminated")
