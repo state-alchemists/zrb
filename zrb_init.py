@@ -403,6 +403,7 @@ cli.add_task(
 )
 async def test_ctrl_c(ctx: AnyContext):
     import asyncio
+
     ctx.print("Running test-ctrl-c. Press Ctrl+C to stop.")
     try:
         while True:

@@ -1,45 +1,13 @@
 import asyncio
 import os
-import psutil
 import re
 import sys
-import unicodedata
-
 from collections import deque
 from collections.abc import Callable
+
+import psutil
+
 from zrb.cmd.cmd_result import CmdResult
-
-# 1) Build one big pattern for every VT-100 escape family
-ANSI_ALL_RE = re.compile(
-    r"""
-    \x1B(?:                           # ESC
-        \[ [0-?]* [ -/]* [@-~]        #   CSI … final
-      | \] .*? (?:\x07|\x1B\\)        #   OSC … BEL or ST
-      | P  .*? \x1B\\                 #   DCS … ST
-      | X  .                          #   SOS (one-byte)
-      | \^ .*? \x1B\\                 #   PM  … ST
-      | _  .*? \x1B\\                 #   APC … ST
-    )
-    """,
-    re.VERBOSE | re.DOTALL
-)
-
-# 2) Catch any remaining C0 controls except newline, tab, CR
-C0_RE = re.compile(r'[\x00-\x08\x0B-\x1F\x7F]')
-# 3) (Optionally) catch C1 controls in U+0080–U+009F
-C1_RE = re.compile(r'[\x80-\x9F]')
-
-
-def _sanitize(s: str) -> str:
-    prev = None
-    while prev != s:
-        prev = s
-        s = ANSI_ALL_RE.sub('', s)
-        s = C0_RE.sub('', s)
-        s = C1_RE.sub('', s)
-        s = s.replace("\r", "")
-        s = s.replace("\n", "")
-    return s.rstrip()
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:

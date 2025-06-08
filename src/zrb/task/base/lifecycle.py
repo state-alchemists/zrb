@@ -42,7 +42,9 @@ async def run_and_cleanup(
         # Be cautious with blanket cancellation if other background tasks are expected
         try:
             pending = [
-                t for t in asyncio.all_tasks() if t is not main_task_coro and not t.done()
+                t
+                for t in asyncio.all_tasks()
+                if t is not main_task_coro and not t.done()
             ]
             if pending:
                 ctx = task.get_ctx(session)  # Get context for logging
