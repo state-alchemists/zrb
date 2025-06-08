@@ -2,7 +2,7 @@ import asyncio
 import os
 import re
 import sys
-import unicodedata
+from asyncio.subprocess import Process
 from collections import deque
 from collections.abc import Callable
 
@@ -65,6 +65,7 @@ async def __read_stream(
     captured_lines = deque(maxlen=max_lines if max_lines > 0 else 0)
     while True:
         try:
+            await asyncio.sleep(0.01)
             line_bytes = await stream.readline()
             if not line_bytes:
                 break

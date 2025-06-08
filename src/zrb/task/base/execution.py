@@ -175,7 +175,6 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             ctx.log_warning("Task cancelled or interrupted")
             session.get_task_status(task).mark_as_failed()  # Mark as failed on cancel
             # Do not trigger fallbacks/successors on cancellation
-            # return  # Or re-raise? Depends on desired cancellation behavior
             raise
         except BaseException as e:
             ctx.log_error(f"Attempt {attempt + 1}/{max_attempt} failed: {e}")

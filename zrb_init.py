@@ -351,3 +351,29 @@ async def _run_shell_script(ctx: AnyContext, script: str) -> Any:
         ctx.log_error(f"Exit status: {return_code}")
         raise Exception(f"Process exited ({return_code}): {cmd_result.error}")
     return cmd_result
+
+
+ping_google = CmdTask(name="ping-google", cmd="ping google.com")
+ping_yahoo = CmdTask(name="ping-yahoo", cmd="ping yahoo.com")
+fastapi = CmdTask(
+    name="start-fastapi",
+    cmd="fastapi run main.py --port 3000",
+    cwd=os.path.join(os.path.dirname(generated_zrb_init_path), "fastapp"),
+)
+fastapi_lagi = CmdTask(
+    name="start-fastapi-lagi",
+    cmd="fastapi run main.py --port 3001",
+    cwd=os.path.join(os.path.dirname(generated_zrb_init_path), "fastapp"),
+)
+cli.add_task(
+    Task(
+        name="coba-jalan",
+        upstream=[ping_google, ping_yahoo, fastapi],
+    )
+)
+cli.add_task(
+    Task(
+        name="coba-error",
+        upstream=[ping_google, ping_yahoo, fastapi, fastapi_lagi],
+    )
+)
