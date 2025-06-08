@@ -2,6 +2,8 @@ import asyncio
 import os
 import re
 import sys
+import unicodedata
+from collections import deque
 from collections.abc import Callable
 
 import psutil
@@ -51,6 +53,40 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
     return violations
 
 
+async def __read_stream(
+    stream: asyncio.StreamReader,
+    print_method: Callable[..., None],
+    max_lines: int,
+) -> str:
+    """
+    Reads from the stream using the robust `readline()` and correctly
+    interprets carriage returns (`\r`) as distinct print events.
+    """
+    captured_lines = deque(maxlen=max_lines if max_lines > 0 else 0)
+    while True:
+        try:
+            line_bytes = await stream.readline()
+            if not line_bytes:
+                break
+        except ValueError:
+            # Safety valve for the memory limit.
+            error_msg = "[ERROR] A single line of output was too long to process."
+            print_method(error_msg)
+            if max_lines > 0:
+                captured_lines.append(error_msg)
+            break
+        except Exception:
+            break
+        decoded_line = line_bytes.decode("utf-8", errors="replace")
+        parts = decoded_line.rstrip().split("\r")
+        for part in parts:
+            clean_part = part
+            print_method(clean_part)
+            if max_lines > 0:
+                captured_lines.append(clean_part)
+    return "\n".join(captured_lines)
+
+
 async def run_command(
     cmd: list[str],
     cwd: str | None = None,
@@ -60,62 +96,38 @@ async def run_command(
     max_output_line: int = 1000,
     max_error_line: int = 1000,
 ) -> tuple[CmdResult, int]:
-    async def __read_stream(
-        stream, print_method: Callable[..., None], max_lines: int
-    ) -> str:
-        lines = []
-        if hasattr(stream, "_limit"):
-            # The limit is set to 10 MB
-            stream._limit = 1024 * 1024 * 10
-        while True:
-            line = None
-            try:
-                line = await stream.readline()
-            except asyncio.exceptions.CancelledError:
-                pass
-            except asyncio.exceptions.LimitOverrunError as e:
-                # Recover by reading a limited chunk instead
-                await stream.read(e.consumed)
-                line = "<output line too long>"
-            except BaseException as e:
-                line = f"Error while reading stream {type(e)} {e}"
-                pass
-            if not line:
-                break
-            try:
-                line = line.decode("utf-8").rstrip()
-            except Exception:
-                pass
-            lines.append(line)
-            if len(lines) > max_lines:
-                lines.pop(0)  # Keep only the last max_lines
-            print_method(line)
-        return "\n".join(lines)
-
+    """
+    Executes a command using the robust `readline` strategy with a memory
+    limit, and correctly handles terminal control characters in the output.
+    """
     actual_print_method = print_method if print_method is not None else print
-    cmd_process = None
     if cwd is None:
         cwd = os.getcwd()
-    if env_map is None:
-        env_map = os.environ
+    # While environment variables alone weren't the fix, they are still
+    # good practice for encouraging simpler output from tools.
+    child_env = (env_map or os.environ).copy()
+    child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
+    child_env["NO_COLOR"] = "0"  # Explicitly allow color
+    # The most critical part for safety: the memory limit on the buffer.
+    LINE_BUFFER_LIMIT = 10 * 1024 * 1024  # 10 MiB
     cmd_process = await asyncio.create_subprocess_exec(
         *cmd,
         cwd=cwd,
+        env=child_env,
         stdin=sys.stdin if sys.stdin.isatty() else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env=env_map,
-        bufsize=0,
+        limit=LINE_BUFFER_LIMIT,
     )
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
+    # Use the new, simple, and correct stream reader.
     stdout_task = asyncio.create_task(
         __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
     )
     stderr_task = asyncio.create_task(
         __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
     )
-    # Wait for process to complete and gather stdout/stderr
     return_code = await cmd_process.wait()
     stdout = await stdout_task
     stderr = await stderr_task
