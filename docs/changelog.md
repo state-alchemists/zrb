@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.3
+
+- Introduce `is_interactive` in `CmdTask`
+- Fix buggy output when running CLI with `\r` line endings.
+
 # 1.8.2
 
 - 💥 Breaking change: Remove `ZRB_LLM_CODE_REVIEW_INSTRUCTION_PROMPT`

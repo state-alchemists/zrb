@@ -5,6 +5,7 @@ import signal
 import sys
 from collections import deque
 from collections.abc import Callable
+from typing import TextIO
 
 import psutil
 
@@ -53,6 +54,82 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
     return violations
 
 
+async def run_command(
+    cmd: list[str],
+    cwd: str | None = None,
+    env_map: dict[str, str] | None = None,
+    print_method: Callable[..., None] | None = None,
+    register_pid_method: Callable[[int], None] | None = None,
+    max_output_line: int = 1000,
+    max_error_line: int = 1000,
+    is_interactive: bool = False,
+) -> tuple[CmdResult, int]:
+    """
+    Executes a command using the robust `readline` strategy with a memory
+    limit, and correctly handles terminal control characters in the output.
+    Please note that `interactive` execution is generally not recommended and thus
+    disabled by default.
+    When using `interactive execution, the command will not be started in new session
+    and will share the same stdin as the main process, which might trigger race condition.
+    You can use interactive execution for a limited usecase when the command
+    require user input.
+    """
+    actual_print_method = print_method if print_method is not None else print
+    if cwd is None:
+        cwd = os.getcwd()
+    # While environment variables alone weren't the fix, they are still
+    # good practice for encouraging simpler output from tools.
+    child_env = (env_map or os.environ).copy()
+    child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
+    child_env["NO_COLOR"] = "0"  # Explicitly allow color
+    cmd_process = await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=cwd,
+        env=child_env,
+        start_new_session=not is_interactive,
+        stdin=__get_cmd_stdin(is_interactive),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        limit=10 * 10 * 1024,  # Buffer memory limit
+    )
+    if register_pid_method is not None:
+        register_pid_method(cmd_process.pid)
+    # Use the new, simple, and correct stream reader.
+    stdout_task = asyncio.create_task(
+        __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
+    )
+    stderr_task = asyncio.create_task(
+        __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
+    )
+    try:
+        return_code = await cmd_process.wait()
+        stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
+        return CmdResult(stdout, stderr), return_code
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        try:
+            os.killpg(cmd_process.pid, signal.SIGINT)
+            await asyncio.wait_for(cmd_process.wait(), timeout=2.0)
+        except asyncio.TimeoutError:
+            # If it doesn't terminate, kill it forcefully
+            actual_print_method(
+                f"Process {cmd_process.pid} did not terminate gracefully, killing."
+            )
+            kill_pid(cmd_process.pid, print_method=actual_print_method)
+        except Exception:
+            pass
+        # Final cleanup
+        stdout_task.cancel()
+        stderr_task.cancel()
+        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        raise
+
+
+def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
+    if is_interactive and sys.stdin.isatty():
+        return sys.stdin
+    return asyncio.subprocess.DEVNULL
+
+
 async def __read_stream(
     stream: asyncio.StreamReader,
     print_method: Callable[..., None],
@@ -91,73 +168,6 @@ async def __read_stream(
                 if max_lines > 0:
                     captured_lines.append(clean_part)
     return "\r\n".join(captured_lines)
-
-
-async def run_command(
-    cmd: list[str],
-    cwd: str | None = None,
-    env_map: dict[str, str] | None = None,
-    print_method: Callable[..., None] | None = None,
-    register_pid_method: Callable[[int], None] | None = None,
-    max_output_line: int = 1000,
-    max_error_line: int = 1000,
-) -> tuple[CmdResult, int]:
-    """
-    Executes a command using the robust `readline` strategy with a memory
-    limit, and correctly handles terminal control characters in the output.
-    """
-    actual_print_method = print_method if print_method is not None else print
-    if cwd is None:
-        cwd = os.getcwd()
-    # While environment variables alone weren't the fix, they are still
-    # good practice for encouraging simpler output from tools.
-    child_env = (env_map or os.environ).copy()
-    child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
-    child_env["NO_COLOR"] = "0"  # Explicitly allow color
-    # The most critical part for safety: the memory limit on the buffer.
-    LINE_BUFFER_LIMIT = 10 * 1024 * 1024  # 10 MiB
-    cmd_process = await asyncio.create_subprocess_exec(
-        *cmd,
-        cwd=cwd,
-        env=child_env,
-        # start_new_session=True,
-        # stdin=asyncio.subprocess.DEVNULL,
-        stdin=sys.stdin if sys.stdin.isatty() else None,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        limit=LINE_BUFFER_LIMIT,
-    )
-    if register_pid_method is not None:
-        register_pid_method(cmd_process.pid)
-    # Use the new, simple, and correct stream reader.
-    stdout_task = asyncio.create_task(
-        __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
-    )
-    stderr_task = asyncio.create_task(
-        __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
-    )
-    try:
-        return_code = await cmd_process.wait()
-        stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
-        return CmdResult(stdout, stderr), return_code
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        actual_print_method(">>>> Terasa ctrl + c")  # << This doesn't trigger
-        try:
-            os.killpg(cmd_process.pid, signal.SIGINT)
-            await asyncio.wait_for(cmd_process.wait(), timeout=2.0)
-        except asyncio.TimeoutError:
-            # If it doesn't terminate, kill it forcefully
-            actual_print_method(
-                f"Process {cmd_process.pid} did not terminate gracefully, killing."
-            )
-            kill_pid(cmd_process.pid, print_method=actual_print_method)
-        except Exception:
-            pass
-        # Final cleanup
-        stdout_task.cancel()
-        stderr_task.cancel()
-        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
-        raise
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):

@@ -13,6 +13,7 @@ install_zsh = CmdTask(
     name="install-zsh",
     input=[package_manager_input, use_sudo_input],
     cmd=get_install_zsh_cmd,
+    is_interactive=True,
 )
 
 install_omz = CmdTask(

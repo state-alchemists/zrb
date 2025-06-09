@@ -13,6 +13,7 @@ install_tmux = CmdTask(
     name="install-tmux",
     input=[package_manager_input, use_sudo_input],
     cmd=get_install_tmux_cmd,
+    is_interactive=True,
 )
 
 

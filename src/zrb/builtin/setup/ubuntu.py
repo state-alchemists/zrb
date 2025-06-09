@@ -1,10 +1,18 @@
 from zrb.builtin.group import setup_group
 from zrb.task.cmd_task import CmdTask
 
-update_ubuntu = CmdTask(name="update-ubuntu", cmd="sudo apt update", render_cmd=False)
+update_ubuntu = CmdTask(
+    name="update-ubuntu",
+    cmd="sudo apt update",
+    render_cmd=False,
+    is_interactive=True,
+)
 
 upgrade_todo = CmdTask(
-    name="upgrade-ubuntu", cmd="sudo apt upgrade -y", render_cmd=False
+    name="upgrade-ubuntu",
+    cmd="sudo apt upgrade -y",
+    render_cmd=False,
+    is_interactive=True,
 )
 update_ubuntu >> upgrade_todo
 
@@ -22,6 +30,7 @@ setup_ubuntu = setup_group.add_task(
             "cmake make tree tmux zsh neovim xdotool xsel",
         ],
         render_cmd=False,
+        is_interactive=True,
     ),
     alias="ubuntu",
 )

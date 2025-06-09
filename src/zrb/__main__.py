@@ -60,8 +60,9 @@ def serve_cli():
         # run the CLI
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
+        # The exception is handled by the task runner
         print(stylize_warning("\nStopped"), file=sys.stderr)
-        sys.exit(1)
+        pass
     except RuntimeError as e:
         if f"{e}".lower() != "event loop is closed":
             raise e

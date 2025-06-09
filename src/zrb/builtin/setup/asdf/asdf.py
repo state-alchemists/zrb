@@ -22,6 +22,7 @@ install_asdf_prerequisites = CmdTask(
     name="install-asdf-prerequisites",
     input=[package_manager_input, use_sudo_input],
     cmd=get_install_prerequisites_cmd,
+    is_interactive=True,
 )
 
 

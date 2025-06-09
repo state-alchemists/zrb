@@ -39,6 +39,7 @@ clean_up_test_resources = CmdTask(
     name="clean-up-resources",
     cwd=os.path.join(_DIR, "test"),
     cmd=["sudo -k rm -Rf task/scaffolder/generated"],
+    is_interactive=True,
 )
 
 start_test_docker_compose = CmdTask(

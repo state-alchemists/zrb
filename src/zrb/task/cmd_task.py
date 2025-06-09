@@ -48,6 +48,7 @@ class CmdTask(BaseTask):
         warn_unrecommended_command: bool | None = None,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
+        is_interactive: bool = False,
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -104,6 +105,7 @@ class CmdTask(BaseTask):
         self._max_error_line = max_error_line
         self._should_plain_print = plain_print
         self._should_warn_unrecommended_command = warn_unrecommended_command
+        self._is_interactive = is_interactive
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
         """Turn _cmd attribute into subprocess.Popen and execute it as task's action.
@@ -140,6 +142,7 @@ class CmdTask(BaseTask):
             register_pid_method=lambda pid: ctx.xcom.get(xcom_pid_key).push(pid),
             max_output_line=self._max_output_line,
             max_error_line=self._max_error_line,
+            is_interactive=self._is_interactive,
         )
         # Check for errors
         if return_code > 0:
