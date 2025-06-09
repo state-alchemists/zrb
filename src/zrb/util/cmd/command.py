@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import signal
 import sys
 from collections import deque
 from collections.abc import Callable
@@ -64,7 +65,6 @@ async def __read_stream(
     captured_lines = deque(maxlen=max_lines if max_lines > 0 else 0)
     while True:
         try:
-            await asyncio.sleep(0.1)
             line_bytes = await stream.readline()
             if not line_bytes:
                 break
@@ -84,10 +84,13 @@ async def __read_stream(
         for part in parts:
             clean_part = part.rstrip()
             if clean_part:
-                print_method(clean_part, end="\r\n")
+                try:
+                    print_method(clean_part, end="\r\n")
+                except Exception:
+                    print_method(clean_part)
                 if max_lines > 0:
                     captured_lines.append(clean_part)
-    return "\n".join(captured_lines)
+    return "\r\n".join(captured_lines)
 
 
 async def run_command(
@@ -117,6 +120,8 @@ async def run_command(
         *cmd,
         cwd=cwd,
         env=child_env,
+        # start_new_session=True,
+        # stdin=asyncio.subprocess.DEVNULL,
         stdin=sys.stdin if sys.stdin.isatty() else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -133,13 +138,12 @@ async def run_command(
     )
     try:
         return_code = await cmd_process.wait()
-        stdout = await stdout_task
-        stderr = await stderr_task
+        stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
         return CmdResult(stdout, stderr), return_code
     except (KeyboardInterrupt, asyncio.CancelledError):
-        # Give the process a chance to terminate gracefully
-        cmd_process.terminate()
+        actual_print_method(">>>> Terasa ctrl + c")  # << This doesn't trigger
         try:
+            os.killpg(cmd_process.pid, signal.SIGINT)
             await asyncio.wait_for(cmd_process.wait(), timeout=2.0)
         except asyncio.TimeoutError:
             # If it doesn't terminate, kill it forcefully

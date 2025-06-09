@@ -373,11 +373,13 @@ ping = cli.add_task(
 
 fastapi = CmdTask(
     name="start-fastapi",
+    # cmd="python -m http.server 3000",
     cmd="fastapi run main.py --port 3000",
     cwd=os.path.join(os.path.dirname(generated_zrb_init_path), "fastapp"),
 )
 fastapi_lagi = CmdTask(
     name="start-fastapi-lagi",
+    # cmd="python -m http.server 3001",
     cmd="fastapi run main.py --port 3001",
     cwd=os.path.join(os.path.dirname(generated_zrb_init_path), "fastapp"),
 )
