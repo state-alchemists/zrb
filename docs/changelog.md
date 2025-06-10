@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.4
+
+- Fix typing problem on Coroutine for `BaseTrigger`
+
 # 1.8.3
 
 - Introduce `is_interactive` in `CmdTask`

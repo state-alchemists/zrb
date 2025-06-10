@@ -13,6 +13,8 @@ async def run_async(value: Any) -> Any:
     Returns:
         Any: The result of the awaited value or the value itself if not awaitable.
     """
+    if isinstance(value, asyncio.Task):
+        return value
     if inspect.isawaitable(value):
         return await value
     return await asyncio.to_thread(lambda: value)

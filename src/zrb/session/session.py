@@ -186,17 +186,16 @@ class Session(AnySession):
 
     def defer_monitoring(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
-        self._monitoring_coros[task] = asyncio.create_task(coro)
+        self._monitoring_coros[task] = coro
 
     def defer_action(self, task: AnyTask, coro: Coroutine):
         self._register_single_task(task)
-        self._action_coros[task] = asyncio.create_task(coro)
+        self._action_coros[task] = coro
 
     def defer_coro(self, coro: Coroutine):
-        task = asyncio.create_task(coro)
-        self._coros.append(task)
+        self._coros.append(coro)
         self._coros = [
-            existing_task for existing_task in self._coros if not existing_task.done()
+            existing_coro for existing_coro in self._coros if not existing_coro.done()
         ]
 
     async def wait_deferred(self):
