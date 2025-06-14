@@ -71,6 +71,9 @@ DEFAULT_EXCLUDED_PATTERNS = [
     "*.so",
     "*.dylib",
     "*.dll",
+    # Minified files
+    "*.min.css",
+    "*.min.js",
 ]
 
 
@@ -112,17 +115,17 @@ def list_files(
                     d
                     for d in dirs
                     if (include_hidden or not _is_hidden(d))
-                    and not _is_excluded(d, patterns_to_exclude)
+                    and not is_excluded(d, patterns_to_exclude)
                 ]
                 # Process files
                 for filename in files:
-                    if (
-                        include_hidden or not _is_hidden(filename)
-                    ) and not _is_excluded(filename, patterns_to_exclude):
+                    if (include_hidden or not _is_hidden(filename)) and not is_excluded(
+                        filename, patterns_to_exclude
+                    ):
                         full_path = os.path.join(root, filename)
                         # Check rel path for patterns like '**/node_modules/*'
                         rel_full_path = os.path.relpath(full_path, abs_path)
-                        is_rel_path_excluded = _is_excluded(
+                        is_rel_path_excluded = is_excluded(
                             rel_full_path, patterns_to_exclude
                         )
                         if not is_rel_path_excluded:
@@ -132,7 +135,7 @@ def list_files(
             for item in os.listdir(abs_path):
                 full_path = os.path.join(abs_path, item)
                 # Include both files and directories if not recursive
-                if (include_hidden or not _is_hidden(item)) and not _is_excluded(
+                if (include_hidden or not _is_hidden(item)) and not is_excluded(
                     item, patterns_to_exclude
                 ):
                     all_files.append(full_path)
@@ -169,7 +172,7 @@ def _is_hidden(path: str) -> bool:
     return basename.startswith(".")
 
 
-def _is_excluded(name: str, patterns: list[str]) -> bool:
+def is_excluded(name: str, patterns: list[str]) -> bool:
     """Check if a name/path matches any exclusion patterns."""
     for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):
@@ -461,14 +464,14 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
         tool_description="analyze file with LLM capability",
-        sub_agent_system_prompt="\n".join(
+        system_prompt="\n".join(
             [
                 "You are a file analyzer assistant",
                 "Your goal is to help the main asisstant by reading file",
                 "and perform necessary indepth analysis required by the main assistant",
             ]
         ),
-        sub_agent_tools=[read_from_file, search_files],
+        tools=[read_from_file, search_files],
     )
     return await _analyze_file(
         ctx,

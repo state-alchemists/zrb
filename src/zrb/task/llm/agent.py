@@ -18,6 +18,7 @@ else:
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
+from zrb.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
 from zrb.task.llm.error import extract_api_error_details
 from zrb.task.llm.print_node import print_node
 from zrb.task.llm.tool_wrapper import wrap_tool
@@ -28,42 +29,32 @@ ToolOrCallable = Tool | Callable
 
 def create_agent_instance(
     ctx: AnyContext,
-    model: str | Model | None,
-    system_prompt: str,
-    model_settings: ModelSettings | None,
-    tools_attr: (
-        list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
-    ),
-    additional_tools: list[ToolOrCallable],
-    mcp_servers_attr: list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]],
-    additional_mcp_servers: list[MCPServer],
+    model: str | Model | None = None,
+    system_prompt: str = "",
+    model_settings: ModelSettings | None = None,
+    tools: list[ToolOrCallable] = [],
+    mcp_servers: list[MCPServer] = [],
+    retries: int = 3,
 ) -> Agent:
     """Creates a new Agent instance with configured tools and servers."""
-    # Get tools
     from pydantic_ai import Agent, Tool
 
-    tools_or_callables = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
-    tools_or_callables.extend(additional_tools)
-    tools = []
-    for tool_or_callable in tools_or_callables:
+    # Normalize tools
+    tool_list = []
+    for tool_or_callable in tools:
         if isinstance(tool_or_callable, Tool):
-            tools.append(tool_or_callable)
+            tool_list.append(tool_or_callable)
         else:
             # Pass ctx to wrap_tool
-            tools.append(wrap_tool(tool_or_callable, ctx))
-    # Get MCP Servers
-    mcp_servers = list(
-        mcp_servers_attr(ctx) if callable(mcp_servers_attr) else mcp_servers_attr
-    )
-    mcp_servers.extend(additional_mcp_servers)
+            tool_list.append(wrap_tool(tool_or_callable, ctx))
     # Return Agent
     return Agent(
         model=model,
         system_prompt=system_prompt,
-        tools=tools,
+        tools=tool_list,
         mcp_servers=mcp_servers,
         model_settings=model_settings,
-        retries=3,  # Consider making retries configurable?
+        retries=retries,
     )
 
 
@@ -79,10 +70,12 @@ def get_agent(
     additional_tools: list[ToolOrCallable],
     mcp_servers_attr: list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]],
     additional_mcp_servers: list[MCPServer],
+    retries: int = 3,
 ) -> Agent:
     """Retrieves the configured Agent instance or creates one if necessary."""
     from pydantic_ai import Agent
 
+    # Render agent instance and return if agent_attr is already an agent
     if isinstance(agent_attr, Agent):
         return agent_attr
     if callable(agent_attr):
@@ -94,16 +87,23 @@ def get_agent(
             )
             raise TypeError(err_msg)
         return agent_instance
+    # Get tools for agent
+    tools = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
+    tools.extend(additional_tools)
+    # Get MCP Servers for agent
+    mcp_servers = list(
+        mcp_servers_attr(ctx) if callable(mcp_servers_attr) else mcp_servers_attr
+    )
+    mcp_servers.extend(additional_mcp_servers)
     # If no agent provided, create one using the configuration
     return create_agent_instance(
         ctx=ctx,
         model=model,
         system_prompt=system_prompt,
+        tools=tools,
+        mcp_servers=mcp_servers,
         model_settings=model_settings,
-        tools_attr=tools_attr,
-        additional_tools=additional_tools,
-        mcp_servers_attr=mcp_servers_attr,
-        additional_mcp_servers=additional_mcp_servers,
+        retries=retries,
     )
 
 
@@ -112,6 +112,7 @@ async def run_agent_iteration(
     agent: Agent,
     user_prompt: str,
     history_list: ListOfDict,
+    rate_limitter: LLMRateLimiter | None = None,
 ) -> AgentRun:
     """
     Runs a single iteration of the agent execution loop.
@@ -130,6 +131,11 @@ async def run_agent_iteration(
     """
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+    if rate_limitter:
+        await rate_limitter.throttle(user_prompt)
+    else:
+        await llm_rate_limitter.throttle(user_prompt)
 
     async with agent.run_mcp_servers():
         async with agent.iter(

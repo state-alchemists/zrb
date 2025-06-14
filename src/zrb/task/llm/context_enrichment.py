@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config
+from zrb.llm_rate_limitter import LLMRateLimiter
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.history import (
     count_part_in_history_list,
@@ -29,7 +30,7 @@ class EnrichmentConfig(BaseModel):
     model: Model | str | None = None
     settings: ModelSettings | None = None
     prompt: str
-    retries: int = 1
+    retries: int = 3
 
 
 class EnrichmentResult(BaseModel):
@@ -41,6 +42,7 @@ async def enrich_context(
     config: EnrichmentConfig,
     conversation_context: dict[str, Any],
     history_list: ListOfDict,
+    rate_limitter: LLMRateLimiter | None = None,
 ) -> dict[str, Any]:
     """Runs an LLM call to extract key info and merge it into the context."""
     from pydantic_ai import Agent
@@ -74,10 +76,7 @@ async def enrich_context(
 
     enrichment_agent = Agent(
         model=config.model,
-        # System prompt is part of the user prompt for this specific call
         system_prompt=config.prompt,  # Use the main prompt as system prompt
-        tools=[],
-        mcp_servers=[],
         model_settings=config.settings,
         retries=config.retries,
         output_type=EnrichmentResult,
@@ -90,6 +89,7 @@ async def enrich_context(
             agent=enrichment_agent,
             user_prompt=user_prompt_data,  # Pass the formatted data as user prompt
             history_list=[],  # Enrichment agent doesn't need prior history itself
+            rate_limitter=rate_limitter,
         )
         if enrichment_run and enrichment_run.result.output:
             response = enrichment_run.result.output.response
@@ -173,6 +173,7 @@ async def maybe_enrich_context(
     model: str | Model | None,
     model_settings: ModelSettings | None,
     context_enrichment_prompt: str,
+    rate_limitter: LLMRateLimiter | None = None,
 ) -> dict[str, Any]:
     """Enriches context based on history if enabled and threshold met."""
     shorten_history_list = replace_system_prompt_in_history_list(history_list)
@@ -193,5 +194,6 @@ async def maybe_enrich_context(
             ),
             conversation_context=conversation_context,
             history_list=shorten_history_list,
+            rate_limitter=rate_limitter,
         )
     return conversation_context

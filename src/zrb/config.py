@@ -238,6 +238,26 @@ class Config:
         return os.getenv("ZRB_LLM_SUMMARIZATION_PROMPT", None)
 
     @property
+    def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
+        """Maximum number of LLM requests allowed per minute."""
+        return int(os.getenv("LLM_MAX_REQUESTS_PER_MINUTE", "60"))
+
+    @property
+    def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
+        """Maximum number of LLM tokens allowed per minute."""
+        return int(os.getenv("LLM_MAX_TOKENS_PER_MINUTE", "120000"))
+
+    @property
+    def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
+        """Maximum number of tokens allowed per individual LLM request."""
+        return int(os.getenv("LLM_MAX_TOKENS_PER_REQUEST", "4096"))
+
+    @property
+    def LLM_THROTTLE_SLEEP(self) -> float:
+        """Number of seconds to sleep when throttling is required."""
+        return float(os.getenv("LLM_THROTTLE_SLEEP", "1.0"))
+
+    @property
     def LLM_CONTEXT_ENRICHMENT_PROMPT(self) -> str | None:
         return os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", None)
 

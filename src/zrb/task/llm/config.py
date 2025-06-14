@@ -18,7 +18,7 @@ def get_model_settings(
     ctx: AnyContext,
     model_settings_attr: (
         ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
-    ),
+    ) = None,
 ) -> ModelSettings | None:
     """Gets the model settings, resolving callables if necessary."""
     model_settings = get_attr(ctx, model_settings_attr, None, auto_render=False)
@@ -29,8 +29,8 @@ def get_model_settings(
 
 def get_model_base_url(
     ctx: AnyContext,
-    model_base_url_attr: StrAttr | None,
-    render_model_base_url: bool,
+    model_base_url_attr: StrAttr | None = None,
+    render_model_base_url: bool = True,
 ) -> str | None:
     """Gets the model base URL, rendering if configured."""
     base_url = get_attr(
@@ -45,8 +45,8 @@ def get_model_base_url(
 
 def get_model_api_key(
     ctx: AnyContext,
-    model_api_key_attr: StrAttr | None,
-    render_model_api_key: bool,
+    model_api_key_attr: StrAttr | None = None,
+    render_model_api_key: bool = True,
 ) -> str | None:
     """Gets the model API key, rendering if configured."""
     api_key = get_attr(ctx, model_api_key_attr, None, auto_render=render_model_api_key)
@@ -61,10 +61,10 @@ def get_model(
     ctx: AnyContext,
     model_attr: Callable[[AnySharedContext], Model | str | fstring] | Model | None,
     render_model: bool,
-    model_base_url_attr: StrAttr | None,
-    render_model_base_url: bool,
-    model_api_key_attr: StrAttr | None,
-    render_model_api_key: bool,
+    model_base_url_attr: StrAttr | None = None,
+    render_model_base_url: bool = True,
+    model_api_key_attr: StrAttr | None = None,
+    render_model_api_key: bool = True,
 ) -> str | Model | None:
     """Gets the model instance or name, handling defaults and configuration."""
     from pydantic_ai.models import Model

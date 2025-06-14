@@ -28,11 +28,11 @@ else:
 def create_sub_agent_tool(
     tool_name: str,
     tool_description: str,
-    sub_agent_system_prompt: str | None = None,  # Make optional
-    sub_agent_model: str | Model | None = None,
-    sub_agent_model_settings: ModelSettings | None = None,
-    sub_agent_tools: list[ToolOrCallable] = [],
-    sub_agent_mcp_servers: list[MCPServer] = [],
+    system_prompt: str | None = None,
+    model: str | Model | None = None,
+    model_settings: ModelSettings | None = None,
+    tools: list[ToolOrCallable] = [],
+    mcp_servers: list[MCPServer] = [],
 ) -> Callable[[AnyContext, str], str]:
     """
     Create an LLM "sub-agent" tool function for use by a main LLM agent.
@@ -63,7 +63,7 @@ def create_sub_agent_tool(
         # Resolve parameters, falling back to llm_config defaults if None
         resolved_model = get_model(
             ctx=ctx,
-            model_attr=sub_agent_model,
+            model_attr=model,
             render_model=True,  # Assuming we always want to render model string attributes
             model_base_url_attr=None,
             # Sub-agent tool doesn't have separate base_url/api_key params
@@ -73,10 +73,10 @@ def create_sub_agent_tool(
         )
         resolved_model_settings = get_model_settings(
             ctx=ctx,
-            model_settings_attr=sub_agent_model_settings,
+            model_settings_attr=model_settings,
         )
 
-        if sub_agent_system_prompt is None:
+        if system_prompt is None:
             resolved_system_prompt = get_combined_system_prompt(
                 ctx=ctx,
                 persona_attr=None,
@@ -87,20 +87,16 @@ def create_sub_agent_tool(
                 render_special_instruction_prompt=False,
             )
         else:
-            resolved_system_prompt = sub_agent_system_prompt
-
+            resolved_system_prompt = system_prompt
         # Create the sub-agent instance
         sub_agent_agent = create_agent_instance(
             ctx=ctx,
             model=resolved_model,
             system_prompt=resolved_system_prompt,
             model_settings=resolved_model_settings,
-            tools_attr=sub_agent_tools,  # Pass tools from factory closure
-            additional_tools=[],  # No additional tools added after factory creation
-            mcp_servers_attr=sub_agent_mcp_servers,  # Pass servers from factory closure
-            additional_mcp_servers=[],  # No additional servers added after factory creation
+            tools=tools,
+            mcp_servers=mcp_servers,
         )
-
         # Run the sub-agent iteration
         # Start with an empty history for the sub-agent
         sub_agent_run = await run_agent_iteration(
