@@ -41,7 +41,7 @@ python = ">=3.10.0,<4.0.0"
 python-dotenv = "^1.1.0"
 black = "~25.1.0"
 isort = "~6.0.1"
-requests = "^2.32.3"
+requests = "^2.32.4"
 libcst = "^1.7.0"
 chromadb = {version = "^0.6.3", optional = true}
 pdfplumber = {version = "^0.11.6", optional = true}
