@@ -19,6 +19,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
+from zrb.llm_rate_limitter import LLMRateLimiter
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.task.llm.agent import get_agent, run_agent_iteration
@@ -113,6 +114,7 @@ class LLMTask(BaseTask):
         render_summarize_history: bool = True,
         history_summarization_threshold: IntAttr | None = None,
         render_history_summarization_threshold: bool = True,
+        rate_limitter: LLMRateLimiter | None = None,
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -175,6 +177,7 @@ class LLMTask(BaseTask):
         self._context_enrichment_threshold = context_enrichment_threshold
         self._render_context_enrichment_threshold = render_context_enrichment_threshold
         self._tools = tools
+        self._rate_limitter = rate_limitter
         self._additional_tools: list["ToolOrCallable"] = []
         self._mcp_servers = mcp_servers
         self._additional_mcp_servers: list["MCPServer"] = []
@@ -276,6 +279,7 @@ class LLMTask(BaseTask):
             model=model,
             model_settings=model_settings,
             context_enrichment_prompt=context_enrichment_prompt,
+            rate_limitter=self._rate_limitter,
         )
         # 3. Summarize history (optional, modifies history_list and context)
         history_list, conversation_context = await maybe_summarize_history(
@@ -291,6 +295,7 @@ class LLMTask(BaseTask):
             model=model,
             model_settings=model_settings,
             summarization_prompt=summarization_prompt,
+            rate_limitter=self._rate_limitter,
         )
         # 4. Build the final user prompt and system prompt
         final_user_prompt, default_context = extract_default_context(user_message)
@@ -333,6 +338,7 @@ class LLMTask(BaseTask):
                 agent=agent,
                 user_prompt=user_prompt,
                 history_list=history_list,
+                rate_limitter=self._rate_limitter,
             )
             if agent_run and agent_run.result:
                 new_history_list = json.loads(agent_run.result.all_messages_json())

@@ -209,6 +209,38 @@ Zrb can be configured using the following environment variables (see "Setting En
     - Default: `5`
     - Possible values: Any positive integer
 
+- `LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
+    - Default: `60`
+    - Possible values: Any positive integer
+
+- `LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
+    - Default: `120000`
+    - Possible values: Any positive integer
+
+- `LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
+    - Default: `4096`
+    - Possible values: Any positive integer
+
+- `LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
+    - Default: `1.0`
+    - Possible values: Any positive float
+
+- `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
+    - Default: `~/.zrb-llm-history`
+    - Possible values: Any valid directory path
+
+- `ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`: Whether to allow LLM to access local files.
+    - Default: `1` (true)
+    - Possible values: `0` (false), `1` (true)
+
+- `ZRB_LLM_ALLOW_ACCESS_SHELL`: Whether to allow LLM to access shell.
+    - Default: `1` (true)
+    - Possible values: `0` (false), `1` (true)
+
+- `ZRB_LLM_ALLOW_ACCESS_INTERNET`: Whether to allow LLM to access internet.
+    - Default: `1` (true)
+    - Possible values: `0` (false), `1` (true)
+
 ## RAG (Retrieval-Augmented Generation) Configuration
 
 - `ZRB_RAG_EMBEDDING_API_KEY`: API key for OpenAI embeddings.
@@ -234,6 +266,12 @@ Zrb can be configured using the following environment variables (see "Setting En
 - `ZRB_RAG_MAX_RESULT_COUNT`: Maximum number of results for RAG.
     - Default: `5`
     - Possible values: Any positive integer
+
+## SerpAPI Configuration
+
+- `SERP_API_KEY`: API key for SerpAPI.
+    - Default: Empty
+    - Possible values: Any valid SerpAPI key
 
 ## SerpAPI Configuration
 

@@ -33,10 +33,10 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         previous_session_name=ctx.input.previous_session,
         start_new=ctx.input.start_new,
     )
+    if result is not None:
+        final_result = result
     if ctx.env.get("_ZRB_WEB_ENV", "0") != "0":
-        # Don't run in web environment
-        if result is not None:
-            final_result = result
+        # On web environment this won't be interactive
         return final_result
     multiline_mode = False
     user_inputs = []

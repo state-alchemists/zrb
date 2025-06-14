@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config
+from zrb.llm_rate_limitter import LLMRateLimiter
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.history import (
     count_part_in_history_list,
@@ -78,7 +79,7 @@ class SummarizationConfig(BaseModel):
     model: Model | str | None = None
     settings: ModelSettings | None = None
     prompt: str
-    retries: int = 1
+    retries: int = 3
 
 
 async def summarize_history(
@@ -86,6 +87,7 @@ async def summarize_history(
     config: SummarizationConfig,
     conversation_context: dict[str, Any],
     history_list: ListOfDict,
+    rate_limitter: LLMRateLimiter | None = None,
 ) -> dict[str, Any]:
     """Runs an LLM call to summarize history and update the context."""
     from pydantic_ai import Agent
@@ -95,8 +97,6 @@ async def summarize_history(
     summarization_agent = Agent(
         model=config.model,
         system_prompt=config.prompt,
-        tools=[],  # No tools needed for summarization
-        mcp_servers=[],
         model_settings=config.settings,
         retries=config.retries,
     )
@@ -122,6 +122,7 @@ async def summarize_history(
             agent=summarization_agent,
             user_prompt=summarization_user_prompt,
             history_list=[],  # Summarization agent doesn't need prior history
+            rate_limitter=rate_limitter,
         )
         if summary_run and summary_run.result.output:
             summary_text = str(summary_run.result.output)
@@ -150,6 +151,7 @@ async def maybe_summarize_history(
     model: str | Model | None,
     model_settings: ModelSettings | None,
     summarization_prompt: str,
+    rate_limitter: LLMRateLimiter | None = None,
 ) -> tuple[ListOfDict, dict[str, Any]]:
     """Summarizes history and updates context if enabled and threshold met."""
     shorten_history_list = replace_system_prompt_in_history_list(history_list)
@@ -171,6 +173,7 @@ async def maybe_summarize_history(
             ),
             conversation_context=conversation_context,
             history_list=shorten_history_list,  # Pass the full list for context
+            rate_limitter=rate_limitter,
         )
         # Truncate the history list after summarization
         return [], updated_context

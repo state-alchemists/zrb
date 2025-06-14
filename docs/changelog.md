@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.5
+
+- Introduce `analyze_repo`
+- Introduce `llm_rate_limitter`
+- Introduce new configurations: `LLM_MAX_REQUESTS_PER_MINUTE`, `LLM_MAX_TOKENS_PER_MINUTE`, `LLM_MAX_TOKENS_PER_REQUESTS`, and `LLM_THROTTLE_SLEEP`.
+
 # 1.8.4
 
 - Fix typing problem on Coroutine for `BaseTrigger`

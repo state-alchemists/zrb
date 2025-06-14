@@ -1,3 +1,4 @@
+import traceback
 from typing import Any
 
 from zrb.attr.type import StrDictAttr
@@ -5,6 +6,7 @@ from zrb.callback.any_callback import AnyCallback
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.attr import get_str_dict_attr
+from zrb.util.cli.style import stylize_faint
 from zrb.util.string.conversion import to_snake_case
 from zrb.xcom.xcom import Xcom
 
@@ -67,6 +69,8 @@ class Callback(AnyCallback):
             self._maybe_publish_result_to_parent_session(parent_session, result)
             return result
         except BaseException as e:
+            ctx = session.get_ctx(self._task)
+            ctx.print(traceback.format_exc())
             self._maybe_publish_error_to_parent_session(parent_session, e)
 
     def _maybe_publish_session_name_to_parent_session(
