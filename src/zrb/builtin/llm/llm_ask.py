@@ -4,6 +4,7 @@ from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversat
 from zrb.builtin.llm.input import PreviousSessionInput
 from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
 from zrb.builtin.llm.tool.cli import run_shell_command
+from zrb.builtin.llm.tool.code import analyze_repo
 from zrb.builtin.llm.tool.file import (
     analyze_file,
     apply_diff,
@@ -132,6 +133,7 @@ if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
         search_files,
         apply_diff,
         analyze_file,
+        analyze_repo,
     )
 
 if CFG.LLM_ALLOW_ACCESS_SHELL:

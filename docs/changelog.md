@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.6
+
+- Add `analyze_repo` as `llm_ask` default tool.
+
 # 1.8.5
 
 - Introduce `analyze_repo`
