@@ -4386,4 +4386,4 @@ rag = ["chromadb", "openai", "pdfplumber"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "1713602488fc511df665c172fc6574a20c6d90fb7a8851f98703dd864cc6d905"
+content-hash = "dafd16972a29d6f725aa669b81e0eb4e03156ea838c7c869ba28fbae746bb73e"

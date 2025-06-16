@@ -245,17 +245,17 @@ class Config:
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
         """Maximum number of LLM tokens allowed per minute."""
-        return int(os.getenv("LLM_MAX_TOKENS_PER_MINUTE", "120000"))
+        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "120000"))
 
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
-        return int(os.getenv("LLM_MAX_TOKENS_PER_REQUEST", "4096"))
+        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_REQUEST", "30000"))
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
-        return float(os.getenv("LLM_THROTTLE_SLEEP", "1.0"))
+        return float(os.getenv("ZRB_LLM_THROTTLE_SLEEP", "1.0"))
 
     @property
     def LLM_CONTEXT_ENRICHMENT_PROMPT(self) -> str | None:

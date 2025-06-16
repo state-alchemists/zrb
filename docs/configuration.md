@@ -209,19 +209,19 @@ Zrb can be configured using the following environment variables (see "Setting En
     - Default: `5`
     - Possible values: Any positive integer
 
-- `LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
+- `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
     - Default: `60`
     - Possible values: Any positive integer
 
-- `LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
+- `ZRB_LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
     - Default: `120000`
     - Possible values: Any positive integer
 
-- `LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
-    - Default: `4096`
+- `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
+    - Default: `30000`
     - Possible values: Any positive integer
 
-- `LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
+- `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
     - Default: `1.0`
     - Possible values: Any positive float
 

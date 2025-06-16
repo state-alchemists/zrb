@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.7
+
+- Introduce new configurations: `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`, `ZRB_LLM_MAX_TOKENS_PER_MINUTE`, `ZRB_LLM_MAX_TOKENS_PER_REQUESTS`, and `ZRB_LLM_THROTTLE_SLEEP`.
+- Remove old configurations: `LLM_MAX_REQUESTS_PER_MINUTE`, `LLM_MAX_TOKENS_PER_MINUTE`, `LLM_MAX_TOKENS_PER_REQUESTS`, and `LLM_THROTTLE_SLEEP`.
+
+
 # 1.8.6
 
 - Add `analyze_repo` as `llm_ask` default tool.
