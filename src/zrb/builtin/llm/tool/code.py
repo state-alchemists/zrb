@@ -4,7 +4,7 @@ from zrb.builtin.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS, is_excluded
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.context.any_context import AnyContext
 
-_EXTRACT_INFO_SYSTEM_PROMPT = """
+_EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT = """
 You are an extraction info agent.
 Your goal is to help to extract relevant information to help the main LLM Agent.
 You write your output is in markdown format containing path and relevant information.
@@ -169,7 +169,7 @@ async def _extract_info(
     extract = create_sub_agent_tool(
         tool_name="extract",
         tool_description="extract",
-        system_prompt=_EXTRACT_INFO_SYSTEM_PROMPT,
+        system_prompt=_EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT,
     )
     extracted_infos = []
     content_buffer = ""

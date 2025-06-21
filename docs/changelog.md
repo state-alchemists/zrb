@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.8
+
+- Rename `SERP_API_KEY` to `SERPAPI_KEY`.
+- Improve prompts.
+
 # 1.8.7
 
 - Introduce new configurations: `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`, `ZRB_LLM_MAX_TOKENS_PER_MINUTE`, `ZRB_LLM_MAX_TOKENS_PER_REQUESTS`, and `ZRB_LLM_THROTTLE_SLEEP`.

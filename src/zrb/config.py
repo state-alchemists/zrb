@@ -321,8 +321,8 @@ class Config:
         return int(os.getenv("ZRB_RAG_MAX_RESULT_COUNT", "5"))
 
     @property
-    def SERP_API_KEY(self) -> str:
-        return os.getenv("SERP_API_KEY", "")
+    def SERPAPI_KEY(self) -> str:
+        return os.getenv("SERPAPI_KEY", "")
 
     @property
     def BANNER(self) -> str:

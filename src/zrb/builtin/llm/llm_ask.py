@@ -141,6 +141,6 @@ if CFG.LLM_ALLOW_ACCESS_SHELL:
 
 if CFG.LLM_ALLOW_ACCESS_INTERNET:
     llm_ask.append_tool(open_web_page, search_wikipedia, search_arxiv)
-    if CFG.SERP_API_KEY != "":
-        llm_ask.append_tool(create_search_internet_tool(CFG.SERP_API_KEY))
+    if CFG.SERPAPI_KEY != "":
+        llm_ask.append_tool(create_search_internet_tool(CFG.SERPAPI_KEY))
     llm_ask.append_tool(get_current_location, get_current_weather)

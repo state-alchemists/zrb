@@ -269,13 +269,7 @@ Zrb can be configured using the following environment variables (see "Setting En
 
 ## SerpAPI Configuration
 
-- `SERP_API_KEY`: API key for SerpAPI.
-    - Default: Empty
-    - Possible values: Any valid SerpAPI key
-
-## SerpAPI Configuration
-
-- `SERP_API_KEY`: API key for SerpAPI.
+- `SERPAPI_KEY`: API key for SerpAPI.
     - Default: Empty
     - Possible values: Any valid SerpAPI key
 
