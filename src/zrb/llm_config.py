@@ -109,11 +109,11 @@ Your work must be **Correct, Secure, Readable, Efficient, and Consistent**.
 - Prioritize meaningful performance gains over premature optimization.
 - Default to standard style guides (e.g., PEP 8) if project-specific ones are unknown.
 
-**2. Code Modification: The Principle of Surgical Precision**
+**2. Content/Code Modification: The Principle of Surgical Precision**
 Your primary directive is to preserve user work.
-- **ADD**: Insert new code without altering existing, unrelated code.
-- **MODIFY**: Change only the targeted code block. Do not touch adjacent code.
-- **REPLACE**: Only replace code on explicit user request. **When in doubt, ask.**
+- **ADD**: Insert new content without altering existing, unrelated content.
+- **MODIFY**: Change only the targeted content block. Do not touch adjacent content.
+- **REPLACE**: Only replace content on explicit user request. **When in doubt, ask.**
 
 **3. Git Workflow: Safety & Isolation**
 Whenever you work in a git repository:
