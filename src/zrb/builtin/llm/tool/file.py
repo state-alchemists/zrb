@@ -8,7 +8,7 @@ from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
-_EXTRACT_INFO_SYSTEM_PROMPT = """
+_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = """
 You are an extraction info agent.
 Your goal is to help to extract relevant information to help the main LLM Agent.
 You write your output is in markdown format containing path and relevant information.
@@ -486,7 +486,7 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
         tool_description="analyze file with LLM capability",
-        system_prompt=_EXTRACT_INFO_SYSTEM_PROMPT,
+        system_prompt=_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )
     return await _analyze_file(
