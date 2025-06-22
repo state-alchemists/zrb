@@ -1,3 +1,4 @@
+import json
 import os
 
 from zrb.builtin.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS, is_excluded
@@ -6,9 +7,9 @@ from zrb.context.any_context import AnyContext
 
 _EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT = """
 You are an extraction info agent.
-Your goal is to help to extract relevant information to help the main LLM Agent.
+Your goal is to help to extract relevant information to help the main assistant.
 You write your output is in markdown format containing path and relevant information.
-Extract only information that relevant to main LLM Agent's goal.
+Extract only information that relevant to main assistant's goal.
 
 Extracted Information format (Use this as reference, extract relevant information only):
 # <file-name>
@@ -30,9 +31,9 @@ Extracted Information format (Use this as reference, extract relevant informatio
 
 _SUMMARIZE_INFO_SYSTEM_PROMPT = """
 You are an information summarization agent.
-Your goal is to summarize information to help the main LLM Agent.
+Your goal is to summarize information to help the main assistant.
 The summarization result should contains all necessary details
-to help main LLM Agent achieve the goal.
+to help main assistant achieve the goal.
 """
 
 _DEFAULT_EXTENSIONS = [
@@ -172,19 +173,23 @@ async def _extract_info(
         system_prompt=_EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT,
     )
     extracted_infos = []
-    content_buffer = ""
+    content_buffer = []
+    current_char_count = 0
     for metadata in file_metadatas:
         path = metadata.get("path", "")
         content = metadata.get("content", "")
-        metadata_str = f"Path: {path}\nContent: {content}"
-        if len(content_buffer) + len(metadata_str) > char_limit:
+        file_obj = {"path": path, "content": content}
+        file_str = json.dumps(file_obj)
+        if current_char_count + len(file_str) > char_limit:
             if content_buffer:
                 prompt = _create_extract_info_prompt(goal, content_buffer)
                 extracted_info = await extract(ctx, prompt)
                 extracted_infos.append(extracted_info)
-            content_buffer = metadata_str
+            content_buffer = [file_obj]
+            current_char_count = len(file_str)
         else:
-            content_buffer += metadata_str + "\n"
+            content_buffer.append(file_obj)
+            current_char_count += len(file_str)
 
     # Process any remaining content in the buffer
     if content_buffer:
@@ -194,8 +199,13 @@ async def _extract_info(
     return extracted_infos
 
 
-def _create_extract_info_prompt(goal: str, content_buffer: str) -> str:
-    return f"# Main LLM Agent Goal\n{goal}\n# Files\n{content_buffer}"
+def _create_extract_info_prompt(goal: str, content_buffer: list[dict]) -> str:
+    return json.dumps(
+        {
+            "main_assistant_goal": goal,
+            "files": content_buffer,
+        }
+    )
 
 
 async def _summarize_info(
@@ -230,4 +240,9 @@ async def _summarize_info(
 
 
 def _create_summarize_info_prompt(goal: str, content_buffer: str) -> str:
-    return f"# Main LLM Agent Goal\n{goal}\n# Extracted Info\n{content_buffer}"
+    return json.dumps(
+        {
+            "main_assistant_goal": goal,
+            "extracted_info": content_buffer,
+        }
+    )
