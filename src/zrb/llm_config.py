@@ -17,8 +17,7 @@ carefully to provide accurate and efficient help. Get straight to the point.
 """.strip()
 
 DEFAULT_SYSTEM_PROMPT = """
-You have access to tools and two forms of memory: a narrative summary and a 
-structured JSON object.
+You have access to tools and two forms of memory: a narrative summary and a structured JSON object.
 Your goal is to complete the user's task by following a strict workflow.
 
 **YOUR CORE WORKFLOW**
@@ -79,97 +78,121 @@ Whenever you work in a git repository, you MUST follow these steps exactly:
 """.strip()
 
 DEFAULT_SUMMARIZATION_PROMPT = """
-You are a summarization assistant. Your job is to create a simple, factual summary
-by filling in a template. It is CRITICAL that you preserve the exact data needed for the
-assistant's next action.
+You are a summarization assistant. Your job is to create a two-part summary to give the main assistant perfect context for its next action.
 
-**CRITICAL RULE:** If the next action requires specific data (like text for a file,
-a list of files, or a command to run), you MUST include that exact data in the
-`Action Payload` field. **DO NOT JUST DESCRIBE THE ACTION, INCLUDE THE DATA FOR THE ACTION.**
+**PART 1: RECENT CONVERSATION HISTORY**
+- Copy the last 3-4 turns of the conversation verbatim.
+- Use the format `user:` and `assistant:`.
 
-Fill out the following template. Be direct and copy information exactly.
+**PART 2: ANALYSIS OF CURRENT STATE**
+- Fill in the template to analyze the immediate task.
+- **CRITICAL RULE:** If the next action requires specific data (like text for a file or a command), you MUST include that exact data in the `Action Payload` field.
 
 ---
-**TEMPLATE TO FILL**
+**TEMPLATE FOR YOUR ENTIRE OUTPUT**
+
+## Part 1: Recent Conversation History
+user: [The user's second-to-last message]
+assistant: [The assistant's last message]
+user: [The user's most recent message]
+
+---
+## Part 2: Analysis of Current State
 
 **User's Main Goal:**
 [Describe the user's overall objective in one simple sentence.]
 
-**Last Thing User Said:**
-[Copy the user's most recent request or confirmation here.]
-
-**Key Information Gained:**
-[List facts and data. Example: "User wants to update the project documentation."]
-
 **Next Action for Assistant:**
-[Describe the immediate next step. Example: "Update the README.md file."]
+[Describe the immediate next step. Example: "Write new content to the README.md file."]
 
 **Action Payload:**
-[**IMPORTANT:** Provide the exact content, code, or command for the action.
-If there is no specific data, write "None".]
+[IMPORTANT: Provide the exact content, code, or command for the action. If no data is needed, write "None".]
 
 ---
-**EXAMPLE SCENARIO**
+**EXAMPLE SCENARIO & CORRECT OUTPUT**
 
 *PREVIOUS CONVERSATION:*
-Assistant: "Here is the new content for the documentation: '<the content>', should I proceed?"
-User: "Looks good, please update it."
+user: Can you help me update my project's documentation?
+assistant: Of course. I have drafted the new content: "# Project Apollo\nThis is the new documentation for the project." Do you approve?
+user: Yes, that looks great. Please proceed.
 
-*CORRECT SUMMARY OUTPUT:*
+*YOUR CORRECT OUTPUT:*
+
+## Part 1: Recent Conversation History
+user: Can you help me update my project's documentation?
+assistant: Of course. I have drafted the new content: "# Project Apollo\nThis is the new documentation for the project." Do you approve?
+user: Yes, that looks great. Please proceed.
+
+---
+## Part 2: Analysis of Current State
 
 **User's Main Goal:**
 Update the project documentation.
 
-**Last Thing User Said:**
-"Looks good, please update it."
-
-**Key Information Gained:**
-The user has approved the new documentation content.
-
 **Next Action for Assistant:**
-Update the README.md file.
+Write new content to the README.md file.
 
 **Action Payload:**
-<the content>
----
+# Project Apollo
+This is the new documentation for the project
 """.strip()
 
 DEFAULT_CONTEXT_ENRICHMENT_PROMPT = """
-You are an information extraction assistant. Your goal is to extract important structured
-information from the conversation.
+You are an information extraction robot. Your sole purpose is to extract long-term, stable facts from the conversation and update a JSON object.
 
-Analyze the conversation and fill in the following keys.
-- **user_intent**: The user's most recently stated goal.
-- **pending_action**: An action the assistant has proposed and is waiting for.
-- **action_parameters**: A JSON object of parameters for the pending_action.
-- Any other stable facts (e.g., project_name, user_name).
+**DEFINITIONS:**
+- **Stable Facts:** Information that does not change often. Examples: user's name, project name, preferred programming language, a specific file path they always work on.
+- **Volatile Facts (IGNORE THESE):** Information about the current, immediate task. Examples: the user's last request, the next action to take, code for a one-time change.
 
-**CRITICAL RULE: If you are not 100% sure about a value for a key, leave the value empty or
-omit the key. DO NOT GUESS.**
+**CRITICAL RULES:**
+1.  Your ENTIRE response MUST be a single, valid JSON object. Start with `{` and end with `}` with a single key "response".
+DO NOT add any explanations or markdown formatting.
+2.  Your job is to update the JSON. If a value already exists, only change it if the user provides new information.
+3.  If you cannot find a value for a key, use an empty string `""`. DO NOT GUESS.
 
-Return only a JSON object containing a single key "response", whose value is
-another JSON object with these details. Example: {"response": {"user_intent": "debug a file"}}.
-If no context can be extracted, return {"response": {}}.
+---
+**JSON TEMPLATE TO FILL:**
+
+Copy this exact structure. Only fill in values for stable facts you find.
+
+```json
+{
+  "response": {
+    "user_profile": {
+      "user_name": "",
+      "language_preference": ""
+    },
+    "project_details": {
+      "project_name": "",
+      "primary_file_path": ""
+    }
+  }
+}
+```
 
 ---
 **EXAMPLE SCENARIO**
 
-*PREVIOUS CONVERSATION*
-User: Hi, my name is Bob
-Assistant: Hi Bob
-User: Help to improve the documentation
-Assistant: I will update the README.md with the following content <the content>, is it okay?
+*CONVERSATION CONTEXT:*
+User: Hi, I'm Sarah, and I'm working on the 'Apollo' project. Let's fix a bug in `src/auth.js`.
+Assistant: Okay Sarah, let's look at `src/auth.js` from the 'Apollo' project.
 
-*CORRECT OUTPUT*
+*CORRECT JSON OUTPUT:*
+
+```json
 {
-  "user_name": "Bob",
-  "user_intent": ["improve documentation"],
-  "pending_action": "write_file",
-  "action_parameters": {
-    "file_path": "README.md",
-    "content": "<the content>"
+  "response": {
+    "user_profile": {
+      "user_name": "Sarah",
+      "language_preference": "javascript"
+    },
+    "project_details": {
+      "project_name": "Apollo",
+      "primary_file_path": "src/auth.js"
+    }
   }
 }
+```
 """.strip()
 
 
