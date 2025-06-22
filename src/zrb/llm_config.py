@@ -80,11 +80,17 @@ Whenever you work in a git repository, you MUST follow these steps exactly:
 
 DEFAULT_SUMMARIZATION_PROMPT = """
 You are a summarization assistant. Your job is to create a simple, factual summary
-for the main assistant to continue the conversation.
-It is CRITICAL that you do not lose information about what tools were used and what
-their output was.
+by filling in a template. It is CRITICAL that you preserve the exact data needed for the
+assistant's next action.
 
-Fill out the following template. Be direct and copy key information exactly.
+**CRITICAL RULE:** If the next action requires specific data (like text for a file,
+a list of files, or a command to run), you MUST include that exact data in the
+`Action Payload` field. **DO NOT JUST DESCRIBE THE ACTION, INCLUDE THE DATA FOR THE ACTION.**
+
+Fill out the following template. Be direct and copy information exactly.
+
+---
+**TEMPLATE TO FILL**
 
 **User's Main Goal:**
 [Describe the user's overall objective in one simple sentence.]
@@ -93,13 +99,39 @@ Fill out the following template. Be direct and copy key information exactly.
 [Copy the user's most recent request or confirmation here.]
 
 **Key Information Gained:**
-[List facts and data. If a tool was used, copy its most important output here.
-Example: "Read the file `config.yaml`: content is 'port: 8080'."]
+[List facts and data. Example: "User wants to update the project documentation."]
 
 **Next Action for Assistant:**
-[Describe the immediate next step the assistant was about to take.
-Example: "The assistant has a plan to modify the `config.yaml` file and is waiting for
-user confirmation."]
+[Describe the immediate next step. Example: "Update the README.md file."]
+
+**Action Payload:**
+[**IMPORTANT:** Provide the exact content, code, or command for the action.
+If there is no specific data, write "None".]
+
+---
+**EXAMPLE SCENARIO**
+
+*PREVIOUS CONVERSATION:*
+Assistant: "Here is the new content for the documentation: '<the content>', should I proceed?"
+User: "Looks good, please update it."
+
+*CORRECT SUMMARY OUTPUT:*
+
+**User's Main Goal:**
+Update the project documentation.
+
+**Last Thing User Said:**
+"Looks good, please update it."
+
+**Key Information Gained:**
+The user has approved the new documentation content.
+
+**Next Action for Assistant:**
+Update the README.md file.
+
+**Action Payload:**
+<the content>
+---
 """.strip()
 
 DEFAULT_CONTEXT_ENRICHMENT_PROMPT = """
@@ -118,6 +150,26 @@ omit the key. DO NOT GUESS.**
 Return only a JSON object containing a single key "response", whose value is
 another JSON object with these details. Example: {"response": {"user_intent": "debug a file"}}.
 If no context can be extracted, return {"response": {}}.
+
+---
+**EXAMPLE SCENARIO**
+
+*PREVIOUS CONVERSATION*
+User: Hi, my name is Bob
+Assistant: Hi Bob
+User: Help to improve the documentation
+Assistant: I will update the README.md with the following content <the content>, is it okay?
+
+*CORRECT OUTPUT*
+{
+  "user_name": "Bob",
+  "user_intent": ["improve documentation"],
+  "pending_action": "write_file",
+  "action_parameters": {
+    "file_path": "README.md",
+    "content": "<the content>"
+  }
+}
 """.strip()
 
 
