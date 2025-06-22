@@ -10,9 +10,9 @@ from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 _EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = """
 You are an extraction info agent.
-Your goal is to help to extract relevant information to help the main LLM Agent.
+Your goal is to help to extract relevant information to help the main assistant.
 You write your output is in markdown format containing path and relevant information.
-Extract only information that relevant to main LLM Agent's goal.
+Extract only information that relevant to main assistant's goal.
 
 Extracted Information format (Use this as reference, extract relevant information only):
 # imports
@@ -491,14 +491,7 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
     )
     return await _analyze_file(
         ctx,
-        "\n".join(
-            [
-                file_content,
-                "# Instruction",
-                query,
-                "# File path",
-                abs_path,
-                "# File content",
-            ]
+        json.dumps(
+            {"instruction": query, "file_path": abs_path, "file_content": file_content}
         ),
     )

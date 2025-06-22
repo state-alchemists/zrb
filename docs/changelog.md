@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.9
+
+- Improve prompts so that the summarization include last conversations in verbatim
+- Fix `analyze_file` prompt creation
+
 # 1.8.8
 
 - Rename `SERP_API_KEY` to `SERPAPI_KEY`.
