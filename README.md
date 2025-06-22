@@ -43,6 +43,8 @@ Or run our installation script to set up Zrb along with all prerequisites:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 ```
 
+You can also [run Zrb as container](https://github.com/state-alchemists/zrb?tab=readme-ov-file#-run-zrb-as-a-container)
+
 # 🍲 Quick Start: Build Your First Automation Workflow
 
 Zrb empowers you to create custom automation tasks using Python. This guide shows you how to define two simple tasks: one to generate a PlantUML script from your source code and another to convert that script into a PNG image.
@@ -56,10 +58,8 @@ Add the following content to your zrb_init.py:
 ```python
 import os
 from zrb import cli, LLMTask, CmdTask, StrInput, Group
-from zrb.builtin.llm.tool.file import (
-    list_files, read_from_file, search_files, write_to_file
-)
-
+from zrb.builtin.llm.tool.code import analyze_repo
+from zrb.builtin.llm.tool.file import write_to_file
 
 CURRENT_DIR = os.getcwd()
 
@@ -71,14 +71,14 @@ make_uml_script = uml_group.add_task(
     LLMTask(
         name="make-script",
         description="Creating plantuml diagram based on source code in current directory",
-        input=StrInput(name="diagram", default="state diagram"),
+        input=StrInput(name="diagram", default="state-diagram"),
         message=(
             f"Read all necessary files in {CURRENT_DIR}, "
             "make a {ctx.input.diagram} in plantuml format. "
             f"Write the script into {CURRENT_DIR}/{{ctx.input.diagram}}.uml"
         ),
         tools=[
-            list_files, read_from_file, search_files, write_to_file
+            analyze_repo, write_to_file
         ],
     )
 )
@@ -88,7 +88,7 @@ make_uml_image = uml_group.add_task(
     CmdTask(
         name="make-image",
         description="Creating png based on source code in current directory",
-        input=StrInput(name="diagram", default="state diagram"),
+        input=StrInput(name="diagram", default="state-diagram"),
         cmd="plantuml -tpng '{ctx.input.diagram}.uml'",
         cwd=CURRENT_DIR,
     )
@@ -156,7 +156,7 @@ Then open your browser and visit `http://localhost:21213`
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 
 
-# 🐋 Running Zrb as a Container
+# 🐋 Run Zrb as a Container
 
 Zrb can be run in a containerized environment, offering two distinct versions to suit different needs:
 
