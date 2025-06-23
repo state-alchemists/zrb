@@ -183,7 +183,7 @@ async def _extract_info(
         if current_char_count + len(file_str) > char_limit:
             if content_buffer:
                 prompt = _create_extract_info_prompt(goal, content_buffer)
-                extracted_info = await extract(ctx, prompt)
+                extracted_info = await extract(ctx, prompt[0:char_limit])
                 extracted_infos.append(extracted_info)
             content_buffer = [file_obj]
             current_char_count = len(file_str)
@@ -194,7 +194,7 @@ async def _extract_info(
     # Process any remaining content in the buffer
     if content_buffer:
         prompt = _create_extract_info_prompt(goal, content_buffer)
-        extracted_info = await extract(ctx, prompt)
+        extracted_info = await extract(ctx, prompt[0:char_limit])
         extracted_infos.append(extracted_info)
     return extracted_infos
 
@@ -225,7 +225,7 @@ async def _summarize_info(
         if len(content_buffer) + len(extracted_info) > char_limit:
             if content_buffer:
                 prompt = _create_summarize_info_prompt(goal, content_buffer)
-                summarized_info = await summarize(ctx, prompt)
+                summarized_info = await summarize(ctx, prompt[0:char_limit])
                 summarized_infos.append(summarized_info)
             content_buffer = extracted_info
         else:
@@ -234,7 +234,7 @@ async def _summarize_info(
     # Process any remaining content in the buffer
     if content_buffer:
         prompt = _create_summarize_info_prompt(goal, content_buffer)
-        summarized_info = await summarize(ctx, prompt)
+        summarized_info = await summarize(ctx, prompt[0:char_limit])
         summarized_infos.append(summarized_info)
     return summarized_infos
 

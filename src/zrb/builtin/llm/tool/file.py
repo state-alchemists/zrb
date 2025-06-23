@@ -464,7 +464,9 @@ def apply_diff(
         raise RuntimeError(f"Unexpected error applying diff to {path}: {e}")
 
 
-async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
+async def analyze_file(
+    ctx: AnyContext, path: str, query: str, char_limit: int = 150000
+) -> str:
     """Analyze file using LLM capability to reduce context usage.
     Use this tool for:
     - summarization
@@ -474,6 +476,7 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
     Args:
         path (str): File path to be analyze. Pass exactly as provided, including '~'.
         query(str): Instruction to analyze the file
+        char_limit(Optional[int]): Max char length to be taken from file
     Returns:
         str: The analysis result
     Raises:
@@ -489,9 +492,7 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
         system_prompt=_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )
-    return await _analyze_file(
-        ctx,
-        json.dumps(
-            {"instruction": query, "file_path": abs_path, "file_content": file_content}
-        ),
+    payload = json.dumps(
+        {"instruction": query, "file_path": abs_path, "file_content": file_content}
     )
+    return await _analyze_file(ctx, payload[0:char_limit])
