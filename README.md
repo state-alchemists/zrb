@@ -47,7 +47,7 @@ You can also [run Zrb as container](https://github.com/state-alchemists/zrb?tab=
 
 # 🍲 Quick Start: Build Your First Automation Workflow
 
-Zrb empowers you to create custom automation tasks using Python. This guide shows you how to define two simple tasks: one to generate a PlantUML script from your source code and another to convert that script into a PNG image.
+Zrb empowers you to create custom automation tasks using Python. This guide shows you how to define two simple tasks: one to generate a Mermaid script from your source code and another to convert that script into a PNG image.
 
 ## 1. Create Your Task Definition File
 
@@ -56,26 +56,27 @@ Place a file named `zrb_init.py` in a directory that's accessible from your proj
 Add the following content to your zrb_init.py:
 
 ```python
-import os
 from zrb import cli, LLMTask, CmdTask, StrInput, Group
 from zrb.builtin.llm.tool.code import analyze_repo
 from zrb.builtin.llm.tool.file import write_to_file
 
-CURRENT_DIR = os.getcwd()
 
-# Create a group for UML-related tasks
-uml_group = cli.add_group(Group(name="uml", description="UML related tasks"))
+# Create a group for Mermaid-related tasks
+mermaid_group = cli.add_group(Group(name="mermaid", description="🧜 Mermaid diagram related tasks"))
 
-# Task 1: Generate a PlantUML script from your source code
-make_uml_script = uml_group.add_task(
+# Task 1: Generate a Mermaid script from your source code
+make_mermaid_script = mermaid_group.add_task(
     LLMTask(
         name="make-script",
-        description="Creating plantuml diagram based on source code in current directory",
-        input=StrInput(name="diagram", default="state-diagram"),
+        description="Creating mermaid diagram based on source code in current directory",
+        input=[
+            StrInput(name="dir", default="./"),
+            StrInput(name="diagram", default="state-diagram"),
+        ],
         message=(
-            f"Read all necessary files in {CURRENT_DIR}, "
-            "make a {ctx.input.diagram} in plantuml format. "
-            f"Write the script into {CURRENT_DIR}/{{ctx.input.diagram}}.uml"
+            "Read all necessary files in {ctx.input.dir}, "
+            "make a {ctx.input.diagram} in mermaid format. "
+            "Write the script into `{ctx.input.dir}/{ctx.input.diagram}.mmd`"
         ),
         tools=[
             analyze_repo, write_to_file
@@ -83,30 +84,33 @@ make_uml_script = uml_group.add_task(
     )
 )
 
-# Task 2: Convert the PlantUML script into a PNG image
-make_uml_image = uml_group.add_task(
+# Task 2: Convert the Mermaid script into a PNG image
+make_mermaid_image = mermaid_group.add_task(
     CmdTask(
         name="make-image",
         description="Creating png based on source code in current directory",
-        input=StrInput(name="diagram", default="state-diagram"),
-        cmd="plantuml -tpng '{ctx.input.diagram}.uml'",
-        cwd=CURRENT_DIR,
+        input=[
+            StrInput(name="dir", default="./"),
+            StrInput(name="diagram", default="state-diagram"),
+        ],
+        cmd="mmdc -i '{ctx.input.diagram}.mmd' -o '{ctx.input.diagram}.png'",
+        cwd="{ctx.input.dir}",
     )
 )
 
 # Set up the dependency: the image task runs after the script is created
-make_uml_script >> make_uml_image
+make_mermaid_script >> make_mermaid_image
 ```
 
 **What This Does**
 
 - **Task 1 – make-script**:
 
-    Uses an LLM to read all files in your current directory and generate a PlantUML script (e.g., `state diagram.uml`).
+    Uses an LLM to read all files in your current directory and generate a Mermaid script (e.g., `state diagram.mmd`).
 
 - **Task 2 – make-image**:
 
-    Executes a command that converts the PlantUML script into a PNG image (e.g., `state diagram.png`). This task will run only after the script has been generated.
+    Executes a command that converts the Mermaid script into a PNG image (e.g., `state diagram.png`). This task will run only after the script has been generated.
 
 
 ## 2. Run Your Tasks
@@ -123,18 +127,19 @@ After setting up your tasks, you can execute them from any project. For example:
 - Create a state diagram:
 
     ```bash
-    zrb uml make-image --diagram "state diagram"
+    zrb mermaid make-image --diagram "state diagram" --dir ./
     ```
 
 - Or use the interactive mode:
 
     ```bash
-    zrb uml make-image
+    zrb mermaid make-image
     ```
 
     Zrb will prompt:
 
     ```bash
+    dir [./]:
     diagram [state diagram]:
     ```
 
