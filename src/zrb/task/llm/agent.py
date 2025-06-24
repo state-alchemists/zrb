@@ -109,7 +109,7 @@ def get_agent(
 
 async def run_agent_iteration(
     ctx: AnyContext,
-    agent: Agent,
+    agent: Agent[Any, Any],
     user_prompt: str,
     history_list: ListOfDict,
     rate_limitter: LLMRateLimiter | None = None,
