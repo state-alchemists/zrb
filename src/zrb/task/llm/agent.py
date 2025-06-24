@@ -16,6 +16,8 @@ else:
     Model = Any
     ModelSettings = Any
 
+import json
+
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
@@ -161,10 +163,14 @@ async def _run_single_agent_iteration(
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
+    agent_payload = json.dumps(
+        [*history_list, {"role": "user", "content": user_prompt}]
+    )
+
     if rate_limitter:
-        await rate_limitter.throttle(user_prompt)
+        await rate_limitter.throttle(agent_payload)
     else:
-        await llm_rate_limitter.throttle(user_prompt)
+        await llm_rate_limitter.throttle(agent_payload)
 
     async with agent.run_mcp_servers():
         async with agent.iter(
