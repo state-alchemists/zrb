@@ -109,10 +109,11 @@ def get_agent(
 
 async def run_agent_iteration(
     ctx: AnyContext,
-    agent: Agent[Any, Any],
+    agent: Agent,
     user_prompt: str,
     history_list: ListOfDict,
     rate_limitter: LLMRateLimiter | None = None,
+    max_retry: int = 2,
 ) -> AgentRun:
     """
     Runs a single iteration of the agent execution loop.
@@ -129,6 +130,34 @@ async def run_agent_iteration(
     Raises:
         Exception: If any error occurs during agent execution.
     """
+    if max_retry < 0:
+        raise ValueError("Max retry cannot be less than 0")
+    attempt = max_retry + 1
+    while attempt > 0:
+        try:
+            agent_run = await _run_single_agent_iteration(
+                ctx=ctx,
+                agent=agent,
+                user_prompt=user_prompt,
+                history_list=history_list,
+                rate_limitter=rate_limitter,
+            )
+            if agent_run:
+                return agent_run
+        except Exception:
+            if attempt == 0:
+                raise
+            attempt -= 1
+    raise Exception("Max retry exceeded")
+
+
+async def _run_single_agent_iteration(
+    ctx: AnyContext,
+    agent: Agent,
+    user_prompt: str,
+    history_list: ListOfDict,
+    rate_limitter: LLMRateLimiter | None = None,
+) -> AgentRun:
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 

@@ -98,24 +98,15 @@ def create_sub_agent_tool(
             mcp_servers=mcp_servers,
         )
 
-        retry = 3
         sub_agent_run = None
-        while retry > 0:
-            try:
-                # Run the sub-agent iteration
-                # Start with an empty history for the sub-agent
-                sub_agent_run = await run_agent_iteration(
-                    ctx=ctx,
-                    agent=sub_agent_agent,
-                    user_prompt=query,
-                    history_list=[],  # Start with empty history for the sub-agent
-                )
-                if sub_agent_run and sub_agent_run.result:
-                    break
-            except Exception:
-                if retry == 0:
-                    raise
-                retry -= 1
+        # Run the sub-agent iteration
+        # Start with an empty history for the sub-agent
+        sub_agent_run = await run_agent_iteration(
+            ctx=ctx,
+            agent=sub_agent_agent,
+            user_prompt=query,
+            history_list=[],  # Start with empty history for the sub-agent
+        )
 
         # Return the sub-agent's final message content
         if sub_agent_run and sub_agent_run.result:
