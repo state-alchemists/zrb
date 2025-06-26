@@ -163,10 +163,7 @@ async def _run_single_agent_iteration(
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-    agent_payload = json.dumps(
-        [*history_list, {"role": "user", "content": user_prompt}]
-    )
-
+    agent_payload = estimate_request_payload(agent, user_prompt, history_list)
     if rate_limitter:
         await rate_limitter.throttle(agent_payload)
     else:
@@ -192,6 +189,19 @@ async def _run_single_agent_iteration(
                     ctx.log_error(f"Error type: {type(e).__name__}")
                     raise
             return agent_run
+
+
+def estimate_request_payload(
+    agent: Agent, user_prompt: str, history_list: ListOfDict
+) -> str:
+    system_prompts = agent._system_prompts if hasattr(agent, "_system_prompts") else ()
+    return json.dumps(
+        [
+            {"role": "system", "content": "\n".join(system_prompts)},
+            *history_list,
+            {"role": "user", "content": user_prompt},
+        ]
+    )
 
 
 def _get_plain_printer(ctx: AnyContext):
