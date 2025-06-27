@@ -1,7 +1,7 @@
 import json
 from collections.abc import Callable
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Coroutine
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -33,7 +33,7 @@ def create_sub_agent_tool(
     model_settings: ModelSettings | None = None,
     tools: list[ToolOrCallable] = [],
     mcp_servers: list[MCPServer] = [],
-) -> Callable[[AnyContext, str], str]:
+) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
     """
     Create an LLM "sub-agent" tool function for use by a main LLM agent.
 

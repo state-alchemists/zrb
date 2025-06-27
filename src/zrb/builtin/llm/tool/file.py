@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.context.any_context import AnyContext
+from zrb.llm_rate_limitter import llm_rate_limitter
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 _EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = """
@@ -465,7 +466,7 @@ def apply_diff(
 
 
 async def analyze_file(
-    ctx: AnyContext, path: str, query: str, char_limit: int = 100000
+    ctx: AnyContext, path: str, query: str, token_limit: int = 30000
 ) -> str:
     """Analyze file using LLM capability to reduce context usage.
     Use this tool for:
@@ -476,7 +477,7 @@ async def analyze_file(
     Args:
         path (str): File path to be analyze. Pass exactly as provided, including '~'.
         query(str): Instruction to analyze the file
-        char_limit(Optional[int]): Max char length to be taken from file
+        token_limit(Optional[int]): Max token length to be taken from file
     Returns:
         str: The analysis result
     Raises:
@@ -495,4 +496,5 @@ async def analyze_file(
     payload = json.dumps(
         {"instruction": query, "file_path": abs_path, "file_content": file_content}
     )
-    return await _analyze_file(ctx, payload[0:char_limit])
+    clipped_payload = llm_rate_limitter.clip_prompt(payload, token_limit)
+    return await _analyze_file(ctx, clipped_payload)

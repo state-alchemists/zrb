@@ -4,6 +4,7 @@ import os
 from zrb.builtin.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS, is_excluded
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.context.any_context import AnyContext
+from zrb.llm_rate_limitter import llm_rate_limitter
 
 _EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT = """
 You are an extraction info agent.
@@ -81,8 +82,8 @@ async def analyze_repo(
     goal: str,
     extensions: list[str] = _DEFAULT_EXTENSIONS,
     exclude_patterns: list[str] = DEFAULT_EXCLUDED_PATTERNS,
-    extraction_char_limit: int = 100000,
-    summarization_char_limit: int = 100000,
+    extraction_token_limit: int = 30000,
+    summarization_token_limit: int = 30000,
 ) -> str:
     """
     Extract and summarize information from a directory that probably
@@ -101,9 +102,9 @@ async def analyze_repo(
             while reading resources. Defaults to common programming languages and config files.
         exclude_patterns(Optional[list[str]]): List of patterns to exclude from analysis.
             Common patterns like '.venv', 'node_modules' should be excluded by default.
-        extraction_char_limit(Optional[int]): Max resource content char length
+        extraction_token_limit(Optional[int]): Max resource content char length
             the extraction assistant able to handle. Defaults to 150000
-        summarization_char_limit(Optional[int]): Max resource content char length
+        summarization_token_limit(Optional[int]): Max resource content char length
             the summarization assistant able to handle. Defaults to 150000
     Returns:
         str: The analysis result
@@ -117,22 +118,19 @@ async def analyze_repo(
         ctx,
         file_metadatas=file_metadatas,
         goal=goal,
-        char_limit=extraction_char_limit,
+        token_limit=extraction_token_limit,
     )
+    if len(extracted_infos) == 1:
+        return extracted_infos[0]
     ctx.print("Summarization")
-    summarized_infos = await _summarize_info(
-        ctx,
-        extracted_infos=extracted_infos,
-        goal=goal,
-        char_limit=summarization_char_limit,
-    )
+    summarized_infos = extracted_infos
     while len(summarized_infos) > 1:
         ctx.print("Summarization")
         summarized_infos = await _summarize_info(
             ctx,
             extracted_infos=summarized_infos,
             goal=goal,
-            char_limit=summarization_char_limit,
+            token_limit=summarization_token_limit,
         )
     return summarized_infos[0]
 
@@ -165,7 +163,7 @@ async def _extract_info(
     ctx: AnyContext,
     file_metadatas: list[dict[str, str]],
     goal: str,
-    char_limit: int,
+    token_limit: int,
 ) -> list[str]:
     extract = create_sub_agent_tool(
         tool_name="extract",
@@ -174,27 +172,31 @@ async def _extract_info(
     )
     extracted_infos = []
     content_buffer = []
-    current_char_count = 0
+    current_token_count = 0
     for metadata in file_metadatas:
         path = metadata.get("path", "")
         content = metadata.get("content", "")
         file_obj = {"path": path, "content": content}
         file_str = json.dumps(file_obj)
-        if current_char_count + len(file_str) > char_limit:
+        if current_token_count + llm_rate_limitter.count_token(file_str) > token_limit:
             if content_buffer:
                 prompt = _create_extract_info_prompt(goal, content_buffer)
-                extracted_info = await extract(ctx, prompt[0:char_limit])
+                extracted_info = await extract(
+                    ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
+                )
                 extracted_infos.append(extracted_info)
             content_buffer = [file_obj]
-            current_char_count = len(file_str)
+            current_token_count = llm_rate_limitter.count_token(file_str)
         else:
             content_buffer.append(file_obj)
-            current_char_count += len(file_str)
+            current_token_count += llm_rate_limitter.count_token(file_str)
 
     # Process any remaining content in the buffer
     if content_buffer:
         prompt = _create_extract_info_prompt(goal, content_buffer)
-        extracted_info = await extract(ctx, prompt[0:char_limit])
+        extracted_info = await extract(
+            ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
+        )
         extracted_infos.append(extracted_info)
     return extracted_infos
 
@@ -212,7 +214,7 @@ async def _summarize_info(
     ctx: AnyContext,
     extracted_infos: list[str],
     goal: str,
-    char_limit: int,
+    token_limit: int,
 ) -> list[str]:
     summarize = create_sub_agent_tool(
         tool_name="extract",
@@ -222,10 +224,13 @@ async def _summarize_info(
     summarized_infos = []
     content_buffer = ""
     for extracted_info in extracted_infos:
-        if len(content_buffer) + len(extracted_info) > char_limit:
+        new_prompt = content_buffer + extracted_info
+        if llm_rate_limitter.count_token(new_prompt) > token_limit:
             if content_buffer:
                 prompt = _create_summarize_info_prompt(goal, content_buffer)
-                summarized_info = await summarize(ctx, prompt[0:char_limit])
+                summarized_info = await summarize(
+                    ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
+                )
                 summarized_infos.append(summarized_info)
             content_buffer = extracted_info
         else:
@@ -234,7 +239,9 @@ async def _summarize_info(
     # Process any remaining content in the buffer
     if content_buffer:
         prompt = _create_summarize_info_prompt(goal, content_buffer)
-        summarized_info = await summarize(ctx, prompt[0:char_limit])
+        summarized_info = await summarize(
+            ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
+        )
         summarized_infos.append(summarized_info)
     return summarized_infos
 

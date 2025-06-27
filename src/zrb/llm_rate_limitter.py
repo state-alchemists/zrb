@@ -3,7 +3,14 @@ import time
 from collections import deque
 from typing import Callable
 
+import tiktoken
+
 from zrb.config import CFG
+
+
+def _estimate_token(text: str) -> int:
+    enc = tiktoken.encoding_for_model("gpt-4o")
+    return len(enc.encode(text))
 
 
 class LLMRateLimiter:
@@ -53,10 +60,10 @@ class LLMRateLimiter:
         return CFG.LLM_THROTTLE_SLEEP
 
     @property
-    def token_counter_fn(self) -> Callable[[str], int]:
+    def count_token(self) -> Callable[[str], int]:
         if self._token_counter_fn is not None:
             return self._token_counter_fn
-        return lambda x: len(x.split())
+        return _estimate_token
 
     def set_max_requests_per_minute(self, value: int):
         self._max_requests_per_minute = value
@@ -73,9 +80,22 @@ class LLMRateLimiter:
     def set_token_counter_fn(self, fn: Callable[[str], int]):
         self._token_counter_fn = fn
 
+    def clip_prompt(self, prompt: str, limit: int) -> str:
+        token_count = self.count_token(prompt)
+        if token_count <= limit:
+            return prompt
+        while token_count > limit:
+            prompt_parts = prompt.split(" ")
+            last_part_index = len(prompt_parts) - 2
+            clipped_prompt = " ".join(prompt_parts[:last_part_index])
+            token_count = self.count_token(clipped_prompt)
+            if token_count < limit:
+                return clipped_prompt
+        return prompt[:limit]
+
     async def throttle(self, prompt: str):
         now = time.time()
-        tokens = self.token_counter_fn(prompt)
+        tokens = self.count_token(prompt)
         # Clean up old entries
         while self.request_times and now - self.request_times[0] > 60:
             self.request_times.popleft()
