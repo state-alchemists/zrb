@@ -134,22 +134,20 @@ async def run_agent_iteration(
     """
     if max_retry < 0:
         raise ValueError("Max retry cannot be less than 0")
-    attempt = max_retry + 1
-    while attempt > 0:
+    attempt = 0
+    while attempt < max_retry:
         try:
-            agent_run = await _run_single_agent_iteration(
+            return await _run_single_agent_iteration(
                 ctx=ctx,
                 agent=agent,
                 user_prompt=user_prompt,
                 history_list=history_list,
                 rate_limitter=rate_limitter,
             )
-            if agent_run:
-                return agent_run
-        except Exception:
-            if attempt == 0:
+        except BaseException:
+            attempt += 1
+            if attempt == max_retry:
                 raise
-            attempt -= 1
     raise Exception("Max retry exceeded")
 
 
