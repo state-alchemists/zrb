@@ -1,5 +1,5 @@
-fastapi[standard]~=0.115.12
-alembic~=1.15.2
+fastapi[standard]~=0.115.14
+alembic~=1.16.2
 sqlmodel~=0.0.24
 ulid-py~=1.1.0
 passlib~=1.7.4
