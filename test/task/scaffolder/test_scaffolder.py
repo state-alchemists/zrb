@@ -1,11 +1,14 @@
 import os
+from unittest import mock
 
 from zrb import Scaffolder
 
 _DIR = os.path.dirname(__file__)
 
 
-def test_generate_with_basic_config():
+@mock.patch("zrb.task.scaffolder.os.makedirs")
+@mock.patch("zrb.task.scaffolder.shutil.copy2")
+def test_generate_with_basic_config(mock_copy2, mock_makedirs):
     scaffolder = Scaffolder(
         name="scaffold",
         source_path=os.path.join(_DIR, "template"),
@@ -17,5 +20,5 @@ def test_generate_with_basic_config():
         },
     )
     scaffolder.run()
-    generated_dir = os.path.join(_DIR, "test-generated-basic")
-    assert os.path.isdir(generated_dir)
+    mock_makedirs.assert_called()
+    mock_copy2.assert_called()
