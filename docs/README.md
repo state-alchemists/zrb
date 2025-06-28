@@ -128,11 +128,11 @@ flowchart TD
 
     %% CLI/Group relations
     CLI -->|is a| Group
-    Group -->|has| Task
+    Group -->|has| AnyTask
     Group -->|has| Group
 
     %% Task hierarchy
-    BaseTask -.->|implements| AnyTask
+    BaseTask -->|implements| AnyTask
     Task -->|inherits| BaseTask
     BaseTrigger -->|inherits| BaseTask
     Scheduler -->|inherits| BaseTrigger
@@ -147,9 +147,11 @@ flowchart TD
     BaseTask -->|has| Env
     BaseTask -->|has| Input
     BaseTask -->|accesses| Context
+    AnyTask -->|is upstream of| BaseTask
+    AnyTask -->|is checker of| BaseTask
 
     %% Callback usage
-    BaseTrigger -.->|uses callback| Callback
+    BaseTrigger -->|has| Callback
     Callback -->|executes| AnyTask
 
     %% Session/Context relations
@@ -257,5 +259,5 @@ Once you are familiar with the core concepts, explore these guides for more adva
 *   **Video Demo:** See a quick demonstration of Zrb's capabilities.
     *   [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 *   **Community & Support:** Join the Zrb community, ask questions, report bugs, or contribute to the project.
-    *   Report issues or suggest features on [GitHub Issues](https://github.com/state-alchemists/zrb/issues).
+    *   Report issues or suggest features on [](https://github.com/state-alchemists/zrb/issues).
     *   Submit code changes via [GitHub Pull Requests](https://github.com/state-alchemists/zrb/pulls).
