@@ -155,13 +155,11 @@ flowchart TD
     Callback -->|executes| AnyTask
 
     %% Session/Context relations
-    Task -->|Runs in| Session
+    Session -->|runs| AnyTask
     Session -->|provides| Context
     Context -->|has| Env
     Context -->|has| Input
     Context -->|has| XCom
-    Task -->|defines| Env
-    Task -->|defines| Input
 ```
 
 > **Legend:**
