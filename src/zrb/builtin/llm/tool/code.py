@@ -86,8 +86,7 @@ async def analyze_repo(
     summarization_token_limit: int = 30000,
 ) -> str:
     """
-    Extract and summarize information from a directory that probably
-    contains a large resources.
+    Extract and summarize information from any directory.
     You should state the goal specifically so that the tool can return relevant informations.
     Use this tool for:
     - summarization

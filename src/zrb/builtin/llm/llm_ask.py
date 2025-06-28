@@ -127,13 +127,13 @@ llm_group.add_task(
 
 if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
     llm_ask.append_tool(
+        analyze_repo,
+        analyze_file,
+        search_files,
         list_files,
         read_from_file,
-        write_to_file,
-        search_files,
         apply_diff,
-        analyze_file,
-        analyze_repo,
+        write_to_file,
     )
 
 if CFG.LLM_ALLOW_ACCESS_SHELL:

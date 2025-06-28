@@ -88,6 +88,7 @@ class LLMRateLimiter:
             prompt_parts = prompt.split(" ")
             last_part_index = len(prompt_parts) - 2
             clipped_prompt = " ".join(prompt_parts[:last_part_index])
+            clipped_prompt += "(Content clipped...)"
             token_count = self.count_token(clipped_prompt)
             if token_count < limit:
                 return clipped_prompt
