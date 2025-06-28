@@ -90,14 +90,17 @@ Understanding these core concepts is key to effectively using Zrb.
 
 ```mermaid
 flowchart TD
-    %% Layout: group related nodes in subgraphs to avoid overlap
+    %% Improved layout: more subgraphs, explicit directions, and spacing for clarity
+
+    %% CLI & Group (left)
     subgraph CLI_Group ["CLI & Group"]
         direction TB
         CLI["💻 CLI"]
         Group["🏛️ Group<br/>(class)"]
     end
 
-    subgraph Task_Hierarchy ["Task Hierarchy"]
+    %% Task Interface & Hierarchy (center)
+    subgraph Task_Interface_Hierarchy ["Task Interface & Hierarchy"]
         direction TB
         AnyTask["🧩 AnyTask<br/>(interface)"]
         BaseTask["🏗️ BaseTask<br/>(core base class)"]
@@ -112,18 +115,25 @@ flowchart TD
         TcpCheck["📡 TcpCheck"]
     end
 
+    %% Properties (right of BaseTask)
+    subgraph Task_Properties ["BaseTask Properties"]
+        direction TB
+        Env["🌱 Env"]
+        Input["📝 Input"]
+        Context["🧠 Context (ctx)"]
+    end
+
+    %% Callback (far right)
     subgraph CallbackBlock ["Event/Callback"]
         direction TB
         Callback["🔔 Callback"]
     end
 
-    subgraph ContextBlock ["Session & Context"]
+    %% Session & XCom (bottom right)
+    subgraph ContextBlock ["Session, XCom, etc."]
         direction TB
         Session["🗃️ Session"]
-        Context["🧠 Context (ctx)"]
         XCom["🔄 XCom"]
-        Env["🌱 Env"]
-        Input["📝 Input"]
     end
 
     %% CLI/Group relations
@@ -131,8 +141,8 @@ flowchart TD
     Group -->|Has| Task
     Group -->|Has| Group
 
-    %% Task hierarchy
-    BaseTask -.->|implements| AnyTask
+    %% Task hierarchy and interface
+    AnyTask -.->|implemented by| BaseTask
     Task -->|inherits| BaseTask
     BaseTrigger -->|inherits| BaseTask
     Scheduler -->|inherits| BaseTrigger
@@ -143,24 +153,41 @@ flowchart TD
     RsyncTask -->|inherits| CmdTask
     TcpCheck -->|inherits| BaseTask
 
-    %% BaseTask properties and access
-    BaseTask -->|has| Env
-    BaseTask -->|has| Input
-    BaseTask -->|can access| Context
+    %% BaseTask properties and access (curved edges for clarity)
+    BaseTask -- "has" --> Env
+    BaseTask -- "has" --> Input
+    BaseTask -.->|can access| Context
 
-    %% Callback usage
+    %% Callback usage (avoid overlap)
     BaseTrigger -.->|uses callback| Callback
-    Callback -->|executes| AnyTask
+    Scheduler -.->|uses callback| Callback
+    Callback -- "executes" --> AnyTask
 
-    %% Session/Context relations
-    Task -->|Runs in| Session
-    Session -->|Provides| Context
-    Context -->|Has| Env
-    Context -->|Has| Input
-    Context -->|Has| XCom
-    Task -->|Defines| Env
-    Task -->|Defines| Input
-    Task -->|Uses| XCom
+    %% Session/Context relations (avoid crossing)
+    Task -- "Runs in" --> Session
+    Session -- "provides" --> Context
+    Context -- "has" --> Env
+    Context -- "has" --> Input
+    Context -- "has" --> XCom
+    Task -- "Defines" --> Env
+    Task -- "Defines" --> Input
+    Task -- "Uses" --> XCom
+
+    %% Spacing helpers (invisible nodes)
+    Empty1[""]:::invisible
+    Empty2[""]:::invisible
+    Empty3[""]:::invisible
+    style Empty1 fill:transparent,stroke:transparent
+    style Empty2 fill:transparent,stroke:transparent
+    style Empty3 fill:transparent,stroke:transparent
+
+    %% Placeholders to push Callback and Properties apart
+    BaseTask --- Empty1
+    Empty1 --- Env
+    Empty1 --- Input
+    Empty1 --- Context
+    Callback --- Empty2
+    AnyTask --- Empty3
 ```
 > **Legend:**
 > - 💻 CLI: Command-line interface entry point
