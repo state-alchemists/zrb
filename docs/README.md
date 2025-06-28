@@ -90,65 +90,49 @@ Understanding these core concepts is key to effectively using Zrb.
 
 ```mermaid
 flowchart TD
-    %% Core Types and Inheritance
-    subgraph Grouping
-        CLI["💻 cli"]
-        AnyGroup["AnyGroup"]
-        Group["Group"]
+    %% Layout: group related nodes in subgraphs to avoid overlap
+    subgraph CLI_Group ["CLI & Group"]
+        direction TB
+        CLI["💻 CLI"]
+        Group["🏛️ Group<br/>(class)"]
     end
 
-    subgraph TaskSystem
-        AnyTask["AnyTask"]
-        BaseTask["BaseTask"]
-        Task["Task"]
-        BaseTrigger["BaseTrigger"]
-        Scheduler["Scheduler"]
-        CmdTask["CmdTask"]
-        LLMTask["LLMTask"]
-        Scaffolder["Scaffolder"]
-        HttpCheck["HttpCheck"]
-        RsyncTask["RsyncTask"]
-        TcpCheck["TcpCheck"]
-        make_task["make_task"]
+    subgraph Task_Hierarchy ["Task Hierarchy"]
+        direction TB
+        AnyTask["🧩 AnyTask<br/>(interface)"]
+        BaseTask["🏗️ BaseTask<br/>(core base class)"]
+        Task["✅ Task<br/>(user-facing base)"]
+        BaseTrigger["⏩ BaseTrigger<br/>(event/callback base)"]
+        Scheduler["⏰ Scheduler<br/>(scheduled task)"]
+        CmdTask["🖥️ CmdTask"]
+        LLMTask["🤖 LLMTask"]
+        Scaffolder["🛠️ Scaffolder"]
+        HttpCheck["🌐 HttpCheck"]
+        RsyncTask["🔄 RsyncTask"]
+        TcpCheck["📡 TcpCheck"]
     end
 
-    subgraph CallbackSystem
-        AnyCallback["AnyCallback"]
-        Callback["Callback"]
+    subgraph CallbackBlock ["Event/Callback"]
+        direction TB
+        Callback["🔔 Callback"]
     end
 
-    subgraph ContextSystem
-        AnyContext["AnyContext"]
-        Context["Context"]
-        AnySharedContext["AnySharedContext"]
-        SharedContext["SharedContext"]
+    subgraph ContextBlock ["Session & Context"]
+        direction TB
+        Session["🗃️ Session"]
+        Context["🧠 Context (ctx)"]
+        XCom["🔄 XCom"]
+        Env["🌱 Env"]
+        Input["📝 Input"]
     end
 
-    subgraph EnvSystem
-        AnyEnv["AnyEnv"]
-        Env["Env"]
-        EnvFile["EnvFile"]
-        EnvMap["EnvMap"]
-    end
+    %% CLI/Group relations
+    CLI -->|Is a| Group
+    Group -->|Has| Task
+    Group -->|Has| Group
 
-    subgraph InputSystem
-        AnyInput["AnyInput"]
-        BaseInput["BaseInput"]
-        BoolInput["BoolInput"]
-        FloatInput["FloatInput"]
-        IntInput["IntInput"]
-        OptionInput["OptionInput"]
-        PasswordInput["PasswordInput"]
-        StrInput["StrInput"]
-        TextInput["TextInput"]
-    end
-
-    Xcom["Xcom"]
-    Session["Session"]
-
-    %% Inheritance
-    Group -->|inherits| AnyGroup
-    BaseTask -->|inherits| AnyTask
+    %% Task hierarchy
+    BaseTask -.->|implements| AnyTask
     Task -->|inherits| BaseTask
     BaseTrigger -->|inherits| BaseTask
     Scheduler -->|inherits| BaseTrigger
@@ -158,41 +142,31 @@ flowchart TD
     HttpCheck -->|inherits| BaseTask
     RsyncTask -->|inherits| CmdTask
     TcpCheck -->|inherits| BaseTask
-    Callback -->|inherits| AnyCallback
-    Context -->|inherits| AnyContext
-    SharedContext -->|inherits| AnySharedContext
-    Env -->|inherits| AnyEnv
-    BaseInput -->|inherits| AnyInput
-    BoolInput -->|inherits| BaseInput
-    FloatInput -->|inherits| BaseInput
-    IntInput -->|inherits| BaseInput
-    OptionInput -->|inherits| BaseInput
-    PasswordInput -->|inherits| BaseInput
-    StrInput -->|inherits| BaseInput
-    TextInput -->|inherits| BaseInput
 
-    %% Composition/Usage
-    CLI -->|uses| Group
-    Group -->|contains| Task
-    Group -->|contains| Group
+    %% BaseTask properties and access
+    BaseTask -->|has| Env
+    BaseTask -->|has| Input
+    BaseTask -->|can access| Context
+
+    %% Callback usage
+    BaseTrigger -.->|uses callback| Callback
     Callback -->|executes| AnyTask
-    AnyTask -->|has| AnyInput
-    AnyTask -->|has| AnyEnv
-    Session -->|provides| Context
-    Context -->|has| Env
-    Context -->|has| Input
 
-    %% Utility
-    %% Xcom is a utility, not a property of Task or Context, but is used for inter-task comms
-
-    %% Legend (not rendered in diagram)
-    %% - Only relationships present in code are shown (inheritance, composition, usage)
-    %% - Xcom is a utility, not a direct property of Task/Context
+    %% Session/Context relations
+    Task -->|Runs in| Session
+    Session -->|Provides| Context
+    Context -->|Has| Env
+    Context -->|Has| Input
+    Context -->|Has| XCom
+    Task -->|Defines| Env
+    Task -->|Defines| Input
+    Task -->|Uses| XCom
 ```
 > **Legend:**
 > - 💻 CLI: Command-line interface entry point
 > - 🏛️ Group: Group class for organizing tasks
 > - 🏗️ BaseTask: Core base class for all tasks
+> - 🧩 AnyTask: Task interface implemented by BaseTask
 > - ✅ Task: Main user-facing base class (inherits from BaseTask)
 > - ⏩ BaseTrigger: Event/callback base task
 > - ⏰ Scheduler: Scheduled/cron task
@@ -202,7 +176,7 @@ flowchart TD
 > - 🌐 HttpCheck: HTTP health check task
 > - 🔄 RsyncTask: File sync task
 > - 📡 TcpCheck: TCP port check task
-> - 🔔 Callback: Event/callback handler (used by triggers/schedulers, executes a Task)
+> - 🔔 Callback: Event/callback handler (used by triggers/schedulers, executes an AnyTask)
 > - 🗃️ Session: Execution session
 > - 🧠 Context: Task/session context
 > - 🔄 XCom: Cross-task communication
