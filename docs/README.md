@@ -99,8 +99,9 @@ flowchart TD
     Env["Environment Variables"]
     Input["Inputs"]
 
-    CLI --> Group
-    Group --> Task
+    CLI --> |Is a| Group
+    Group --> |Has| Task
+    Group --> |Has| Group
     Task -->|Runs in| Session
     Session -->|Provides| Context
     Context --> Env
