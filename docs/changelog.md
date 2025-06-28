@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.11
+
+- Update clipping mechanism
+
 # 1.8.10
 
 - Introduce payload clipping mechanism
