@@ -92,7 +92,8 @@ Understanding these core concepts is key to effectively using Zrb.
 flowchart TD
     CLI["💻 CLI"]
     Group["🏛️🗂️ Group<br/>(class)"]
-    BaseTask["🏗️ BaseTask<br/>(core base class)"]
+    AnyTask["🏗️ AnyTask<br/>(interface)"]
+    BaseTask["🏗️ BaseTask<br/>(class)"]
     Task["✅ Task<br/>(user-facing base)"]
     BaseTrigger["⏩ BaseTrigger<br/>(subclass)"]
     Scheduler["⏰ Scheduler<br/>(subclass)"]
@@ -110,18 +111,19 @@ flowchart TD
     Input["📝 Inputs"]
 
     CLI -->|Is a| Group
-    Group -->|Has| Task
+    Group -->|Has| AnyTask
     Group -->|Has| Group
-    Task -->|Runs in| Session
+    AnyTask -->|Runs in| Session
     Session -->|Provides| Context
     Context -->|Has| Env
     Context -->|Has| Input
     Context -->|Has| XCom
-    Task -->|Defines| Env
-    Task -->|Defines| Input
-    Task -->|Uses| XCom
+    AnyTask -->|Defines| Env
+    AnyTask -->|Defines| Input
+    AnyTask -->|Uses| XCom
 
     %% Subclass relationships (all labeled)
+    BaseTask -->|is a| AnyTask
     Task -->|inherits| BaseTask
     BaseTrigger -->|inherits| BaseTask
     Scheduler -->|inherits| BaseTrigger
@@ -135,7 +137,7 @@ flowchart TD
     %% Callback usage (association, not inheritance, labeled)
     BaseTrigger -.->|uses callback| Callback
     Scheduler -.->|uses callback| Callback
-    Callback -->|executes| Task
+    Callback -->|executes| AnyTask
 ```
 > **Note:**
 > - 🏛️ and 🏗️ indicate classes. **Group** and **BaseTask** are implemented as core classes in Zrb.
