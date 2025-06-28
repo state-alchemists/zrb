@@ -89,7 +89,7 @@ Start the Quick Start guide: [Build Your First Automation Workflow](./task/creat
 Understanding these core concepts is key to effectively using Zrb.
 
 ```mermaid
-flowchart TD
+flowchart LR
     %% Layout: group related nodes in subgraphs to avoid overlap
     subgraph CLI_Group ["CLI & Group"]
         direction TB
@@ -122,7 +122,7 @@ flowchart TD
         Session["🗃️ Session"]
         Context["🧠 Context (ctx)"]
         XCom["🔄 XCom"]
-        subgraph InputBlock ["Environment"]
+        subgraph EnvBlock ["Environment"]
             AnyEnv["🌱 AnyEnv<br/>(interface)"]
             EnvMap["🌱 EnvMap"]
             Env["🌱 Env"]
