@@ -93,6 +93,12 @@ flowchart TD
     CLI["💻 CLI"]
     Group["🏛️🗂️ Group<br/>(class)"]
     Task["🏛️✅ Task<br/>(class)"]
+    CmdTask["🖥️ CmdTask<br/>(subclass)"]
+    LLMTask["🤖 LLMTask<br/>(subclass)"]
+    Scaffolder["🛠️ Scaffolder<br/>(subclass)"]
+    HttpCheck["🌐 HttpCheck<br/>(subclass)"]
+    RsyncTask["🔄 RsyncTask<br/>(subclass)"]
+    TcpCheck["📡 TcpCheck<br/>(subclass)"]
     Session["🗃️ Session"]
     Context["🧠 Context (ctx)"]
     XCom["🔄 XCom"]
@@ -110,8 +116,17 @@ flowchart TD
     Task -->|Defines| Env
     Task -->|Defines| Input
     Task -->|Uses| XCom
+
+    %% Subclass relationships
+    CmdTask --|inherits|--> Task
+    LLMTask --|inherits|--> Task
+    Scaffolder --|inherits|--> Task
+    HttpCheck --|inherits|--> Task
+    RsyncTask --|inherits|--> Task
+    TcpCheck --|inherits|--> Task
 ```
 > **Note:** 🏛️ indicates a class. Both **Group** and **Task** are implemented as classes in Zrb.
+> Subclasses such as 🖥️ CmdTask, 🤖 LLMTask, 🛠️ Scaffolder, 🌐 HttpCheck, 🔄 RsyncTask, and 📡 TcpCheck inherit from Task.
 
 ### Tasks
 
