@@ -123,21 +123,21 @@ flowchart LR
         Context["🧠 Context (ctx)"]
         XCom["🔄 XCom"]
         subgraph EnvBlock ["Environment"]
-            AnyEnv["🌱 AnyEnv<br/>(interface)"]
-            EnvMap["🌱 EnvMap"]
-            Env["🌱 Env"]
-            EnvFile["🌱 EnvFile"]
+            AnyEnv["🧩 AnyEnv<br/>(interface)"]
+            Env["🌿 Env"]
+            EnvMap["🧬 EnvMap"]
+            EnvFile["📄 EnvFile"]
         end
         subgraph InputBlock ["Inputs"]
-            AnyInput["📝 AnyInput<br/>(interface)"]
-            BaseInput["📝 BaseInput"]
+            AnyInput["🧩 AnyInput<br/>(interface)"]
+            BaseInput["🏗️ BaseInput"]
             StrInput["📝 StrInput"]
-            IntInput["📝 IntInput"]
-            FloatInput["📝 FloatInput"]
-            BoolInput["📝 BoolInput"]
-            OptionInput["📝 OptionInput"]
-            PasswordInput["📝 PasswordInput"]
-            TextInput["📝 TextInput"]
+            IntInput["🧮 IntInput"]
+            FloatInput["🔢 FloatInput"]
+            BoolInput["🔘 BoolInput"]
+            OptionInput["🎚️ OptionInput"]
+            PasswordInput["🔑 PasswordInput"]
+            TextInput["🗒️ TextInput"]
         end
     end
 
@@ -182,7 +182,6 @@ flowchart LR
     EnvFile -->|inherits| EnvMap
 
     %% Expanded Input relationships
-    Input -->|inherits| AnyInput
     BaseInput -->|inherits| AnyInput
     StrInput -->|inherits| BaseInput
     IntInput -->|inherits| BaseInput
@@ -197,7 +196,18 @@ flowchart LR
 > - 💻 CLI: Command-line interface entry point
 > - 🏛️ Group: Group class for organizing tasks
 > - 🏗️ BaseTask: Core base class for all tasks
-> - 🧩 AnyTask: Task interface implemented by BaseTask
+> - 🧩 ... (interface): Interface/abstract base (e.g., AnyTask, AnyEnv, AnyInput)
+> - 🌿 Env: Single environment variable class
+> - 🧬 EnvMap: Environment variable map class
+> - 📄 EnvFile: Environment file loader class
+> - 🏗️ BaseInput: Base input class (parent of all concrete input types)
+> - 📝 StrInput: String input
+> - 🧮 IntInput: Integer input
+> - 🔢 FloatInput: Float input
+> - 🔘 BoolInput: Boolean input
+> - 🎚️ OptionInput: Option (select) input
+> - 🔑 PasswordInput: Password/secret input
+> - 🗒️ TextInput: Multi-line text input
 > - ✅ Task: Main user-facing base class (inherits from BaseTask)
 > - ⏩ BaseTrigger: Event/callback base task
 > - ⏰ Scheduler: Scheduled/cron task
@@ -211,8 +221,6 @@ flowchart LR
 > - 🗃️ Session: Execution session
 > - 🧠 Context: Task/session context
 > - 🔄 XCom: Cross-task communication
-> - 🌱 Env: Environment variables (see also: AnyEnv, EnvMap, EnvFile)
-> - 📝 Input: Task inputs (see also: AnyInput, BaseInput, StrInput, IntInput, FloatInput, BoolInput, OptionInput, PasswordInput, TextInput)
 >
 > **All edges are labeled. Subgraphs are used to avoid overlap and clarify relationships.**
 ### Tasks
