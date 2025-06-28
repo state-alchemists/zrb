@@ -92,42 +92,59 @@ Understanding these core concepts is key to effectively using Zrb.
 flowchart TD
     CLI["💻 CLI"]
     Group["🏛️🗂️ Group<br/>(class)"]
-    Task["🏛️✅ Task<br/>(class)"]
+    BaseTask["🏗️ BaseTask<br/>(core base class)"]
+    Task["✅ Task<br/>(user-facing base)"]
+    BaseTrigger["⏩ BaseTrigger<br/>(subclass)"]
+    Scheduler["⏰ Scheduler<br/>(subclass)"]
     CmdTask["🖥️ CmdTask<br/>(subclass)"]
     LLMTask["🤖 LLMTask<br/>(subclass)"]
     Scaffolder["🛠️ Scaffolder<br/>(subclass)"]
     HttpCheck["🌐 HttpCheck<br/>(subclass)"]
     RsyncTask["🔄 RsyncTask<br/>(subclass)"]
     TcpCheck["📡 TcpCheck<br/>(subclass)"]
+    Callback["🔔 Callback<br/>(event callback)"]
     Session["🗃️ Session"]
     Context["🧠 Context (ctx)"]
     XCom["🔄 XCom"]
     Env["🌱 Environment Variables"]
     Input["📝 Inputs"]
 
-    CLI --> |Is a| Group
-    Group --> |Has| Task
-    Group --> |Has| Group
+    CLI -->|Is a| Group
+    Group -->|Has| Task
+    Group -->|Has| Group
     Task -->|Runs in| Session
     Session -->|Provides| Context
-    Context --> Env
-    Context --> Input
-    Context --> XCom
+    Context -->|Has| Env
+    Context -->|Has| Input
+    Context -->|Has| XCom
     Task -->|Defines| Env
     Task -->|Defines| Input
     Task -->|Uses| XCom
 
-    %% Subclass relationships
-    CmdTask --|inherits|--> Task
-    LLMTask --|inherits|--> Task
-    Scaffolder --|inherits|--> Task
-    HttpCheck --|inherits|--> Task
-    RsyncTask --|inherits|--> Task
-    TcpCheck --|inherits|--> Task
-```
-> **Note:** 🏛️ indicates a class. Both **Group** and **Task** are implemented as classes in Zrb.
-> Subclasses such as 🖥️ CmdTask, 🤖 LLMTask, 🛠️ Scaffolder, 🌐 HttpCheck, 🔄 RsyncTask, and 📡 TcpCheck inherit from Task.
+    %% Subclass relationships (all labeled)
+    Task -->|inherits| BaseTask
+    BaseTrigger -->|inherits| BaseTask
+    Scheduler -->|inherits| BaseTrigger
+    CmdTask -->|inherits| BaseTask
+    LLMTask -->|inherits| BaseTask
+    Scaffolder -->|inherits| BaseTask
+    HttpCheck -->|inherits| BaseTask
+    RsyncTask -->|inherits| CmdTask
+    TcpCheck -->|inherits| BaseTask
 
+    %% Callback usage (association, not inheritance, labeled)
+    BaseTrigger -.->|uses callback| Callback
+    Scheduler -.->|uses callback| Callback
+    Callback -->|executes| Task
+```
+> **Note:**
+> - 🏛️ and 🏗️ indicate classes. **Group** and **BaseTask** are implemented as core classes in Zrb.
+> - 🏗️ **BaseTask** is the core base class for all tasks.
+> - ✅ **Task** is the main user-facing base class (inherits from BaseTask).
+> - ⏩ **BaseTrigger** and ⏰ **Scheduler** are for event/callback and scheduled tasks.
+> - 🖥️ CmdTask, 🤖 LLMTask, 🛠️ Scaffolder, 🌐 HttpCheck, 🔄 RsyncTask, and 📡 TcpCheck are built-in task types, all inheriting (directly or indirectly) from BaseTask.
+> - 🔔 **Callback** is the event/callback handler used by triggers and schedulers for event-driven execution, and executes a Task.
+> - **All edges in the diagram are now labeled using the Mermaid pipe syntax.**
 ### Tasks
 
 Tasks are the fundamental units of work in Zrb. Each task represents a specific action or step in your automation workflow. Tasks can be defined using Python classes or functions and can have inputs, environment variables, dependencies, and actions.
