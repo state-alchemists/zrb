@@ -122,23 +122,24 @@ flowchart LR
         Session["🗃️ Session"]
         Context["🧠 Context (ctx)"]
         XCom["🔄 XCom"]
-        subgraph EnvBlock ["Environment"]
-            AnyEnv["🧩 AnyEnv<br/>(interface)"]
-            Env["🌿 Env"]
-            EnvMap["🧬 EnvMap"]
-            EnvFile["📄 EnvFile"]
-        end
-        subgraph InputBlock ["Inputs"]
-            AnyInput["🧩 AnyInput<br/>(interface)"]
-            BaseInput["🏗️ BaseInput"]
-            StrInput["📝 StrInput"]
-            IntInput["🧮 IntInput"]
-            FloatInput["🔢 FloatInput"]
-            BoolInput["🔘 BoolInput"]
-            OptionInput["🎚️ OptionInput"]
-            PasswordInput["🔑 PasswordInput"]
-            TextInput["🗒️ TextInput"]
-        end
+    end
+
+    subgraph EnvBlock ["Environment"]
+        AnyEnv["🧩 AnyEnv<br/>(interface)"]
+        Env["🌿 Env"]
+        EnvMap["🧬 EnvMap"]
+        EnvFile["📄 EnvFile"]
+    end
+    subgraph InputBlock ["Inputs"]
+        AnyInput["🧩 AnyInput<br/>(interface)"]
+        BaseInput["🏗️ BaseInput"]
+        StrInput["📝 StrInput"]
+        IntInput["🧮 IntInput"]
+        FloatInput["🔢 FloatInput"]
+        BoolInput["🔘 BoolInput"]
+        OptionInput["🎚️ OptionInput"]
+        PasswordInput["🔑 PasswordInput"]
+        TextInput["🗒️ TextInput"]
     end
 
     %% CLI/Group relations
