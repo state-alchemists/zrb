@@ -90,14 +90,14 @@ Understanding these core concepts is key to effectively using Zrb.
 
 ```mermaid
 flowchart TD
-    CLI["CLI"]
-    Group["Group"]
-    Task["Task"]
-    Session["Session"]
-    Context["Context (ctx)"]
-    XCom["XCom"]
-    Env["Environment Variables"]
-    Input["Inputs"]
+    CLI["💻 CLI"]
+    Group["🏛️🗂️ Group<br/>(class)"]
+    Task["🏛️✅ Task<br/>(class)"]
+    Session["🗃️ Session"]
+    Context["🧠 Context (ctx)"]
+    XCom["🔄 XCom"]
+    Env["🌱 Environment Variables"]
+    Input["📝 Inputs"]
 
     CLI --> |Is a| Group
     Group --> |Has| Task
@@ -111,6 +111,7 @@ flowchart TD
     Task -->|Defines| Input
     Task -->|Uses| XCom
 ```
+> **Note:** 🏛️ indicates a class. Both **Group** and **Task** are implemented as classes in Zrb.
 
 ### Tasks
 
