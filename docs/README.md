@@ -122,8 +122,24 @@ flowchart TD
         Session["🗃️ Session"]
         Context["🧠 Context (ctx)"]
         XCom["🔄 XCom"]
-        Env["🌱 Env"]
-        Input["📝 Input"]
+    end
+
+    subgraph InputBlock ["Env"]
+        AnyEnv["🌱 AnyEnv<br/>(interface)"]
+        EnvMap["🌱 EnvMap"]
+        EnvFile["🌱 EnvFile"]
+    end
+
+    subgraph InputBlock ["Input"]
+        AnyInput["📝 AnyInput<br/>(interface)"]
+        BaseInput["📝 BaseInput"]
+        StrInput["📝 StrInput"]
+        IntInput["📝 IntInput"]
+        FloatInput["📝 FloatInput"]
+        BoolInput["📝 BoolInput"]
+        OptionInput["📝 OptionInput"]
+        PasswordInput["📝 PasswordInput"]
+        TextInput["📝 TextInput"]
     end
 
     %% CLI/Group relations
@@ -144,8 +160,8 @@ flowchart TD
     TcpCheck -->|inherits| BaseTask
 
     %% BaseTask properties and access
-    BaseTask -->|has| Env
-    BaseTask -->|has| Input
+    BaseTask -->|has| AnyEnv
+    BaseTask -->|has| AnyInput
     BaseTask -->|accesses| Context
     AnyTask -->|is upstream of| BaseTask
     AnyTask -->|is checker of| BaseTask
@@ -157,9 +173,25 @@ flowchart TD
     %% Session/Context relations
     Session -->|runs| AnyTask
     Session -->|provides| Context
-    Context -->|has| Env
-    Context -->|has| Input
+    Context -->|has| AnyEnv
+    Context -->|has| AnyInput
     Context -->|has| XCom
+
+    %% Expanded Env relationships
+    Env -->|inherits| AnyEnv
+    EnvMap -->|inherits| AnyEnv
+    EnvFile -->|inherits| EnvMap
+
+    %% Expanded Input relationships
+    Input -->|inherits| AnyInput
+    BaseInput -->|inherits| AnyInput
+    StrInput -->|inherits| BaseInput
+    IntInput -->|inherits| BaseInput
+    FloatInput -->|inherits| BaseInput
+    BoolInput -->|inherits| BaseInput
+    OptionInput -->|inherits| BaseInput
+    PasswordInput -->|inherits| BaseInput
+    TextInput -->|inherits| BaseInput
 ```
 
 > **Legend:**
@@ -180,8 +212,8 @@ flowchart TD
 > - 🗃️ Session: Execution session
 > - 🧠 Context: Task/session context
 > - 🔄 XCom: Cross-task communication
-> - 🌱 Env: Environment variables
-> - 📝 Input: Task inputs
+> - 🌱 Env: Environment variables (see also: AnyEnv, EnvMap, EnvFile)
+> - 📝 Input: Task inputs (see also: AnyInput, BaseInput, StrInput, IntInput, FloatInput, BoolInput, OptionInput, PasswordInput, TextInput)
 >
 > **All edges are labeled. Subgraphs are used to avoid overlap and clarify relationships.**
 ### Tasks
@@ -219,13 +251,32 @@ A Session represents a single execution run of one or more Zrb tasks. It manages
 
 ### Inputs
 
-Inputs are used to pass parameters to your tasks. You can define various types of inputs (string, integer, boolean, options) with default values and descriptions. Zrb handles prompting the user for input if not provided via the command line or other means.
+Inputs are used to pass parameters to your tasks. Zrb provides a flexible input system with multiple input types, each designed for different use cases. You can define various types of inputs (string, integer, boolean, options, etc.) with default values and descriptions. Zrb handles prompting the user for input if not provided via the command line or other means.
+
+**Available Input Types:**
+
+- **AnyInput**: The abstract base class/interface for all input types. All input types inherit from this and must implement its required methods and properties.
+- **BaseInput**: A concrete base class that implements most of the logic for standard inputs. Most input types extend this.
+- **StrInput**: Standard string input. Accepts any string value.
+- **IntInput**: Integer input. Accepts integer values, with optional default and prompt.
+- **FloatInput**: Floating-point input. Accepts decimal numbers.
+- **BoolInput**: Boolean input. Accepts true/false values, typically rendered as a select/dropdown.
+- **OptionInput**: Input with a predefined set of string options. Renders as a dropdown/select in UI and validates input against allowed options.
+- **PasswordInput**: Input for sensitive data (e.g., passwords). Hides input in CLI and UI.
+- **TextInput**: Multi-line text input, optionally opened in an external editor. Useful for longer text or code snippets.
 
 *   [Documentation on Inputs](./input.md)
 
 ### Environment Variables
 
 Environment variables are used for configuration. Zrb allows you to define environment variables for tasks, load them from `.env` files, and link them to system environment variables. These are accessible via the `ctx.env` object.
+
+**Available Environment Variable Types:**
+
+- **AnyEnv**: The abstract base class/interface for all environment variable types. All env types inherit from this and must implement its required methods.
+- **Env**: Represents a single environment variable, with support for default values, auto-rendering, and linking to OS environment variables.
+- **EnvMap**: Represents a collection (map) of environment variables, which can be defined as a static dictionary or generated dynamically via a function.
+- **EnvFile**: Loads environment variables from a `.env` file using the `dotenv` format. Inherits from EnvMap and supports auto-rendering and OS variable linking.
 
 *   [Documentation on Environment Variables](./env.md)
 
