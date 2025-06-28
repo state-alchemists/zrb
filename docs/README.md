@@ -88,6 +88,29 @@ Start the Quick Start guide: [Build Your First Automation Workflow](./task/creat
 
 Understanding these core concepts is key to effectively using Zrb.
 
+```mermaid
+flowchart TD
+    CLI["CLI"]
+    Group["Group"]
+    Task["Task"]
+    Session["Session"]
+    Context["Context (ctx)"]
+    XCom["XCom"]
+    Env["Environment Variables"]
+    Input["Inputs"]
+
+    CLI --> Group
+    Group --> Task
+    Task -->|Runs in| Session
+    Session -->|Provides| Context
+    Context --> Env
+    Context --> Input
+    Context --> XCom
+    Task -->|Defines| Env
+    Task -->|Defines| Input
+    Task -->|Uses| XCom
+```
+
 ### Tasks
 
 Tasks are the fundamental units of work in Zrb. Each task represents a specific action or step in your automation workflow. Tasks can be defined using Python classes or functions and can have inputs, environment variables, dependencies, and actions.
