@@ -90,40 +90,47 @@ Understanding these core concepts is key to effectively using Zrb.
 
 ```mermaid
 flowchart TD
-    CLI["💻 CLI"]
-    Group["🏛️🗂️ Group<br/>(class)"]
-    AnyTask["🏗️ AnyTask<br/>(interface)"]
-    BaseTask["🏗️ BaseTask<br/>(class)"]
-    Task["✅ Task<br/>(user-facing base)"]
-    BaseTrigger["⏩ BaseTrigger<br/>(subclass)"]
-    Scheduler["⏰ Scheduler<br/>(subclass)"]
-    CmdTask["🖥️ CmdTask<br/>(subclass)"]
-    LLMTask["🤖 LLMTask<br/>(subclass)"]
-    Scaffolder["🛠️ Scaffolder<br/>(subclass)"]
-    HttpCheck["🌐 HttpCheck<br/>(subclass)"]
-    RsyncTask["🔄 RsyncTask<br/>(subclass)"]
-    TcpCheck["📡 TcpCheck<br/>(subclass)"]
-    Callback["🔔 Callback<br/>(event callback)"]
-    Session["🗃️ Session"]
-    Context["🧠 Context (ctx)"]
-    XCom["🔄 XCom"]
-    Env["🌱 Environment Variables"]
-    Input["📝 Inputs"]
+    %% Layout: group related nodes in subgraphs to avoid overlap
+    subgraph CLI_Group ["CLI & Group"]
+        direction TB
+        CLI["💻 CLI"]
+        Group["🏛️ Group<br/>(class)"]
+    end
 
+    subgraph Task_Hierarchy ["Task Hierarchy"]
+        direction TB
+        BaseTask["🏗️ BaseTask<br/>(core base class)"]
+        Task["✅ Task<br/>(user-facing base)"]
+        BaseTrigger["⏩ BaseTrigger<br/>(event/callback base)"]
+        Scheduler["⏰ Scheduler<br/>(scheduled task)"]
+        CmdTask["🖥️ CmdTask"]
+        LLMTask["🤖 LLMTask"]
+        Scaffolder["🛠️ Scaffolder"]
+        HttpCheck["🌐 HttpCheck"]
+        RsyncTask["🔄 RsyncTask"]
+        TcpCheck["📡 TcpCheck"]
+    end
+
+    subgraph CallbackBlock ["Event/Callback"]
+        direction TB
+        Callback["🔔 Callback"]
+    end
+
+    subgraph ContextBlock ["Session & Context"]
+        direction TB
+        Session["🗃️ Session"]
+        Context["🧠 Context (ctx)"]
+        XCom["🔄 XCom"]
+        Env["🌱 Env"]
+        Input["📝 Input"]
+    end
+
+    %% CLI/Group relations
     CLI -->|Is a| Group
-    Group -->|Has| AnyTask
+    Group -->|Has| Task
     Group -->|Has| Group
-    AnyTask -->|Runs in| Session
-    Session -->|Provides| Context
-    Context -->|Has| Env
-    Context -->|Has| Input
-    Context -->|Has| XCom
-    AnyTask -->|Defines| Env
-    AnyTask -->|Defines| Input
-    AnyTask -->|Uses| XCom
 
-    %% Subclass relationships (all labeled)
-    BaseTask -->|is a| AnyTask
+    %% Task hierarchy
     Task -->|inherits| BaseTask
     BaseTrigger -->|inherits| BaseTask
     Scheduler -->|inherits| BaseTrigger
@@ -134,19 +141,42 @@ flowchart TD
     RsyncTask -->|inherits| CmdTask
     TcpCheck -->|inherits| BaseTask
 
-    %% Callback usage (association, not inheritance, labeled)
+    %% Callback usage
     BaseTrigger -.->|uses callback| Callback
     Scheduler -.->|uses callback| Callback
-    Callback -->|executes| AnyTask
+    Callback -->|executes| Task
+
+    %% Session/Context relations
+    Task -->|Runs in| Session
+    Session -->|Provides| Context
+    Context -->|Has| Env
+    Context -->|Has| Input
+    Context -->|Has| XCom
+    Task -->|Defines| Env
+    Task -->|Defines| Input
+    Task -->|Uses| XCom
 ```
-> **Note:**
-> - 🏛️ and 🏗️ indicate classes. **Group** and **BaseTask** are implemented as core classes in Zrb.
-> - 🏗️ **BaseTask** is the core base class for all tasks.
-> - ✅ **Task** is the main user-facing base class (inherits from BaseTask).
-> - ⏩ **BaseTrigger** and ⏰ **Scheduler** are for event/callback and scheduled tasks.
-> - 🖥️ CmdTask, 🤖 LLMTask, 🛠️ Scaffolder, 🌐 HttpCheck, 🔄 RsyncTask, and 📡 TcpCheck are built-in task types, all inheriting (directly or indirectly) from BaseTask.
-> - 🔔 **Callback** is the event/callback handler used by triggers and schedulers for event-driven execution, and executes a Task.
-> - **All edges in the diagram are now labeled using the Mermaid pipe syntax.**
+> **Legend:**
+> - 💻 CLI: Command-line interface entry point
+> - 🏛️ Group: Group class for organizing tasks
+> - 🏗️ BaseTask: Core base class for all tasks
+> - ✅ Task: Main user-facing base class (inherits from BaseTask)
+> - ⏩ BaseTrigger: Event/callback base task
+> - ⏰ Scheduler: Scheduled/cron task
+> - 🖥️ CmdTask: Command execution task
+> - 🤖 LLMTask: Language model/AI task
+> - 🛠️ Scaffolder: File/template generation task
+> - 🌐 HttpCheck: HTTP health check task
+> - 🔄 RsyncTask: File sync task
+> - 📡 TcpCheck: TCP port check task
+> - 🔔 Callback: Event/callback handler (used by triggers/schedulers, executes a Task)
+> - 🗃️ Session: Execution session
+> - 🧠 Context: Task/session context
+> - 🔄 XCom: Cross-task communication
+> - 🌱 Env: Environment variables
+> - 📝 Input: Task inputs
+>
+> **All edges are labeled. Subgraphs are used to avoid overlap and clarify relationships.**
 ### Tasks
 
 Tasks are the fundamental units of work in Zrb. Each task represents a specific action or step in your automation workflow. Tasks can be defined using Python classes or functions and can have inputs, environment variables, dependencies, and actions.
