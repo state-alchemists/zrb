@@ -26,13 +26,20 @@ flowchart LR
         TcpCheck["📡 TcpCheck<br/>(class)"]
     end
 
+    subgraph ContentTransformer ["ContentTransfomer"]
+        direction TB
+        Callback["🔔 Callback<br/>(class)"]
+    end
+
     subgraph CallbackBlock ["Event/Callback"]
         direction TB
+        AnyCallback["🧩 AnyCallback<br/>(interface)"]
         Callback["🔔 Callback<br/>(class)"]
     end
 
     subgraph ContextBlock ["Session & Context"]
         direction TB
+        AnySession["🧩 AnySession<br/>(interface)"]
         Session["🗃️ Session<br/>(class)"]
         Context["🧠 Context (ctx)<br/>(class)"]
         XCom["🔄 XCom"]
@@ -83,8 +90,10 @@ flowchart LR
     %% Callback usage
     BaseTrigger -->|has| Callback
     Callback -->|executes| AnyTask
+    Callback -->|implements| AnyCallback
 
     %% Session/Context relations
+    Session -->|implements| AnySession
     Session -->|runs| AnyTask
     Session -->|provides| Context
     Context -->|has| AnyEnv
