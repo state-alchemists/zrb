@@ -1,8 +1,37 @@
-🔖 [Documentation Home](../README.md) > Environment Variables
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Core Concepts](../README.md) > [Env](./README.md)
 
-# Environment Variables
+# Env
 
-This document explains how to define and access environment variables within your Zrb tasks. For information on configuring Zrb itself using environment variables, see the [Configuration](configuration.md) guide.
+Use `task`'s `env` to get environment variable values.
+
+You can access `env` by using `ctx.env` property.
+
+```python
+from zrb import cli, CmdTask, Env
+
+cli.add_task(
+  CmdTask(
+    name="hello",
+    env=[
+      Env(name="USER", default="nobody"),
+      Env(name="SHELL", default="sh"),
+    ],
+    cmd="echo Hello {ctx.env.USER}, your shell is {ctx.env.sh}",
+  )
+)
+```
+
+You can invoke the task as follows
+
+```sh
+zrb hello
+```
+
+```
+Hello gofrendi, your shell is zsh
+```
+
+This document explains how to define and access environment variables within your Zrb tasks. For information on configuring Zrb itself using environment variables, see the [Configuration guide](../../installation-and-configuration/configuration/README.md).
 
 Environment variables allow tasks to access system or user-defined environment variables:
 
@@ -81,6 +110,3 @@ task = Task(
     ),
     action=lambda ctx: print(f"API Key: {ctx.env.API_KEY}")
 )
-```
-
-🔖 [Documentation Home](../README.md)

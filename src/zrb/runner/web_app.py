@@ -39,7 +39,7 @@ def create_web_app(
     async def lifespan(app: FastAPI):
         capitalized_group_name = CFG.ROOT_GROUP_NAME.capitalize()
         for line in CFG.BANNER.split("\n") + [
-            f"{capitalized_group_name} Server running on http://localhost:{web_auth_config.port}"
+            f"{capitalized_group_name} Server running on http://localhost:{CFG.WEB_HTTP_PORT}"
         ]:
             print(line, file=sys.stderr)
         yield

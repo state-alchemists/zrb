@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.12
+
+- 💥 Breaking change: Remove `port` from `web_auth_config`
+- Revamp docs
+
+
 # 1.8.11
 
 - Update clipping mechanism

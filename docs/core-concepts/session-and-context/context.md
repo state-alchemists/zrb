@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../README.md) > Context
+🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [Context](./context.md)
 
 # Context
 
@@ -67,5 +67,3 @@ cli.add_task(example_task)
 ```
 
 The `Context` object provides a powerful way for your tasks to be dynamic and interact with the Zrb execution environment.
-
-[Back to Documentation](../README.md)

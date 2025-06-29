@@ -1,6 +1,37 @@
-🔖 [Documentation Home](../README.md) > Inputs
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Core Concepts](../README.md) > [Input](./README.md)
 
-# Inputs
+# Input
+
+Use `task`'s `input` to get user inputs.
+
+You can access `input` by using `ctx.input` property.
+
+```python
+from zrb import cli, CmdTask, StrInput
+
+cli.add_task(
+  CmdTask(
+    name="hello",
+    input=[
+      StrInput(name="name"),
+      StrInput(name="prefix"),
+    ],
+    cmd="echo Hello {ctx.input.prefix} {ctx.input.name}",
+  )
+)
+```
+
+You can run the task while providing the inputs, or you can trigger the interactive session.
+
+```sh
+zrb hello --name Edward --prefix Mr
+# or
+zrb hello
+```
+
+```
+Hello Mr Edward
+```
 
 Inputs allow tasks to receive parameters from users or other tasks, providing flexibility and interactivity. They are distinct from environment variables, which are typically used for configuration.
 
@@ -29,5 +60,3 @@ cli.add_task(task)  # Don't forget to register the task
 ```
 
 Inputs can be accessed in the task's action via the `ctx.input` object.
-
-🔖 [Documentation Home](../README.md)

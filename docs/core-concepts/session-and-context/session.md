@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../README.md) > Session
+🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [Session](./session.md)
 
 # Session
 
@@ -28,5 +28,3 @@ Tasks are the units of work, and they are executed *within* a session. The sessi
 The `Context` object is the interface through which a task interacts with the session and accesses data. Each task receives its own `Context` instance from the session via the `ctx` parameter in its `action` method. This context includes access to the `SharedContext` of the session.
 
 For more details on the `Context` object and the data it provides to tasks, see the [Context documentation](context.md).
-
-[Back to Documentation](../README.md)

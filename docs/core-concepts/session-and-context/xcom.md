@@ -1,6 +1,27 @@
-🔖 [Documentation Home](../README.md) > XCom
+🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [XCom](./xcom.md)
 
-# XCom (Cross-Communication)
+# XCom
+
+Use `xcom` for inter-`task` communication.
+
+You can think of `xcom` as a dictionary of [`deque`](https://docs.python.org/3/library/collections.html#collections.deque). You can manually create a key and push a value to it or pop its value.
+
+Zrb automatically pushes a task's return value to the `xcom`.
+
+You can access `xcom` by using `ctx.xcom`.
+
+```python
+from zrb import cli, CmdTask
+
+create_magic_number = CmdTask(name="create-magic-number", cmd="echo 42")
+cli.add_task(
+  CmdTask(
+    name="show-magic-number",
+    upstream=create_magic_number,
+    cmd="echo {ctx.xcom['create-magic-number'].pop()}",
+  )
+)
+```
 
 XCom, or Cross-Communication, is a mechanism in Zrb that allows tasks to exchange small amounts of data. This is particularly useful for passing results or information between dependent tasks in a workflow.
 
@@ -57,5 +78,3 @@ cli.add_task(task2)
 ```
 
 XCom is designed for passing small, serializable data between tasks. For larger data or more complex inter-task communication patterns, consider alternative approaches.
-
-[Back to Documentation](../README.md)
