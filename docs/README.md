@@ -1,248 +1,212 @@
 🔖 [Home](../../README.md)
 
-# Zrb Documentation
+# Welcome to the Zrb Documentation!
 
-Welcome to the official documentation for Zrb, your automation powerhouse!
+Zrb is a powerful and flexible automation tool designed to make your life easier. It helps you streamline repetitive tasks, build custom workflows with Python, and even integrate with modern technologies like Large Language Models (LLMs).
 
-Zrb is a powerful and flexible tool designed to help you automate repetitive tasks, integrate with modern technologies like Large Language Models (LLMs), and build custom workflows using Python. Whether you are a beginner looking to automate simple scripts or an experienced developer building complex CI/CD pipelines, Zrb provides the tools and structure you need.
+Whether you're a beginner looking to automate your first script or an experienced developer building complex CI/CD pipelines, Zrb provides the structure and tools you need to get the job done. This documentation is your guide to mastering Zrb, from its core principles to its most advanced features.
 
-This documentation is your starting point to learn more about Zrb, understand its core concepts, and explore its capabilities.
+## The Core Principles
 
-## Basic Principles
+Zrb is designed to be intuitive. Here are the key principles to keep in mind as you get started.
 
-When working with Zrb, there are some common principles you should have in mind.
+### 1. Everything Starts with `zrb_init.py`
 
-* **Everything defined in `zrb_init.py`.**
-    * You can place `zrb_init.py` anywhere.
-    * You can define tasks, groups, and configurations in your `zrb_init.py`
-    * Any tasks and configurations defined in `<dir>/zrb_init.py` will works on the `<dir>` as well as its sub-directories. 
+This is your magic file. When you run `zrb`, it looks for `zrb_init.py` in the current directory and all parent directories. This creates a powerful inheritance system.
 
-    ```mermaid
-    flowchart LR
-    subgraph homeDir ["/a (Can Access A)"]
-        homeDirZrbInit["/a/zrb_init.py<br/>(Define A)"]
-        subgraph projectDir ["/a/b (Can access A and B)"]
-            projectDirZrbInit["/a/b/zrb_init.py<br />(Define B)"]
-            subgraph subProjectDir ["/a/b/c (Can access A, B and C)"]
-                subProjectDirZrbInit["/a/b/c/zrb_init.py<br />(Define C)"]
-            end
-        end
-        subgraph otherProjectDir ["/a/d (Can access A and D)"]
-            otherProjectDirZrbInit["zrb_init.py<br />(Define D)"]
+*   Place a `zrb_init.py` in any directory to define tasks and configurations.
+*   Tasks defined in a parent directory are available in all its subdirectories.
+
+```mermaid
+flowchart LR
+subgraph homeDir ["/a (Can Access A)"]
+    homeDirZrbInit["/a/zrb_init.py<br/>(Define A)"]
+    subgraph projectDir ["/a/b (Can access A and B)"]
+        projectDirZrbInit["/a/b/zrb_init.py<br />(Define B)"]
+        subgraph subProjectDir ["/a/b/c (Can access A, B and C)"]
+            subProjectDirZrbInit["/a/b/c/zrb_init.py<br />(Define C)"]
         end
     end
-    ```
-* **Task access hierarchy always started with a `cli`**
+    subgraph otherProjectDir ["/a/d (Can access A and D)"]
+        otherProjectDirZrbInit["zrb_init.py<br />(Define D)"]
+    end
+end
+```
 
-  You can add `groups` or `tasks` to the `cli`.
-  
-  You can also add `groups` inside existing `groups`.
-  
-  But you have to make sure that everything started with a `cli`. Otherwise, your `tasks` or `groups` won't be accessible.
+### 2. The `cli` Object is Your Entry Point
 
-  ```python
-  from zrb import cli, Group, CmdTask
-  
-  # make and register "hello", task to the cli. 
-  cli.add_task(CmdTask(name="hello", cmd="echo hello"))
+All tasks must be connected to the global `cli` object to be accessible. You can add tasks directly or organize them into `Group`s.
 
-  # make and register "alarm" group to the cli.
-  alarm_group = cli.add_group(Group(name="alarm"))
-  # make and register "wake-up" task to the "alarm" group.
-  alarm_group.add_task(CmdTask(name="wake-up", cmd="echo wake up!"))
+```python
+from zrb import cli, Group, CmdTask
 
-  # make and register "critical" group to the cli.
-  alarm_critical_group = alarm_group.add_group(Group(name="critical"))
-  # make and register "fire" task to the "critical" group.
-  alarm_critical_group.add_task(CmdTask(name="fire", cmd="echo fire!!!"))
-  ```
-  
-  The mental model hierarchy will be:
+# Add a task directly to the cli
+cli.add_task(CmdTask(name="hello", cmd="echo hello"))
 
-  ```
-  cli
+# Organize tasks in a group
+alarm_group = cli.add_group(Group(name="alarm"))
+alarm_group.add_task(CmdTask(name="wake-up", cmd="echo 'Wake up!'"))
+
+alarm_critical_group = alarm_group.add_group(Group(name="critical"))
+alarm_critical_group.add_task(CmdTask(name="fire", cmd="echo 'Fire!!!'"))
+
+```
+
+
+The resulting hierarchy can be visualized as:
+
+```
+cli
     [task] hello          zrb hello
     [group] alarm
-      [task] wake-up      zrb alarm wake-up
-      [group] critical
-        [task] fire       zrb alarm critical fire
-  ```
+        [task] wake-up      zrb alarm wake-up
+        [group] critical
+            [task] fire       zrb alarm critical fire
+```
 
-* **You can use `upstreams` parameter or `>>` operator to define task dependencies.**
-  
-  Whenever Zrb run a `task`, it will first check for all its upstreams to be completed.
-  
-  As each Task can have their own `retries` strategy, having a multiple task with dependencies to each others makes a more efficient retry attempts.
 
-  ```python
-  from zrb import cli, CmdTask
 
-  become_novice = CmdTask(name="become-novice", cmd="echo become novice")
-  become_merchant = CmdTask(
+### 3. Define Dependencies with `upstream`
+
+
+Before Zrb runs a task, it verifies that all its upstream dependencies have been completed.
+
+By assigning individual retry strategies to each task, you can create more resilient and efficient workflows.
+
+```python
+from zrb import cli, CmdTask
+
+become_novice = CmdTask(name="become-novice", cmd="echo become novice")
+become_merchant = CmdTask(
     name="become-merchant",
     cmd="echo become merchant",
-    upstream=become_novice,  # To be a merchant, you should be a novice first.
-  )
-  become_alchemist = cli.add_task(
+    upstream=become_novice,  # To become a merchant, you must first be a novice.
+)
+become_alchemist = cli.add_task(
     CmdTask(
-      name="become-alchemist",
-      cmd="echo become alchemist",
-      upstream=become_merchant,  # To be an achemist, you should be a merchant first.
+        name="become-alchemist",
+        cmd="echo become alchemist",
+        upstream=become_merchant,  # To become an alchemist, you must first be a merchant.
     )
-  )
-  ```
+)
+```
 
-  or
+or
 
-  ```python
-  from zrb import cli, CmdTask
+```python
+from zrb import cli, CmdTask
 
-  become_novice = CmdTask(name="become-novice", cmd="echo become novice")
-  become_merchant = CmdTask(name="become-merchant", cmd="echo become merchant")
-  become_alchemist = cli.add_task(CmdTask(name="become-alchemist", cmd="echo become alchemist"))
+become_novice = CmdTask(name="become-novice", cmd="echo become novice")
+become_merchant = CmdTask(name="become-merchant", cmd="echo become merchant")
+become_alchemist = cli.add_task(CmdTask(name="become-alchemist", cmd="echo become alchemist"))
 
-  become_novice >> become_merchant >> become_alchemist
-  ```
-  
-  As `become_alchemist` depends on `become_merchant`, and `become_merchant` depends on `become_novice`, you can see the tasks will always run in sequence whenever you invoke the `become-alchemist` task.
+become_novice >> become_merchant >> become_alchemist
+```
 
-  ```sh
-  zrb become-alchemist
-  ```
+Because `become_alchemist` depends on `become_merchant`, and `become_merchant` depends on `become_novice`, the tasks will always run in that sequence when you invoke the `become-alchemist` task.
 
-  ```
-  become novice
-  become merchant
-  become alchemist
-  ```
+```sh
+zrb become-alchemist
+```
 
-* **Use `task`'s `input` to get user inputs.**
+```
+become novice
+become merchant
+become alchemist
+```
 
-  You can access `input` by using `ctx.input` property.
-  
-  ```python
-  from zrb import cli, CmdTask, StrInput
+### 4. Gather User Input with `input`
 
-  cli.add_task(
+Make your tasks interactive by defining `input`s. Zrb will prompt the user if values are not provided as flags.
+
+```python
+from zrb import cli, CmdTask, StrInput
+
+cli.add_task(
     CmdTask(
-      name="hello",
-      input=[
-        StrInput(name="name"),
-        StrInput(name="prefix"),
-      ],
-      cmd="echo Hello {ctx.input.prefix} {ctx.input.name}",
+        name="hello",
+        input=[
+            StrInput(name="name"),
+            StrInput(name="prefix", default="Mr./Ms."),
+        ],
+        cmd="echo 'Hello {ctx.input.prefix} {ctx.input.name}'",
     )
-  )
-  ```
+)
+```
 
-  You can run the task while providing the inputs, or you can trigger the interactive session.
+### 5. Access Environment Variables with `env`
 
-  ```sh
-  zrb hello --name Edward --prefix Mr
-  # or
-  zrb hello
-  ```
+Use the `env` parameter to define and access environment variables within your tasks via `ctx.env`.
 
-  ```
-  Hello Mr Edward
-  ```
+```python
+from zrb import cli, CmdTask, Env
 
-* **Use `task`'s `env` to get environment variable values.**
-
-  You can access `env` by using `ctx.env` property.
- 
-  ```python
-  from zrb import cli, CmdTask, Env
-
-  cli.add_task(
+cli.add_task(
     CmdTask(
-      name="hello",
-      env=[
-        Env(name="USER", default="nobody"),
-        Env(name="SHELL", default="sh"),
-      ],
-      cmd="echo Hello {ctx.env.USER}, your shell is {ctx.env.sh}",
+        name="hello",
+        env=[
+            Env(name="USER", default="nobody"),
+            Env(name="SHELL", default="sh"),
+        ],
+        cmd="echo 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'",
     )
-  )
-  ```
+)
+```
 
-  You can invoke the task as follows
+### 6. Share Data with `xcom`
 
-  ```sh
-  zrb hello
-  ```
+Tasks can communicate with each other by passing data through `xcom` (cross-communication). A task's return value is automatically pushed to its `xcom` queue.
 
-  ```
-  Hello gofrendi, your shell is zsh
-  ```
+```python
+from zrb import cli, CmdTask
 
-* **Use `xcom` to for inter `task` communication.**
-
-  You can think of `xcom` as dictionary of [`deque`](https://docs.python.org/3/library/collections.html#collections.deque). You can manually create key and push value to it or pop its value.
-
-  Zrb automatically push task's return value to the `xcom`.
-
-  You can access `xcom` by using `ctx.xcom`.
-
-  ```python
-  from zrb import cli, CmdTask
-
-  create_magic_number = CmdTask(name="create-magic-number", cmd="echo 42")
-  cli.add_task(
+create_magic_number = CmdTask(name="create-magic-number", cmd="echo 42")
+cli.add_task(
     CmdTask(
-      name="show-magic-number",
-      upstream=create_magic_number,
-      cmd="echo {ctx.xcom['create-magic-number'].pop()}",
+        name="show-magic-number",
+        upstream=[create_magic_number],
+        cmd="echo 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'",
     )
-  )
-  ```
+)
+```
 
-* **Use `@make_task` decorator for more complex usecase.**
+### 7. Use `@make_task` for Python Functions
 
-  ```python
-  from zrb import cli, make_task, AnyContext, StrInput
+The `@make_task` decorator is an elegant way to turn any Python function into a Zrb task.
 
+```python
+from zrb import cli, make_task, AnyContext, StrInput
 
-  @make_task(
+@make_task(
     name="count-word",
     input=StrInput(name="text"),
     group=cli,
-  )
-  def count_word(ctx: AnyContext) -> int:
-    text = ctx.input.text
-    words = text.split(" ")
-    return len(words)
-  ```
+)
+def count_word(ctx: AnyContext) -> int:
+    return len(ctx.input.text.split(" "))
+```
 
-  You can invoke the task.
-
-  ```sh
-  zrb count-word --text "the quick brown fox jumps over the lazy dog"
-  ```
-
-  ```
-  9
-  ```
+## Explore the Documentation
 
 
-# Topics
+*   [**Installation and Configuration**](./installation-and-configuration/README.md)
+    *   [Configuration](./installation-and-configuration/configuration/README.md)
+*   [**Core Concepts**](./core-concepts/README.md)
+    *   [CLI and Group](./core-concepts/cli-and-group.md)
+    *   [Task](./core-concepts/task/README.md)
+    *   [Input](./core-concepts/input/README.md)
+    *   [Env](./core-concepts/env/README.md)
+    *   [Session and Context](./core-concepts/session-and-context/README.md)
+        *   [Session](./core-concepts/session-and-context/session.md)
+        *   [Context](./core-concepts/session-and-context/context.md)
+        *   [XCom](./core-concepts/session-and-context/xcom.md)
+*   [**Advanced Topics**](./advanced-topics/README.md)
+    *   [CI/CD Integration](./advanced-topics/ci_cd.md)
+    *   [Upgrading Guide 0.x.x to 1.x.x](./advanced-topics/upgrading_guide_0_to_1.md)
+    *   [Maintainer Guide](./advanced-topics/maintainer-guide.md)
+    *   [Creating a Custom Zrb Powered CLI](./advanced-topics/creating-custom-zrb-powered-cli.md)
+*   [**Changelog**](./changelog.md)
 
-* [Installation and Configuration](./installation-and-configuration/README.md)
-    * [Configuration](./installation-and-configuration/configuration/README.md)
-* [Core Concepts](./core-concepts/README.md)
-    * [CLI and Group](./core-concepts/cli-and-group.md)
-    * [Task](./core-concepts/task/README.md)
-    * [Input](./core-concepts/input/README.md)
-    * [Env](./core-concepts/env/README.md)
-    * [Session and Context](./core-concepts/session-and-context/README.md)
-        * [Session](./core-concepts/session-and-context/session.md)
-        * [Context](./core-concepts/session-and-context/context.md)
-        * [XCom](./core-concepts/session-and-context/xcom.md)
-* [Advanced Topics](./advanced-topics/README.md)
-    * [CI/CD Integration](./advanced-topics/ci_cd.md)
-    * [Upgrading Guide 0.x.x to 1.x.x](./advanced-topics/upgrading_guide_0_to_1.md)
-    * [Maintainer Guide](./advanced-topics/maintainer-guide.md)
-    * [Creating a Custom Zrb Powered CLI](./advanced-topics/creating-custom-zrb-powered-cli.md)
-* [Changelog](./changelog.md)
 
+---
 🔖 [Home](../../README.md)

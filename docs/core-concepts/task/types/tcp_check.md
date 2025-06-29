@@ -1,37 +1,43 @@
 🔖 [Documentation Home](../../../README.md) > [Task](../../../README.md) > [Core Concepts](../../README.md) > [Task](../README.md) > [Task Types](./README.md) > TcpCheck
 
-# TcpCheck
+# `TcpCheck`
 
-The `TcpCheck` task is a specialized task type used for checking the readiness of a TCP port on a specific host. It's commonly used as a `readiness_check` for other tasks that depend on a service listening on a TCP port (e.g., a database, a custom server).
+The `TcpCheck` task is a specialized tool for verifying that a TCP port on a host is open and accepting connections. It's an essential `readiness_check` for tasks that depend on network services like databases, message queues, or any custom server.
 
-Here's an example of how to use `TcpCheck`:
+## Example
+
+Here's how you can use `TcpCheck` to ensure a database is ready before running migrations.
 
 ```python
-from zrb import Task, TcpCheck, cli
+from zrb import CmdTask, TcpCheck, cli
 
-# Define a TcpCheck task to check if a database port is open
-check_database_port = TcpCheck(
-    name="check-db-port",
-    description="Checks if the database port is open",
-    host="localhost", # The host to check (default is localhost)
-    port=5432, # The TCP port to check
-    interval=3 # Check every 3 seconds
-)
-
-# Define a task that depends on the database being accessible via TCP
-run_database_migration = cli.add_task(
-    Task(
-        name="run-migrations",
-        description="Runs database migrations after the DB is available",
-        action=lambda ctx: ctx.print("Database port is open, running migrations!"),
-        readiness_check=check_database_port, # Use the TcpCheck task as a readiness check
-        readiness_timeout=120, # Wait up to 120 seconds for the port to be open
-        readiness_check_period=5 # Check the readiness_check every 5 seconds
+# A task that starts a database container
+start_database = CmdTask(
+    name="start-database",
+    description="Starts the database server",
+    cmd="docker compose up -d database",
+    readiness_check=TcpCheck(
+        name="check-db-port",
+        description="Checks if the database port is open",
+        host="localhost", # The host to check (defaults to localhost)
+        port=5432,      # The TCP port to check
+        # You can customize other options too:
+        # interval=3, # Check every 3 seconds
     )
 )
 
-# You can also run the TcpCheck task directly if needed
-cli.add_task(check_database_port)
+# A task that runs migrations, but only after the TCP check succeeds
+run_migrations = Task(
+    name="run-migrations",
+    description="Runs database migrations",
+    action=lambda ctx: ctx.print("Database port is open, running migrations!"),
+    upstream=[start_database] # Depends on the database starting task
+)
+
+cli.add_task(start_database)
+cli.add_task(run_migrations)
 ```
 
-**When to use**: Use `TcpCheck` when you need to ensure that a specific TCP port on a host is open and accepting connections before a task can proceed. This is essential for workflows that interact with network services like databases, message queues, or custom servers.
+You can also run a `TcpCheck` task directly from the command line to quickly check if a port is open.
+
+**When to use**: Use `TcpCheck` to make your workflows more reliable when they depend on non-HTTP network services. It prevents tasks from failing simply because a required service hasn't finished starting up yet.

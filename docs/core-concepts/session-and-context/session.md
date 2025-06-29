@@ -1,30 +1,31 @@
 🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [Session](./session.md)
 
-# Session
+# The Session
 
-A Session in Zrb represents a single execution environment for your tasks. When you run a Zrb command, a new session is created to manage the execution of the requested task and all its dependencies. The session orchestrates the workflow, tracks task statuses, and provides the necessary context for tasks to run.
+A `Session` in Zrb is the conductor of your automation orchestra. When you run a Zrb command, a new session is born to manage the entire execution of your requested task and all its dependencies. It's the ephemeral environment where your workflow comes to life.
 
-## Key Responsibilities of a Session
+## What Does a Session Do?
 
-Based on the Zrb core implementation, a Session handles several key aspects of task execution:
+The Session is a busy entity with several key responsibilities:
 
-*   **Task Lifecycle Management:** Tracks the status of each task (e.g., pending, running, completed, failed, skipped, terminated) using `TaskStatus` objects.
-*   **Dependency Resolution:** Determines the order in which tasks should be executed based on their defined `upstream` dependencies.
-*   **Context Provisioning:** Provides a unique `Context` object to each task when it runs, containing task-specific and shared information.
-*   **Deferred Execution:** Manages coroutines (asynchronous operations) that need to be executed later in the session lifecycle.
-*   **State Logging:** Records the state and progress of the session and its tasks, often used for monitoring and history.
-*   **Shared Context Management:** Holds the `SharedContext` which contains data accessible by all tasks within the session, such as inputs, environment variables, and XCom data.
+*   **Task Lifecycle Management:** It's the session's job to keep track of every task's status: is it waiting to run (`pending`), currently running, finished (`completed`), or did it run into trouble (`failed`)?
+*   **Dependency Resolution:** The session reads the `upstream` dependencies you've defined and figures out the correct, logical order to execute your tasks.
+*   **Context Provisioning:** Before a task runs, the session hands it a custom-built `Context` object, which is the task's toolkit for interacting with the Zrb environment.
+*   **Deferred Execution:** It manages any asynchronous operations (`coroutines`) that need to be executed during the session.
+*   **State Logging:** The session records the progress and state of all its tasks, which is crucial for monitoring and debugging.
+*   **Shared Context Management:** It holds the `SharedContext`, which contains data (like inputs, environment variables, and XCom) that needs to be accessible to all tasks within that session.
 
-## How Sessions Work
+## How It Works
 
-When you initiate a Zrb task from the CLI or web interface, a `Session` instance is created. This session identifies the main task to be run and registers it along with all its upstream dependencies. The session then uses the dependency information to determine the correct execution order.
+When you run a task, Zrb creates a `Session` instance. This session identifies the main task and all its upstream dependencies. It then builds a plan of execution based on these dependencies.
 
-As tasks are ready to run, the session provides them with their specific `Context` object. The task's `action` is then executed within this context. The session monitors the task's status and proceeds with the next tasks in the workflow once dependencies are met and readiness checks pass.
+As each task is ready to run, the session provides it with its `Context` object and executes its `action`. The session monitors the outcome and, upon successful completion, moves on to the next tasks in the workflow.
 
-## Relation to Tasks and Context
+## Relationship to Tasks and Context
 
-Tasks are the units of work, and they are executed *within* a session. The session provides the runtime environment.
+*   **Tasks** are the individual units of work. They are executed *within* a session.
+*   The **Context** (`ctx`) is the bridge between a task and the session. It's how a task gets the information and tools it needs to do its job.
 
-The `Context` object is the interface through which a task interacts with the session and accesses data. Each task receives its own `Context` instance from the session via the `ctx` parameter in its `action` method. This context includes access to the `SharedContext` of the session.
+In short: the **Session** is the runtime, the **Task** is the action, and the **Context** is the interface connecting them.
 
-For more details on the `Context` object and the data it provides to tasks, see the [Context documentation](context.md).
+For a deeper dive into the `Context` object, see the [Context documentation](./context.md).

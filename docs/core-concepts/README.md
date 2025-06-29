@@ -2,7 +2,9 @@
 
 # Core Concepts
 
-The following diagram covers most `objects` and `classes` in Zrb.
+Welcome to the heart of Zrb! Understanding these core concepts will empower you to build powerful, flexible, and efficient automations. Whether you're running simple scripts or orchestrating complex workflows, these are the fundamental building blocks you'll be working with.
+
+The following diagram provides a bird's-eye view of the main objects and classes in Zrb and how they relate to each other.
 
 ```mermaid
 flowchart LR
@@ -131,6 +133,28 @@ flowchart LR
     PasswordInput -->|inherits| BaseInput
     TextInput -->|inherits| BaseInput
 ```
+
+## Key Components
+
+Here’s a brief introduction to the most important components in Zrb.
+
+### [CLI and Group](./cli-and-group.md)
+The entry point for all your tasks. The `cli` object is the root, and you can organize your tasks into `Group`s to create a clean, hierarchical structure. This is how you expose your automations to the command line.
+
+### [Task](./task/README.md)
+The fundamental unit of work in Zrb. A `Task` can be anything from a simple shell command to a complex Python function. Zrb provides many specialized task types out of the box for common operations like running commands, checking services, or interacting with AI.
+
+### [Input](./input/README.md)
+Inputs make your tasks interactive and reusable. They allow you to pass parameters to your tasks from the command line, web UI, or even from other tasks. Zrb supports various input types, including strings, numbers, booleans, and options.
+
+### [Environment](./env/README.md)
+Manage configuration and secrets with `Env`. Tasks can securely access environment variables from the operating system, `.env` files, or defined directly in your code.
+
+### [Session and Context](./session-and-context/README.md)
+A `Session` represents a single run of a task workflow. Within a session, each task receives a `Context` object (usually called `ctx`), which is the primary way a task interacts with its environment, accesses inputs, environment variables, and communicates with other tasks.
+
+### [XCom (Cross-Communication)](./session-and-context/xcom.md)
+`XCom` is the mechanism for tasks to exchange data. When one task produces a result that another task needs, `XCom` is the way to pass it along.
 
 ---
 🔖 [Home](../../README.md) > [Documentation](../README.md)

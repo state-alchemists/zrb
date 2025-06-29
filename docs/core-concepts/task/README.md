@@ -1,18 +1,18 @@
 🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Core Concepts](../README.md) > [Task](./README.md)
 
-# Task
+# The Task
 
-A Task represents a single unit of work within a Zrb project. Tasks are the fundamental building blocks of Zrb workflows, encapsulating specific actions that need to be performed. These actions can range from running shell commands to executing Python code or interacting with language models.
+A `Task` is the fundamental unit of work in Zrb. It's the "verb" of your automation, the action you want to perform. Tasks are the building blocks of your workflows, encapsulating everything from simple shell commands to complex Python logic or interactions with AI models.
 
-> **Important**: Only tasks that are registered to the CLI or its subgroups are accessible from the command line or web interface. Make sure to add your tasks to the CLI or a group that is added to the CLI.
+> **Important**: A task is only runnable if it's registered with the `cli` or a `Group` that's attached to the `cli`. If you define a task but don't register it, Zrb won't know it exists!
 
-## Creating Tasks
+## 3 Ways to Create a Task
 
-There are three main ways to create tasks in Zrb:
+Zrb offers three flexible ways to create tasks, each suited to different needs.
 
-### 1. Direct instantiation
+### 1. Direct Instantiation
 
-Create a task instance directly:
+The most straightforward method is to create an instance of a `Task` class directly.
 
 ```python
 from zrb import Task, cli
@@ -22,32 +22,28 @@ my_task = Task(
     description="A simple task",
     action=lambda ctx: print("Hello, world!")
 )
-cli.add_task(my_task)  # Register with CLI to make it accessible
+cli.add_task(my_task)  # Register it!
 ```
 
-Zrb provides several built-in task types (like `CmdTask`, `LLMTask`, `Scaffolder`, etc.) that you can directly instantiate.
+**When to use**: Perfect for simple tasks or when you need to create tasks programmatically (e.g., in a loop).
 
-**When to use**: Best for simple tasks where you need to create and configure tasks programmatically. Good for dynamic task creation or when you need to create multiple similar tasks with slight variations.
+### 2. Class Definition
 
-### 2. Class definition
-
-Create a custom task class:
+For more complex or reusable tasks, you can define your own task class.
 
 ```python
 from zrb import Task, cli
 
-# Method 1: Define class then instantiate
+# Define the class...
 class MyTask(Task):
     def run(self, ctx):
         print("Hello, world!")
 
-my_task = MyTask(
-    name="my-task",
-    description="A simple task"
-)
+# ...then instantiate and register it
+my_task = MyTask(name="my-task", description="A simple task")
 cli.add_task(my_task)
 
-# Method 2: Use decorator to register directly
+# Or, use a decorator for a more concise approach
 @cli.add_task
 class AnotherTask(Task):
     name = "another-task"
@@ -57,11 +53,11 @@ class AnotherTask(Task):
         print("Hello from another task!")
 ```
 
-**When to use**: Ideal for complex tasks that need custom logic, inheritance, or when you want to create reusable task templates. This approach is more object-oriented and allows for better code organization in larger projects.
+**When to use**: Ideal for complex logic, when you want to use inheritance, or to create reusable task templates. It's a more organized, object-oriented approach.
 
-### 3. Function decorator
+### 3. Function Decorator
 
-Use the `@make_task` decorator to turn a Python function into a Task:
+The most elegant way to create a task from a simple function is with the `@make_task` decorator.
 
 ```python
 from zrb import make_task, cli
@@ -69,30 +65,31 @@ from zrb import make_task, cli
 @make_task(
     name="my-task",
     description="A simple task",
-    group=cli  # Register with CLI directly in the decorator
+    group=cli  # Register it directly in the decorator
 )
 def my_task(ctx):
     print("Hello, world!")
 ```
 
-**When to use**: The most concise approach, perfect for simple tasks where the main logic is a single function. This is often the most readable option for straightforward tasks and is recommended for beginners.
+**When to use**: The best choice for tasks where the core logic fits neatly into a single function. It's clean, readable, and highly recommended for most common use cases.
 
-## Key Components
+## Anatomy of a Task
+
+Tasks are more than just an action. They have several key components that make them powerful and flexible.
 
 ### 1. Inputs
 
-Inputs allow tasks to receive parameters from users or other tasks. Zrb provides several input types:
+Inputs make your tasks interactive and reusable. They allow you to pass parameters from the command line or web UI. For a deep dive, see the [Input documentation](../input/README.md).
 
 ```python
-from zrb import Task, StrInput, IntInput, FloatInput, BoolInput, OptionInput, cli
+from zrb import Task, StrInput, IntInput, BoolInput, OptionInput, cli
 
 task = Task(
     name="example-task",
     input=[
         StrInput(name="name", description="Your name", default="World"),
         IntInput(name="age", description="Your age", default=30),
-        FloatInput(name="height", description="Your height in meters", default=1.75),
-        BoolInput(name="subscribe", description="Subscribe to newsletter", default=True),
+        BoolInput(name="subscribe", description="Subscribe to newsletter?", default=True),
         OptionInput(
             name="color",
             description="Favorite color",
@@ -100,16 +97,14 @@ task = Task(
             default="blue"
         )
     ],
-    action=lambda ctx: print(f"Hello {ctx.input.name}, you are {ctx.input.age} years old")
+    action=lambda ctx: print(f"Hello {ctx.input.name}, you are {ctx.input.age} years old.")
 )
-cli.add_task(task)  # Don't forget to register the task
+cli.add_task(task)
 ```
-
-Inputs can be accessed in the task's action via the `ctx.input` object. For a comprehensive guide on all available input types and how to use them, refer to the [Input documentation](../input/README.md).
 
 ### 2. Environment Variables
 
-Environment variables allow tasks to access system or user-defined environment variables:
+Tasks can securely access configuration and secrets through environment variables. For more details, check the [Environment documentation](../env/README.md).
 
 ```python
 from zrb import Task, Env, cli
@@ -125,154 +120,96 @@ task = Task(
 cli.add_task(task)
 ```
 
-Environment variables can be accessed in the task's action via the `ctx.env` object. Zrb provides several ways to define environment variables, including `Env`, `EnvMap`, and `EnvFile`.
-
-```python
-from zrb import Env, EnvMap, EnvFile
-
-# Basic Env linking to OS variable
-my_env = Env(name='MY_VAR', default='default', link_to_os=True)
-
-# EnvMap for multiple variables
-my_env_map = EnvMap(vars={"VAR1": "value1", "VAR2": "value2"})
-
-# EnvFile for loading from .env
-my_env_file = EnvFile(path=".env")
-```
-
-For a comprehensive guide on defining environment variables using `Env`, `EnvMap`, and `EnvFile`, refer to the [Environment documentation](../env/README.md).
-
 ### 3. Dependencies (Upstream Tasks)
 
-Tasks can depend on other tasks, creating a workflow where tasks are executed in a specific order:
+Tasks can depend on other tasks. An `upstream` task is a prerequisite that must complete successfully before the current task can run.
 
 ```python
 from zrb import Task, cli
 
 task1 = Task(name="task1", action=lambda ctx: print("Task 1"))
 task2 = Task(name="task2", action=lambda ctx: print("Task 2"))
-task3 = Task(name="task3", action=lambda ctx: print("Task 3"))
 
-# Method 1: Using the upstream parameter
-task3 = Task(
-    name="task3",
-    upstream=[task1, task2],
-    action=lambda ctx: print("Task 3")
-)
+# task3 will only run after task1 and task2 are complete
+task3 = Task(name="task3", upstream=[task1, task2], action=lambda ctx: print("Task 3"))
 
-# Method 2: Using the >> operator
+# You can also define dependencies with the `>>` operator
 task1 >> task3
 task2 >> task3
 
-# Method 3: Chain multiple dependencies
+# Or chain them for sequential execution
 task1 >> task2 >> task3  # task3 depends on task2, which depends on task1
 
-# Register all tasks with CLI
-cli.add_task(task1)
-cli.add_task(task2)
-cli.add_task(task3)
+cli.add_task(task1, task2, task3)
 ```
-
-When a task has upstream dependencies, it will only execute after all its upstream tasks have completed successfully.
 
 ### 4. Other Key Features
 
-Beyond inputs, environment variables, and dependencies, tasks have several other key properties:
-
-*   **Name:** A unique identifier for the task (`name` property). Used to reference the task from the CLI or other tasks.
-*   **Description:** A human-readable explanation of the task's purpose (`description` property).
-*   **CLI Only:** Indicates whether the task is only executable from the command line (`cli_only` property). If true, the task will not be available in the web interface.
-*   **Execute Condition:** A boolean attribute (`execute_condition` property) that determines whether the task should be executed. This can be a simple boolean value or a Jinja2 template string that evaluates to true or false based on the context (e.g., inputs, environment variables).
-*   **Fallbacks:** A list of tasks (`fallbacks` property) that should be executed if this task fails. Useful for defining alternative actions in case of errors.
-*   **Successors:** A list of tasks (`successors` property) that should be executed after this task completes successfully. Similar to `upstream`, but defines tasks that run *after* the current task.
-*   **Readiness Checks:** Tasks that verify if a service or application is ready before proceeding with downstream tasks (`readiness_check` parameter). See [Readiness Checks](#readiness-checks) for details.
-*   **Retries:** Specifies the number of times a task should be retried if it fails (`retries` property). Helps in handling transient errors.
+*   **`name`** & **`description`**: The task's identifier and human-readable explanation.
+*   **`readiness_check`**: A sub-task that must succeed before the main task is considered "ready."
+*   **`retries`**: The number of times to retry a task if it fails.
+*   **`fallbacks`**: A list of tasks to run if the main task fails.
+*   **`successors`**: A list of tasks to run after the main task succeeds.
 
 ## Task Types
 
-Zrb provides several built-in task types to handle various operations. These specialized task types extend the base `Task` (or `BaseTask`) and offer domain-specific features for common use cases.
+Zrb comes with a variety of specialized task types for common operations.
 
-You can directly instantiate these task types when defining your workflows.
+*   [**`BaseTask`**](./types/base_task.md): The foundational class for all tasks.
+*   [**`Task`**](./types/task.md): An alias for `BaseTask`, used for general-purpose Python tasks.
+*   [**`CmdTask`**](./types/cmd_task.md): For executing shell commands.
+*   [**`HttpCheck`**](./types/http_check.md) & [**`TcpCheck`**](./types/tcp_check.md): For checking if services are ready.
+*   [**`LLMTask`**](./types/llm_task.md): For interacting with Large Language Models.
+*   [**`RsyncTask`**](./types/rsync_task.md): For synchronizing files.
+*   [**`Scaffolder`**](./types/scaffolder.md): For generating files from templates.
+*   [**`Scheduler`**](./types/scheduler.md): For triggering tasks on a schedule.
 
-*   [BaseTask](./types/base_task.md): The fundamental building block for all other task types.
-*   [CmdTask](./types/cmd_task.md): For executing shell commands.
-*   [HttpCheck](./types/http_check.md): For performing HTTP health checks.
-*   [LLMTask](./types/llm_task.md): For integrating with Language Model APIs.
-*   [RsyncTask](./types/rsync_task.md): For synchronizing files and directories using rsync.
-*   [Scaffolder](./types/scaffolder.md): For creating files and directories from templates.
-*   [Scheduler](./types/scheduler.md): For triggering tasks based on a defined schedule.
-*   [Task](./types/task.md): An alias for `BaseTask`, commonly used for general Python tasks.
-*   [TcpCheck](./types/tcp_check.md): For performing TCP port health checks.
+## Readiness Checks in Action
 
-## Readiness Checks
+Readiness checks are a powerful feature for orchestrating workflows that involve services that take time to start up.
 
-Readiness checks are special tasks that verify if a service or application is ready before proceeding with downstream tasks. Readiness checks are themselves tasks, meaning you can use any task type suitable for verification, such as `HttpCheck` or a custom Python task. This is particularly useful for tasks that start services, servers, or containers.
+### `HttpCheck`
 
-Zrb provides built-in readiness check tasks:
-
-### HttpCheck
-
-Verifies that an HTTP endpoint is responding with a 200 status code:
+Wait for a web server to be ready before testing it.
 
 ```python
 from zrb import CmdTask, HttpCheck, cli
 
-# Start a web server and wait until it's ready
 start_server = cli.add_task(
     CmdTask(
         name="start-server",
-        description="Start the web server",
         cmd="python -m http.server 8000",
-        readiness_check=HttpCheck(
-            name="check-server",
-            url="http://localhost:8000"
-        )
+        readiness_check=HttpCheck(name="check-server", url="http://localhost:8000")
     )
 )
 
-# This task will only run after the server is ready
 test_server = cli.add_task(
-    CmdTask(
-        name="test-server",
-        description="Test the web server",
-        cmd="curl http://localhost:8000"
-    )
+    CmdTask(name="test-server", cmd="curl http://localhost:8000")
 )
 
 start_server >> test_server
 ```
 
-### TcpCheck
+### `TcpCheck`
 
-Verifies that a TCP port is open and accepting connections:
+Wait for a database to accept connections before running migrations.
 
 ```python
 from zrb import CmdTask, TcpCheck, cli
 
-# Start a database and wait until it's ready
-start_database = cli.add_task(
+start_db = cli.add_task(
     CmdTask(
-        name="start-database",
-        description="Start the database",
+        name="start-db",
         cmd="docker compose up -d database",
-        readiness_check=TcpCheck(
-            name="check-database",
-            host="localhost",
-            port=5432
-        )
+        readiness_check=TcpCheck(name="check-db", host="localhost", port=5432)
     )
 )
 
-# This task will only run after the database is ready
-migrate_database = cli.add_task(
-    CmdTask(
-        name="migrate-database",
-        description="Run database migrations",
-        cmd="python migrate.py"
-    )
+migrate_db = cli.add_task(
+    CmdTask(name="migrate-db", cmd="python migrate.py")
 )
 
-start_database >> migrate_database
+start_db >> migrate_db
 ```
 
 ### Multiple Readiness Checks
@@ -307,68 +244,3 @@ test_app = cli.add_task(
 
 start_app >> test_app
 ```
-
-## Complete Example
-
-Here's a complete example that demonstrates various task features:
-
-```python
-from zrb import Task, CmdTask, StrInput, IntInput, Env, cli, make_task, Group
-
-# Create a group for related tasks
-math_group = Group(
-    name="math",
-    description="Mathematical operations"
-)
-cli.add_group(math_group)  # Register the group with CLI
-
-# Define a task that runs a shell command
-my_task = CmdTask(
-    name="my_task",
-    description="This is an example task that runs a shell command.",
-    cmd="echo 'Hello, world!'",
-)
-cli.add_task(my_task)  # Register with CLI directly
-
-# Define a task with an input
-my_task_with_input = CmdTask(
-    name="my_task_with_input",
-    description="This is an example task that takes an input.",
-    cmd="echo {ctx.input.message}",
-    input=StrInput(name="message", default="Hello, world!"),
-)
-cli.add_task(my_task_with_input)
-
-# Define a task with environment variables
-my_task_with_env = CmdTask(
-    name="my_task_with_env",
-    description="This is an example task that uses environment variables.",
-    cmd="echo 'API Key: {ctx.env.API_KEY}'",
-    env=Env(name="API_KEY", default=""),
-)
-cli.add_task(my_task_with_env)
-
-# Define a task with dependencies
-my_dependent_task = Task(
-    name="my_dependent_task",
-    description="This task depends on my_task",
-    action=lambda ctx: print("my_task has completed!"),
-    upstream=my_task
-)
-cli.add_task(my_dependent_task)
-
-# Or use the >> operator to define dependencies
-my_task >> my_task_with_input
-
-# Define a task using the @make_task decorator and add it to a group
-@make_task(
-    name="calculate_sum",
-    description="Calculate the sum of two numbers",
-    input=[
-        IntInput(name="a", description="First number"),
-        IntInput(name="b", description="Second number")
-    ],
-    group=math_group  # Add the task to the math group
-)
-def calculate_sum(ctx):
-    return ctx.input.a + ctx.input.b

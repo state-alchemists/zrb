@@ -1,92 +1,90 @@
 🔖 [Documentation Home](../../../README.md) > [Task](../../../README.md) > [Core Concepts](../../README.md) > [Task](../README.md) > [Task Types](./README.md) > LLMTask
 
-# LLMTask
+# `LLMTask`
 
-A task for interacting with language models.
+The `LLMTask` brings the power of Large Language Models (LLMs) directly into your Zrb workflows. It's a specialized task for interacting with AI, allowing you to generate content, answer questions, or even give your automations complex reasoning capabilities.
+
+## Basic Usage
 
 ```python
 from zrb import LLMTask, cli
 
-# Create a task that uses an LLM
+# Create a task that asks an LLM a question
 chat_task = LLMTask(
     name="chat",
     description="Chat with an LLM",
-    message="Tell me about Python programming",
-    system_prompt="You are a helpful programming assistant"
+    message="Tell me a fun fact about Python programming",
+    system_prompt="You are a helpful and cheerful programming assistant."
 )
+cli.add_task(chat_task)
+```
 
-# LLMTasks can be provided with "tools," which are functions or capabilities that the language model can use to perform actions or access external information.
+## Tools and Subagents
+
+The real power of `LLMTask` comes from giving it "tools"—Python functions that the LLM can decide to use to get more information or perform actions.
+
+### Providing a Simple Tool
+
+```python
+from zrb import LLMTask, cli
 
 def get_weather(location: str) -> str:
-    """Get the weather for a location"""
-    return f"The weather in {location} is sunny"
+    """Get the current weather for a specific location."""
+    # In a real scenario, this would call a weather API
+    return f"The weather in {location} is sunny and 25°C."
 
 weather_chat = LLMTask(
     name="weather-chat",
-    description="Chat about weather",
+    description="Chat about the weather",
     message="What's the weather like in New York?",
     tools=[get_weather]
 )
-
-cli.add_task(chat_task)
 cli.add_task(weather_chat)
 ```
 
-### LLM Configuration
+### Subagents: Agents as Tools
 
-You can configure default settings for `LLMTask` instances using the `llm_config` object. This allows you to set a default model, API key, base URL, system prompt, and other parameters globally or for specific parts of your project.
-
-```python
-from zrb import llm_config
-
-# Set a default model name
-llm_config.set_default_model_name("gpt-4o")
-
-# Set a default API key (consider using environment variables for secrets)
-# llm_config.set_default_model_api_key("your-api-key")
-
-# Set a default system prompt
-llm_config.set_default_system_prompt("You are a helpful assistant.")
-
-# You can also configure other settings like summarization and context enrichment thresholds
-llm_config.set_default_history_summarization_threshold(10)
-llm_config.set_default_enrich_context(True)
-```
-
-Settings configured via `llm_config` can be overridden by parameters provided directly to the `LLMTask` constructor.
-
-### Subagents and `create_sub_agent_tool`
-
-`LLMTask` supports the concept of subagents, which are specialized agents (essentially, other LLMTasks with their own configurations and tools) that can be used as tools by the main LLM. This allows you to delegate specific tasks or access specialized knowledge to a subagent, breaking down complex problems. You can create a subagent tool using the `create_sub_agent_tool` function.
-
-`LLMTask` supports the concept of subagents, which are specialized agents that can be used as tools by the main LLM. This allows you to delegate specific tasks or access specialized knowledge to a subagent. You can create a subagent tool using the `create_sub_agent_tool` function.
-
-Here's an example demonstrating how to add a subagent tool to an `LLMTask`:
+You can even provide other, more specialized `LLMTask` instances as tools. This is called using a "subagent." It's a powerful pattern for delegating complex sub-problems.
 
 ```python
 from zrb import LLMTask, cli
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
-from zrb.builtin.llm.tool.web import open_web_page # Example tool for the subagent
+from zrb.builtin.llm.tool.web import open_web_page # An example built-in tool
 
-# Define a subagent tool that fetches IT news
+# Create a subagent tool that is an expert at fetching IT news
 it_news_fetcher_tool = create_sub_agent_tool(
     tool_name="it_news_fetcher",
-    tool_description="Fetch IT News",
-    sub_agent_system_prompt="You are hacker news fetcher, You load and curate news from http://news.ycombinator.com, you start your response with REPORTING word",
-    sub_agent_tools=[open_web_page] # The subagent can use the open_web_page tool
+    tool_description="Fetches the latest IT news from Hacker News.",
+    sub_agent_system_prompt="You are a Hacker News fetcher. You load and curate news from http://news.ycombinator.com.",
+    sub_agent_tools=[open_web_page] # The subagent can use the web page tool
 )
 
-# Define an LLMTask that can use the subagent tool
+# Create a main LLMTask that can use the subagent
 llm_chat_with_subagent = cli.add_task(
     LLMTask(
         name="llm-chat-subagent",
-        description="Chat with LLM that can fetch IT news",
+        description="Chat with an LLM that can fetch IT news",
         message="What is the latest IT news?",
-        tools=[it_news_fetcher_tool] # Add the subagent tool to the LLMTask
+        tools=[it_news_fetcher_tool] # Give the main agent the subagent tool
     )
 )
-
-# The built-in llm_chat task also utilizes subagents and other advanced features.
 ```
 
-**When to use**: Use `LLMTask` when you need to integrate AI capabilities into your workflow. It's ideal for tasks like generating content, answering questions, summarizing text, or any other use case that benefits from language model capabilities.
+## Global LLM Configuration
+
+You can set default configurations for all `LLMTask` instances using the `llm_config` object. This is useful for setting the API key and model for your entire project.
+
+```python
+from zrb import llm_config
+
+# Set a default model name (e.g., "gpt-4o", "gemini-pro")
+llm_config.set_default_model_name("gpt-4o")
+
+# Set a default API key (best practice is to use an environment variable)
+# llm_config.set_default_model_api_key("your-api-key")
+
+# Set a default system prompt
+llm_config.set_default_system_prompt("You are a helpful assistant.")
+```
+
+**When to use**: Use `LLMTask` whenever you want to add AI capabilities to your workflows. It's perfect for content generation, summarization, complex decision-making, and building AI-powered tools.

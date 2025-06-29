@@ -1,65 +1,50 @@
 🔖 [Documentation Home](../../../README.md) > [Task](../../../README.md) > [Core Concepts](../../README.md) > [Task](../README.md) > [Task Types](./README.md) > Scheduler
 
-# Scheduler
+# `Scheduler`
 
-The `Scheduler` task is a specialized task type that inherits from `BaseTrigger`. It is designed to trigger other tasks based on a defined schedule using cron-like syntax. When the schedule matches the current time, the `Scheduler` task pushes data (the current time) to its XCom queue, which can then be consumed by a linked `Callback` task. XCom (Cross-Communication) is a mechanism in Zrb that allows tasks to exchange small amounts of data.
+The `Scheduler` task is your tool for running tasks on a recurring basis. It uses cron-like syntax to trigger other tasks at specific intervals. It's a type of `BaseTrigger`, meaning its job is to kick off other tasks when a certain event—in this case, a scheduled time—occurs.
 
-Here's an example of how to use `Scheduler`:
+When the schedule matches the current time, the `Scheduler` pushes the current timestamp to an `XCom` queue. A `Callback` task can then listen to this queue and execute its action.
+
+## Example
+
+Let's create a task that runs every minute and prints the time.
 
 ```python
-import asyncio
-from zrb import Scheduler, Task, Callback, cli, Context
+from zrb import Scheduler, Task, Callback, StrInput, cli
 
-# Define a simple task that will be triggered by the scheduler
+# 1. The task we want to run on a schedule
 print_scheduled_time = cli.add_task(
     Task(
         name="print-scheduled-time",
         description="Prints the time received from the scheduler",
-        # The input 'message' will be mapped from the scheduler's XCom
         input=StrInput(name="message"),
         action=lambda ctx: ctx.print(f"Scheduled task triggered at: {ctx.input.message}"),
     )
 )
 
-# Define a Scheduler task that runs every minute
-# It pushes the current time to the 'scheduled_events' queue
-cli.add_task(
+# 2. The Scheduler to trigger the task
+minute_scheduler = cli.add_task(
     Scheduler(
         name="minute-scheduler",
         description="Triggers a task every minute",
-        schedule="@minutely", # Cron-like schedule pattern (e.g., "@minutely", "* * * * *")
-        queue_name="scheduled_events", # The name of the XCom queue to push data to
-        # Link the scheduler to the print_scheduled_time task using a Callback
+        schedule="@minutely",  # Or a cron string like "* * * * *"
+        queue_name="scheduled_events", # The XCom queue to push to
+        
+        # 3. The Callback that links the scheduler to the task
         callback=Callback(
             task=print_scheduled_time,
-            # Map the data from the scheduler's XCom queue to the callback task's input
-            # {ctx.xcom['scheduled_events'].pop()} retrieves the latest data from the queue
+            # Map the data from the XCom queue to the task's input
             input_mapping={"message": "{str(ctx.xcom['scheduled_events'].pop())}"},
         ),
     )
 )
 
-# You can define other tasks and link them to the same scheduler queue
-# For example, another task that logs the event
-log_scheduled_event = cli.add_task(
-    Task(
-        name="log-scheduled-event",
-        description="Logs the scheduled event time",
-        input=StrInput(name="event_time"),
-        action=lambda ctx: ctx.print(f"Logging scheduled event at: {ctx.input.event_time}"),
-    )
-)
-
-# You can add multiple callbacks to a single trigger/scheduler
-cli.get_task("minute-scheduler").append_callback(
-    Callback(
-        task=log_scheduled_event,
-        input_mapping={"event_time": "{str(ctx.xcom['scheduled_events'].pop())}"},
-    )
-)
-
-# Note: Schedulers are typically long-running tasks that you would run in the background.
-# When run, they will continuously check the schedule and trigger callbacks.
+# You can even add more callbacks to the same scheduler
+log_event_task = cli.add_task(Task(name="log-event", action=lambda ctx: print("Logging event...")))
+minute_scheduler.append_callback(Callback(task=log_event_task))
 ```
 
-**When to use**: Use `Scheduler` when you need to automate tasks to run at specific intervals or times based on a cron schedule. It's suitable for recurring jobs, maintenance tasks, or any workflow that needs to be executed periodically.
+**Note**: Schedulers are long-running tasks. You would typically start them in the background to have them continuously check the schedule and trigger their callbacks.
+
+**When to use**: Use `Scheduler` for any recurring job, such as nightly backups, hourly data processing, or daily reports. It's the foundation for automation that runs on a timetable.

@@ -1,80 +1,69 @@
 🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [XCom](./xcom.md)
 
-# XCom
+# XCom (Cross-Communication)
 
-Use `xcom` for inter-`task` communication.
+`XCom` is the secret sauce for making your tasks talk to each other. It's a simple yet powerful mechanism for passing small pieces of data—like results, IDs, or status messages—from one task to another.
 
-You can think of `xcom` as a dictionary of [`deque`](https://docs.python.org/3/library/collections.html#collections.deque). You can manually create a key and push a value to it or pop its value.
+Think of `XCom` as a shared dictionary of message queues available during a session. Each task can have its own named queue where it can `push` data, and other tasks can `pop` data from it.
 
-Zrb automatically pushes a task's return value to the `xcom`.
+Zrb makes this even easier: by default, the return value of a task's `action` is automatically pushed to its `XCom` queue.
 
-You can access `xcom` by using `ctx.xcom`.
+You can access `XCom` through the context object: `ctx.xcom`.
+
+## A Simple Data-Passing Example
+
+Here's a classic example: one task creates a "magic number," and a second task uses it.
 
 ```python
 from zrb import cli, CmdTask
 
+# This task's output (42) will be automatically pushed to its XCom queue
 create_magic_number = CmdTask(name="create-magic-number", cmd="echo 42")
+
 cli.add_task(
   CmdTask(
     name="show-magic-number",
-    upstream=create_magic_number,
-    cmd="echo {ctx.xcom['create-magic-number'].pop()}",
+    upstream=[create_magic_number],
+    # Here, we pop the value from the upstream task's queue
+    cmd="echo 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'",
   )
 )
 ```
 
-XCom, or Cross-Communication, is a mechanism in Zrb that allows tasks to exchange small amounts of data. This is particularly useful for passing results or information between dependent tasks in a workflow.
+When you run `zrb show-magic-number`, Zrb first runs `create-magic-number`, captures its output ("42"), and places it in the `xcom['create-magic-number']` queue. Then, `show-magic-number` runs and retrieves that value.
 
-Each task in a Zrb session has its own XCom queue, which acts like a simple message queue. Tasks can push data to their own XCom queue, and other tasks can pull data from the XCom queues of their upstream dependencies.
+## How to Use XCom Manually
 
-## How to Use XCom
+While Zrb automatically pushes return values, you can also push and pop data manually within your task's logic.
 
-You can access a task's XCom queue via the `ctx.xcom` object within a task's `action`. `ctx.xcom` is a dictionary-like object where keys are task names and values are the XCom queues (specifically, `Xcom` objects, which behave like Python `deque`s).
+*   **Pushing data:** `ctx.xcom[ctx.task_name].push("some data")`
+*   **Popping data:** `data = ctx.xcom['upstream_task_name'].pop()`
+*   **Peeking at data:** `data = ctx.xcom['upstream_task_name'].peek()` (gets the value without removing it)
 
-To push data to the current task's XCom queue:
+## Manual Pushing Example
 
-```python
-# Inside a task's action
-ctx.xcom[ctx.task_name].push("some data")
-```
-
-To pull data from an upstream task's XCom queue:
-
-```python
-# Inside a task's action that depends on 'upstream_task'
-data = ctx.xcom['upstream_task'].pop()
-print(f"Received data from upstream: {data}")
-```
-
-You can also peek at the next item in the queue without removing it using `peek()`.
-
-## Example
-
-Here's a simple example demonstrating how one task can pass data to another using XCom:
+Here's a more explicit example using Python tasks.
 
 ```python
 from zrb import Task, cli
 
-# Task 1: Pushes data to its XCom
+# Task 1: Manually pushes a message to its XCom queue
 task1 = Task(
     name="task1",
     description="Pushes data to XCom",
     action=lambda ctx: ctx.xcom[ctx.task_name].push("Hello from Task 1!")
 )
 
-# Task 2: Depends on Task 1 and pulls data from its XCom
+# Task 2: Depends on Task 1 and pulls the data
 task2 = Task(
     name="task2",
     description="Pulls data from Task 1's XCom",
-    upstream=[task1], # Define dependency
+    upstream=[task1], # This dependency is crucial!
     action=lambda ctx: print(f"Task 2 received: {ctx.xcom['task1'].pop()}")
 )
 
 cli.add_task(task1)
 cli.add_task(task2)
-
-# When you run task2, task1 will execute first, push data,
-# and then task2 will execute and retrieve the data.
 ```
 
-XCom is designed for passing small, serializable data between tasks. For larger data or more complex inter-task communication patterns, consider alternative approaches.
+`XCom` is perfect for passing small, serializable pieces of data. For larger data or more complex communication, you might consider other methods like writing to a file.
