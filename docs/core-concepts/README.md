@@ -42,6 +42,7 @@ flowchart LR
         direction TB
         AnySession["🧩 AnySession<br/>(interface)"]
         Session["🗃️ Session<br/>(class)"]
+        AnyContext["🧩 AnyContext<br/>(interface)"]
         Context["🧠 Context (ctx)<br/>(class)"]
         XCom["🔄 XCom"]
     end
@@ -101,6 +102,7 @@ flowchart LR
     Session -->|implements| AnySession
     Session -->|runs| AnyTask
     Session -->|provides| Context
+    Context -->|implements| AnyContext
     Context -->|has| AnyEnv
     Context -->|has| AnyInput
     Context -->|has| XCom
