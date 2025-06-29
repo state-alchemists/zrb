@@ -357,7 +357,7 @@ class LLMTask(BaseTask):
                 if xcom_usage_key not in ctx.xcom:
                     ctx.xcom[xcom_usage_key] = Xcom([])
                 usage = agent_run.result.usage()
-                ctx.xcom.get(xcom_usage_key).push(usage)
+                ctx.xcom[xcom_usage_key].push(usage)
                 ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
                 return agent_run.result.output
             else:

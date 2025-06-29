@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.context.any_context import AnyContext
+from zrb.llm_rate_limitter import llm_rate_limitter
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 _EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = """
@@ -464,7 +465,9 @@ def apply_diff(
         raise RuntimeError(f"Unexpected error applying diff to {path}: {e}")
 
 
-async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
+async def analyze_file(
+    ctx: AnyContext, path: str, query: str, token_limit: int = 30000
+) -> str:
     """Analyze file using LLM capability to reduce context usage.
     Use this tool for:
     - summarization
@@ -474,6 +477,7 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
     Args:
         path (str): File path to be analyze. Pass exactly as provided, including '~'.
         query(str): Instruction to analyze the file
+        token_limit(Optional[int]): Max token length to be taken from file
     Returns:
         str: The analysis result
     Raises:
@@ -489,9 +493,8 @@ async def analyze_file(ctx: AnyContext, path: str, query: str) -> str:
         system_prompt=_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )
-    return await _analyze_file(
-        ctx,
-        json.dumps(
-            {"instruction": query, "file_path": abs_path, "file_content": file_content}
-        ),
+    payload = json.dumps(
+        {"instruction": query, "file_path": abs_path, "file_content": file_content}
     )
+    clipped_payload = llm_rate_limitter.clip_prompt(payload, token_limit)
+    return await _analyze_file(ctx, clipped_payload)

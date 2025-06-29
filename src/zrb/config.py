@@ -245,12 +245,12 @@ class Config:
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
         """Maximum number of LLM tokens allowed per minute."""
-        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "120000"))
+        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "200000"))
 
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
-        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_REQUEST", "30000"))
+        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_REQUEST", "50000"))
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:

@@ -49,6 +49,142 @@ Start the Quick Start guide: [Build Your First Automation Workflow](./task/creat
 
 Understanding these core concepts is key to effectively using Zrb.
 
+```mermaid
+flowchart LR
+    %% Layout: group related nodes in subgraphs to avoid overlap
+    subgraph CLI_Group ["CLI & Group"]
+        direction TB
+        CLI["💻 CLI"]
+        Group["🏛️ Group<br/>(class)"]
+    end
+
+    subgraph Task_Hierarchy ["Task Hierarchy"]
+        direction TB
+        AnyTask["🧩 AnyTask<br/>(interface)"]
+        BaseTask["🏗️ BaseTask<br/>(core base class)"]
+        Task["✅ Task<br/>(user-facing base)"]
+        BaseTrigger["⏩ BaseTrigger<br/>(event/callback base)"]
+        Scheduler["⏰ Scheduler<br/>(scheduled task)"]
+        CmdTask["🖥️ CmdTask"]
+        LLMTask["🤖 LLMTask"]
+        Scaffolder["🛠️ Scaffolder"]
+        HttpCheck["🌐 HttpCheck"]
+        RsyncTask["🔄 RsyncTask"]
+        TcpCheck["📡 TcpCheck"]
+    end
+
+    subgraph CallbackBlock ["Event/Callback"]
+        direction TB
+        Callback["🔔 Callback"]
+    end
+
+    subgraph ContextBlock ["Session & Context"]
+        direction TB
+        Session["🗃️ Session"]
+        Context["🧠 Context (ctx)"]
+        XCom["🔄 XCom"]
+    end
+
+    subgraph EnvBlock ["Environment"]
+        AnyEnv["🧩 AnyEnv<br/>(interface)"]
+        Env["🌿 Env"]
+        EnvMap["🧬 EnvMap"]
+        EnvFile["📄 EnvFile"]
+    end
+    subgraph InputBlock ["Inputs"]
+        AnyInput["🧩 AnyInput<br/>(interface)"]
+        BaseInput["🏗️ BaseInput"]
+        StrInput["📝 StrInput"]
+        IntInput["🧮 IntInput"]
+        FloatInput["🔢 FloatInput"]
+        BoolInput["🔘 BoolInput"]
+        OptionInput["🎚️ OptionInput"]
+        PasswordInput["🔑 PasswordInput"]
+        TextInput["🗒️ TextInput"]
+    end
+
+    %% CLI/Group relations
+    CLI -->|is a| Group
+    Group -->|has| AnyTask
+    Group -->|has| Group
+
+    %% Task hierarchy
+    BaseTask -->|implements| AnyTask
+    Task -->|inherits| BaseTask
+    BaseTrigger -->|inherits| BaseTask
+    Scheduler -->|inherits| BaseTrigger
+    CmdTask -->|inherits| BaseTask
+    LLMTask -->|inherits| BaseTask
+    Scaffolder -->|inherits| BaseTask
+    HttpCheck -->|inherits| BaseTask
+    RsyncTask -->|inherits| CmdTask
+    TcpCheck -->|inherits| BaseTask
+
+    %% BaseTask properties and access
+    BaseTask -->|has| AnyEnv
+    BaseTask -->|has| AnyInput
+    BaseTask -->|accesses| Context
+    AnyTask -->|is upstream of| BaseTask
+    AnyTask -->|is checker of| BaseTask
+
+    %% Callback usage
+    BaseTrigger -->|has| Callback
+    Callback -->|executes| AnyTask
+
+    %% Session/Context relations
+    Session -->|runs| AnyTask
+    Session -->|provides| Context
+    Context -->|has| AnyEnv
+    Context -->|has| AnyInput
+    Context -->|has| XCom
+
+    %% Expanded Env relationships
+    Env -->|inherits| AnyEnv
+    EnvMap -->|inherits| AnyEnv
+    EnvFile -->|inherits| EnvMap
+
+    %% Expanded Input relationships
+    BaseInput -->|inherits| AnyInput
+    StrInput -->|inherits| BaseInput
+    IntInput -->|inherits| BaseInput
+    FloatInput -->|inherits| BaseInput
+    BoolInput -->|inherits| BaseInput
+    OptionInput -->|inherits| BaseInput
+    PasswordInput -->|inherits| BaseInput
+    TextInput -->|inherits| BaseInput
+```
+
+> **Legend:**
+> - 💻 CLI: Command-line interface entry point
+> - 🏛️ Group: Group class for organizing tasks
+> - 🏗️ BaseTask: Core base class for all tasks
+> - 🧩 ... (interface): Interface/abstract base (e.g., AnyTask, AnyEnv, AnyInput)
+> - 🌿 Env: Single environment variable class
+> - 🧬 EnvMap: Environment variable map class
+> - 📄 EnvFile: Environment file loader class
+> - 🏗️ BaseInput: Base input class (parent of all concrete input types)
+> - 📝 StrInput: String input
+> - 🧮 IntInput: Integer input
+> - 🔢 FloatInput: Float input
+> - 🔘 BoolInput: Boolean input
+> - 🎚️ OptionInput: Option (select) input
+> - 🔑 PasswordInput: Password/secret input
+> - 🗒️ TextInput: Multi-line text input
+> - ✅ Task: Main user-facing base class (inherits from BaseTask)
+> - ⏩ BaseTrigger: Event/callback base task
+> - ⏰ Scheduler: Scheduled/cron task
+> - 🖥️ CmdTask: Command execution task
+> - 🤖 LLMTask: Language model/AI task
+> - 🛠️ Scaffolder: File/template generation task
+> - 🌐 HttpCheck: HTTP health check task
+> - 🔄 RsyncTask: File sync task
+> - 📡 TcpCheck: TCP port check task
+> - 🔔 Callback: Event/callback handler (used by triggers/schedulers, executes an AnyTask)
+> - 🗃️ Session: Execution session
+> - 🧠 Context: Task/session context
+> - 🔄 XCom: Cross-task communication
+>
+> **All edges are labeled. Subgraphs are used to avoid overlap and clarify relationships.**
 ### Tasks
 
 Tasks are the fundamental units of work in Zrb. Each task represents a specific action or step in your automation workflow. Tasks can be defined using Python classes or functions and can have inputs, environment variables, dependencies, and actions.
@@ -84,13 +220,32 @@ A Session represents a single execution run of one or more Zrb tasks. It manages
 
 ### Inputs
 
-Inputs are used to pass parameters to your tasks. You can define various types of inputs (string, integer, boolean, options) with default values and descriptions. Zrb handles prompting the user for input if not provided via the command line or other means.
+Inputs are used to pass parameters to your tasks. Zrb provides a flexible input system with multiple input types, each designed for different use cases. You can define various types of inputs (string, integer, boolean, options, etc.) with default values and descriptions. Zrb handles prompting the user for input if not provided via the command line or other means.
+
+**Available Input Types:**
+
+- **AnyInput**: The abstract base class/interface for all input types. All input types inherit from this and must implement its required methods and properties.
+- **BaseInput**: A concrete base class that implements most of the logic for standard inputs. Most input types extend this.
+- **StrInput**: Standard string input. Accepts any string value.
+- **IntInput**: Integer input. Accepts integer values, with optional default and prompt.
+- **FloatInput**: Floating-point input. Accepts decimal numbers.
+- **BoolInput**: Boolean input. Accepts true/false values, typically rendered as a select/dropdown.
+- **OptionInput**: Input with a predefined set of string options. Renders as a dropdown/select in UI and validates input against allowed options.
+- **PasswordInput**: Input for sensitive data (e.g., passwords). Hides input in CLI and UI.
+- **TextInput**: Multi-line text input, optionally opened in an external editor. Useful for longer text or code snippets.
 
 *   [Documentation on Inputs](./input.md)
 
 ### Environment Variables
 
 Environment variables are used for configuration. Zrb allows you to define environment variables for tasks, load them from `.env` files, and link them to system environment variables. These are accessible via the `ctx.env` object.
+
+**Available Environment Variable Types:**
+
+- **AnyEnv**: The abstract base class/interface for all environment variable types. All env types inherit from this and must implement its required methods.
+- **Env**: Represents a single environment variable, with support for default values, auto-rendering, and linking to OS environment variables.
+- **EnvMap**: Represents a collection (map) of environment variables, which can be defined as a static dictionary or generated dynamically via a function.
+- **EnvFile**: Loads environment variables from a `.env` file using the `dotenv` format. Inherits from EnvMap and supports auto-rendering and OS variable linking.
 
 *   [Documentation on Environment Variables](./env.md)
 
@@ -122,5 +277,5 @@ Once you are familiar with the core concepts, explore these guides for more adva
 *   **Video Demo:** See a quick demonstration of Zrb's capabilities.
     *   [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 *   **Community & Support:** Join the Zrb community, ask questions, report bugs, or contribute to the project.
-    *   Report issues or suggest features on [GitHub Issues](https://github.com/state-alchemists/zrb/issues).
+    *   Report issues or suggest features on [](https://github.com/state-alchemists/zrb/issues).
     *   Submit code changes via [GitHub Pull Requests](https://github.com/state-alchemists/zrb/pulls).

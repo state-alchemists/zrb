@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "1.8.9"
+version = "1.8.11"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -38,7 +38,7 @@ exclude = [
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<4.0.0"
-python-dotenv = "^1.1.0"
+python-dotenv = "^1.1.1"
 black = "~25.1.0"
 isort = "~6.0.1"
 requests = "^2.32.4"
@@ -46,12 +46,13 @@ libcst = "^1.7.0"
 chromadb = {version = "^0.6.3", optional = true}
 pdfplumber = {version = "^0.11.6", optional = true}
 beautifulsoup4 = "^4.13.3"
-fastapi = {extras = ["standard"], version = "^0.115.12"}
+fastapi = {extras = ["standard"], version = "^0.115.14"}
 python-jose = {extras = ["cryptography"], version = "^3.4.0"}
 ulid-py = "^1.1.0"
-pydantic-ai = "^0.2.18"
-openai = {version = "^1.76.0", optional = true}
-playwright = {version = "^1.51.0", optional = true}
+pydantic-ai = "^0.3.4"
+tiktoken = "^0.8.0"
+openai = {version = "^1.86.0", optional = true}
+playwright = {version = "^1.53.0", optional = true}
 psutil = "^7.0.0"
 pyjwt = "^2.10.1"
 
@@ -62,7 +63,7 @@ playwright = ["playwright"]
 all = ["chromadb", "pdfplumber", "openai", "playwright"]
 
 [tool.poetry.group.dev.dependencies]
-alembic = "^1.15.2" # FastApp dependencies
+alembic = "^1.16.2" # FastApp dependencies
 autopep8 = "^2.0.4"
 flake8 = "~7.2.0"
 pytest = "~8.3.5"

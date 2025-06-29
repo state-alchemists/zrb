@@ -1,5 +1,14 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.11
+
+- Update clipping mechanism
+
+# 1.8.10
+
+- Introduce payload clipping mechanism
+- Use token instead of char count
+
 # 1.8.9
 
 - Improve prompts so that the summarization include last conversations in verbatim

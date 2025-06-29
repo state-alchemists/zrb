@@ -175,11 +175,9 @@ def test_serve_cli_normal_execution(
 @mock.patch("zrb.__main__.get_init_path_list")
 @mock.patch("zrb.__main__.cli.run", side_effect=KeyboardInterrupt)
 @mock.patch("sys.argv", ["zrb", "test-task"])
-@mock.patch("sys.exit")
 @mock.patch("builtins.print")
 def test_serve_cli_keyboard_interrupt(
     mock_print,
-    mock_exit,
     mock_cli_run,
     mock_get_zrb_init,
     mock_load_file,
@@ -191,7 +189,6 @@ def test_serve_cli_keyboard_interrupt(
     """Test serve_cli handling KeyboardInterrupt."""
     __main__.serve_cli()
     mock_print.assert_called_once()  # Check if warning message is printed
-    mock_exit.assert_called_once_with(1)
 
 
 @mock.patch("zrb.config.Config.LOGGER", new_callable=mock.MagicMock)

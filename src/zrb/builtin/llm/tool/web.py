@@ -42,7 +42,7 @@ async def open_web_page(url: str) -> str:
                     return {"content": content, "links_on_page": links}
                 finally:
                     await browser.close()
-        except ImportError:
+        except BaseException:
             import requests
 
             response = requests.get(url, headers={"User-Agent": user_agent})
