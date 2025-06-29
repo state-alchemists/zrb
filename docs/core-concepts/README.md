@@ -26,7 +26,7 @@ flowchart LR
         TcpCheck["📡 TcpCheck<br/>(class)"]
     end
 
-    subgraph ContentTransformer ["ContentTransfomer"]
+    subgraph ContentTransformerBlock ["ContentTransfomer"]
         direction TB
         AnyContentTransformer["🧩 AnyContentTransformer<br/>(interface)"]
         ContentTransformer["🐦‍🔥 ContentTransformer<br/>(class)"]
