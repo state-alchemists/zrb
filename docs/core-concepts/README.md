@@ -42,8 +42,8 @@ flowchart LR
         direction TB
         AnySession["🧩 AnySession<br/>(interface)"]
         Session["🗃️ Session<br/>(class)"]
-        AnySharedContext["🧩 AnyContext<br/>(interface)"]
-        AnyContext["🧠 SharedContext<br/>(class)"]
+        AnySharedContext["🧩 AnySharedContext<br/>(interface)"]
+        SharedContext["🧠 SharedContext<br/>(class)"]
         AnyContext["🧩 AnyContext<br/>(interface)"]
         Context["🧠 Context (ctx)<br/>(class)"]
         XCom["🔄 XCom"]
