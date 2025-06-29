@@ -2,6 +2,8 @@
 
 # Core Concepts
 
+The following diagram covers most `objects` and `classes` in Zrb.
+
 ```mermaid
 flowchart LR
     %% Layout: group related nodes in subgraphs to avoid overlap

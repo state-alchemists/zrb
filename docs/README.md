@@ -7,7 +7,39 @@ Zrb is a powerful and flexible tool designed to help you automate repetitive tas
 
 This documentation is your starting point to learn more about Zrb, understand its core concepts, and explore its capabilities.
 
-## Table of Contents
+## Basic Principles
+
+When working with Zrb, there are some common principles you should have in mind.
+
+* Everything defined in `zrb_init.py`
+    * You can place `zrb_init.py` anywhere.
+    * You can define tasks, groups, and configurations in your `zrb_init.py`
+    * Any tasks and configurations defined in `<dir>/zrb_init.py` will works on the `<dir>` as well as its sub-directories. 
+
+    ```mermaid
+    flowchart LR
+    subgraph homeDir ["(Can Access A)"]
+        homeDirZrbInit["zrb_init.py<br/>(Define A)"]
+        subgraph projectDir ["(Can access A and B)"]
+            projectDirZrbInit["zrb_init.py<br />(Define B)"]
+            subgraph subProjectDir ["(Can access A, B and C)"]
+                subProjectDirZrbInit["zrb_init.py<br />(Define C)"]
+            end
+        end
+        subgraph otherProjectDir ["(Can access A and D)"]
+            otherProjectDirZrbInit["zrb_init.py<br />(Define D)"]
+        end
+    end
+    ```
+* Task access hierarchy always started with a `cli`.
+* You can use `upstreams` parameter or `>>` operator to define task dependencies.
+* Use `task`'s `input` to get user inputs.
+* Use `task`'s `env` to get environment variable values.
+* Use `xcom` to for inter `task` communication.
+
+
+
+# Topics
 
 * [Installation and Configuration](./installation-and-configuration/README.md)
     * [Configuration](./installation-and-configuration/configuration/README.md)
@@ -27,6 +59,7 @@ This documentation is your starting point to learn more about Zrb, understand it
     * [Maintainer Guide](./maintainer-guide.md)
     * [Changelog](./changelog.md)
     * [Creating a Custom Zrb Powered CLI](./creating-custom-zrb-powered-cli.md)
+
 
 ### Quick Start
 
