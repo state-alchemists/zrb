@@ -42,6 +42,8 @@ flowchart LR
         direction TB
         AnySession["🧩 AnySession<br/>(interface)"]
         Session["🗃️ Session<br/>(class)"]
+        AnySharedContext["🧩 AnyContext<br/>(interface)"]
+        AnyContext["🧠 SharedContext<br/>(class)"]
         AnyContext["🧩 AnyContext<br/>(interface)"]
         Context["🧠 Context (ctx)<br/>(class)"]
         XCom["🔄 XCom"]
@@ -85,7 +87,7 @@ flowchart LR
     %% BaseTask properties and access
     BaseTask -->|has| AnyEnv
     BaseTask -->|has| AnyInput
-    BaseTask -->|accesses| Context
+    BaseTask -->|accesses| AnyContext
     AnyTask -->|is upstream of| BaseTask
     AnyTask -->|is checker of| BaseTask
 
@@ -101,7 +103,10 @@ flowchart LR
     %% Session/Context relations
     Session -->|implements| AnySession
     Session -->|runs| AnyTask
-    Session -->|provides| Context
+    Session -->|has| AnySharedContext
+    Session -->|provides| AnyContext
+    SharedContext -->|implements| AnySharedContext
+    AnyContext -->|inherits| SharedContext
     Context -->|implements| AnyContext
     Context -->|has| AnyEnv
     Context -->|has| AnyInput
