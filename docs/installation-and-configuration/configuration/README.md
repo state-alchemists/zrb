@@ -398,3 +398,6 @@ The following environment variables are used as [LLM Config](./llm-rate-limitter
 * `SERPAPI_KEY`: API key for SerpAPI.
     * Default: Empty
     * Possible values: Any valid SerpAPI key
+
+---
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md)
