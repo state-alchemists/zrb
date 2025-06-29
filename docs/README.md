@@ -238,7 +238,7 @@ When working with Zrb, there are some common principles you should have in mind.
         * [Session](./core-concepts/session-and-context/session.md)
         * [Context](./core-concepts/session-and-context/context.md)
         * [XCom](./core-concepts/session-and-context/xcom.md)
-*   [Advanced Topics](#advanced-topics)
+* [Advanced Topics](#advanced-topics)
     * [CI/CD Integration](./ci_cd.md)
     * [Upgrading Guide 0.x.x to 1.x.x](./upgrading_guide_0_to_1.md)
     * [Troubleshooting](./troubleshooting/)
