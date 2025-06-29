@@ -10,6 +10,8 @@ This documentation is your starting point to learn more about Zrb, understand it
 ## Table of Contents
 
 * [Installation and Configuration](./installation-and-configuration/README.md)
+* [Core Concepts](./core-concepts/README.md)
+    * []
 
 *   [Introduction](#introduction)
 *   [Why Zrb?](#why-zrb)

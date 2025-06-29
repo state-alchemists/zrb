@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `LLMRateLimiter` class in [`src/zrb/llm_rate_limitter.py`](src/zrb/llm_rate_limitter.py) helps enforce API rate limits and throttling for LLM requests. It tracks requests and tokens in a rolling 60-second window, ensuring that the application stays within the defined limits.
+The `LLMRateLimiter` class in [`src/zrb/llm_rate_limitter.py`](../../../src/zrb/llm_rate_limitter.py) helps enforce API rate limits and throttling for LLM requests. It tracks requests and tokens in a rolling 60-second window, ensuring that the application stays within the defined limits.
 
 To configure the rate limiter, you can access and manipulate the `llm_rate_limitter` singleton by importing `zrb.llm_config` in your `zrb_init.py`:
 

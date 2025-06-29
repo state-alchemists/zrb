@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `WebAuthConfig` class provides configuration settings for web authentication. It includes parameters for token management, user roles, and authentication behavior.
+The `WebAuthConfig` class in [`src/zrb/runner/web_auth_config.py`](../../../src/zrb/runner/web_auth_config.py) provides configuration settings for web authentication. It includes parameters for authentication token management, user roles, and authentication behavior.
 
 Zrb has a `web_auth_config` singleton that you can access and manipulate by importing `zrb.web_auth_config` in your `zrb_init.py`
 
@@ -54,38 +54,47 @@ web_auth_config.set_guest_accessible_tasks(["throw-dice", "shuffle"])
 ### `secret_key`
 - **Description**: The secret key for token generation.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_WEB_SECRET`
 
 ### `access_token_expire_minutes`
 - **Description**: The expiration time for access tokens in minutes.
 - **Type**: `int`
+- **Environment Variable**: `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES`
 
 ### `refresh_token_expire_minutes`
 - **Description**: The expiration time for refresh tokens in minutes.
 - **Type**: `int`
+- **Environment Variable**: `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES`
 
 ### `access_token_cookie_name`
 - **Description**: The name of the access token cookie.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_WEB_ACCESS_TOKEN_COOKIE_NAME`
 
 ### `refresh_token_cookie_name`
 - **Description**: The name of the refresh token cookie.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_WEB_REFRESH_TOKEN_COOKIE_NAME`
 
 ### `enable_auth`
 - **Description**: Whether authentication is enabled.
 - **Type**: `bool`
+- **Environment Variable**: `ZRB_WEB_ENABLE_AUTH`
 
 ### `super_admin_username`
 - **Description**: The username of the super admin.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_WEB_SUPERADMIN_USERNAME`
 
 ### `super_admin_password`
 - **Description**: The password of the super admin.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_WEB_SUPERADMIN_PASSWORD`
 
 ### `guest_username`
 - **Description**: The username for guest users.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_WEB_GUEST_USERNAME`
 
 ### `guest_accessible_tasks`
 - **Description**: List of tasks accessible to guest users.

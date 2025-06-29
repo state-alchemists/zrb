@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `LLMConfig` class provides configuration settings for the Language Model (LLM) functionality. It includes default prompts, model settings, and other parameters required for LLM operations.
+The `LLMConfig` class in [`src/zrb/llm_config.py`](../../../src/zrb/llm_config.py) provides configuration settings for the Language Model (LLM) functionality. It includes default prompts, model settings, and other parameters required for LLM operations.
 
 The configurations will be used as default values for `LLMTask` and other LLM utilities.
 
@@ -26,50 +26,62 @@ llm_config.set_persona(
 ### `default_model_name`
 - **Description**: The default model name to be used for LLM operations.
 - **Type**: `str | None`
+- **Environment Variable**: `ZRB_LLM_MODEL`
 
 ### `default_model_base_url`
 - **Description**: The base URL for the LLM API.
 - **Type**: `str | None`
+- **Environment Variable**: `ZRB_LLM_BASE_URL`
 
 ### `default_model_api_key`
 - **Description**: The API key for the LLM service.
 - **Type**: `str | None`
+- **Environment Variable**: `ZRB_LLM_API_KEY`
 
 ### `default_persona`
 - **Description**: The default persona for the assistant.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_PERSONA`
 
 ### `default_system_prompt`
 - **Description**: The default system prompt for the assistant.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_SYSTEM_PROMPT`
 
 ### `default_special_instruction_prompt`
 - **Description**: The default prompt for special instructions.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`
 
 ### `default_summarization_prompt`
 - **Description**: The default prompt for summarization tasks.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_SUMMARIZATION_PROMPT`
 
 ### `default_context_enrichment_prompt`
 - **Description**: The default prompt for context enrichment.
 - **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`
 
 ### `default_summarize_history`
 - **Description**: Whether to summarize conversation history.
 - **Type**: `bool`
+- **Environment Variable**: `ZRB_LLM_SUMMARIZE_HISTORY`
 
 ### `default_history_summarization_threshold`
 - **Description**: The threshold for history summarization.
 - **Type**: `int`
+- **Environment Variable**: `ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD`
 
 ### `default_enrich_context`
 - **Description**: Whether to enrich context.
 - **Type**: `bool`
+- **Environment Variable**: `ZRB_LLM_ENRICH_CONTEXT`
 
 ### `default_context_enrichment_threshold`
 - **Description**: The threshold for context enrichment.
 - **Type**: `int`
+- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD`
 
 ### `default_model_settings`
 - **Description**: The default model settings.
