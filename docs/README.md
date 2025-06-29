@@ -51,7 +51,7 @@ When working with Zrb, there are some common principles you should have in mind.
   # make and register "wake-up" task to the "alarm" group.
   alarm_group.add_task(CmdTask(name="wake-up", cmd="echo wake up!"))
 
-  # make and register "critical" group to the "alarm" group.
+  # make and register "critical" group to the cli.
   alarm_critical_group = alarm_group.add_group(Group(name="critical"))
   # make and register "fire" task to the "critical" group.
   alarm_critical_group.add_task(CmdTask(name="fire", cmd="echo fire!!!"))
@@ -238,12 +238,11 @@ When working with Zrb, there are some common principles you should have in mind.
         * [Session](./core-concepts/session-and-context/session.md)
         * [Context](./core-concepts/session-and-context/context.md)
         * [XCom](./core-concepts/session-and-context/xcom.md)
-* [Advanced Topics](#advanced-topics)
-    * [CI/CD Integration](./ci_cd.md)
-    * [Upgrading Guide 0.x.x to 1.x.x](./upgrading_guide_0_to_1.md)
-    * [Troubleshooting](./troubleshooting/)
-    * [Maintainer Guide](./maintainer-guide.md)
-    * [Changelog](./changelog.md)
-    * [Creating a Custom Zrb Powered CLI](./creating-custom-zrb-powered-cli.md)
+* [Advanced Topics](./advanced-topics/README.md)
+    * [CI/CD Integration](./advanced-topics/ci_cd.md)
+    * [Upgrading Guide 0.x.x to 1.x.x](./advanced-topics/upgrading_guide_0_to_1.md)
+    * [Maintainer Guide](./advanced-topics/maintainer-guide.md)
+    * [Creating a Custom Zrb Powered CLI](./advanced-topics/creating-custom-zrb-powered-cli.md)
+* [Changelog](./changelog.md)
 
 🔖 [Home](../../README.md)
