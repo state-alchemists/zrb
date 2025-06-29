@@ -90,12 +90,12 @@ flowchart LR
 
     %% Content transformer
     ContentTransformer -->|implements| AnyContentTransformer
-    Scaffolder -->|has| ContentTransformer
+    Scaffolder -->|has| AnyContentTransformer
 
     %% Callback usage
     Callback -->|implements| AnyCallback
     Callback -->|executes| AnyTask
-    BaseTrigger -->|has| Callback
+    BaseTrigger -->|has| AnyCallback
 
     %% Session/Context relations
     Session -->|implements| AnySession
