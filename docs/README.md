@@ -1,12 +1,15 @@
+🔖 [Home](../../README.md)
 # Zrb Documentation
 
 Welcome to the official documentation for Zrb, your automation powerhouse!
 
 Zrb is a powerful and flexible tool designed to help you automate repetitive tasks, integrate with modern technologies like Large Language Models (LLMs), and build custom workflows using Python. Whether you are a beginner looking to automate simple scripts or an experienced developer building complex CI/CD pipelines, Zrb provides the tools and structure you need.
 
-This documentation is your starting point to learn about Zrb, understand its core concepts, and explore its capabilities. We'll guide you from installation through creating your first tasks and leveraging advanced features.
+This documentation is your starting point to learn more about Zrb, understand its core concepts, and explore its capabilities.
 
 ## Table of Contents
+
+* [Installation and Configuration](./installation-and-configuration/README.md)
 
 *   [Introduction](#introduction)
 *   [Why Zrb?](#why-zrb)
@@ -24,8 +27,8 @@ This documentation is your starting point to learn about Zrb, understand its cor
     *   [Inputs](#inputs)
     *   [Environment Variables](#environment-variables)
     *   [XCom](#xcom)
+    [Configuration](./configuration.md)
 *   [Advanced Topics](#advanced-topics)
-    *   [Configuration](./configuration.md)
     *   [CI/CD Integration](./ci_cd.md)
     *   [Upgrading Guide 0.x.x to 1.x.x](./upgrading_guide_0_to_1.md)
     *   [Troubleshooting](./troubleshooting/)
@@ -33,50 +36,6 @@ This documentation is your starting point to learn about Zrb, understand its cor
     *   [Changelog](./changelog.md)
     *   [Creating a Custom Zrb Powered CLI](./creating-custom-zrb-powered-cli.md)
 *   [Demo & Community](#demo--community)
-
-## Introduction
-
-Zrb simplifies the creation and execution of automation tasks. It allows you to define tasks using Python classes or functions, organize them into groups, and run them via a command-line interface or a web UI. Zrb handles task dependencies, inputs, environment variables, and inter-task communication, allowing you to focus on the logic of your automation.
-
-## Why Zrb?
-
-Zrb stands out by offering:
-*   **Python-Native Automation:** Write tasks in a familiar and powerful language.
-*   **LLM Integration:** Easily incorporate AI capabilities into your workflows.
-*   **Structured Workflows:** Define dependencies and organize tasks logically.
-*   **Flexible Execution:** Run tasks from the CLI or a web browser.
-*   **Extensibility:** Customize and build upon the Zrb framework.
-
-Learn more about the motivations and benefits in the main [README.md](../README.md).
-
-## Key Features
-
-*   **LLM Integration:** Connect with Language Models to perform tasks like code generation, summarization, and more.
-*   **Task Chaining:** Define `upstream` dependencies between tasks to create complex, ordered workflows.
-*   **CLI & Server Mode:** Execute tasks directly from your terminal or expose them via a web interface for easy access.
-*   **Flexible Input Handling:** Define task inputs with defaults, descriptions, and types (string, integer, boolean, options).
-*   **Environment Variables:** Manage configuration using environment variables, loaded from the system, `.env` files, or task definitions.
-*   **Cross-Communication (XCom):** Safely exchange small amounts of data between tasks.
-
-## Getting Started
-
-Follow these steps to install Zrb and create your very first automation workflow.
-
-### Installation
-
-The easiest way to install Zrb is using pip:
-
-```bash
-pip install zrb
-```
-
-Alternatively, you can use our installation script which handles prerequisites:
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
-```
-
-For detailed instructions on setting up Zrb on an Android device using Termux and Proot, refer to the [Android Setup Guide](./android_setup.md).
 
 ### Quick Start
 

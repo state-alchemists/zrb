@@ -4,20 +4,16 @@
 
 # 🤖 Zrb: Your Automation Powerhouse
 
-
-**Unlock the full potential of automation in your projects!**
-
-Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you create custom automation workflows effortlessly. Whether you’re building CI/CD pipelines, code generators, or unique automation scripts, Zrb is designed to simplify and supercharge your workflow.
-
+Zrb simplifies the creation and execution of automation tasks. It allows you to define tasks using Python classes or functions, organize them into groups, and run them via a command-line interface or a web UI. Zrb handles task dependencies, inputs, environment variables, and inter-task communication, allowing you to focus on the logic of your automation.
 
 ## 🚀 Why Zrb?
 
-- **Easy Automation with Python:** Write your tasks in Python and let Zrb handle the rest.
-- **Seamless Integration:** Utilize built-in support for LLM tasks, command execution, and more.
-- **Custom Workflows:** Chain tasks, set dependencies, and build robust automation pipelines.
-- **Developer-Friendly:** Quick to install and get started, with clear documentation and examples.
-- **Web Interface:** Run Zrb as a server to make tasks accessible even to non-technical team members.
-
+Zrb stands out by offering:
+* **Python-Native Automation:** Write tasks in a familiar and powerful language.
+* **LLM Integration:** Easily incorporate AI capabilities into your workflows.
+* **Structured Workflows:** Define dependencies and organize tasks logically.
+* **Flexible Execution:** Run tasks from the CLI or a web browser.
+* **Extensibility:** Customize and build upon the Zrb framework.
 
 ## 🔥 Key Features
 
@@ -25,33 +21,44 @@ Zrb streamlines repetitive tasks, integrates with powerful LLMs, and lets you cr
 - **Task Chaining:** Easily define dependencies between tasks to create complex workflows.
 - **CLI & Server Mode:** Run tasks directly from the command line or through a user-friendly web UI.
 - **Flexible Input Handling:** Defaults, prompts, and command-line parameters to suit any workflow.
+* **Environment Variables:** Manage configuration using environment variables, loaded from the system, `.env` files, or task definitions.
+* **Cross-Communication (XCom):** Safely exchange small amounts of data between tasks.
 - **Extensible & Open Source:** Contribute, customize, or extend Zrb to fit your unique needs.
 
 
 # 🛠️ Installation
 
-Install Zrb via pip:
+The easiest way to install Zrb is using pip:
 
 ```bash
 pip install zrb
 # pip install --pre zrb
 ```
 
-Or run our installation script to set up Zrb along with all prerequisites:
+Alternatively, you can use Zrb installation script which handles prerequisites:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 ```
 
-You can also [run Zrb as container](https://github.com/state-alchemists/zrb?tab=readme-ov-file#-run-zrb-as-a-container)
+For more installation option like running Zrb on your **Android Device 📱** or **as a Container 🐋**, you can check the [installation and configuration guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation-and-configuration/README.md).
 
 # 🍲 Quick Start: Build Your First Automation Workflow
 
-Zrb empowers you to create custom automation tasks using Python. This guide shows you how to define two simple tasks: one to generate a Mermaid script from your source code and another to convert that script into a PNG image.
+This guide shows you how to define two simple tasks:
+
+- One to generate a Mermaid Diagram Script from your source code.
+- And another one to convert that script into a PNG image.
+
+> **Note:** This assume you have an `OPENAI_API_KEY` and a Mermaid CLI installed (i.e., `npm install -g @mermaid-js/mermaid-cli`)
 
 ## 1. Create Your Task Definition File
 
-Place a file named `zrb_init.py` in a directory that's accessible from your projects. Zrb will automatically search for this file by starting in your current directory and then moving upward (i.e., checking parent directories) until it finds one. This means if you place your `zrb_init.py` in your home directory (e.g., `/home/<your-user-name>/zrb_init.py`), the tasks defined there will be available for any project.
+Place a file named `zrb_init.py` in a directory that's accessible from your projects.
+
+Zrb will automatically search for this file by starting in your current directory and then moving upward (i.e., checking parent directories) until it finds one.
+
+This means if you place your `zrb_init.py` in your home directory (e.g., `/home/<your-user-name>/zrb_init.py`), the tasks defined there will be available for any project inside your home directory.
 
 Add the following content to your zrb_init.py:
 
@@ -106,11 +113,11 @@ make_mermaid_script >> make_mermaid_image
 
 - **Task 1 – make-script**:
 
-    Uses an LLM to read all files in your current directory and generate a Mermaid script (e.g., `state diagram.mmd`).
+    Uses an LLM to read all files in your current directory and generate a [Mermaid Diagram Script](https://mermaid.js.org/) (e.g., `state diagram.mmd`).
 
 - **Task 2 – make-image**:
 
-    Executes a command that converts the Mermaid script into a PNG image (e.g., `state diagram.png`). This task will run only after the script has been generated.
+    Executes a command that converts the Mermaid Diagram Script into a PNG image (e.g., `state diagram.png`). This task will run only after the script has been generated.
 
 
 ## 2. Run Your Tasks
@@ -138,14 +145,16 @@ After setting up your tasks, you can execute them from any project. For example:
 
     Zrb will prompt:
 
-    ```bash
+    ```
     dir [./]:
     diagram [state diagram]:
     ```
 
     Press **Enter** to use the default value
 
-![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
+- And you have your State Diagram ready :)
+
+    ![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
 
 
 ## 3. Try Out the Web UI
@@ -160,41 +169,10 @@ Then open your browser and visit `http://localhost:21213`
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 
-
-# 🐋 Run Zrb as a Container
-
-Zrb can be run in a containerized environment, offering two distinct versions to suit different needs:
-
-- **Standard Version**: Ideal for general use cases where Docker CLI access is not required.
-- **Dind (Docker in Docker) Version**: Includes built-in Docker commands, perfect for scenarios where you need to access the host's Docker CLI.
-
-### Standard Version
-
-The standard version of the Zrb container is suitable for most automation tasks. To run this version, execute the following command:
-
-```bash
-# Replace <host-path> and <container-path> with your desired paths
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 zrb
-```
-
-### Dind Version
-
-The Dind version is tailored for advanced use cases where Docker commands need to be executed within the container. This version allows the container to interact with the host's Docker daemon. To run the Dind version, use the command below:
-
-```bash
-# Replace <host-path> and <container-path> with your desired paths
-docker run \
-    -v ${HOME}:/zrb-home \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -it --rm stalchmst/zrb:1.8.1-dind docker ps
-```
-
-> **Note:** The Dind (Docker in Docker) version of the container is larger in size compared to the standard version due to the inclusion of Docker CLI tools. Consider this when choosing the appropriate version for your needs.
-
 # 🎥 Demo & Documentation
 
-- **Full documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
-- **Video demo:**
+- **Go Further By Visiting Our Documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
+- **Video Demo:**
 
     [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
