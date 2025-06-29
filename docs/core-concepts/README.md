@@ -50,12 +50,14 @@ flowchart LR
     end
 
     subgraph EnvBlock ["Environment"]
+        direction TB
         AnyEnv["🧩 AnyEnv<br/>(interface)"]
         Env["🌿 Env<br/>(class)"]
         EnvMap["🧬 EnvMap<br/>(class)"]
         EnvFile["📄 EnvFile<br/>(class)"]
     end
     subgraph InputBlock ["Inputs"]
+        direction TB
         AnyInput["🧩 AnyInput<br/>(interface)"]
         BaseInput["🏗️ BaseInput<br/>(class)"]
         StrInput["📝 StrInput<br/>(class)"]
@@ -106,7 +108,7 @@ flowchart LR
     Session -->|has| AnySharedContext
     Session -->|provides| AnyContext
     SharedContext -->|implements| AnySharedContext
-    AnyContext -->|inherits| SharedContext
+    AnyContext -->|inherits| AnySharedContext
     Context -->|implements| AnyContext
     Context -->|has| AnyEnv
     Context -->|has| AnyInput
