@@ -90,7 +90,7 @@ flowchart LR
 
     %% Content transformer
     ContentTransformer -->|implements| AnyContentTransformer
-    Scaffoler -->|has| ContentTransformer
+    Scaffolder -->|has| ContentTransformer
 
     %% Callback usage
     Callback -->|implements| AnyCallback
