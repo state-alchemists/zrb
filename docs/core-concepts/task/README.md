@@ -26,15 +26,6 @@ cli.add_task(my_task)  # Register with CLI to make it accessible
 ```
 
 Zrb provides several built-in task types (like `CmdTask`, `LLMTask`, `Scaffolder`, etc.) that you can directly instantiate.
-Here are some commonly used built-in task types you can directly instantiate:
-
-*   [`CmdTask`](./types/cmd_task.md): For executing shell commands.
-*   [`LLMTask`](./types/llm_task.md): For integrating with Language Model APIs.
-*   [`Scaffolder`](./types/scaffolder.md): For creating files and directories from templates.
-*   [`RsyncTask`](./types/rsync_task.md): For synchronizing files and directories.
-*   [`HttpCheck`](./types/http_check.md): For performing HTTP health checks.
-*   [`TcpCheck`](./types/tcp_check.md): For performing TCP port health checks.
-*   [`Scheduler`](./types/scheduler.md): For triggering tasks based on a schedule.
 
 **When to use**: Best for simple tasks where you need to create and configure tasks programmatically. Good for dynamic task creation or when you need to create multiple similar tasks with slight variations.
 
@@ -114,7 +105,7 @@ task = Task(
 cli.add_task(task)  # Don't forget to register the task
 ```
 
-Inputs can be accessed in the task's action via the `ctx.input` object. For a comprehensive guide on all available input types and how to use them, refer to the [Inputs documentation](../../input.md).
+Inputs can be accessed in the task's action via the `ctx.input` object. For a comprehensive guide on all available input types and how to use them, refer to the [Input documentation](../input/README.md).
 
 ### 2. Environment Variables
 
@@ -149,7 +140,7 @@ my_env_map = EnvMap(vars={"VAR1": "value1", "VAR2": "value2"})
 my_env_file = EnvFile(path=".env")
 ```
 
-For a comprehensive guide on defining environment variables using `Env`, `EnvMap`, and `EnvFile`, refer to the [Environment Variables documentation](../../env.md).
+For a comprehensive guide on defining environment variables using `Env`, `EnvMap`, and `EnvFile`, refer to the [Environment documentation](../env/README.md).
 
 ### 3. Dependencies (Upstream Tasks)
 
@@ -197,9 +188,25 @@ Beyond inputs, environment variables, and dependencies, tasks have several other
 *   **Readiness Checks:** Tasks that verify if a service or application is ready before proceeding with downstream tasks (`readiness_check` parameter). See [Readiness Checks](#readiness-checks) for details.
 *   **Retries:** Specifies the number of times a task should be retried if it fails (`retries` property). Helps in handling transient errors.
 
+## Task Types
+
+Zrb provides several built-in task types to handle various operations. These specialized task types extend the base `Task` (or `BaseTask`) and offer domain-specific features for common use cases.
+
+You can directly instantiate these task types when defining your workflows.
+
+*   [BaseTask](./types/base_task.md): The fundamental building block for all other task types.
+*   [CmdTask](./types/cmd_task.md): For executing shell commands.
+*   [HttpCheck](./types/http_check.md): For performing HTTP health checks.
+*   [LLMTask](./types/llm_task.md): For integrating with Language Model APIs.
+*   [RsyncTask](./types/rsync_task.md): For synchronizing files and directories using rsync.
+*   [Scaffolder](./types/scaffolder.md): For creating files and directories from templates.
+*   [Scheduler](./types/scheduler.md): For triggering tasks based on a defined schedule.
+*   [Task](./types/task.md): An alias for `BaseTask`, commonly used for general Python tasks.
+*   [TcpCheck](./types/tcp_check.md): For performing TCP port health checks.
+
 ## Readiness Checks
 
-Readiness checks are special tasks that verify if a service or application is ready before proceeding with downstream tasks. Readiness checks are themselves tasks, meaning you can use any task type suitable for verification, such as `HttpCheck` or a custom Python task. For more information on different task types, see the [Task Types section in the Task documentation](../README.md#task-types). This is particularly useful for tasks that start services, servers, or containers.
+Readiness checks are special tasks that verify if a service or application is ready before proceeding with downstream tasks. Readiness checks are themselves tasks, meaning you can use any task type suitable for verification, such as `HttpCheck` or a custom Python task. This is particularly useful for tasks that start services, servers, or containers.
 
 Zrb provides built-in readiness check tasks:
 
@@ -300,67 +307,6 @@ test_app = cli.add_task(
 
 start_app >> test_app
 ```
-
-### Readiness Check Parameters
-
-When using readiness checks, you can configure their behavior with these parameters:
-
-*   **readiness_check_delay**: The delay in seconds before starting readiness checks (default: 0.5)
-*   **readiness_check_period**: The period in seconds between readiness checks (default: 5)
-*   **readiness_failure_threshold**: The number of consecutive failures allowed before considering the task failed (default: 1)
-
-```python
-from zrb import CmdTask, HttpCheck, cli
-
-# Start a web application with custom readiness check parameters
-start_app = cli.add_task(
-    CmdTask(
-        name="start-app",
-        description="Start the web application",
-        cmd="npm start",
-        readiness_check=HttpCheck(name="check-app", url="http://localhost:3000"),
-        readiness_check_delay=2.0,  # Wait 2 seconds before starting checks
-        readiness_check_period=10.0,  # Check every 10 seconds
-        readiness_failure_threshold=3  # Allow up to 3 failures before failing
-    )
-)
-```
-
-### Custom Readiness Checks
-
-You can create custom readiness checks by using any task type. A readiness check is considered successful if it completes without raising an exception.
-
-```python
-from zrb import Task, CmdTask, cli
-
-# Custom readiness check that verifies a specific condition
-check_database_initialized = Task(
-    name="check-database-initialized",
-    description="Check if the database is initialized",
-    action=lambda ctx: ctx.run_command("psql -c 'SELECT 1 FROM users LIMIT 1'")
-)
-
-# Start a database and use the custom check
-start_database = cli.add_task(
-    CmdTask(
-        name="start-database",
-        description="Start the database",
-        cmd="docker compose up -d database",
-        readiness_check=check_database_initialized
-    )
-)
-```
-
-### How Readiness Checks Work
-
-When a task with readiness checks completes:
-
-1.  Zrb executes the readiness checks
-2.  If all checks pass, the task is considered complete and downstream tasks can run
-3.  If any check fails, Zrb will retry the checks according to the configured parameters
-4.  The task will only be considered complete when all readiness checks pass
-
-This ensures that downstream tasks only run when the system is in the expected state, preventing race conditions and timing issues.
 
 ## Complete Example
 

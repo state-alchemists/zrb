@@ -31,7 +31,7 @@ zrb hello
 Hello gofrendi, your shell is zsh
 ```
 
-This document explains how to define and access environment variables within your Zrb tasks. For information on configuring Zrb itself using environment variables, see the [Configuration](configuration.md) guide.
+This document explains how to define and access environment variables within your Zrb tasks. For information on configuring Zrb itself using environment variables, see the [Configuration guide](../../installation-and-configuration/configuration/README.md).
 
 Environment variables allow tasks to access system or user-defined environment variables:
 
