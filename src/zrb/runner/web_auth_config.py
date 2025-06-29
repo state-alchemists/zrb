@@ -8,7 +8,6 @@ from zrb.task.any_task import AnyTask
 class WebAuthConfig:
     def __init__(
         self,
-        port: int | None = None,
         secret_key: str | None = None,
         access_token_expire_minutes: int | None = None,
         refresh_token_expire_minutes: int | None = None,
@@ -21,7 +20,6 @@ class WebAuthConfig:
         guest_accessible_tasks: list[AnyTask | str] = [],
         find_user_by_username: Callable[[str], User | None] | None = None,
     ):
-        self._port = port
         self._secret_key = secret_key
         self._access_token_expire_minutes = access_token_expire_minutes
         self._refresh_token_expire_minutes = refresh_token_expire_minutes
@@ -34,12 +32,6 @@ class WebAuthConfig:
         self._user_list = []
         self._guest_accessible_tasks = guest_accessible_tasks
         self._find_user_by_username = find_user_by_username
-
-    @property
-    def port(self) -> int:
-        if self._port is not None:
-            return self._port
-        return CFG.WEB_HTTP_PORT
 
     @property
     def secret_key(self) -> str:
@@ -128,9 +120,6 @@ class WebAuthConfig:
         if not self.enable_auth:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
-
-    def set_port(self, port: int):
-        self._port = port
 
     def set_secret_key(self, secret_key: str):
         self._secret_key = secret_key

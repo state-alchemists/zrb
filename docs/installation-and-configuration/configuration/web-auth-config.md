@@ -1,13 +1,55 @@
-# Web Authentication Configuration Documentation
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)
+
+# Web Authentication Configuration
 
 ## Overview
+
 The `WebAuthConfig` class provides configuration settings for web authentication. It includes parameters for token management, user roles, and authentication behavior.
 
-## Properties
+Zrb has a `web_auth_config` singleton that you can access and manipulate by importing `zrb.web_auth_config` in your `zrb_init.py`
 
-### `port`
-- **Description**: The port number for the web server.
-- **Type**: `int`
+```python
+from zrb import web_auth_config, User
+
+# Enable authentication:
+web_auth_config.set_enable_auth(True) 
+
+# Add a user named Ace, and Taro, define their password and accessible tasks.
+# The accessible tasks can be:
+# - Instance of AnyTask
+# - A string representing the task name
+web_auth_config.append_user(
+    User(
+        username="ace",
+        password="ultramanNumber5",
+        accessible_tasks=[
+            "encode-base64",
+            "decode-base64",
+            "validate-base64",
+            "throw-dice",
+            "shuffle",
+        ]
+    ),
+    User(
+        username="taro",
+        password="ultramanNumber6",
+        accessible_tasks=[
+            "generate-curl",
+            "encode-jwt",
+            "decode-jwt",
+            "hash-md5",
+            "validate-md5",
+            "throw-dice",
+            "shuffle",
+        ]
+    )
+)
+
+# Define accessible tasks for guest users
+web_auth_config.set_guest_accessible_tasks(["throw-dice", "shuffle"])
+```
+
+## Properties
 
 ### `secret_key`
 - **Description**: The secret key for token generation.
@@ -63,9 +105,6 @@ The `WebAuthConfig` class provides configuration settings for web authentication
 
 ## Methods
 
-### `set_port(port: int)`
-- **Description**: Sets the port number.
-
 ### `set_secret_key(secret_key: str)`
 - **Description**: Sets the secret key.
 
@@ -105,13 +144,5 @@ The `WebAuthConfig` class provides configuration settings for web authentication
 ### `find_user_by_username(username: str) -> User | None`
 - **Description**: Finds a user by username.
 
-## Example Usage
-```python
-from zrb.runner.web_auth_config import web_auth_config
-
-# Set a custom port
-web_auth_config.set_port(8080)
-
-# Get the default secret key
-print(web_auth_config.secret_key)
-```
+---
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)

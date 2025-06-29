@@ -1,7 +1,25 @@
-# LLM Configuration Documentation
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)
+
+# LLM Config
 
 ## Overview
+
 The `LLMConfig` class provides configuration settings for the Language Model (LLM) functionality. It includes default prompts, model settings, and other parameters required for LLM operations.
+
+The configurations will be used as default values for `LLMTask` and other LLM utilities.
+
+
+Zrb has a `llm_config` singleton that you can access and manipulate by importing `zrb.llm_config` in your `zrb_init.py`
+
+```python
+from zrb import llm_config
+
+# Setup default LLM persona:
+llm_config.set_persona(
+    "You are Zoey, an AI assistant excel in coding, software engineering, and philosophy."
+
+)
+```
 
 ## Properties
 
@@ -112,13 +130,5 @@ The `LLMConfig` class provides configuration settings for the Language Model (LL
 ### `set_default_model_settings(model_settings: ModelSettings)`
 - **Description**: Sets the default model settings.
 
-## Example Usage
-```python
-from zrb.llm_config import llm_config
-
-# Set a custom model name
-llm_config.set_default_model_name("gpt-4")
-
-# Get the default system prompt
-print(llm_config.default_system_prompt)
-```
+---
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)
