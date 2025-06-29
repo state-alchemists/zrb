@@ -28,7 +28,8 @@ flowchart LR
 
     subgraph ContentTransformer ["ContentTransfomer"]
         direction TB
-        Callback["🔔 Callback<br/>(class)"]
+        AnyContentTransformer["🧩 AnyContentTransformer<br/>(interface)"]
+        ContentTransformer["🐦‍🔥 ContentTransformer<br/>(class)"]
     end
 
     subgraph CallbackBlock ["Event/Callback"]
@@ -87,10 +88,14 @@ flowchart LR
     AnyTask -->|is upstream of| BaseTask
     AnyTask -->|is checker of| BaseTask
 
+    %% Content transformer
+    ContentTransformer -->|implements| AnyContentTransformer
+    Scaffoler -->|has| ContentTransformer
+
     %% Callback usage
-    BaseTrigger -->|has| Callback
-    Callback -->|executes| AnyTask
     Callback -->|implements| AnyCallback
+    Callback -->|executes| AnyTask
+    BaseTrigger -->|has| Callback
 
     %% Session/Context relations
     Session -->|implements| AnySession
