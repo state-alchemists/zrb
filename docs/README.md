@@ -200,6 +200,7 @@ def count_word(ctx: AnyContext) -> int:
         *   [Session](./core-concepts/session-and-context/session.md)
         *   [Context](./core-concepts/session-and-context/context.md)
         *   [XCom](./core-concepts/session-and-context/xcom.md)
+    *   [Built-in Tasks](./core-concepts/builtin-tasks.md)
 *   [**Advanced Topics**](./advanced-topics/README.md)
     *   [CI/CD Integration](./advanced-topics/ci_cd.md)
     *   [Upgrading Guide 0.x.x to 1.x.x](./advanced-topics/upgrading_guide_0_to_1.md)

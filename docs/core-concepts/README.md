@@ -156,5 +156,9 @@ A `Session` represents a single run of a task workflow. Within a session, each t
 ### [XCom (Cross-Communication)](./session-and-context/xcom.md)
 `XCom` is the mechanism for tasks to exchange data. When one task produces a result that another task needs, `XCom` is the way to pass it along.
 
+# Built-in Tasks
+
+[Built-in Tasks](./builtin-tasks.md)
+
 ---
 🔖 [Home](../../README.md) > [Documentation](../README.md)
