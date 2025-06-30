@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.13
+
+- Introduce interactive prompting, distinguish it from one shot prompting
+
 # 1.8.12
 
 - 💥 Breaking change: Remove `port` from `web_auth_config`
