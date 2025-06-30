@@ -44,12 +44,17 @@ llm_config.set_persona(
 - **Environment Variable**: `ZRB_LLM_PERSONA`
 
 ### `default_system_prompt`
-- **Description**: The default system prompt for the assistant.
+- **Description**: The default system prompt for the assistant, used for direct, one-shot commands like `llm-ask`. This prompt is designed to be simple and direct.
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SYSTEM_PROMPT`
 
+### `default_interactive_system_prompt`
+- **Description**: The system prompt used for interactive sessions like `llm-chat`. This prompt is more complex, providing the agent with a workflow for managing conversation history and context.
+- **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`
+
 ### `default_special_instruction_prompt`
-- **Description**: The default prompt for special instructions.
+- **Description**: The default prompt for special instructions, appended to the main system prompt to guide the agent on technical tasks.
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`
 
@@ -101,7 +106,10 @@ llm_config.set_persona(
 - **Description**: Sets the default persona.
 
 ### `set_default_system_prompt(system_prompt: str)`
-- **Description**: Sets the default system prompt.
+- **Description**: Sets the default system prompt for one-shot commands.
+
+### `set_default_interactive_system_prompt(interactive_system_prompt: str)`
+- **Description**: Sets the default system prompt for interactive chat sessions.
 
 ### `set_default_special_instruction_prompt(special_instruction_prompt: str)`
 - **Description**: Sets the default special instruction prompt.

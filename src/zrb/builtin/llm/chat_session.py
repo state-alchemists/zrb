@@ -8,6 +8,7 @@ conversation flow via XCom.
 import asyncio
 
 from zrb.context.any_context import AnyContext
+from zrb.llm_config import llm_config
 from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
 
 
@@ -113,11 +114,14 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
         A dictionary containing the input mapping for the LLM ask task.
     """
     data = callback_ctx.xcom.ask_trigger.pop()
+    system_prompt = callback_ctx.input.system_prompt
+    if system_prompt is None or system_prompt.strip() == "":
+        system_prompt = llm_config.default_interactive_system_prompt
     return {
         "model": callback_ctx.input.model,
         "base-url": callback_ctx.input.base_url,
         "api-key": callback_ctx.input.api_key,
-        "system-prompt": callback_ctx.input.system_prompt,
+        "system-prompt": system_prompt,
         "start-new": data.get("start_new"),
         "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),

@@ -226,6 +226,10 @@ class Config:
         return os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
 
     @property
+    def LLM_INTERACTIVE_SYSTEM_PROMPT(self) -> str | None:
+        return os.getenv("ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT", None)
+
+    @property
     def LLM_PERSONA(self) -> str | None:
         return os.getenv("ZRB_LLM_PERSONA", None)
 

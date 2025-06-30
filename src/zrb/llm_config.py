@@ -17,7 +17,7 @@ DEFAULT_PERSONA = (
     "straight to the point."
 ).strip()
 
-DEFAULT_SYSTEM_PROMPT = (
+DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "You have access to tools and two forms of memory:\n"
     "1.  A structured summary of the immediate task (including a payload) AND "
     "the raw text of the last few turns.\n"
@@ -48,6 +48,13 @@ DEFAULT_SYSTEM_PROMPT = (
     "- **ASK IF UNSURE:** If a required parameter (like a filename) is not in "
     "your memory or the user's last message, you MUST ask for it. Do not "
     "guess."
+).strip()
+
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a helpful and precise expert assistant. Your goal is to "
+    "follow instructions carefully to provide an accurate and efficient answer. "
+    "Fulfill the user's request directly. Use your tools if necessary. "
+    "Get straight to the point."
 ).strip()
 
 DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
@@ -202,6 +209,7 @@ class LLMConfig:
         default_api_key: str | None = None,
         default_persona: str | None = None,
         default_system_prompt: str | None = None,
+        default_interactive_system_prompt: str | None = None,
         default_special_instruction_prompt: str | None = None,
         default_summarization_prompt: str | None = None,
         default_context_enrichment_prompt: str | None = None,
@@ -218,6 +226,7 @@ class LLMConfig:
         self._default_model_api_key = default_api_key
         self._default_persona = default_persona
         self._default_system_prompt = default_system_prompt
+        self._default_interactive_system_prompt = default_interactive_system_prompt
         self._default_special_instruction_prompt = default_special_instruction_prompt
         self._default_summarization_prompt = default_summarization_prompt
         self._default_context_enrichment_prompt = default_context_enrichment_prompt
@@ -281,6 +290,14 @@ class LLMConfig:
         if CFG.LLM_SYSTEM_PROMPT is not None:
             return CFG.LLM_SYSTEM_PROMPT
         return DEFAULT_SYSTEM_PROMPT
+
+    @property
+    def default_interactive_system_prompt(self) -> str:
+        if self._default_interactive_system_prompt is not None:
+            return self._default_interactive_system_prompt
+        if CFG.LLM_INTERACTIVE_SYSTEM_PROMPT is not None:
+            return CFG.LLM_INTERACTIVE_SYSTEM_PROMPT
+        return DEFAULT_INTERACTIVE_SYSTEM_PROMPT
 
     @property
     def default_persona(self) -> str:
@@ -357,6 +374,9 @@ class LLMConfig:
 
     def set_default_system_prompt(self, system_prompt: str):
         self._default_system_prompt = system_prompt
+
+    def set_default_interactive_system_prompt(self, interactive_system_prompt: str):
+        self._default_interactive_system_prompt = interactive_system_prompt
 
     def set_default_special_instruction_prompt(self, special_instruction_prompt: str):
         self._default_special_instruction_prompt = special_instruction_prompt
