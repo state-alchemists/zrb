@@ -44,7 +44,6 @@ class TestRunWebServer(unittest.TestCase):
         cls.app = create_web_app(
             cls.root_group,
             WebAuthConfig(
-                port=cls.port,
                 secret_key="zrb",
                 access_token_expire_minutes=30,
                 refresh_token_expire_minutes=30,
