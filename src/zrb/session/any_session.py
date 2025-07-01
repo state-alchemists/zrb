@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Coroutine, TypeVar
 
 from zrb.context.any_context import AnyContext
 from zrb.group.any_group import AnyGroup
-from zrb.session_state_log.session_state_log import SessionStateLog
+from zrb.session_state_log.session_state_log_model import SessionStateLog
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task_status.task_status import TaskStatus
 

@@ -1,7 +1,14 @@
 import datetime
 import os
 
-from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from zrb.session_state_log.session_state_log_model import (
+        SessionStateLog,
+        SessionStateLogList,
+    )
+
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
 

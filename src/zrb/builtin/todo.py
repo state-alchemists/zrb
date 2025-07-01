@@ -10,8 +10,10 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.make_task import make_task
 from zrb.util.file import read_file, write_file
-from zrb.util.todo import (
+from zrb.util.todo_model import (
     TodoTaskModel,
+)
+from zrb.util.todo import (
     add_duration,
     cascade_todo_task,
     get_visual_todo_card,

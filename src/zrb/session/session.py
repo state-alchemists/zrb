@@ -5,7 +5,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
-from zrb.session_state_log.session_state_log import (
+from zrb.session_state_log.session_state_log_model import (
     SessionStateLog,
     TaskStatusHistoryStateLog,
     TaskStatusStateLog,
