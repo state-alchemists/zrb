@@ -31,6 +31,7 @@ def serve_task_session_api(
 ) -> None:
     from fastapi import Query, Request
     from fastapi.responses import JSONResponse
+
     from zrb.session_state_log.session_state_log import (
         SessionStateLog,
         SessionStateLogList,

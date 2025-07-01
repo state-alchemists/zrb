@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.14
+
+- Reduce `pydantic` eager load.
+- Use `prompt_toolkit` on `llm_chat` and use lazy import to import it.
+
 # 1.8.13
 
 - Introduce interactive prompting, distinguish it from one shot prompting
