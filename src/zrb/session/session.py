@@ -28,11 +28,7 @@ from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from zrb.session_state_log.session_state_log_model import (
-        SessionStateLog,
-    )
-else:
-    SessionStateLog = Any
+    from zrb.session_state_log.session_state_log_model import SessionStateLog
 
 
 class Session(AnySession):
@@ -141,7 +137,7 @@ class Session(AnySession):
         main_task_path = get_node_path(self._root_group, main_task)
         self._main_task_path = [] if main_task_path is None else main_task_path
 
-    def as_state_log(self) -> SessionStateLog:
+    def as_state_log(self) -> "SessionStateLog":
         from zrb.session_state_log.session_state_log_model import (
             SessionStateLog,
             TaskStatusHistoryStateLog,

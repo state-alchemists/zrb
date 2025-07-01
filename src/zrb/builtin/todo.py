@@ -1,7 +1,7 @@
 import datetime
 import json
 import os
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from zrb.builtin.group import todo_group
 from zrb.config import CFG
@@ -22,10 +22,6 @@ from zrb.util.todo import (
     select_todo_task,
     todo_task_to_line,
 )
-if TYPE_CHECKING:
-    from zrb.util.todo_model import TodoTaskModel
-else:
-    TodoTaskModel = Any
 
 
 def _get_filter_input(
@@ -75,6 +71,8 @@ def _get_filter_input(
     alias="add",
 )
 def add_todo(ctx: AnyContext):
+    from zrb.util.todo_model import TodoTaskModel
+
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -111,6 +109,8 @@ def add_todo(ctx: AnyContext):
     alias="list",
 )
 def list_todo(ctx: AnyContext):
+    from zrb.util.todo_model import TodoTaskModel
+
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -126,6 +126,8 @@ def list_todo(ctx: AnyContext):
     alias="show",
 )
 def show_todo(ctx: AnyContext):
+    from zrb.util.todo_model import TodoTaskModel
+
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     todo_list: list[TodoTaskModel] = []
@@ -160,6 +162,8 @@ def show_todo(ctx: AnyContext):
     alias="complete",
 )
 def complete_todo(ctx: AnyContext):
+    from zrb.util.todo_model import TodoTaskModel
+
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -190,6 +194,8 @@ def complete_todo(ctx: AnyContext):
     alias="archive",
 )
 def archive_todo(ctx: AnyContext):
+    from zrb.util.todo_model import TodoTaskModel
+
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):
@@ -251,6 +257,8 @@ def archive_todo(ctx: AnyContext):
     alias="log",
 )
 def log_todo(ctx: AnyContext):
+    from zrb.util.todo_model import TodoTaskModel
+
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
     todo_list: list[TodoTaskModel] = []
     if os.path.isfile(todo_file_path):

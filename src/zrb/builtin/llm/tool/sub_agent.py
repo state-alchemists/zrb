@@ -3,23 +3,16 @@ from collections.abc import Callable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Coroutine
 
-if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.mcp import MCPServer
-    from pydantic_ai.models import Model
-    from pydantic_ai.settings import ModelSettings
-else:
-    Tool = Any
-    MCPServer = Any
-    Model = Any
-    ModelSettings = Any
-
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import create_agent_instance, run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.prompt import get_combined_system_prompt
 
 if TYPE_CHECKING:
+    from pydantic_ai import Tool
+    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
     ToolOrCallable = Tool | Callable
 else:
     ToolOrCallable = Any
@@ -29,10 +22,10 @@ def create_sub_agent_tool(
     tool_name: str,
     tool_description: str,
     system_prompt: str | None = None,
-    model: str | Model | None = None,
-    model_settings: ModelSettings | None = None,
+    model: "str | Model | None" = None,
+    model_settings: "ModelSettings | None" = None,
     tools: list[ToolOrCallable] = [],
-    mcp_servers: list[MCPServer] = [],
+    mcp_servers: list["MCPServer"] = [],
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
     """
     Create an LLM "sub-agent" tool function for use by a main LLM agent.
