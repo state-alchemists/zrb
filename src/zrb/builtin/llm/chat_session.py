@@ -25,6 +25,8 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     Returns:
         The final result from the LLM session.
     """
+    from prompt_toolkit import PromptSession
+
     _show_info(ctx)
     final_result = ""
     ctx.print(stylize_faint("🧑 >> ") + f"{ctx.input.message}", plain=True)
@@ -41,10 +43,12 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         return final_result
     multiline_mode = False
     user_inputs = []
+    user_input_session = PromptSession()
     while True:
         await asyncio.sleep(0.01)
         ctx.print(stylize_faint("🧑 >> "), end="", plain=True)
-        user_input = input()
+        user_input = await user_input_session.prompt_async()
+        # user_input = input()
         # Handle special input
         if user_input.strip().lower() in ("/bye", "/quit"):
             user_prompt = "\n".join(user_inputs)

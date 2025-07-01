@@ -31,6 +31,10 @@ def serve_task_session_api(
 ) -> None:
     from fastapi import Query, Request
     from fastapi.responses import JSONResponse
+    from zrb.session_state_log.session_state_log import (
+        SessionStateLog,
+        SessionStateLogList,
+    )
 
     @app.post("/api/v1/task-sessions/{path:path}")
     async def create_new_task_session_api(
@@ -64,7 +68,7 @@ def serve_task_session_api(
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
-        response_model="SessionStateLog | SessionStateLogList",
+        response_model=SessionStateLog | SessionStateLogList,
     )
     async def get_task_session_api(
         path: str,
@@ -73,7 +77,7 @@ def serve_task_session_api(
         max_start_query: str = Query(default=None, alias="to"),
         page: int = Query(default=0, alias="page"),
         limit: int = Query(default=10, alias="limit"),
-    ) -> "SessionStateLog | SessionStateLogList":
+    ) -> SessionStateLog | SessionStateLogList:
         """
         Getting existing session or sessions
         """
