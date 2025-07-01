@@ -25,7 +25,7 @@ from zrb.util.todo import (
 if TYPE_CHECKING:
     from zrb.util.todo_model import TodoTaskModel
 else:
-    TodoTaskModel = None
+    TodoTaskModel = Any
 
 
 def _get_filter_input(

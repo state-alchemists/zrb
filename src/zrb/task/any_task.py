@@ -7,8 +7,11 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 
 if TYPE_CHECKING:
-    from zrb.context import any_context
-    from zrb.session import session
+    from zrb.context.any_context import AnyContext
+    from zrb.session.any_session import AnySession
+else:
+    AnyContext = Any
+    AnySession = Any
 
 
 class AnyTask(ABC):
@@ -143,12 +146,12 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    def get_ctx(self, session: session.AnySession) -> any_context.AnyContext:
+    def get_ctx(self, session: AnySession) -> AnyContext:
         pass
 
     @abstractmethod
     def run(
-        self, session: session.AnySession | None = None, str_kwargs: dict[str, str] = {}
+        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
         """Runs the task synchronously.
 
@@ -163,7 +166,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     async def async_run(
-        self, session: session.AnySession | None = None, str_kwargs: dict[str, str] = {}
+        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
     ) -> Any:
         """Runs the task asynchronously.
 
@@ -177,7 +180,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def exec_root_tasks(self, session: session.AnySession):
+    async def exec_root_tasks(self, session: AnySession):
         """Execute the root tasks along with the downstreams until the current task
         is ready.
 
@@ -187,7 +190,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def exec_chain(self, session: session.AnySession):
+    async def exec_chain(self, session: AnySession):
         """Execute the task along with the downstreams.
 
         Args:
@@ -196,7 +199,7 @@ class AnyTask(ABC):
         pass
 
     @abstractmethod
-    async def exec(self, session: session.AnySession):
+    async def exec(self, session: AnySession):
         """Execute the task (without upstream or downstream).
 
         Args:

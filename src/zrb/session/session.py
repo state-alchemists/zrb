@@ -1,15 +1,10 @@
 import asyncio
-from typing import Any, Coroutine
+from typing import Any, Coroutine, TYPE_CHECKING
 
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
-from zrb.session_state_log.session_state_log_model import (
-    SessionStateLog,
-    TaskStatusHistoryStateLog,
-    TaskStatusStateLog,
-)
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -31,6 +26,13 @@ from zrb.util.cli.style import (
 from zrb.util.group import get_node_path
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
+
+if TYPE_CHECKING:
+    from zrb.session_state_log.session_state_log_model import (
+        SessionStateLog,
+    )
+else:
+    SessionStateLog = Any
 
 
 class Session(AnySession):
@@ -140,6 +142,12 @@ class Session(AnySession):
         self._main_task_path = [] if main_task_path is None else main_task_path
 
     def as_state_log(self) -> SessionStateLog:
+        from zrb.session_state_log.session_state_log_model import (
+            SessionStateLog,
+            TaskStatusHistoryStateLog,
+            TaskStatusStateLog,
+        )
+
         task_status_log: dict[str, TaskStatusStateLog] = {}
         log_start_time = ""
         for task, task_status in self._task_status.items():
