@@ -128,6 +128,7 @@ def save_todo_list(todo_file_path: str, todo_list: list["TodoTaskModel"]):
 def line_to_todo_task(line: str) -> "TodoTaskModel":
     """Parses a single todo.txt line into a TodoTask model."""
     from zrb.util.todo_model import TodoTaskModel
+
     match = TODO_TXT_PATTERN.match(line)
     if not match:
         raise ValueError(f"Invalid todo.txt line: {line}")

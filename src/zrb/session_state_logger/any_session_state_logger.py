@@ -1,6 +1,6 @@
 import datetime
-from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from zrb.session_state_log.session_state_log import (

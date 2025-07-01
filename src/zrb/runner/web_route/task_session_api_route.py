@@ -15,8 +15,10 @@ from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_p
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+
     from zrb.session_state_log.session_state_log import (
-        SessionStateLog, SessionStateLogList
+        SessionStateLog,
+        SessionStateLogList,
     )
 
 
@@ -113,6 +115,7 @@ def sanitize_session_state_log_list(
     task: AnyTask, session_state_log_list: "SessionStateLogList"
 ) -> "SessionStateLogList":
     from zrb.session_state_log.session_state_log import SessionStateLogList
+
     return SessionStateLogList(
         total=session_state_log_list.total,
         data=[
@@ -133,6 +136,7 @@ def sanitize_session_state_log(
     we only want to show the original input names.
     """
     from zrb.session_state_log.session_state_log import SessionStateLog
+
     enhanced_inputs = session_state_log.input
     real_inputs = {}
     for real_input in task.inputs:

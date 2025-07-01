@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from zrb.config import CFG
 
 if TYPE_CHECKING:

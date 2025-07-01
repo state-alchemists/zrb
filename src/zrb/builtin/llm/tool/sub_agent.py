@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from pydantic_ai.mcp import MCPServer
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
+
     ToolOrCallable = Tool | Callable
 else:
     ToolOrCallable = Any
