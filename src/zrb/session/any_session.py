@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING, Any, Coroutine, TypeVar
 
 from zrb.context.any_context import AnyContext
 from zrb.group.any_group import AnyGroup
-from zrb.session_state_log.session_state_log import SessionStateLog
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task_status.task_status import TaskStatus
 
 if TYPE_CHECKING:
-    from zrb.context import any_shared_context
-    from zrb.task import any_task
+    from zrb.context.any_shared_context import AnySharedContext
+    from zrb.session_state_log.session_state_log import SessionStateLog
+    from zrb.task.any_task import AnyTask
+
 
 TAnySession = TypeVar("TAnySession", bound="AnySession")
 
@@ -44,7 +45,7 @@ class AnySession(ABC):
 
     @property
     @abstractmethod
-    def shared_ctx(self) -> any_shared_context.AnySharedContext:
+    def shared_ctx(self) -> "AnySharedContext":
         """Shared context for this session"""
         pass
 
@@ -83,16 +84,16 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def set_main_task(self, main_task: any_task.AnyTask):
+    def set_main_task(self, main_task: "AnyTask"):
         """Set main task"""
         pass
 
     @abstractmethod
-    def as_state_log(self) -> SessionStateLog:
+    def as_state_log(self) -> "SessionStateLog":
         pass
 
     @abstractmethod
-    def get_ctx(self, task: any_task.AnyTask) -> AnyContext:
+    def get_ctx(self, task: "AnyTask") -> AnyContext:
         """Retrieves the context for a specific task.
 
         Args:
@@ -104,7 +105,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def defer_monitoring(self, task: any_task.AnyTask, coro: Coroutine):
+    def defer_monitoring(self, task: "AnyTask", coro: Coroutine):
         """Defers the execution of a task's monitoring coroutine for later processing.
 
         Args:
@@ -114,7 +115,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def defer_action(self, task: any_task.AnyTask, coro: Coroutine):
+    def defer_action(self, task: "AnyTask", coro: Coroutine):
         """Defers the execution of a task's coroutine for later processing.
 
         Args:
@@ -138,7 +139,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def register_task(self, task: any_task.AnyTask):
+    def register_task(self, task: "AnyTask"):
         """Registers a new task in the session.
 
         Args:
@@ -147,7 +148,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_root_tasks(self, task: any_task.AnyTask) -> list[any_task.AnyTask]:
+    def get_root_tasks(self, task: "AnyTask") -> list["AnyTask"]:
         """Retrieves the list of root tasks that should be executed first
         to run the given task.
 
@@ -160,7 +161,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_next_tasks(self, task: any_task.AnyTask) -> list[any_task.AnyTask]:
+    def get_next_tasks(self, task: "AnyTask") -> list["AnyTask"]:
         """Retrieves the list of tasks that should be executed after the given task.
 
         Args:
@@ -172,7 +173,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def get_task_status(self, task: any_task.AnyTask) -> TaskStatus:
+    def get_task_status(self, task: "AnyTask") -> TaskStatus:
         """Get tasks' status.
 
         Args:
@@ -184,7 +185,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def is_allowed_to_run(self, task: any_task.AnyTask):
+    def is_allowed_to_run(self, task: "AnyTask"):
         """Determines if the specified task is allowed to run based on its current state.
 
         Args:

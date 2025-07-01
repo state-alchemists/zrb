@@ -1,8 +1,7 @@
 import datetime
 import re
 import shutil
-
-from pydantic import BaseModel, Field, model_validator
+from typing import TYPE_CHECKING
 
 from zrb.util.cli.style import (
     stylize_bold_yellow,
@@ -14,6 +13,9 @@ from zrb.util.cli.style import (
 from zrb.util.file import read_file, write_file
 from zrb.util.string.name import get_random_name
 
+if TYPE_CHECKING:
+    from zrb.util.todo_model import TodoTaskModel
+
 _DATE_TIME_STR_WIDTH = 14
 _MAX_DESCRIPTION_WIDTH = 70
 _PRIORITY_WIDTH = 3
@@ -21,43 +23,6 @@ _COMPLETED_WIDTH = 3
 _COMPLETED_AT_WIDTH = _DATE_TIME_STR_WIDTH
 _CREATED_AT_WIDTH = _DATE_TIME_STR_WIDTH
 _GAP_WIDTH = 2
-
-
-class TodoTaskModel(BaseModel):
-    priority: str | None = Field("D", pattern=r"^[A-Z]$")  # Priority like A, B, ...
-    completed: bool = False  # True if completed, False otherwise
-    description: str  # Main task description
-    projects: list[str] = []  # List of projects (e.g., +Project)
-    contexts: list[str] = []  # List of contexts (e.g., @Context)
-    keyval: dict[str, str] = {}  # Special key (e.g., due:2016-05-30)
-    creation_date: datetime.date | None = None  # Creation date
-    completion_date: datetime.date | None = None  # Completion date
-
-    @model_validator(mode="before")
-    def validate_dates(cls, values):
-        completion_date = values.get("completion_date")
-        creation_date = values.get("creation_date")
-        if completion_date and not creation_date:
-            raise ValueError(
-                "creation_date must be specified if completion_date is set."
-            )
-        return values
-
-    def get_additional_info_length(self):
-        """
-        Calculate the length of the additional information string (projects, contexts, keyval).
-
-        Returns:
-            int: The length of the combined additional information string.
-        """
-        results = []
-        for project in self.projects:
-            results.append(f"@{project}")
-        for context in self.contexts:
-            results.append(f"+{context}")
-        for key, val in self.keyval.items():
-            results.append(f"{key}:{val}")
-        return len(", ".join(results))
 
 
 TODO_TXT_PATTERN = re.compile(
@@ -69,7 +34,7 @@ TODO_TXT_PATTERN = re.compile(
 )
 
 
-def cascade_todo_task(todo_task: TodoTaskModel):
+def cascade_todo_task(todo_task: "TodoTaskModel"):
     """
     Populate default values for a TodoTaskModel if they are missing.
 
@@ -87,8 +52,8 @@ def cascade_todo_task(todo_task: TodoTaskModel):
 
 
 def select_todo_task(
-    todo_list: list[TodoTaskModel], keyword: str
-) -> TodoTaskModel | None:
+    todo_list: list["TodoTaskModel"], keyword: str
+) -> "TodoTaskModel | None":
     """
     Select a todo task from a list based on a keyword matching ID or description.
 
@@ -118,7 +83,7 @@ def select_todo_task(
     return None
 
 
-def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
+def load_todo_list(todo_file_path: str) -> list["TodoTaskModel"]:
     """
     Load a list of todo tasks from a todo.txt file.
 
@@ -129,7 +94,7 @@ def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
         list[TodoTaskModel]: A sorted list of todo tasks.
     """
     todo_lines = read_file(todo_file_path).strip().split("\n")
-    todo_list: list[TodoTaskModel] = []
+    todo_list: list["TodoTaskModel"] = []
     for todo_line in todo_lines:
         todo_line = todo_line.strip()
         if todo_line == "":
@@ -147,7 +112,7 @@ def load_todo_list(todo_file_path: str) -> list[TodoTaskModel]:
     return todo_list
 
 
-def save_todo_list(todo_file_path: str, todo_list: list[TodoTaskModel]):
+def save_todo_list(todo_file_path: str, todo_list: list["TodoTaskModel"]):
     """
     Save a list of todo tasks to a todo.txt file.
 
@@ -160,8 +125,10 @@ def save_todo_list(todo_file_path: str, todo_list: list[TodoTaskModel]):
     )
 
 
-def line_to_todo_task(line: str) -> TodoTaskModel:
+def line_to_todo_task(line: str) -> "TodoTaskModel":
     """Parses a single todo.txt line into a TodoTask model."""
+    from zrb.util.todo_model import TodoTaskModel
+
     match = TODO_TXT_PATTERN.match(line)
     if not match:
         raise ValueError(f"Invalid todo.txt line: {line}")
@@ -214,7 +181,7 @@ def _parse_date(date_str: str | None) -> datetime.date | None:
     return None
 
 
-def todo_task_to_line(task: TodoTaskModel) -> str:
+def todo_task_to_line(task: "TodoTaskModel") -> str:
     """
     Converts a TodoTask instance back into a todo.txt formatted line.
 
@@ -251,7 +218,7 @@ def todo_task_to_line(task: TodoTaskModel) -> str:
     return " ".join(parts)
 
 
-def get_visual_todo_list(todo_list: list[TodoTaskModel], filter: str) -> str:
+def get_visual_todo_list(todo_list: list["TodoTaskModel"], filter: str) -> str:
     """
     Generate a visual representation of a filtered todo list.
 
@@ -352,7 +319,7 @@ def get_visual_todo_line(
     terminal_width: int,
     max_desc_length: int,
     max_additional_info_length: int,
-    todo_task: TodoTaskModel,
+    todo_task: "TodoTaskModel",
 ) -> str:
     """
     Generate a single line string for a todo task in the visual todo list.
@@ -489,7 +456,7 @@ def _get_minimum_width(field_widths: list[int]) -> int:
 
 
 def get_visual_todo_card(
-    todo_task: TodoTaskModel, log_work_list: list[dict[str, str]]
+    todo_task: "TodoTaskModel", log_work_list: list[dict[str, str]]
 ) -> str:
     """
     Generate a visual card representation of a todo task with log work.

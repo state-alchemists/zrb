@@ -1,15 +1,12 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+from zrb.config import CFG
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.providers import Provider
     from pydantic_ai.settings import ModelSettings
-else:
-    Model = Any
-    ModelSettings = Any
-    Provider = Any
 
-from zrb.config import CFG
 
 DEFAULT_PERSONA = (
     "You are a helpful and precise expert assistant. Your goal is to follow "
@@ -217,9 +214,9 @@ class LLMConfig:
         default_history_summarization_threshold: int | None = None,
         default_enrich_context: bool | None = None,
         default_context_enrichment_threshold: int | None = None,
-        default_model: Model | None = None,
-        default_model_settings: ModelSettings | None = None,
-        default_model_provider: Provider | None = None,
+        default_model: "Model | None" = None,
+        default_model_settings: "ModelSettings | None" = None,
+        default_model_provider: "Provider | None" = None,
     ):
         self._default_model_name = default_model_name
         self._default_model_base_url = default_base_url
@@ -266,13 +263,13 @@ class LLMConfig:
             return CFG.LLM_API_KEY
 
     @property
-    def default_model_settings(self) -> ModelSettings | None:
+    def default_model_settings(self) -> "ModelSettings | None":
         if self._default_model_settings is not None:
             return self._default_model_settings
         return None
 
     @property
-    def default_model_provider(self) -> Provider | str:
+    def default_model_provider(self) -> "Provider | str":
         if self._default_model_provider is not None:
             return self._default_model_provider
         if self.default_model_base_url is None and self.default_model_api_key is None:
@@ -332,7 +329,7 @@ class LLMConfig:
         return DEFAULT_CONTEXT_ENRICHMENT_PROMPT
 
     @property
-    def default_model(self) -> Model | str | None:
+    def default_model(self) -> "Model | str | None":
         if self._default_model is not None:
             return self._default_model
         model_name = self.default_model_name
@@ -396,10 +393,10 @@ class LLMConfig:
     def set_default_model_base_url(self, model_base_url: str):
         self._default_model_base_url = model_base_url
 
-    def set_default_model_provider(self, provider: Provider | str):
+    def set_default_model_provider(self, provider: "Provider | str"):
         self._default_model_provider = provider
 
-    def set_default_model(self, model: Model | str):
+    def set_default_model(self, model: "Model | str"):
         self._default_model = model
 
     def set_default_summarize_history(self, summarize_history: bool):
@@ -418,7 +415,7 @@ class LLMConfig:
     ):
         self._default_context_enrichment_threshold = context_enrichment_threshold
 
-    def set_default_model_settings(self, model_settings: ModelSettings):
+    def set_default_model_settings(self, model_settings: "ModelSettings"):
         self._default_model_settings = model_settings
 
 

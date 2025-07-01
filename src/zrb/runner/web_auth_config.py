@@ -1,8 +1,10 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from zrb.config import CFG
-from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
+
+if TYPE_CHECKING:
+    from zrb.runner.web_schema.user import User
 
 
 class WebAuthConfig:
@@ -18,7 +20,7 @@ class WebAuthConfig:
         super_admin_password: str | None = None,
         guest_username: str | None = None,
         guest_accessible_tasks: list[AnyTask | str] = [],
-        find_user_by_username: Callable[[str], User | None] | None = None,
+        find_user_by_username: Callable[[str], "User | None"] | None = None,
     ):
         self._secret_key = secret_key
         self._access_token_expire_minutes = access_token_expire_minutes
@@ -29,7 +31,7 @@ class WebAuthConfig:
         self._super_admin_username = super_admin_username
         self._super_admin_password = super_admin_password
         self._guest_username = guest_username
-        self._user_list = []
+        self._user_list: list["User"] = []
         self._guest_accessible_tasks = guest_accessible_tasks
         self._find_user_by_username = find_user_by_username
 
@@ -92,7 +94,9 @@ class WebAuthConfig:
         return self._guest_accessible_tasks
 
     @property
-    def default_user(self) -> User:
+    def default_user(self) -> "User":
+        from zrb.runner.web_schema.user import User
+
         if self.enable_auth:
             return User(
                 username=self.guest_username,
@@ -108,7 +112,9 @@ class WebAuthConfig:
         )
 
     @property
-    def super_admin(self) -> User:
+    def super_admin(self) -> "User":
+        from zrb.runner.web_schema.user import User
+
         return User(
             username=self.super_admin_username,
             password=self.super_admin_password,
@@ -116,7 +122,7 @@ class WebAuthConfig:
         )
 
     @property
-    def user_list(self) -> list[User]:
+    def user_list(self) -> list["User"]:
         if not self.enable_auth:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
@@ -152,11 +158,11 @@ class WebAuthConfig:
         self._guest_accessible_tasks = tasks
 
     def set_find_user_by_username(
-        self, find_user_by_username: Callable[[str], User | None]
+        self, find_user_by_username: Callable[[str], "User | None"]
     ):
         self._find_user_by_username = find_user_by_username
 
-    def append_user(self, user: User):
+    def append_user(self, user: "User"):
         duplicates = [
             existing_user
             for existing_user in self.user_list
@@ -166,7 +172,7 @@ class WebAuthConfig:
             raise ValueError(f"User already exists {user.username}")
         self._user_list.append(user)
 
-    def find_user_by_username(self, username: str) -> User | None:
+    def find_user_by_username(self, username: str) -> "User | None":
         user = None
         if self._find_user_by_username is not None:
             user = self._find_user_by_username(username)
