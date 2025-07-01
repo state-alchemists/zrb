@@ -9,15 +9,15 @@ from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
-from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
 from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
-
     from fastapi import FastAPI
+    from zrb.session_state_log.session_state_log import (
+        SessionStateLog, SessionStateLogList
+    )
 
 
 def serve_task_session_api(
@@ -62,7 +62,7 @@ def serve_task_session_api(
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
-        response_model=SessionStateLog | SessionStateLogList,
+        response_model="SessionStateLog | SessionStateLogList",
     )
     async def get_task_session_api(
         path: str,
@@ -71,7 +71,7 @@ def serve_task_session_api(
         max_start_query: str = Query(default=None, alias="to"),
         page: int = Query(default=0, alias="page"),
         limit: int = Query(default=10, alias="limit"),
-    ) -> SessionStateLog | SessionStateLogList:
+    ) -> "SessionStateLog | SessionStateLogList":
         """
         Getting existing session or sessions
         """
@@ -110,8 +110,9 @@ def serve_task_session_api(
 
 
 def sanitize_session_state_log_list(
-    task: AnyTask, session_state_log_list: SessionStateLogList
-) -> SessionStateLogList:
+    task: AnyTask, session_state_log_list: "SessionStateLogList"
+) -> "SessionStateLogList":
+    from zrb.session_state_log.session_state_log import SessionStateLogList
     return SessionStateLogList(
         total=session_state_log_list.total,
         data=[
@@ -122,8 +123,8 @@ def sanitize_session_state_log_list(
 
 
 def sanitize_session_state_log(
-    task: AnyTask, session_state_log: SessionStateLog
-) -> SessionStateLog:
+    task: AnyTask, session_state_log: "SessionStateLog"
+) -> "SessionStateLog":
     """
     In session, we create snake_case aliases of inputs.
     The purpose was to increase ergonomics, so that user can use `input.system_prompt`
@@ -131,6 +132,7 @@ def sanitize_session_state_log(
     However, when we serve the session through HTTP API,
     we only want to show the original input names.
     """
+    from zrb.session_state_log.session_state_log import SessionStateLog
     enhanced_inputs = session_state_log.input
     real_inputs = {}
     for real_input in task.inputs:

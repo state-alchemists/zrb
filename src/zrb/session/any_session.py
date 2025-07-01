@@ -11,7 +11,7 @@ from zrb.task_status.task_status import TaskStatus
 if TYPE_CHECKING:
     from zrb.context.any_shared_context import AnySharedContext
     from zrb.task.any_task import AnyTask
-    from zrb.session_state_log.session_state_log_model import SessionStateLog
+    from zrb.session_state_log.session_state_log import SessionStateLog
 
 
 TAnySession = TypeVar("TAnySession", bound="AnySession")

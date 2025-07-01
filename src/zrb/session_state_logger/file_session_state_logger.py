@@ -1,25 +1,22 @@
 import datetime
 import os
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
 
 if TYPE_CHECKING:
-    from zrb.session_state_log.session_state_log_model import (
+    from zrb.session_state_log.session_state_log import (
         SessionStateLog,
         SessionStateLogList,
     )
-else:
-    SessionStateLog = Any
-    SessionStateLogList = Any
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
     def __init__(self, session_log_dir: str):
         self._session_log_dir = session_log_dir
 
-    def write(self, session_log: SessionStateLog):
+    def write(self, session_log: "SessionStateLog"):
         session_file_path = self._get_session_file_path(session_log.name)
         session_dir_path = os.path.dirname(session_file_path)
         if not os.path.isdir(session_dir_path):
@@ -31,7 +28,9 @@ class FileSessionStateLogger(AnySessionStateLogger):
         timeline_dir_path = self._get_timeline_dir_path(session_log)
         write_file(os.path.join(timeline_dir_path, session_log.name), "")
 
-    def read(self, session_name: str) -> SessionStateLog:
+    def read(self, session_name: str) -> "SessionStateLog":
+        from zrb.session_state_log.session_state_log import SessionStateLog
+
         session_file_path = self._get_session_file_path(session_name)
         return SessionStateLog.model_validate_json(read_file(session_file_path))
 
@@ -42,7 +41,9 @@ class FileSessionStateLogger(AnySessionStateLogger):
         max_start_time: datetime.datetime,
         page: int = 0,
         limit: int = 10,
-    ) -> SessionStateLogList:
+    ) -> "SessionStateLogList":
+        from zrb.session_state_log.session_state_log import SessionStateLogList
+
         matching_sessions = []
         # Traverse the timeline directory and filter sessions
         timeline_dir = os.path.join(self._session_log_dir, "_timeline", *task_path)
@@ -71,7 +72,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
     def _get_session_file_path(self, session_name: str) -> str:
         return os.path.join(self._session_log_dir, f"{session_name}.json")
 
-    def _get_timeline_dir_path(self, session_log: SessionStateLog) -> str:
+    def _get_timeline_dir_path(self, session_log: "SessionStateLog") -> str:
         start_time = self._get_start_time(session_log)
         year = start_time.year
         month = start_time.month
@@ -89,7 +90,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         ]
         return os.path.join(self._session_log_dir, "_timeline", *paths)
 
-    def _get_start_time(self, session_log: SessionStateLog) -> datetime.datetime:
+    def _get_start_time(self, session_log: "SessionStateLog") -> datetime.datetime:
         return datetime.datetime.strptime(
             session_log.start_time, "%Y-%m-%d %H:%M:%S.%f"
         )
