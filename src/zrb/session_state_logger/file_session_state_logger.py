@@ -8,6 +8,9 @@ if TYPE_CHECKING:
         SessionStateLog,
         SessionStateLogList,
     )
+else:
+    SessionStateLog = None
+    SessionStateLogList = None
 
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file

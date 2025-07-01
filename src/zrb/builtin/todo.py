@@ -1,7 +1,7 @@
 import datetime
 import json
 import os
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from zrb.builtin.group import todo_group
 from zrb.config import CFG
@@ -10,9 +10,6 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.make_task import make_task
 from zrb.util.file import read_file, write_file
-from zrb.util.todo_model import (
-    TodoTaskModel,
-)
 from zrb.util.todo import (
     add_duration,
     cascade_todo_task,
@@ -25,6 +22,10 @@ from zrb.util.todo import (
     select_todo_task,
     todo_task_to_line,
 )
+if TYPE_CHECKING:
+    from zrb.util.todo_model import TodoTaskModel
+else:
+    TodoTaskModel = None
 
 
 def _get_filter_input(
