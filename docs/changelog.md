@@ -1,5 +1,9 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.8.15
+
+- Fixing bug: `\n` automatically trigger mutiline mode on `llm_chat`
+
 # 1.8.14
 
 - Reduce `pydantic` eager load.

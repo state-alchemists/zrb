@@ -57,9 +57,9 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             if result is not None:
                 final_result = result
             break
-        elif user_input.strip().lower() in ("/multi"):
+        elif user_input.strip().lower() in ("/multi",):
             multiline_mode = True
-        elif user_input.strip().lower() in ("/end"):
+        elif user_input.strip().lower() in ("/end",):
             multiline_mode = False
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
