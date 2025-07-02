@@ -1,8 +1,6 @@
 import json
 import traceback
-from typing import TYPE_CHECKING, Any
-
-from pydantic import BaseModel
+from typing import TYPE_CHECKING
 
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
@@ -20,95 +18,63 @@ from zrb.util.cli.style import stylize_faint
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
-else:
-    Model = Any
-    ModelSettings = Any
-
-
-class EnrichmentConfig(BaseModel):
-    model_config = {"arbitrary_types_allowed": True}
-    model: Model | str | None = None
-    settings: ModelSettings | None = None
-    prompt: str
-    retries: int = 3
-
-
-class EnrichmentResult(BaseModel):
-    response: dict[str, Any]  # or further decompose as needed
 
 
 async def enrich_context(
     ctx: AnyContext,
-    config: EnrichmentConfig,
-    conversation_context: dict[str, Any],
+    model: "Model | str | None",
+    settings: "ModelSettings | None",
+    prompt: str,
+    previous_long_term_context: str,
     history_list: ListOfDict,
     rate_limitter: LLMRateLimiter | None = None,
-) -> dict[str, Any]:
-    """Runs an LLM call to extract key info and merge it into the context."""
+    retries: int = 3,
+) -> str:
+    """Runs an LLM call to update the long-term context and returns the new context string."""
     from pydantic_ai import Agent
 
     ctx.log_info("Attempting to enrich conversation context...")
-    # Prepare context and history for the enrichment prompt
-    history_summary = conversation_context.get("history_summary")
-    try:
-        context_json = json.dumps(conversation_context)
-        history_json = json.dumps(history_list)
-        # The user prompt will now contain the dynamic data
-        user_prompt_data = "\n".join(
-            [
-                "Extract context from the following conversation info.",
-                "Extract only contexts that will be relevant across multiple conversations, like",  # noqa
-                "- user name",
-                "- user hobby",
-                "- user's long life goal",
-                "- standard/SOP",
-                "- etc.",
-                "Always maintain the relevant context and remove the irrelevant ones.",
-                "Restructure the context in a helpful way",
-                "Keep the context small",
-                f"Existing Context: {context_json}",
-                f"Conversation History: {history_json}",
-            ]
-        )
-    except Exception as e:
-        ctx.log_warning(f"Error formatting context/history for enrichment: {e}")
-        return conversation_context  # Return original context if formatting fails
-
+    # Construct the user prompt according to the new prompt format
+    user_prompt = json.dumps(
+        {
+            "previous_long_term_context": previous_long_term_context,
+            "recent_conversation_history": history_list,
+        }
+    )
     enrichment_agent = Agent(
-        model=config.model,
-        system_prompt=config.prompt,  # Use the main prompt as system prompt
-        model_settings=config.settings,
-        retries=config.retries,
-        output_type=EnrichmentResult,
+        model=model,
+        system_prompt=prompt,
+        model_settings=settings,
+        retries=retries,
     )
 
     try:
-        ctx.print(stylize_faint("[Context Enrichment Triggered]"), plain=True)
+        ctx.print(stylize_faint("💡 Enrich Context"), plain=True)
         enrichment_run = await run_agent_iteration(
             ctx=ctx,
             agent=enrichment_agent,
-            user_prompt=user_prompt_data,  # Pass the formatted data as user prompt
-            history_list=[],  # Enrichment agent doesn't need prior history itself
+            user_prompt=user_prompt,
+            history_list=[],  # Enrichment agent works off the prompt, not history
             rate_limitter=rate_limitter,
         )
         if enrichment_run and enrichment_run.result.output:
-            response = enrichment_run.result.output.response
+            new_long_term_context = str(enrichment_run.result.output)
             usage = enrichment_run.result.usage()
-            ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
-            if response:
-                conversation_context = response
-                # Re inject history summary
-                conversation_context["history_summary"] = history_summary
-                ctx.log_info("Context enriched based on history.")
-                ctx.log_info(
-                    f"Updated conversation context: {json.dumps(conversation_context)}"
-                )
+            ctx.print(
+                stylize_faint(f"💡 Context Enrichment Token: {usage}"), plain=True
+            )
+            ctx.print(plain=True)
+            ctx.log_info("Context enriched based on history.")
+            ctx.log_info(f"Updated long-term context:\n{new_long_term_context}")
+            return new_long_term_context
         else:
-            ctx.log_warning("Context enrichment returned no data")
+            ctx.log_warning("Context enrichment returned no data.")
     except Exception as e:
         ctx.log_warning(f"Error during context enrichment LLM call: {e}")
         traceback.print_exc()
-    return conversation_context
+
+    # Return the original context if enrichment fails
+    return previous_long_term_context
 
 
 def get_context_enrichment_threshold(
@@ -121,7 +87,6 @@ def get_context_enrichment_threshold(
         return get_int_attr(
             ctx,
             context_enrichment_threshold_attr,
-            # Use llm_config default if attribute is None
             llm_config.default_context_enrichment_threshold,
             auto_render=render_context_enrichment_threshold,
         )
@@ -136,7 +101,7 @@ def get_context_enrichment_threshold(
 def should_enrich_context(
     ctx: AnyContext,
     history_list: ListOfDict,
-    should_enrich_context_attr: BoolAttr | None,  # Allow None
+    should_enrich_context_attr: BoolAttr | None,
     render_enrich_context: bool,
     context_enrichment_threshold_attr: IntAttr | None,
     render_context_enrichment_threshold: bool,
@@ -165,16 +130,16 @@ def should_enrich_context(
 async def maybe_enrich_context(
     ctx: AnyContext,
     history_list: ListOfDict,
-    conversation_context: dict[str, Any],
+    long_term_context: str,
     should_enrich_context_attr: BoolAttr | None,
     render_enrich_context: bool,
     context_enrichment_threshold_attr: IntAttr | None,
     render_context_enrichment_threshold: bool,
-    model: str | Model | None,
-    model_settings: ModelSettings | None,
+    model: "str | Model | None",
+    model_settings: "ModelSettings | None",
     context_enrichment_prompt: str,
     rate_limitter: LLMRateLimiter | None = None,
-) -> dict[str, Any]:
+) -> str:
     """Enriches context based on history if enabled and threshold met."""
     shorten_history_list = replace_system_prompt_in_history_list(history_list)
     if should_enrich_context(
@@ -187,13 +152,11 @@ async def maybe_enrich_context(
     ):
         return await enrich_context(
             ctx=ctx,
-            config=EnrichmentConfig(
-                model=model,
-                settings=model_settings,
-                prompt=context_enrichment_prompt,
-            ),
-            conversation_context=conversation_context,
+            model=model,
+            settings=model_settings,
+            prompt=context_enrichment_prompt,
+            previous_long_term_context=long_term_context,
             history_list=shorten_history_list,
             rate_limitter=rate_limitter,
         )
-    return conversation_context
+    return long_term_context

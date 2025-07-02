@@ -2,18 +2,6 @@ import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from pydantic_ai import Agent, Tool
-    from pydantic_ai.mcp import MCPServer
-    from pydantic_ai.models import Model
-    from pydantic_ai.settings import ModelSettings
-else:
-    Agent = Any
-    Tool = Any
-    MCPServer = Any
-    Model = Any
-    ModelSettings = Any
-
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr, fstring
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -27,7 +15,7 @@ from zrb.task.llm.config import (
     get_model,
     get_model_settings,
 )
-from zrb.task.llm.context import extract_default_context, get_conversation_context
+from zrb.task.llm.context import extract_default_context
 from zrb.task.llm.context_enrichment import maybe_enrich_context
 from zrb.task.llm.history import (
     ConversationHistoryData,
@@ -46,6 +34,11 @@ from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent, Tool
+    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+
     ToolOrCallable = Tool | Callable
 else:
     ToolOrCallable = Any
@@ -62,7 +55,7 @@ class LLMTask(BaseTask):
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
         model: (
-            Callable[[AnySharedContext], Model | str | fstring] | Model | None
+            "Callable[[AnySharedContext], Model | str | fstring] | Model | None"
         ) = None,
         render_model: bool = True,
         model_base_url: StrAttr | None = None,
@@ -70,18 +63,14 @@ class LLMTask(BaseTask):
         model_api_key: StrAttr | None = None,
         render_model_api_key: bool = True,
         model_settings: (
-            ModelSettings | Callable[[AnySharedContext], ModelSettings] | None
+            "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
         ) = None,
-        agent: Agent | Callable[[AnySharedContext], Agent] | None = None,
+        agent: "Agent | Callable[[AnySharedContext], Agent] | None" = None,
         persona: StrAttr | None = None,
-        render_persona: bool = True,
         system_prompt: StrAttr | None = None,
-        render_system_prompt: bool = True,
         special_instruction_prompt: StrAttr | None = None,
-        render_special_instruction_prompt: bool = True,
         message: StrAttr | None = None,
-        summarization_prompt: StrAttr | None = None,
-        render_summarization_prompt: bool = True,
+        render_message: bool = True,
         enrich_context: BoolAttr | None = None,
         render_enrich_context: bool = True,
         context_enrichment_prompt: StrAttr | None = None,
@@ -112,6 +101,7 @@ class LLMTask(BaseTask):
         render_history_file: bool = True,
         summarize_history: BoolAttr | None = None,
         render_summarize_history: bool = True,
+        summarization_prompt: StrAttr | None = None,
         history_summarization_threshold: IntAttr | None = None,
         render_history_summarization_threshold: bool = True,
         rate_limitter: LLMRateLimiter | None = None,
@@ -162,14 +152,11 @@ class LLMTask(BaseTask):
         self._model_settings = model_settings
         self._agent = agent
         self._persona = persona
-        self._render_persona = render_persona
         self._system_prompt = system_prompt
-        self._render_system_prompt = render_system_prompt
         self._special_instruction_prompt = special_instruction_prompt
-        self._render_special_instruction_prompt = render_special_instruction_prompt
         self._message = message
+        self._render_message = render_message
         self._summarization_prompt = summarization_prompt
-        self._render_summarization_prompt = render_summarization_prompt
         self._should_enrich_context = enrich_context
         self._render_enrich_context = render_enrich_context
         self._context_enrichment_prompt = context_enrichment_prompt
@@ -202,10 +189,10 @@ class LLMTask(BaseTask):
         for single_tool in tool:
             self._additional_tools.append(single_tool)
 
-    def add_mcp_server(self, *mcp_server: MCPServer):
+    def add_mcp_server(self, *mcp_server: "MCPServer"):
         self.append_mcp_server(*mcp_server)
 
-    def append_mcp_server(self, *mcp_server: MCPServer):
+    def append_mcp_server(self, *mcp_server: "MCPServer"):
         for single_mcp_server in mcp_server:
             self._additional_mcp_servers.append(single_mcp_server)
 
@@ -236,42 +223,36 @@ class LLMTask(BaseTask):
         context_enrichment_prompt = get_context_enrichment_prompt(
             ctx=ctx,
             context_enrichment_prompt_attr=self._context_enrichment_prompt,
-            render_context_enrichment_prompt=self._render_context_enrichment_prompt,
         )
         summarization_prompt = get_summarization_prompt(
             ctx=ctx,
             summarization_prompt_attr=self._summarization_prompt,
-            render_summarization_prompt=self._render_summarization_prompt,
         )
-        user_message = get_user_message(ctx, self._message)
+        user_message = get_user_message(ctx, self._message, self._render_message)
         # Get the combined system prompt using the new getter
         system_prompt = get_combined_system_prompt(
             ctx=ctx,
             persona_attr=self._persona,
-            render_persona=self._render_persona,
             system_prompt_attr=self._system_prompt,
-            render_system_prompt=self._render_system_prompt,
             special_instruction_prompt_attr=self._special_instruction_prompt,
-            render_special_instruction_prompt=self._render_special_instruction_prompt,
         )
         # 1. Prepare initial state (read history from previous session)
-        conversation_history = await read_conversation_history(
+        history_data = await read_conversation_history(
             ctx=ctx,
             conversation_history_reader=self._conversation_history_reader,
             conversation_history_file_attr=self._conversation_history_file,
             render_history_file=self._render_history_file,
             conversation_history_attr=self._conversation_history,
         )
-        history_list = conversation_history.history
-        conversation_context = {
-            **conversation_history.context,
-            **get_conversation_context(ctx, self._conversation_context),
-        }
-        # 2. Enrich context (optional)
-        conversation_context = await maybe_enrich_context(
+        history_list = history_data.history
+        long_term_context = history_data.long_term_context
+        conversation_summary = history_data.conversation_summary
+
+        # 2. Enrich context and summarize history sequentially
+        new_long_term_context = await maybe_enrich_context(
             ctx=ctx,
             history_list=history_list,
-            conversation_context=conversation_context,
+            long_term_context=long_term_context,
             should_enrich_context_attr=self._should_enrich_context,
             render_enrich_context=self._render_enrich_context,
             context_enrichment_threshold_attr=self._context_enrichment_threshold,
@@ -281,11 +262,10 @@ class LLMTask(BaseTask):
             context_enrichment_prompt=context_enrichment_prompt,
             rate_limitter=self._rate_limitter,
         )
-        # 3. Summarize history (optional, modifies history_list and context)
-        history_list, conversation_context = await maybe_summarize_history(
+        new_history_list, new_conversation_summary = await maybe_summarize_history(
             ctx=ctx,
             history_list=history_list,
-            conversation_context=conversation_context,
+            conversation_summary=conversation_summary,
             should_summarize_history_attr=self._should_summarize_history,
             render_summarize_history=self._render_summarize_history,
             history_summarization_threshold_attr=self._history_summarization_threshold,
@@ -297,16 +277,21 @@ class LLMTask(BaseTask):
             summarization_prompt=summarization_prompt,
             rate_limitter=self._rate_limitter,
         )
-        # 4. Build the final user prompt and system prompt
-        final_user_prompt, default_context = extract_default_context(user_message)
-        final_system_prompt = "\n".join(
-            [
-                system_prompt,
-                "# Context",
-                json.dumps({**default_context, **conversation_context}),
-            ]
+
+        # 3. Build the final user prompt and system prompt
+        final_user_prompt, system_info = extract_default_context(user_message)
+        context_parts = [
+            f"## System Information\n{json.dumps(system_info, indent=2)}",
+        ]
+        if new_long_term_context:
+            context_parts.append(new_long_term_context)
+        if new_conversation_summary:
+            context_parts.append(new_conversation_summary)
+
+        final_system_prompt = "\n\n".join(
+            [system_prompt, "# Context", "\n\n---\n\n".join(context_parts)]
         )
-        # 5. Get the agent instance
+        # 4. Get the agent instance
         agent = get_agent(
             ctx=ctx,
             agent_attr=self._agent,
@@ -318,18 +303,24 @@ class LLMTask(BaseTask):
             mcp_servers_attr=self._mcp_servers,
             additional_mcp_servers=self._additional_mcp_servers,
         )
-        # 6. Run the agent iteration and save the results/history
+        # 5. Run the agent iteration and save the results/history
         return await self._run_agent_and_save_history(
-            ctx, agent, final_user_prompt, history_list, conversation_context
+            ctx,
+            agent,
+            final_user_prompt,
+            new_history_list,
+            new_long_term_context,
+            new_conversation_summary,
         )
 
     async def _run_agent_and_save_history(
         self,
         ctx: AnyContext,
-        agent: Agent,
+        agent: "Agent",
         user_prompt: str,
         history_list: ListOfDict,
-        conversation_context: dict[str, Any],
+        long_term_context: str,
+        conversation_summary: str,
     ) -> Any:
         """Executes the agent, processes results, and saves history."""
         try:
@@ -343,7 +334,8 @@ class LLMTask(BaseTask):
             if agent_run and agent_run.result:
                 new_history_list = json.loads(agent_run.result.all_messages_json())
                 data_to_write = ConversationHistoryData(
-                    context=conversation_context,  # Save the final context state
+                    long_term_context=long_term_context,
+                    conversation_summary=conversation_summary,
                     history=new_history_list,
                 )
                 await write_conversation_history(
@@ -358,7 +350,7 @@ class LLMTask(BaseTask):
                     ctx.xcom[xcom_usage_key] = Xcom([])
                 usage = agent_run.result.usage()
                 ctx.xcom[xcom_usage_key].push(usage)
-                ctx.print(stylize_faint(f"[Token Usage] {usage}"), plain=True)
+                ctx.print(stylize_faint(f"    Token: {usage}"), plain=True)
                 return agent_run.result.output
             else:
                 ctx.log_warning("Agent run did not produce a result.")

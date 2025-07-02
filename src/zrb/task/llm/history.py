@@ -4,7 +4,7 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
@@ -17,8 +17,18 @@ from zrb.util.run import run_async
 
 # Define the new ConversationHistoryData model
 class ConversationHistoryData(BaseModel):
-    context: dict[str, Any] = {}
-    history: ListOfDict = []
+    long_term_context: str = Field(
+        default="",
+        description="A markdown-formatted string containing curated, long-term context.",
+    )
+    conversation_summary: str = Field(
+        default="",
+        description="A free-text summary of the conversation history.",
+    )
+    history: ListOfDict = Field(
+        default_factory=list,
+        description="The recent, un-summarized conversation history.",
+    )
 
     @classmethod
     async def read_from_sources(
@@ -69,19 +79,17 @@ class ConversationHistoryData(BaseModel):
         try:
             if isinstance(data, cls):
                 return data  # Already a valid instance
-            if isinstance(data, dict) and "history" in data:
-                # Standard format {'context': ..., 'history': ...}
-                # Ensure context exists, even if empty
-                data.setdefault("context", {})
+            if isinstance(data, dict):
+                # This handles both the new format and the old {'context': ..., 'history': ...}
                 return cls.model_validate(data)
             elif isinstance(data, list):
-                # Handle old format (just a list) - wrap it
+                # Handle very old format (just a list) - wrap it
                 ctx.log_warning(
-                    f"History from {source} contains old list format. "
-                    "Wrapping it into the new structure {'context': {}, 'history': [...]}. "
+                    f"History from {source} contains legacy list format. "
+                    "Wrapping it into the new structure. "
                     "Consider updating the source format."
                 )
-                return cls(history=data, context={})
+                return cls(history=data)
             else:
                 ctx.log_warning(
                     f"History data from {source} has unexpected format "

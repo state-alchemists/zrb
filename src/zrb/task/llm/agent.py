@@ -1,22 +1,6 @@
+import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from pydantic_ai import Agent, Tool
-    from pydantic_ai.agent import AgentRun
-    from pydantic_ai.mcp import MCPServer
-    from pydantic_ai.models import Model
-    from pydantic_ai.settings import ModelSettings
-else:
-    Agent = Any
-    Tool = Any
-    AgentRun = Any
-    MCPServer = Any
-    ModelMessagesTypeAdapter = Any
-    Model = Any
-    ModelSettings = Any
-
-import json
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -26,18 +10,27 @@ from zrb.task.llm.print_node import print_node
 from zrb.task.llm.tool_wrapper import wrap_tool
 from zrb.task.llm.typing import ListOfDict
 
-ToolOrCallable = Tool | Callable
+if TYPE_CHECKING:
+    from pydantic_ai import Agent, Tool
+    from pydantic_ai.agent import AgentRun
+    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai.models import Model
+    from pydantic_ai.settings import ModelSettings
+
+    ToolOrCallable = Tool | Callable
+else:
+    ToolOrCallable = Any
 
 
 def create_agent_instance(
     ctx: AnyContext,
-    model: str | Model | None = None,
+    model: "str | Model | None" = None,
     system_prompt: str = "",
-    model_settings: ModelSettings | None = None,
+    model_settings: "ModelSettings | None" = None,
     tools: list[ToolOrCallable] = [],
-    mcp_servers: list[MCPServer] = [],
+    mcp_servers: list["MCPServer"] = [],
     retries: int = 3,
-) -> Agent:
+) -> "Agent":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, Tool
 
@@ -62,18 +55,18 @@ def create_agent_instance(
 
 def get_agent(
     ctx: AnyContext,
-    agent_attr: Agent | Callable[[AnySharedContext], Agent] | None,
-    model: str | Model | None,
+    agent_attr: "Agent | Callable[[AnySharedContext], Agent] | None",
+    model: "str | Model | None",
     system_prompt: str,
-    model_settings: ModelSettings | None,
+    model_settings: "ModelSettings | None",
     tools_attr: (
         list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
     ),
     additional_tools: list[ToolOrCallable],
-    mcp_servers_attr: list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]],
-    additional_mcp_servers: list[MCPServer],
+    mcp_servers_attr: "list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]",
+    additional_mcp_servers: "list[MCPServer]",
     retries: int = 3,
-) -> Agent:
+) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
     from pydantic_ai import Agent
 
@@ -111,12 +104,12 @@ def get_agent(
 
 async def run_agent_iteration(
     ctx: AnyContext,
-    agent: Agent,
+    agent: "Agent",
     user_prompt: str,
     history_list: ListOfDict,
     rate_limitter: LLMRateLimiter | None = None,
     max_retry: int = 2,
-) -> AgentRun:
+) -> "AgentRun":
     """
     Runs a single iteration of the agent execution loop.
 
@@ -153,11 +146,11 @@ async def run_agent_iteration(
 
 async def _run_single_agent_iteration(
     ctx: AnyContext,
-    agent: Agent,
+    agent: "Agent",
     user_prompt: str,
     history_list: ListOfDict,
     rate_limitter: LLMRateLimiter | None = None,
-) -> AgentRun:
+) -> "AgentRun":
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
@@ -190,7 +183,7 @@ async def _run_single_agent_iteration(
 
 
 def estimate_request_payload(
-    agent: Agent, user_prompt: str, history_list: ListOfDict
+    agent: "Agent", user_prompt: str, history_list: ListOfDict
 ) -> str:
     system_prompts = agent._system_prompts if hasattr(agent, "_system_prompts") else ()
     return json.dumps(

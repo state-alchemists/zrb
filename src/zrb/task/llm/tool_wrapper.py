@@ -3,7 +3,7 @@ import inspect
 import traceback
 import typing
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
@@ -11,11 +11,9 @@ from zrb.util.run import run_async
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
-else:
-    Tool = Any
 
 
-def wrap_tool(func: Callable, ctx: AnyContext) -> Tool:
+def wrap_tool(func: Callable, ctx: AnyContext) -> "Tool":
     """Wraps a tool function to handle exceptions and context propagation."""
     from pydantic_ai import RunContext, Tool
 

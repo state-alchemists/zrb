@@ -7,14 +7,13 @@ from zrb.util.attr import get_attr, get_str_attr
 def get_persona(
     ctx: AnyContext,
     persona_attr: StrAttr | None,
-    render_persona: bool,
 ) -> str:
     """Gets the persona, prioritizing task-specific, then default."""
     persona = get_attr(
         ctx,
         persona_attr,
         None,
-        auto_render=render_persona,
+        auto_render=False,
     )
     if persona is not None:
         return persona
@@ -24,14 +23,13 @@ def get_persona(
 def get_base_system_prompt(
     ctx: AnyContext,
     system_prompt_attr: StrAttr | None,
-    render_system_prompt: bool,
 ) -> str:
     """Gets the base system prompt, prioritizing task-specific, then default."""
     system_prompt = get_attr(
         ctx,
         system_prompt_attr,
         None,
-        auto_render=render_system_prompt,
+        auto_render=False,
     )
     if system_prompt is not None:
         return system_prompt
@@ -41,14 +39,13 @@ def get_base_system_prompt(
 def get_special_instruction_prompt(
     ctx: AnyContext,
     special_instruction_prompt_attr: StrAttr | None,
-    render_special_instruction_prompt: bool,
 ) -> str:
     """Gets the special instruction prompt, prioritizing task-specific, then default."""
     special_instruction = get_attr(
         ctx,
         special_instruction_prompt_attr,
         None,
-        auto_render=render_special_instruction_prompt,
+        auto_render=False,
     )
     if special_instruction is not None:
         return special_instruction
@@ -58,19 +55,14 @@ def get_special_instruction_prompt(
 def get_combined_system_prompt(
     ctx: AnyContext,
     persona_attr: StrAttr | None,
-    render_persona: bool,
     system_prompt_attr: StrAttr | None,
-    render_system_prompt: bool,
     special_instruction_prompt_attr: StrAttr | None,
-    render_special_instruction_prompt: bool,
 ) -> str:
     """Combines persona, base system prompt, and special instructions."""
-    persona = get_persona(ctx, persona_attr, render_persona)
-    base_system_prompt = get_base_system_prompt(
-        ctx, system_prompt_attr, render_system_prompt
-    )
+    persona = get_persona(ctx, persona_attr)
+    base_system_prompt = get_base_system_prompt(ctx, system_prompt_attr)
     special_instruction = get_special_instruction_prompt(
-        ctx, special_instruction_prompt_attr, render_special_instruction_prompt
+        ctx, special_instruction_prompt_attr
     )
     parts = []
     if persona:
@@ -85,22 +77,24 @@ def get_combined_system_prompt(
 def get_user_message(
     ctx: AnyContext,
     message_attr: StrAttr | None,
+    render_user_message: bool,
 ) -> str:
     """Gets the user message, rendering and providing a default."""
-    return get_str_attr(ctx, message_attr, "How are you?", auto_render=True)
+    return get_str_attr(
+        ctx, message_attr, "How are you?", auto_render=render_user_message
+    )
 
 
 def get_summarization_prompt(
     ctx: AnyContext,
     summarization_prompt_attr: StrAttr | None,
-    render_summarization_prompt: bool,
 ) -> str:
     """Gets the summarization prompt, rendering if configured and handling defaults."""
     summarization_prompt = get_attr(
         ctx,
         summarization_prompt_attr,
         None,
-        auto_render=render_summarization_prompt,
+        auto_render=False,
     )
     if summarization_prompt is not None:
         return summarization_prompt
@@ -110,14 +104,13 @@ def get_summarization_prompt(
 def get_context_enrichment_prompt(
     ctx: AnyContext,
     context_enrichment_prompt_attr: StrAttr | None,
-    render_context_enrichment_prompt: bool,
 ) -> str:
     """Gets the context enrichment prompt, rendering if configured and handling defaults."""
     context_enrichment_prompt = get_attr(
         ctx,
         context_enrichment_prompt_attr,
         None,
-        auto_render=render_context_enrichment_prompt,
+        auto_render=False,
     )
     if context_enrichment_prompt is not None:
         return context_enrichment_prompt
