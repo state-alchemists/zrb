@@ -58,7 +58,7 @@ async def open_web_page(url: str) -> str:
 
 def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
     def search_internet(query: str, num_results: int = 10) -> str:
-        """Search the internet using SerpApi (Google Search) and return parsed results.
+        """Search the internet Google Search and return parsed results.
         Args:
             query (str): Search query.
             num_results (int): Search result count. Defaults to 10.

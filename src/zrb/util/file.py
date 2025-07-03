@@ -31,8 +31,8 @@ def _read_text_file_content(file_path: str) -> str:
 
 
 def _read_pdf_file_content(file_path: str) -> str:
-    from pdfplumber.pdf import PDF
     import pdfplumber
+    from pdfplumber.pdf import PDF
 
     with pdfplumber.open(file_path) as pdf:
         pdf: PDF

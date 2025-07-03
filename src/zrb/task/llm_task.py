@@ -374,7 +374,7 @@ def llm_task(
     cli_only: bool = False,
     input: list[AnyInput | None] | AnyInput | None = None,
     env: list[AnyEnv | None] | AnyEnv | None = None,
-    model: ("Callable[[AnySharedContext], Model | str | fstring] | Model | None") = None,
+    model: "Callable[[AnySharedContext], Model | str | fstring] | Model | None" = None,
     render_model: bool = True,
     model_base_url: StrAttr | None = None,
     render_model_base_url: bool = True,

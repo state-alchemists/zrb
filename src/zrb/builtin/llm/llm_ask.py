@@ -10,7 +10,9 @@ from zrb.builtin.llm.tool.file import (
     apply_diff,
     list_files,
     read_from_file,
+    read_many_files,
     search_files,
+    write_many_files,
     write_to_file,
 )
 from zrb.builtin.llm.tool.web import (
@@ -132,8 +134,10 @@ if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
         search_files,
         list_files,
         read_from_file,
+        read_many_files,
         apply_diff,
         write_to_file,
+        write_many_files,
     )
 
 if CFG.LLM_ALLOW_ACCESS_SHELL:

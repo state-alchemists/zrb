@@ -2,7 +2,7 @@ import fnmatch
 import json
 import os
 import re
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.context.any_context import AnyContext
@@ -499,3 +499,105 @@ async def analyze_file(
     )
     clipped_payload = llm_rate_limitter.clip_prompt(payload, token_limit)
     return await _analyze_file(ctx, clipped_payload)
+
+
+def read_many_files(paths: List[str]) -> str:
+    """
+    Read and return the content of multiple files.
+
+    This function is ideal for when you need to inspect the contents of
+    several files at once. For each file path provided in the input list,
+    it reads the entire file content. The result is a JSON string
+    containing a dictionary where keys are the file paths and values are
+    the corresponding file contents.
+
+    Use this tool when you need a comprehensive view of multiple files,
+    for example, to understand how different parts of a module interact,
+    to check configurations across various files, or to gather context
+    before making widespread changes.
+
+    Args:
+        paths (List[str]): A list of absolute or relative paths to the
+                           files you want to read. It is crucial to
+                           provide accurate paths. Use the `list_files`
+                           tool if you are unsure about the exact file
+                           locations.
+
+    Returns:
+        str: A JSON string representing a dictionary where each key is a
+             file path and the corresponding value is the content of that
+             file. If a file cannot be read, its entry in the dictionary
+             will contain an error message.
+             Example:
+             {
+                 "results": {
+                     "path/to/file1.py": "...",
+                     "path/to/file2.txt": "..."
+                 }
+             }
+    """
+    results = {}
+    for path in paths:
+        try:
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            if not os.path.exists(abs_path):
+                raise FileNotFoundError(f"File not found: {path}")
+            content = read_file_with_line_numbers(abs_path)
+            results[path] = content
+        except Exception as e:
+            results[path] = f"Error reading file: {e}"
+    return json.dumps({"results": results})
+
+
+def write_many_files(files: Dict[str, str]) -> str:
+    """
+    Write content to multiple files simultaneously.
+
+    This function allows you to create, overwrite, or update multiple
+    files in a single operation. You provide a dictionary where each
+    key is a file path and the corresponding value is the content to be
+    written to that file. This is particularly useful for applying
+    changes across a project, such as refactoring code, updating
+    configuration files, or creating a set of new files from a template.
+
+    Each file is handled as a complete replacement of its content. If the
+    file does not exist, it will be created. If it already exists, its
+
+    entire content will be overwritten with the new content you provide.
+    Therefore, it is essential to provide the full, intended content for
+    each file.
+
+    Args:
+        files (Dict[str, str]): A dictionary where keys are the file paths
+                                (absolute or relative) and values are the
+                                complete contents to be written to those
+                                files.
+
+    Returns:
+        str: A JSON string summarizing the operation. It includes a list
+             of successfully written files and a list of files that
+             failed, along with the corresponding error messages.
+             Example:
+             {
+                 "success": [
+                     "path/to/file1.py",
+                     "path/to/file2.txt"
+                 ],
+                 "errors": {
+                     "path/to/problematic/file.py": "Error message"
+                 }
+             }
+    """
+    success = []
+    errors = {}
+    for path, content in files.items():
+        try:
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            directory = os.path.dirname(abs_path)
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
+            write_file(abs_path, content)
+            success.append(path)
+        except Exception as e:
+            errors[path] = f"Error writing file: {e}"
+    return json.dumps({"success": success, "errors": errors})
