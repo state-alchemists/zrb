@@ -12,13 +12,13 @@ To configure the rate limiter, you can access and manipulate the `llm_rate_limit
 from zrb import llm_config
 
 # Set the maximum number of requests per minute
-llm_config.llm_rate_limitter.set_max_requests_per_minute(60)
+llm_config.llm_rate_limitter.set_max_requests_per_minute(15)
 
 # Set the maximum number of tokens per minute
-llm_config.llm_rate_limitter.set_max_tokens_per_minute(120000)
+llm_config.llm_rate_limitter.set_max_tokens_per_minute(100000)
 
 # Set the maximum number of tokens per request
-llm_config.llm_rate_limitter.set_max_tokens_per_request(30000)
+llm_config.llm_rate_limitter.set_max_tokens_per_request(50000)
 
 # Set the throttle sleep duration
 llm_config.llm_rate_limitter.set_throttle_sleep(1.0)

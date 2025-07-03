@@ -302,28 +302,28 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD`: Threshold for summarizing history (number of messages).
-    * Default: `5`
+* `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
+    * Default: `3000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_ENRICH_CONTEXT`: Whether to enrich context.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD`: Threshold for enriching context (number of messages).
-    * Default: `5`
+* `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`: Token threshold for enriching context.
+    * Default: `3000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
-    * Default: `60`
+    * Default: `15`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
-    * Default: `120000`
+    * Default: `100000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
-    * Default: `30000`
+    * Default: `50000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
@@ -341,27 +341,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 * `ZRB_LLM_ALLOW_ACCESS_SHELL`: Whether to allow LLM to access shell.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
-
-### LLM Rate Limiter Configuration
-
-The following environment variables are used as [LLM Config](./llm-rate-limitter.md) default property values.
-
-
-* `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
-   * Default: `60`
-   * Possible values: Any positive integer
-
-* `ZRB_LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
-   * Default: `120000`
-   * Possible values: Any positive integer
-
-* `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
-   * Default: `30000`
-   * Possible values: Any positive integer
-
-* `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
-   * Default: `1.0`
-   * Possible values: Any positive float
 
 * `ZRB_LLM_ALLOW_ACCESS_INTERNET`: Whether to allow LLM to access internet.
     * Default: `1` (true)

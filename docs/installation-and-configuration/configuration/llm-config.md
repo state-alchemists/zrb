@@ -73,20 +73,20 @@ llm_config.set_persona(
 - **Type**: `bool`
 - **Environment Variable**: `ZRB_LLM_SUMMARIZE_HISTORY`
 
-### `default_history_summarization_threshold`
-- **Description**: The threshold for history summarization.
+### `default_history_summarization_token_threshold`
+- **Description**: The token count threshold for history summarization.
 - **Type**: `int`
-- **Environment Variable**: `ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD`
+- **Environment Variable**: `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`
 
 ### `default_enrich_context`
 - **Description**: Whether to enrich context.
 - **Type**: `bool`
 - **Environment Variable**: `ZRB_LLM_ENRICH_CONTEXT`
 
-### `default_context_enrichment_threshold`
-- **Description**: The threshold for context enrichment.
+### `default_context_enrichment_token_threshold`
+- **Description**: The token count threshold for context enrichment.
 - **Type**: `int`
-- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD`
+- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`
 
 ### `default_model_settings`
 - **Description**: The default model settings.
@@ -138,14 +138,14 @@ llm_config.set_persona(
 ### `set_default_summarize_history(summarize_history: bool)`
 - **Description**: Sets whether to summarize history.
 
-### `set_default_history_summarization_threshold(history_summarization_threshold: int)`
-- **Description**: Sets the history summarization threshold.
+### `set_default_history_summarization_token_threshold(history_summarization_token_threshold: int)`
+- **Description**: Sets the history summarization token threshold.
 
 ### `set_default_enrich_context(enrich_context: bool)`
 - **Description**: Sets whether to enrich context.
 
-### `set_default_context_enrichment_threshold(context_enrichment_threshold: int)`
-- **Description**: Sets the context enrichment threshold.
+### `set_default_context_enrichment_token_threshold(context_enrichment_token_threshold: int)`
+- **Description**: Sets the context enrichment token threshold.
 
 ### `set_default_model_settings(model_settings: ModelSettings)`
 - **Description**: Sets the default model settings.

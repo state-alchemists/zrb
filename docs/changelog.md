@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md) > Changelog
 
+# 1.9.1
+
+- **Refactored History Management**: The trigger mechanism for history summarization and context enrichment has been changed from being based on the number of conversation turns to the total number of tokens in the history. This provides more accurate, efficient, and cost-effective management of the conversation context.
+  - New Configurations: `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD` and `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD` (both default to `3000`).
+  - Removed Configurations: `ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD` and `ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD`.
+- **Adjusted Default Rate Limits**: The default LLM API rate limits have been updated to be more conservative and accommodating for free-tier users of various LLM providers.
+  - `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` default is now `15` (was `60`).
+  - `ZRB_LLM_MAX_TOKENS_PER_MINUTE` default is now `100000` (was `200000`).
+  - `ZRB_LLM_MAX_TOKENS_PER_REQUEST` default is now `50000` (was `30000`).
+
+# 1.9.0
+
+- Introduce `zrb.helper.file` and `zrb.helper.task` to simplify `zrb_init.py` scripts.
+- Minor bug fixes and performance improvements.
+
 # 1.8.15
 
 - Fixing bug: `\n` automatically trigger mutiline mode on `llm_chat`
@@ -17,7 +32,6 @@
 
 - 💥 Breaking change: Remove `port` from `web_auth_config`
 - Revamp docs
-
 
 # 1.8.11
 
@@ -42,7 +56,6 @@
 
 - Introduce new configurations: `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`, `ZRB_LLM_MAX_TOKENS_PER_MINUTE`, `ZRB_LLM_MAX_TOKENS_PER_REQUESTS`, and `ZRB_LLM_THROTTLE_SLEEP`.
 - Remove old configurations: `LLM_MAX_REQUESTS_PER_MINUTE`, `LLM_MAX_TOKENS_PER_MINUTE`, `LLM_MAX_TOKENS_PER_REQUESTS`, and `LLM_THROTTLE_SLEEP`.
-
 
 # 1.8.6
 
@@ -206,7 +219,6 @@
 
 - Add line numbers back
 
-
 # 1.5.6
 
 - Expand `~` as home directory correctly on LLM tool
@@ -254,7 +266,6 @@
 # 1.4.1
 
 - Avoid load file twice (in case of the `zrb_init.py` file in current directory is also existing on `ZRB_INIT_SCRIPTS`)
-- 
 
 # 1.4.0
 
@@ -277,7 +288,6 @@
 # 1.2.2
 
 - Fix and refactor FastApp CRUD
-
 
 # 1.2.1
 
