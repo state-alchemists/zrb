@@ -243,13 +243,19 @@ class Config:
 
     @property
     def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
-        """Maximum number of LLM requests allowed per minute."""
-        return int(os.getenv("LLM_MAX_REQUESTS_PER_MINUTE", "60"))
+        """
+        Maximum number of LLM requests allowed per minute.
+        Default is conservative to accommodate free-tier LLM providers.
+        """
+        return int(os.getenv("LLM_MAX_REQUESTS_PER_MINUTE", "15"))
 
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
-        """Maximum number of LLM tokens allowed per minute."""
-        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "200000"))
+        """
+        Maximum number of LLM tokens allowed per minute.
+        Default is conservative to accommodate free-tier LLM providers.
+        """
+        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "100000"))
 
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
