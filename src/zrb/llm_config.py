@@ -178,9 +178,9 @@ class LLMConfig:
         default_summarization_prompt: str | None = None,
         default_context_enrichment_prompt: str | None = None,
         default_summarize_history: bool | None = None,
-        default_history_summarization_threshold: int | None = None,
+        default_history_summarization_token_threshold: int | None = None,
         default_enrich_context: bool | None = None,
-        default_context_enrichment_threshold: int | None = None,
+        default_context_enrichment_token_threshold: int | None = None,
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
         default_model_provider: "Provider | None" = None,
@@ -195,12 +195,12 @@ class LLMConfig:
         self._default_summarization_prompt = default_summarization_prompt
         self._default_context_enrichment_prompt = default_context_enrichment_prompt
         self._default_summarize_history = default_summarize_history
-        self._default_history_summarization_threshold = (
-            default_history_summarization_threshold
+        self._default_history_summarization_token_threshold = (
+            default_history_summarization_token_threshold
         )
         self._default_enrich_context = default_enrich_context
-        self._default_context_enrichment_threshold = (
-            default_context_enrichment_threshold
+        self._default_context_enrichment_token_threshold = (
+            default_context_enrichment_token_threshold
         )
         self._default_model_settings = default_model_settings
         self._default_model_provider = default_model_provider
@@ -316,10 +316,10 @@ class LLMConfig:
         return CFG.LLM_SUMMARIZE_HISTORY
 
     @property
-    def default_history_summarization_threshold(self) -> int:
-        if self._default_history_summarization_threshold is not None:
-            return self._default_history_summarization_threshold
-        return CFG.LLM_HISTORY_SUMMARIZATION_THRESHOLD
+    def default_history_summarization_token_threshold(self) -> int:
+        if self._default_history_summarization_token_threshold is not None:
+            return self._default_history_summarization_token_threshold
+        return CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
 
     @property
     def default_enrich_context(self) -> bool:
@@ -328,10 +328,10 @@ class LLMConfig:
         return CFG.LLM_ENRICH_CONTEXT
 
     @property
-    def default_context_enrichment_threshold(self) -> int:
-        if self._default_context_enrichment_threshold is not None:
-            return self._default_context_enrichment_threshold
-        return CFG.LLM_CONTEXT_ENRICHMENT_THRESHOLD
+    def default_context_enrichment_token_threshold(self) -> int:
+        if self._default_context_enrichment_token_threshold is not None:
+            return self._default_context_enrichment_token_threshold
+        return CFG.LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD
 
     def set_default_persona(self, persona: str):
         self._default_persona = persona
@@ -369,18 +369,22 @@ class LLMConfig:
     def set_default_summarize_history(self, summarize_history: bool):
         self._default_summarize_history = summarize_history
 
-    def set_default_history_summarization_threshold(
-        self, history_summarization_threshold: int
+    def set_default_history_summarization_token_threshold(
+        self, history_summarization_token_threshold: int
     ):
-        self._default_history_summarization_threshold = history_summarization_threshold
+        self._default_history_summarization_token_threshold = (
+            history_summarization_token_threshold
+        )
 
     def set_default_enrich_context(self, enrich_context: bool):
         self._default_enrich_context = enrich_context
 
-    def set_default_context_enrichment_threshold(
-        self, context_enrichment_threshold: int
+    def set_default_context_enrichment_token_threshold(
+        self, context_enrichment_token_threshold: int
     ):
-        self._default_context_enrichment_threshold = context_enrichment_threshold
+        self._default_context_enrichment_token_threshold = (
+            context_enrichment_token_threshold
+        )
 
     def set_default_model_settings(self, model_settings: "ModelSettings"):
         self._default_model_settings = model_settings

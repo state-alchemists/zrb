@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm_config import llm_config
-from zrb.llm_rate_limitter import LLMRateLimiter
-from zrb.task.llm.agent import run_agent_iteration
+from zrb.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
 from zrb.task.llm.history import (
     count_part_in_history_list,
     replace_system_prompt_in_history_list,
 )
+from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
 from zrb.util.cli.style import stylize_faint
@@ -18,6 +18,12 @@ from zrb.util.cli.style import stylize_faint
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
+
+
+def _count_token_in_history(history_list: ListOfDict) -> int:
+    """Counts the total number of tokens in a conversation history list."""
+    text_to_count = json.dumps(history_list)
+    return llm_rate_limitter.count_token(text_to_count)
 
 
 async def enrich_context(
@@ -77,22 +83,22 @@ async def enrich_context(
     return previous_long_term_context
 
 
-def get_context_enrichment_threshold(
+def get_context_enrichment_token_threshold(
     ctx: AnyContext,
-    context_enrichment_threshold_attr: IntAttr | None,
-    render_context_enrichment_threshold: bool,
+    context_enrichment_token_threshold_attr: IntAttr | None,
+    render_context_enrichment_token_threshold: bool,
 ) -> int:
-    """Gets the context enrichment threshold, handling defaults and errors."""
+    """Gets the context enrichment token threshold, handling defaults and errors."""
     try:
         return get_int_attr(
             ctx,
-            context_enrichment_threshold_attr,
-            llm_config.default_context_enrichment_threshold,
-            auto_render=render_context_enrichment_threshold,
+            context_enrichment_token_threshold_attr,
+            llm_config.default_context_enrichment_token_threshold,
+            auto_render=render_context_enrichment_token_threshold,
         )
     except ValueError as e:
         ctx.log_warning(
-            f"Could not convert context_enrichment_threshold to int: {e}. "
+            f"Could not convert context_enrichment_token_threshold to int: {e}. "
             "Defaulting to -1 (no threshold)."
         )
         return -1
@@ -103,21 +109,25 @@ def should_enrich_context(
     history_list: ListOfDict,
     should_enrich_context_attr: BoolAttr | None,
     render_enrich_context: bool,
-    context_enrichment_threshold_attr: IntAttr | None,
-    render_context_enrichment_threshold: bool,
+    context_enrichment_token_threshold_attr: IntAttr | None,
+    render_context_enrichment_token_threshold: bool,
 ) -> bool:
     """
-    Determines if context enrichment should occur based on history, threshold, and config.
+    Determines if context enrichment should occur based on history, token threshold, and config.
     """
     history_part_count = count_part_in_history_list(history_list)
     if history_part_count == 0:
         return False
-    enrichment_threshold = get_context_enrichment_threshold(
+    enrichment_token_threshold = get_context_enrichment_token_threshold(
         ctx,
-        context_enrichment_threshold_attr,
-        render_context_enrichment_threshold,
+        context_enrichment_token_threshold_attr,
+        render_context_enrichment_token_threshold,
     )
-    if enrichment_threshold == -1 or enrichment_threshold > history_part_count:
+    history_token_count = _count_token_in_history(history_list)
+    if (
+        enrichment_token_threshold == -1
+        or enrichment_token_threshold > history_token_count
+    ):
         return False
     return get_bool_attr(
         ctx,
@@ -133,22 +143,22 @@ async def maybe_enrich_context(
     long_term_context: str,
     should_enrich_context_attr: BoolAttr | None,
     render_enrich_context: bool,
-    context_enrichment_threshold_attr: IntAttr | None,
-    render_context_enrichment_threshold: bool,
+    context_enrichment_token_threshold_attr: IntAttr | None,
+    render_context_enrichment_token_threshold: bool,
     model: "str | Model | None",
     model_settings: "ModelSettings | None",
     context_enrichment_prompt: str,
     rate_limitter: LLMRateLimiter | None = None,
 ) -> str:
-    """Enriches context based on history if enabled and threshold met."""
+    """Enriches context based on history if enabled and token threshold met."""
     shorten_history_list = replace_system_prompt_in_history_list(history_list)
     if should_enrich_context(
         ctx,
         shorten_history_list,
         should_enrich_context_attr,
         render_enrich_context,
-        context_enrichment_threshold_attr,
-        render_context_enrichment_threshold,
+        context_enrichment_token_threshold_attr,
+        render_context_enrichment_token_threshold,
     ):
         return await enrich_context(
             ctx=ctx,

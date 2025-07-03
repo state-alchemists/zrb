@@ -276,16 +276,16 @@ class Config:
         return to_boolean(os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true"))
 
     @property
-    def LLM_HISTORY_SUMMARIZATION_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_THRESHOLD", "5"))
+    def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "3000"))
 
     @property
     def LLM_ENRICH_CONTEXT(self) -> bool:
         return to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "true"))
 
     @property
-    def LLM_CONTEXT_ENRICHMENT_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_THRESHOLD", "5"))
+    def LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD(self) -> int:
+        return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "3000"))
 
     @property
     def LLM_HISTORY_DIR(self) -> str:

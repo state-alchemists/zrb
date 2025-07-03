@@ -75,8 +75,8 @@ class LLMTask(BaseTask):
         render_enrich_context: bool = True,
         context_enrichment_prompt: StrAttr | None = None,
         render_context_enrichment_prompt: bool = True,
-        context_enrichment_threshold: IntAttr | None = None,
-        render_context_enrichment_threshold: bool = True,
+        context_enrichment_token_threshold: IntAttr | None = None,
+        render_context_enrichment_token_threshold: bool = True,
         tools: (
             list["ToolOrCallable"]
             | Callable[[AnySharedContext], list["ToolOrCallable"]]
@@ -102,8 +102,8 @@ class LLMTask(BaseTask):
         summarize_history: BoolAttr | None = None,
         render_summarize_history: bool = True,
         summarization_prompt: StrAttr | None = None,
-        history_summarization_threshold: IntAttr | None = None,
-        render_history_summarization_threshold: bool = True,
+        history_summarization_token_threshold: IntAttr | None = None,
+        render_history_summarization_token_threshold: bool = True,
         rate_limitter: LLMRateLimiter | None = None,
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
@@ -161,8 +161,10 @@ class LLMTask(BaseTask):
         self._render_enrich_context = render_enrich_context
         self._context_enrichment_prompt = context_enrichment_prompt
         self._render_context_enrichment_prompt = render_context_enrichment_prompt
-        self._context_enrichment_threshold = context_enrichment_threshold
-        self._render_context_enrichment_threshold = render_context_enrichment_threshold
+        self._context_enrichment_token_threshold = context_enrichment_token_threshold
+        self._render_context_enrichment_token_threshold = (
+            render_context_enrichment_token_threshold
+        )
         self._tools = tools
         self._rate_limitter = rate_limitter
         self._additional_tools: list["ToolOrCallable"] = []
@@ -175,9 +177,11 @@ class LLMTask(BaseTask):
         self._render_history_file = render_history_file
         self._should_summarize_history = summarize_history
         self._render_summarize_history = render_summarize_history
-        self._history_summarization_threshold = history_summarization_threshold
-        self._render_history_summarization_threshold = (
-            render_history_summarization_threshold
+        self._history_summarization_token_threshold = (
+            history_summarization_token_threshold
+        )
+        self._render_history_summarization_token_threshold = (
+            render_history_summarization_token_threshold
         )
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
@@ -199,14 +203,16 @@ class LLMTask(BaseTask):
     def set_should_enrich_context(self, enrich_context: bool):
         self._should_enrich_context = enrich_context
 
-    def set_context_enrichment_threshold(self, enrichment_threshold: int):
-        self._context_enrichment_threshold = enrichment_threshold
+    def set_context_enrichment_token_threshold(self, enrichment_token_threshold: int):
+        self._context_enrichment_token_threshold = enrichment_token_threshold
 
     def set_should_summarize_history(self, summarize_history: bool):
         self._should_summarize_history = summarize_history
 
-    def set_history_summarization_threshold(self, summarization_threshold: int):
-        self._history_summarization_threshold = summarization_threshold
+    def set_history_summarization_token_threshold(
+        self, summarization_token_threshold: int
+    ):
+        self._history_summarization_token_threshold = summarization_token_threshold
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # Get dependent configurations first
@@ -255,8 +261,8 @@ class LLMTask(BaseTask):
             long_term_context=long_term_context,
             should_enrich_context_attr=self._should_enrich_context,
             render_enrich_context=self._render_enrich_context,
-            context_enrichment_threshold_attr=self._context_enrichment_threshold,
-            render_context_enrichment_threshold=self._render_context_enrichment_threshold,
+            context_enrichment_token_threshold_attr=self._context_enrichment_token_threshold,
+            render_context_enrichment_token_threshold=self._render_context_enrichment_token_threshold,
             model=model,
             model_settings=model_settings,
             context_enrichment_prompt=context_enrichment_prompt,
@@ -268,9 +274,9 @@ class LLMTask(BaseTask):
             conversation_summary=conversation_summary,
             should_summarize_history_attr=self._should_summarize_history,
             render_summarize_history=self._render_summarize_history,
-            history_summarization_threshold_attr=self._history_summarization_threshold,
-            render_history_summarization_threshold=(
-                self._render_history_summarization_threshold
+            history_summarization_token_threshold_attr=self._history_summarization_token_threshold,
+            render_history_summarization_token_threshold=(
+                self._render_history_summarization_token_threshold
             ),
             model=model,
             model_settings=model_settings,
@@ -358,3 +364,134 @@ class LLMTask(BaseTask):
         except Exception as e:
             ctx.log_error(f"Error during agent execution or history saving: {str(e)}")
             raise  # Re-raise the exception after logging
+
+
+def llm_task(
+    name: str,
+    color: int | None = None,
+    icon: str | None = None,
+    description: str | None = None,
+    cli_only: bool = False,
+    input: list[AnyInput | None] | AnyInput | None = None,
+    env: list[AnyEnv | None] | AnyEnv | None = None,
+    model: ("Callable[[AnySharedContext], Model | str | fstring] | Model | None") = None,
+    render_model: bool = True,
+    model_base_url: StrAttr | None = None,
+    render_model_base_url: bool = True,
+    model_api_key: StrAttr | None = None,
+    render_model_api_key: bool = True,
+    model_settings: "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None" = None,
+    agent: "Agent | Callable[[AnySharedContext], Agent] | None" = None,
+    persona: StrAttr | None = None,
+    system_prompt: StrAttr | None = None,
+    special_instruction_prompt: StrAttr | None = None,
+    message: StrAttr | None = None,
+    render_message: bool = True,
+    enrich_context: BoolAttr | None = None,
+    render_enrich_context: bool = True,
+    context_enrichment_prompt: StrAttr | None = None,
+    render_context_enrichment_prompt: bool = True,
+    context_enrichment_token_threshold: IntAttr | None = None,
+    render_context_enrichment_token_threshold: bool = True,
+    tools: (
+        list["ToolOrCallable"] | Callable[[AnySharedContext], list["ToolOrCallable"]]
+    ) = [],
+    mcp_servers: (
+        list["MCPServer"] | Callable[[AnySharedContext], list["MCPServer"]]
+    ) = [],
+    conversation_history: (
+        ConversationHistoryData
+        | Callable[[AnySharedContext], ConversationHistoryData | dict | list]
+        | dict
+        | list
+    ) = ConversationHistoryData(),
+    conversation_history_reader: (
+        Callable[[AnySharedContext], ConversationHistoryData | dict | list | None]
+        | None
+    ) = None,
+    conversation_history_writer: (
+        Callable[[AnySharedContext, ConversationHistoryData], None] | None
+    ) = None,
+    conversation_history_file: StrAttr | None = None,
+    render_history_file: bool = True,
+    summarize_history: BoolAttr | None = None,
+    render_summarize_history: bool = True,
+    summarization_prompt: StrAttr | None = None,
+    history_summarization_token_threshold: IntAttr | None = None,
+    render_history_summarization_token_threshold: bool = True,
+    rate_limitter: LLMRateLimiter | None = None,
+    execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
+    retries: int = 2,
+    retry_period: float = 0,
+    readiness_check: list[AnyTask] | AnyTask | None = None,
+    readiness_check_delay: float = 0.5,
+    readiness_check_period: float = 5,
+    readiness_failure_threshold: int = 1,
+    readiness_timeout: int = 60,
+    monitor_readiness: bool = False,
+    max_call_iteration: int = 20,
+    upstream: list[AnyTask] | AnyTask | None = None,
+    fallback: list[AnyTask] | AnyTask | None = None,
+    successor: list[AnyTask] | AnyTask | None = None,
+    conversation_context: (
+        dict[str, Any] | Callable[[AnySharedContext], dict[str, Any]] | None
+    ) = None,
+) -> LLMTask:
+    """
+    Create a new LLM task.
+    """
+    return LLMTask(
+        name=name,
+        color=color,
+        icon=icon,
+        description=description,
+        cli_only=cli_only,
+        input=input,
+        env=env,
+        model=model,
+        render_model=render_model,
+        model_base_url=model_base_url,
+        render_model_base_url=render_model_base_url,
+        model_api_key=model_api_key,
+        render_model_api_key=render_model_api_key,
+        model_settings=model_settings,
+        agent=agent,
+        persona=persona,
+        system_prompt=system_prompt,
+        special_instruction_prompt=special_instruction_prompt,
+        message=message,
+        render_message=render_message,
+        enrich_context=enrich_context,
+        render_enrich_context=render_enrich_context,
+        context_enrichment_prompt=context_enrichment_prompt,
+        render_context_enrichment_prompt=render_context_enrichment_prompt,
+        context_enrichment_token_threshold=context_enrichment_token_threshold,
+        render_context_enrichment_token_threshold=render_context_enrichment_token_threshold,
+        tools=tools,
+        mcp_servers=mcp_servers,
+        conversation_history=conversation_history,
+        conversation_history_reader=conversation_history_reader,
+        conversation_history_writer=conversation_history_writer,
+        conversation_history_file=conversation_history_file,
+        render_history_file=render_history_file,
+        summarize_history=summarize_history,
+        render_summarize_history=render_summarize_history,
+        summarization_prompt=summarization_prompt,
+        history_summarization_token_threshold=history_summarization_token_threshold,
+        render_history_summarization_token_threshold=render_history_summarization_token_threshold,
+        rate_limitter=rate_limitter,
+        execute_condition=execute_condition,
+        retries=retries,
+        retry_period=retry_period,
+        readiness_check=readiness_check,
+        readiness_check_delay=readiness_check_delay,
+        readiness_check_period=readiness_check_period,
+        readiness_failure_threshold=readiness_failure_threshold,
+        readiness_timeout=readiness_timeout,
+        monitor_readiness=monitor_readiness,
+        max_call_iteration=max_call_iteration,
+        upstream=upstream,
+        fallback=fallback,
+        successor=successor,
+        conversation_context=conversation_context,
+    )
