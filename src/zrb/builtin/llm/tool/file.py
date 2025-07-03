@@ -467,7 +467,7 @@ def apply_diff(
 
 
 async def analyze_file(
-    ctx: AnyContext, path: str, query: str, token_limit: int = 30000
+    ctx: AnyContext, path: str, query: str, token_limit: int = 40000
 ) -> str:
     """Analyze file using LLM capability to reduce context usage.
     Use this tool for:

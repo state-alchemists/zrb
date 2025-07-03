@@ -82,8 +82,8 @@ async def analyze_repo(
     goal: str,
     extensions: list[str] = _DEFAULT_EXTENSIONS,
     exclude_patterns: list[str] = DEFAULT_EXCLUDED_PATTERNS,
-    extraction_token_limit: int = 30000,
-    summarization_token_limit: int = 30000,
+    extraction_token_limit: int = 40000,
+    summarization_token_limit: int = 40000,
 ) -> str:
     """
     Extract and summarize information from any directory.
