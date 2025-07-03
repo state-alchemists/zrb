@@ -4,6 +4,20 @@
 
 The `LLMTask` brings the power of Large Language Models (LLMs) directly into your Zrb workflows. It's a specialized task for interacting with AI, allowing you to generate content, answer questions, or even give your automations complex reasoning capabilities.
 
+At its core, `LLMTask` is designed to be a stateful, context-aware agent. It manages conversation history and context to provide more relevant and intelligent responses over time.
+
+## Context and History Management
+
+`LLMTask` uses a sophisticated system to manage the context of a conversation, which is divided into three main parts:
+
+1.  **Long-Term Context**: A Markdown-formatted string that stores stable, long-term information. This can include user preferences, project details, or any other facts that should persist across multiple conversations. This context is automatically curated by an LLM to add, update, and remove information as the conversation evolves.
+
+2.  **Conversation Summary**: A narrative summary of the conversation history. As the conversation grows, an LLM periodically summarizes the turns to keep the immediate context concise and relevant.
+
+3.  **Recent History**: A list of the most recent turns in the conversation. This provides the immediate context for the LLM's next response.
+
+These three components are combined and sent to the LLM as part of the system prompt, giving it a rich understanding of the user's goals and the conversation's history.
+
 ## Basic Usage
 
 ```python
