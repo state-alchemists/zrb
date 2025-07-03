@@ -31,9 +31,10 @@ def _read_text_file_content(file_path: str) -> str:
 
 
 def _read_pdf_file_content(file_path: str) -> str:
-    from pdfplumber.pdf import PDF, open
+    from pdfplumber.pdf import PDF
+    import pdfplumber
 
-    with open(file_path) as pdf:
+    with pdfplumber.open(file_path) as pdf:
         pdf: PDF
         return "\n".join(
             page.extract_text() for page in pdf.pages if page.extract_text()

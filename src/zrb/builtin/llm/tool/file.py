@@ -215,6 +215,7 @@ def read_from_file(
     end_line: Optional[int] = None,
 ) -> str:
     """Read file content (or specific lines) at a path, including line numbers.
+    This tool can read both, text and pdf file.
     Args:
         path (str): Path to read. Pass exactly as provided, including '~'.
         start_line (Optional[int]): Starting line number (1-based).
