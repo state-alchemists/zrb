@@ -29,7 +29,9 @@ async def read_user_prompt(ctx: AnyContext) -> str:
 
     _show_info(ctx)
     final_result = ""
-    ctx.print(stylize_faint("🧑 >> ") + f"{ctx.input.message}", plain=True)
+    ctx.print(stylize_faint("💬"), plain=True)
+    ctx.print(ctx.input.message, plain=True)
+    ctx.print("", plain=True)
     result = await _trigger_ask_and_wait_for_result(
         ctx,
         user_prompt=ctx.input.message,
@@ -46,9 +48,11 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     user_input_session = PromptSession()
     while True:
         await asyncio.sleep(0.01)
-        ctx.print(stylize_faint("🧑 >> "), end="", plain=True)
+        if not multiline_mode:
+            ctx.print(stylize_faint("💬"), plain=True)
         user_input = await user_input_session.prompt_async()
-        # user_input = input()
+        if not multiline_mode:
+            ctx.print("", plain=True)
         # Handle special input
         if user_input.strip().lower() in ("/bye", "/quit"):
             user_prompt = "\n".join(user_inputs)
@@ -60,6 +64,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         elif user_input.strip().lower() in ("/multi",):
             multiline_mode = True
         elif user_input.strip().lower() in ("/end",):
+            ctx.print("", plain=True)
             multiline_mode = False
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
@@ -103,7 +108,9 @@ async def _trigger_ask_and_wait_for_result(
         return None
     await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
-    ctx.print(f"{stylize_faint('🤖 >>')} {result}", plain=True)
+    ctx.print(stylize_faint("\n🤖"), plain=True)
+    ctx.print(result, plain=True)
+    ctx.print("", plain=True)
     return result
 
 
@@ -199,13 +206,11 @@ def _show_info(ctx: AnyContext):
         ctx: The context object for the task.
     """
     ctx.print(
-        "\n".join(
-            [
-                f"{stylize_bold_yellow('/bye')}   {stylize_faint('Quit from chat session')}",
-                f"{stylize_bold_yellow('/multi')} {stylize_faint('Start multiline input')}",
-                f"{stylize_bold_yellow('/end')}   {stylize_faint('End multiline input')}",
-                f"{stylize_bold_yellow('/help')}  {stylize_faint('Show this message')}",
-            ]
+        (
+            f"  {stylize_bold_yellow('/bye')}   {stylize_faint('Quit from chat session')}\n"
+            f"  {stylize_bold_yellow('/multi')} {stylize_faint('Start multiline input')}\n"
+            f"  {stylize_bold_yellow('/end')}   {stylize_faint('End multiline input')}\n"
+            f"  {stylize_bold_yellow('/help')}  {stylize_faint('Show this message')}\n"
         ),
         plain=True,
     )

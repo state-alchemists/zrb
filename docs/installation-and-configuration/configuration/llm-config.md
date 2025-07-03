@@ -44,27 +44,27 @@ llm_config.set_persona(
 - **Environment Variable**: `ZRB_LLM_PERSONA`
 
 ### `default_system_prompt`
-- **Description**: The default system prompt for the assistant, used for direct, one-shot commands like `llm-ask`. This prompt is designed to be simple and direct.
+- **Description**: The default system prompt for the assistant, used for direct, one-shot commands. This prompt instructs the LLM to analyze the request, execute it, and provide a clear answer.
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SYSTEM_PROMPT`
 
 ### `default_interactive_system_prompt`
-- **Description**: The system prompt used for interactive sessions like `llm-chat`. This prompt is more complex, providing the agent with a workflow for managing conversation history and context.
+- **Description**: The system prompt used for interactive sessions. This prompt outlines a core workflow: clarify, plan, execute, and confirm.
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`
 
 ### `default_special_instruction_prompt`
-- **Description**: The default prompt for special instructions, appended to the main system prompt to guide the agent on technical tasks.
+- **Description**: A prompt that provides specialized protocols, such as for software engineering tasks. It mandates safety, adherence to conventions, and a clear workflow (Understand, Plan, Implement, Verify).
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`
 
 ### `default_summarization_prompt`
-- **Description**: The default prompt for summarization tasks.
+- **Description**: The prompt used to instruct the "Conversation Historian" agent. It defines a protocol for integrating recent conversation history into a narrative summary and a list of recent turns.
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SUMMARIZATION_PROMPT`
 
 ### `default_context_enrichment_prompt`
-- **Description**: The default prompt for context enrichment.
+- **Description**: The prompt for the "Memory Curator" agent. It defines a protocol for extracting long-term, stable facts from a conversation and updating a Markdown-formatted `Long-Term Context` block.
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`
 

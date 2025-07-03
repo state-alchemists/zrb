@@ -1,12 +1,10 @@
 import json
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from openai import APIError
-else:
-    APIError = Any
 
 
 # Define a structured error model for tool execution failures
@@ -17,7 +15,7 @@ class ToolExecutionError(BaseModel):
     details: Optional[str] = None
 
 
-def extract_api_error_details(error: APIError) -> str:
+def extract_api_error_details(error: "APIError") -> str:
     """Extract detailed error information from an APIError."""
     details = f"{error.message}"
     # Try to parse the error body as JSON
