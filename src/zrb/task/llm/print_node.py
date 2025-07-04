@@ -79,16 +79,16 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                         del event.part.args["_dummy"]
                     print_func(
                         stylize_faint(
-                            f"  - Name: {event.part.tool_name}\n"
-                            f'  - Arguments: {json.dumps(event.part.args, indent=2)}\n'
-                            f"  - ID: {event.part.tool_call_id}"
+                            f"- Name: {event.part.tool_name}\n"
+                            f'- Arguments: {json.dumps(event.part.args, indent=2)}\n'
+                            f"- ID: {event.part.tool_call_id}"
                         )
                     )
                 elif isinstance(event, FunctionToolResultEvent):
                     print_func(
                         stylize_faint(
-                            f"  - Tool call {event.tool_call_id!r} returned:\n"
-                            f"    {event.result.content}"
+                            f"- Tool call {event.tool_call_id!r} returned:\n"
+                            f"{event.result.content}"
                         )
                     )
     elif Agent.is_end_node(node):
