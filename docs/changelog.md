@@ -1,4 +1,17 @@
-🔖 [Documentation Home](../README.md) > Changelog
+# 1.9.2
+
+- **Added**:
+  - Added `rich` (`^14.0.0`) as a new dependency for enhanced Markdown rendering in chat sessions.
+  - Added support for additional exit commands (`/q`, `/exit`) in the chat session.
+
+- **Changed**:
+  - Updated the chat session UI to display `💬 >>` and `🤖 >>` for user and bot prompts, respectively.
+  - Simplified and improved the readability of log messages for `UserPromptNode`, `ModelRequestNode`, `CallToolsNode`, and `EndNode`.
+  - Updated the display format for tool calls and results to be more concise.
+  - Updated the token usage display in `LLMTask` to include an emoji (`💸 Token: {usage}`).
+
+- **Fixed**:
+  - Minor dependency updates and improvements.
 
 # 1.9.1
 

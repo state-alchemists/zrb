@@ -29,7 +29,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
 
     _show_info(ctx)
     final_result = ""
-    ctx.print(stylize_faint("💬"), plain=True)
+    ctx.print("💬 >>", plain=True)
     ctx.print(ctx.input.message, plain=True)
     ctx.print("", plain=True)
     result = await _trigger_ask_and_wait_for_result(
@@ -49,12 +49,12 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     while True:
         await asyncio.sleep(0.01)
         if not multiline_mode:
-            ctx.print(stylize_faint("💬"), plain=True)
+            ctx.print("💬 >>", plain=True)
         user_input = await user_input_session.prompt_async()
         if not multiline_mode:
             ctx.print("", plain=True)
         # Handle special input
-        if user_input.strip().lower() in ("/bye", "/quit"):
+        if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(ctx, user_prompt)
@@ -108,10 +108,25 @@ async def _trigger_ask_and_wait_for_result(
         return None
     await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
-    ctx.print(stylize_faint("\n🤖"), plain=True)
-    ctx.print(result, plain=True)
+    md_result = _render_markdown(result) if result is not None else ""
+    ctx.print("\n🤖 >>", plain=True)
+    ctx.print(md_result, plain=True)
     ctx.print("", plain=True)
     return result
+
+
+def _render_markdown(markdown_text: str) -> str:
+    """
+    Renders Markdown to a string, ensuring link URLs are visible.
+    """
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    console = Console()
+    markdown = Markdown(markdown_text, hyperlinks=False)
+    with console.capture() as capture:
+        console.print(markdown)
+    return capture.get()
 
 
 def get_llm_ask_input_mapping(callback_ctx: AnyContext):

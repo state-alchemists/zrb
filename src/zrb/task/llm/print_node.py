@@ -18,23 +18,18 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
     )
 
     if Agent.is_user_prompt_node(node):
-        # A user prompt node => The user has provided input
-        print_func(stylize_faint(f"    >> UserPromptNode: {node.user_prompt}"))
+        print_func(stylize_faint("🔠 Receiving input..."))
     elif Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
-        print_func(
-            stylize_faint("    >> ModelRequestNode: streaming partial request tokens")
-        )
+        print_func(stylize_faint("🧠 Processing..."))
         async with node.stream(agent_run.ctx) as request_stream:
             is_streaming = False
             async for event in request_stream:
-                if isinstance(event, PartStartEvent):
+                if isinstance(event, PartStartEvent) and event.part:
                     if is_streaming:
                         print_func("")
                     print_func(
-                        stylize_faint(
-                            f"    [Request] Starting part {event.index}: {event.part!r}"
-                        ),
+                        stylize_faint(f"    Starting part {event.index}: {event.part}"),
                     )
                     is_streaming = False
                 elif isinstance(event, PartDeltaEvent):
@@ -49,22 +44,18 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                             end="",
                         )
                     is_streaming = True
-                elif isinstance(event, FinalResultEvent):
+                elif isinstance(event, FinalResultEvent) and event.tool_name:
                     if is_streaming:
                         print_func("")
                     print_func(
-                        stylize_faint(f"    [Result] tool_name={event.tool_name}"),
+                        stylize_faint(f"    Result: tool_name={event.tool_name}"),
                     )
                     is_streaming = False
             if is_streaming:
                 print_func("")
     elif Agent.is_call_tools_node(node):
         # A handle-response node => The model returned some data, potentially calls a tool
-        print_func(
-            stylize_faint(
-                "    >> CallToolsNode: streaming partial response & tool usage"
-            )
-        )
+        print_func(stylize_faint("🧰 Calling Tool..."))
         async with node.stream(agent_run.ctx) as handle_stream:
             async for event in handle_stream:
                 if isinstance(event, FunctionToolCallEvent):
@@ -84,16 +75,16 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                         del event.part.args["_dummy"]
                     print_func(
                         stylize_faint(
-                            f"    [Tools] The LLM calls tool={event.part.tool_name!r} with args={event.part.args} (tool_call_id={event.part.tool_call_id!r})"  # noqa
+                            f"    {event.part.tool_call_id} | "
+                            f"Call {event.part.tool_name} {event.part.args}"
                         )
                     )
                 elif isinstance(event, FunctionToolResultEvent):
                     print_func(
                         stylize_faint(
-                            f"    [Tools] Tool call {event.tool_call_id!r} returned => {event.result.content}"  # noqa
+                            f"    {event.tool_call_id} | {event.result.content}"
                         )
                     )
     elif Agent.is_end_node(node):
         # Once an End node is reached, the agent run is complete
-        print_func(stylize_faint("    [End of Response]"))
-        # print_func(stylize_faint(f"{agent_run.result.data}"))
+        print_func(stylize_faint("✅ Completed..."))
