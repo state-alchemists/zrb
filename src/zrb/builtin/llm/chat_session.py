@@ -108,8 +108,9 @@ async def _trigger_ask_and_wait_for_result(
         return None
     await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
+    md_result = _render_markdown(result) if result is not None else ""
     ctx.print("\n🤖 >>", plain=True)
-    ctx.print(_render_markdown(result), plain=True)
+    ctx.print(md_result, plain=True)
     ctx.print("", plain=True)
     return result
 
@@ -118,13 +119,14 @@ def _render_markdown(markdown_text: str) -> str:
     """
     Renders Markdown to a string, ensuring link URLs are visible.
     """
-    import io
     from rich.console import Console
     from rich.markdown import Markdown
 
-    console = Console(record=True, file=io.StringIO())
-    console.print(Markdown(markdown_text, hyperlinks=False))
-    return console.export_text()
+    console = Console()
+    markdown = Markdown(markdown_text, hyperlinks=False)
+    with console.capture() as capture:
+        console.print(markdown)
+    return capture.get()
 
 
 def get_llm_ask_input_mapping(callback_ctx: AnyContext):
