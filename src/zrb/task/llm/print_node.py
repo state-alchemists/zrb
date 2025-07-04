@@ -29,9 +29,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                     if is_streaming:
                         print_func("")
                     print_func(
-                        stylize_faint(
-                            f"    Starting part {event.index}: {event.part}"
-                        ),
+                        stylize_faint(f"    Starting part {event.index}: {event.part}"),
                     )
                     is_streaming = False
                 elif isinstance(event, PartDeltaEvent):
