@@ -20,10 +20,11 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
 
     if Agent.is_user_prompt_node(node):
         # A user prompt node => The user has provided input
-        print_func(stylize_faint(f"👤 User: {node.user_prompt}"))
+        # print_func(stylize_faint(f"👤 User: {node.user_prompt}"))
+        print_func(stylize_faint("🔠 Receiving input..."))
     elif Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
-        print_func(stylize_faint("🧠 LLM is thinking..."))
+        print_func(stylize_faint("🧠 Processing..."))
         async with node.stream(agent_run.ctx) as request_stream:
             is_streaming = False
             async for event in request_stream:
@@ -59,7 +60,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                 print_func("")
     elif Agent.is_call_tools_node(node):
         # A handle-response node => The model returned some data, potentially calls a tool
-        print_func(stylize_faint("🛠️  LLM is calling a function..."))
+        print_func(stylize_faint("🧰 Calling Tool..."))
         async with node.stream(agent_run.ctx) as handle_stream:
             async for event in handle_stream:
                 if isinstance(event, FunctionToolCallEvent):
@@ -79,7 +80,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                         del event.part.args["_dummy"]
                     print_func(
                         stylize_faint(
-                            f"  - Name: {event.part.tool_name}\n"
+                            f"  - Tool Name: {event.part.tool_name}\n"
                             f'  - Arguments: {json.dumps(event.part.args, indent=2)}\n'
                             f"  - ID: {event.part.tool_call_id}"
                         )
