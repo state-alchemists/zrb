@@ -54,7 +54,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         if not multiline_mode:
             ctx.print("", plain=True)
         # Handle special input
-        if user_input.strip().lower() in ("/bye", "/quit"):
+        if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(ctx, user_prompt)
@@ -109,9 +109,22 @@ async def _trigger_ask_and_wait_for_result(
     await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
     ctx.print("\n🤖 >>", plain=True)
-    ctx.print(result, plain=True)
+    ctx.print(_render_markdown(result), plain=True)
     ctx.print("", plain=True)
     return result
+
+
+def _render_markdown(markdown_text: str) -> str:
+    """
+    Renders Markdown to a string, ensuring link URLs are visible.
+    """
+    import io
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    console = Console(record=True, file=io.StringIO())
+    console.print(Markdown(markdown_text, hyperlinks=False))
+    return console.export_text()
 
 
 def get_llm_ask_input_mapping(callback_ctx: AnyContext):
