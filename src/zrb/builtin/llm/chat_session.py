@@ -29,7 +29,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
 
     _show_info(ctx)
     final_result = ""
-    ctx.print(stylize_faint("💬"), plain=True)
+    ctx.print("💬 >>", plain=True)
     ctx.print(ctx.input.message, plain=True)
     ctx.print("", plain=True)
     result = await _trigger_ask_and_wait_for_result(
@@ -49,7 +49,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     while True:
         await asyncio.sleep(0.01)
         if not multiline_mode:
-            ctx.print(stylize_faint("💬"), plain=True)
+            ctx.print("💬 >>", plain=True)
         user_input = await user_input_session.prompt_async()
         if not multiline_mode:
             ctx.print("", plain=True)
@@ -108,7 +108,7 @@ async def _trigger_ask_and_wait_for_result(
         return None
     await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
-    ctx.print(stylize_faint("\n🤖"), plain=True)
+    ctx.print("\n🤖 >>", plain=True)
     ctx.print(result, plain=True)
     ctx.print("", plain=True)
     return result

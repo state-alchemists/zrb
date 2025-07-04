@@ -356,7 +356,7 @@ class LLMTask(BaseTask):
                     ctx.xcom[xcom_usage_key] = Xcom([])
                 usage = agent_run.result.usage()
                 ctx.xcom[xcom_usage_key].push(usage)
-                ctx.print(stylize_faint(f"    Token: {usage}"), plain=True)
+                ctx.print(stylize_faint(f"💸 Token: {usage}"), plain=True)
                 return agent_run.result.output
             else:
                 ctx.log_warning("Agent run did not produce a result.")
