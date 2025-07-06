@@ -1,3 +1,5 @@
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)
+
 # LLM Configuration for `zrb`
 
 `zrb` uses `pydantic-ai` under the hood to manage Large Language Model (LLM) configurations. This document outlines how to configure the LLM for `zrb` using environment variables, with suggested values for common providers like OpenAI, Gemini, OpenRouter, and DeepSeek.

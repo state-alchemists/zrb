@@ -51,6 +51,7 @@ This guide shows you how to define two simple tasks:
 - And another one to convert that script into a PNG image.
 
 > **Note:** This assume you have an `OPENAI_API_KEY` and a Mermaid CLI installed (i.e., `npm install -g @mermaid-js/mermaid-cli`)
+> If you want to use other LLM Provider (e.g., Deepseek, Ollama, etc.), you can refer to [Zrb LLM Integration guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation-and-configuration/configuration/llm-integration.md)
 
 ## 1. Create Your Task Definition File
 
