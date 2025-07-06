@@ -72,6 +72,13 @@ ZRB_LLM_API_KEY=your_deepseek_api_key
 ZRB_LLM_BASE_URL=https://api.deepseek.com/v1
 ```
 
+### Ollama
+```env
+ZRB_LLM_MODEL=llama2  # or any other model available in Ollama
+ZRB_LLM_API_KEY=  # Typically not required for local Ollama instances
+ZRB_LLM_BASE_URL=http://localhost:11434  # Default Ollama API endpoint
+```
+
 ---
 
 ## Example `.env` File
@@ -84,8 +91,7 @@ ZRB_LLM_API_KEY=sk-your-openai-key
 ZRB_LLM_BASE_URL=https://api.openai.com/v1
 
 # Optional Prompts
-ZRB_LLM_SYSTEM_PROMPT=You are a helpful assistant.
-ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT=How can I help you today?
+ZRB_LLM_PERSONA=You are a helpful assistant.
 
 # Advanced Settings
 ZRB_LLM_ACCESS_LOCAL_FILE=false
