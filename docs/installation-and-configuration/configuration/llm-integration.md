@@ -1,4 +1,4 @@
-🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)
+🔗 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)
 
 # LLM Configuration for `zrb`
 
@@ -38,9 +38,6 @@ For Retrieval-Augmented Generation (RAG), use the following:
 
 - **`ZRB_RAG_EMBEDDING_API_KEY`**: API key for the embedding service used in RAG.
 
-### History Management
-
-- **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: If the conversation history exceeds this token count, it will be summarized (default: no summarization).
 
 ---
 
@@ -109,3 +106,37 @@ ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=1000
 - Ensure all required environment variables are set before running `zrb`.
 - For providers like OpenAI and OpenRouter, the `ZRB_LLM_BASE_URL` is typically fixed. For self-hosted or custom endpoints, adjust this value accordingly.
 - Refer to the provider’s documentation for the latest model names and API endpoints.
+
+---
+
+### Summarization and Context Enrichment
+
+`zrb` provides built-in support for summarization and context enrichment to manage large conversation histories efficiently. These features are enabled by default with the following configurations:
+
+#### Summarization
+- **Trigger**: When the conversation history exceeds the token threshold (`ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD`, default: 3000), the system automatically summarizes the history.
+- **Default Prompt**: The summarization prompt is designed to condense the conversation while retaining key details.
+- **Configuration**:
+  - **`ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD`**: Sets the token threshold for triggering summarization (default: 3000).
+  - **`ZRB_LLM_SUMMARIZATION_PROMPT`**: Overrides the default summarization prompt if provided.
+
+#### Context Enrichment
+- **Trigger**: After summarization, the system enriches the context by adding relevant metadata or additional context to the conversation.
+- **Default Prompt**: The context enrichment prompt is designed to enhance the summarized history with additional context.
+- **Configuration**:
+  - **`ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`**: Sets the token threshold for triggering context enrichment (default: 3000).
+  - **`ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`**: Overrides the default context enrichment prompt if provided.
+
+#### Workflow
+1. **Summarization**: If the conversation history exceeds the token threshold, the system summarizes it.
+2. **Context Enrichment**: The summarized history is then enriched with additional context.
+3. **Continuation**: The enriched history is used for subsequent interactions.
+
+#### Example Configuration
+```env
+# Summarization and Context Enrichment
+ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD=3000
+ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=3000
+ZRB_LLM_SUMMARIZATION_PROMPT="Summarize the conversation while retaining key details."
+ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT="Add relevant context to the summarized conversation."
+```
