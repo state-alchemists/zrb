@@ -17,6 +17,31 @@ The following environment variables are used to configure the LLM in `zrb`:
 
 ---
 
+## Advanced Configuration
+
+### Access Control
+
+These variables control the LLM's access to local files and the internet:
+
+- **`ZRB_LLM_ACCESS_LOCAL_FILE`**: Set to `true` to allow the LLM to read local files (default: `false`).
+- **`ZRB_LLM_ACCESS_INTERNET`**: Set to `true` to allow the LLM to access the internet (default: `false`).
+
+### Rate Limiting
+
+- **`ZRB_LLM_MAX_REQUESTS_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: no limit).
+
+### RAG Configuration
+
+For Retrieval-Augmented Generation (RAG), use the following:
+
+- **`ZRB_RAG_EMBEDDING_API_KEY`**: API key for the embedding service used in RAG.
+
+### History Management
+
+- **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: If the conversation history exceeds this token count, it will be summarized (default: no summarization).
+
+---
+
 ## Provider-Specific Configurations
 
 ### OpenAI
@@ -61,6 +86,13 @@ ZRB_LLM_BASE_URL=https://api.openai.com/v1
 # Optional Prompts
 ZRB_LLM_SYSTEM_PROMPT=You are a helpful assistant.
 ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT=How can I help you today?
+
+# Advanced Settings
+ZRB_LLM_ACCESS_LOCAL_FILE=false
+ZRB_LLM_ACCESS_INTERNET=false
+ZRB_LLM_MAX_REQUESTS_PER_MINUTE=60
+ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
+ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=1000
 ```
 
 ---
