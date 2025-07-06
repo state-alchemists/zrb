@@ -415,6 +415,7 @@ def apply_diff(
     replace_content: str,
 ) -> str:
     """Apply a precise search/replace to a file based on line numbers and content.
+    This tool enables you to update certain part of the file efficiently.
     Args:
         path (str): Path to modify. Pass exactly as provided, including '~'.
         start_line (int): The 1-based starting line number of the content to replace.

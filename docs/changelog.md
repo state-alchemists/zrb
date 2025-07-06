@@ -1,3 +1,12 @@
+🔖 [Documentation Home](../README.md) > CI/CD Integration
+
+# 1.9.3
+
+- **Changed**:
+  - Updated the version in `pyproject.toml` from `1.9.2` to `1.9.3`.
+  - Enhanced clarity in the `apply_diff` function's docstring in `src/zrb/builtin/llm/tool/file.py`.
+  - Updated default prompts in `src/zrb/llm_config.py` for better workflow and instructions.
+
 # 1.9.2
 
 - **Added**:
