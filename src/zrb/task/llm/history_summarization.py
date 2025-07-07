@@ -122,7 +122,7 @@ async def summarize_history(
             return new_summary
         else:
             ctx.log_warning("History summarization failed or returned no data.")
-    except Exception as e:
+    except BaseException as e:
         ctx.log_warning(f"Error during history summarization: {e}")
         traceback.print_exc()
 

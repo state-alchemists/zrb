@@ -75,7 +75,7 @@ async def enrich_context(
             return new_long_term_context
         else:
             ctx.log_warning("Context enrichment returned no data.")
-    except Exception as e:
+    except BaseException as e:
         ctx.log_warning(f"Error during context enrichment LLM call: {e}")
         traceback.print_exc()
 
