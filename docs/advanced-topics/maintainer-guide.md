@@ -49,7 +49,7 @@ When diagnosing performance issues, especially slow startup times, profiling is 
 First, generate a profile file using Python's built-in `cProfile` module. It's best to profile a simple, fast-running command like `zrb --help` to isolate startup costs.
 
 ```bash
-python3 -m cProfile -o .cprofile.prof -m zrb --help
+python -m cProfile -o .cprofile.prof -m zrb --help
 ```
 
 This command runs `zrb --help` and saves the profiling data to a file named `.cprofile.prof`.
