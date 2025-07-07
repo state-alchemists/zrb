@@ -1,5 +1,14 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.4
+
+- **Changed**:
+  - Enhance prompts
+  - Changed configuration:
+    - Remove: `ZRB_WEB_SUPER_ADMIN_USERNAME` and `ZRB_WEB_SUPER_ADMIN_PASSWORD`
+    - Add: `ZRB_WEB_SUPERADMIN_USERNAME` and `ZRB_WEB_SUPERADMIN_PASSWORD`.
+  - Make exception catching in context enrichment and summarization more general.
+
 # 1.9.3
 
 - **Changed**:

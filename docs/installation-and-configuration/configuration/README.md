@@ -177,7 +177,7 @@ if MY_EDITOR != "":
 
 ### Web Interface
 
-Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPERADMIN_USERNAME` are used as [Web Auth Config](./web-auth-config.md) default property values.
+Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPER_ADMIN_USERNAME` are used as [Web Auth Config](./web-auth-config.md) default property values.
 
 * `ZRB_WEB_FAVICON_PATH`: Favicon path
     * Default: Empty
@@ -203,11 +203,11 @@ Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPERADMIN
     * Default: `user`
     * Possible values: Any valid username string
 
-* `ZRB_WEB_SUPERADMIN_USERNAME`: Username for super admin.
+* `ZRB_WEB_SUPER_ADMIN_USERNAME`: Username for super admin.
     * Default: `admin`
     * Possible values: Any valid username string
 
-* `ZRB_WEB_SUPERADMIN_PASSWORD`: Password for super admin.
+* `ZRB_WEB_SUPER_ADMIN_PASSWORD`: Password for super admin.
     * Default: `admin`
     * Possible values: Any valid password string
 

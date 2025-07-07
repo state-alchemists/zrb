@@ -84,12 +84,12 @@ web_auth_config.set_guest_accessible_tasks(["throw-dice", "shuffle"])
 ### `super_admin_username`
 - **Description**: The username of the super admin.
 - **Type**: `str`
-- **Environment Variable**: `ZRB_WEB_SUPERADMIN_USERNAME`
+- **Environment Variable**: `ZRB_WEB_SUPER_ADMIN_USERNAME`
 
 ### `super_admin_password`
 - **Description**: The password of the super admin.
 - **Type**: `str`
-- **Environment Variable**: `ZRB_WEB_SUPERADMIN_PASSWORD`
+- **Environment Variable**: `ZRB_WEB_SUPER_ADMIN_PASSWORD`
 
 ### `guest_username`
 - **Description**: The username for guest users.

@@ -40,6 +40,56 @@ python -m benchmark_imports zrb
 
 You can use the result to decide whether a module/dependency should be lazy-loaded or not.
 
+# Profiling Zrb
+
+When diagnosing performance issues, especially slow startup times, profiling is an essential tool. This guide outlines how to use `cProfile` with `snakeviz` or `flameprof` to identify performance bottlenecks.
+
+## Generating a Profile
+
+First, generate a profile file using Python's built-in `cProfile` module. It's best to profile a simple, fast-running command like `zrb --help` to isolate startup costs.
+
+```bash
+python -m cProfile -o .cprofile.prof -m zrb --help
+```
+
+This command runs `zrb --help` and saves the profiling data to a file named `.cprofile.prof`.
+
+## Visualizing the Profile
+
+You can visualize the profiling data in a few ways.
+
+### Using `snakeviz`
+
+`snakeviz` creates an interactive HTML visualization that is easy to navigate.
+
+1.  **Install `snakeviz`**:
+    ```bash
+    pip install snakeviz
+    ```
+
+2.  **Run `snakeviz`**:
+    ```bash
+    snakeviz .cprofile.prof
+    ```
+    This will start a web server and open the visualization in your browser.
+
+### Using `flameprof`
+
+If you're working in an environment without a web browser, you can generate a flame graph in your terminal using `flameprof`.
+
+1.  **Install `flameprof`**:
+    ```bash
+    pip install flameprof
+    ```
+
+2.  **Generate the flame graph**:
+    ```bash
+    flameprof .cprofile.prof > flamegraph.svg
+    ```
+    You can then open `flamegraph.svg` in a browser or a compatible image viewer.
+
+By analyzing the output of these tools, you can identify which function calls are taking the most time and focus your optimization efforts accordingly.
+
 # Testing Strategies and Mocking Techniques
 
 The Zrb test suite employs several powerful techniques from `pytest` and `unittest.mock` to ensure code correctness and isolate components during testing. Understanding these can help in writing and maintaining tests.
@@ -53,7 +103,7 @@ Fixtures are used to set up reusable test data, state, or helper objects. They p
 -   Manage setup and teardown of resources.
 -   Make tests cleaner and more readable by abstracting setup logic.
 
-**Example (`mock_os_path` from [`test/test_main.py`](../test/test_main.py:10)):**
+**Example (`mock_os_path` from [`test/test_main.py`](../test/test_main.py:10)):
 This fixture creates a temporary directory structure and mocks several `os` and `os.path` functions. This is crucial for tests that need to simulate specific file system interactions without affecting the actual file system.
 
 ```python
@@ -81,7 +131,7 @@ Mocking is essential for isolating the code under test from its dependencies (li
 -   Replaces an object with a mock for the *entire duration* of the decorated test function.
 -   The mock object is passed as an argument to the test function, allowing for configuration and assertion.
 
-**Example (from [`test/test_main.py`](../test/test_main.py:127) patching `Config.LOGGER`):**
+**Example (from [`test/test_main.py`](../test/test_main.py:127) patching `Config.LOGGER`):
 Here, `zrb.config.Config.LOGGER` is patched for the `test_serve_cli_normal_execution` function. The `mock_logger` argument allows the test to inspect calls to the logger.
 
 ```python
@@ -104,7 +154,7 @@ def test_serve_cli_normal_execution(
 -   Replaces an object with a mock *only within the `with` block*.
 -   Useful for fine-grained control or when different mock configurations are needed within a single test.
 
-**Example (from [`test/task/test_cmd_task.py`](../test/task/test_cmd_task.py:165) patching `Config.WARN_UNRECOMMENDED_COMMAND`):**
+**Example (from [`test/task/test_cmd_task.py`](../test/task/test_cmd_task.py:165) patching `Config.WARN_UNRECOMMENDED_COMMAND`):
 This test needs to check behavior with `WARN_UNRECOMMENDED_COMMAND` being `True` and then `False`. The context manager is ideal for this.
 
 ```python

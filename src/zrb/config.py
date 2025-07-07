@@ -167,11 +167,11 @@ class Config:
 
     @property
     def WEB_SUPER_ADMIN_USERNAME(self) -> str:
-        return os.getenv("ZRB_WEB_SUPERADMIN_USERNAME", "admin")
+        return os.getenv("ZRB_WEB_SUPER_ADMIN_USERNAME", "admin")
 
     @property
     def WEB_SUPER_ADMIN_PASSWORD(self) -> str:
-        return os.getenv("ZRB_WEB_SUPERADMIN_PASSWORD", "admin")
+        return os.getenv("ZRB_WEB_SUPER_ADMIN_PASSWORD", "admin")
 
     @property
     def WEB_ACCESS_TOKEN_COOKIE_NAME(self) -> str:
