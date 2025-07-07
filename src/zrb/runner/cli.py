@@ -1,13 +1,13 @@
 import sys
 from typing import Any
 
-from zrb.config import CFG
+from zrb.config.config import CFG
+from zrb.config.web_auth_config import web_auth_config
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_auth_config import web_auth_config
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask

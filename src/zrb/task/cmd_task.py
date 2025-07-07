@@ -4,7 +4,7 @@ from functools import partial
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput

@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 from zrb.builtin.group import todo_group
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput

@@ -1,9 +1,9 @@
 import os
 from typing import TYPE_CHECKING
 
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_route.error_page.show_error_page import show_error_page
 from zrb.runner.web_route.node_page.group.show_group_page import show_group_page
 from zrb.runner.web_route.node_page.task.show_task_page import show_task_page

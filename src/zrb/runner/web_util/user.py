@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from zrb.runner.web_auth_config import WebAuthConfig
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.user import User
 
 if TYPE_CHECKING:

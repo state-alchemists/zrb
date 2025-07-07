@@ -14,7 +14,7 @@ _LAZY_LOAD = {
     "CmdResult": "zrb.cmd.cmd_result",
     "Cmd": "zrb.cmd.cmd_val",
     "CmdPath": "zrb.cmd.cmd_val",
-    "CFG": "zrb.config",
+    "CFG": "zrb.config.config",
     "AnyContentTransformer": "zrb.content_transformer.any_content_transformer",
     "ContentTransformer": "zrb.content_transformer.content_transformer",
     "AnyContext": "zrb.context.any_context",
@@ -36,10 +36,10 @@ _LAZY_LOAD = {
     "PasswordInput": "zrb.input.password_input",
     "StrInput": "zrb.input.str_input",
     "TextInput": "zrb.input.text_input",
-    "llm_config": "zrb.llm_config",
-    "llm_rate_limitter": "zrb.llm_rate_limitter",
+    "llm_config": "zrb.config.llm_config",
+    "llm_rate_limitter": "zrb.config.llm_rate_limitter",
     "cli": "zrb.runner.cli",
-    "web_auth_config": "zrb.runner.web_auth_config",
+    "web_auth_config": "zrb.config.web_auth_config",
     "User": "zrb.runner.web_schema.user",
     "Session": "zrb.session.session",
     "AnyTask": "zrb.task.any_task",
@@ -74,7 +74,10 @@ if TYPE_CHECKING:
     from zrb.callback.callback import Callback
     from zrb.cmd.cmd_result import CmdResult
     from zrb.cmd.cmd_val import Cmd, CmdPath
-    from zrb.config import CFG
+    from zrb.config.config import CFG
+    from zrb.config.llm_config import llm_config
+    from zrb.config.llm_rate_limitter import llm_rate_limitter
+    from zrb.config.web_auth_config import web_auth_config
     from zrb.content_transformer.any_content_transformer import AnyContentTransformer
     from zrb.content_transformer.content_transformer import ContentTransformer
     from zrb.context.any_context import AnyContext
@@ -96,10 +99,7 @@ if TYPE_CHECKING:
     from zrb.input.password_input import PasswordInput
     from zrb.input.str_input import StrInput
     from zrb.input.text_input import TextInput
-    from zrb.llm_config import llm_config
-    from zrb.llm_rate_limitter import llm_rate_limitter
     from zrb.runner.cli import cli
-    from zrb.runner.web_auth_config import web_auth_config
     from zrb.runner.web_schema.user import User
     from zrb.session.session import Session
     from zrb.task.any_task import AnyTask

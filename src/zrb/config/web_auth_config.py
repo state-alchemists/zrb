@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Callable
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.task.any_task import AnyTask
 
 if TYPE_CHECKING:

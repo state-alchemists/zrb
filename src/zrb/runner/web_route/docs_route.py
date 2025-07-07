@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint

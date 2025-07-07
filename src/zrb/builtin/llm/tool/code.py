@@ -3,8 +3,8 @@ import os
 
 from zrb.builtin.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS, is_excluded
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
-from zrb.llm_rate_limitter import llm_rate_limitter
 
 _EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT = """
 You are an extraction info agent.

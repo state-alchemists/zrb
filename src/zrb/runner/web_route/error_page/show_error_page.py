@@ -1,6 +1,6 @@
 import os
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_schema.user import User
 from zrb.runner.web_util.html import get_html_auth_link

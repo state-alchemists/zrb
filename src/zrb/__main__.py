@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_faint, stylize_warning
 from zrb.util.group import NodeNotFoundError

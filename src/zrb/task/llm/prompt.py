@@ -1,6 +1,6 @@
 from zrb.attr.type import StrAttr
+from zrb.config.llm_config import llm_config as llm_config
 from zrb.context.any_context import AnyContext
-from zrb.llm_config import llm_config as llm_config
 from zrb.util.attr import get_attr, get_str_attr
 
 

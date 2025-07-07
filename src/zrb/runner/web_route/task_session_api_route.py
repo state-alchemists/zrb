@@ -3,9 +3,9 @@ import os
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session

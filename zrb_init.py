@@ -20,7 +20,7 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file
 from zrb.util.load import load_file

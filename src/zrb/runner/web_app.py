@@ -2,9 +2,9 @@ import asyncio
 import sys
 from typing import TYPE_CHECKING
 
-from zrb.config import CFG
+from zrb.config.config import CFG
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_route.docs_route import serve_docs
 from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
 from zrb.runner.web_route.home_page.home_page_route import serve_home_page

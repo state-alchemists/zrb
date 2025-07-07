@@ -1,6 +1,6 @@
 import os
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 
 
 def get_init_path_list() -> list[str]:

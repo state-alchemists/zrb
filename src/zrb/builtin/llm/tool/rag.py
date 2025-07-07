@@ -8,7 +8,7 @@ from textwrap import dedent
 
 import ulid
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_error, stylize_faint
 from zrb.util.file import read_file
 

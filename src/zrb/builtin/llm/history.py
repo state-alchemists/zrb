@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.history import ConversationHistoryData
 from zrb.util.file import read_file, write_file

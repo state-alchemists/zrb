@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.5
+
+- **Fixed**:
+  - Invalid lazy load because of module name shadowing: `llm_config`, `llm_rate_limitter`
+
 # 1.9.4
 
 - **Changed**:

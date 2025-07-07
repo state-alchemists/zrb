@@ -22,7 +22,7 @@ from zrb.builtin.llm.tool.web import (
     search_wikipedia,
 )
 from zrb.callback.callback import Callback
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput

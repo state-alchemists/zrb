@@ -1,9 +1,9 @@
 import json
 from typing import TYPE_CHECKING
 
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
 from zrb.runner.common_util import get_run_kwargs
-from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.task.any_task import AnyTask
 from zrb.util.group import NodeNotFoundError, extract_node_from_args

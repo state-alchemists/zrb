@@ -5,11 +5,11 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from uvicorn import Config, Server
 
-from zrb.config import CFG  # Import CFG
+from zrb.config.config import CFG  # Import CFG
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.group import Group
 from zrb.input.int_input import IntInput
 from zrb.runner.web_app import create_web_app
-from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.task import Task
 

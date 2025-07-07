@@ -5,8 +5,8 @@ import re
 from typing import Any, Dict, List, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
-from zrb.llm_rate_limitter import llm_rate_limitter
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 _EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = """

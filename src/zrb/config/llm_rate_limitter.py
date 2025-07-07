@@ -5,7 +5,7 @@ from typing import Callable
 
 import tiktoken
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 
 
 def _estimate_token(text: str) -> int:

@@ -5,9 +5,9 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
 
 from zrb.attr.type import StrAttr, fstring
+from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
-from zrb.llm_config import LLMConfig, llm_config
 from zrb.util.attr import get_attr
 
 

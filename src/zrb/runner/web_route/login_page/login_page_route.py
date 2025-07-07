@@ -1,9 +1,9 @@
 import os
 from typing import TYPE_CHECKING
 
-from zrb.config import CFG
+from zrb.config.config import CFG
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
-from zrb.runner.web_auth_config import WebAuthConfig
 from zrb.runner.web_util.html import get_html_auth_link
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.util.file import read_file

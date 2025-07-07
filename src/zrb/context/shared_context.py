@@ -1,7 +1,7 @@
 import datetime
 from typing import Any
 
-from zrb.config import CFG
+from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession

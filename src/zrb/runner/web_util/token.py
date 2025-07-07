@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from zrb.runner.web_auth_config import WebAuthConfig
+from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.token import Token
 from zrb.runner.web_util.user import get_user_by_credentials
 

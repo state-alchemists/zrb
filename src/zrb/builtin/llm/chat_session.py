@@ -7,8 +7,8 @@ conversation flow via XCom.
 
 import asyncio
 
+from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
-from zrb.llm_config import llm_config
 from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
 
 
