@@ -29,25 +29,23 @@ def create_sub_agent_tool(
     mcp_servers: list["MCPServer"] = [],
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
     """
-    Create an LLM "sub-agent" tool function for use by a main LLM agent.
+    Creates a "tool that is another AI agent," capable of handling complex, multi-step sub-tasks.
 
-    This factory configures and returns an async function that, when called
-    by the main agent, instantiates and runs a sub-agent (the sub-agent)
-    with a given query and returns the sub-agent's final response.
+    This powerful factory function generates a tool that, when used, spins up a temporary, specialized AI agent. This "sub-agent" has its own system prompt, tools, and context, allowing it to focus exclusively on accomplishing the task it's given without being distracted by the main conversation.
+
+    This is ideal for delegating complex tasks like analyzing a file or a repository.
 
     Args:
-        tool_name: The name of the tool for the main agent.
-        tool_description: The description of the tool for the main agent.
-        sub_agent_system_prompt: The system prompt for the sub-agent.
-        sub_agent_model: The model for the sub-agent (optional).
-        sub_agent_model_settings: Model settings for the sub-agent (optional).
-        sub_agent_tools: A list of tools (Tool instances or callables) for the
-            sub-agent (optional).
-        sub_agent_mcp_servers: A list of MCP servers for the sub-agent (optional).
+        tool_name (str): The name for the generated sub-agent tool.
+        tool_description (str): A clear description of the sub-agent's purpose and when to use it.
+        system_prompt (str, optional): The system prompt that will guide the sub-agent's behavior.
+        model (str | Model, optional): The language model the sub-agent will use.
+        model_settings (ModelSettings, optional): Specific settings for the sub-agent's model.
+        tools (list, optional): A list of tools that will be exclusively available to the sub-agent.
+        mcp_servers (list, optional): A list of MCP servers for the sub-agent.
 
     Returns:
-        An async callable function that takes a context and a query string,
-        runs the sub-agent, and returns the sub-agent's final message content.
+        Callable: An asynchronous function that serves as the sub-agent tool. When called, it runs the sub-agent with a given query and returns its final result.
     """
 
     async def run_sub_agent(ctx: AnyContext, query: str) -> str:

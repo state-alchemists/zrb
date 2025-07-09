@@ -163,7 +163,7 @@ async def test_cmd_task_exec_action_remote():
 def test_cmd_task_get_should_warn_unrecommended_commands():
     """Test _get_should_warn_unrecommended_commands method."""
     # Test with default WARN_UNRECOMMENDED_COMMAND by patching the Config class property
-    patch_target = "zrb.config.Config.WARN_UNRECOMMENDED_COMMAND"
+    patch_target = "zrb.config.config.Config.WARN_UNRECOMMENDED_COMMAND"
     with patch(patch_target, new_callable=PropertyMock) as mock_warn_prop:
         mock_warn_prop.return_value = True
         task = CmdTask(name="test_warn_default_true", warn_unrecommended_command=None)

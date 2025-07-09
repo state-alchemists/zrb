@@ -1,59 +1,92 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md)
 
+---
+
 # Installation and Configuration
 
-## Installation
+Getting Zrb set up is straightforward. This guide will walk you through installing Zrb on your system, configuring it for AI-powered features, and exploring advanced installation options.
 
-The easiest way to install Zrb is using pip:
+---
+
+## 1. Standard Installation
+
+For most users, installing Zrb with `pip` or the installation script is the recommended approach.
+
+### Using pip (Recommended)
+
+The easiest way to install Zrb is with `pip`, the Python package installer.
 
 ```bash
 pip install zrb
+# For the latest pre-release version:
 # pip install --pre zrb
 ```
 
-Alternatively, you can use Zrb installation script which handles prerequisites:
+### Using the Installation Script
+
+Alternatively, you can use a convenient script that handles all prerequisites for you.
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 ```
 
-### Run Zrb as a Container
+---
 
-Zrb can be run in a containerized environment, perfect for CI/CD integration. Zrb offering two distinct images to suit different needs:
+## 2. LLM Configuration (for AI Features)
 
-- **Standard Version**: Ideal for general use cases where Docker CLI access is not required.
-- **Dind (Docker in Docker) Version**: Includes built-in Docker commands, perfect for scenarios where you need to access the host's Docker CLI.
+To unlock Zrb's powerful AI capabilities, you need to connect it to a Large Language Model (LLM).
 
-#### Standard Version
+### The Quickest Way: OpenAI
 
-The standard version of the Zrb container is suitable for most automation tasks. To run this version, execute the following command:
-
-```bash
-# Replace <host-path> and <container-path> with your desired paths
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 zrb
-```
-
-#### Docker in Docker (Dind) Version
-
-The Dind version is tailored for advanced use cases where Docker commands need to be executed within the container. This version allows the container to interact with the host's Docker daemon. To run the Dind version, use the command below:
+The simplest method is to set your OpenAI API key as an environment variable.
 
 ```bash
-# Replace <host-path> and <container-path> with your desired paths
-docker run \
-    -v ${HOME}:/zrb-home \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -it --rm stalchmst/zrb:1.8.1-dind docker ps
+export OPENAI_API_KEY="your-openai-api-key-here"
 ```
 
-> **Note:** The Dind (Docker in Docker) version of the container is larger in size compared to the standard version due to the inclusion of Docker CLI tools. Consider this when choosing the appropriate version for your needs.
+Once this is set, Zrb can immediately use OpenAI for tasks like `zrb llm chat` and `zrb llm ask`.
 
-### Run Zrb on Android
-
-[Run Zrb on Android](./run-zrb-on-android.md)
-
-## Configuration
-
-[Configuration](./configuration/README.md)
+> **💡 No OpenAI key? No problem!**
+> Zrb supports a wide range of LLM providers, including open-source models running locally with Ollama. For detailed instructions on configuring other providers, see the [**LLM Integration Guide**](./configuration/llm-integration.md).
 
 ---
+
+## 3. Advanced Installation Methods
+
+For specialized use cases like CI/CD pipelines or running automation on the go, Zrb offers containerized and mobile options.
+
+### Running Zrb in a Docker Container
+
+Zrb provides container images for sandboxed and portable execution. This is ideal for consistent environments and CI/CD integration.
+
+-   **Standard Image**: For general-purpose automation.
+    ```bash
+    docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 zrb
+    ```
+-   **DIND (Docker-in-Docker) Image**: For tasks that need to execute Docker commands.
+    ```bash
+    docker run \
+        -v ${HOME}:/zrb-home \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -it --rm stalchmst/zrb:1.8.1-dind docker ps
+    ```
+
+### Running Zrb on Android
+
+You can run Zrb on your Android device using Termux, turning your phone into a portable automation powerhouse.
+
+For step-by-step instructions, see the [**Run Zrb on Android Guide**](./run-zrb-on-android.md).
+
+---
+
+## 4. General Configuration
+
+Zrb's behavior can be customized further using environment variables. You can control logging levels, default editors, web UI settings, and much more.
+
+For a complete list of available environment variables and how to set them, please refer to the [**Configuration Guide**](./configuration/README.md).
+
+---
+
 🔖 [Home](../../README.md) > [Documentation](../README.md)
+
+➡️ [Next: Core Concepts](../core-concepts/README.md)

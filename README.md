@@ -1,67 +1,72 @@
 ![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-[Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
-
 # 🤖 Zrb: Your Automation Powerhouse
 
-Zrb simplifies the creation and execution of automation tasks. It allows you to define tasks using Python classes or functions, organize them into groups, and run them via a command-line interface or a web UI. Zrb handles task dependencies, inputs, environment variables, and inter-task communication, allowing you to focus on the logic of your automation.
+**Zrb (Zaruba) is a Python-based tool that makes it easy to create, organize, and run automation tasks.** Think of it as a command-line sidekick, ready to handle everything from simple scripts to complex, AI-powered workflows.
 
-## 🚀 Why Zrb?
+Whether you're running tasks from the terminal or a sleek web UI, Zrb streamlines your process with task dependencies, environment management, and even inter-task communication.
 
-Zrb stands out by offering:
-* **Python-Native Automation:** Write tasks in a familiar and powerful language.
-* **LLM Integration:** Easily incorporate AI capabilities into your workflows.
-* **Structured Workflows:** Define dependencies and organize tasks logically.
-* **Flexible Execution:** Run tasks from the CLI or a web browser.
-* **Extensibility:** Customize and build upon the Zrb framework.
+[Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md) | [Contribution Guidelines](https://github.com/state-alchemists/zrb/pulls) | [Report an Issue](https://github.com/state-alchemists/zrb/issues)
 
-## 🔥 Key Features
+---
 
-- **LLM Integration:** Leverage state-of-the-art language models to generate code, diagrams, and documentation.
-- **Task Chaining:** Easily define dependencies between tasks to create complex workflows.
-- **CLI & Server Mode:** Run tasks directly from the command line or through a user-friendly web UI.
-- **Flexible Input Handling:** Defaults, prompts, and command-line parameters to suit any workflow.
-* **Environment Variables:** Manage configuration using environment variables, loaded from the system, `.env` files, or task definitions.
-* **Cross-Communication (XCom):** Safely exchange small amounts of data between tasks.
-- **Extensible & Open Source:** Contribute, customize, or extend Zrb to fit your unique needs.
+## 🔥 Why Choose Zrb?
 
+Zrb is designed to be powerful yet intuitive, offering a unique blend of features:
 
-# 🛠️ Installation
+-   🤖 **Built-in LLM Integration:** Go beyond simple automation. Leverage Large Language Models to generate code, create diagrams, produce documentation, and more.
+-   🐍 **Pure Python:** Write your tasks in Python. No complex DSLs or YAML configurations to learn.
+-   🔗 **Smart Task Chaining:** Define dependencies between tasks to build sophisticated, ordered workflows.
+-   💻 **Dual-Mode Execution:** Run tasks from the command line for speed or use the built-in web UI for a more visual experience.
+-   ⚙️ **Flexible Configuration:** Manage inputs with defaults, prompts, or command-line arguments. Handle secrets and settings with environment variables from the system or `.env` files.
+-   🗣️ **Cross-Communication (XCom):** Allow tasks to safely exchange small pieces of data.
+-   🌍 **Open & Extensible:** Zrb is open-source. Feel free to contribute, customize, or extend it to meet your needs.
 
-The easiest way to install Zrb is using pip:
+---
+
+## 🚀 Quick Start: Your First AI-Powered Workflow in 5 Minutes
+
+Let's create a two-step workflow that uses an LLM to analyze your code and generate a Mermaid diagram, then converts that diagram into a PNG image.
+
+### 1. Prerequisites: Get Your Tools Ready
+
+Before you start, make sure you have the following:
+
+-   **An LLM API Key:** Zrb needs an API key to talk to an AI model.
+    ```bash
+    export OPENAI_API_KEY="your-key-here"
+    ```
+    > Zrb defaults to OpenAI, but you can easily configure it for other providers like **Deepseek, Ollama, etc.** See the [LLM Integration Guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation-and-configuration/configuration/llm-integration.md) for details.
+
+-   **Mermaid CLI:** This tool converts Mermaid diagram scripts into images.
+    ```bash
+    npm install -g @mermaid-js/mermaid-cli
+    ```
+
+### 2. Install Zrb
+
+The easiest way to get Zrb is with `pip`.
 
 ```bash
 pip install zrb
+# Or for the latest pre-release version:
 # pip install --pre zrb
 ```
 
-Alternatively, you can use Zrb installation script which handles prerequisites:
-
+Alternatively, you can use an installation script that handles all prerequisites:
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 ```
 
-For more installation option like running Zrb on your **Android Device 📱** or **as a Container 🐋**, you can check the [installation and configuration guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation-and-configuration/README.md).
+> For other installation methods, including **Docker 🐋** and **Android 📱**, check out the full [Installation Guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation-and-configuration/README.md).
 
-# 🍲 Quick Start: Build Your First Automation Workflow
+### 3. Define Your Tasks
 
-This guide shows you how to define two simple tasks:
+Create a file named `zrb_init.py` in your project directory. Zrb automatically discovers this file.
 
-- One to generate a Mermaid Diagram Script from your source code.
-- And another one to convert that script into a PNG image.
+> **💡 Pro Tip:** You can place `zrb_init.py` in your home directory (`~/zrb_init.py`), and the tasks you define will be available globally across all your projects!
 
-> **Note:** This assume you have an `OPENAI_API_KEY` and a Mermaid CLI installed (i.e., `npm install -g @mermaid-js/mermaid-cli`)
-> If you want to use other LLM Provider (e.g., Deepseek, Ollama, etc.), you can refer to [Zrb LLM Integration guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation-and-configuration/configuration/llm-integration.md)
-
-## 1. Create Your Task Definition File
-
-Place a file named `zrb_init.py` in a directory that's accessible from your projects.
-
-Zrb will automatically search for this file by starting in your current directory and then moving upward (i.e., checking parent directories) until it finds one.
-
-This means if you place your `zrb_init.py` in your home directory (e.g., `/home/<your-user-name>/zrb_init.py`), the tasks defined there will be available for any project inside your home directory.
-
-Add the following content to your zrb_init.py:
+Add the following Python code to your `zrb_init.py`:
 
 ```python
 from zrb import cli, LLMTask, CmdTask, StrInput, Group
@@ -70,13 +75,16 @@ from zrb.builtin.llm.tool.file import write_to_file
 
 
 # Create a group for Mermaid-related tasks
-mermaid_group = cli.add_group(Group(name="mermaid", description="🧜 Mermaid diagram related tasks"))
+mermaid_group = cli.add_group(Group(
+    name="mermaid",
+    description="🧜 Mermaid diagram related tasks"
+))
 
 # Task 1: Generate a Mermaid script from your source code
 make_mermaid_script = mermaid_group.add_task(
     LLMTask(
         name="make-script",
-        description="Creating mermaid diagram based on source code in current directory",
+        description="Create a mermaid diagram from source code in the current directory",
         input=[
             StrInput(name="dir", default="./"),
             StrInput(name="diagram", default="state-diagram"),
@@ -96,7 +104,7 @@ make_mermaid_script = mermaid_group.add_task(
 make_mermaid_image = mermaid_group.add_task(
     CmdTask(
         name="make-image",
-        description="Creating png based on source code in current directory",
+        description="Create a PNG from a mermaid script",
         input=[
             StrInput(name="dir", default="./"),
             StrInput(name="diagram", default="state-diagram"),
@@ -110,94 +118,92 @@ make_mermaid_image = mermaid_group.add_task(
 make_mermaid_script >> make_mermaid_image
 ```
 
-**What This Does**
+### 4. Run Your Workflow!
 
-- **Task 1 – make-script**:
+Now, navigate to any project with source code. For example:
 
-    Uses an LLM to read all files in your current directory and generate a [Mermaid Diagram Script](https://mermaid.js.org/) (e.g., `state diagram.mmd`).
+```bash
+git clone git@github.com:jjinux/gotetris.git
+cd gotetris
+```
 
-- **Task 2 – make-image**:
+Run your new task to generate the diagram:
 
-    Executes a command that converts the Mermaid Diagram Script into a PNG image (e.g., `state diagram.png`). This task will run only after the script has been generated.
+```bash
+zrb mermaid make-image --diagram "state-diagram" --dir ./
+```
 
+You can also run it interactively and let Zrb prompt you for inputs:
+```bash
+zrb mermaid make-image
+```
+Zrb will ask for the directory and diagram name—just press **Enter** to accept the defaults.
 
-## 2. Run Your Tasks
+In moments, you'll have a beautiful state diagram of your code!
 
-After setting up your tasks, you can execute them from any project. For example:
+![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
 
-- Clone/Create a Project:
+---
 
-    ```bash
-    git clone git@github.com:jjinux/gotetris.git
-    cd gotetris
-    ```
+## 🖥️ Try the Web UI
 
-- Create a state diagram:
-
-    ```bash
-    zrb mermaid make-image --diagram "state diagram" --dir ./
-    ```
-
-- Or use the interactive mode:
-
-    ```bash
-    zrb mermaid make-image
-    ```
-
-    Zrb will prompt:
-
-    ```
-    dir [./]:
-    diagram [state diagram]:
-    ```
-
-    Press **Enter** to use the default value
-
-- And you have your State Diagram ready :)
-
-    ![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
-
-
-## 3. Try Out the Web UI
-
-You can also serve your tasks through a user-friendly web interface:
+Prefer a graphical interface? Zrb has you covered. Start the web server:
 
 ```bash
 zrb server start
 ```
 
-Then open your browser and visit `http://localhost:21213`
+Then open your browser to `http://localhost:21213` to see your tasks in a clean, user-friendly interface.
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 
-# 🎥 Demo & Documentation
+---
 
-- **Go Further By Visiting Our Documentation:** [Zrb Documentation](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
-- **Video Demo:**
+## 💬 Interact with an LLM Directly
+
+Zrb brings AI capabilities right to your command line.
+
+### Interactive Chat
+
+Start a chat session with an LLM to ask questions, brainstorm ideas, or get coding help.
+
+```bash
+zrb llm chat
+```
+
+### Quick Questions
+
+For a single question, use the `ask` command for a fast response.
+
+```bash
+zrb llm ask "What is the capital of Indonesia?"
+```
+
+---
+
+## 🎥 Demo & Documentation
+
+-   **Dive Deeper:** [**Explore the Full Zrb Documentation**](https://github.com/state-alchemists/zrb/blob/main/docs/README.md)
+-   **Watch the Video Demo:**
 
     [![Video Title](https://img.youtube.com/vi/W7dgk96l__o/0.jpg)](https://www.youtube.com/watch?v=W7dgk96l__o)
 
+---
 
-# 🤝 Join the Community
+## 🤝 Join the Community & Support the Project
 
-- **Bug Reports & Feature Requests:** Create an [issue](https://github.com/state-alchemists/zrb/issues) on Zrb's GitHub Repositories and include:
-    - Your Zrb version (i.e., `zrb version`).
-    - Steps you’ve taken and what you expected versus what happened
-- **Contributions:** We welcome pull requests! Check out our [contribution guidelines](https://github.com/state-alchemists/zrb/pulls).
+-   **Bugs & Feature Requests:** Found a bug or have a great idea? [Open an issue](https://github.com/state-alchemists/zrb/issues). Please include your Zrb version (`zrb version`) and steps to reproduce the issue.
+-   **Contributions:** We love pull requests! See our [contribution guidelines](https://github.com/state-alchemists/zrb/pulls) to get started.
+-   **Support Zrb:** If you find Zrb valuable, please consider showing your support.
 
+    [![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com)
 
-# ☕ Support The Project
+---
 
-If you find Zrb valuable, please consider donating:
+## 🎉 Fun Fact
 
-[![](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/donator.png)](https://stalchmst.com)
+**Did you know?** Zrb is named after `Zaruba`, a powerful, sentient Madou Ring that acts as a guide and support tool in the *Garo* universe.
 
-# 🎉 Fun Fact
-
-Did you know?
-
-Zrb is named after `Zaruba`, a powerful support tool from the Garo universe!
-
-> Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor. [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
+> *Madou Ring Zaruba (魔導輪ザルバ, Madōrin Zaruba) is a Madougu which supports bearers of the Garo Armor.* [(Garo Wiki | Fandom)](https://garo.fandom.com/wiki/Zaruba)
 
 ![Madou Ring Zaruba on Kouga's Hand](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/madou-ring-zaruba.jpg)

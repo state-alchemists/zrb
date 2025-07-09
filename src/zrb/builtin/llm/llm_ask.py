@@ -7,10 +7,10 @@ from zrb.builtin.llm.tool.cli import run_shell_command
 from zrb.builtin.llm.tool.code import analyze_repo
 from zrb.builtin.llm.tool.file import (
     analyze_file,
-    apply_diff,
     list_files,
     read_from_file,
     read_many_files,
+    replace_in_file,
     search_files,
     write_many_files,
     write_to_file,
@@ -135,7 +135,7 @@ if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
         list_files,
         read_from_file,
         read_many_files,
-        apply_diff,
+        replace_in_file,
         write_to_file,
         write_many_files,
     )

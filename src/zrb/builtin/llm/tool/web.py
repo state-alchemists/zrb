@@ -3,11 +3,16 @@ from collections.abc import Callable
 
 
 async def open_web_page(url: str) -> str:
-    """Get parsed text content and links from a web page URL.
+    """
+    Fetches and parses the textual content of a given web page URL.
+
+    Use this tool to "read" a web page. It strips away HTML tags, scripts, and other non-textual elements to provide the clean text content. It also extracts any hyperlinks found on the page. This is useful when you need to understand the content of a specific URL that you have discovered through a search or from another source.
+
     Args:
-        url (str): The URL of the web page to open.
+        url (str): The full URL of the web page to open (e.g., "https://example.com/article").
+
     Returns:
-        str: JSON: {"content": "parsed text content", "links_on_page": ["url1", ...]}
+        str: A JSON object containing the cleaned text `content` of the page and a list of `links_on_page`.
     """
 
     async def get_page_content(page_url: str):
@@ -57,13 +62,30 @@ async def open_web_page(url: str) -> str:
 
 
 def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
+    """
+    Creates a tool that searches the internet using the SerpAPI Google Search API.
+
+    This factory returns a function that can be used to find information on the web. The generated tool is the primary way to answer general knowledge questions or to find information on topics you are unfamiliar with.
+
+    Args:
+        serp_api_key (str): The API key for SerpAPI.
+
+    Returns:
+        Callable: A function that takes a search query and returns a list of search results.
+    """
+
     def search_internet(query: str, num_results: int = 10) -> str:
-        """Search the internet Google Search and return parsed results.
+        """
+        Performs an internet search using Google and returns a summary of the results.
+
+        Use this tool to find information on the web, answer general knowledge questions, or research topics.
+
         Args:
-            query (str): Search query.
-            num_results (int): Search result count. Defaults to 10.
+            query (str): The search query.
+            num_results (int, optional): The desired number of search results. Defaults to 10.
+
         Returns:
-            str: JSON: {"content": "parsed text content", "links_on_page": ["url1", ...]}
+            str: A JSON object containing the parsed text content from the search results page.
         """
         import requests
 
@@ -90,11 +112,16 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
 
 
 def search_wikipedia(query: str) -> str:
-    """Search Wikipedia using its API.
+    """
+    Searches for articles on Wikipedia.
+
+    This is a specialized search tool for querying Wikipedia. It's best for when the user is asking for definitions, historical information, or biographical details that are likely to be found on an encyclopedia.
+
     Args:
-        query (str): Search query.
+        query (str): The search term or question.
+
     Returns:
-        str: JSON from Wikipedia API: {"batchcomplete": ..., "query": {"search": [...]}}
+        str: The raw JSON response from the Wikipedia API, containing a list of search results.
     """
     import requests
 
@@ -104,12 +131,17 @@ def search_wikipedia(query: str) -> str:
 
 
 def search_arxiv(query: str, num_results: int = 10) -> str:
-    """Search ArXiv for papers using its API.
+    """
+    Searches for academic papers and preprints on ArXiv.
+
+    Use this tool when the user's query is scientific or technical in nature and they are likely looking for research papers, articles, or academic publications.
+
     Args:
-        query (str): Search query.
-        num_results (int): Search result count. Defaults to 10.
+        query (str): The search query, which can include keywords, author names, or titles.
+        num_results (int, optional): The maximum number of results to return. Defaults to 10.
+
     Returns:
-        str: XML string from ArXiv API containing search results.
+        str: The raw XML response from the ArXiv API, containing a list of matching papers.
     """
     import requests
 

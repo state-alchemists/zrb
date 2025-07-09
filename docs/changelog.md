@@ -1,5 +1,13 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.6
+
+- **Changed**:
+  - Replaced `apply_diff` with `replace_in_file` and `write_to_file`. The `apply_diff` function was removed and its functionality is now covered by the more explicit `replace_in_file` and `write_to_file` functions.
+- **Fixed**:
+  - Incorrect patch targets in `test/task/test_cmd_task.py` and `test/test_main.py`.
+  - Update default prompts
+
 # 1.9.5
 
 - **Fixed**:
