@@ -551,3 +551,6 @@ def write_many_files(files: Dict[str, str]) -> str:
         except Exception as e:
             errors[path] = f"Error writing file: {e}"
     return json.dumps({"success": success, "errors": errors})
+
+
+apply_diff = replace_in_file
