@@ -86,29 +86,29 @@ async def analyze_repo(
     summarization_token_limit: int = 40000,
 ) -> str:
     """
-    Extract and summarize information from any directory.
-    You should state the goal specifically so that the tool can return relevant informations.
+    Performs a deep, goal-oriented analysis of a code repository or directory.
+
+    This powerful tool recursively reads all relevant files in a directory, extracts key information, and then summarizes that information in relation to a specific goal. It uses intelligent sub-agents for extraction and summarization, making it ideal for complex tasks that require a holistic understanding of a codebase.
+
     Use this tool for:
-    - summarization
-    - outline/structure extraction
-    - code review
-    - create diagram as code
-    - other tasks
+    - Understanding a large or unfamiliar codebase.
+    - Generating high-level summaries of a project's architecture.
+    - Performing a preliminary code review.
+    - Creating documentation or diagrams (e.g., "Generate a Mermaid C4 diagram for this service").
+    - Answering broad questions like "How does the authentication in this project work?".
+
     Args:
-        path (str): File path to be analyze. Pass exactly as provided, including '~'.
-        goal(str): Goal of extracting information (for example creating C4 diagram)
-        extensions(Optional[list[str]]): List of extension to be included
-            while reading resources. Defaults to common programming languages and config files.
-        exclude_patterns(Optional[list[str]]): List of patterns to exclude from analysis.
-            Common patterns like '.venv', 'node_modules' should be excluded by default.
-        extraction_token_limit(Optional[int]): Max resource content char length
-            the extraction assistant able to handle. Defaults to 150000
-        summarization_token_limit(Optional[int]): Max resource content char length
-            the summarization assistant able to handle. Defaults to 150000
+        path (str): The path to the directory or repository to analyze.
+        goal (str): A clear and specific description of what you want to achieve. A good goal is critical for getting a useful result. For example: "Understand the database schema by analyzing all the .sql files" or "Create a summary of all the API endpoints defined in the 'api' directory".
+        extensions (list[str], optional): A list of file extensions to include in the analysis. Defaults to a comprehensive list of common code and configuration files.
+        exclude_patterns (list[str], optional): A list of glob patterns for files and directories to exclude from the analysis. Defaults to common patterns like '.git', 'node_modules', and '.venv'.
+        extraction_token_limit (int, optional): The maximum token limit for the extraction sub-agent.
+        summarization_token_limit (int, optional): The maximum token limit for the summarization sub-agent.
+
     Returns:
-        str: The analysis result
+        str: A detailed, markdown-formatted analysis and summary of the repository, tailored to the specified goal.
     Raises:
-        Exception: If an error occurs.
+        Exception: If an error occurs during the analysis.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     file_metadatas = _get_file_metadatas(abs_path, extensions, exclude_patterns)

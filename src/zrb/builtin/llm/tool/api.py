@@ -3,11 +3,16 @@ from typing import Literal
 
 
 def get_current_location() -> str:
-    """Get current location (latitude, longitude) based on IP address.
+    """
+    Fetches the user's current geographical location (latitude and longitude) based on their IP address.
+
+    Use this tool when the user asks "Where am I?", "What is my current location?", or has a query that requires knowing their location to be answered.
+
     Returns:
-        str: JSON string representing latitude and longitude.
+        str: A JSON string containing the 'lat' and 'lon' of the current location.
+             Example: '{"lat": 48.8584, "lon": 2.2945}'
     Raises:
-        requests.RequestException: If the API request fails.
+        requests.RequestException: If the API request to the location service fails.
     """
     import requests
 
@@ -24,15 +29,20 @@ def get_current_weather(
     longitude: float,
     temperature_unit: Literal["celsius", "fahrenheit"],
 ) -> str:
-    """Get current weather for a specific location.
+    """
+    Retrieves the current weather conditions for a given geographical location.
+
+    Use this tool when the user asks about the weather. If the user does not provide a location, first use the `get_current_location` tool to determine their location.
+
     Args:
-        latitude (float): Latitude coordinate.
-        longitude (float): Longitude coordinate.
-        temperature_unit (Literal["celsius", "fahrenheit"]): Temperature unit.
+        latitude (float): The latitude of the location.
+        longitude (float): The longitude of the location.
+        temperature_unit (Literal["celsius", "fahrenheit"]): The desired unit for the temperature reading.
+
     Returns:
-        str: JSON string with weather data.
+        str: A JSON string containing detailed weather data, including temperature, wind speed, and weather code.
     Raises:
-        requests.RequestException: If the API request fails.
+        requests.RequestException: If the API request to the weather service fails.
     """
     import requests
 
