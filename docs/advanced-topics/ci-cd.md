@@ -175,6 +175,65 @@ run_linting:
     *   `allow_failure`: If `true`, the pipeline continues even if this job fails.
     *   `environment`: Used for GitLab Environments, helpful for tracking deployments.
 
+## Bitbucket Pipelines
+
+Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file in the root of your repository to define CI/CD workflows.
+
+**Example `bitbucket-pipelines.yml`:**
+
+This example sets up a simple pipeline with steps for testing and linting using the Zrb Docker image.
+
+```yaml
+image: stalchmst/zrb:1.5.3
+
+pipelines:
+  default:
+    - step:
+        name: "Show Environment Info"
+        script:
+          - echo "🚀 Starting CI/CD pipeline..."
+          - echo "📦 Zrb Version:"
+          - zrb --version
+          - echo "🏃 Triggered by: $BITBUCKET_STEP_TRIGGERER_UUID"
+          - echo "🎉 Event: $BITBUCKET_TRIGGER"
+          - echo "🌲 Branch/Ref: $BITBUCKET_BRANCH"
+
+    - step:
+        name: "Run Zrb Tests"
+        script:
+          - echo "🧪 Running tests..."
+          # Replace 'zrb test' with your actual test command
+          - zrb test
+
+    - step:
+        name: "Run Zrb Lint"
+        script:
+          - echo "✨ Running linters..."
+          # Replace 'zrb lint' with your actual linting command
+          - zrb lint
+
+    # Example Deployment Step (uncomment and adapt)
+    # - step:
+    #     name: "Deploy to Staging"
+    #     script:
+    #       - echo "🚀 Deploying to Staging..."
+    #       - zrb deploy staging # Replace with your deployment task
+    #     deployment: staging
+    #     variables:
+    #       # Use Bitbucket Pipelines Variables for secrets
+    #       DEPLOY_KEY: $DEPLOY_KEY
+```
+
+**Explanation:**
+
+- `image`: Specifies the Docker image to use for all steps (`stalchmst/zrb:1.5.3`).
+- `pipelines.default`: Defines the default pipeline that runs on every push.
+- `step`: Each step represents a task in the pipeline.
+  - `name`: A descriptive name for the step.
+  - `script`: The shell commands to execute for the step.
+  - `deployment`: Marks the step as a deployment (optional).
+  - `variables`: Defines environment variables. Use Bitbucket's [Pipelines Variables](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/) for secrets.
+
 ## Choosing the Right Zrb Image Version
 
 Always pin your CI/CD pipeline to a specific version of the `stalchmst/zrb` image (e.g., `stalchmst/zrb:1.5.3`). This ensures that your builds are reproducible and won't break unexpectedly if a new `latest` version introduces changes. Update the version tag deliberately when you are ready to adopt newer Zrb features or fixes.
