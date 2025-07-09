@@ -1,7 +1,8 @@
-import fnmatch
 import json
 import os
 import re
+import subprocess
+import tempfile
 from typing import Any, Dict, List, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
@@ -407,24 +408,13 @@ def _get_file_matches(
         raise RuntimeError(f"Unexpected error processing {file_path}: {e}")
 
 
-def apply_diff(
-    path: str,
-    start_line: int,
-    end_line: int,
-    search_content: str,
-    replace_content: str,
-) -> str:
-    """Apply a precise search/replace to a file based on line numbers and content.
-    This tool enables you to update certain part of the file efficiently.
+def apply_diff(path: str, diff_content: str) -> str:
+    """Apply a diff to a file using a git-style patch.
+    This tool is more robust than search/replace as it uses context lines.
     Args:
         path (str): Path to modify. Pass exactly as provided, including '~'.
-        start_line (int): The 1-based starting line number of the content to replace.
-        end_line (int): The 1-based ending line number (inclusive) of the content to replace.
-        search_content (str): The exact content expected to be found in the specified
-            line range. Must exactly match file content including whitespace/indentation,
-            excluding line numbers.
-        replace_content (str): The new content to replace the search_content with.
-            Excluding line numbers.
+        diff_content (str): The diff content in the unified diff format.
+            It should be generated relative to the file being changed.
     Returns:
         str: JSON: {"success": true, "path": "f.py"} or {"success": false, "error": "..."}
     Raises:
@@ -433,38 +423,81 @@ def apply_diff(
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")
+
     try:
-        content = read_file(abs_path)
-        lines = content.splitlines()
-        if start_line < 1 or end_line > len(lines) or start_line > end_line:
-            raise ValueError(
-                f"Invalid line range {start_line}-{end_line} for file with {len(lines)} lines"
-            )
-        original_content = "\n".join(lines[start_line - 1 : end_line])
-        if original_content != search_content:
-            error_message = (
-                f"Search content does not match file content at "
-                f"lines {start_line}-{end_line}.\n"
-                f"Expected ({len(search_content.splitlines())} lines):\n"
-                f"---\n{search_content}\n---\n"
-                f"Actual ({len(lines[start_line-1:end_line])} lines):\n"
-                f"---\n{original_content}\n---"
-            )
-            return json.dumps({"success": False, "path": path, "error": error_message})
-        new_lines = (
-            lines[: start_line - 1] + replace_content.splitlines() + lines[end_line:]
-        )
-        new_content = "\n".join(new_lines)
-        if content.endswith("\n"):
-            new_content += "\n"
-        write_file(abs_path, new_content)
-        return json.dumps({"success": True, "path": path})
-    except ValueError as e:
-        raise ValueError(f"Error parsing diff: {e}")
+        with open(abs_path, "r") as f:
+            original_content = f.read()
+        original_lines = original_content.splitlines(keepends=True)
     except (OSError, IOError) as e:
-        raise OSError(f"Error applying diff to {path}: {e}")
+        raise OSError(f"Error reading file {path}: {e}")
+
+    diff_lines = diff_content.splitlines(keepends=True)
+    new_lines = list(original_lines)
+    hunk_header_re = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@.*")
+    line_offset = 0
+
+    hunks = []
+    current_hunk = None
+    for line in diff_lines:
+        match = hunk_header_re.match(line)
+        if match:
+            if current_hunk:
+                hunks.append(current_hunk)
+            current_hunk = [match.groups(), []]
+        elif current_hunk:
+            current_hunk[1].append(line)
+    if current_hunk:
+        hunks.append(current_hunk)
+
+    for hunk in hunks:
+        old_start, old_len, new_start, new_len = [
+            int(g or 1) for g in hunk[0]
+        ]
+        patch_lines = hunk[1]
+
+        patch_applied = False
+        for offset in range(-5, 6):
+            start_index = old_start - 1 + offset
+            if start_index < 0:
+                continue
+
+            context_lines = [p[1:] for p in patch_lines if p.startswith(" ") or p.startswith("-")]
+            if not context_lines:
+                context_matches = True
+            else:
+                context_matches = True
+                for i, patch_line in enumerate(context_lines):
+                    original_line_index = start_index + i
+                    if (original_line_index >= len(new_lines) or
+                            new_lines[original_line_index] != patch_line):
+                        context_matches = False
+                        break
+            
+            if context_matches:
+                to_add = [p[1:] for p in patch_lines if not p.startswith("-")]
+                
+                del_count = len([p for p in patch_lines if p.startswith("-") or p.startswith(" ")])
+                
+                new_lines = new_lines[:start_index] + to_add + new_lines[start_index + del_count:]
+                line_offset += len(to_add) - del_count
+                patch_applied = True
+                break
+
+        if not patch_applied:
+            return json.dumps({
+                "success": False,
+                "path": path,
+                "error": f"Could not apply hunk starting at line {old_start}. Context mismatch."
+            })
+
+    try:
+        with open(abs_path, "w") as f:
+            f.write("".join(new_lines))
+        return json.dumps({"success": True, "path": path})
+    except (OSError, IOError) as e:
+        raise OSError(f"Error writing file {path}: {e}")
     except Exception as e:
-        raise RuntimeError(f"Unexpected error applying diff to {path}: {e}")
+        raise RuntimeError(f"Unexpected error writing file {path}: {e}")
 
 
 async def analyze_file(
