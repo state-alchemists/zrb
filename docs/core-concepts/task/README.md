@@ -155,12 +155,12 @@ cli.add_task(task1, task2, task3)
 
 Zrb comes with a variety of specialized task types for common operations.
 
-*   [**`BaseTask`**](./types/base_task.md): The foundational class for all tasks.
+*   [**`BaseTask`**](./types/base-task.md): The foundational class for all tasks.
 *   [**`Task`**](./types/task.md): An alias for `BaseTask`, used for general-purpose Python tasks.
-*   [**`CmdTask`**](./types/cmd_task.md): For executing shell commands.
-*   [**`HttpCheck`**](./types/http_check.md) & [**`TcpCheck`**](./types/tcp_check.md): For checking if services are ready.
-*   [**`LLMTask`**](./types/llm_task.md): For interacting with Large Language Models.
-*   [**`RsyncTask`**](./types/rsync_task.md): For synchronizing files.
+*   [**`CmdTask`**](./types/cmd-task.md): For executing shell commands.
+*   [**`HttpCheck`**](./types/http-check.md) & [**`TcpCheck`**](./types/tcp_check.md): For checking if services are ready.
+*   [**`LLMTask`**](./types/llm-task.md): For interacting with Large Language Models.
+*   [**`RsyncTask`**](./types/rsync-task.md): For synchronizing files.
 *   [**`Scaffolder`**](./types/scaffolder.md): For generating files from templates.
 *   [**`Scheduler`**](./types/scheduler.md): For triggering tasks on a schedule.
 

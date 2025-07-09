@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../README.md) > Upgrading Guide
+🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](./README.md) > Upgrading Guide
 
 # Upgrading Guide from 0.x.x to 1.x.x
 
@@ -263,10 +263,10 @@ task = CmdTask(cmd=CmdPath(os.path.join("dir", "command.sh")))
 
 Zrb 1.x.x provides several built-in task types to handle various operations:
 
-*   [`CmdTask`](./task/types/cmd_task.md): For executing shell commands.
-*   [`HttpCheck`](./task/types/http_check.md): For performing HTTP health checks.
-*   [`LlmTask`](./task/types/llm_task.md): For integrating with Language Model APIs.
-*   [`RsyncTask`](./task/types/rsync_task.md): For synchronizing files and directories using rsync.
+*   [`CmdTask`](./task/types/cmd-task.md): For executing shell commands.
+*   [`HttpCheck`](./task/types/http-check.md): For performing HTTP health checks.
+*   [`LlmTask`](./task/types/llm-task.md): For integrating with Language Model APIs.
+*   [`RsyncTask`](./task/types/rsync-task.md): For synchronizing files and directories using rsync.
 *   [`Scaffolder`](./task/types/scaffolder.md): For generating files from templates.
 *   [`Task`](./task/types/task.md): The base class for creating custom Python tasks (used with `@make_task`).
 *   [`TcpCheck`](./task/types/tcp_check.md): For performing TCP port health checks.
@@ -317,7 +317,7 @@ migration_task = cli.add_task(
         name="migrate-task",
         input=StrInput(name="old_task_code", description="Paste your 0.x.x task code here"),
         # Configure your LLM API and prompt here
-        message="Convert the following Zrb 0.x.x task definition to 1.x.x:\n\n{{input.old_task_code}}. You can find the guide at @~/zrb/docs/upgrading_guide_0_to_1.md",
+        message="Convert the following Zrb 0.x.x task definition to 1.x.x:\n\n{{input.old_task_code}}. You can find the guide at @~/zrb/docs/upgrading-guide-0-to-1.md",
         tools=[
             list_files, read_from_file, search_files, write_to_file
         ],
