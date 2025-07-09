@@ -279,7 +279,6 @@ def read_from_file(
 def write_to_file(
     path: str,
     content: str,
-    line_count: int,
 ) -> str:
     """
     Writes content to a file, completely overwriting it if it exists or creating it if it doesn't.
@@ -289,19 +288,11 @@ def write_to_file(
     Args:
         path (str): The path to the file to write to.
         content (str): The full, complete content to be written to the file. Do not use partial content or omit any lines.
-        line_count (int): The total number of lines in the `content` you are providing. This acts as a safeguard to prevent accidental truncation.
 
     Returns:
-        str: A JSON object indicating success or failure. It may include a warning if the provided `line_count` does not match the actual number of lines in the `content`.
+        str: A JSON object indicating success or failure.
              Example: '{"success": true, "path": "new_file.txt"}'
     """
-    actual_lines = len(content.splitlines())
-    warning = None
-    if actual_lines != line_count:
-        warning = (
-            f"Provided line_count ({line_count}) does not match actual "
-            f"content lines ({actual_lines}) for file {path}"
-        )
     try:
         abs_path = os.path.abspath(os.path.expanduser(path))
         # Ensure directory exists
@@ -310,8 +301,6 @@ def write_to_file(
             os.makedirs(directory, exist_ok=True)
         write_file(abs_path, content)
         result_data = {"success": True, "path": path}
-        if warning:
-            result_data["warning"] = warning
         return json.dumps(result_data)
     except (OSError, IOError) as e:
         raise OSError(f"Error writing file {path}: {e}")
@@ -426,71 +415,45 @@ def _get_file_matches(
         raise RuntimeError(f"Unexpected error processing {file_path}: {e}")
 
 
-def apply_diff(
+def replace_in_file(
     path: str,
-    start_line: int,
-    end_line: int,
-    search_content: str,
-    replace_content: str,
+    old_string: str,
+    new_string: str,
 ) -> str:
     """
-    Applies a precise, targeted replacement to a section of a file.
+    Replaces the first occurrence of a string in a file.
 
-    This is the primary tool for modifying files. It is safer than `write_to_file` for making changes because it operates on a specific, verifiable block of content.
+    This tool is for making targeted modifications to a file. It is a single-step operation that is generally safer and more ergonomic than `write_to_file` for small changes.
 
-    To use this tool effectively:
-    1. First, use `read_from_file` to get the exact content and line numbers of the section you want to change.
-    2. Use that exact content as the `search_content` parameter to ensure you are modifying the correct part of the file.
-    3. Provide the new content in the `replace_content` parameter.
+    To ensure the replacement is applied correctly and to avoid ambiguity, the `old_string` parameter should be a unique, multi-line string that includes context from before and after the code you want to change.
 
     Args:
         path (str): The path of the file to modify.
-        start_line (int): The 1-based starting line number of the content block to replace.
-        end_line (int): The 1-based ending line number (inclusive) of the content block to replace.
-        search_content (str): The exact, verbatim content that is expected to exist in the specified line range. This is a critical safeguard against race conditions and incorrect edits.
-        replace_content (str): The new content that will replace the `search_content`.
+        old_string (str): The exact, verbatim string to search for and replace. This should be a unique, multi-line block of text.
+        new_string (str): The new string that will replace the `old_string`.
 
     Returns:
-        str: A JSON object indicating the success or failure of the operation. If it fails, the 'error' field will contain a detailed message explaining the mismatch.
+        str: A JSON object indicating the success or failure of the operation.
     Raises:
         FileNotFoundError: If the specified file does not exist.
-        ValueError: If the line numbers are invalid or the diff cannot be parsed.
+        ValueError: If the `old_string` is not found in the file.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")
     try:
         content = read_file(abs_path)
-        lines = content.splitlines()
-        if start_line < 1 or end_line > len(lines) or start_line > end_line:
-            raise ValueError(
-                f"Invalid line range {start_line}-{end_line} for file with {len(lines)} lines"
-            )
-        original_content = "\n".join(lines[start_line - 1 : end_line])
-        if original_content != search_content:
-            error_message = (
-                f"Search content does not match file content at "
-                f"lines {start_line}-{end_line}.\n"
-                f"Expected ({len(search_content.splitlines())} lines):\n"
-                f"---\n{search_content}\n---\n"
-                f"Actual ({len(lines[start_line-1:end_line])} lines):\n"
-                f"---\n{original_content}\n---"
-            )
-            return json.dumps({"success": False, "path": path, "error": error_message})
-        new_lines = (
-            lines[: start_line - 1] + replace_content.splitlines() + lines[end_line:]
-        )
-        new_content = "\n".join(new_lines)
-        if content.endswith("\n"):
-            new_content += "\n"
+        if old_string not in content:
+            raise ValueError(f"old_string not found in file: {path}")
+        new_content = content.replace(old_string, new_string, 1)
         write_file(abs_path, new_content)
         return json.dumps({"success": True, "path": path})
     except ValueError as e:
-        raise ValueError(f"Error parsing diff: {e}")
+        raise e
     except (OSError, IOError) as e:
-        raise OSError(f"Error applying diff to {path}: {e}")
+        raise OSError(f"Error applying replacement to {path}: {e}")
     except Exception as e:
-        raise RuntimeError(f"Unexpected error applying diff to {path}: {e}")
+        raise RuntimeError(f"Unexpected error applying replacement to {path}: {e}")
 
 
 async def analyze_file(
