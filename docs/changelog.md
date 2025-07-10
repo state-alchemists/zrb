@@ -1,5 +1,16 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.8
+
+- **Changed**:
+  - Update system prompts
+
+# 1.9.7
+
+- **Changed**:
+  - Updated the version in `pyproject.toml` from `1.9.6` to `1.9.7`.
+  - Updated default system prompts in `src/zrb/config/llm_config.py` to clarify standing consent for read-only tools.
+
 # 1.9.6
 
 - **Changed**:

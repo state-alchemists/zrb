@@ -277,7 +277,7 @@ class Config:
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "3000"))
+        return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000"))
 
     @property
     def LLM_ENRICH_CONTEXT(self) -> bool:
@@ -285,7 +285,7 @@ class Config:
 
     @property
     def LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "3000"))
+        return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "20000"))
 
     @property
     def LLM_HISTORY_DIR(self) -> str:
