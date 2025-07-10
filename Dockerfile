@@ -5,14 +5,16 @@ ARG DIND=false
 # Create and set workdir
 WORKDIR /zrb-bin
 
-# Prepare apt and install poetry in a single layer
-RUN apt update --fix-missing && \
-    apt upgrade -y && \
-    apt install -y --no-install-recommends curl && \
-    apt autoremove -yqq --purge && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install poetry
+# Install poetry
+RUN pip install poetry
+
+# Install docker if necessary
+RUN if [ "$DIND" = "true" ]; then \
+        apt update && \
+        apt install -y docker.io && \
+        apt clean && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # Configure poetry to not use virtual environments
 RUN poetry config virtualenvs.create false
@@ -27,12 +29,5 @@ RUN poetry install --without dev --no-root
 COPY . .
 RUN poetry install --without dev
 WORKDIR /zrb-home
-
-RUN if [ "$DIND" = "true" ]; then \
-        apt update && \
-        apt install -y docker.io && \
-        apt clean && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
 
 CMD ["zrb", "server", "start"]

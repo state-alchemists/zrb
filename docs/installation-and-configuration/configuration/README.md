@@ -304,7 +304,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
-    * Default: `3000`
+    * Default: `20000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_ENRICH_CONTEXT`: Whether to enrich context.
@@ -312,7 +312,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`: Token threshold for enriching context.
-    * Default: `3000`
+    * Default: `20000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
