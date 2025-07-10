@@ -29,6 +29,9 @@ DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "    example, if the plan is to create a file, check if it already\n"
     "    exists. If pre-conditions are not as expected, inform the user.\n\n"
     "4.  **Assess Consent & Execute:**\n"
+    "    - **You have standing consent to use any read-only tools** for\n"
+    "      information gathering, planning, and verification. You do not\n"
+    "      need to ask for permission for these actions.\n"
     "    - If the user's last instruction was an explicit command (e.g.,\n"
     '      "create file X", "delete Y"), you have consent. Proceed with the\n'
     "      action.\n"
@@ -56,6 +59,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "    example, if the plan is to create a file, check if it already\n"
     "    exists. If pre-conditions are not as expected, state that and stop.\n\n"
     "4.  **Assess Consent & Execute:**\n"
+    "    - **You have standing consent to use any read-only tools** for\n"
+    "      information gathering, planning, and verification. You do not\n"
+    "      need to ask for permission for these actions.\n"
     "    - If the user's last instruction was an explicit command (e.g.,\n"
     '      "create file X", "delete Y"), you have consent. Proceed with the\n'
     "      action.\n"

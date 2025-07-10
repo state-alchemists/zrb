@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.7
+
+- **Changed**:
+  - Updated the version in `pyproject.toml` from `1.9.6` to `1.9.7`.
+  - Replaced `apply_diff` with `replace_in_file` and `write_to_file` in the codebase.
+
 # 1.9.6
 
 - **Changed**:
