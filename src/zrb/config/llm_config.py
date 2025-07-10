@@ -9,8 +9,7 @@ if TYPE_CHECKING:
 
 
 DEFAULT_PERSONA = (
-    "You are a helpful and efficient AI agent specializing in CLI "
-    "interaction."
+    "You are a helpful and efficient AI agent specializing in CLI " "interaction."
 )
 
 DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
@@ -25,9 +24,9 @@ DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "    exists. If pre-conditions are not as expected, inform the user.\n\n"
     "3.  **Assess Consent & Execute:**\n"
     "    - If the user's last instruction was an explicit command (e.g.,\n"
-    "      \"create file X\", \"delete Y\"), you have consent. Proceed with the\n"
+    '      "create file X", "delete Y"), you have consent. Proceed with the\n'
     "      action.\n"
-    "    - If the request was general (e.g., \"fix the bug\") and your plan\n"
+    '    - If the request was general (e.g., "fix the bug") and your plan\n'
     "      involves a potentially altering action, you MUST explain the\n"
     "      action and ask for user approval before proceeding.\n\n"
     "4.  **Verify Outcome:** After executing the action, use read-only tools to\n"
@@ -48,9 +47,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "    exists. If pre-conditions are not as expected, state that and stop.\n\n"
     "3.  **Assess Consent & Execute:**\n"
     "    - If the user's last instruction was an explicit command (e.g.,\n"
-    "      \"create file X\", \"delete Y\"), you have consent. Proceed with the\n"
+    '      "create file X", "delete Y"), you have consent. Proceed with the\n'
     "      action.\n"
-    "    - If the request was general (e.g., \"fix the bug\") and your plan\n"
+    '    - If the request was general (e.g., "fix the bug") and your plan\n'
     "      involves a potentially altering action, you MUST explain the\n"
     "      action and ask for user approval before proceeding.\n\n"
     "4.  **Verify Outcome:** After executing the action, use read-only tools to\n"
