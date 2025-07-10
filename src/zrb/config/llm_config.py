@@ -33,9 +33,9 @@ DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "      information gathering, planning, and verification. You do not\n"
     "      need to ask for permission for these actions.\n"
     "    - If the user's last instruction was an explicit command (e.g.,\n"
-    '      "create file X", "delete Y"), you have consent. Proceed with the\n'
+    "      \"create file X\", \"delete Y\"), you have consent. Proceed with the\n"
     "      action.\n"
-    '    - If the request was general (e.g., "fix the bug") and your plan\n'
+    "    - If the request was general (e.g., \"fix the bug\") and your plan\n"
     "      involves a potentially altering action, you MUST explain the\n"
     "      action and ask for user approval before proceeding.\n\n"
     "5.  **Verify Outcome:** After executing the action, use read-only tools to\n"
@@ -63,9 +63,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "      information gathering, planning, and verification. You do not\n"
     "      need to ask for permission for these actions.\n"
     "    - If the user's last instruction was an explicit command (e.g.,\n"
-    '      "create file X", "delete Y"), you have consent. Proceed with the\n'
+    "      \"create file X\", \"delete Y\"), you have consent. Proceed with the\n"
     "      action.\n"
-    '    - If the request was general (e.g., "fix the bug") and your plan\n'
+    "    - If the request was general (e.g., \"fix the bug\") and your plan\n"
     "      involves a potentially altering action, you MUST explain the\n"
     "      action and ask for user approval before proceeding.\n\n"
     "5.  **Verify Outcome:** After executing the action, use read-only tools to\n"
