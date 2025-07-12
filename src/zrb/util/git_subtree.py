@@ -1,24 +1,15 @@
 import os
 from collections.abc import Callable
-from typing import Any
-
-from pydantic import BaseModel
+from typing import Any, TYPE_CHECKING
 
 from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file, write_file
 
-
-class SingleSubTreeConfig(BaseModel):
-    repo_url: str
-    branch: str
-    prefix: str
+if TYPE_CHECKING:
+    from zrb.util.git_subtree_config import SubTreeConfig
 
 
-class SubTreeConfig(BaseModel):
-    data: dict[str, SingleSubTreeConfig]
-
-
-def load_config(repo_dir: str) -> SubTreeConfig:
+def load_config(repo_dir: str):
     """
     Load the subtree configuration from subtrees.json.
 
@@ -28,13 +19,15 @@ def load_config(repo_dir: str) -> SubTreeConfig:
     Returns:
         SubTreeConfig: The loaded subtree configuration.
     """
+    from zrb.util.git_subtree_config import SubTreeConfig
+
     file_path = os.path.join(repo_dir, "subtrees.json")
     if not os.path.exists(file_path):
         return SubTreeConfig(data={})
     return SubTreeConfig.model_validate_json(read_file(file_path))
 
 
-def save_config(repo_dir: str, config: SubTreeConfig):
+def save_config(repo_dir: str, config: "SubTreeConfig"):
     """
     Save the subtree configuration to subtrees.json.
 
@@ -70,6 +63,8 @@ async def add_subtree(
             name already exists.
         Exception: If the git command returns a non-zero exit code.
     """
+    from zrb.util.git_subtree_config import SingleSubTreeConfig
+
     config = load_config(repo_dir)
     if os.path.isdir(prefix):
         raise ValueError(f"Directory exists: {prefix}")
