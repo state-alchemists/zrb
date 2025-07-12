@@ -5,7 +5,7 @@ import pytest
 
 # Import task objects from the module
 from zrb.builtin import git as git_module
-from zrb.util.git_diff_result import DiffResult
+from zrb.util.git_diff_model import DiffResult
 
 
 @pytest.fixture

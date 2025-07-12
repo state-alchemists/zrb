@@ -1,21 +1,25 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
-# v1.9.10
+# 1.9.11
 
-## Added
-- **LLM Prompt Configuration**:
-  - Added `DEFAULT_` constants for LLM system prompts in `config.py`:
-    - `_DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`
-    - `_DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`
-    - `_DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`
-  - Introduced environment variables for overriding these prompts:
-    - `ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`
-    - `ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`
-    - `ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`
+- **Fixed**:
+  - Improve load time on git and git_subtree builtin tasks.
 
-## Changed
-- **Code Refactoring**:
-  - Removed hardcoded system prompts from `code.py` and `file.py`, replacing them with references to `CFG` properties.
+# 1.9.10
+
+- **Added**:
+  - **LLM Prompt Configuration**:
+    - Added `DEFAULT_` constants for LLM system prompts in `config.py`:
+      - `_DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`
+      - `_DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`
+      - `_DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`
+    - Introduced environment variables for overriding these prompts:
+      - `ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`
+      - `ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`
+      - `ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`
+
+- **Changed**:
+  - Code Refactoring: Removed hardcoded system prompts from `code.py` and `file.py`, replacing them with references to `CFG` properties.
 
 # 1.9.8
 

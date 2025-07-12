@@ -6,7 +6,7 @@ from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file, write_file
 
 if TYPE_CHECKING:
-    from zrb.util.git_subtree_config import SubTreeConfig
+    from zrb.util.git_subtree_model import SubTreeConfig
 
 
 def load_config(repo_dir: str):
@@ -19,7 +19,7 @@ def load_config(repo_dir: str):
     Returns:
         SubTreeConfig: The loaded subtree configuration.
     """
-    from zrb.util.git_subtree_config import SubTreeConfig
+    from zrb.util.git_subtree_model import SubTreeConfig
 
     file_path = os.path.join(repo_dir, "subtrees.json")
     if not os.path.exists(file_path):
@@ -63,7 +63,7 @@ async def add_subtree(
             name already exists.
         Exception: If the git command returns a non-zero exit code.
     """
-    from zrb.util.git_subtree_config import SingleSubTreeConfig
+    from zrb.util.git_subtree_model import SingleSubTreeConfig
 
     config = load_config(repo_dir)
     if os.path.isdir(prefix):
