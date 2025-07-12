@@ -358,9 +358,7 @@ class Config:
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
-        return int(
-            os.getenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000")
-        )
+        return int(os.getenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000"))
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
@@ -376,21 +374,21 @@ class Config:
     def LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
         return os.getenv(
             "ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT",
-            _DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT
+            _DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT,
         )
 
     @property
     def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
         return os.getenv(
             "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
-            _DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT
+            _DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT,
         )
 
     @property
     def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
         return os.getenv(
             "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
-            _DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT
+            _DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT,
         )
 
     @property
