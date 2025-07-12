@@ -1,6 +1,6 @@
 import os
 from collections.abc import Callable
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.util.cmd.command import run_command
 

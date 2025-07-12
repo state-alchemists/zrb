@@ -4,7 +4,7 @@ import pytest
 
 # Import task objects from the module
 from zrb.builtin import git_subtree as git_subtree_module
-from zrb.util.git_subtree import SingleSubTreeConfig, SubTreeConfig
+from zrb.util.git_subtree_config import SingleSubTreeConfig, SubTreeConfig
 
 
 @pytest.fixture
