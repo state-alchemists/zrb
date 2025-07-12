@@ -1,5 +1,22 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+## v1.9.9 (2025-07-12)
+
+### Added
+- **LLM Prompt Configuration**:
+  - Added `DEFAULT_` constants for LLM system prompts in `config.py`:
+    - `_DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`
+    - `_DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`
+    - `_DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`
+  - Introduced environment variables for overriding these prompts:
+    - `ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`
+    - `ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`
+    - `ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`
+
+### Changed
+- **Code Refactoring**:
+  - Removed hardcoded system prompts from `code.py` and `file.py`, replacing them with references to `CFG` properties.
+
 # 1.9.8
 
 - **Changed**:

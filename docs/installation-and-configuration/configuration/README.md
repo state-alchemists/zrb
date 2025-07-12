@@ -271,6 +271,18 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid system prompt string
 
+* `ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`: System prompt for file analysis extraction.
+    * Default: None
+    * Possible values: Any valid extraction prompt string
+
+* `ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`: System prompt for repository analysis extraction.
+    * Default: None
+    * Possible values: Any valid extraction prompt string
+
+* `ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`: System prompt for repository analysis summarization.
+    * Default: None
+    * Possible values: Any valid summarization prompt string
+
 * `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
     * Default: `~/.zrb-llm-history`
     * Possible values: Any valid directory path

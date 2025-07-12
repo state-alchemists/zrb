@@ -5,30 +5,13 @@ import re
 from typing import Any, Dict, List, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.config.config import CFG
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
-_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = """
-You are an extraction info agent.
-Your goal is to help to extract relevant information to help the main assistant.
-You write your output is in markdown format containing path and relevant information.
-Extract only information that relevant to main assistant's goal.
 
-Extracted Information format (Use this as reference, extract relevant information only):
-# imports
-- <imported-package>
-- ...
-# variables
-- <variable-type> <variable-name>: <the-purpose-of-the-variable>
-- ...
-# functions
-- <function-name>:
-  - parameters: <parameters>
-  - logic/description: <what-the-function-do-and-how-it-works>
-...
-...
-""".strip()
+_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = CFG.LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT
 
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -457,7 +440,7 @@ def replace_in_file(
 
 
 async def analyze_file(
-    ctx: AnyContext, path: str, query: str, token_limit: int = 40000
+    ctx: AnyContext, path: str, query: str, token_limit: int | None = None
 ) -> str:
     """
     Performs a deep, goal-oriented analysis of a single file using a sub-agent.
@@ -480,6 +463,8 @@ async def analyze_file(
     Raises:
         FileNotFoundError: If the specified file does not exist.
     """
+    if token_limit is None:
+        token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_LIMIT
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")
@@ -487,7 +472,7 @@ async def analyze_file(
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
         tool_description="analyze file with LLM capability",
-        system_prompt=_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT,
+        system_prompt=CFG.LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )
     payload = json.dumps(

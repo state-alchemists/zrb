@@ -3,39 +3,10 @@ import os
 
 from zrb.builtin.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS, is_excluded
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.config.config import CFG
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 
-_EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT = """
-You are an extraction info agent.
-Your goal is to help to extract relevant information to help the main assistant.
-You write your output is in markdown format containing path and relevant information.
-Extract only information that relevant to main assistant's goal.
-
-Extracted Information format (Use this as reference, extract relevant information only):
-# <file-name>
-## imports
-- <imported-package>
-- ...
-## variables
-- <variable-type> <variable-name>: <the-purpose-of-the-variable>
-- ...
-## functions
-- <function-name>:
-  - parameters: <parameters>
-  - logic/description: <what-the-function-do-and-how-it-works>
-...
-# <other-file-name>
-...
-""".strip()
-
-
-_SUMMARIZE_INFO_SYSTEM_PROMPT = """
-You are an information summarization agent.
-Your goal is to summarize information to help the main assistant.
-The summarization result should contains all necessary details
-to help main assistant achieve the goal.
-"""
 
 _DEFAULT_EXTENSIONS = [
     "py",
@@ -82,8 +53,8 @@ async def analyze_repo(
     goal: str,
     extensions: list[str] = _DEFAULT_EXTENSIONS,
     exclude_patterns: list[str] = DEFAULT_EXCLUDED_PATTERNS,
-    extraction_token_limit: int = 40000,
-    summarization_token_limit: int = 40000,
+    extraction_token_threshold: int | None = None,
+    summarization_token_threshold: int | None = None,
 ) -> str:
     """
     Performs a deep, goal-oriented analysis of a code repository or directory.
@@ -102,14 +73,18 @@ async def analyze_repo(
         goal (str): A clear and specific description of what you want to achieve. A good goal is critical for getting a useful result. For example: "Understand the database schema by analyzing all the .sql files" or "Create a summary of all the API endpoints defined in the 'api' directory".
         extensions (list[str], optional): A list of file extensions to include in the analysis. Defaults to a comprehensive list of common code and configuration files.
         exclude_patterns (list[str], optional): A list of glob patterns for files and directories to exclude from the analysis. Defaults to common patterns like '.git', 'node_modules', and '.venv'.
-        extraction_token_limit (int, optional): The maximum token limit for the extraction sub-agent.
-        summarization_token_limit (int, optional): The maximum token limit for the summarization sub-agent.
+        extraction_token_threshold (int, optional): The maximum token threshold for the extraction sub-agent.
+        summarization_token_threshold (int, optional): The maximum token threshold for the summarization sub-agent.
 
     Returns:
         str: A detailed, markdown-formatted analysis and summary of the repository, tailored to the specified goal.
     Raises:
         Exception: If an error occurs during the analysis.
     """
+    if extraction_token_threshold is None:
+        extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
+    if summarization_token_threshold is None:
+        summarization_token_threshold = CFG.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
     abs_path = os.path.abspath(os.path.expanduser(path))
     file_metadatas = _get_file_metadatas(abs_path, extensions, exclude_patterns)
     ctx.print("Extraction")
@@ -117,7 +92,7 @@ async def analyze_repo(
         ctx,
         file_metadatas=file_metadatas,
         goal=goal,
-        token_limit=extraction_token_limit,
+        token_limit=extraction_token_threshold,
     )
     if len(extracted_infos) == 1:
         return extracted_infos[0]
@@ -129,7 +104,7 @@ async def analyze_repo(
             ctx,
             extracted_infos=summarized_infos,
             goal=goal,
-            token_limit=summarization_token_limit,
+            token_limit=summarization_token_threshold,
         )
     return summarized_infos[0]
 
@@ -167,7 +142,7 @@ async def _extract_info(
     extract = create_sub_agent_tool(
         tool_name="extract",
         tool_description="extract",
-        system_prompt=_EXTRACT_INFO_FROM_REPO_SYSTEM_PROMPT,
+        system_prompt=CFG.LLM_REPO_EXTRACTOR_SYSTEM_PROMPT,
     )
     extracted_infos = []
     content_buffer = []
@@ -218,7 +193,7 @@ async def _summarize_info(
     summarize = create_sub_agent_tool(
         tool_name="extract",
         tool_description="extract",
-        system_prompt=_SUMMARIZE_INFO_SYSTEM_PROMPT,
+        system_prompt=CFG.LLM_REPO_SUMMARIZER_SYSTEM_PROMPT,
     )
     summarized_infos = []
     content_buffer = ""

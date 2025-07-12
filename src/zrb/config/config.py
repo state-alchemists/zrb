@@ -19,6 +19,75 @@ Your Automation Powerhouse
 🐤 Follow us at: https://twitter.com/zarubastalchmst
 """
 
+_DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT = (
+    "You are an intelligent code and configuration analysis agent.\n"
+    "Your primary goal is to extract key information from the provided file(s) "
+    "that is directly relevant to the main assistant's objective.\n"
+    "\n"
+    "Analyze the file content and determine its type (e.g., Python script, "
+    "YAML configuration, Dockerfile, Markdown documentation).\n"
+    "Based on the file type, extract the most important information in a "
+    "structured markdown format.\n"
+    "\n"
+    "- For source code (e.g., .py, .js, .go): Extract key components like "
+    "classes, functions, important variables, and their purposes.\n"
+    "- For configuration files (e.g., .yaml, .toml, .json): Extract the main "
+    "configuration sections, keys, and their values.\n"
+    "- For infrastructure files (e.g., Dockerfile, .tf): Extract resources, "
+    "settings, and commands.\n"
+    "- For documentation (e.g., .md): Extract headings, summaries, code "
+    "blocks, and links.\n"
+    "\n"
+    "Focus on quality and relevance over quantity. The output should be a "
+    "concise yet comprehensive summary that directly helps the main "
+    "assistant achieve its goal."
+).strip()
+
+_DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT = (
+    "You are an intelligent code and configuration analysis agent.\n"
+    "Your primary goal is to extract key information from the provided file(s) "
+    "that is directly relevant to the main assistant's objective.\n"
+    "\n"
+    "Analyze the file content and determine its type (e.g., Python script, "
+    "YAML configuration, Dockerfile, Markdown documentation).\n"
+    "Based on the file type, extract the most important information in a "
+    "structured markdown format.\n"
+    "\n"
+    "- For source code (e.g., .py, .js, .go): Extract key components like "
+    "classes, functions, important variables, and their purposes.\n"
+    "- For configuration files (e.g., .yaml, .toml, .json): Extract the main "
+    "configuration sections, keys, and their values.\n"
+    "- For infrastructure files (e.g., Dockerfile, .tf): Extract resources, "
+    "settings, and commands.\n"
+    "- For documentation (e.g., .md): Extract headings, summaries, code "
+    "blocks, and links.\n"
+    "\n"
+    "Focus on quality and relevance over quantity. The output should be a "
+    "concise yet comprehensive summary that directly helps the main "
+    "assistant achieve its goal."
+).strip()
+
+_DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT = (
+    "You are an expert summarization and synthesis agent.\n"
+    "Your goal is to consolidate multiple pieces of extracted information into a "
+    "single, coherent summary that directly addresses the main assistant's "
+    "objective.\n"
+    "\n"
+    "Do not simply list the information you receive. Instead, perform the "
+    "following actions:\n"
+    "1.  **Synthesize**: Combine related pieces of information from different "
+    "sources into a unified narrative.\n"
+    "2.  **Consolidate**: Merge duplicate or overlapping information to create a "
+    "concise summary.\n"
+    "3.  **Identify Patterns**: Look for high-level patterns, architectural "
+    "structures, or recurring themes in the data.\n"
+    "4.  **Structure**: Organize the final output in a logical markdown format "
+    "that tells a clear story and directly answers the main assistant's goal.\n"
+    "\n"
+    "Focus on creating a holistic understanding of the subject matter based on "
+    "the provided context."
+).strip()
+
 
 class Config:
     @property
@@ -286,6 +355,43 @@ class Config:
     @property
     def LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD(self) -> int:
         return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "20000"))
+
+    @property
+    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
+        return int(
+            os.getenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000")
+        )
+
+    @property
+    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        return int(
+            os.getenv("ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "35000")
+        )
+
+    @property
+    def LLM_FILE_ANALYSIS_TOKEN_LIMIT(self) -> int:
+        return int(os.getenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT", "35000"))
+
+    @property
+    def LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT",
+            _DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT
+        )
+
+    @property
+    def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
+            _DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT
+        )
+
+    @property
+    def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
+            _DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT
+        )
 
     @property
     def LLM_HISTORY_DIR(self) -> str:

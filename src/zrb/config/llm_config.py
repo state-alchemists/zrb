@@ -8,11 +8,11 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
 
 
-DEFAULT_PERSONA = (
+_DEFAULT_PERSONA = (
     "You are a helpful and efficient AI agent specializing in CLI " "interaction."
 )
 
-DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
+_DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "This is an interactive CLI session. Your standard response format is\n"
     "GitHub-flavored Markdown. You MUST follow this thinking process:\n\n"
     "1.  **Analyze Request, Scope & Identify Gaps:** Use the `Scratchpad`\n"
@@ -46,7 +46,7 @@ DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "    confirm it was successful. Report the outcome to the user.\n\n"
 ).strip()
 
-DEFAULT_SYSTEM_PROMPT = (
+_DEFAULT_SYSTEM_PROMPT = (
     "This is a one-shot CLI session. Your final answer MUST be in\n"
     "GitHub-flavored Markdown. You MUST follow this thinking process:\n\n"
     "1.  **Analyze Request, Scope & Identify Gaps:** Use the `Scratchpad`\n"
@@ -80,7 +80,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "    confirm it was successful. Report the outcome to the user.\n\n"
 ).strip()
 
-DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
+_DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
     "## Software Engineering Tasks\n"
     "When requested to perform tasks like fixing bugs, adding features,\n"
     "refactoring, or explaining code, follow this sequence:\n"
@@ -99,6 +99,10 @@ DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
     "5. **Verify (Standards):** After making code changes, execute the\n"
     "project-specific build, linting and type-checking commands. This\n"
     "ensures code quality and adherence to standards.\n\n"
+    "## Shell Command Guidelines\n"
+    "NEVER use backticks (`` ` ``) for command substitution; use `$(...)` "
+    "instead. Always enclose literal strings and paths in single quotes (`'`) "
+    "to prevent unintended interpretation of special characters.\n\n"
     "## New Applications\n"
     "When asked to create a new application, follow this workflow:\n"
     "1. **Understand Requirements:** Analyze the user's request to identify\n"
@@ -133,7 +137,7 @@ DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
 ).strip()
 
 
-DEFAULT_SUMMARIZATION_PROMPT = (
+_DEFAULT_SUMMARIZATION_PROMPT = (
     "You are a Conversation Historian. Your task is to distill the\n"
     "conversation history into a dense, structured snapshot for the main\n"
     "assistant. This snapshot is CRITICAL, as it will become the agent's\n"
@@ -165,7 +169,8 @@ DEFAULT_SUMMARIZATION_PROMPT = (
     "2.  `## Scratchpad` (The new, non-truncated recent history)"
 ).strip()
 
-DEFAULT_CONTEXT_ENRICHMENT_PROMPT = (
+
+_DEFAULT_CONTEXT_ENRICHMENT_PROMPT = (
     "You are a Memory Curator. Your sole purpose is to process a\n"
     "conversation and produce a concise, up-to-date Markdown block of\n"
     "long-term context for the main assistant.\n\n"
@@ -189,15 +194,14 @@ DEFAULT_CONTEXT_ENRICHMENT_PROMPT = (
     "  preferences).\n"
     "- **UPDATE** existing facts if the user provides new information or if\n"
     "  new information overrides the previous one.\n"
-    "- **REMOVE** goals, tasks, or files that are completed or no longer\n"
-    "  relevant. Be aggressive in pruning irrelevant information.\n"
+    "- **Your primary goal is to create a concise, relevant context.** "
+    "Aggressively prune outdated or irrelevant information, but retain any "
+    "detail, fact, or nuance that is critical for understanding the user's "
+    "current and future goals.\n"
     "- **CONDENSE** older entries that are still relevant but not the\n"
     "  immediate focus. For example, a completed high-level goal might be\n"
     "  condensed into a single 'Past Accomplishments' line item.\n"
-    "- **Prioritize Information Above All:** The extraction and retention of\n"
-    "  information vital to the conversation's continuity and success\n"
-    "  outweighs all other considerations. No detail, fact, or nuance should\n"
-    "  be discarded if it could be useful.\n\n"
+    "\n"
     "**A Note on Dynamic Information:**\n"
     "Be mindful that some information is temporary and highly dynamic (e.g.,\n"
     "current weather, location, current working directory, project context,\n"
@@ -297,7 +301,7 @@ class LLMConfig:
             return self._default_system_prompt
         if CFG.LLM_SYSTEM_PROMPT is not None:
             return CFG.LLM_SYSTEM_PROMPT
-        return DEFAULT_SYSTEM_PROMPT
+        return _DEFAULT_SYSTEM_PROMPT
 
     @property
     def default_interactive_system_prompt(self) -> str:
@@ -305,7 +309,7 @@ class LLMConfig:
             return self._default_interactive_system_prompt
         if CFG.LLM_INTERACTIVE_SYSTEM_PROMPT is not None:
             return CFG.LLM_INTERACTIVE_SYSTEM_PROMPT
-        return DEFAULT_INTERACTIVE_SYSTEM_PROMPT
+        return _DEFAULT_INTERACTIVE_SYSTEM_PROMPT
 
     @property
     def default_persona(self) -> str:
@@ -313,7 +317,7 @@ class LLMConfig:
             return self._default_persona
         if CFG.LLM_PERSONA is not None:
             return CFG.LLM_PERSONA
-        return DEFAULT_PERSONA
+        return _DEFAULT_PERSONA
 
     @property
     def default_special_instruction_prompt(self) -> str:
@@ -321,7 +325,7 @@ class LLMConfig:
             return self._default_special_instruction_prompt
         if CFG.LLM_SPECIAL_INSTRUCTION_PROMPT is not None:
             return CFG.LLM_SPECIAL_INSTRUCTION_PROMPT
-        return DEFAULT_SPECIAL_INSTRUCTION_PROMPT
+        return _DEFAULT_SPECIAL_INSTRUCTION_PROMPT
 
     @property
     def default_summarization_prompt(self) -> str:
@@ -329,7 +333,7 @@ class LLMConfig:
             return self._default_summarization_prompt
         if CFG.LLM_SUMMARIZATION_PROMPT is not None:
             return CFG.LLM_SUMMARIZATION_PROMPT
-        return DEFAULT_SUMMARIZATION_PROMPT
+        return _DEFAULT_SUMMARIZATION_PROMPT
 
     @property
     def default_context_enrichment_prompt(self) -> str:
@@ -337,7 +341,7 @@ class LLMConfig:
             return self._default_context_enrichment_prompt
         if CFG.LLM_CONTEXT_ENRICHMENT_PROMPT is not None:
             return CFG.LLM_CONTEXT_ENRICHMENT_PROMPT
-        return DEFAULT_CONTEXT_ENRICHMENT_PROMPT
+        return _DEFAULT_CONTEXT_ENRICHMENT_PROMPT
 
     @property
     def default_model(self) -> "Model | str | None":
