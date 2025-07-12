@@ -19,6 +19,61 @@ Your Automation Powerhouse
 🐤 Follow us at: https://twitter.com/zarubastalchmst
 """
 
+_DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT = (
+    "You are an extraction info agent.\n"
+    "Your goal is to help extract relevant information to help the main assistant.\n"
+    "You write your output in markdown format containing path and relevant information.\n"
+    "Extract only information that is relevant to the main assistant's goal.\n"
+    "\n"
+    "## Extracted Information Format\n"
+    "# imports\n"
+    "- <imported-package>\n"
+    "- ...\n"
+    "# variables\n"
+    "- <variable-type> <variable-name>: <the-purpose-of-the-variable>\n"
+    "- ...\n"
+    "# functions\n"
+    "- <function-name>:\n"
+    "  - parameters: <parameters>\n"
+    "  - logic/description: <what-the-function-does-and-how-it-works>\n"
+    "..."
+).strip()
+
+_DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT = (
+    "You are an extraction info agent.\n"
+    "Your goal is to help extract relevant information to help the main assistant.\n"
+    "You write your output in markdown format containing path and relevant information.\n"
+    "Extract only information that is relevant to the main assistant's goal.\n"
+    "\n"
+    "## Extracted Information Format\n"
+    "# imports\n"
+    "- <imported-package>\n"
+    "- ...\n"
+    "# variables\n"
+    "- <variable-type> <variable-name>: <the-purpose-of-the-variable>\n"
+    "- ...\n"
+    "# functions\n"
+    "- <function-name>:\n"
+    "  - parameters: <parameters>\n"
+    "  - logic/description: <what-the-function-does-and-how-it-works>\n"
+    "..."
+).strip()
+
+_DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT = (
+    "You are a summarization agent.\n"
+    "Your goal is to help summarize extracted information to help the main assistant.\n"
+    "You write your output in markdown format containing path and relevant summary.\n"
+    "Summarize only information that is relevant to the main assistant's goal.\n"
+    "\n"
+    "## Summarized Information Format\n"
+    "# Summary\n"
+    "- <high-level-summary>\n"
+    "# Key Points\n"
+    "- <key-point-1>\n"
+    "- <key-point-2>\n"
+    "..."
+).strip()
+
 
 class Config:
     @property
@@ -286,6 +341,43 @@ class Config:
     @property
     def LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD(self) -> int:
         return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "20000"))
+
+    @property
+    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
+        return int(
+            os.getenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000")
+        )
+
+    @property
+    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        return int(
+            os.getenv("ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "35000")
+        )
+
+    @property
+    def LLM_FILE_ANALYSIS_TOKEN_LIMIT(self) -> int:
+        return int(os.getenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT", "35000"))
+
+    @property
+    def LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT",
+            _DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT
+        )
+
+    @property
+    def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
+            _DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT
+        )
+
+    @property
+    def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
+            _DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT
+        )
 
     @property
     def LLM_HISTORY_DIR(self) -> str:
