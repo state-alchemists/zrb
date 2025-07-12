@@ -7,7 +7,6 @@ from zrb.config.config import CFG
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 
-
 _DEFAULT_EXTENSIONS = [
     "py",
     "go",
@@ -84,7 +83,9 @@ async def analyze_repo(
     if extraction_token_threshold is None:
         extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
     if summarization_token_threshold is None:
-        summarization_token_threshold = CFG.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
+        summarization_token_threshold = (
+            CFG.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
+        )
     abs_path = os.path.abspath(os.path.expanduser(path))
     file_metadatas = _get_file_metadatas(abs_path, extensions, exclude_patterns)
     ctx.print("Extraction")

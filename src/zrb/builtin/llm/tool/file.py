@@ -10,7 +10,6 @@ from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
-
 _EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = CFG.LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT
 
 
