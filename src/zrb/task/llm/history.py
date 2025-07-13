@@ -4,8 +4,6 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
-
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -16,19 +14,27 @@ from zrb.util.run import run_async
 
 
 # Define the new ConversationHistoryData model
-class ConversationHistoryData(BaseModel):
-    long_term_context: str = Field(
-        default="",
-        description="A markdown-formatted string containing curated, long-term context.",
-    )
-    conversation_summary: str = Field(
-        default="",
-        description="A free-text summary of the conversation history.",
-    )
-    history: ListOfDict = Field(
-        default_factory=list,
-        description="The recent, un-summarized conversation history.",
-    )
+class ConversationHistoryData:
+    def __init__(
+        self,
+        long_term_context: str = "",
+        conversation_summary: str = "",
+        history: Optional[ListOfDict] = None,
+        messages: Optional[ListOfDict] = None,
+    ):
+        self.long_term_context = long_term_context
+        self.conversation_summary = conversation_summary
+        self.history = history if history is not None else (messages if messages is not None else [])
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "long_term_context": self.long_term_context,
+            "conversation_summary": self.conversation_summary,
+            "history": self.history,
+        }
+
+    def model_dump_json(self, indent: int = 2) -> str:
+        return json.dumps(self.to_dict(), indent=indent)
 
     @classmethod
     async def read_from_sources(
@@ -81,7 +87,11 @@ class ConversationHistoryData(BaseModel):
                 return data  # Already a valid instance
             if isinstance(data, dict):
                 # This handles both the new format and the old {'context': ..., 'history': ...}
-                return cls.model_validate(data)
+                return cls(
+                    long_term_context=data.get("long_term_context", ""),
+                    conversation_summary=data.get("conversation_summary", ""),
+                    history=data.get("history", data.get("messages")),
+                )
             elif isinstance(data, list):
                 # Handle very old format (just a list) - wrap it
                 ctx.log_warning(
@@ -183,7 +193,7 @@ async def write_conversation_history(
         ctx, conversation_history_file_attr, render_history_file
     )
     if history_file != "":
-        write_file(history_file, history_data.model_dump_json(indent=2))
+        write_file(history_file, json.dumps(history_data.to_dict(), indent=2))
 
 
 def replace_system_prompt_in_history_list(

@@ -307,3 +307,4 @@ def test_write_chat_write_error(
     mock_shared_context.log_error.assert_called_once()
     # Check that the error message contains the file path
     assert session_file_path in mock_shared_context.log_error.call_args[0][0]
+
