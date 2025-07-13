@@ -1,6 +1,6 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
-# 1.9.14
+# 1.9.15
 
 - **Fixed**
   - Implement `model_dump_json` for some objects.
