@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 if TYPE_CHECKING:
     from openai import APIError
@@ -18,6 +18,17 @@ class ToolExecutionError:
         self.error_type = error_type
         self.message = message
         self.details = details
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tool_name": self.tool_name,
+            "error_type": self.error_type,
+            "message": self.message,
+            "details": self.details,
+        }
+
+    def model_dump_json(self, indent: int = 2) -> str:
+        return json.dumps(self.to_dict(), indent=indent)
 
 
 def extract_api_error_details(error: "APIError") -> str:
