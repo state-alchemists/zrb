@@ -117,8 +117,8 @@ _DEFAULT_SUMMARIZATION_PROMPT = (
     "2.  `## Transcript`\n"
     "    - The Transcript is the assistant's working memory. It MUST "
     "contain the last few turns of the conversation in full detail.\n"
-    "    - **CRITICAL REQUIREMENT:** The assistant's last response MUST be "
-    "COPIED VERBATIM into the Transcript. Do not alter it."
+    "    - **CRITICAL REQUIREMENT:** The assistant's and user's last response "
+    "MUST be COPIED VERBATIM into the Transcript. DO NOT alter or truncate them."
 ).strip()
 
 
