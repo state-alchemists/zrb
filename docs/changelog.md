@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.12
+
+- **Changed**
+  - Remove `ConversationHistory` dependency of pydantic
+
 # 1.9.11
 
 - **Fixed**:
