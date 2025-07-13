@@ -3,7 +3,12 @@
 # 1.9.14
 
 - **Fixed**
-  - implement model_dump_json
+  - Implement `model_dump_json` for some objects.
+  - Increase test coverage.
+  - Fix `pluralize` regex
+
+- **Changed**
+  - Improve prompt.
 
 # 1.9.13
 
