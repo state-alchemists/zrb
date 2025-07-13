@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.9.13
+
+- **Changed**
+  - Minimize dependency to pydantic unless strictly required (i.e., by FastAPI) because it tend to be very slow on termux
+
 # 1.9.12
 
 - **Changed**

@@ -1,27 +1,33 @@
 import datetime
+import re
 
-from pydantic import BaseModel, Field, model_validator
 
-
-class TodoTaskModel(BaseModel):
-    priority: str | None = Field("D", pattern=r"^[A-Z]$")  # Priority like A, B, ...
-    completed: bool = False  # True if completed, False otherwise
-    description: str  # Main task description
-    projects: list[str] = []  # List of projects (e.g., +Project)
-    contexts: list[str] = []  # List of contexts (e.g., @Context)
-    keyval: dict[str, str] = {}  # Special key (e.g., due:2016-05-30)
-    creation_date: datetime.date | None = None  # Creation date
-    completion_date: datetime.date | None = None  # Completion date
-
-    @model_validator(mode="before")
-    def validate_dates(cls, values):
-        completion_date = values.get("completion_date")
-        creation_date = values.get("creation_date")
+class TodoTaskModel:
+    def __init__(
+        self,
+        description: str,
+        priority: str | None = "D",
+        completed: bool = False,
+        projects: list[str] | None = None,
+        contexts: list[str] | None = None,
+        keyval: dict[str, str] | None = None,
+        creation_date: datetime.date | None = None,
+        completion_date: datetime.date | None = None,
+    ):
+        if priority is not None and not re.match(r"^[A-Z]$", priority):
+            raise ValueError("Invalid priority format")
         if completion_date and not creation_date:
             raise ValueError(
                 "creation_date must be specified if completion_date is set."
             )
-        return values
+        self.priority = priority
+        self.completed = completed
+        self.description = description
+        self.projects = projects if projects is not None else []
+        self.contexts = contexts if contexts is not None else []
+        self.keyval = keyval if keyval is not None else {}
+        self.creation_date = creation_date
+        self.completion_date = completion_date
 
     def get_additional_info_length(self):
         """
