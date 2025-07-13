@@ -23,13 +23,23 @@ export ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=3000
 
     echo "Okay, please delete '$TMP_DIR/file1.txt'."
 
+    echo "Now, let's do some software engineering tasks. Please create a python 'Todo' application in '$TMP_DIR/todo.py'. It should have a class named 'Todo' with methods to add, remove, and list tasks."
+
+    echo "Excellent. Now, create a unittest file for it at '$TMP_DIR/test_todo.py'."
+
+    echo "Great. Now, please run the tests in '$TMP_DIR/test_todo.py'."
+
+    echo "Perfect. Lastly, create a Mermaid.js class diagram for the 'Todo' application and save it to '$TMP_DIR/diagram.mmd'."
+
     echo "What is the current weather at my current location?"
 
     echo "Fetch some news from news.ycombinator.com"
 
     echo "Who am I?"
 
-    echo "Finally, what was the project's codename I mentioned earlier?"
+    echo "What was the project's codename I mentioned earlier?"
+
+    echo "Finally, show the content of every file in '$TMP_DIR'"
 
     echo "/bye"
 ) | zrb llm chat "Hello, my name is Go Frendi, a software engineer" --start-new
