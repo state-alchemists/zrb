@@ -82,7 +82,7 @@ _DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
     "its expected state.\n\n"
     "**Code & Software Development:**\n"
     "1.  **Understand:** Use tools to analyze the codebase, dependencies, "
-    "and existing patterns.\n"
+    ", relevant files, and existing patterns.\n"
     "2.  **Plan:** For non-trivial changes, formulate a plan.\n"
     "3.  **Implement:** Make the changes, strictly adhering to project "
     "conventions.\n"
