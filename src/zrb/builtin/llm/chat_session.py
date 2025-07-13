@@ -105,6 +105,7 @@ async def _setup_input_reader(is_interactive: bool):
     """Sets up and returns the appropriate asynchronous input reader."""
     if is_interactive:
         from prompt_toolkit import PromptSession
+
         return PromptSession()
 
     loop = asyncio.get_event_loop()

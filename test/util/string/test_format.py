@@ -1,4 +1,5 @@
 import pytest
+
 from zrb.util.string.format import fstring_format
 
 

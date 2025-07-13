@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.task.rsync_task import RsyncTask
@@ -24,7 +25,10 @@ async def test_rsync_task_local_to_remote(mock_exec_action):
         icon="🔄",
     )
     await rsync_task._exec_action(ctx)
-    assert rsync_task._get_cmd_script(ctx) == 'rsync --mkpath -avz -e "ssh -p 22" /local/path remote-user@remote-host:/remote/path'
+    assert (
+        rsync_task._get_cmd_script(ctx)
+        == 'rsync --mkpath -avz -e "ssh -p 22" /local/path remote-user@remote-host:/remote/path'
+    )
 
 
 @pytest.mark.asyncio
@@ -45,7 +49,10 @@ async def test_rsync_task_remote_to_local(mock_exec_action):
         icon="🔄",
     )
     await rsync_task._exec_action(ctx)
-    assert rsync_task._get_cmd_script(ctx) == 'rsync --mkpath -avz -e "ssh -p 22" remote-user@remote-host:/remote/path /local/path'
+    assert (
+        rsync_task._get_cmd_script(ctx)
+        == 'rsync --mkpath -avz -e "ssh -p 22" remote-user@remote-host:/remote/path /local/path'
+    )
 
 
 @pytest.mark.asyncio
@@ -67,7 +74,10 @@ async def test_rsync_task_with_key(mock_exec_action):
         icon="🔄",
     )
     await rsync_task._exec_action(ctx)
-    assert rsync_task._get_cmd_script(ctx) == 'rsync --mkpath -avz -e "ssh -i /path/to/key -p 22" /local/path remote-user@remote-host:/remote/path'
+    assert (
+        rsync_task._get_cmd_script(ctx)
+        == 'rsync --mkpath -avz -e "ssh -i /path/to/key -p 22" /local/path remote-user@remote-host:/remote/path'
+    )
 
 
 @pytest.mark.asyncio
@@ -89,7 +99,10 @@ async def test_rsync_task_with_password(mock_exec_action):
         icon="🔄",
     )
     await rsync_task._exec_action(ctx)
-    assert rsync_task._get_cmd_script(ctx) == 'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -p 22" /local/path remote-user@remote-host:/remote/path'
+    assert (
+        rsync_task._get_cmd_script(ctx)
+        == 'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -p 22" /local/path remote-user@remote-host:/remote/path'
+    )
 
 
 @pytest.mark.asyncio
@@ -112,4 +125,7 @@ async def test_rsync_task_with_key_and_password(mock_run_cmd):
         icon="🔄",
     )
     await rsync_task._exec_action(ctx)
-    assert rsync_task._get_cmd_script(ctx) == 'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -i /path/to/key -p 22" /local/path remote-user@remote-host:/remote/path'
+    assert (
+        rsync_task._get_cmd_script(ctx)
+        == 'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -i /path/to/key -p 22" /local/path remote-user@remote-host:/remote/path'
+    )

@@ -1,7 +1,7 @@
 from unittest import mock
 
-from zrb.env.env_file import EnvFile
 from zrb.context.shared_context import SharedContext
+from zrb.env.env_file import EnvFile
 
 
 @mock.patch("zrb.env.env_file.dotenv_values")

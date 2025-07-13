@@ -49,7 +49,9 @@ def test_env_map_no_link_to_os(monkeypatch):
 def test_env_map_auto_render(monkeypatch):
     env_map = EnvMap(vars={"key1": "{{'hello'}}", "key2": "value2"})
     shared_ctx = SharedContext(env={})
-    with mock.patch.object(shared_ctx, "render", side_effect=lambda x: "hello" if x == "{{'hello'}}" else x):
+    with mock.patch.object(
+        shared_ctx, "render", side_effect=lambda x: "hello" if x == "{{'hello'}}" else x
+    ):
         env_map.update_context(shared_ctx)
         assert shared_ctx.env["key1"] == "hello"
         assert shared_ctx.env["key2"] == "value2"

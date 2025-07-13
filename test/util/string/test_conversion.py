@@ -1,13 +1,14 @@
 import pytest
+
 from zrb.util.string.conversion import (
     double_quote,
+    pluralize,
     to_boolean,
     to_camel_case,
+    to_human_case,
     to_kebab_case,
     to_pascal_case,
     to_snake_case,
-    to_human_case,
-    pluralize,
 )
 
 
@@ -103,4 +104,3 @@ def test_pluralize():
     assert pluralize("knife") == "knives"
     assert pluralize("baby") == "babies"
     assert pluralize("toy") == "toys"
-

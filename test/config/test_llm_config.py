@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+
 from zrb.config.config import CFG
 from zrb.config.llm_config import LLMConfig, llm_config
 
@@ -80,9 +81,7 @@ def test_default_model_provider_openai_custom(mock_provider, monkeypatch):
     monkeypatch.setenv("ZRB_LLM_API_KEY", "custom-key")
     config = LLMConfig()
     provider = config.default_model_provider
-    mock_provider.assert_called_with(
-        base_url="http://custom.com", api_key="custom-key"
-    )
+    mock_provider.assert_called_with(base_url="http://custom.com", api_key="custom-key")
     assert provider == mock_provider.return_value
 
 
@@ -202,9 +201,7 @@ def test_default_model_from_name(mock_model, monkeypatch):
     config.set_default_model_provider(mock_provider)
     model = config.default_model
     assert model == mock_model.return_value
-    mock_model.assert_called_with(
-        model_name="gpt-4", provider=mock_provider
-    )
+    mock_model.assert_called_with(model_name="gpt-4", provider=mock_provider)
 
 
 def test_default_summarize_history_override():

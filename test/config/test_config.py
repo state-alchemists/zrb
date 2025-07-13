@@ -2,6 +2,7 @@ import logging
 from unittest import mock
 
 import pytest
+
 from zrb.config.config import Config
 
 
@@ -325,7 +326,9 @@ def test_llm_system_prompt(monkeypatch):
 
 
 def test_llm_interactive_system_prompt(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT", "my-interactive-system-prompt")
+    monkeypatch.setenv(
+        "ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT", "my-interactive-system-prompt"
+    )
     config = Config()
     assert config.LLM_INTERACTIVE_SYSTEM_PROMPT == "my-interactive-system-prompt"
 
@@ -381,7 +384,9 @@ def test_llm_throttle_sleep(monkeypatch):
 
 
 def test_llm_context_enrichment_prompt(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", "my-context-enrichment-prompt")
+    monkeypatch.setenv(
+        "ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", "my-context-enrichment-prompt"
+    )
     config = Config()
     assert config.LLM_CONTEXT_ENRICHMENT_PROMPT == "my-context-enrichment-prompt"
 
