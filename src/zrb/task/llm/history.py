@@ -24,7 +24,11 @@ class ConversationHistoryData:
     ):
         self.long_term_context = long_term_context
         self.conversation_summary = conversation_summary
-        self.history = history if history is not None else (messages if messages is not None else [])
+        self.history = (
+            history
+            if history is not None
+            else (messages if messages is not None else [])
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
