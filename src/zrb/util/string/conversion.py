@@ -178,7 +178,7 @@ def pluralize(noun: str) -> str:
     if noun.lower() in irregulars:
         return irregulars[noun.lower()]
     # Handle words ending in 'y' preceded by a consonant
-    if noun.endswith("y") and not re.match(r"[aeiou]y$", noun):
+    if noun.endswith("y") and not re.match(r".*[aeiou]y$", noun, re.IGNORECASE):
         return re.sub(r"y$", "ies", noun)
     # Handle words ending in 's', 'x', 'z', 'ch', or 'sh'
     if re.search(r"(s|x|z|ch|sh)$", noun):

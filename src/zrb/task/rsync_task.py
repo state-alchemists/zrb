@@ -65,7 +65,7 @@ class RsyncTask(CmdTask):
             remote_host=remote_host,
             render_remote_host=render_remote_host,
             remote_port=remote_port,
-            auto_render_remote_port=render_remote_port,
+            render_remote_port=render_remote_port,
             remote_user=remote_user,
             render_remote_user=render_remote_user,
             remote_password=remote_password,
