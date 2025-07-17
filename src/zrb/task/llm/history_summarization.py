@@ -9,6 +9,7 @@ from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.conversation_history import (
     count_part_in_history_list,
+    replace_system_prompt_in_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.typing import ListOfDict
@@ -188,14 +189,17 @@ async def maybe_summarize_history(
     rate_limitter: LLMRateLimiter | None = None,
 ) -> ConversationHistory:
     """Summarizes history and updates context if enabled and threshold met."""
+    shorten_history = replace_system_prompt_in_history(conversation_history.history)
     if should_summarize_history(
         ctx,
-        conversation_history.history,
+        shorten_history,
         should_summarize_history_attr,
         render_summarize_history,
         history_summarization_token_threshold_attr,
         render_history_summarization_token_threshold,
     ):
+        original_history = conversation_history.history
+        conversation_history.history = shorten_history
         conversation_history = await summarize_history(
             ctx=ctx,
             model=model,
@@ -204,6 +208,7 @@ async def maybe_summarize_history(
             conversation_history=conversation_history,
             rate_limitter=rate_limitter,
         )
+        conversation_history.history = original_history
         if (
             conversation_history.past_conversation_summary != ""
             and conversation_history.past_conversation_transcript != ""

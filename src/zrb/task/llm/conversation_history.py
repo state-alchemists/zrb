@@ -95,7 +95,7 @@ async def write_conversation_history(
         write_file(history_file, json.dumps(history_data.to_dict(), indent=2))
 
 
-def replace_system_prompt_in_history_list(
+def replace_system_prompt_in_history(
     history_list: ListOfDict, replacement: str = "<main LLM system prompt>"
 ) -> ListOfDict:
     """
