@@ -49,13 +49,6 @@ For Retrieval-Augmented Generation (RAG), use the following:
   - **`ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD`**: Sets the token threshold for triggering summarization (default: 3000).
   - **`ZRB_LLM_SUMMARIZATION_PROMPT`**: Overrides the default summarization prompt if provided.
 
-#### Context Enrichment
-- **Trigger**: After summarization, the system enriches the context by adding relevant metadata or additional context to the conversation.
-- **Default Prompt**: The context enrichment prompt is designed to enhance the summarized history with additional context.
-- **Configuration**:
-  - **`ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`**: Sets the token threshold for triggering context enrichment (default: 3000).
-  - **`ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`**: Overrides the default context enrichment prompt if provided.
-
 #### Workflow
 1. **Summarization**: If the conversation history exceeds the token threshold, the system summarizes it.
 2. **Context Enrichment**: The summarized history is then enriched with additional context.
@@ -123,7 +116,6 @@ ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 
 # Summarization and Context Enrichment
 ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD=3000
-ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=3000
 ```
 
 ---

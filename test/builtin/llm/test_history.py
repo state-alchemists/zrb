@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 
 from zrb.builtin.llm import history as history_module
-from zrb.task.llm.history import ConversationHistoryData
+from zrb.task.llm.conversation_history import ConversationHistoryData
 
 
 @pytest.fixture

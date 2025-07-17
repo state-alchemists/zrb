@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Coroutine
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import create_agent_instance, run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
-from zrb.task.llm.prompt import get_combined_system_prompt
+from zrb.task.llm.prompt import get_system_and_user_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -69,14 +69,12 @@ def create_sub_agent_tool(
         )
 
         if system_prompt is None:
-            resolved_system_prompt = get_combined_system_prompt(
+            resolved_system_prompt, query = get_system_and_user_prompt(
                 ctx=ctx,
+                user_message=query,
                 persona_attr=None,
-                render_persona=False,
                 system_prompt_attr=None,
-                render_system_prompt=False,
                 special_instruction_prompt_attr=None,
-                render_special_instruction_prompt=False,
             )
         else:
             resolved_system_prompt = system_prompt

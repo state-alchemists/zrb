@@ -151,31 +151,6 @@ _DEFAULT_SUMMARIZATION_PROMPT = (
 ).strip()
 
 
-_DEFAULT_CONTEXT_ENRICHMENT_PROMPT = (
-    "You are a ruthless Memory Curator. Your only goal is to produce a "
-    "dense, concise, and up-to-date Markdown block of long-term context. "
-    "You MUST be aggressive in your curation to keep the context small.\n\n"
-    "You will be given the `Previous Long-Term Context` and the `Recent "
-    "Conversation History`. Your job is to return a NEW, UPDATED version of "
-    "the `Long-Term Context` by following these rules:\n\n"
-    "**Curation Rules (You MUST follow these):**\n"
-    "1.  **Integrate, Don't Append:** You MUST merge new facts from the "
-    "`Recent Conversation History` into the `Previous Long-Term Context`. "
-    "Rewrite existing facts to incorporate new details. DO NOT simply "
-    "append new information at the end.\n"
-    "2.  **Discard Ephemeral Details:** You MUST delete temporary states, "
-    "resolved errors, one-off requests, and conversational filler (e.g., 'Okay, "
-    "I will do that now'). The context should be a snapshot of the current "
-    "project state and user preferences, not a log.\n"
-    "3.  **Retain Stable Facts:** You MUST retain durable information such as "
-    "user preferences (e.g., 'I prefer tabs over spaces'), project-level "
-    "decisions, or architectural choices.\n"
-    "4.  **Mark Dynamic Info:** For temporary information that is critical to "
-    "retain (e.g., CWD, the name of a file being actively edited), you MUST "
-    "add a note: `(short-term, must be re-verified)`."
-).strip()
-
-
 class LLMConfig:
 
     def __init__(
@@ -300,14 +275,6 @@ class LLMConfig:
         return _DEFAULT_SUMMARIZATION_PROMPT
 
     @property
-    def default_context_enrichment_prompt(self) -> str:
-        if self._default_context_enrichment_prompt is not None:
-            return self._default_context_enrichment_prompt
-        if CFG.LLM_CONTEXT_ENRICHMENT_PROMPT is not None:
-            return CFG.LLM_CONTEXT_ENRICHMENT_PROMPT
-        return _DEFAULT_CONTEXT_ENRICHMENT_PROMPT
-
-    @property
     def default_model(self) -> "Model | str | None":
         if self._default_model is not None:
             return self._default_model
@@ -333,18 +300,6 @@ class LLMConfig:
             return self._default_history_summarization_token_threshold
         return CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
 
-    @property
-    def default_enrich_context(self) -> bool:
-        if self._default_enrich_context is not None:
-            return self._default_enrich_context
-        return CFG.LLM_ENRICH_CONTEXT
-
-    @property
-    def default_context_enrichment_token_threshold(self) -> int:
-        if self._default_context_enrichment_token_threshold is not None:
-            return self._default_context_enrichment_token_threshold
-        return CFG.LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD
-
     def set_default_persona(self, persona: str):
         self._default_persona = persona
 
@@ -359,9 +314,6 @@ class LLMConfig:
 
     def set_default_summarization_prompt(self, summarization_prompt: str):
         self._default_summarization_prompt = summarization_prompt
-
-    def set_default_context_enrichment_prompt(self, context_enrichment_prompt: str):
-        self._default_context_enrichment_prompt = context_enrichment_prompt
 
     def set_default_model_name(self, model_name: str):
         self._default_model_name = model_name
@@ -386,16 +338,6 @@ class LLMConfig:
     ):
         self._default_history_summarization_token_threshold = (
             history_summarization_token_threshold
-        )
-
-    def set_default_enrich_context(self, enrich_context: bool):
-        self._default_enrich_context = enrich_context
-
-    def set_default_context_enrichment_token_threshold(
-        self, context_enrichment_token_threshold: int
-    ):
-        self._default_context_enrichment_token_threshold = (
-            context_enrichment_token_threshold
         )
 
     def set_default_model_settings(self, model_settings: "ModelSettings"):

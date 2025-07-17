@@ -15,19 +15,17 @@ from zrb.task.llm.config import (
     get_model,
     get_model_settings,
 )
-from zrb.task.llm.context import extract_default_context
-from zrb.task.llm.context_enrichment import maybe_enrich_context
-from zrb.task.llm.history import (
-    ConversationHistoryData,
+from zrb.task.llm.conversation_history import (
     ListOfDict,
     read_conversation_history,
     write_conversation_history,
 )
+from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
-    get_combined_system_prompt,
     get_context_enrichment_prompt,
-    get_summarization_prompt,
+    get_summarization_system_prompt,
+    get_system_and_user_prompt,
     get_user_message,
 )
 from zrb.util.cli.style import stylize_faint
@@ -85,17 +83,17 @@ class LLMTask(BaseTask):
             list["MCPServer"] | Callable[[AnySharedContext], list["MCPServer"]]
         ) = [],
         conversation_history: (
-            ConversationHistoryData
-            | Callable[[AnySharedContext], ConversationHistoryData | dict | list]
+            ConversationHistory
+            | Callable[[AnySharedContext], ConversationHistory | dict | list]
             | dict
             | list
-        ) = ConversationHistoryData(),
+        ) = ConversationHistory(),
         conversation_history_reader: (
-            Callable[[AnySharedContext], ConversationHistoryData | dict | list | None]
+            Callable[[AnySharedContext], ConversationHistory | dict | list | None]
             | None
         ) = None,
         conversation_history_writer: (
-            Callable[[AnySharedContext, ConversationHistoryData], None] | None
+            Callable[[AnySharedContext, ConversationHistory], None] | None
         ) = None,
         conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
@@ -226,55 +224,57 @@ class LLMTask(BaseTask):
             model_api_key_attr=self._model_api_key,
             render_model_api_key=self._render_model_api_key,
         )
-        context_enrichment_prompt = get_context_enrichment_prompt(
-            ctx=ctx,
-            context_enrichment_prompt_attr=self._context_enrichment_prompt,
-        )
-        summarization_prompt = get_summarization_prompt(
+        summarization_prompt = get_summarization_system_prompt(
             ctx=ctx,
             summarization_prompt_attr=self._summarization_prompt,
         )
         user_message = get_user_message(ctx, self._message, self._render_message)
-        # Get the combined system prompt using the new getter
-        system_prompt = get_combined_system_prompt(
+        # Get system prompt and user prompt
+        system_prompt, user_message = get_system_and_user_prompt(
             ctx=ctx,
+            user_message=user_message,
             persona_attr=self._persona,
             system_prompt_attr=self._system_prompt,
             special_instruction_prompt_attr=self._special_instruction_prompt,
         )
         # 1. Prepare initial state (read history from previous session)
-        history_data = await read_conversation_history(
+        conversation_history = await read_conversation_history(
             ctx=ctx,
             conversation_history_reader=self._conversation_history_reader,
             conversation_history_file_attr=self._conversation_history_file,
             render_history_file=self._render_history_file,
             conversation_history_attr=self._conversation_history,
         )
-        history_list = history_data.history
-        long_term_context = history_data.long_term_context
-        conversation_summary = history_data.conversation_summary
+        conversation_history.fetch_newest_notes()
 
-        # 2. Enrich context and summarize history sequentially
-        new_long_term_context = await maybe_enrich_context(
+        # 3. Get the agent instance
+        agent = get_agent(
             ctx=ctx,
-            history_list=history_list,
-            long_term_context=long_term_context,
-            should_enrich_context_attr=self._should_enrich_context,
-            render_enrich_context=self._render_enrich_context,
-            context_enrichment_token_threshold_attr=self._context_enrichment_token_threshold,
-            render_context_enrichment_token_threshold=self._render_context_enrichment_token_threshold,  # noqa
+            agent_attr=self._agent,
             model=model,
+            system_prompt=system_prompt,
             model_settings=model_settings,
-            context_enrichment_prompt=context_enrichment_prompt,
-            rate_limitter=self._rate_limitter,
+            tools_attr=self._tools,
+            additional_tools=self._additional_tools,
+            mcp_servers_attr=self._mcp_servers,
+            additional_mcp_servers=self._additional_mcp_servers,
         )
-        new_history_list, new_conversation_summary = await maybe_summarize_history(
+        # 4. Run the agent iteration and save the results/history
+        result = await self._execute_agent(
+            ctx,
+            agent,
+            user_message,
+            conversation_history,
+        )
+        # 5. Summarize
+        conversation_history = await maybe_summarize_history(
             ctx=ctx,
-            history_list=history_list,
-            conversation_summary=conversation_summary,
+            conversation_history=conversation_history,
             should_summarize_history_attr=self._should_summarize_history,
             render_summarize_history=self._render_summarize_history,
-            history_summarization_token_threshold_attr=self._history_summarization_token_threshold,  # noqa
+            history_summarization_token_threshold_attr=(
+                self._history_summarization_token_threshold
+            ),
             render_history_summarization_token_threshold=(
                 self._render_history_summarization_token_threshold
             ),
@@ -283,50 +283,22 @@ class LLMTask(BaseTask):
             summarization_prompt=summarization_prompt,
             rate_limitter=self._rate_limitter,
         )
-
-        # 3. Build the final user prompt and system prompt
-        final_user_prompt, system_info = extract_default_context(user_message)
-        context_parts = [
-            f"## System Information\n{json.dumps(system_info, indent=2)}",
-        ]
-        if new_long_term_context:
-            context_parts.append(new_long_term_context)
-        if new_conversation_summary:
-            context_parts.append(new_conversation_summary)
-
-        final_system_prompt = "\n\n".join(
-            [system_prompt, "# Context", "\n\n---\n\n".join(context_parts)]
-        )
-        # 4. Get the agent instance
-        agent = get_agent(
+        # 6. Write conversation history
+        await write_conversation_history(
             ctx=ctx,
-            agent_attr=self._agent,
-            model=model,
-            system_prompt=final_system_prompt,
-            model_settings=model_settings,
-            tools_attr=self._tools,
-            additional_tools=self._additional_tools,
-            mcp_servers_attr=self._mcp_servers,
-            additional_mcp_servers=self._additional_mcp_servers,
+            history_data=conversation_history,
+            conversation_history_writer=self._conversation_history_writer,
+            conversation_history_file_attr=self._conversation_history_file,
+            render_history_file=self._render_history_file,
         )
-        # 5. Run the agent iteration and save the results/history
-        return await self._run_agent_and_save_history(
-            ctx,
-            agent,
-            final_user_prompt,
-            new_history_list,
-            new_long_term_context,
-            new_conversation_summary,
-        )
+        return result
 
-    async def _run_agent_and_save_history(
+    async def _execute_agent(
         self,
         ctx: AnyContext,
         agent: "Agent",
         user_prompt: str,
-        history_list: ListOfDict,
-        long_term_context: str,
-        conversation_summary: str,
+        conversation_history: ConversationHistory,
     ) -> Any:
         """Executes the agent, processes results, and saves history."""
         try:
@@ -334,23 +306,12 @@ class LLMTask(BaseTask):
                 ctx=ctx,
                 agent=agent,
                 user_prompt=user_prompt,
-                history_list=history_list,
+                history_list=conversation_history.history,
                 rate_limitter=self._rate_limitter,
             )
             if agent_run and agent_run.result:
                 new_history_list = json.loads(agent_run.result.all_messages_json())
-                data_to_write = ConversationHistoryData(
-                    long_term_context=long_term_context,
-                    conversation_summary=conversation_summary,
-                    history=new_history_list,
-                )
-                await write_conversation_history(
-                    ctx=ctx,
-                    history_data=data_to_write,
-                    conversation_history_writer=self._conversation_history_writer,
-                    conversation_history_file_attr=self._conversation_history_file,
-                    render_history_file=self._render_history_file,
-                )
+                conversation_history.history = new_history_list
                 xcom_usage_key = f"{self.name}-usage"
                 if xcom_usage_key not in ctx.xcom:
                     ctx.xcom[xcom_usage_key] = Xcom([])
