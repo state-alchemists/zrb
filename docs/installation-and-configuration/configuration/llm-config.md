@@ -63,11 +63,6 @@ llm_config.set_persona(
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SUMMARIZATION_PROMPT`
 
-### `default_context_enrichment_prompt`
-- **Description**: The prompt for the "Memory Curator" agent. It defines a protocol for extracting long-term, stable facts from a conversation and updating a Markdown-formatted `Long-Term Context` block.
-- **Type**: `str`
-- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`
-
 ### `default_summarize_history`
 - **Description**: Whether to summarize conversation history.
 - **Type**: `bool`

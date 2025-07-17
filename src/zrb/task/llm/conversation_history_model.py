@@ -83,10 +83,10 @@ class ConversationHistory:
     def fetch_newest_notes(self):
         long_term_note_path = self._get_long_term_note_path()
         if os.path.isfile(long_term_note_path):
-            self.long_term_note_path = read_file(long_term_note_path)
+            self.long_term_note = read_file(long_term_note_path)
         contextual_note_path = self._get_contextual_note_path()
         if os.path.isfile(contextual_note_path):
-            self._get_contextual_note_path = read_file(contextual_note_path)
+            self.contextual_note = read_file(contextual_note_path)
 
     @classmethod
     def parse_and_validate(
@@ -420,18 +420,16 @@ class ConversationHistory:
             content = read_file(path)
             if old_string not in content:
                 raise Exception(
-                    f"The specified string to replace was not found in the {note_type}. "(
-                        f"Try reading the {note_type} to verify its content or "
-                        f"write a new one if needed."
-                    )
+                    f"The specified string to replace was not found in the {note_type}. ("
+                    f"Try reading the {note_type} to verify its content or "
+                    f"write a new one if needed)."
                 )
             new_content = content.replace(old_string, new_string, 1)
             write_file(path, new_content)
             return json.dumps({"success": True, "path": path})
         except Exception:
             raise Exception(
-                f"Failed to replace content in the {note_type}. "(
-                    f"Try reading the {note_type} to verify its content or "
-                    f"write a new one if needed."
-                )
+                f"Failed to replace content in the {note_type}. ("
+                f"Try reading the {note_type} to verify its content or "
+                "write a new one if needed)."
             )

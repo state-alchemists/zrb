@@ -229,14 +229,6 @@ class LLMTask(BaseTask):
             summarization_prompt_attr=self._summarization_prompt,
         )
         user_message = get_user_message(ctx, self._message, self._render_message)
-        # Get system prompt and user prompt
-        system_prompt, user_message = get_system_and_user_prompt(
-            ctx=ctx,
-            user_message=user_message,
-            persona_attr=self._persona,
-            system_prompt_attr=self._system_prompt,
-            special_instruction_prompt_attr=self._special_instruction_prompt,
-        )
         # 1. Prepare initial state (read history from previous session)
         conversation_history = await read_conversation_history(
             ctx=ctx,
@@ -246,7 +238,15 @@ class LLMTask(BaseTask):
             conversation_history_attr=self._conversation_history,
         )
         conversation_history.fetch_newest_notes()
-
+        # 2. Get system prompt and user prompt
+        system_prompt, user_message = get_system_and_user_prompt(
+            ctx=ctx,
+            user_message=user_message,
+            persona_attr=self._persona,
+            system_prompt_attr=self._system_prompt,
+            special_instruction_prompt_attr=self._special_instruction_prompt,
+            conversation_history=conversation_history,
+        )
         # 3. Get the agent instance
         agent = get_agent(
             ctx=ctx,
