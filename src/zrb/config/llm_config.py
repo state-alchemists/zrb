@@ -41,6 +41,11 @@ _DEFAULT_INTERACTIVE_SYSTEM_PROMPT = (
     "directory.').\n"
     "    *   If an error occurs, report the error and the failed verification "
     "step."
+    "---\n"
+    "**FINAL REMINDER:** Your last step before responding MUST be to ensure "
+    "you have followed the Execute and Verify (E+V) loop. If you are about "
+    "to claim an action was taken, you MUST have already completed the "
+    "corresponding verification tool call. Do not hallucinate verifications."
 ).strip()
 
 _DEFAULT_SYSTEM_PROMPT = (
@@ -141,7 +146,8 @@ _DEFAULT_SUMMARIZATION_PROMPT = (
     "    - The Transcript is the assistant's working memory. It MUST "
     "contain the last few turns of the conversation in full detail.\n"
     "    - **CRITICAL REQUIREMENT:** The assistant's and user's last response "
-    "MUST be COPIED VERBATIM into the Transcript. NEVER alter or truncate them for any reason"
+    "MUST be COPIED VERBATIM into the Transcript. NEVER alter or truncate them "
+    "for any reason."
 ).strip()
 
 
