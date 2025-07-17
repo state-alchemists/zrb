@@ -9,8 +9,19 @@ from zrb.config.config import CFG
 
 
 def _estimate_token(text: str) -> int:
-    enc = tiktoken.encoding_for_model("gpt-4o")
-    return len(enc.encode(text))
+    """
+    Estimates the number of tokens in a given text.
+    Tries to use the 'gpt-4o' model's tokenizer for an accurate count.
+    If the tokenizer is unavailable (e.g., due to network issues),
+    it falls back to a heuristic of 4 characters per token.
+    """
+    try:
+        # Primary method: Use tiktoken for an accurate count
+        enc = tiktoken.encoding_for_model("gpt-4o")
+        return len(enc.encode(text))
+    except Exception:
+        # Fallback method: Heuristic (4 characters per token)
+        return len(text) // 4
 
 
 class LLMRateLimiter:
