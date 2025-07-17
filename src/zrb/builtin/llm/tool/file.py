@@ -218,7 +218,7 @@ def read_from_file(
 
     Returns:
         str: A JSON object containing the file path, the requested content with line numbers, the start and end lines, and the total number of lines in the file.
-             Example: '{"path": "src/main.py", "content": "1: import os\n2: \n3: print(\"Hello, World!\")", "start_line": 1, "end_line": 3, "total_lines": 3}'
+             Example: '{"path": "src/main.py", "content": "1| import os\n2| \n3| print(\"Hello, World!\")", "start_line": 1, "end_line": 3, "total_lines": 3}'
     Raises:
         FileNotFoundError: If the specified file does not exist.
     """
@@ -492,7 +492,7 @@ def read_many_files(paths: List[str]) -> str:
 
     Returns:
         str: A JSON object where keys are the file paths and values are their corresponding contents, prefixed with line numbers. If a file cannot be read, its value will be an error message.
-             Example: '{"results": {"src/api.py": "1: import ...", "config.yaml": "1: key: value"}}'
+             Example: '{"results": {"src/api.py": "1| import ...", "config.yaml": "1| key: value"}}'
     """
     results = {}
     for path in paths:

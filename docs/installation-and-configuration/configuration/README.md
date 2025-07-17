@@ -307,23 +307,11 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid prompt string
 
-* `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`: Prompt for enriching context.
-    * Default: None
-    * Possible values: Any valid prompt string
-
 * `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
-    * Default: `20000`
-    * Possible values: Any positive integer
-
-* `ZRB_LLM_ENRICH_CONTEXT`: Whether to enrich context.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`: Token threshold for enriching context.
     * Default: `20000`
     * Possible values: Any positive integer
 

@@ -1,5 +1,14 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.10.0
+
+- **Changed**
+  - Simplify History summarization
+  - Remove the following config:
+    - `ZRB_LLM_ENRICH_CONTEXT`
+    - `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`
+    - `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`
+
 # 1.9.17
 
 - **Changed**
