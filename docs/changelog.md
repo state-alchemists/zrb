@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.10.2
+
+- **Added**
+  - Embed time and current directory context to user interaction
+
 # 1.10.1
 
 - **Fixed**

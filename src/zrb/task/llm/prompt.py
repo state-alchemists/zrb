@@ -168,11 +168,13 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
                 "Context",
                 "\n".join(
                     [
-                        make_prompt_section("Current working directory", current_directory),
+                        make_prompt_section(
+                            "Current working directory", current_directory
+                        ),
                         make_prompt_section("Current time", iso_date),
                     ]
-                )
-            )
+                ),
+            ),
         ]
     )
     return conversation_context, modified_user_message
