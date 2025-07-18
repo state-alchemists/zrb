@@ -123,9 +123,6 @@ llm_config.set_persona(
 ### `set_default_history_summarization_token_threshold(history_summarization_token_threshold: int)`
 - **Description**: Sets the history summarization token threshold.
 
-### `set_default_context_enrichment_token_threshold(context_enrichment_token_threshold: int)`
-- **Description**: Sets the context enrichment token threshold.
-
 ### `set_default_model_settings(model_settings: ModelSettings)`
 - **Description**: Sets the default model settings.
 
