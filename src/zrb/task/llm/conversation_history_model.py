@@ -81,9 +81,11 @@ class ConversationHistory:
         return None
 
     def fetch_newest_notes(self):
+        self.long_term_note = ""
         long_term_note_path = self._get_long_term_note_path()
         if os.path.isfile(long_term_note_path):
             self.long_term_note = read_file(long_term_note_path)
+        self.contextual_note = ""
         contextual_note_path = self._get_contextual_note_path()
         if os.path.isfile(contextual_note_path):
             self.contextual_note = read_file(contextual_note_path)

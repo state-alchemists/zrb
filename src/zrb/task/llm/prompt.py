@@ -153,14 +153,26 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
             modified_user_message = modified_user_message.replace(f"@{ref}", ref, 1)
     conversation_context = "\n".join(
         [
-            make_prompt_section(
-                "Current Time", datetime.now(timezone.utc).astimezone().isoformat()
-            ),
-            make_prompt_section("Current Working Directory", os.getcwd()),
             make_prompt_section("Current OS", platform.system()),
             make_prompt_section("OS Version", platform.version()),
             make_prompt_section("Python Version", platform.python_version()),
             make_prompt_section("Apendixes", "\n".join(apendixes)),
+        ]
+    )
+    iso_date = datetime.now(timezone.utc).astimezone().isoformat()
+    current_directory = os.getcwd()
+    modified_user_message = "\n".join(
+        [
+            make_prompt_section("User Message", modified_user_message),
+            make_prompt_section(
+                "Context",
+                "\n".join(
+                    [
+                        make_prompt_section("Current working directory", current_directory),
+                        make_prompt_section("Current time", iso_date),
+                    ]
+                )
+            )
         ]
     )
     return conversation_context, modified_user_message
