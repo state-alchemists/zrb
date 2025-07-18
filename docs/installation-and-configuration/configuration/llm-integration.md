@@ -38,9 +38,9 @@ For Retrieval-Augmented Generation (RAG), use the following:
 
 - **`ZRB_RAG_EMBEDDING_API_KEY`**: API key for the embedding service used in RAG.
 
-### Summarization and Context Enrichment
+### Summarization
 
-`zrb` provides built-in support for summarization and context enrichment to manage large conversation histories efficiently. These features are enabled by default with the following configurations:
+`zrb` provides built-in support for summarization to manage large conversation histories efficiently. This feature is enabled by default with the following configurations:
 
 #### Summarization
 - **Trigger**: When the conversation history exceeds the token threshold (`ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD`, default: 3000), the system automatically summarizes the history.
@@ -49,17 +49,9 @@ For Retrieval-Augmented Generation (RAG), use the following:
   - **`ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD`**: Sets the token threshold for triggering summarization (default: 3000).
   - **`ZRB_LLM_SUMMARIZATION_PROMPT`**: Overrides the default summarization prompt if provided.
 
-#### Context Enrichment
-- **Trigger**: After summarization, the system enriches the context by adding relevant metadata or additional context to the conversation.
-- **Default Prompt**: The context enrichment prompt is designed to enhance the summarized history with additional context.
-- **Configuration**:
-  - **`ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`**: Sets the token threshold for triggering context enrichment (default: 3000).
-  - **`ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`**: Overrides the default context enrichment prompt if provided.
-
 #### Workflow
 1. **Summarization**: If the conversation history exceeds the token threshold, the system summarizes it.
-2. **Context Enrichment**: The summarized history is then enriched with additional context.
-3. **Continuation**: The enriched history is used for subsequent interactions.
+2. **Continuation**: The enriched history is used for subsequent interactions.
 
 
 ---
@@ -123,7 +115,6 @@ ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 
 # Summarization and Context Enrichment
 ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD=3000
-ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=3000
 ```
 
 ---

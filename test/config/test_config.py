@@ -1,8 +1,6 @@
 import logging
 from unittest import mock
 
-import pytest
-
 from zrb.config.config import Config
 
 
@@ -383,14 +381,6 @@ def test_llm_throttle_sleep(monkeypatch):
     assert config.LLM_THROTTLE_SLEEP == 2.0
 
 
-def test_llm_context_enrichment_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", "my-context-enrichment-prompt"
-    )
-    config = Config()
-    assert config.LLM_CONTEXT_ENRICHMENT_PROMPT == "my-context-enrichment-prompt"
-
-
 def test_llm_summarize_history(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SUMMARIZE_HISTORY", "false")
     config = Config()
@@ -401,18 +391,6 @@ def test_llm_history_summarization_token_threshold(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
     config = Config()
     assert config.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD == 30000
-
-
-def test_llm_enrich_context(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ENRICH_CONTEXT", "false")
-    config = Config()
-    assert not config.LLM_ENRICH_CONTEXT
-
-
-def test_llm_context_enrichment_token_threshold(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "30000")
-    config = Config()
-    assert config.LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD == 30000
 
 
 def test_llm_repo_analysis_extraction_token_threshold(monkeypatch):

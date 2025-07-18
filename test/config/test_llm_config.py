@@ -1,8 +1,5 @@
 from unittest import mock
 
-import pytest
-
-from zrb.config.config import CFG
 from zrb.config.llm_config import LLMConfig, llm_config
 
 
@@ -165,22 +162,6 @@ def test_default_summarization_prompt_default():
     assert isinstance(config.default_summarization_prompt, str)
 
 
-def test_default_context_enrichment_prompt_override():
-    config = LLMConfig(default_context_enrichment_prompt="test-prompt")
-    assert config.default_context_enrichment_prompt == "test-prompt"
-
-
-def test_default_context_enrichment_prompt_from_cfg(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", "cfg-prompt")
-    config = LLMConfig()
-    assert config.default_context_enrichment_prompt == "cfg-prompt"
-
-
-def test_default_context_enrichment_prompt_default():
-    config = LLMConfig()
-    assert isinstance(config.default_context_enrichment_prompt, str)
-
-
 def test_default_model_override():
     mock_model = mock.MagicMock()
     config = LLMConfig(default_model=mock_model)
@@ -226,28 +207,6 @@ def test_default_history_summarization_token_threshold_from_cfg(monkeypatch):
     assert config.default_history_summarization_token_threshold == 200
 
 
-def test_default_enrich_context_override():
-    config = LLMConfig(default_enrich_context=False)
-    assert not config.default_enrich_context
-
-
-def test_default_enrich_context_from_cfg(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ENRICH_CONTEXT", "false")
-    config = LLMConfig()
-    assert not config.default_enrich_context
-
-
-def test_default_context_enrichment_token_threshold_override():
-    config = LLMConfig(default_context_enrichment_token_threshold=100)
-    assert config.default_context_enrichment_token_threshold == 100
-
-
-def test_default_context_enrichment_token_threshold_from_cfg(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "200")
-    config = LLMConfig()
-    assert config.default_context_enrichment_token_threshold == 200
-
-
 def test_setters():
     config = LLMConfig()
     config.set_default_persona("new-persona")
@@ -264,9 +223,6 @@ def test_setters():
 
     config.set_default_summarization_prompt("new-summarization-prompt")
     assert config.default_summarization_prompt == "new-summarization-prompt"
-
-    config.set_default_context_enrichment_prompt("new-context-prompt")
-    assert config.default_context_enrichment_prompt == "new-context-prompt"
 
     config.set_default_model_name("new-model-name")
     assert config.default_model_name == "new-model-name"
@@ -290,12 +246,6 @@ def test_setters():
 
     config.set_default_history_summarization_token_threshold(500)
     assert config.default_history_summarization_token_threshold == 500
-
-    config.set_default_enrich_context(False)
-    assert not config.default_enrich_context
-
-    config.set_default_context_enrichment_token_threshold(600)
-    assert config.default_context_enrichment_token_threshold == 600
 
     mock_settings = mock.MagicMock()
     config.set_default_model_settings(mock_settings)

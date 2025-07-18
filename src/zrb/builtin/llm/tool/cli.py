@@ -1,3 +1,4 @@
+import json
 import subprocess
 
 
@@ -13,17 +14,20 @@ def run_shell_command(command: str) -> str:
         command (str): The exact shell command to execute.
 
     Returns:
-        str: The combined standard output (stdout) and standard error (stderr) from the command. If the command fails, this will contain the error message.
-    Raises:
-        subprocess.CalledProcessError: If the command returns a non-zero exit code, indicating an error.
+        str: A JSON string containing return code, standard output (stdout),
+            and standard error (stderr) from the command.
+            Example: {"return_code": 0, "stdout": "ok", "stderr": ""}
     """
-    try:
-        output = subprocess.check_output(
-            command, shell=True, stderr=subprocess.STDOUT, text=True
-        )
-        return output
-    except subprocess.CalledProcessError as e:
-        # Include the error output in the exception message
-        raise subprocess.CalledProcessError(
-            e.returncode, e.cmd, e.output, e.stderr
-        ) from None
+    result = subprocess.run(
+        command,
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.dumps(
+        {
+            "return_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
+    )

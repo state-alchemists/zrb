@@ -337,24 +337,12 @@ class Config:
         return float(os.getenv("ZRB_LLM_THROTTLE_SLEEP", "1.0"))
 
     @property
-    def LLM_CONTEXT_ENRICHMENT_PROMPT(self) -> str | None:
-        return os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT", None)
-
-    @property
     def LLM_SUMMARIZE_HISTORY(self) -> bool:
         return to_boolean(os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true"))
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000"))
-
-    @property
-    def LLM_ENRICH_CONTEXT(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ENRICH_CONTEXT", "true"))
-
-    @property
-    def LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD", "20000"))
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
@@ -444,6 +432,14 @@ class Config:
             os.getenv("ZRB_BANNER", _DEFAULT_BANNER),
             {"VERSION": self.VERSION},
         )
+
+    @property
+    def LLM_CONTEXTUAL_NOTE_FILE(self) -> str:
+        return os.getenv("LLM_CONTEXTUAL_NOTE_FILE", "ZRB_README.md")
+
+    @property
+    def LLM_LONG_TERM_NOTE_PATH(self) -> str:
+        return os.getenv("LLM_LONG_TERM_NOTE_PATH", "~/ZRB_GLOBAL_README.md")
 
 
 CFG = Config()

@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 
 from zrb.builtin.llm import history as history_module
-from zrb.task.llm.history import ConversationHistoryData
+from zrb.task.llm.conversation_history_model import ConversationHistory
 
 
 @pytest.fixture
@@ -262,8 +262,8 @@ def test_write_chat_success(
     session_name = "test_session"
     mock_shared_context.session.name = session_name
     # Use a dictionary for the message
-    history_data = ConversationHistoryData(
-        messages=[{"role": "user", "content": "Test message"}]
+    history_data = ConversationHistory(
+        history=[{"role": "user", "content": "Test message"}]
     )
     expected_json = history_data.model_dump_json(indent=2)
     session_file_path = os.path.join(mock_llm_history_dir, f"{session_name}.json")
@@ -280,7 +280,7 @@ def test_write_chat_success(
 def test_write_chat_empty_session_name(mock_shared_context):
     """Test write_chat_conversation logs warning if session name is empty."""
     mock_shared_context.session.name = ""
-    history_data = ConversationHistoryData(messages=[])
+    history_data = ConversationHistory(history=[])
 
     history_module.write_chat_conversation(mock_shared_context, history_data)
 
@@ -297,7 +297,7 @@ def test_write_chat_write_error(
     """Test write_chat_conversation logs error if write_file fails."""
     session_name = "error_session"
     mock_shared_context.session.name = session_name
-    history_data = ConversationHistoryData(messages=[])
+    history_data = ConversationHistory(history=[])
     session_file_path = os.path.join(mock_llm_history_dir, f"{session_name}.json")
 
     history_module.write_chat_conversation(mock_shared_context, history_data)

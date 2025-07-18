@@ -107,7 +107,7 @@ if TYPE_CHECKING:
     from zrb.task.base_trigger import BaseTrigger
     from zrb.task.cmd_task import CmdTask
     from zrb.task.http_check import HttpCheck
-    from zrb.task.llm.history import ConversationHistoryData
+    from zrb.task.llm.conversation_history import ConversationHistoryData
     from zrb.task.llm_task import LLMTask
     from zrb.task.make_task import make_task
     from zrb.task.rsync_task import RsyncTask

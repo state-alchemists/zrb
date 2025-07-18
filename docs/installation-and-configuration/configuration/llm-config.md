@@ -63,11 +63,6 @@ llm_config.set_persona(
 - **Type**: `str`
 - **Environment Variable**: `ZRB_LLM_SUMMARIZATION_PROMPT`
 
-### `default_context_enrichment_prompt`
-- **Description**: The prompt for the "Memory Curator" agent. It defines a protocol for extracting long-term, stable facts from a conversation and updating a Markdown-formatted `Long-Term Context` block.
-- **Type**: `str`
-- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_PROMPT`
-
 ### `default_summarize_history`
 - **Description**: Whether to summarize conversation history.
 - **Type**: `bool`
@@ -77,16 +72,6 @@ llm_config.set_persona(
 - **Description**: The token count threshold for history summarization.
 - **Type**: `int`
 - **Environment Variable**: `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`
-
-### `default_enrich_context`
-- **Description**: Whether to enrich context.
-- **Type**: `bool`
-- **Environment Variable**: `ZRB_LLM_ENRICH_CONTEXT`
-
-### `default_context_enrichment_token_threshold`
-- **Description**: The token count threshold for context enrichment.
-- **Type**: `int`
-- **Environment Variable**: `ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD`
 
 ### `default_model_settings`
 - **Description**: The default model settings.
@@ -117,9 +102,6 @@ llm_config.set_persona(
 ### `set_default_summarization_prompt(summarization_prompt: str)`
 - **Description**: Sets the default summarization prompt.
 
-### `set_default_context_enrichment_prompt(context_enrichment_prompt: str)`
-- **Description**: Sets the default context enrichment prompt.
-
 ### `set_default_model_name(model_name: str)`
 - **Description**: Sets the default model name.
 
@@ -140,12 +122,6 @@ llm_config.set_persona(
 
 ### `set_default_history_summarization_token_threshold(history_summarization_token_threshold: int)`
 - **Description**: Sets the history summarization token threshold.
-
-### `set_default_enrich_context(enrich_context: bool)`
-- **Description**: Sets whether to enrich context.
-
-### `set_default_context_enrichment_token_threshold(context_enrichment_token_threshold: int)`
-- **Description**: Sets the context enrichment token threshold.
 
 ### `set_default_model_settings(model_settings: ModelSettings)`
 - **Description**: Sets the default model settings.

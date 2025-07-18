@@ -13,8 +13,6 @@ echo "🧪 Starting rigorous test in temporary directory: $TMP_DIR"
 # Set environment variables to trigger memory management
 export _SUMMARIZATION_TOKEN_THRESHOLD=${ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD}
 export ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=3000
-export _CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=${ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD}
-export ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=3000
 
 (
     echo "Hello. For this session, my project's codename is 'Bluebird'. We will be working in the directory '$TMP_DIR'. Please create a file in that directory named 'file1.txt' with the content 'This is the first file.'"
@@ -46,4 +44,3 @@ export ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=3000
 
 # Unset the environment variables to clean up
 export ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD=${_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD}
-export ZRB_LLM_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD=${_CONTEXT_ENRICHMENT_TOKEN_THRESHOLD}
