@@ -11,7 +11,7 @@ from zrb.util.file import read_file, write_file
 def read_chat_conversation(ctx: AnySharedContext) -> dict[str, Any] | list | None:
     """Reads conversation history from the session file.
     Returns the raw dictionary or list loaded from JSON, or None if not found/empty.
-    The LLMTask will handle parsing this into ConversationHistoryData.
+    The LLMTask will handle parsing this into ConversationHistory.
     """
     if ctx.input.start_new:
         return None  # Indicate no history to load

@@ -1,5 +1,10 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.10.1
+
+- **Fixed**
+  - Replace references of `ConversationHistoryData` into `ConversationHistory`.
+
 # 1.10.0
 
 - **Changed**
