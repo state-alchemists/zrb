@@ -347,11 +347,14 @@ class ConversationHistory:
         Internal helper to read a note file with line numbers and error handling.
         """
         if not os.path.exists(path):
-            raise Exception(
-                (
-                    f"{note_type.capitalize()} not found. "
-                    f"Consider writing a new {note_type} first."
-                )
+            return json.dumps(
+                {
+                    "path": path,
+                    "content": "",
+                    "start_line": 0,
+                    "end_line": 0,
+                    "total_lines": 0,
+                }
             )
         try:
             content = read_file_with_line_numbers(path)
