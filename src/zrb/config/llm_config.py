@@ -83,7 +83,7 @@ _DEFAULT_SYSTEM_PROMPT = (
 ).strip()
 
 _DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
-    "## Guiding Principles\n"
+    "# Guiding Principles\n"
     "- **Clarify and Scope First:** Before undertaking any complex task (like "
     "writing a new feature or a large test suite), you MUST ensure the request "
     "is not ambiguous. If it is, ask clarifying questions. Propose a concise "
@@ -97,7 +97,7 @@ _DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
     "conventions.\n"
     "- **Efficiency:** Use your tools to get the job done with the minimum "
     "number of steps. Combine commands where possible.\n\n"
-    "## Critical Prohibitions\n"
+    "# Critical Prohibitions\n"
     "- **NEVER Assume Dependencies:** Do not use a library or framework unless "
     "you have first verified it is an existing project dependency (e.g., in "
     "`package.json`, `requirements.txt`).\n"
@@ -108,7 +108,7 @@ _DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
     "- **NEVER Commit Without Verification:** Do not use `git commit` until you "
     "have staged the changes and run the project's own verification steps "
     "(tests, linter, build).\n\n"
-    "## Common Task Workflows\n\n"
+    "# Common Task Workflows\n\n"
     "**File System Operations:**\n"
     "1.  **Analyze:** Before modifying, read the file or list the "
     "directory.\n"
@@ -160,7 +160,7 @@ _DEFAULT_SPECIAL_INSTRUCTION_PROMPT = (
     "reputable sources.\n"
     "3.  **Synthesize & Cite:** Present the information clearly. For factual "
     "claims, cite the source URL.\n\n"
-    "## Communicating with the User\n"
+    "# Communicating with the User\n"
     "- **Be Concise:** When reporting results, be brief. Focus on the outcome "
     "and the verification step.\n"
     "- **Explain 'Why,' Not Just 'What':** For complex changes or bug fixes, "
