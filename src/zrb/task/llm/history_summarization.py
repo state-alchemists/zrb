@@ -154,7 +154,7 @@ async def summarize_history(
         ],
     )
     try:
-        ctx.print(stylize_faint(">>> 📝 Summarize Conversation"), plain=True)
+        ctx.print(stylize_faint("📝 Summarize Conversation >>>"), plain=True)
         summary_run = await run_agent_iteration(
             ctx=ctx,
             agent=summarization_agent,
@@ -164,7 +164,7 @@ async def summarize_history(
         )
         if summary_run and summary_run.result and summary_run.result.output:
             usage = summary_run.result.usage()
-            ctx.print(stylize_faint(f">>> 📝 Summarization Token: {usage}"), plain=True)
+            ctx.print(stylize_faint(f"📝 Summarization Token: {usage}"), plain=True)
             ctx.print(plain=True)
             ctx.log_info("History summarized and updated.")
         else:
