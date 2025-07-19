@@ -80,9 +80,7 @@ def mock_open_side_effect(path, mode="r"):
 
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch(
-    "zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open
-)
+@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
 def test_get_context_cascading(mock_open, mock_handler_os, mock_config_os):
     # Setup mocks
     mock_handler_os.path.expanduser.return_value = "/home/user"
@@ -113,9 +111,7 @@ def test_get_context_cascading(mock_open, mock_handler_os, mock_config_os):
 
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch(
-    "zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open
-)
+@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
 def test_get_context_with_absolute_path_and_fenced_code(
     mock_open, mock_handler_os, mock_config_os
 ):
@@ -149,9 +145,7 @@ def test_get_context_with_absolute_path_and_fenced_code(
 
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch(
-    "zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open
-)
+@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
 def test_get_workflow(mock_open, mock_handler_os, mock_config_os):
     mock_handler_os.path.expanduser.return_value = "/home/user"
     mock_handler_os.path.abspath.side_effect = os.path.abspath
@@ -178,9 +172,7 @@ def test_get_workflow(mock_open, mock_handler_os, mock_config_os):
 
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch(
-    "zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open
-)
+@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
 def test_add_to_context_new_file(mock_open, mock_handler_os, mock_config_os):
     mock_handler_os.path.expanduser.return_value = "/home/user"
     mock_handler_os.path.abspath.side_effect = os.path.abspath
@@ -205,9 +197,7 @@ def test_add_to_context_new_file(mock_open, mock_handler_os, mock_config_os):
 
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch(
-    "zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open
-)
+@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
 def test_add_to_context_new_file_global(mock_open, mock_handler_os, mock_config_os):
     mock_handler_os.path.expanduser.return_value = "/home/user"
     mock_handler_os.path.abspath.side_effect = os.path.abspath
