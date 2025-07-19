@@ -437,13 +437,5 @@ class Config:
     def LLM_CONTEXT_FILE(self) -> str:
         return os.getenv("LLM_CONTEXT_FILE", "ZRB.md")
 
-    @property
-    def LLM_CONTEXTUAL_NOTE_FILE(self) -> str:
-        return os.getenv("LLM_CONTEXTUAL_NOTE_FILE", "ZRB_README.md")
-
-    @property
-    def LLM_LONG_TERM_NOTE_PATH(self) -> str:
-        return os.getenv("LLM_LONG_TERM_NOTE_PATH", "~/ZRB_GLOBAL_README.md")
-
 
 CFG = Config()

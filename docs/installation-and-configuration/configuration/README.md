@@ -307,13 +307,9 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid prompt string
 
-* `ZRB_LLM_CONTEXTUAL_NOTE_FILE`: The local file name for the agent's contextual notes.
-    * Default: `ZRB_README.md`
+* `ZRB_LLM_CONTEXT_FILE`: The path for context file.
+    * Default: `ZRB.md`
     * Possible values: Any valid file name.
-
-* `ZRB_LLM_LONG_TERM_NOTE_PATH`: The absolute path for the agent's long-term, global notes.
-    * Default: `~/ZRB_GLOBAL_README.md`
-    * Possible values: Any valid, user-writable absolute path.
 
 * `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
     * Default: `1` (true)
