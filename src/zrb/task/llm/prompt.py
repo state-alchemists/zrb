@@ -125,38 +125,37 @@ def get_system_and_user_prompt(
 def extract_conversation_context(user_message: str) -> tuple[str, str]:
     modified_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
-    pattern = r"(?<!\w)@(?=[^,\s]*/)([^,\s]+)"
+    pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\s]+)"
     potential_resource_path = re.findall(pattern, user_message)
     apendixes = []
-    for ref in potential_resource_path:
+    for i, ref in enumerate(potential_resource_path):
         resource_path = os.path.abspath(os.path.expanduser(ref))
-        print("RESOURCE PATH", resource_path)
+        content = ""
+        ref_type = ""
         if os.path.isfile(resource_path):
             content = read_file_with_line_numbers(resource_path)
-            apendixes.append(
-                make_prompt_section(
-                    f"`{ref}` (file path: `{resource_path}`)", content, as_code=True
-                )
-            )
-            # Remove the '@' from the modified user message for valid file paths
-            modified_user_message = modified_user_message.replace(f"@{ref}", ref, 1)
+            ref_type = "file"
         elif os.path.isdir(resource_path):
             content = read_dir(resource_path)
+            ref_type = "directory"
+        if content != "":
+            # Replace the @-reference in the user message with the placeholder
+            placeholder = f"[Reference {i+1}: {os.path.basename(ref)}]"
+            modified_user_message = modified_user_message.replace(
+                f"@{ref}", placeholder, 1
+            )
             apendixes.append(
                 make_prompt_section(
-                    f"`{ref}` (directory path: `{resource_path}`)",
+                    f"{placeholder} ({ref_type} path: `{resource_path}`)",
                     content,
                     as_code=True,
                 )
             )
-            # Remove the '@' from the modified user message for valid directory paths
-            modified_user_message = modified_user_message.replace(f"@{ref}", ref, 1)
     conversation_context = "\n".join(
         [
             make_prompt_section("Current OS", platform.system()),
             make_prompt_section("OS Version", platform.version()),
             make_prompt_section("Python Version", platform.python_version()),
-            make_prompt_section("Apendixes", "\n".join(apendixes)),
         ]
     )
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
@@ -172,6 +171,7 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
                             "Current working directory", current_directory
                         ),
                         make_prompt_section("Current time", iso_date),
+                        make_prompt_section("Apendixes", "\n".join(apendixes)),
                     ]
                 ),
             ),

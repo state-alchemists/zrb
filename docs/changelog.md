@@ -1,5 +1,18 @@
 🔖 [Documentation Home](../README.md) > CI/CD Integration
 
+# 1.11.0
+
+- **Changed: Refactored LLM Prompts and Configuration**
+  - **Externalized Prompts**: The default prompts (system, interactive, persona, special instructions, summarization) have been moved from hardcoded strings in `src/zrb/config/llm_config.py` to separate `.md` files in `src/zrb/config/default_prompt/`. This makes them easier to manage and customize.
+  - **Improved Prompt Loading**: `LLMConfig` now dynamically loads these `.md` files, with a fallback mechanism to use environment variables or instance variables if provided.
+  - **Refined Prompt Content**: The prompts themselves have been rewritten to be more explicit, structured, and workflow-oriented. They now include concepts like the "E+V Loop" (Execute and Verify) and a "Debugging Loop".
+  - **Better Context Handling**: The logic for handling `@` references to files and directories in user messages has been improved in `src/zrb/task/llm/prompt.py`. It now replaces the reference with a placeholder (e.g., `[Reference 1: file.txt]`) and provides the content in a dedicated "Apendixes" section, which is cleaner.
+  - **Robust Markdown Handling**: The `make_prompt_section` utility in `src/zrb/util/llm/prompt.py` is now more robust. It can handle markdown headers within code blocks and automatically adjusts the fence length for code blocks to avoid conflicts. New unit tests have been added for this functionality.
+  - **Improved TTY/Web Detection**: The logic for detecting if the CLI is running in an interactive terminal (TTY) or in web mode has been centralized into `SharedContext` (`is_tty`, `is_web_mode`).
+- **Feature: Enhanced Testing**
+  - **New Test File**: `test/util/llm/test_prompt.py` has been added to test the new prompt utility functions.
+  - **Expanded Chat Test Script**: `zrb-test-llm-chat.sh` has been significantly expanded with more comprehensive test cases, including error handling, debugging loops, and safety checks for risky commands.
+
 # 1.10.2
 
 - **Added**

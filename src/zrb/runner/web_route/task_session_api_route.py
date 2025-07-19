@@ -58,7 +58,7 @@ def serve_task_session_api(
             session_name = residual_args[0] if residual_args else None
             if not session_name:
                 shared_ctx = SharedContext(
-                    env={**dict(os.environ), "_ZRB_WEB_ENV": "1"}
+                    env={**dict(os.environ), "_ZRB_IS_WEB_MODE": "1"}
                 )
                 session = Session(shared_ctx=shared_ctx, root_group=root_group)
                 coro = asyncio.create_task(task.async_run(session, str_kwargs=inputs))

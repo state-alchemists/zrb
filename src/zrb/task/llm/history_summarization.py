@@ -145,16 +145,16 @@ async def summarize_history(
         tools=[
             conversation_history.write_past_conversation_summary,
             conversation_history.write_past_conversation_transcript,
-            conversation_history.read_contextual_note,
-            conversation_history.write_contextual_note,
-            conversation_history.replace_in_contextual_note,
             conversation_history.read_long_term_note,
-            conversation_history.write_long_term_note,
-            conversation_history.replace_in_long_term_note,
+            conversation_history.add_long_term_info,
+            conversation_history.remove_long_term_info,
+            conversation_history.read_contextual_note,
+            conversation_history.add_contextual_info,
+            conversation_history.remove_contextual_info,
         ],
     )
     try:
-        ctx.print(stylize_faint("📝 Summarize"), plain=True)
+        ctx.print(stylize_faint("📝 Summarize Conversation >>>"), plain=True)
         summary_run = await run_agent_iteration(
             ctx=ctx,
             agent=summarization_agent,
