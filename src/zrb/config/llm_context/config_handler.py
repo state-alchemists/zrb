@@ -134,29 +134,13 @@ class LLMContextConfigHandler:
                     else section.key
                 )
 
-                if key in all_sections:
-                    all_sections[key] = f"{all_sections[key]}\n{section.content}"
-                else:
-                    all_sections[key] = section.content
+                if self._include_section(key, abs_path):
+                    if key in all_sections:
+                        all_sections[key] = f"{all_sections[key]}\n{section.content}"
+                    else:
+                        all_sections[key] = section.content
 
-        if self._resolve_section_path:
-            merged_sections = {}
-            sorted_keys = sorted(all_sections.keys())
-            for key in sorted_keys:
-                # Start with the most specific content
-                merged_content = [all_sections[key]]
-                # Find parents and prepend their content
-                for parent_key in sorted_keys:
-                    if key.startswith(parent_key) and key != parent_key:
-                        merged_content.insert(0, all_sections[parent_key])
-                merged_sections[key] = "\n".join(merged_content)
-            all_sections = merged_sections
-
-        return {
-            p: content
-            for p, content in all_sections.items()
-            if self._include_section(p, abs_path)
-        }
+        return all_sections
 
     def add_to_section(self, content: str, key: str, cwd: str):
         """Adds content to a section block in the nearest configuration file."""
@@ -167,15 +151,16 @@ class LLMContextConfigHandler:
         closest_config_file = (
             config_files[0]
             if config_files
-            else os.path.join(abs_search_path, self._config_file_name)
+            else os.path.join(os.path.expanduser("~"), self._config_file_name)
         )
 
         config_dir = os.path.dirname(closest_config_file)
-        header_key = (
-            key
-            if not self._resolve_section_path or os.path.isabs(key)
-            else os.path.relpath(key, config_dir)
-        )
+        header_key = key
+        if self._resolve_section_path and os.path.isabs(key):
+            if key == config_dir:
+                header_key = "."
+            elif key.startswith(config_dir):
+                header_key = f"./{os.path.relpath(key, config_dir)}"
         header = f"# {self._section_name}: {header_key}"
         new_content = content.strip()
         lines = []
@@ -203,46 +188,51 @@ class LLMContextConfigHandler:
         with open(closest_config_file, "w") as f:
             f.writelines(lines)
 
-    def remove_from_section(self, content: str, key: str, cwd: str):
+    def remove_from_section(self, content: str, key: str, cwd: str) -> bool:
         """Removes content from a section block in all relevant config files."""
         abs_search_path = os.path.abspath(cwd)
         config_files = _get_config_file_hierarchy(
             abs_search_path, self._config_file_name
         )
         content_to_remove = content.strip()
+        was_removed = False
         for config_file_path in config_files:
             if not os.path.exists(config_file_path):
                 continue
             with open(config_file_path, "r") as f:
-                lines = f.readlines()
+                file_content = f.read()
             config_dir = os.path.dirname(config_file_path)
-            header_key = (
-                key
-                if not self._resolve_section_path or os.path.isabs(key)
-                else os.path.relpath(key, config_dir)
-            )
+            header_key = key
+            if self._resolve_section_path and os.path.isabs(key):
+                if key == config_dir:
+                    header_key = "."
+                elif key.startswith(config_dir):
+                    header_key = f"./{os.path.relpath(key, config_dir)}"
             header = f"# {self._section_name}: {header_key}"
-            header_index = next(
-                (i for i, line in enumerate(lines) if line.strip() == header), -1
+            # Use regex to find the section content
+            section_pattern = re.compile(
+                rf"^{re.escape(header)}\n(.*?)(?=\n# \w+:|\Z)",
+                re.DOTALL | re.MULTILINE,
             )
-            if header_index == -1:
+            match = section_pattern.search(file_content)
+            if not match:
                 continue
-            end_index = len(lines)
-            for i in range(header_index + 1, len(lines)):
-                if re.match(r"^# \w+:", lines[i].strip()):
-                    end_index = i
-                    break
-            new_section_lines = [
-                line
-                for line in lines[header_index + 1 : end_index]
-                if line.strip() != content_to_remove
-            ]
-            while new_section_lines and not new_section_lines[-1].strip():
-                new_section_lines.pop()
-            if new_section_lines:
-                new_section_lines[-1] = new_section_lines[-1].rstrip() + "\n"
-            new_lines = (
-                lines[: header_index + 1] + new_section_lines + lines[end_index:]
+
+            section_content = match.group(1)
+            # Remove the target content and handle surrounding newlines
+            new_section_content = section_content.replace(content_to_remove, "")
+            new_section_content = "\n".join(
+                line for line in new_section_content.splitlines() if line.strip()
             )
-            with open(config_file_path, "w") as f:
-                f.writelines(new_lines)
+
+            if new_section_content != section_content.strip():
+                was_removed = True
+                # Reconstruct the file content
+                start = match.start(1)
+                end = match.end(1)
+                new_file_content = (
+                    file_content[:start] + new_section_content + file_content[end:]
+                )
+                with open(config_file_path, "w") as f:
+                    f.write(new_file_content)
+        return was_removed

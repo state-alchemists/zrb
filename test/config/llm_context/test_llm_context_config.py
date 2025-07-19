@@ -105,8 +105,9 @@ def test_get_context_cascading(mock_open, mock_handler_os, mock_config_os):
 
     assert "/home/user/project" in context
     assert "/home/user" in context
-    assert "This is the home context." in context["/home/user/project"]
+    assert "This is the home context." in context["/home/user"]
     assert "This is the project context." in context["/home/user/project"]
+    assert "This is the home context." not in context["/home/user/project"]
 
 
 @mock.patch("zrb.config.llm_context.config.os")
@@ -190,9 +191,9 @@ def test_add_to_context_new_file(mock_open, mock_handler_os, mock_config_os):
     config = LLMContextConfig()
     config.add_to_context("New content.")
 
-    assert "/home/user/project/ZRB.md" in mock_files
-    assert "# Context:" in mock_files["/home/user/project/ZRB.md"]
-    assert "New content." in mock_files["/home/user/project/ZRB.md"]
+    assert "/home/user/ZRB.md" in mock_files
+    assert "# Context: ./project" in mock_files["/home/user/ZRB.md"]
+    assert "New content." in mock_files["/home/user/ZRB.md"]
 
 
 @mock.patch("zrb.config.llm_context.config.os")
@@ -219,3 +220,43 @@ def test_add_to_context_new_file_global(mock_open, mock_handler_os, mock_config_
     assert "/home/user/ZRB.md" in mock_files
     assert "# Context: /tmp/global" in mock_files["/home/user/ZRB.md"]
     assert "Global content." in mock_files["/home/user/ZRB.md"]
+
+
+@mock.patch("zrb.config.llm_context.config.os")
+@mock.patch("zrb.config.llm_context.config_handler.os")
+@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
+def test_remove_from_context(mock_open, mock_handler_os, mock_config_os):
+    mock_handler_os.path.expanduser.return_value = "/home/user"
+    mock_handler_os.path.abspath.side_effect = os.path.abspath
+    mock_handler_os.path.join.side_effect = os.path.join
+    mock_handler_os.path.dirname.side_effect = os.path.dirname
+    mock_handler_os.path.relpath.side_effect = os.path.relpath
+    mock_handler_os.path.isabs.side_effect = os.path.isabs
+    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+    mock_open.side_effect = mock_open_side_effect
+    mock_config_os.getcwd.return_value = "/home/user/project"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.expanduser.return_value = "/home/user"
+
+    setup_fs(
+        {
+            "/home/user/ZRB.md": """
+# Context: .
+Line 1
+Line 2
+Line 3
+"""
+        }
+    )
+
+    config = LLMContextConfig()
+    was_removed = config.remove_from_context("Line 2", context_path="/home/user")
+    assert was_removed
+    assert "Line 1" in mock_files["/home/user/ZRB.md"]
+    assert "Line 2" not in mock_files["/home/user/ZRB.md"]
+    assert "Line 3" in mock_files["/home/user/ZRB.md"]
+
+    was_removed_again = config.remove_from_context(
+        "Non-existent", context_path="/home/user"
+    )
+    assert not was_removed_again

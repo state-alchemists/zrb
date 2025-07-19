@@ -184,13 +184,13 @@ class ConversationHistory:
             new_info (str): New info to be added into long-term references.
 
         Returns:
-            str: JSON with content of the notes.
+            str: JSON with new content of the notes.
 
         Raises:
             Exception: If the note cannot be read.
         """
         llm_context_config.add_to_context(new_info, cwd="/")
-        return json.dumps({"content": self._fetch_long_term_note()})
+        return json.dumps({"success": True, "content": self._fetch_long_term_note()})
 
     def remove_long_term_info(self, irrelevant_info: str) -> str:
         """
@@ -200,13 +200,18 @@ class ConversationHistory:
             irrelevant_info (str): Irrelevant info to be removed from long-term references.
 
         Returns:
-            str: JSON with content of the notes.
+            str: JSON with new content of the notes and deletion status.
 
         Raises:
             Exception: If the note cannot be read.
         """
-        llm_context_config.remove_from_context(irrelevant_info, cwd="/")
-        return json.dumps({"content": self._fetch_long_term_note()})
+        was_removed = llm_context_config.remove_from_context(irrelevant_info, cwd="/")
+        return json.dumps(
+            {
+                "success": was_removed,
+                "content": self._fetch_long_term_note(),
+            }
+        )
 
     def read_contextual_note(self) -> str:
         """
@@ -232,15 +237,15 @@ class ConversationHistory:
             context_path (str, optional): contextual directory path for new info
 
         Returns:
-            str: JSON with content of the notes.
+            str: JSON with new content of the notes.
 
         Raises:
             Exception: If the note cannot be read.
         """
         if context_path is None:
             context_path = self.project_path
-        llm_context_config.add_to_context(new_info, cwd=context_path)
-        return json.dumps({"content": self._fetch_contextual_note()})
+        llm_context_config.add_to_context(new_info, context_path=context_path)
+        return json.dumps({"success": True, "content": self._fetch_contextual_note()})
 
     def remove_contextual_info(
         self, irrelevant_info: str, context_path: str | None
@@ -253,15 +258,22 @@ class ConversationHistory:
             context_path (str, optional): contextual directory path of the irrelevant info
 
         Returns:
-            str: JSON with content of the notes.
+            str: JSON with new content of the notes and deletion status.
 
         Raises:
             Exception: If the note cannot be read.
         """
         if context_path is None:
             context_path = self.project_path
-        llm_context_config.remove_from_context(irrelevant_info, cwd=context_path)
-        return json.dumps({"content": self._fetch_contextual_note()})
+        was_removed = llm_context_config.remove_from_context(
+            irrelevant_info, context_path=context_path
+        )
+        return json.dumps(
+            {
+                "success": was_removed,
+                "content": self._fetch_contextual_note(),
+            }
+        )
 
     def _fetch_long_term_note(self):
         contexts = llm_context_config.get_context(cwd=self.project_path)

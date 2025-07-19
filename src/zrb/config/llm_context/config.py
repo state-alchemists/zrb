@@ -61,14 +61,14 @@ class LLMContextConfig:
 
     def remove_from_context(
         self, content: str, context_path: str | None = None, cwd: str | None = None
-    ):
+    ) -> bool:
         """Removes content from a context block in all relevant config files."""
         if cwd is None:
             cwd = os.getcwd()
         if context_path is None:
             context_path = cwd
         abs_path = os.path.abspath(context_path)
-        self._context_handler.remove_from_section(content, abs_path, cwd=cwd)
+        return self._context_handler.remove_from_section(content, abs_path, cwd=cwd)
 
 
 llm_context_config = LLMContextConfig()
