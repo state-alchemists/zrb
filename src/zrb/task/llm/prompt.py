@@ -180,7 +180,6 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
     return conversation_context, modified_user_message
 
 
-
 def get_user_message(
     ctx: AnyContext,
     message_attr: StrAttr | None,

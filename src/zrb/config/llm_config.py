@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.config.config import CFG
 
@@ -74,9 +74,7 @@ class LLMConfig:
 
     @property
     def default_model_name(self) -> str | None:
-        return self._get_property(
-            self._default_model_name, CFG.LLM_MODEL, lambda: None
-        )
+        return self._get_property(self._default_model_name, CFG.LLM_MODEL, lambda: None)
 
     @property
     def default_model_base_url(self) -> str | None:
@@ -86,7 +84,9 @@ class LLMConfig:
 
     @property
     def default_model_api_key(self) -> str | None:
-        return self._get_property(self._default_model_api_key, CFG.LLM_API_KEY, lambda: None)
+        return self._get_property(
+            self._default_model_api_key, CFG.LLM_API_KEY, lambda: None
+        )
 
     @property
     def default_model_settings(self) -> "ModelSettings | None":

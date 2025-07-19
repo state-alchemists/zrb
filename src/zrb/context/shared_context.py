@@ -1,4 +1,5 @@
 import datetime
+import sys
 from typing import Any
 
 from zrb.config.config import CFG
@@ -42,6 +43,14 @@ class SharedContext(AnySharedContext):
         env = self._env
         xcom = self._xcom
         return f"<{class_name} input={input} args={args} xcom={xcom} env={env}>"
+
+    @property
+    def is_web_mode(self) -> bool:
+        return self.env.get("_ZRB_IS_WEB_MODE", "0") == "1"
+
+    @property
+    def is_tty(self) -> bool:
+        return sys.stdin.isatty()
 
     @property
     def input(self) -> DotDict:
