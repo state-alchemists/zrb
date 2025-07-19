@@ -133,7 +133,9 @@ class LLMConfig:
         return self._get_property(
             self._default_special_instruction_prompt,
             CFG.LLM_SPECIAL_INSTRUCTION_PROMPT,
-            lambda: self._get_internal_default_prompt("special_instruction_prompt"),
+            lambda: self._get_internal_default_prompt(
+                "instruction_software_engineering"
+            ),
         )
 
     @property
