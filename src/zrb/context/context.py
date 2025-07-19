@@ -33,6 +33,7 @@ class Context(AnyContext):
         class_name = self.__class__.__name__
         return f"<{class_name} shared_ctx={self._shared_ctx}>"
 
+    @property
     def is_web_mode(self) -> bool:
         return self._shared_ctx.is_web_mode
 

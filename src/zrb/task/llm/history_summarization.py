@@ -143,18 +143,16 @@ async def summarize_history(
         model_settings=settings,
         retries=retries,
         tools=[
-            conversation_history.write_past_conversation_summary,
-            conversation_history.write_past_conversation_transcript,
-            conversation_history.read_contextual_note,
-            conversation_history.write_contextual_note,
-            conversation_history.replace_in_contextual_note,
             conversation_history.read_long_term_note,
-            conversation_history.write_long_term_note,
-            conversation_history.replace_in_long_term_note,
+            conversation_history.add_long_term_info,
+            conversation_history.remove_long_term_info,
+            conversation_history.read_contextual_note,
+            conversation_history.add_contextual_info,
+            conversation_history.remove_contextual_info,
         ],
     )
     try:
-        ctx.print(stylize_faint("📝 Summarize"), plain=True)
+        ctx.print(stylize_faint(">>> 📝 Summarize Conversation"), plain=True)
         summary_run = await run_agent_iteration(
             ctx=ctx,
             agent=summarization_agent,
@@ -164,7 +162,7 @@ async def summarize_history(
         )
         if summary_run and summary_run.result and summary_run.result.output:
             usage = summary_run.result.usage()
-            ctx.print(stylize_faint(f"📝 Summarization Token: {usage}"), plain=True)
+            ctx.print(stylize_faint(f">>> 📝 Summarization Token: {usage}"), plain=True)
             ctx.print(plain=True)
             ctx.log_info("History summarized and updated.")
         else:

@@ -69,3 +69,6 @@ class LLMContextConfig:
             context_path = cwd
         abs_path = os.path.abspath(context_path)
         self._context_handler.remove_from_section(content, abs_path, cwd=cwd)
+
+
+llm_context_config = LLMContextConfig()
