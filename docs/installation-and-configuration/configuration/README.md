@@ -13,6 +13,7 @@ Many applications (including Zrb) can be configured using environment variables.
 Furthermore, Zrb also allows you to override some configurations with a special singletons.
 
 - [LLM Integration](./llm-integration.md): Integration with LLM
+- [LLM Workflow](./llm-workflow.md): How `zrb` thinks and manages context.
 - [LLM Config](./llm-config.md): Configuring LLM configurations programmatically.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
 - [Web Auth Config](./web-auth-config.md): Configuring Zrb Web Server authentication programmatically.
@@ -269,7 +270,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 
 * `ZRB_LLM_MODES`: Comma-separated list of modes to activate special instructions.
     * Default: `coding`
-    * Possible values: `coding`, `content`, `research`
+    * Possible values: `coding`, `content`, `research`, or any workflow defined on `ZRB.md`
 
 * `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     * Default: None
