@@ -267,6 +267,10 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid persona prompt
 
+* `ZRB_LLM_MODES`: Comma-separated list of modes to activate special instructions.
+    * Default: `coding`
+    * Possible values: `coding`, `content`, `research`
+
 * `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     * Default: None
     * Possible values: Any valid system prompt string
