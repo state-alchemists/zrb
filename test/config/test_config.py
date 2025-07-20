@@ -411,12 +411,12 @@ def test_llm_file_analysis_token_limit(monkeypatch):
     assert config.LLM_FILE_ANALYSIS_TOKEN_LIMIT == 40000
 
 
-def test_llm_analyze_file_extractor_system_prompt(monkeypatch):
+def test_llm_file_extractor_system_prompt(monkeypatch):
     monkeypatch.setenv(
-        "ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT", "my-file-extractor-prompt"
+        "ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT", "my-file-extractor-prompt"
     )
     config = Config()
-    assert config.LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT == "my-file-extractor-prompt"
+    assert config.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT == "my-file-extractor-prompt"
 
 
 def test_llm_repo_extractor_system_prompt(monkeypatch):

@@ -19,77 +19,20 @@ Your Automation Powerhouse
 🐤 Follow us at: https://twitter.com/zarubastalchmst
 """
 
-_DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT = (
-    "You are an intelligent code and configuration analysis agent.\n"
-    "Your primary goal is to extract key information from the provided file(s) "
-    "that is directly relevant to the main assistant's objective.\n"
-    "\n"
-    "Analyze the file content and determine its type (e.g., Python script, "
-    "YAML configuration, Dockerfile, Markdown documentation).\n"
-    "Based on the file type, extract the most important information in a "
-    "structured markdown format.\n"
-    "\n"
-    "- For source code (e.g., .py, .js, .go): Extract key components like "
-    "classes, functions, important variables, and their purposes.\n"
-    "- For configuration files (e.g., .yaml, .toml, .json): Extract the main "
-    "configuration sections, keys, and their values.\n"
-    "- For infrastructure files (e.g., Dockerfile, .tf): Extract resources, "
-    "settings, and commands.\n"
-    "- For documentation (e.g., .md): Extract headings, summaries, code "
-    "blocks, and links.\n"
-    "\n"
-    "Focus on quality and relevance over quantity. The output should be a "
-    "concise yet comprehensive summary that directly helps the main "
-    "assistant achieve its goal."
-).strip()
-
-_DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT = (
-    "You are an intelligent code and configuration analysis agent.\n"
-    "Your primary goal is to extract key information from the provided file(s) "
-    "that is directly relevant to the main assistant's objective.\n"
-    "\n"
-    "Analyze the file content and determine its type (e.g., Python script, "
-    "YAML configuration, Dockerfile, Markdown documentation).\n"
-    "Based on the file type, extract the most important information in a "
-    "structured markdown format.\n"
-    "\n"
-    "- For source code (e.g., .py, .js, .go): Extract key components like "
-    "classes, functions, important variables, and their purposes.\n"
-    "- For configuration files (e.g., .yaml, .toml, .json): Extract the main "
-    "configuration sections, keys, and their values.\n"
-    "- For infrastructure files (e.g., Dockerfile, .tf): Extract resources, "
-    "settings, and commands.\n"
-    "- For documentation (e.g., .md): Extract headings, summaries, code "
-    "blocks, and links.\n"
-    "\n"
-    "Focus on quality and relevance over quantity. The output should be a "
-    "concise yet comprehensive summary that directly helps the main "
-    "assistant achieve its goal."
-).strip()
-
-_DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT = (
-    "You are an expert summarization and synthesis agent.\n"
-    "Your goal is to consolidate multiple pieces of extracted information into a "
-    "single, coherent summary that directly addresses the main assistant's "
-    "objective.\n"
-    "\n"
-    "Do not simply list the information you receive. Instead, perform the "
-    "following actions:\n"
-    "1.  **Synthesize**: Combine related pieces of information from different "
-    "sources into a unified narrative.\n"
-    "2.  **Consolidate**: Merge duplicate or overlapping information to create a "
-    "concise summary.\n"
-    "3.  **Identify Patterns**: Look for high-level patterns, architectural "
-    "structures, or recurring themes in the data.\n"
-    "4.  **Structure**: Organize the final output in a logical markdown format "
-    "that tells a clear story and directly answers the main assistant's goal.\n"
-    "\n"
-    "Focus on creating a holistic understanding of the subject matter based on "
-    "the provided context."
-).strip()
-
 
 class Config:
+    def __init__(self):
+        self.__internal_default_prompt: dict[str, str] = {}
+
+    def _get_internal_default_prompt(self, name: str) -> str:
+        if name not in self.__internal_default_prompt:
+            file_path = os.path.join(
+                os.path.dirname(__file__), "default_prompt", f"{name}.md"
+            )
+            with open(file_path, "r") as f:
+                self.__internal_default_prompt[name] = f.read().strip()
+        return self.__internal_default_prompt[name]
+
     @property
     def LOGGER(self) -> logging.Logger:
         return logging.getLogger()
@@ -303,6 +246,14 @@ class Config:
         return os.getenv("ZRB_LLM_PERSONA", None)
 
     @property
+    def LLM_MODES(self) -> list[str]:
+        return [
+            mode.strip()
+            for mode in os.getenv("ZRB_LLM_MODES", "coding").split(",")
+            if mode.strip() != ""
+        ]
+
+    @property
     def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
         return os.getenv("ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", None)
 
@@ -359,24 +310,24 @@ class Config:
         return int(os.getenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT", "35000"))
 
     @property
-    def LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
+    def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
         return os.getenv(
-            "ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT",
-            _DEFAULT_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT,
+            "ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT",
+            self._get_internal_default_prompt("file_extractor_system_prompt"),
         )
 
     @property
     def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
         return os.getenv(
             "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
-            _DEFAULT_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT,
+            self._get_internal_default_prompt("repo_extractor_system_prompt"),
         )
 
     @property
     def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
         return os.getenv(
             "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
-            _DEFAULT_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT,
+            self._get_internal_default_prompt("repo_summarizer_system_prompt"),
         )
 
     @property

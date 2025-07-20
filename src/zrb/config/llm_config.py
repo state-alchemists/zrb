@@ -2,6 +2,8 @@ import os
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.config.config import CFG
+from zrb.config.llm_context.config import llm_context_config
+from zrb.util.llm.prompt import make_prompt_section
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -133,10 +135,26 @@ class LLMConfig:
         return self._get_property(
             self._default_special_instruction_prompt,
             CFG.LLM_SPECIAL_INSTRUCTION_PROMPT,
-            lambda: self._get_internal_default_prompt(
-                "instruction_software_engineering"
-            ),
+            lambda: self._get_workflow_prompt(CFG.LLM_MODES),
         )
+
+    def _get_workflow_prompt(self, modes: list[str]) -> str:
+        workflows = llm_context_config.get_workflows()
+        dir_path = os.path.dirname(__file__)
+        default_workflow_names = ("code", "content", "research")
+        for workflow_name in default_workflow_names:
+            if workflow_name in workflows:
+                continue
+            workflow_file_path = os.path.join(
+                dir_path, "default_workflow", f"{workflow_name}.md"
+            )
+            with open(workflow_file_path, "r") as f:
+                workflows[workflow_name] = f.read()
+        return "\n".join([
+            make_prompt_section(header, content)
+            for header, content in workflows.items()
+            if header.lower() in modes
+        ])
 
     @property
     def default_summarization_prompt(self) -> str:

@@ -32,13 +32,13 @@ class LLMContextConfig:
             resolve_section_path=False,
         )
 
-    def get_context(self, cwd: str | None = None) -> dict[str, str]:
+    def get_contexts(self, cwd: str | None = None) -> dict[str, str]:
         """Gathers all relevant contexts for a given path."""
         if cwd is None:
             cwd = os.getcwd()
         return self._context_handler.get_section(cwd)
 
-    def get_workflow(self, cwd: str | None = None) -> dict[str, str]:
+    def get_workflows(self, cwd: str | None = None) -> dict[str, str]:
         """Gathers all relevant workflows for a given path."""
         if cwd is None:
             cwd = os.getcwd()

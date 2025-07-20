@@ -276,12 +276,12 @@ class ConversationHistory:
         )
 
     def _fetch_long_term_note(self):
-        contexts = llm_context_config.get_context(cwd=self.project_path)
+        contexts = llm_context_config.get_contexts(cwd=self.project_path)
         self.long_term_note = contexts.get("/", "")
         return self.long_term_note
 
     def _fetch_contextual_note(self):
-        contexts = llm_context_config.get_context(cwd=self.project_path)
+        contexts = llm_context_config.get_contexts(cwd=self.project_path)
         self.contextual_note = "\n".join(
             [
                 make_prompt_section(header, content)

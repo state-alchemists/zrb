@@ -81,7 +81,7 @@ def mock_open_side_effect(path, mode="r"):
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
 @mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_get_context_cascading(mock_open, mock_handler_os, mock_config_os):
+def test_get_contexts_cascading(mock_open, mock_handler_os, mock_config_os):
     # Setup mocks
     mock_handler_os.path.expanduser.return_value = "/home/user"
     mock_handler_os.path.abspath.side_effect = os.path.abspath
@@ -101,7 +101,7 @@ def test_get_context_cascading(mock_open, mock_handler_os, mock_config_os):
     )
 
     config = LLMContextConfig()
-    context = config.get_context()
+    context = config.get_contexts()
 
     assert "/home/user/project" in context
     assert "/home/user" in context
@@ -113,7 +113,7 @@ def test_get_context_cascading(mock_open, mock_handler_os, mock_config_os):
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
 @mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_get_context_with_absolute_path_and_fenced_code(
+def test_get_contexts_with_absolute_path_and_fenced_code(
     mock_open, mock_handler_os, mock_config_os
 ):
     mock_handler_os.path.expanduser.return_value = "/home/user"
@@ -134,7 +134,7 @@ def test_get_context_with_absolute_path_and_fenced_code(
     )
 
     config = LLMContextConfig()
-    context = config.get_context()
+    context = config.get_contexts()
 
     assert "/tmp/global" in context
     assert context["/tmp/global"] == "This is a global context."
@@ -147,7 +147,7 @@ def test_get_context_with_absolute_path_and_fenced_code(
 @mock.patch("zrb.config.llm_context.config.os")
 @mock.patch("zrb.config.llm_context.config_handler.os")
 @mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_get_workflow(mock_open, mock_handler_os, mock_config_os):
+def test_get_workflows(mock_open, mock_handler_os, mock_config_os):
     mock_handler_os.path.expanduser.return_value = "/home/user"
     mock_handler_os.path.abspath.side_effect = os.path.abspath
     mock_handler_os.path.join.side_effect = os.path.join
@@ -164,7 +164,7 @@ def test_get_workflow(mock_open, mock_handler_os, mock_config_os):
     )
 
     config = LLMContextConfig()
-    workflows = config.get_workflow()
+    workflows = config.get_workflows()
 
     assert "global-workflow" in workflows
     assert "test-workflow" in workflows
@@ -240,12 +240,12 @@ def test_remove_from_context(mock_open, mock_handler_os, mock_config_os):
 
     setup_fs(
         {
-            "/home/user/ZRB.md": """
-# Context: .
-Line 1
-Line 2
-Line 3
-"""
+            "/home/user/ZRB.md": (
+                "# Context: .\n"
+                "Line 1\n"
+                "Line 2\n"
+                "Line 3\n"
+            )
         }
     )
 

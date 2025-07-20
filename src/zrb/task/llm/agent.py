@@ -47,7 +47,7 @@ def create_agent_instance(
         model=model,
         system_prompt=system_prompt,
         tools=tool_list,
-        mcp_servers=mcp_servers,
+        toolsets=mcp_servers,
         model_settings=model_settings,
         retries=retries,
     )
@@ -160,7 +160,7 @@ async def _run_single_agent_iteration(
     else:
         await llm_rate_limitter.throttle(agent_payload)
 
-    async with agent.run_mcp_servers():
+    async with agent:
         async with agent.iter(
             user_prompt=user_prompt,
             message_history=ModelMessagesTypeAdapter.validate_python(history_list),
