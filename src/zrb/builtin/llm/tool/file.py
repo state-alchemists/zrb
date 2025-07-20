@@ -10,7 +10,7 @@ from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
-_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = CFG.LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT
+_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT
 
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -471,7 +471,7 @@ async def analyze_file(
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
         tool_description="analyze file with LLM capability",
-        system_prompt=CFG.LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT,
+        system_prompt=CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )
     payload = json.dumps(

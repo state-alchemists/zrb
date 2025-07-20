@@ -19,12 +19,11 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     Orchestrates the session by calling helper functions.
     """
     _show_info(ctx)
-    is_web = ctx.env.get("_ZRB_WEB_ENV", "0") == "1"
     final_result = await _handle_initial_message(ctx)
-    if is_web:
+    if ctx.is_web_mode:
         return final_result
-    is_interactive = sys.stdin.isatty()
-    reader = await _setup_input_reader(is_interactive)
+    is_tty = ctx.is_tty
+    reader = await _setup_input_reader(is_tty)
     multiline_mode = False
     user_inputs = []
     while True:
@@ -32,7 +31,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         # Get user input based on mode
         if not multiline_mode:
             ctx.print("💬 >>", plain=True)
-        user_input = await _read_next_line(is_interactive, reader, ctx)
+        user_input = await _read_next_line(is_tty, reader, ctx)
         if not multiline_mode:
             ctx.print("", plain=True)
         # Handle user input

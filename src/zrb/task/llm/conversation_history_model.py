@@ -3,10 +3,11 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from zrb.config.config import CFG
+from zrb.config.llm_context.config import llm_context_config
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.typing import ListOfDict
-from zrb.util.file import read_file, read_file_with_line_numbers, write_file
+from zrb.util.file import read_file
+from zrb.util.llm.prompt import make_prompt_section
 from zrb.util.run import run_async
 
 
@@ -81,14 +82,8 @@ class ConversationHistory:
         return None
 
     def fetch_newest_notes(self):
-        self.long_term_note = ""
-        long_term_note_path = self._get_long_term_note_path()
-        if os.path.isfile(long_term_note_path):
-            self.long_term_note = read_file(long_term_note_path)
-        self.contextual_note = ""
-        contextual_note_path = self._get_contextual_note_path()
-        if os.path.isfile(contextual_note_path):
-            self.contextual_note = read_file(contextual_note_path)
+        self._fetch_long_term_note()
+        self._fetch_contextual_note()
 
     @classmethod
     def parse_and_validate(
@@ -139,12 +134,13 @@ class ConversationHistory:
             past_conversation_summary (str): The summary text to store.
 
         Returns:
-            None
+            str: A JSON object indicating the success or failure of the operation.
 
         Raises:
             Exception: If the summary cannot be written.
         """
         self.past_conversation_summary = past_conversation_summary
+        return json.dumps({"success": True})
 
     def write_past_conversation_transcript(self, past_conversation_transcript: str):
         """
@@ -157,284 +153,140 @@ class ConversationHistory:
             past_conversation_transcript (str): The transcript text to store.
 
         Returns:
-            None
+            str: A JSON object indicating the success or failure of the operation.
 
         Raises:
             Exception: If the transcript cannot be written.
         """
         self.past_conversation_transcript = past_conversation_transcript
+        return json.dumps({"success": True})
 
-    def read_long_term_note(
-        self,
-        start_line: int | None = None,
-        end_line: int | None = None,
-    ) -> str:
+    def read_long_term_note(self) -> str:
         """
-        Read the content of the long-term note, optionally for a specific line range.
+        Read the content of the long-term references.
 
         This tool helps you retrieve knowledge or notes stored for long-term reference.
         If the note does not exist, you may want to create it using the write tool.
 
-        Args:
-            start_line (int, optional): 1-based line number to start reading from.
-            end_line (int, optional): 1-based line number to stop reading at (inclusive).
-
         Returns:
-            str: JSON with file path, content (with line numbers), start/end lines,
-                and total lines.
+            str: JSON with content of the notes.
 
         Raises:
             Exception: If the note cannot be read.
-                Suggests writing the note if it does not exist.
         """
-        return self._read_note(
-            self._get_long_term_note_path(),
-            start_line,
-            end_line,
-            note_type="long-term note",
-        )
+        return json.dumps({"content": self._fetch_long_term_note()})
 
-    def write_long_term_note(self, content: str) -> str:
+    def add_long_term_info(self, new_info: str) -> str:
         """
-        Write or overwrite the content of the long-term note.
-
-        Use this tool to create a new long-term note or replace its entire content.
-        Always read the note first to avoid accidental data loss, unless you are sure
-        you want to overwrite.
+        Add new info for long-term reference.
 
         Args:
-            content (str): The full content to write to the note.
+            new_info (str): New info to be added into long-term references.
 
         Returns:
-            str: JSON indicating success and the note path.
+            str: JSON with new content of the notes.
 
         Raises:
-            Exception: If the note cannot be written. Suggests checking permissions or path.
+            Exception: If the note cannot be read.
         """
-        self.long_term_note = content
-        return self._write_note(
-            self._get_long_term_note_path(), content, note_type="long-term note"
-        )
+        llm_context_config.add_to_context(new_info, cwd="/")
+        return json.dumps({"success": True, "content": self._fetch_long_term_note()})
 
-    def replace_in_long_term_note(
-        self,
-        old_string: str,
-        new_string: str,
-    ) -> str:
+    def remove_long_term_info(self, irrelevant_info: str) -> str:
         """
-        Replace the first occurrence of a string in the long-term note.
-
-        Use this tool to update a specific part of the long-term note without
-        overwriting the entire content. If the note does not exist, consider writing it
-        first. If the string is not found, check your input or read the note to verify.
+        Remove irrelevant info from long-term reference.
 
         Args:
-            old_string (str): The exact string to search for and replace.
-            new_string (str): The string to replace with.
+            irrelevant_info (str): Irrelevant info to be removed from long-term references.
 
         Returns:
-            str: JSON indicating success and the note path.
+            str: JSON with new content of the notes and deletion status.
 
         Raises:
-            Exception: If the note does not exist or the string is not found.
-                Suggests writing or reading the note.
+            Exception: If the note cannot be read.
         """
-        result = self._replace_in_note(
-            self._get_long_term_note_path(),
-            old_string,
-            new_string,
-            note_type="long-term note",
+        was_removed = llm_context_config.remove_from_context(irrelevant_info, cwd="/")
+        return json.dumps(
+            {
+                "success": was_removed,
+                "content": self._fetch_long_term_note(),
+            }
         )
-        self.long_term_note = new_string
-        return result
 
-    def read_contextual_note(
-        self,
-        start_line: int | None = None,
-        end_line: int | None = None,
-    ) -> str:
+    def read_contextual_note(self) -> str:
         """
-        Read the content of the contextual note, optionally for a specific line range.
+        Read the content of the contextual references.
 
-        This tool helps you retrieve project-specific or session-specific notes.
+        This tool helps you retrieve knowledge or notes stored for contextual reference.
         If the note does not exist, you may want to create it using the write tool.
 
-        Args:
-            start_line (int, optional): 1-based line number to start reading from.
-            end_line (int, optional): 1-based line number to stop reading at (inclusive).
-
         Returns:
-            str: JSON with file path, content (with line numbers), start/end lines,
-                and total lines.
+            str: JSON with content of the notes.
 
         Raises:
             Exception: If the note cannot be read.
-                Suggests writing the note if it does not exist.
         """
-        return self._read_note(
-            self._get_contextual_note_path(),
-            start_line,
-            end_line,
-            note_type="contextual note",
-        )
+        return json.dumps({"content": self._fetch_contextual_note()})
 
-    def write_contextual_note(self, content: str) -> str:
+    def add_contextual_info(self, new_info: str, context_path: str | None) -> str:
         """
-        Write or overwrite the content of the contextual note.
-
-        Use this tool to create a new contextual note or replace its entire content.
-        Always read the note first to avoid accidental data loss, unless you are sure
-        you want to overwrite.
+        Add new info for contextual reference.
 
         Args:
-            content (str): The full content to write to the note.
+            new_info (str): New info to be added into contextual references.
+            context_path (str, optional): contextual directory path for new info
 
         Returns:
-            str: JSON indicating success and the note path.
+            str: JSON with new content of the notes.
 
         Raises:
-            Exception: If the note cannot be written. Suggests checking permissions or path.
+            Exception: If the note cannot be read.
         """
-        self.contextual_note = content
-        return self._write_note(
-            self._get_contextual_note_path(), content, note_type="contextual note"
-        )
+        if context_path is None:
+            context_path = self.project_path
+        llm_context_config.add_to_context(new_info, context_path=context_path)
+        return json.dumps({"success": True, "content": self._fetch_contextual_note()})
 
-    def replace_in_contextual_note(
-        self,
-        old_string: str,
-        new_string: str,
+    def remove_contextual_info(
+        self, irrelevant_info: str, context_path: str | None
     ) -> str:
         """
-        Replace the first occurrence of a string in the contextual note.
-
-        Use this tool to update a specific part of the contextual note without
-        overwriting the entire content. If the note does not exist, consider writing it
-        first. If the string is not found, check your input or read the note to verify.
+        Remove irrelevant info from contextual reference.
 
         Args:
-            old_string (str): The exact string to search for and replace.
-            new_string (str): The string to replace with.
+            irrelevant_info (str): Irrelevant info to be removed from contextual references.
+            context_path (str, optional): contextual directory path of the irrelevant info
 
         Returns:
-            str: JSON indicating success and the note path.
+            str: JSON with new content of the notes and deletion status.
 
         Raises:
-            Exception: If the note does not exist or the string is not found.
-                Suggests writing or reading the note.
+            Exception: If the note cannot be read.
         """
-        result = self._replace_in_note(
-            self._get_contextual_note_path(),
-            old_string,
-            new_string,
-            note_type="contextual note",
+        if context_path is None:
+            context_path = self.project_path
+        was_removed = llm_context_config.remove_from_context(
+            irrelevant_info, context_path=context_path
         )
-        self.contextual_note = new_string
-        return result
+        return json.dumps(
+            {
+                "success": was_removed,
+                "content": self._fetch_contextual_note(),
+            }
+        )
 
-    def _get_long_term_note_path(self) -> str:
-        return os.path.abspath(os.path.expanduser(CFG.LLM_LONG_TERM_NOTE_PATH))
+    def _fetch_long_term_note(self):
+        contexts = llm_context_config.get_contexts(cwd=self.project_path)
+        self.long_term_note = contexts.get("/", "")
+        return self.long_term_note
 
-    def _get_contextual_note_path(self) -> str:
-        return os.path.join(self.project_path, CFG.LLM_CONTEXTUAL_NOTE_FILE)
-
-    def _read_note(
-        self,
-        path: str,
-        start_line: int | None = None,
-        end_line: int | None = None,
-        note_type: str = "note",
-    ) -> str:
-        """
-        Internal helper to read a note file with line numbers and error handling.
-        """
-        if not os.path.exists(path):
-            return json.dumps(
-                {
-                    "path": path,
-                    "content": "",
-                    "start_line": 0,
-                    "end_line": 0,
-                    "total_lines": 0,
-                }
-            )
-        try:
-            content = read_file_with_line_numbers(path)
-            lines = content.splitlines()
-            total_lines = len(lines)
-            start_idx = (start_line - 1) if start_line is not None else 0
-            end_idx = end_line if end_line is not None else total_lines
-            if start_idx < 0:
-                start_idx = 0
-            if end_idx > total_lines:
-                end_idx = total_lines
-            if start_idx > end_idx:
-                start_idx = end_idx
-            selected_lines = lines[start_idx:end_idx]
-            content_result = "\n".join(selected_lines)
-            return json.dumps(
-                {
-                    "path": path,
-                    "content": content_result,
-                    "start_line": start_idx + 1,
-                    "end_line": end_idx,
-                    "total_lines": total_lines,
-                }
-            )
-        except Exception:
-            raise Exception(
-                f"Failed to read the {note_type}. "
-                f"If the {note_type} does not exist, try writing it first."
-            )
-
-    def _write_note(self, path: str, content: str, note_type: str = "note") -> str:
-        """
-        Internal helper to write a note file with error handling.
-        """
-        try:
-            directory = os.path.dirname(path)
-            if directory and not os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
-            write_file(path, content)
-            return json.dumps({"success": True, "path": path})
-        except (OSError, IOError):
-            raise Exception(
-                f"Failed to write the {note_type}. "
-                "Please check if the path is correct and you have write permissions."
-            )
-        except Exception:
-            raise Exception(
-                f"Unexpected error while writing the {note_type}. "
-                "Please check your input and try again."
-            )
-
-    def _replace_in_note(
-        self, path: str, old_string: str, new_string: str, note_type: str = "note"
-    ) -> str:
-        """
-        Internal helper to replace a string in a note file with error handling.
-        """
-        if not os.path.exists(path):
-            raise Exception(
-                (
-                    f"{note_type.capitalize()} not found. "
-                    f"Consider writing a new {note_type} first."
-                )
-            )
-        try:
-            content = read_file(path)
-            if old_string not in content:
-                raise Exception(
-                    f"The specified string to replace was not found in the {note_type}. ("
-                    f"Try reading the {note_type} to verify its content or "
-                    f"write a new one if needed)."
-                )
-            new_content = content.replace(old_string, new_string, 1)
-            write_file(path, new_content)
-            return json.dumps({"success": True, "path": path})
-        except Exception:
-            raise Exception(
-                f"Failed to replace content in the {note_type}. ("
-                f"Try reading the {note_type} to verify its content or "
-                "write a new one if needed)."
-            )
+    def _fetch_contextual_note(self):
+        contexts = llm_context_config.get_contexts(cwd=self.project_path)
+        self.contextual_note = "\n".join(
+            [
+                make_prompt_section(header, content)
+                for header, content in contexts.items()
+                if header != "/"
+            ]
+        )
+        return self.contextual_note

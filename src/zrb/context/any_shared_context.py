@@ -19,6 +19,16 @@ class AnySharedContext(ABC):
     """
 
     @property
+    @abstractmethod
+    def is_web_mode(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def is_tty(self) -> bool:
+        pass
+
+    @property
     def input(self) -> DotDict:
         pass
 

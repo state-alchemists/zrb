@@ -13,6 +13,7 @@ Many applications (including Zrb) can be configured using environment variables.
 Furthermore, Zrb also allows you to override some configurations with a special singletons.
 
 - [LLM Integration](./llm-integration.md): Integration with LLM
+- [LLM Workflow](./llm-workflow.md): How `zrb` thinks and manages context.
 - [LLM Config](./llm-config.md): Configuring LLM configurations programmatically.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
 - [Web Auth Config](./web-auth-config.md): Configuring Zrb Web Server authentication programmatically.
@@ -267,6 +268,10 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid persona prompt
 
+* `ZRB_LLM_MODES`: Comma-separated list of modes to activate special instructions.
+    * Default: `coding`
+    * Possible values: `coding`, `content`, `research`, or any workflow defined on `ZRB.md`
+
 * `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     * Default: None
     * Possible values: Any valid system prompt string
@@ -307,13 +312,9 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid prompt string
 
-* `ZRB_LLM_CONTEXTUAL_NOTE_FILE`: The local file name for the agent's contextual notes.
-    * Default: `ZRB_README.md`
+* `ZRB_LLM_CONTEXT_FILE`: The path for context file.
+    * Default: `ZRB.md`
     * Possible values: Any valid file name.
-
-* `ZRB_LLM_LONG_TERM_NOTE_PATH`: The absolute path for the agent's long-term, global notes.
-    * Default: `~/ZRB_GLOBAL_README.md`
-    * Possible values: Any valid, user-writable absolute path.
 
 * `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
     * Default: `1` (true)

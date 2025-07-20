@@ -34,6 +34,14 @@ class Context(AnyContext):
         return f"<{class_name} shared_ctx={self._shared_ctx}>"
 
     @property
+    def is_web_mode(self) -> bool:
+        return self._shared_ctx.is_web_mode
+
+    @property
+    def is_tty(self) -> bool:
+        return self._shared_ctx.is_tty
+
+    @property
     def input(self) -> DotDict:
         return self._shared_ctx.input
 
