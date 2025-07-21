@@ -238,16 +238,7 @@ def test_remove_from_context(mock_open, mock_handler_os, mock_config_os):
     mock_config_os.path.abspath.side_effect = os.path.abspath
     mock_config_os.path.expanduser.return_value = "/home/user"
 
-    setup_fs(
-        {
-            "/home/user/ZRB.md": (
-                "# Context: .\n"
-                "Line 1\n"
-                "Line 2\n"
-                "Line 3\n"
-            )
-        }
-    )
+    setup_fs({"/home/user/ZRB.md": ("# Context: .\n" "Line 1\n" "Line 2\n" "Line 3\n")})
 
     config = LLMContextConfig()
     was_removed = config.remove_from_context("Line 2", context_path="/home/user")

@@ -1,33 +1,30 @@
 FROM python:3.13-slim-bookworm
 
+# Build arguments
 ARG DIND=false
+ARG CI_TOOLS=false
 
-# Create and set workdir
+# Install system dependencies (Docker + CI tools if needed)
+RUN if [ "$CI_TOOLS" = "true" ] || [ "$DIND" = "true" ]; then \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    $(if [ "$CI_TOOLS" = "true" ]; then echo "git curl wget jq unzip"; fi) \
+    $(if [ "$DIND" = "true" ]; then echo "docker.io"; fi) \
+    && \
+    rm -rf /var/lib/apt/lists/*; \
+fi
+
+# Install Poetry and Python dependencies
+RUN pip install poetry && \
+    poetry config virtualenvs.create false
+
 WORKDIR /zrb-bin
-
-# Install poetry
-RUN pip install poetry
-
-# Install docker if necessary
-RUN if [ "$DIND" = "true" ]; then \
-        apt update && \
-        apt install -y docker.io && \
-        apt clean && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
-
-# Configure poetry to not use virtual environments
-RUN poetry config virtualenvs.create false
-
-# Copy only the dependency files first
 COPY pyproject.toml poetry.lock ./
-
-# Install dependencies
 RUN poetry install --without dev --no-root
 
-# Copy the rest of the application code
+# Copy the rest of the application
 COPY . .
 RUN poetry install --without dev
-WORKDIR /zrb-home
 
+WORKDIR /zrb-home
 CMD ["zrb", "server", "start"]

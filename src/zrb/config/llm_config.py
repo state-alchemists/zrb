@@ -150,11 +150,13 @@ class LLMConfig:
             )
             with open(workflow_file_path, "r") as f:
                 workflows[workflow_name] = f.read()
-        return "\n".join([
-            make_prompt_section(header, content)
-            for header, content in workflows.items()
-            if header.lower() in modes
-        ])
+        return "\n".join(
+            [
+                make_prompt_section(header, content)
+                for header, content in workflows.items()
+                if header.lower() in modes
+            ]
+        )
 
     @property
     def default_summarization_prompt(self) -> str:
