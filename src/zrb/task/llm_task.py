@@ -23,7 +23,6 @@ from zrb.task.llm.conversation_history import (
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
-    get_context_enrichment_prompt,
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
@@ -65,16 +64,15 @@ class LLMTask(BaseTask):
         ) = None,
         agent: "Agent | Callable[[AnySharedContext], Agent] | None" = None,
         persona: StrAttr | None = None,
+        render_persona: bool = False,
         system_prompt: StrAttr | None = None,
+        render_system_prompt: bool = False,
         special_instruction_prompt: StrAttr | None = None,
+        render_special_instruction_prompt: bool = False,
+        modes: StrListAttr | None = None,
+        render_modes: bool = True,
         message: StrAttr | None = None,
         render_message: bool = True,
-        enrich_context: BoolAttr | None = None,
-        render_enrich_context: bool = True,
-        context_enrichment_prompt: StrAttr | None = None,
-        render_context_enrichment_prompt: bool = True,
-        context_enrichment_token_threshold: IntAttr | None = None,
-        render_context_enrichment_token_threshold: bool = True,
         tools: (
             list["ToolOrCallable"]
             | Callable[[AnySharedContext], list["ToolOrCallable"]]
@@ -100,6 +98,7 @@ class LLMTask(BaseTask):
         summarize_history: BoolAttr | None = None,
         render_summarize_history: bool = True,
         summarization_prompt: StrAttr | None = None,
+        render_summarization_prompt: bool = False,
         history_summarization_token_threshold: IntAttr | None = None,
         render_history_summarization_token_threshold: bool = True,
         rate_limitter: LLMRateLimiter | None = None,
@@ -150,19 +149,17 @@ class LLMTask(BaseTask):
         self._model_settings = model_settings
         self._agent = agent
         self._persona = persona
+        self._render_persona = render_persona
         self._system_prompt = system_prompt
+        self._render_system_prompt = render_system_prompt
         self._special_instruction_prompt = special_instruction_prompt
+        self._render_special_instruction_prompt = render_special_instruction_prompt
+        self._modes = modes
+        self._render_modes = render_modes
         self._message = message
         self._render_message = render_message
         self._summarization_prompt = summarization_prompt
-        self._should_enrich_context = enrich_context
-        self._render_enrich_context = render_enrich_context
-        self._context_enrichment_prompt = context_enrichment_prompt
-        self._render_context_enrichment_prompt = render_context_enrichment_prompt
-        self._context_enrichment_token_threshold = context_enrichment_token_threshold
-        self._render_context_enrichment_token_threshold = (
-            render_context_enrichment_token_threshold
-        )
+        self._render_summarization_prompt = render_summarization_prompt
         self._tools = tools
         self._rate_limitter = rate_limitter
         self._additional_tools: list["ToolOrCallable"] = []
@@ -197,12 +194,6 @@ class LLMTask(BaseTask):
     def append_mcp_server(self, *mcp_server: "MCPServer"):
         for single_mcp_server in mcp_server:
             self._additional_mcp_servers.append(single_mcp_server)
-
-    def set_should_enrich_context(self, enrich_context: bool):
-        self._should_enrich_context = enrich_context
-
-    def set_context_enrichment_token_threshold(self, enrichment_token_threshold: int):
-        self._context_enrichment_token_threshold = enrichment_token_threshold
 
     def set_should_summarize_history(self, summarize_history: bool):
         self._should_summarize_history = summarize_history

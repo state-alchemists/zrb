@@ -22,11 +22,9 @@ class LLMConfig:
         default_interactive_system_prompt: str | None = None,
         default_special_instruction_prompt: str | None = None,
         default_summarization_prompt: str | None = None,
-        default_context_enrichment_prompt: str | None = None,
         default_summarize_history: bool | None = None,
         default_history_summarization_token_threshold: int | None = None,
-        default_enrich_context: bool | None = None,
-        default_context_enrichment_token_threshold: int | None = None,
+        default_modes: list[str] | None = None,
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
         default_model_provider: "Provider | None" = None,
@@ -40,18 +38,14 @@ class LLMConfig:
         self._default_interactive_system_prompt = default_interactive_system_prompt
         self._default_special_instruction_prompt = default_special_instruction_prompt
         self._default_summarization_prompt = default_summarization_prompt
-        self._default_context_enrichment_prompt = default_context_enrichment_prompt
         self._default_summarize_history = default_summarize_history
         self._default_history_summarization_token_threshold = (
             default_history_summarization_token_threshold
         )
-        self._default_enrich_context = default_enrich_context
-        self._default_context_enrichment_token_threshold = (
-            default_context_enrichment_token_threshold
-        )
+        self._default_modes = default_modes
+        self._default_model = default_model
         self._default_model_settings = default_model_settings
         self._default_model_provider = default_model_provider
-        self._default_model = default_model
 
     def _get_internal_default_prompt(self, name: str) -> str:
         if name not in self.__internal_default_prompt:
@@ -131,13 +125,21 @@ class LLMConfig:
         )
 
     @property
+    def default_modes(self) -> list[str]:
+        return self._get_property(
+            self._default_modes, CFG.LLM_MODES, lambda: ["coding"]
+        )
+
+    @property
     def default_special_instruction_prompt(self) -> str:
         return self._get_property(
             self._default_special_instruction_prompt,
             CFG.LLM_SPECIAL_INSTRUCTION_PROMPT,
+            # TODO: Deprecate
             lambda: self._get_workflow_prompt(CFG.LLM_MODES),
         )
 
+    # TODO: Deprecate
     def _get_workflow_prompt(self, modes: list[str]) -> str:
         workflows = llm_context_config.get_workflows()
         dir_path = os.path.dirname(__file__)
@@ -205,6 +207,19 @@ class LLMConfig:
 
     def set_default_special_instruction_prompt(self, special_instruction_prompt: str):
         self._default_special_instruction_prompt = special_instruction_prompt
+
+    def set_default_modes(self, modes: list[str]):
+        self._default_modes = modes
+
+    def add_default_mode(self, mode: str):
+        if self._default_modes is None:
+            self._default_modes = []
+        self._default_modes.append(mode)
+
+    def remove_default_mode(self, mode: str):
+        if self._default_modes is None:
+            self._default_modes = []
+        self._default_modes.remove(mode)
 
     def set_default_summarization_prompt(self, summarization_prompt: str):
         self._default_summarization_prompt = summarization_prompt
