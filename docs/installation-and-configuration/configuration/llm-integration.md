@@ -67,9 +67,9 @@ ZRB_LLM_BASE_URL=https://api.openai.com/v1
 
 ### Gemini
 ```env
-ZRB_LLM_MODEL=gemini-pro
+ZRB_LLM_MODEL=gemini-2.5-flash
 ZRB_LLM_API_KEY=your_gemini_api_key
-ZRB_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+ZRB_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 ```
 
 ### OpenRouter
