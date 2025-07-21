@@ -2,7 +2,7 @@ import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from zrb.attr.type import BoolAttr, IntAttr, StrAttr, fstring
+from zrb.attr.type import BoolAttr, IntAttr, StrAttr, StrListAttr, fstring
 from zrb.config.llm_rate_limitter import LLMRateLimiter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -16,7 +16,6 @@ from zrb.task.llm.config import (
     get_model_settings,
 )
 from zrb.task.llm.conversation_history import (
-    ListOfDict,
     read_conversation_history,
     write_conversation_history,
 )
@@ -218,6 +217,7 @@ class LLMTask(BaseTask):
         summarization_prompt = get_summarization_system_prompt(
             ctx=ctx,
             summarization_prompt_attr=self._summarization_prompt,
+            render_summarization_prompt=self._render_summarization_prompt,
         )
         user_message = get_user_message(ctx, self._message, self._render_message)
         # 1. Prepare initial state (read history from previous session)
@@ -234,8 +234,13 @@ class LLMTask(BaseTask):
             ctx=ctx,
             user_message=user_message,
             persona_attr=self._persona,
+            render_persona=self._render_persona,
             system_prompt_attr=self._system_prompt,
+            render_system_prompt=self._render_system_prompt,
             special_instruction_prompt_attr=self._special_instruction_prompt,
+            render_special_instruction_prompt=self._render_special_instruction_prompt,
+            modes_attr=self._modes,
+            render_modes=self._render_modes,
             conversation_history=conversation_history,
         )
         # 3. Get the agent instance

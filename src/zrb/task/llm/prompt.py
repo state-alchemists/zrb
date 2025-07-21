@@ -3,11 +3,12 @@ import platform
 import re
 from datetime import datetime, timezone
 
-from zrb.attr.type import StrAttr
+from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config as llm_config
+from zrb.config.llm_context.config import llm_context_config
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
-from zrb.util.attr import get_attr, get_str_attr
+from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.llm.prompt import make_prompt_section
 
@@ -15,13 +16,14 @@ from zrb.util.llm.prompt import make_prompt_section
 def get_persona(
     ctx: AnyContext,
     persona_attr: StrAttr | None,
+    render_persona: bool,
 ) -> str:
     """Gets the persona, prioritizing task-specific, then default."""
     persona = get_attr(
         ctx,
         persona_attr,
         None,
-        auto_render=False,
+        auto_render=render_persona,
     )
     if persona is not None:
         return persona
@@ -31,13 +33,14 @@ def get_persona(
 def get_base_system_prompt(
     ctx: AnyContext,
     system_prompt_attr: StrAttr | None,
+    render_system_prompt: bool,
 ) -> str:
     """Gets the base system prompt, prioritizing task-specific, then default."""
     system_prompt = get_attr(
         ctx,
         system_prompt_attr,
         None,
-        auto_render=False,
+        auto_render=render_system_prompt,
     )
     if system_prompt is not None:
         return system_prompt
@@ -47,33 +50,95 @@ def get_base_system_prompt(
 def get_special_instruction_prompt(
     ctx: AnyContext,
     special_instruction_prompt_attr: StrAttr | None,
+    render_spcecial_instruction_prompt: bool,
 ) -> str:
     """Gets the special instruction prompt, prioritizing task-specific, then default."""
     special_instruction = get_attr(
         ctx,
         special_instruction_prompt_attr,
         None,
-        auto_render=False,
+        auto_render=render_spcecial_instruction_prompt,
     )
     if special_instruction is not None:
         return special_instruction
     return llm_config.default_special_instruction_prompt
 
 
+def get_modes(
+    ctx: AnyContext,
+    modes_attr: StrAttr | None,
+    render_modes: bool,
+) -> str:
+    """Gets the modes, prioritizing task-specific, then default."""
+    raw_modes = get_str_list_attr(
+        ctx,
+        modes_attr,
+        auto_render=render_modes,
+    )
+    modes = [mode.strip() for mode in raw_modes if mode.strip() != ""]
+    if len(modes) > 0:
+        return modes
+    return llm_config.default_modes or []
+
+
+def get_workflow_prompt(
+    ctx: AnyContext,
+    modes_attr: StrAttr | None,
+    render_modes: bool,
+) -> str:
+    modes = get_modes(ctx, modes_attr, render_modes)
+    # Get user-defined workflows
+    workflows = {
+        workflow_name: content
+        for workflow_name, content in llm_context_config.get_workflows().items()
+        if workflow_name in modes
+    }
+    # Get requested builtin-workflow names
+    requested_builtin_workflow_names = [
+        workflow_name
+        for workflow_name in ("coding", "copywriting", "researching")
+        if workflow_name in modes and workflow_name not in workflows
+    ]
+    # add builtin-workflows if requested
+    if len(requested_builtin_workflow_names) > 0:
+        dir_path = os.path.dirname(__file__)
+        for workflow_name in requested_builtin_workflow_names:
+            workflow_file_path = os.path.join(
+                dir_path, "default_workflow", f"{workflow_name}.md"
+            )
+            with open(workflow_file_path, "r") as f:
+                workflows[workflow_name] = f.read()
+    return "\n".join(
+        [
+            make_prompt_section(header.capitalize(), content)
+            for header, content in workflows.items()
+            if header.lower() in modes
+        ]
+    )
+
+
 def get_system_and_user_prompt(
     ctx: AnyContext,
     user_message: str,
     persona_attr: StrAttr | None = None,
+    render_persona: bool = False,
     system_prompt_attr: StrAttr | None = None,
+    render_system_prompt: bool = False,
     special_instruction_prompt_attr: StrAttr | None = None,
+    render_special_instruction_prompt: bool = False,
+    modes_attr: StrListAttr | None = None,
+    render_modes: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> tuple[str, str]:
     """Combines persona, base system prompt, and special instructions."""
-    persona = get_persona(ctx, persona_attr)
-    base_system_prompt = get_base_system_prompt(ctx, system_prompt_attr)
-    special_instruction = get_special_instruction_prompt(
-        ctx, special_instruction_prompt_attr
+    persona = get_persona(ctx, persona_attr, render_persona)
+    base_system_prompt = get_base_system_prompt(
+        ctx, system_prompt_attr, render_system_prompt
     )
+    special_instruction_prompt = get_special_instruction_prompt(
+        ctx, special_instruction_prompt_attr, render_special_instruction_prompt
+    )
+    workflow_prompt = get_workflow_prompt(ctx, modes_attr, render_modes)
     if conversation_history is None:
         conversation_history = ConversationHistory()
     conversation_context, new_user_message = extract_conversation_context(user_message)
@@ -81,7 +146,8 @@ def get_system_and_user_prompt(
         [
             make_prompt_section("Persona", persona),
             make_prompt_section("System Prompt", base_system_prompt),
-            make_prompt_section("Special Instruction", special_instruction),
+            make_prompt_section("Special Instruction", special_instruction_prompt),
+            make_prompt_section("Special Workflows", workflow_prompt),
             make_prompt_section(
                 "Past Conversation",
                 "\n".join(
@@ -194,30 +260,15 @@ def get_user_message(
 def get_summarization_system_prompt(
     ctx: AnyContext,
     summarization_prompt_attr: StrAttr | None,
+    render_summarization_prompt: bool,
 ) -> str:
     """Gets the summarization prompt, rendering if configured and handling defaults."""
     summarization_prompt = get_attr(
         ctx,
         summarization_prompt_attr,
         None,
-        auto_render=False,
+        auto_render=render_summarization_prompt,
     )
     if summarization_prompt is not None:
         return summarization_prompt
     return llm_config.default_summarization_prompt
-
-
-def get_context_enrichment_prompt(
-    ctx: AnyContext,
-    context_enrichment_prompt_attr: StrAttr | None,
-) -> str:
-    """Gets the context enrichment prompt, rendering if configured and handling defaults."""
-    context_enrichment_prompt = get_attr(
-        ctx,
-        context_enrichment_prompt_attr,
-        None,
-        auto_render=False,
-    )
-    if context_enrichment_prompt is not None:
-        return context_enrichment_prompt
-    return llm_config.default_context_enrichment_prompt

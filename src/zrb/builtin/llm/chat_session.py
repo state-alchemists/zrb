@@ -25,6 +25,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     is_tty = ctx.is_tty
     reader = await _setup_input_reader(is_tty)
     multiline_mode = False
+    current_modes = ctx.input.modes
     user_inputs = []
     while True:
         await asyncio.sleep(0.01)
@@ -38,7 +39,9 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
-            result = await _trigger_ask_and_wait_for_result(ctx, user_prompt)
+            result = await _trigger_ask_and_wait_for_result(
+                ctx, user_prompt, current_modes
+            )
             if result is not None:
                 final_result = result
             break
@@ -49,9 +52,18 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             multiline_mode = False
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
-            result = await _trigger_ask_and_wait_for_result(ctx, user_prompt)
+            result = await _trigger_ask_and_wait_for_result(
+                ctx, user_prompt, current_modes
+            )
             if result is not None:
                 final_result = result
+        elif user_input.strip().lower().startswith("/mode"):
+            mode_parts = user_input.split(" ", maxsplit=2)
+            if len(mode_parts) > 1:
+                current_modes = mode_parts[1]
+            ctx.print(f"Current mode: {current_modes}", plain=True)
+            ctx.print("", plain=True)
+            continue
         elif user_input.strip().lower() in ("/help", "/info"):
             _show_info(ctx)
             continue
@@ -61,7 +73,9 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 continue
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
-            result = await _trigger_ask_and_wait_for_result(ctx, user_prompt)
+            result = await _trigger_ask_and_wait_for_result(
+                ctx, user_prompt, current_modes
+            )
             if result is not None:
                 final_result = result
     return final_result
@@ -74,14 +88,24 @@ def _show_info(ctx: AnyContext):
         ctx: The context object for the task.
     """
     ctx.print(
-        (
-            f"  {stylize_bold_yellow('/bye')}   {stylize_faint('Quit from chat session')}\n"
-            f"  {stylize_bold_yellow('/multi')} {stylize_faint('Start multiline input')}\n"
-            f"  {stylize_bold_yellow('/end')}   {stylize_faint('End multiline input')}\n"
-            f"  {stylize_bold_yellow('/help')}  {stylize_faint('Show this message')}\n"
+        "\n".join(
+            [
+                _format_info_line("/bye", "Quit from chat session"),
+                _format_info_line("/multi", "Start multiline input"),
+                _format_info_line("/end", "End multiline input"),
+                _format_info_line("/modes", "Show current modes"),
+                _format_info_line("/modes <mode1,mode2,..>", "Set current modes"),
+                _format_info_line("/help", "Show this message"),
+            ]
         ),
         plain=True,
     )
+
+
+def _format_info_line(command: str, description: str) -> str:
+    styled_command = stylize_bold_yellow(command.ljust(25))
+    styled_description = stylize_faint(description)
+    return f"  {styled_command} {styled_description}"
 
 
 async def _handle_initial_message(ctx: AnyContext) -> str:
@@ -94,6 +118,7 @@ async def _handle_initial_message(ctx: AnyContext) -> str:
     result = await _trigger_ask_and_wait_for_result(
         ctx,
         user_prompt=ctx.input.message,
+        modes=ctx.input.modes,
         previous_session_name=ctx.input.previous_session,
         start_new=ctx.input.start_new,
     )
@@ -131,6 +156,7 @@ async def _read_next_line(is_interactive: bool, reader, ctx: AnyContext) -> str:
 async def _trigger_ask_and_wait_for_result(
     ctx: AnyContext,
     user_prompt: str,
+    modes: str,
     previous_session_name: str | None = None,
     start_new: bool = False,
 ) -> str | None:
@@ -148,7 +174,7 @@ async def _trigger_ask_and_wait_for_result(
     """
     if user_prompt.strip() == "":
         return None
-    await _trigger_ask(ctx, user_prompt, previous_session_name, start_new)
+    await _trigger_ask(ctx, user_prompt, modes, previous_session_name, start_new)
     result = await _wait_ask_result(ctx)
     md_result = _render_markdown(result) if result is not None else ""
     ctx.print("\n🤖 >>", plain=True)
@@ -193,12 +219,14 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
         "start-new": data.get("start_new"),
         "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),
+        "modes": data.get("modes"),
     }
 
 
 async def _trigger_ask(
     ctx: AnyContext,
     user_prompt: str,
+    modes: str,
     previous_session_name: str | None = None,
     start_new: bool = False,
 ):
@@ -218,6 +246,7 @@ async def _trigger_ask(
             "previous_session_name": previous_session_name,
             "start_new": start_new,
             "message": user_prompt,
+            "modes": modes,
         }
     )
 
