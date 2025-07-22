@@ -270,7 +270,11 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 
 * `ZRB_LLM_MODES`: Comma-separated list of modes to activate special instructions.
     * Default: `coding`
-    * Possible values: `coding`, `content`, `research`, or any workflow defined on `ZRB.md`
+    * Possible values: `coding`, `copywriting`, `researching`, or any workflow defined on `ZRB.md`
+
+* `ZRB_LLM_YOLO_MODE`: Whether to skip tool execution confirmation.
+    * Default: `false`
+    * Possible values: `true`, `false`
 
 * `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     * Default: None

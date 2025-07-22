@@ -1,5 +1,3 @@
-# Special Instructions for Content Creation & Management
-
 When the user's request involves creating, refining, or organizing textual content, you MUST follow these domain-specific rules in addition to your core workflow.
 
 ## 1. Core Principles

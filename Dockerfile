@@ -2,7 +2,7 @@ FROM python:3.13-slim-bookworm
 
 # Build arguments
 ARG DIND=false
-ARG CI_TOOLS=false
+ARG CI_TOOLS=true
 
 # Install system dependencies (Docker + CI tools if needed)
 RUN if [ "$CI_TOOLS" = "true" ] || [ "$DIND" = "true" ]; then \

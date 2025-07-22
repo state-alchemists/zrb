@@ -1,4 +1,27 @@
-🔖 [Documentation Home](../README.md) > CI/CD Integration
+🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
+
+# 0.12.0
+
+- **Feature: Interactive Mode Switching for LLM Chat**
+  - The `llm-chat` command now supports dynamic workflow switching.
+  - Use the `/modes` command to view the current modes.
+  - Use `/modes <mode1>,<mode2>` to set one or more active modes (e.g., `/modes coding,researching`).
+- **Feature: Tool Execution Confirmation (YOLO Mode)**
+  - To enhance safety, `zrb` will now prompt for user confirmation before executing any tool suggested by the LLM.
+  - This feature can be disabled by setting the environment variable `ZRB_LLM_YOLO_MODE=true`.
+- **Changed: Refactored LLM Workflow Configuration**
+  - The `llm-ask` task now accepts a `--modes` argument to specify which workflow(s) to use (e.g., `zrb llm-ask --modes coding,copywriting --message "Refactor this code"`).
+  - This replaces the previous `ZRB_LLM_MODES` environment variable, which only supported a single mode.
+  - The concept of "context enrichment" has been removed, simplifying the conversation management logic.
+- **Changed: Renamed Default Workflows**
+  - The built-in workflow files have been renamed for clarity:
+    - `code.md` -> `coding.md`
+    - `content.md` -> `copywriting.md`
+    - `research.md` -> `researching.md`
+- **Added: New Utility**
+  - A new utility `zrb.util.callable.py` has been added to reliably get the name of any callable object, which is used in the new tool confirmation prompt.
+- **CI/CD**
+  - The `CI_TOOLS` build argument in the `Dockerfile` is now set to `true` by default.
 
 # 1.11.0
 

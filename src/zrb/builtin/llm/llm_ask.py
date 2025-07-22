@@ -65,6 +65,14 @@ _llm_ask_inputs = [
         allow_positional_parsing=False,
         always_prompt=False,
     ),
+    TextInput(
+        "modes",
+        description="Modes",
+        prompt="Modes",
+        default="coding",
+        allow_positional_parsing=False,
+        always_prompt=False,
+    ),
     BoolInput(
         "start-new",
         description="Start new conversation (LLM will forget everything)",
@@ -100,6 +108,9 @@ llm_ask: LLMTask = llm_group.add_task(
         conversation_history_writer=write_chat_conversation,
         system_prompt=lambda ctx: (
             None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
+        ),
+        modes=lambda ctx: (
+            None if ctx.input.modes.strip() == "" else ctx.input.modes.split(",")
         ),
         message="{ctx.input.message}",
         retries=0,
