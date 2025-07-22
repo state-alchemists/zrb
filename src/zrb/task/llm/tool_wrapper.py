@@ -5,9 +5,12 @@ import typing
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
+from zrb.util.callable import get_callable_name
 from zrb.util.run import run_async
+from zrb.util.string.conversion import to_boolean
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -71,13 +74,11 @@ def _create_wrapper(
     async def wrapper(*args, **kwargs):
         # Identify AnyContext parameter name from the original signature if needed
         any_context_param_name = None
-
         if needs_any_context_for_injection:
             for param in original_sig.parameters.values():
                 if _is_annotated_with_context(param.annotation, AnyContext):
                     any_context_param_name = param.name
                     break  # Found it, no need to continue
-
             if any_context_param_name is None:
                 # This should not happen if needs_any_context_for_injection is True,
                 # but check for safety
@@ -87,24 +88,22 @@ def _create_wrapper(
             # Inject the captured ctx into kwargs. This will overwrite if the LLM
             # somehow provided it.
             kwargs[any_context_param_name] = ctx
-
         # If the dummy argument was added for schema generation and is present in kwargs,
         # remove it before calling the original function, unless the original function
         # actually expects a parameter named '_dummy'.
         if "_dummy" in kwargs and "_dummy" not in original_sig.parameters:
             del kwargs["_dummy"]
-
         try:
-            # Call the original function.
-            # pydantic-ai is responsible for injecting RunContext if takes_ctx is True.
-            # Our wrapper injects AnyContext if needed.
-            # The arguments received by the wrapper (*args, **kwargs) are those
-            # provided by the LLM, potentially with RunContext already injected by
-            # pydantic-ai if takes_ctx is True. We just need to ensure AnyContext
-            # is injected if required by the original function.
-            # The dummy argument handling is moved to _adjust_signature's logic
-            # for schema generation, it's not needed here before calling the actual
-            # function.
+            if not CFG.LLM_YOLO_MODE and not ctx.is_web_mode and ctx.is_tty:
+                func_name = get_callable_name(func)
+                ctx.print(f"✅ >> Allow to run tool: {func_name} (Y/n)", plain=True)
+                user_confirmation_str = await _read_line()
+                user_confirmation = to_boolean(user_confirmation_str)
+                if not user_confirmation:
+                    ctx.print("❌ >> Why?", plain=True)
+                    reason = await _read_line()
+                    ctx.print("", plain=True)
+                    raise ValueError(f"User disapproval: {reason}")
             return await run_async(func(*args, **kwargs))
         except Exception as e:
             error_model = ToolExecutionError(
@@ -116,6 +115,13 @@ def _create_wrapper(
             return error_model.model_dump_json()
 
     return wrapper
+
+
+async def _read_line():
+    from prompt_toolkit import PromptSession
+
+    reader = PromptSession()
+    return await reader.prompt_async()
 
 
 def _adjust_signature(

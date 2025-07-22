@@ -1,5 +1,3 @@
-# Special Instructions for Research, Analysis, and Summarization
-
 When the user's request involves finding, synthesizing, or analyzing information, you MUST follow these domain-specific rules in addition to your core workflow.
 
 ## 1. Core Principles

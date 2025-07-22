@@ -288,8 +288,8 @@ class Config:
         return float(os.getenv("ZRB_LLM_THROTTLE_SLEEP", "1.0"))
 
     @property
-    def LLM_YOLO(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_YOLO", "false"))
+    def LLM_YOLO_MODE(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_YOLO_MODE", "false"))
 
     @property
     def LLM_SUMMARIZE_HISTORY(self) -> bool:

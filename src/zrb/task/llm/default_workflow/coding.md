@@ -1,5 +1,3 @@
-# Special Instructions for Software Engineering
-
 When the user's request involves writing or modifying code, you MUST follow these domain-specific rules in addition to your core workflow.
 
 ## 1. Critical Prohibitions
