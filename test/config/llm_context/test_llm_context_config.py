@@ -62,7 +62,7 @@ def mock_open_side_effect(path, mode="r"):
         if path in mock_files:
             return mock.mock_open(read_data=mock_files[path]).return_value
         raise FileNotFoundError(f"No such file or directory: '{path}'")
-    elif mode == "w":
+    elif mode in ["w", "a"]:
         mock_files[path] = ""
 
         def write_side_effect(data):
@@ -78,17 +78,55 @@ def mock_open_side_effect(path, mode="r"):
     return mock.mock_open().return_value
 
 
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-@mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_get_contexts_cascading(mock_open, mock_handler_os, mock_config_os):
+def test_get_context_and_workflow(mock_config_os, mock_open):
     # Setup mocks
-    mock_handler_os.path.expanduser.return_value = "/home/user"
-    mock_handler_os.path.abspath.side_effect = os.path.abspath
-    mock_handler_os.path.join.side_effect = os.path.join
-    mock_handler_os.path.dirname.side_effect = os.path.dirname
-    mock_handler_os.path.relpath.side_effect = os.path.relpath
-    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.relpath.side_effect = os.path.relpath
+    mock_config_os.path.isabs.side_effect = os.path.isabs
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
+    mock_open.side_effect = mock_open_side_effect
+    mock_config_os.getcwd.return_value = "/home/user/coba"
+
+    # Setup file system
+    setup_fs(
+        {
+            "/home/user/ZRB.md": (
+                "# Context: coba\n\n"
+                "some context\n\n"
+                "# Workflow: fiction-writing\n\n"
+                "write fiction\n"
+            ),
+            "/home/user/coba/ZRB.md": "# Context: .\n\noverride context\n",
+        }
+    )
+
+    config = LLMContextConfig()
+    contexts = config.get_contexts()
+    workflows = config.get_workflows()
+
+    assert contexts == {
+        "/home/user/coba": "override context",
+    }
+    assert workflows == {
+        "fiction-writing": "write fiction",
+    }
+
+
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
+@mock.patch("zrb.config.llm_context.config.os")
+def test_get_contexts_cascading(mock_config_os, mock_open):
+    # Setup mocks
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.relpath.side_effect = os.path.relpath
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
 
@@ -110,19 +148,16 @@ def test_get_contexts_cascading(mock_open, mock_handler_os, mock_config_os):
     assert "This is the home context." not in context["/home/user/project"]
 
 
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-@mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_get_contexts_with_absolute_path_and_fenced_code(
-    mock_open, mock_handler_os, mock_config_os
-):
-    mock_handler_os.path.expanduser.return_value = "/home/user"
-    mock_handler_os.path.abspath.side_effect = os.path.abspath
-    mock_handler_os.path.join.side_effect = os.path.join
-    mock_handler_os.path.dirname.side_effect = os.path.dirname
-    mock_handler_os.path.relpath.side_effect = os.path.relpath
-    mock_handler_os.path.isabs.side_effect = os.path.isabs
-    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+def test_get_contexts_with_absolute_path_and_fenced_code(mock_config_os, mock_open):
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.relpath.side_effect = os.path.relpath
+    mock_config_os.path.isabs.side_effect = os.path.isabs
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
 
@@ -144,15 +179,14 @@ def test_get_contexts_with_absolute_path_and_fenced_code(
     assert "# Context: ./another-project" not in context["/home/user/project"]
 
 
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-@mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_get_workflows(mock_open, mock_handler_os, mock_config_os):
-    mock_handler_os.path.expanduser.return_value = "/home/user"
-    mock_handler_os.path.abspath.side_effect = os.path.abspath
-    mock_handler_os.path.join.side_effect = os.path.join
-    mock_handler_os.path.dirname.side_effect = os.path.dirname
-    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+def test_get_workflows(mock_config_os, mock_open):
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
 
@@ -171,83 +205,77 @@ def test_get_workflows(mock_open, mock_handler_os, mock_config_os):
     assert workflows["global-workflow"] == "This is a global workflow."
 
 
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-@mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_add_to_context_new_file(mock_open, mock_handler_os, mock_config_os):
-    mock_handler_os.path.expanduser.return_value = "/home/user"
-    mock_handler_os.path.abspath.side_effect = os.path.abspath
-    mock_handler_os.path.join.side_effect = os.path.join
-    mock_handler_os.path.dirname.side_effect = os.path.dirname
-    mock_handler_os.path.relpath.side_effect = os.path.relpath
-    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+def test_write_context_new_file(mock_config_os, mock_open):
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.relpath.side_effect = os.path.relpath
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
-    mock_config_os.path.abspath.side_effect = os.path.abspath
-    mock_config_os.path.expanduser.return_value = "/home/user"
 
     setup_fs({})
 
     config = LLMContextConfig()
-    config.add_to_context("New content.")
+    config.write_context("New content.")
 
-    assert "/home/user/ZRB.md" in mock_files
-    assert "# Context: ./project" in mock_files["/home/user/ZRB.md"]
-    assert "New content." in mock_files["/home/user/ZRB.md"]
+    assert "/home/user/project/ZRB.md" in mock_files
+    assert "# Context: /home/user/project" in mock_files["/home/user/project/ZRB.md"]
+    assert "New content." in mock_files["/home/user/project/ZRB.md"]
 
 
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-@mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_add_to_context_new_file_global(mock_open, mock_handler_os, mock_config_os):
-    mock_handler_os.path.expanduser.return_value = "/home/user"
-    mock_handler_os.path.abspath.side_effect = os.path.abspath
-    mock_handler_os.path.join.side_effect = os.path.join
-    mock_handler_os.path.dirname.side_effect = os.path.dirname
-    mock_handler_os.path.relpath.side_effect = os.path.relpath
-    mock_handler_os.path.isabs.side_effect = os.path.isabs
-    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+def test_write_context_new_file_global(mock_config_os, mock_open):
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.relpath.side_effect = os.path.relpath
+    mock_config_os.path.isabs.side_effect = os.path.isabs
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
-    mock_config_os.path.abspath.side_effect = os.path.abspath
-    mock_config_os.path.expanduser.return_value = "/home/user"
 
     setup_fs({})
 
     config = LLMContextConfig()
-    config.add_to_context("Global content.", context_path="/tmp/global")
+    config.write_context("Global content.", context_path="/tmp/global")
 
-    assert "/home/user/ZRB.md" in mock_files
-    assert "# Context: /tmp/global" in mock_files["/home/user/ZRB.md"]
-    assert "Global content." in mock_files["/home/user/ZRB.md"]
+    assert "/home/user/project/ZRB.md" in mock_files
+    assert "# Context: /tmp/global" in mock_files["/home/user/project/ZRB.md"]
+    assert "Global content." in mock_files["/home/user/project/ZRB.md"]
 
 
+@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-@mock.patch("zrb.config.llm_context.config_handler.os")
-@mock.patch("zrb.config.llm_context.config_handler.open", new_callable=mock.mock_open)
-def test_remove_from_context(mock_open, mock_handler_os, mock_config_os):
-    mock_handler_os.path.expanduser.return_value = "/home/user"
-    mock_handler_os.path.abspath.side_effect = os.path.abspath
-    mock_handler_os.path.join.side_effect = os.path.join
-    mock_handler_os.path.dirname.side_effect = os.path.dirname
-    mock_handler_os.path.relpath.side_effect = os.path.relpath
-    mock_handler_os.path.isabs.side_effect = os.path.isabs
-    mock_handler_os.path.exists.side_effect = mock_exists_side_effect
+def test_write_context_overwrites_existing_section(mock_config_os, mock_open):
+    mock_config_os.path.expanduser.return_value = "/home/user"
+    mock_config_os.path.abspath.side_effect = os.path.abspath
+    mock_config_os.path.join.side_effect = os.path.join
+    mock_config_os.path.dirname.side_effect = os.path.dirname
+    mock_config_os.path.relpath.side_effect = os.path.relpath
+    mock_config_os.path.isabs.side_effect = os.path.isabs
+    mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
-    mock_config_os.path.abspath.side_effect = os.path.abspath
-    mock_config_os.path.expanduser.return_value = "/home/user"
 
-    setup_fs({"/home/user/ZRB.md": ("# Context: .\n" "Line 1\n" "Line 2\n" "Line 3\n")})
-
-    config = LLMContextConfig()
-    was_removed = config.remove_from_context("Line 2", context_path="/home/user")
-    assert was_removed
-    assert "Line 1" in mock_files["/home/user/ZRB.md"]
-    assert "Line 2" not in mock_files["/home/user/ZRB.md"]
-    assert "Line 3" in mock_files["/home/user/ZRB.md"]
-
-    was_removed_again = config.remove_from_context(
-        "Non-existent", context_path="/home/user"
+    file_content = (
+        "# Context: .\n"
+        "Original content\n"
+        "\n"
+        "# Context: /home/user/another_project\n"
+        "Some other content\n"
     )
-    assert not was_removed_again
+    setup_fs({"/home/user/project/ZRB.md": file_content})
+
+    config = LLMContextConfig()
+    config.write_context("Updated content", context_path="/home/user/project")
+
+    final_content = mock_files["/home/user/project/ZRB.md"]
+    assert "Original content" not in final_content
+    assert "Updated content" in final_content
+    assert "Some other content" in final_content

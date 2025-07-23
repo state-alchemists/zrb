@@ -7,7 +7,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.error import extract_api_error_details
 from zrb.task.llm.print_node import print_node
-from zrb.task.llm.tool_wrapper import wrap_tool
+from zrb.task.llm.tool_wrapper import wrap_func, wrap_tool
 from zrb.task.llm.typing import ListOfDict
 
 if TYPE_CHECKING:
@@ -33,14 +33,31 @@ def create_agent_instance(
 ) -> "Agent":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, Tool
+    from pydantic_ai.tools import GenerateToolJsonSchema
 
     # Normalize tools
     tool_list = []
     for tool_or_callable in tools:
         if isinstance(tool_or_callable, Tool):
             tool_list.append(tool_or_callable)
+            # Update tool's function
+            tool = tool_or_callable
+            tool_list.append(
+                Tool(
+                    function=wrap_func(tool.function),
+                    takes_ctx=tool.takes_ctx,
+                    max_retries=tool.max_retries,
+                    name=tool.name,
+                    description=tool.description,
+                    prepare=tool.prepare,
+                    docstring_format=tool.docstring_format,
+                    require_parameter_descriptions=tool.require_parameter_descriptions,
+                    schema_generator=GenerateToolJsonSchema,
+                    strict=tool.strict,
+                )
+            )
         else:
-            # Pass ctx to wrap_tool
+            # Turn function into tool
             tool_list.append(wrap_tool(tool_or_callable, ctx))
     # Return Agent
     return Agent(

@@ -21,16 +21,19 @@ def wrap_tool(func: Callable, ctx: AnyContext) -> "Tool":
     from pydantic_ai import RunContext, Tool
 
     original_sig = inspect.signature(func)
-    # Use helper function for clarity
     needs_run_context_for_pydantic = _has_context_parameter(original_sig, RunContext)
+    wrapper = wrap_func(func, ctx)
+    return Tool(wrapper, takes_ctx=needs_run_context_for_pydantic)
+
+
+def wrap_func(func: Callable, ctx: AnyContext) -> Callable:
+    original_sig = inspect.signature(func)
     needs_any_context_for_injection = _has_context_parameter(original_sig, AnyContext)
     takes_no_args = len(original_sig.parameters) == 0
     # Pass individual flags to the wrapper creator
     wrapper = _create_wrapper(func, original_sig, ctx, needs_any_context_for_injection)
-    # Adjust signature - _adjust_signature determines exclusions based on type
     _adjust_signature(wrapper, original_sig, takes_no_args)
-    # takes_ctx in pydantic-ai Tool is specifically for RunContext
-    return Tool(wrapper, takes_ctx=needs_run_context_for_pydantic)
+    return wrapper
 
 
 def _has_context_parameter(original_sig: inspect.Signature, context_type: type) -> bool:

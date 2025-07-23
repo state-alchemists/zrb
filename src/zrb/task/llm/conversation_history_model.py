@@ -176,46 +176,23 @@ class ConversationHistory:
         """
         return json.dumps({"content": self._fetch_long_term_note()})
 
-    def add_long_term_info(self, new_info: str) -> str:
+    def write_long_term_note(self, content: str) -> str:
         """
-        Add new info for long-term reference.
+        Write the entire content of the long-term references.
+        This will overwrite any existing long-term notes.
 
         Args:
-            new_info (str): New info to be added into long-term references.
+            content (str): The full content of the long-term notes.
 
         Returns:
-            str: JSON with new content of the notes.
-
-        Raises:
-            Exception: If the note cannot be read.
+            str: JSON indicating success.
         """
-        llm_context_config.add_to_context(new_info, cwd="/")
-        return json.dumps({"success": True, "content": self._fetch_long_term_note()})
-
-    def remove_long_term_info(self, irrelevant_info: str) -> str:
-        """
-        Remove irrelevant info from long-term reference.
-
-        Args:
-            irrelevant_info (str): Irrelevant info to be removed from long-term references.
-
-        Returns:
-            str: JSON with new content of the notes and deletion status.
-
-        Raises:
-            Exception: If the note cannot be read.
-        """
-        was_removed = llm_context_config.remove_from_context(irrelevant_info, cwd="/")
-        return json.dumps(
-            {
-                "success": was_removed,
-                "content": self._fetch_long_term_note(),
-            }
-        )
+        llm_context_config.write_context(content, context_path="/")
+        return json.dumps({"success": True})
 
     def read_contextual_note(self) -> str:
         """
-        Read the content of the contextual references.
+        Read the content of the contextual references for the current project.
 
         This tool helps you retrieve knowledge or notes stored for contextual reference.
         If the note does not exist, you may want to create it using the write tool.
@@ -228,52 +205,25 @@ class ConversationHistory:
         """
         return json.dumps({"content": self._fetch_contextual_note()})
 
-    def add_contextual_info(self, new_info: str, context_path: str | None) -> str:
-        """
-        Add new info for contextual reference.
-
-        Args:
-            new_info (str): New info to be added into contextual references.
-            context_path (str, optional): contextual directory path for new info
-
-        Returns:
-            str: JSON with new content of the notes.
-
-        Raises:
-            Exception: If the note cannot be read.
-        """
-        if context_path is None:
-            context_path = self.project_path
-        llm_context_config.add_to_context(new_info, context_path=context_path)
-        return json.dumps({"success": True, "content": self._fetch_contextual_note()})
-
-    def remove_contextual_info(
-        self, irrelevant_info: str, context_path: str | None
+    def write_contextual_note(
+        self, content: str, context_path: str | None = None
     ) -> str:
         """
-        Remove irrelevant info from contextual reference.
+        Write the entire content of the contextual references for a specific path.
+        This will overwrite any existing contextual notes for that path.
 
         Args:
-            irrelevant_info (str): Irrelevant info to be removed from contextual references.
-            context_path (str, optional): contextual directory path of the irrelevant info
+            content (str): The full content of the contextual notes.
+            context_path (str, optional): The directory path for the context.
+                                        Defaults to the current project path.
 
         Returns:
-            str: JSON with new content of the notes and deletion status.
-
-        Raises:
-            Exception: If the note cannot be read.
+            str: JSON indicating success.
         """
         if context_path is None:
             context_path = self.project_path
-        was_removed = llm_context_config.remove_from_context(
-            irrelevant_info, context_path=context_path
-        )
-        return json.dumps(
-            {
-                "success": was_removed,
-                "content": self._fetch_contextual_note(),
-            }
-        )
+        llm_context_config.write_context(content, context_path=context_path)
+        return json.dumps({"success": True})
 
     def _fetch_long_term_note(self):
         contexts = llm_context_config.get_contexts(cwd=self.project_path)
