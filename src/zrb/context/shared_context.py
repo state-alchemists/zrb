@@ -50,7 +50,10 @@ class SharedContext(AnySharedContext):
 
     @property
     def is_tty(self) -> bool:
-        return sys.stdin.isatty()
+        try:
+            return sys.stdin.isatty()
+        except Exception:
+            return False
 
     @property
     def input(self) -> DotDict:
