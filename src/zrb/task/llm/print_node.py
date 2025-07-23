@@ -14,6 +14,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
         PartDeltaEvent,
         PartStartEvent,
         TextPartDelta,
+        ThinkingPartDelta,
         ToolCallPartDelta,
     )
 
@@ -33,7 +34,9 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                     )
                     is_streaming = False
                 elif isinstance(event, PartDeltaEvent):
-                    if isinstance(event.delta, TextPartDelta):
+                    if isinstance(event.delta, TextPartDelta) or isinstance(
+                        event.delta, ThinkingPartDelta
+                    ):
                         print_func(
                             stylize_faint(f"{event.delta.content_delta}"),
                             end="",
