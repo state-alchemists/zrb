@@ -29,9 +29,7 @@ def markdown_to_dict(markdown: str) -> dict[str, str]:
             if h1_match:
                 # Save previous section
                 if current_title:
-                    sections[current_title] = promote_markdown_headers(
-                        "\n".join(current_content).strip()
-                    )
+                    sections[current_title] = "\n".join(current_content).strip()
                 # Start new section
                 current_title = h1_match.group(1).strip()
                 current_content = []
@@ -41,7 +39,8 @@ def markdown_to_dict(markdown: str) -> dict[str, str]:
 
     # Save final section
     if current_title:
-        sections[current_title] = promote_markdown_headers(
-            "\n".join(current_content).strip()
-        )
-    return sections
+        sections[current_title] = "\n".join(current_content).strip()
+    return {
+        header: promote_markdown_headers(content)
+        for header, content in sections.items()
+    }
