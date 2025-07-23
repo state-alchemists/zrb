@@ -98,9 +98,12 @@ def _create_wrapper(
                 func_name = get_callable_name(func)
                 ctx.print(f"✅ >> Allow to run tool: {func_name} (Y/n)", plain=True)
                 user_confirmation_str = await _read_line()
-                user_confirmation = to_boolean(user_confirmation_str)
+                try:
+                    user_confirmation = to_boolean(user_confirmation_str)
+                except Exception:
+                    user_confirmation = False
                 if not user_confirmation:
-                    ctx.print("❌ >> Why?", plain=True)
+                    ctx.print(f"❌ >> Rejecting {func_name} call. Why?", plain=True)
                     reason = await _read_line()
                     ctx.print("", plain=True)
                     raise ValueError(f"User disapproval: {reason}")
