@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 0.13.0
+
+- **Breaking changes**: Use `toolset` instead of `mcp_server`
+- **Changed**:
+  - Fastapi and pydantic-ai mcp servers
+  - Simplify ZRB.md management
+
 # 0.12.0
 
 - **Feature: Interactive Mode Switching for LLM Chat**
