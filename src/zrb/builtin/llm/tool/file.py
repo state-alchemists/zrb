@@ -2,7 +2,7 @@ import fnmatch
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.config.config import CFG
@@ -507,7 +507,7 @@ def read_many_files(paths: List[str]) -> str:
     return json.dumps({"results": results})
 
 
-def write_many_files(files: Dict[str, str]) -> str:
+def write_many_files(files: List[Tuple[str, str]]) -> str:
     """
     Writes content to multiple files in a single, atomic operation.
 
@@ -516,7 +516,7 @@ def write_many_files(files: Dict[str, str]) -> str:
     Each file's content is completely replaced. If a file does not exist, it will be created. If it exists, its current content will be entirely overwritten. Therefore, you must provide the full, intended content for each file.
 
     Args:
-        files (Dict[str, str]): A dictionary where keys are the file paths and values are the complete contents to be written to those files.
+        files (List[Tuple[str, str]]): A list of tuples, where each tuple contains the file path and the complete content to be written to that file.
 
     Returns:
         str: A JSON object summarizing the operation, listing successfully written files and any files that failed, along with corresponding error messages.
@@ -524,7 +524,7 @@ def write_many_files(files: Dict[str, str]) -> str:
     """
     success = []
     errors = {}
-    for path, content in files.items():
+    for path, content in files:
         try:
             abs_path = os.path.abspath(os.path.expanduser(path))
             directory = os.path.dirname(abs_path)
