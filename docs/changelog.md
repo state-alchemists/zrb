@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.13.3
+
+- **Changed**: The `write_many_files` tool now accepts a list of tuples `(file_path, content)` instead of a dictionary. This improves the tool's predictability and consistency.
+
 # 1.13.2
 
 - **Fix** Handle error when toolset is None (which is the default behavior)
