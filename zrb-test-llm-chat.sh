@@ -13,7 +13,9 @@ echo "🧪 Starting rigorous test in temporary directory: $TMP_DIR"
 # Set environment variables to trigger memory management.
 # NOTE: The threshold is set low (200) to FORCE summarization to trigger.
 _OLD_THRESHOLD=${ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD}
-export ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=2000
+_OLD_YOLO_MODE=${ZRB_LLM_YOLO_MODE}
+export ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=1000
+export ZRB_LLM_YOLO_MODE=true
 
 (
     # --- Foundational & Software Engineering Test Cases ---
@@ -75,5 +77,6 @@ export ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=2000
 
 # Unset the environment variables to clean up
 export ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=${_OLD_THRESHOLD}
+export ZRB_LLM_YOLO_MODE=${_OLD_YOLO_MODE}
 
 echo "✅ Test finished successfully."

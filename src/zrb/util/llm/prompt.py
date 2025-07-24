@@ -1,7 +1,7 @@
 import re
 
 
-def _demote_markdown_headers(md: str) -> str:
+def _adjust_markdown_headers(md: str, level_change: int) -> str:
     lines = md.split("\n")
     new_lines = []
     fence_stack = []
@@ -11,7 +11,6 @@ def _demote_markdown_headers(md: str) -> str:
 
         if fence_match:
             current_fence = fence_match.group(1)
-            # If stack is not empty and we found a closing fence
             if (
                 fence_stack
                 and fence_stack[-1][0] == current_fence[0]
@@ -21,16 +20,26 @@ def _demote_markdown_headers(md: str) -> str:
             else:
                 fence_stack.append(current_fence)
             new_lines.append(line)
+        elif fence_stack:
+            new_lines.append(line)
         else:
-            if fence_stack:  # If we are inside a code block
-                new_lines.append(line)
+            match = re.match(r"^(#{1,6})(\s)", line)
+            if match:
+                current_level = len(match.group(1))
+                new_level = max(1, current_level + level_change)
+                new_header = "#" * new_level + line[current_level:]
+                new_lines.append(new_header)
             else:
-                match = re.match(r"^(#{1,6})(\s)", line)
-                if match:
-                    new_lines.append("#" + line)
-                else:
-                    new_lines.append(line)
+                new_lines.append(line)
     return "\n".join(new_lines)
+
+
+def demote_markdown_headers(md: str) -> str:
+    return _adjust_markdown_headers(md, level_change=1)
+
+
+def promote_markdown_headers(md: str) -> str:
+    return _adjust_markdown_headers(md, level_change=-1)
 
 
 def make_prompt_section(header: str, content: str, as_code: bool = False) -> str:
@@ -51,4 +60,4 @@ def make_prompt_section(header: str, content: str, as_code: bool = False) -> str
             fence_len = longest_backtick_sequence + 1
         fence = "`" * fence_len
         return f"# {header}\n{fence}\n{content.strip()}\n{fence}\n"
-    return f"# {header}\n{_demote_markdown_headers(content.strip())}\n"
+    return f"# {header}\n{demote_markdown_headers(content.strip())}\n"

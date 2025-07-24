@@ -25,6 +25,12 @@ web_auth_config.append_user(
 )
 web_auth_config.set_guest_accessible_tasks(["ppn"])
 
+# from zrb.builtin import llm_ask
+# from pydantic_ai.mcp import MCPServerSSE
+
+# server = MCPServerSSE("http://10.32.11.213:9002/sse")
+# llm_ask.add_toolset(server)
+
 
 @make_task(
     name="ppn",

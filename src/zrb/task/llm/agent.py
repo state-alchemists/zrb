@@ -7,15 +7,15 @@ from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.error import extract_api_error_details
 from zrb.task.llm.print_node import print_node
-from zrb.task.llm.tool_wrapper import wrap_tool
+from zrb.task.llm.tool_wrapper import wrap_func, wrap_tool
 from zrb.task.llm.typing import ListOfDict
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.agent import AgentRun
-    from pydantic_ai.mcp import MCPServer
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
 else:
@@ -28,26 +28,43 @@ def create_agent_instance(
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
     tools: list[ToolOrCallable] = [],
-    mcp_servers: list["MCPServer"] = [],
+    toolsets: list["AbstractToolset[Agent]"] = [],
     retries: int = 3,
 ) -> "Agent":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, Tool
+    from pydantic_ai.tools import GenerateToolJsonSchema
 
     # Normalize tools
     tool_list = []
     for tool_or_callable in tools:
         if isinstance(tool_or_callable, Tool):
             tool_list.append(tool_or_callable)
+            # Update tool's function
+            tool = tool_or_callable
+            tool_list.append(
+                Tool(
+                    function=wrap_func(tool.function),
+                    takes_ctx=tool.takes_ctx,
+                    max_retries=tool.max_retries,
+                    name=tool.name,
+                    description=tool.description,
+                    prepare=tool.prepare,
+                    docstring_format=tool.docstring_format,
+                    require_parameter_descriptions=tool.require_parameter_descriptions,
+                    schema_generator=GenerateToolJsonSchema,
+                    strict=tool.strict,
+                )
+            )
         else:
-            # Pass ctx to wrap_tool
+            # Turn function into tool
             tool_list.append(wrap_tool(tool_or_callable, ctx))
     # Return Agent
     return Agent(
         model=model,
         system_prompt=system_prompt,
         tools=tool_list,
-        toolsets=mcp_servers,
+        toolsets=toolsets,
         model_settings=model_settings,
         retries=retries,
     )
@@ -63,8 +80,8 @@ def get_agent(
         list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
     ),
     additional_tools: list[ToolOrCallable],
-    mcp_servers_attr: "list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]",
-    additional_mcp_servers: "list[MCPServer]",
+    toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]",  # noqa
+    additional_toolsets: "list[AbstractToolset[Agent]]",
     retries: int = 3,
 ) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
@@ -85,18 +102,16 @@ def get_agent(
     # Get tools for agent
     tools = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools.extend(additional_tools)
-    # Get MCP Servers for agent
-    mcp_servers = list(
-        mcp_servers_attr(ctx) if callable(mcp_servers_attr) else mcp_servers_attr
-    )
-    mcp_servers.extend(additional_mcp_servers)
+    # Get Toolsets for agent
+    tool_sets = list(toolsets_attr(ctx) if callable(toolsets_attr) else toolsets_attr)
+    tool_sets.extend(additional_toolsets)
     # If no agent provided, create one using the configuration
     return create_agent_instance(
         ctx=ctx,
         model=model,
         system_prompt=system_prompt,
         tools=tools,
-        mcp_servers=mcp_servers,
+        toolsets=tool_sets,
         model_settings=model_settings,
         retries=retries,
     )
