@@ -75,6 +75,8 @@ def get_modes(
         modes_attr,
         auto_render=render_modes,
     )
+    if raw_modes is None:
+        raw_modes = []
     modes = [mode.strip() for mode in raw_modes if mode.strip() != ""]
     if len(modes) > 0:
         return modes

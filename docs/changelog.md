@@ -1,5 +1,25 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.13.0
+
+- **Breaking Change**: Replaced `MCPServer` with `Toolset` for extending LLM capabilities.
+  - `LLMTask` now accepts a `toolsets` parameter instead of `mcp_servers`.
+  - The methods `add_mcp_server` and `append_mcp_server` have been renamed to `add_toolset` and `append_toolset` respectively.
+  - The `create_sub_agent_tool` function now accepts a `toolsets` parameter.
+- **Refactor**: Overhauled the LLM context management (`ZRB.md`).
+  - The underlying handler has been simplified, removing `LLMContextConfigHandler` and introducing a new markdown parser for better reliability.
+  - Context modification is now handled by a single `write_context` method, replacing the previous `add_to_context` and `remove_from_context` methods.
+  - Conversation history tools are updated:
+    - `add_long_term_info` and `remove_long_term_info` are replaced by `write_long_term_note`.
+    - `add_contextual_info` and `remove_contextual_info` are replaced by `write_contextual_note`.
+- **Changed**:
+  - Updated system and summarization prompts for better clarity and more robust error handling instructions for the AI.
+  - Improved the tool confirmation prompt to be more explicit when a tool call is rejected by the user.
+- **Dependencies**:
+  - Upgraded several key dependencies, including `fastapi`, `pydantic-ai`, and `mistralai`.
+- **Fixed**:
+  - Added a `try-except` block around `sys.stdin.isatty()` to prevent errors in environments where it's not a standard TTY.
+
 # 0.13.0
 
 - **Breaking changes**: Use `toolset` instead of `mcp_server`
