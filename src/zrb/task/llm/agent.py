@@ -13,9 +13,9 @@ from zrb.task.llm.typing import ListOfDict
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.agent import AgentRun
-    from pydantic_ai.mcp import MCPServer
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
 else:
@@ -28,7 +28,7 @@ def create_agent_instance(
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
     tools: list[ToolOrCallable] = [],
-    mcp_servers: list["MCPServer"] = [],
+    toolsets: list["AbstractToolset[Agent]"] = [],
     retries: int = 3,
 ) -> "Agent":
     """Creates a new Agent instance with configured tools and servers."""
@@ -64,7 +64,7 @@ def create_agent_instance(
         model=model,
         system_prompt=system_prompt,
         tools=tool_list,
-        toolsets=mcp_servers,
+        toolsets=toolsets,
         model_settings=model_settings,
         retries=retries,
     )
@@ -80,8 +80,8 @@ def get_agent(
         list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
     ),
     additional_tools: list[ToolOrCallable],
-    mcp_servers_attr: "list[MCPServer] | Callable[[AnySharedContext], list[MCPServer]]",
-    additional_mcp_servers: "list[MCPServer]",
+    toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]",  # noqa
+    additional_toolsets: "list[AbstractToolset[Agent]]",
     retries: int = 3,
 ) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
@@ -102,18 +102,16 @@ def get_agent(
     # Get tools for agent
     tools = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools.extend(additional_tools)
-    # Get MCP Servers for agent
-    mcp_servers = list(
-        mcp_servers_attr(ctx) if callable(mcp_servers_attr) else mcp_servers_attr
-    )
-    mcp_servers.extend(additional_mcp_servers)
+    # Get Toolsets for agent
+    tool_sets = list(toolsets_attr(ctx) if callable(toolsets_attr) else toolsets_attr)
+    tool_sets.extend(additional_toolsets)
     # If no agent provided, create one using the configuration
     return create_agent_instance(
         ctx=ctx,
         model=model,
         system_prompt=system_prompt,
         tools=tools,
-        mcp_servers=mcp_servers,
+        toolsets=tool_sets,
         model_settings=model_settings,
         retries=retries,
     )

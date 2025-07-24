@@ -31,9 +31,9 @@ from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
-    from pydantic_ai.mcp import MCPServer
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
 else:
@@ -76,8 +76,8 @@ class LLMTask(BaseTask):
             list["ToolOrCallable"]
             | Callable[[AnySharedContext], list["ToolOrCallable"]]
         ) = [],
-        mcp_servers: (
-            list["MCPServer"] | Callable[[AnySharedContext], list["MCPServer"]]
+        toolsets: (
+            list["AbstractToolset[Agent]"] | Callable[[AnySharedContext], list["Tool"]]
         ) = [],
         conversation_history: (
             ConversationHistory
@@ -162,8 +162,8 @@ class LLMTask(BaseTask):
         self._tools = tools
         self._rate_limitter = rate_limitter
         self._additional_tools: list["ToolOrCallable"] = []
-        self._mcp_servers = mcp_servers
-        self._additional_mcp_servers: list["MCPServer"] = []
+        self._toolsets = toolsets
+        self._additional_toolsets: list["AbstractToolset[Agent]"] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
         self._conversation_history_writer = conversation_history_writer
@@ -187,12 +187,12 @@ class LLMTask(BaseTask):
         for single_tool in tool:
             self._additional_tools.append(single_tool)
 
-    def add_mcp_server(self, *mcp_server: "MCPServer"):
-        self.append_mcp_server(*mcp_server)
+    def add_toolset(self, *toolset: "AbstractToolset[Agent]"):
+        self.append_toolset(*toolset)
 
-    def append_mcp_server(self, *mcp_server: "MCPServer"):
-        for single_mcp_server in mcp_server:
-            self._additional_mcp_servers.append(single_mcp_server)
+    def append_toolset(self, *toolset: "AbstractToolset[Agent]"):
+        for single_toolset in toolset:
+            self._additional_toolsets.append(single_toolset)
 
     def set_should_summarize_history(self, summarize_history: bool):
         self._should_summarize_history = summarize_history
@@ -252,8 +252,8 @@ class LLMTask(BaseTask):
             model_settings=model_settings,
             tools_attr=self._tools,
             additional_tools=self._additional_tools,
-            mcp_servers_attr=self._mcp_servers,
-            additional_mcp_servers=self._additional_mcp_servers,
+            toolsets_attr=self._toolsets,
+            additional_toolsets=self._additional_toolsets,
         )
         # 4. Run the agent iteration and save the results/history
         result = await self._execute_agent(

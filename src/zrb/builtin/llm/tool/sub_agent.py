@@ -9,10 +9,10 @@ from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.prompt import get_system_and_user_prompt
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.mcp import MCPServer
+    from pydantic_ai import Agent, Tool
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
 else:
@@ -26,7 +26,7 @@ def create_sub_agent_tool(
     model: "str | Model | None" = None,
     model_settings: "ModelSettings | None" = None,
     tools: list[ToolOrCallable] = [],
-    mcp_servers: list["MCPServer"] = [],
+    toolsets: list["AbstractToolset[Agent]"] = [],
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
     """
     Creates a "tool that is another AI agent," capable of handling complex, multi-step sub-tasks.
@@ -42,7 +42,7 @@ def create_sub_agent_tool(
         model (str | Model, optional): The language model the sub-agent will use.
         model_settings (ModelSettings, optional): Specific settings for the sub-agent's model.
         tools (list, optional): A list of tools that will be exclusively available to the sub-agent.
-        mcp_servers (list, optional): A list of MCP servers for the sub-agent.
+        toolsets (list, optional): A list of Toolset for the sub-agent.
 
     Returns:
         Callable: An asynchronous function that serves as the sub-agent tool. When called, it runs the sub-agent with a given query and returns its final result.
@@ -85,7 +85,7 @@ def create_sub_agent_tool(
             system_prompt=resolved_system_prompt,
             model_settings=resolved_model_settings,
             tools=tools,
-            mcp_servers=mcp_servers,
+            toolsets=toolsets,
         )
 
         sub_agent_run = None
