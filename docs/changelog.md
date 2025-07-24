@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.13.2
+
+- **Fix** Handle error when toolset is None (which is the default behavior)
+
 # 1.13.0
 
 - **Breaking Change**: Replaced `MCPServer` with `Toolset` for extending LLM capabilities.

@@ -66,13 +66,13 @@ def get_special_instruction_prompt(
 
 def get_modes(
     ctx: AnyContext,
-    modes_attr: StrAttr | None,
+    modes_attr: StrListAttr | None,
     render_modes: bool,
 ) -> str:
     """Gets the modes, prioritizing task-specific, then default."""
     raw_modes = get_str_list_attr(
         ctx,
-        modes_attr,
+        [] if modes_attr is None else modes_attr,
         auto_render=render_modes,
     )
     if raw_modes is None:
@@ -85,7 +85,7 @@ def get_modes(
 
 def get_workflow_prompt(
     ctx: AnyContext,
-    modes_attr: StrAttr | None,
+    modes_attr: StrListAttr | None,
     render_modes: bool,
 ) -> str:
     modes = get_modes(ctx, modes_attr, render_modes)
