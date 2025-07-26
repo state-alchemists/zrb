@@ -300,11 +300,31 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_ACCESS_INTERNET`: Whether to allow LLM Chat Agent to access internet.
+* `ZRB_LLM_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
+* `ZRB_LLM_ALLOW_OPEN_WEB_PAGE`: Allows the LLM to open and read web pages.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_SEARCH_INTERNET`: Allows the LLM to perform general internet searches (requires `SERPAPI_KEY`).
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_SEARCH_ARXIV`: Allows the LLM to search for papers on arXiv.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA`: Allows the LLM to search Wikipedia.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_GET_CURRENT_LOCATION`: Allows the LLM to get the current geographical location.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_GET_CURRENT_WEATHER`: Allows the LLM to get the current weather.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
@@ -353,10 +373,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_ALLOW_ACCESS_SHELL`: Whether to allow LLM to access shell.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_ACCESS_INTERNET`: Whether to allow LLM to access internet.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 

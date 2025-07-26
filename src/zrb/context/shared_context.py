@@ -27,6 +27,7 @@ class SharedContext(AnySharedContext):
         env: dict[str, str] = {},
         xcom: dict[str, Xcom] = {},
         logging_level: int | None = None,
+        is_web_mode: bool = False,
     ):
         self.__logging_level = logging_level
         self._input = DotDict(input)
@@ -35,6 +36,7 @@ class SharedContext(AnySharedContext):
         self._xcom = DotDict(xcom)
         self._session: AnySession | None = None
         self._log = []
+        self._is_web_mode = is_web_mode
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -46,7 +48,7 @@ class SharedContext(AnySharedContext):
 
     @property
     def is_web_mode(self) -> bool:
-        return self.env.get("_ZRB_IS_WEB_MODE", "0") == "1"
+        return self._is_web_mode
 
     @property
     def is_tty(self) -> bool:

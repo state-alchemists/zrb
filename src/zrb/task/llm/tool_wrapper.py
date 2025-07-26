@@ -5,10 +5,15 @@ import typing
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.callable import get_callable_name
+from zrb.util.cli.style import (
+    stylize_blue,
+    stylize_error,
+    stylize_green,
+    stylize_yellow,
+)
 from zrb.util.run import run_async
 from zrb.util.string.conversion import to_boolean
 
@@ -16,22 +21,24 @@ if TYPE_CHECKING:
     from pydantic_ai import Tool
 
 
-def wrap_tool(func: Callable, ctx: AnyContext) -> "Tool":
+def wrap_tool(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> "Tool":
     """Wraps a tool function to handle exceptions and context propagation."""
     from pydantic_ai import RunContext, Tool
 
     original_sig = inspect.signature(func)
     needs_run_context_for_pydantic = _has_context_parameter(original_sig, RunContext)
-    wrapper = wrap_func(func, ctx)
+    wrapper = wrap_func(func, ctx, is_yolo_mode)
     return Tool(wrapper, takes_ctx=needs_run_context_for_pydantic)
 
 
-def wrap_func(func: Callable, ctx: AnyContext) -> Callable:
+def wrap_func(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> Callable:
     original_sig = inspect.signature(func)
     needs_any_context_for_injection = _has_context_parameter(original_sig, AnyContext)
     takes_no_args = len(original_sig.parameters) == 0
     # Pass individual flags to the wrapper creator
-    wrapper = _create_wrapper(func, original_sig, ctx, needs_any_context_for_injection)
+    wrapper = _create_wrapper(
+        func, original_sig, ctx, needs_any_context_for_injection, is_yolo_mode
+    )
     _adjust_signature(wrapper, original_sig, takes_no_args)
     return wrapper
 
@@ -68,8 +75,9 @@ def _is_annotated_with_context(param_annotation, context_type):
 def _create_wrapper(
     func: Callable,
     original_sig: inspect.Signature,
-    ctx: AnyContext,  # Accept ctx
+    ctx: AnyContext,
     needs_any_context_for_injection: bool,
+    is_yolo_mode: bool,
 ) -> Callable:
     """Creates the core wrapper function."""
 
@@ -97,19 +105,10 @@ def _create_wrapper(
         if "_dummy" in kwargs and "_dummy" not in original_sig.parameters:
             del kwargs["_dummy"]
         try:
-            if not CFG.LLM_YOLO_MODE and not ctx.is_web_mode and ctx.is_tty:
-                func_name = get_callable_name(func)
-                ctx.print(f"✅ >> Allow to run tool: {func_name} (Y/n)", plain=True)
-                user_confirmation_str = await _read_line()
-                try:
-                    user_confirmation = to_boolean(user_confirmation_str)
-                except Exception:
-                    user_confirmation = False
-                if not user_confirmation:
-                    ctx.print(f"❌ >> Rejecting {func_name} call. Why?", plain=True)
-                    reason = await _read_line()
-                    ctx.print("", plain=True)
-                    raise ValueError(f"User disapproval: {reason}")
+            if not is_yolo_mode and not ctx.is_web_mode and ctx.is_tty:
+                approval, reason = await _ask_for_approval(ctx, func, *args, **kwargs)
+                if not approval:
+                    raise ValueError(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
         except Exception as e:
             error_model = ToolExecutionError(
@@ -121,6 +120,52 @@ def _create_wrapper(
             return error_model.model_dump_json()
 
     return wrapper
+
+
+async def _ask_for_approval(
+    ctx: AnyContext, func: Callable, *args, **kwargs
+) -> tuple[bool, str]:
+    func_name = get_callable_name(func)
+    normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]
+    normalized_kwargs = [
+        f"{stylize_yellow(key)}={stylize_green(_truncate_arg(val))}"
+        for key, val in kwargs.items()
+    ]
+    func_param_str = ",".join(normalized_args + normalized_kwargs)
+    func_call_str = (
+        f"{stylize_blue(func_name + '(')}{func_param_str}{stylize_blue(')')}"
+    )
+    while True:
+        ctx.print(
+            f"✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>)", plain=True
+        )
+        user_input = await _read_line()
+        approval_str, reason = [
+            val.strip() for val in user_input.split(",", maxsplit=2)
+        ]
+        if reason == "":
+            ctx.print(
+                stylize_error(f"You must specify rejection reason for {func_call_str}"),
+                plain=True,
+            )
+            continue
+        try:
+            approval = to_boolean(approval_str)
+            return approval, reason
+        except Exception:
+            ctx.print(
+                stylize_error(
+                    f"Invalid approval value for {func_call_str}: {approval_str}"
+                ),
+                plain=True,
+            )
+            continue
+
+
+def _truncate_arg(arg: str, length: int = 19) -> str:
+    if len(arg) > length:
+        return f"{arg[:length-4]} ..."
+    return arg
 
 
 async def _read_line():

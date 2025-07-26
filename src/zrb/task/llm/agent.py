@@ -30,11 +30,14 @@ def create_agent_instance(
     tools: list[ToolOrCallable] = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
     retries: int = 3,
+    is_yolo_mode: bool | None = None,
 ) -> "Agent":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import GenerateToolJsonSchema
 
+    if is_yolo_mode is None:
+        is_yolo_mode = False
     # Normalize tools
     tool_list = []
     for tool_or_callable in tools:
@@ -44,7 +47,7 @@ def create_agent_instance(
             tool = tool_or_callable
             tool_list.append(
                 Tool(
-                    function=wrap_func(tool.function),
+                    function=wrap_func(tool.function, ctx, is_yolo_mode),
                     takes_ctx=tool.takes_ctx,
                     max_retries=tool.max_retries,
                     name=tool.name,
@@ -58,7 +61,7 @@ def create_agent_instance(
             )
         else:
             # Turn function into tool
-            tool_list.append(wrap_tool(tool_or_callable, ctx))
+            tool_list.append(wrap_tool(tool_or_callable, ctx, is_yolo_mode))
     # Return Agent
     return Agent(
         model=model,
@@ -83,6 +86,7 @@ def get_agent(
     toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]",  # noqa
     additional_toolsets: "list[AbstractToolset[Agent]]",
     retries: int = 3,
+    is_yolo_mode: bool | None = None,
 ) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
     from pydantic_ai import Agent
@@ -114,6 +118,7 @@ def get_agent(
         toolsets=tool_sets,
         model_settings=model_settings,
         retries=retries,
+        is_yolo_mode=is_yolo_mode,
     )
 
 

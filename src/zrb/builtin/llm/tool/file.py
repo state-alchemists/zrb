@@ -2,7 +2,8 @@ import fnmatch
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+import sys
+from typing import Any, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.config.config import CFG
@@ -10,7 +11,17 @@ from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
-_EXTRACT_INFO_FROM_FILE_SYSTEM_PROMPT = CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT
+if sys.version_info >= (3, 12):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
+
+class FileToWrite(TypedDict):
+    """Represents a file to be written, with a 'path' and 'content'."""
+
+    path: str
+    content: str
 
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -481,14 +492,14 @@ async def analyze_file(
     return await _analyze_file(ctx, clipped_payload)
 
 
-def read_many_files(paths: List[str]) -> str:
+def read_many_files(paths: list[str]) -> str:
     """
     Reads and returns the full content of multiple files at once.
 
     This tool is highly efficient for gathering context from several files simultaneously. Use it when you need to understand how different files in a project relate to each other, or when you need to inspect a set of related configuration or source code files.
 
     Args:
-        paths (List[str]): A list of paths to the files you want to read. It is crucial to provide accurate paths. Use the `list_files` tool first if you are unsure about the exact file locations.
+        paths (list[str]): A list of paths to the files you want to read. It is crucial to provide accurate paths. Use the `list_files` tool first if you are unsure about the exact file locations.
 
     Returns:
         str: A JSON object where keys are the file paths and values are their corresponding contents, prefixed with line numbers. If a file cannot be read, its value will be an error message.
@@ -507,7 +518,7 @@ def read_many_files(paths: List[str]) -> str:
     return json.dumps({"results": results})
 
 
-def write_many_files(files: List[Tuple[str, str]]) -> str:
+def write_many_files(files: list[FileToWrite]) -> str:
     """
     Writes content to multiple files in a single, atomic operation.
 
@@ -516,7 +527,7 @@ def write_many_files(files: List[Tuple[str, str]]) -> str:
     Each file's content is completely replaced. If a file does not exist, it will be created. If it exists, its current content will be entirely overwritten. Therefore, you must provide the full, intended content for each file.
 
     Args:
-        files (List[Tuple[str, str]]): A list of tuples, where each tuple contains the file path and the complete content to be written to that file.
+        files: A list of file objects, where each object is a dictionary containing a 'path' and the complete 'content'.
 
     Returns:
         str: A JSON object summarizing the operation, listing successfully written files and any files that failed, along with corresponding error messages.
@@ -524,8 +535,13 @@ def write_many_files(files: List[Tuple[str, str]]) -> str:
     """
     success = []
     errors = {}
-    for path, content in files:
+    # 4. Access the data using dictionary key-lookup syntax.
+    for file in files:
         try:
+            # Use file['path'] and file['content'] instead of file.path
+            path = file["path"]
+            content = file["content"]
+
             abs_path = os.path.abspath(os.path.expanduser(path))
             directory = os.path.dirname(abs_path)
             if directory and not os.path.exists(directory):
@@ -535,6 +551,3 @@ def write_many_files(files: List[Tuple[str, str]]) -> str:
         except Exception as e:
             errors[path] = f"Error writing file: {e}"
     return json.dumps({"success": success, "errors": errors})
-
-
-apply_diff = replace_in_file

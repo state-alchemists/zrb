@@ -23,6 +23,7 @@ from zrb.builtin.llm.tool.web import (
 )
 from zrb.callback.callback import Callback
 from zrb.config.config import CFG
+from zrb.config.llm_config import llm_config
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
@@ -75,9 +76,17 @@ _llm_ask_inputs = [
     ),
     BoolInput(
         "start-new",
-        description="Start new conversation (LLM will forget everything)",
-        prompt="Start new conversation (LLM will forget everything)",
+        description="Start new session (LLM Agent will forget past conversation)",
+        prompt="Start new session (LLM Agent will forget past conversation)",
         default=False,
+        allow_positional_parsing=False,
+        always_prompt=False,
+    ),
+    BoolInput(
+        "yolo",
+        description="YOLO mode (LLM Agent will start in YOLO Mode)",
+        prompt="YOLO mode (LLM Agent will start in YOLO Mode)",
+        default=lambda ctx: llm_config.default_yolo_mode,
         allow_positional_parsing=False,
         always_prompt=False,
     ),
@@ -154,8 +163,20 @@ if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
 if CFG.LLM_ALLOW_ACCESS_SHELL:
     llm_ask.append_tool(run_shell_command)
 
-if CFG.LLM_ALLOW_ACCESS_INTERNET:
-    llm_ask.append_tool(open_web_page, search_wikipedia, search_arxiv)
-    if CFG.SERPAPI_KEY != "":
-        llm_ask.append_tool(create_search_internet_tool(CFG.SERPAPI_KEY))
-    llm_ask.append_tool(get_current_location, get_current_weather)
+if CFG.LLM_ALLOW_OPEN_WEB_PAGE:
+    llm_ask.append_tool(open_web_page)
+
+if CFG.LLM_ALLOW_SEARCH_WIKIPEDIA:
+    llm_ask.append_tool(search_wikipedia)
+
+if CFG.LLM_ALLOW_SEARCH_ARXIV:
+    llm_ask.append_tool(search_arxiv)
+
+if CFG.LLM_ALLOW_GET_CURRENT_LOCATION:
+    llm_ask.append_tool(get_current_location)
+
+if CFG.LLM_ALLOW_GET_CURRENT_WEATHER:
+    llm_ask.append_tool(get_current_weather)
+
+if CFG.SERPAPI_KEY != "" and CFG.LLM_ALLOW_SEARCH_INTERNET:
+    llm_ask.append_tool(create_search_internet_tool(CFG.SERPAPI_KEY))

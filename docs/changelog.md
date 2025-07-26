@@ -1,5 +1,26 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.14.0
+
+- **Feature: YOLO Mode Control in Chat**:
+  - Added a `/yolo <true|false>` command to `llm-chat` to dynamically enable or disable YOLO mode (tool execution without confirmation).
+  - The initial YOLO mode can be set with the `--yolo` flag when starting `llm-chat` or `llm-ask`.
+- **Feature: Granular Internet Access Control for LLM**:
+  - Replaced the general `ZRB_LLM_ACCESS_INTERNET` environment variable with more specific controls for internet-accessing tools:
+    - `ZRB_LLM_ALLOW_OPEN_WEB_PAGE`
+    - `ZRB_LLM_ALLOW_SEARCH_INTERNET`
+    - `ZRB_LLM_ALLOW_SEARCH_ARXIV`
+    - `ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA`
+    - `ZRB_LLM_ALLOW_GET_CURRENT_LOCATION`
+    - `ZRB_LLM_ALLOW_GET_CURRENT_WEATHER`
+- **Changed: Improved Tool Confirmation Prompt**:
+  - The confirmation prompt for running tools now displays the full function call, including arguments, for better user visibility.
+  - When rejecting a tool, the user is now required to provide a reason, which is fed back to the LLM.
+- **Changed: `write_many_files` Tool Signature**:
+  - The `write_many_files` tool now accepts a list of dictionaries (`[{'path': '...', 'content': '...'}]`) instead of a list of tuples, making it more explicit.
+- **Changed**: The `is_yolo_mode` can now be passed when creating a sub-agent.
+- **Fixed**: The web runner now no longer inject fake environment variable anymore, it is now correctly use `is_web_mode` parameter while creating a new `SharedContext`, ensuring consistent behavior between web and terminal environments.
+
 # 1.13.3
 
 - **Changed**: The `write_many_files` tool now accepts a list of tuples `(file_path, content)` instead of a dictionary. This improves the tool's predictability and consistency.

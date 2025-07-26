@@ -1,14 +1,25 @@
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 
-from zrb.attr.type import StrAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.util.attr import get_attr
+
+
+def get_is_yolo_mode(
+    ctx: AnyContext,
+    is_yolo_mode_attr: BoolAttr | None = None,
+    render_yolo_mode: bool = True,
+):
+    yolo_mode = get_attr(ctx, is_yolo_mode_attr, None, auto_render=render_yolo_mode)
+    if yolo_mode is None:
+        return llm_config.default_yolo_mode
+    return yolo_mode
 
 
 def get_model_settings(

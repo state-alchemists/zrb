@@ -12,6 +12,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.task.llm.agent import get_agent, run_agent_iteration
 from zrb.task.llm.config import (
+    get_is_yolo_mode,
     get_model,
     get_model_settings,
 )
@@ -104,6 +105,8 @@ class LLMTask(BaseTask):
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
+        is_yolo_mode: bool | None = None,
+        render_yolo_mode: bool = True,
         readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
@@ -179,6 +182,8 @@ class LLMTask(BaseTask):
         )
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
+        self._is_yolo_mode = is_yolo_mode
+        self._render_yolo_mode = render_yolo_mode
 
     def add_tool(self, *tool: ToolOrCallable):
         self.append_tool(*tool)
@@ -213,6 +218,11 @@ class LLMTask(BaseTask):
             render_model_base_url=self._render_model_base_url,
             model_api_key_attr=self._model_api_key,
             render_model_api_key=self._render_model_api_key,
+        )
+        is_yolo_mode = get_is_yolo_mode(
+            ctx=ctx,
+            is_yolo_mode_attr=self._is_yolo_mode,
+            render_yolo_mode=self._render_yolo_mode,
         )
         summarization_prompt = get_summarization_system_prompt(
             ctx=ctx,
@@ -254,6 +264,7 @@ class LLMTask(BaseTask):
             additional_tools=self._additional_tools,
             toolsets_attr=self._toolsets,
             additional_toolsets=self._additional_toolsets,
+            is_yolo_mode=is_yolo_mode,
         )
         # 4. Run the agent iteration and save the results/history
         result = await self._execute_agent(

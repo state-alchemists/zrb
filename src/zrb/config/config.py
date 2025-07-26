@@ -350,8 +350,28 @@ class Config:
         return to_boolean(os.getenv("ZRB_LLM_ACCESS_SHELL", "1"))
 
     @property
-    def LLM_ALLOW_ACCESS_INTERNET(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ACCESS_INTERNET", "1"))
+    def LLM_ALLOW_OPEN_WEB_PAGE(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "1"))
+
+    @property
+    def LLM_ALLOW_SEARCH_INTERNET(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "1"))
+
+    @property
+    def LLM_ALLOW_SEARCH_ARXIV(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", "1"))
+
+    @property
+    def LLM_ALLOW_SEARCH_WIKIPEDIA(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", "1"))
+
+    @property
+    def LLM_ALLOW_GET_CURRENT_LOCATION(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
+
+    @property
+    def LLM_ALLOW_GET_CURRENT_WEATHER(self) -> bool:
+        return to_boolean(os.getenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "1"))
 
     @property
     def RAG_EMBEDDING_API_KEY(self) -> str:
