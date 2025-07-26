@@ -94,7 +94,7 @@ def _show_info(ctx: AnyContext):
                 _format_info_line("/multi", "Start multiline input"),
                 _format_info_line("/end", "End multiline input"),
                 _format_info_line("/modes", "Show current modes"),
-                _format_info_line("/modes <mode1,mode2,..>", "Set current modes"),
+                _format_info_line("   <mode1,mode2,..>", "Set current modes"),
                 _format_info_line("/help", "Show this message"),
             ]
         ),

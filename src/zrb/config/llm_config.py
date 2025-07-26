@@ -2,8 +2,6 @@ import os
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.config.config import CFG
-from zrb.config.llm_context.config import llm_context_config
-from zrb.util.llm.prompt import make_prompt_section
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -28,6 +26,7 @@ class LLMConfig:
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
         default_model_provider: "Provider | None" = None,
+        default_yolo_mode: bool | None = None,
     ):
         self.__internal_default_prompt: dict[str, str] = {}
         self._default_model_name = default_model_name
@@ -46,6 +45,7 @@ class LLMConfig:
         self._default_model = default_model
         self._default_model_settings = default_model_settings
         self._default_model_provider = default_model_provider
+        self._default_yolo_mode = default_yolo_mode
 
     def _get_internal_default_prompt(self, name: str) -> str:
         if name not in self.__internal_default_prompt:
@@ -174,6 +174,12 @@ class LLMConfig:
             lambda: 1000,
         )
 
+    @property
+    def default_yolo_mode(self) -> bool:
+        return self._get_property(
+            self._default_yolo_mode, CFG.LLM_YOLO_MODE, lambda: False
+        )
+
     def set_default_persona(self, persona: str):
         self._default_persona = persona
 
@@ -229,6 +235,9 @@ class LLMConfig:
 
     def set_default_model_settings(self, model_settings: "ModelSettings"):
         self._default_model_settings = model_settings
+
+    def set_default_yolo_mode(self, yolo_mode: bool):
+        self._default_yolo_mode = yolo_mode
 
 
 llm_config = LLMConfig()

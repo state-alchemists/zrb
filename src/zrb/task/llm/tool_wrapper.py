@@ -5,7 +5,6 @@ import typing
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.callable import get_callable_name
@@ -16,22 +15,24 @@ if TYPE_CHECKING:
     from pydantic_ai import Tool
 
 
-def wrap_tool(func: Callable, ctx: AnyContext) -> "Tool":
+def wrap_tool(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> "Tool":
     """Wraps a tool function to handle exceptions and context propagation."""
     from pydantic_ai import RunContext, Tool
 
     original_sig = inspect.signature(func)
     needs_run_context_for_pydantic = _has_context_parameter(original_sig, RunContext)
-    wrapper = wrap_func(func, ctx)
+    wrapper = wrap_func(func, ctx, is_yolo_mode)
     return Tool(wrapper, takes_ctx=needs_run_context_for_pydantic)
 
 
-def wrap_func(func: Callable, ctx: AnyContext) -> Callable:
+def wrap_func(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> Callable:
     original_sig = inspect.signature(func)
     needs_any_context_for_injection = _has_context_parameter(original_sig, AnyContext)
     takes_no_args = len(original_sig.parameters) == 0
     # Pass individual flags to the wrapper creator
-    wrapper = _create_wrapper(func, original_sig, ctx, needs_any_context_for_injection)
+    wrapper = _create_wrapper(
+        func, original_sig, ctx, needs_any_context_for_injection, is_yolo_mode
+    )
     _adjust_signature(wrapper, original_sig, takes_no_args)
     return wrapper
 
@@ -68,8 +69,9 @@ def _is_annotated_with_context(param_annotation, context_type):
 def _create_wrapper(
     func: Callable,
     original_sig: inspect.Signature,
-    ctx: AnyContext,  # Accept ctx
+    ctx: AnyContext,
     needs_any_context_for_injection: bool,
+    is_yolo_mode: bool,
 ) -> Callable:
     """Creates the core wrapper function."""
 
@@ -97,7 +99,7 @@ def _create_wrapper(
         if "_dummy" in kwargs and "_dummy" not in original_sig.parameters:
             del kwargs["_dummy"]
         try:
-            if not CFG.LLM_YOLO_MODE and not ctx.is_web_mode and ctx.is_tty:
+            if not not is_yolo_mode and not ctx.is_web_mode and ctx.is_tty:
                 func_name = get_callable_name(func)
                 ctx.print(f"✅ >> Allow to run tool: {func_name} (Y/n)", plain=True)
                 user_confirmation_str = await _read_line()

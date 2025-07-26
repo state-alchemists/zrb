@@ -1,5 +1,4 @@
 import asyncio
-import os
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -57,9 +56,7 @@ def serve_task_session_api(
                 return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
             session_name = residual_args[0] if residual_args else None
             if not session_name:
-                shared_ctx = SharedContext(
-                    env={**dict(os.environ), "_ZRB_IS_WEB_MODE": "1"}
-                )
+                shared_ctx = SharedContext(is_web_mode=True)
                 session = Session(shared_ctx=shared_ctx, root_group=root_group)
                 coro = asyncio.create_task(task.async_run(session, str_kwargs=inputs))
                 coroutines.append(coro)
