@@ -460,10 +460,94 @@ def test_llm_allow_access_shell(monkeypatch):
     assert not config.LLM_ALLOW_ACCESS_SHELL
 
 
-def test_llm_allow_access_internet(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ACCESS_INTERNET", "0")
+def test_llm_allow_open_web_page(monkeypatch):
+    # Test default value
+    monkeypatch.delenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", raising=False)
     config = Config()
-    assert not config.LLM_ALLOW_ACCESS_INTERNET
+    assert config.LLM_ALLOW_OPEN_WEB_PAGE
+    # Test set to false
+    monkeypatch.setenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "0")
+    config = Config()
+    assert not config.LLM_ALLOW_OPEN_WEB_PAGE
+    # Test set to true
+    monkeypatch.setenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "1")
+    config = Config()
+    assert config.LLM_ALLOW_OPEN_WEB_PAGE
+
+
+def test_llm_allow_search_internet(monkeypatch):
+    # Test default value
+    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", raising=False)
+    config = Config()
+    assert config.LLM_ALLOW_SEARCH_INTERNET
+    # Test set to false
+    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "0")
+    config = Config()
+    assert not config.LLM_ALLOW_SEARCH_INTERNET
+    # Test set to true
+    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "1")
+    config = Config()
+    assert config.LLM_ALLOW_SEARCH_INTERNET
+
+
+def test_llm_allow_search_arxiv(monkeypatch):
+    # Test default value
+    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", raising=False)
+    config = Config()
+    assert config.LLM_ALLOW_SEARCH_ARXIV
+    # Test set to false
+    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", "0")
+    config = Config()
+    assert not config.LLM_ALLOW_SEARCH_ARXIV
+    # Test set to true
+    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", "1")
+    config = Config()
+    assert config.LLM_ALLOW_SEARCH_ARXIV
+
+
+def test_llm_allow_search_wikipedia(monkeypatch):
+    # Test default value
+    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", raising=False)
+    config = Config()
+    assert config.LLM_ALLOW_SEARCH_WIKIPEDIA
+    # Test set to false
+    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", "0")
+    config = Config()
+    assert not config.LLM_ALLOW_SEARCH_WIKIPEDIA
+    # Test set to true
+    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", "1")
+    config = Config()
+    assert config.LLM_ALLOW_SEARCH_WIKIPEDIA
+
+
+def test_llm_allow_get_current_location(monkeypatch):
+    # Test default value
+    monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", raising=False)
+    config = Config()
+    assert config.LLM_ALLOW_GET_CURRENT_LOCATION
+    # Test set to false
+    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "0")
+    config = Config()
+    assert not config.LLM_ALLOW_GET_CURRENT_LOCATION
+    # Test set to true
+    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "1")
+    config = Config()
+    assert config.LLM_ALLOW_GET_CURRENT_LOCATION
+
+
+def test_llm_allow_get_current_weather(monkeypatch):
+    # Test default value
+    monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", raising=False)
+    config = Config()
+    assert config.LLM_ALLOW_GET_CURRENT_WEATHER
+    # Test set to false
+    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "0")
+    config = Config()
+    assert not config.LLM_ALLOW_GET_CURRENT_WEATHER
+    # Test set to true
+    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "1")
+    config = Config()
+    assert config.LLM_ALLOW_GET_CURRENT_WEATHER
 
 
 def test_rag_embedding_api_key(monkeypatch):
