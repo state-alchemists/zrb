@@ -10,7 +10,8 @@ import sys
 
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
-from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
+from zrb.util.cli.style import stylize_blue, stylize_bold_yellow, stylize_faint
+from zrb.util.string.conversion import to_boolean
 
 
 async def read_user_prompt(ctx: AnyContext) -> str:
@@ -26,6 +27,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     reader = await _setup_input_reader(is_tty)
     multiline_mode = False
     current_modes = ctx.input.modes
+    current_yolo_mode = ctx.input.yolo
     user_inputs = []
     while True:
         await asyncio.sleep(0.01)
@@ -40,7 +42,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(
-                ctx, user_prompt, current_modes
+                ctx, user_prompt, current_modes, current_yolo_mode
             )
             if result is not None:
                 final_result = result
@@ -53,7 +55,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(
-                ctx, user_prompt, current_modes
+                ctx, user_prompt, current_modes, current_yolo_mode
             )
             if result is not None:
                 final_result = result
@@ -62,6 +64,13 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             if len(mode_parts) > 1:
                 current_modes = mode_parts[1]
             ctx.print(f"Current mode: {current_modes}", plain=True)
+            ctx.print("", plain=True)
+            continue
+        elif user_input.strip().lower().startswith("/yolo"):
+            yolo_mode_parts = user_input.split(" ", maxsplit=2)
+            if len(yolo_mode_parts) > 1:
+                current_yolo_mode = to_boolean(yolo_mode_parts[1])
+            ctx.print(f"Current_yolo mode: {current_yolo_mode}", plain=True)
             ctx.print("", plain=True)
             continue
         elif user_input.strip().lower() in ("/help", "/info"):
@@ -74,7 +83,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(
-                ctx, user_prompt, current_modes
+                ctx, user_prompt, current_modes, current_yolo_mode
             )
             if result is not None:
                 final_result = result
@@ -90,20 +99,28 @@ def _show_info(ctx: AnyContext):
     ctx.print(
         "\n".join(
             [
-                _format_info_line("/bye", "Quit from chat session"),
-                _format_info_line("/multi", "Start multiline input"),
-                _format_info_line("/end", "End multiline input"),
-                _format_info_line("/modes", "Show current modes"),
-                _format_info_line("   <mode1,mode2,..>", "Set current modes"),
-                _format_info_line("/help", "Show this message"),
+                _show_command("/bye", "Quit from chat session"),
+                _show_command("/multi", "Start multiline input"),
+                _show_command("/end", "End multiline input"),
+                _show_command("/modes", "Show current modes"),
+                _show_subcommand("<mode1,mode2,..>", "Set current modes"),
+                _show_command("/yolo", "Get current YOLO mode"),
+                _show_subcommand("<true|false>", "Set YOLO mode to true/false"),
+                _show_command("/help", "Show this message"),
             ]
         ),
         plain=True,
     )
 
 
-def _format_info_line(command: str, description: str) -> str:
+def _show_command(command: str, description: str) -> str:
     styled_command = stylize_bold_yellow(command.ljust(25))
+    styled_description = stylize_faint(description)
+    return f"  {styled_command} {styled_description}"
+
+
+def _show_subcommand(command: str, description: str) -> str:
+    styled_command = stylize_blue(f"    {command}".ljust(25))
     styled_description = stylize_faint(description)
     return f"  {styled_command} {styled_description}"
 
@@ -119,6 +136,7 @@ async def _handle_initial_message(ctx: AnyContext) -> str:
         ctx,
         user_prompt=ctx.input.message,
         modes=ctx.input.modes,
+        yolo_mode=ctx.input.yolo,
         previous_session_name=ctx.input.previous_session,
         start_new=ctx.input.start_new,
     )
@@ -157,6 +175,7 @@ async def _trigger_ask_and_wait_for_result(
     ctx: AnyContext,
     user_prompt: str,
     modes: str,
+    yolo_mode: bool,
     previous_session_name: str | None = None,
     start_new: bool = False,
 ) -> str | None:
@@ -174,7 +193,9 @@ async def _trigger_ask_and_wait_for_result(
     """
     if user_prompt.strip() == "":
         return None
-    await _trigger_ask(ctx, user_prompt, modes, previous_session_name, start_new)
+    await _trigger_ask(
+        ctx, user_prompt, modes, yolo_mode, previous_session_name, start_new
+    )
     result = await _wait_ask_result(ctx)
     md_result = _render_markdown(result) if result is not None else ""
     ctx.print("\n🤖 >>", plain=True)
@@ -220,6 +241,7 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
         "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),
         "modes": data.get("modes"),
+        "yolo": data.get("yolo"),
     }
 
 
@@ -227,6 +249,7 @@ async def _trigger_ask(
     ctx: AnyContext,
     user_prompt: str,
     modes: str,
+    yolo_mode: bool,
     previous_session_name: str | None = None,
     start_new: bool = False,
 ):
@@ -247,6 +270,7 @@ async def _trigger_ask(
             "start_new": start_new,
             "message": user_prompt,
             "modes": modes,
+            "yolo": yolo_mode,
         }
     )
 
