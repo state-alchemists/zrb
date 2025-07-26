@@ -73,6 +73,11 @@ llm_config.set_persona(
 - **Type**: `int`
 - **Environment Variable**: `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`
 
+### `default_yolo_mode`
+- **Description**: Whether to start in YOLO mode (tool execution without confirmation).
+- **Type**: `bool`
+- **Environment Variable**: `ZRB_LLM_YOLO_MODE`
+
 ### `default_model_settings`
 - **Description**: The default model settings.
 - **Type**: `ModelSettings | None`
@@ -122,6 +127,9 @@ llm_config.set_persona(
 
 ### `set_default_history_summarization_token_threshold(history_summarization_token_threshold: int)`
 - **Description**: Sets the history summarization token threshold.
+
+### `set_default_yolo_mode(yolo_mode: bool)`
+- **Description**: Sets the default YOLO mode.
 
 ### `set_default_model_settings(model_settings: ModelSettings)`
 - **Description**: Sets the default model settings.
