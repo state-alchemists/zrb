@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.14.1
+
+- **Fixed** Tool confirmation bug
+
 # 1.14.0
 
 - **Feature: YOLO Mode Control in Chat**:

@@ -140,18 +140,21 @@ async def _ask_for_approval(
             f"✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>)", plain=True
         )
         user_input = await _read_line()
-        approval_str, reason = [
-            val.strip() for val in user_input.split(",", maxsplit=2)
-        ]
-        if reason == "":
-            ctx.print(
-                stylize_error(f"You must specify rejection reason for {func_call_str}"),
-                plain=True,
-            )
-            continue
+        user_responses = [val.strip() for val in user_input.split(",", maxsplit=2)]
+        while len(user_responses) < 2:
+            user_responses.append("")
+        approval_str, reason = user_responses
         try:
-            approval = to_boolean(approval_str)
-            return approval, reason
+            approved = to_boolean(approval_str)
+            if not approved and reason == "":
+                ctx.print(
+                    stylize_error(
+                        f"You must specify rejection reason (i.e., No, <why>) for {func_call_str}"
+                    ),  # noqa
+                    plain=True,
+                )
+                continue
+            return approved, reason
         except Exception:
             ctx.print(
                 stylize_error(
