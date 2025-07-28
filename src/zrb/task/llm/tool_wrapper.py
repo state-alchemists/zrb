@@ -127,10 +127,12 @@ async def _ask_for_approval(
 ) -> tuple[bool, str]:
     func_name = get_callable_name(func)
     normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]
-    normalized_kwargs = [
-        f"{stylize_yellow(key)}={stylize_green(_truncate_arg(val))}"
-        for key, val in kwargs.items()
-    ]
+    normalized_kwargs = []
+    for key, val in kwargs.items():
+        truncated_val = _truncate_arg(f"{val}")
+        normalized_kwargs.append(
+            f"{stylize_yellow(key)}={stylize_green(truncated_val)}"
+        )
     func_param_str = ",".join(normalized_args + normalized_kwargs)
     func_call_str = (
         f"{stylize_blue(func_name + '(')}{func_param_str}{stylize_blue(')')}"

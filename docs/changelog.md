@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.14.3
+
+- **Fixed** Kwargs parameter rendering on non yolo confirmation
+
 # 1.14.2
 
 - **Fixed** Yolo mode rendering
