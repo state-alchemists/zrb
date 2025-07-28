@@ -8,7 +8,7 @@ from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
-from zrb.util.attr import get_attr
+from zrb.util.attr import get_attr, get_bool_attr
 
 
 def get_is_yolo_mode(
@@ -16,10 +16,12 @@ def get_is_yolo_mode(
     is_yolo_mode_attr: BoolAttr | None = None,
     render_yolo_mode: bool = True,
 ):
-    yolo_mode = get_attr(ctx, is_yolo_mode_attr, None, auto_render=render_yolo_mode)
-    if yolo_mode is None:
-        return llm_config.default_yolo_mode
-    return yolo_mode
+    return get_bool_attr(
+        ctx,
+        is_yolo_mode_attr,
+        llm_config.default_yolo_mode,
+        auto_render=render_yolo_mode,
+    )
 
 
 def get_model_settings(

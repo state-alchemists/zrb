@@ -122,6 +122,7 @@ llm_ask: LLMTask = llm_group.add_task(
             None if ctx.input.modes.strip() == "" else ctx.input.modes.split(",")
         ),
         message="{ctx.input.message}",
+        is_yolo_mode="{ctx.input.yolo}",
         retries=0,
     ),
     alias="ask",

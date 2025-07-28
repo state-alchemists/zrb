@@ -149,8 +149,8 @@ async def _ask_for_approval(
             if not approved and reason == "":
                 ctx.print(
                     stylize_error(
-                        f"You must specify rejection reason (i.e., No, <why>) for {func_call_str}"
-                    ),  # noqa
+                        f"You must specify rejection reason (i.e., No, <why>) for {func_call_str}"  # noqa
+                    ),
                     plain=True,
                 )
                 continue
