@@ -3,7 +3,7 @@ import inspect
 import traceback
 import typing
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
@@ -106,7 +106,7 @@ def _create_wrapper(
             del kwargs["_dummy"]
         try:
             if not is_yolo_mode and not ctx.is_web_mode and ctx.is_tty:
-                approval, reason = await _ask_for_approval(ctx, func, *args, **kwargs)
+                approval, reason = await _ask_for_approval(ctx, func, args, kwargs)
                 if not approval:
                     raise ValueError(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
@@ -123,7 +123,7 @@ def _create_wrapper(
 
 
 async def _ask_for_approval(
-    ctx: AnyContext, func: Callable, *args, **kwargs
+    ctx: AnyContext, func: Callable, args: list[Any], kwargs: dict[Any]
 ) -> tuple[bool, str]:
     func_name = get_callable_name(func)
     normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]

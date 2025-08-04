@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.14.4
+
+- **Fixed** Fix `_ask_for_approval` parameter type so it still works even if `kwargs` contains `ctx`. This fix `analyze_repo` and `analyze_file`.
+
 # 1.14.3
 
 - **Fixed** Kwargs parameter rendering on non yolo confirmation
