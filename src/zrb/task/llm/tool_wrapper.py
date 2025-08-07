@@ -142,7 +142,7 @@ async def _ask_for_approval(
             f"✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>)", plain=True
         )
         user_input = await _read_line()
-        user_responses = [val.strip() for val in user_input.split(",", maxsplit=2)]
+        user_responses = [val.strip() for val in user_input.split(",", maxsplit=1)]
         while len(user_responses) < 2:
             user_responses.append("")
         approval_str, reason = user_responses
