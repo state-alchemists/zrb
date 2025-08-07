@@ -89,7 +89,7 @@ ZRB_LLM_BASE_URL=https://api.deepseek.com/v1
 ### Ollama
 ```env
 ZRB_LLM_MODEL=llama2  # or any other model available in Ollama
-ZRB_LLM_API_KEY=  # Typically not required for local Ollama instances
+ZRB_LLM_API_KEY=random-string  # Typically not required for local Ollama instances
 ZRB_LLM_BASE_URL=http://localhost:11434  # Default Ollama API endpoint
 ```
 
@@ -115,6 +115,16 @@ ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 
 # Summarization and Context Enrichment
 ZRB_LLM_SUMMARIZATION_TOKEN_THRESHOLD=3000
+```
+
+## Interacting with LLM
+
+```sh
+# One shot request
+zrb llm ask "zip project directory into project.zip"
+
+# Chat session
+zrb llm chat "How is the current weather at my current location?"
 ```
 
 ---
