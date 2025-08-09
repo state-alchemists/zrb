@@ -140,7 +140,8 @@ async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
                     """,
                     url,
                 )
-                return json.dumps({"content": content, "links": links})
+                return content, links
+                # return json.dumps({"content": content, "links": links})
             finally:
                 await browser.close()
     except Exception:
@@ -158,7 +159,8 @@ async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
             for a in soup.find_all("a", href=True)
             if not a["href"].startswith("#")
         ]
-        return json.dumps({"content": content, "links": links})
+        return content, links
+        # return json.dumps({"content": content, "links": links})
 
 
 def _convert_html_to_markdown(html_text: str) -> str:

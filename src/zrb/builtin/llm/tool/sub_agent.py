@@ -15,8 +15,6 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
-else:
-    ToolOrCallable = Any
 
 
 def create_sub_agent_tool(
@@ -25,7 +23,7 @@ def create_sub_agent_tool(
     system_prompt: str | None = None,
     model: "str | Model | None" = None,
     model_settings: "ModelSettings | None" = None,
-    tools: list[ToolOrCallable] = [],
+    tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
     is_yolo_mode: bool | None = None,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
