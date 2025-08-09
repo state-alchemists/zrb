@@ -280,9 +280,25 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid system prompt string
 
-* `ZRB_LLM_ANALYZE_FILE_EXTRACTOR_SYSTEM_PROMPT`: System prompt for file analysis extraction.
+* `ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT`: System prompt for file analysis extraction.
     * Default: None
     * Possible values: Any valid extraction prompt string
+
+* `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
+    * Default: `35000`
+    * Possible values: Any positive integer
+
+* `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for repository analysis summarization.
+    * Default: `35000`
+    * Possible values: Any positive integer
+
+* `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`: Token limit for file analysis.
+    * Default: `35000`
+    * Possible values: Any positive integer
+
+* `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`: Interactive system prompt for LLM.
+    * Default: None
+    * Possible values: Any valid prompt string
 
 * `ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`: System prompt for repository analysis extraction.
     * Default: None
