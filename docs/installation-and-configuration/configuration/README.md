@@ -2,7 +2,7 @@
 
 # Configuration
 
-You can configure Zrb by setting up OS Environment Variable.
+You can configure Zrb by setting up OS Environment Variables, and now you can use `_ZRB_ENV_PREFIX` for white labeling purposes. By default, the prefix is set to `ZRB`.
 
 Environment variables are a standard way to configure software without modifying its code. By setting these variables, you can customize Zrb's behavior to fit your needs and environment.
 
