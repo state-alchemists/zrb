@@ -1,8 +1,8 @@
 import os
 import platform
 import re
-from typing import TYPE_CHECKING, Callable
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config as llm_config
@@ -13,7 +13,6 @@ from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.llm.prompt import make_prompt_section
-
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent

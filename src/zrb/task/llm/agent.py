@@ -156,7 +156,9 @@ async def run_agent_iteration(
                 user_prompt=user_prompt,
                 attachments=[] if attachments is None else attachments,
                 history_list=[] if history_list is None else history_list,
-                rate_limitter=llm_rate_limitter if rate_limitter is None else rate_limitter,
+                rate_limitter=(
+                    llm_rate_limitter if rate_limitter is None else rate_limitter
+                ),
             )
         except BaseException:
             attempt += 1
@@ -176,7 +178,9 @@ async def _run_single_agent_iteration(
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-    agent_payload = _estimate_request_payload(agent, user_prompt, attachments, history_list)
+    agent_payload = _estimate_request_payload(
+        agent, user_prompt, attachments, history_list
+    )
     if rate_limitter:
         await rate_limitter.throttle(agent_payload)
     else:

@@ -23,10 +23,10 @@ from zrb.task.llm.conversation_history import (
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
+    get_attachments,
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
-    get_attachments,
 )
 from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
