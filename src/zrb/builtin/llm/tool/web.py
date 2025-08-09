@@ -2,8 +2,6 @@ import json
 from collections.abc import Callable
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
-
 
 async def open_web_page(url: str) -> str:
     """
@@ -146,6 +144,7 @@ async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
                 await browser.close()
     except Exception:
         import requests
+        from bs4 import BeautifulSoup
 
         response = requests.get(url, headers={"User-Agent": user_agent})
         if response.status_code != 200:
@@ -165,6 +164,7 @@ async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
 
 def _convert_html_to_markdown(html_text: str) -> str:
     """Converts HTML content to a clean Markdown representation."""
+    from bs4 import BeautifulSoup
     from markdownify import markdownify as md
 
     soup = BeautifulSoup(html_text, "html.parser")

@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.14.8
+
+- **Changed** Make beautifulsoup lazy-loaded.
+
 # 1.14.6
 
 - **Temporarily Fixed** Limitting OpenAi's library version.
