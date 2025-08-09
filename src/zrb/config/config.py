@@ -24,6 +24,13 @@ class Config:
     def __init__(self):
         self.__internal_default_prompt: dict[str, str] = {}
 
+    @property
+    def ENV_PREFIX(self) -> str:
+        return os.getenv("_ZRB_ENV_PREFIX", "ZRB")
+
+    def _getenv(self, env_name: str, default: str = "") -> str:
+        return os.getenv(f"{self.ENV_PREFIX}_{env_name}", default)
+
     def _get_internal_default_prompt(self, name: str) -> str:
         if name not in self.__internal_default_prompt:
             file_path = os.path.join(
@@ -39,7 +46,7 @@ class Config:
 
     @property
     def DEFAULT_SHELL(self) -> str:
-        return os.getenv("ZRB_SHELL", self._get_current_shell())
+        return self._getenv("SHELL", self._get_current_shell())
 
     def _get_current_shell(self) -> str:
         if platform.system() == "Windows":
@@ -51,11 +58,11 @@ class Config:
 
     @property
     def DEFAULT_EDITOR(self) -> str:
-        return os.getenv("ZRB_EDITOR", "nano")
+        return self._getenv("EDITOR", "nano")
 
     @property
     def INIT_MODULES(self) -> list[str]:
-        init_modules_str = os.getenv("ZRB_INIT_MODULES", "")
+        init_modules_str = self._getenv("INIT_MODULES", "")
         if init_modules_str != "":
             return [
                 module.strip()
@@ -66,15 +73,15 @@ class Config:
 
     @property
     def ROOT_GROUP_NAME(self) -> str:
-        return os.getenv("ZRB_ROOT_GROUP_NAME", "zrb")
+        return self._getenv("ROOT_GROUP_NAME", "zrb")
 
     @property
     def ROOT_GROUP_DESCRIPTION(self) -> str:
-        return os.getenv("ZRB_ROOT_GROUP_DESCRIPTION", "Your Automation Powerhouse")
+        return self._getenv("ROOT_GROUP_DESCRIPTION", "Your Automation Powerhouse")
 
     @property
     def INIT_SCRIPTS(self) -> list[str]:
-        init_scripts_str = os.getenv("ZRB_INIT_SCRIPTS", "")
+        init_scripts_str = self._getenv("INIT_SCRIPTS", "")
         if init_scripts_str != "":
             return [
                 script.strip()
@@ -85,11 +92,11 @@ class Config:
 
     @property
     def INIT_FILE_NAME(self) -> str:
-        return os.getenv("ZRB_INIT_FILE_NAME", "zrb_init.py")
+        return self._getenv("INIT_FILE_NAME", "zrb_init.py")
 
     @property
     def LOGGING_LEVEL(self) -> int:
-        return self._get_log_level(os.getenv("ZRB_LOGGING_LEVEL", "WARNING"))
+        return self._get_log_level(self._getenv("LOGGING_LEVEL", "WARNING"))
 
     def _get_log_level(self, level: str) -> int:
         level = level.upper()
@@ -108,11 +115,11 @@ class Config:
 
     @property
     def LOAD_BUILTIN(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LOAD_BUILTIN", "1"))
+        return to_boolean(self._getenv("LOAD_BUILTIN", "1"))
 
     @property
     def WARN_UNRECOMMENDED_COMMAND(self) -> bool:
-        return to_boolean(os.getenv("ZRB_WARN_UNRECOMMENDED_COMMAND", "1"))
+        return to_boolean(self._getenv("WARN_UNRECOMMENDED_COMMAND", "1"))
 
     @property
     def SESSION_LOG_DIR(self) -> str:
@@ -122,15 +129,15 @@ class Config:
 
     @property
     def TODO_DIR(self) -> str:
-        return os.getenv("ZRB_TODO_DIR", os.path.expanduser(os.path.join("~", "todo")))
+        return self._getenv("TODO_DIR", os.path.expanduser(os.path.join("~", "todo")))
 
     @property
     def TODO_VISUAL_FILTER(self) -> str:
-        return os.getenv("ZRB_TODO_FILTER", "")
+        return self._getenv("TODO_FILTER", "")
 
     @property
     def TODO_RETENTION(self) -> str:
-        return os.getenv("ZRB_TODO_RETENTION", "2w")
+        return self._getenv("TODO_RETENTION", "2w")
 
     @property
     def VERSION(self) -> str:
@@ -141,7 +148,7 @@ class Config:
 
     @property
     def WEB_CSS_PATH(self) -> list[str]:
-        web_css_path_str = os.getenv("ZRB_WEB_CSS_PATH", "")
+        web_css_path_str = self._getenv("WEB_CSS_PATH", "")
         if web_css_path_str != "":
             return [
                 path.strip()
@@ -152,7 +159,7 @@ class Config:
 
     @property
     def WEB_JS_PATH(self) -> list[str]:
-        web_js_path_str = os.getenv("ZRB_WEB_JS_PATH", "")
+        web_js_path_str = self._getenv("WEB_JS_PATH", "")
         if web_js_path_str != "":
             return [
                 path.strip()
@@ -163,103 +170,111 @@ class Config:
 
     @property
     def WEB_FAVICON_PATH(self) -> str:
-        return os.getenv("ZRB_WEB_FAVICON_PATH", "/static/favicon-32x32.png")
+        return self._getenv("WEB_FAVICON_PATH", "/static/favicon-32x32.png")
 
     @property
     def WEB_COLOR(self) -> str:
-        return os.getenv("ZRB_WEB_COLOR", "")
+        return self._getenv("WEB_COLOR", "")
 
     @property
     def WEB_HTTP_PORT(self) -> int:
-        return int(os.getenv("ZRB_WEB_HTTP_PORT", "21213"))
+        return int(self._getenv("WEB_HTTP_PORT", "21213"))
 
     @property
     def WEB_GUEST_USERNAME(self) -> str:
-        return os.getenv("ZRB_WEB_GUEST_USERNAME", "user")
+        return self._getenv("WEB_GUEST_USERNAME", "user")
 
     @property
     def WEB_SUPER_ADMIN_USERNAME(self) -> str:
-        return os.getenv("ZRB_WEB_SUPER_ADMIN_USERNAME", "admin")
+        return self._getenv("WEB_SUPER_ADMIN_USERNAME", "admin")
 
     @property
     def WEB_SUPER_ADMIN_PASSWORD(self) -> str:
-        return os.getenv("ZRB_WEB_SUPER_ADMIN_PASSWORD", "admin")
+        return self._getenv("WEB_SUPER_ADMIN_PASSWORD", "admin")
 
     @property
     def WEB_ACCESS_TOKEN_COOKIE_NAME(self) -> str:
-        return os.getenv("ZRB_WEB_ACCESS_TOKEN_COOKIE_NAME", "access_token")
+        return self._getenv("WEB_ACCESS_TOKEN_COOKIE_NAME", "access_token")
 
     @property
     def WEB_REFRESH_TOKEN_COOKIE_NAME(self) -> str:
-        return os.getenv("ZRB_WEB_REFRESH_TOKEN_COOKIE_NAME", "refresh_token")
+        return self._getenv("WEB_REFRESH_TOKEN_COOKIE_NAME", "refresh_token")
 
     @property
     def WEB_SECRET_KEY(self) -> str:
-        return os.getenv("ZRB_WEB_SECRET", "zrb")
+        return self._getenv("WEB_SECRET", "zrb")
 
     @property
     def WEB_ENABLE_AUTH(self) -> bool:
-        return to_boolean(os.getenv("ZRB_WEB_ENABLE_AUTH", "0"))
+        return to_boolean(self._getenv("WEB_ENABLE_AUTH", "0"))
 
     @property
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
-        return int(os.getenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+        return int(self._getenv("WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
     @property
     def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self) -> int:
-        return int(os.getenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60"))
+        return int(self._getenv("WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60"))
 
     @property
     def WEB_TITLE(self) -> str:
-        return os.getenv("ZRB_WEB_TITLE", "Zrb")
+        return self._getenv("WEB_TITLE", "Zrb")
 
     @property
     def WEB_JARGON(self) -> str:
-        return os.getenv("ZRB_WEB_JARGON", "Your Automation PowerHouse")
+        return self._getenv("WEB_JARGON", "Your Automation PowerHouse")
 
     @property
     def WEB_HOMEPAGE_INTRO(self) -> str:
-        return os.getenv("ZRB_WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface")
+        return self._getenv("WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface")
 
     @property
     def LLM_MODEL(self) -> str | None:
-        return os.getenv("ZRB_LLM_MODEL", None)
+        value = self._getenv("LLM_MODEL")
+        return None if value == "" else value
 
     @property
     def LLM_BASE_URL(self) -> str | None:
-        return os.getenv("ZRB_LLM_BASE_URL", None)
+        value = self._getenv("LLM_BASE_URL")
+        return None if value == "" else value
 
     @property
     def LLM_API_KEY(self) -> str | None:
-        return os.getenv("ZRB_LLM_API_KEY", None)
+        value = self._getenv("LLM_API_KEY")
+        return None if value == "" else value
 
     @property
     def LLM_SYSTEM_PROMPT(self) -> str | None:
-        return os.getenv("ZRB_LLM_SYSTEM_PROMPT", None)
+        value = self._getenv("LLM_SYSTEM_PROMPT")
+        return None if value == "" else value
 
     @property
     def LLM_INTERACTIVE_SYSTEM_PROMPT(self) -> str | None:
-        return os.getenv("ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT", None)
+        value = self._getenv("LLM_INTERACTIVE_SYSTEM_PROMPT")
+        return None if value == "" else value
 
     @property
     def LLM_PERSONA(self) -> str | None:
-        return os.getenv("ZRB_LLM_PERSONA", None)
+        value = self._getenv("LLM_PERSONA")
+        return None if value == "" else value
 
     @property
     def LLM_MODES(self) -> list[str]:
         return [
             mode.strip()
-            for mode in os.getenv("ZRB_LLM_MODES", "coding").split(",")
+            for mode in self._getenv("LLM_MODES", "coding").split(",")
             if mode.strip() != ""
         ]
 
     @property
     def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
-        return os.getenv("ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", None)
+        value = self._getenv("LLM_SPECIAL_INSTRUCTION_PROMPT")
+        return None if value == "" else value
 
     @property
     def LLM_SUMMARIZATION_PROMPT(self) -> str | None:
-        return os.getenv("ZRB_LLM_SUMMARIZATION_PROMPT", None)
+        value = self._getenv("LLM_SUMMARIZATION_PROMPT")
+        return None if value == "" else value
 
     @property
     def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
@@ -267,7 +282,7 @@ class Config:
         Maximum number of LLM requests allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
         """
-        return int(os.getenv("LLM_MAX_REQUESTS_PER_MINUTE", "15"))
+        return int(self._getenv("LLM_MAX_REQUESTS_PER_MINUTE", "15"))
 
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
@@ -275,127 +290,127 @@ class Config:
         Maximum number of LLM tokens allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
         """
-        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "100000"))
+        return int(self._getenv("LLM_MAX_TOKENS_PER_MINUTE", "100000"))
 
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
-        return int(os.getenv("ZRB_LLM_MAX_TOKENS_PER_REQUEST", "50000"))
+        return int(self._getenv("LLM_MAX_TOKENS_PER_REQUEST", "50000"))
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
-        return float(os.getenv("ZRB_LLM_THROTTLE_SLEEP", "1.0"))
+        return float(self._getenv("LLM_THROTTLE_SLEEP", "1.0"))
 
     @property
     def LLM_YOLO_MODE(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_YOLO_MODE", "false"))
+        return to_boolean(self._getenv("LLM_YOLO_MODE", "false"))
 
     @property
     def LLM_SUMMARIZE_HISTORY(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_SUMMARIZE_HISTORY", "true"))
+        return to_boolean(self._getenv("LLM_SUMMARIZE_HISTORY", "true"))
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000"))
+        return int(self._getenv("LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000"))
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
-        return int(os.getenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000"))
+        return int(self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000"))
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return int(
-            os.getenv("ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "35000")
-        )
+        return int(self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "35000"))
 
     @property
     def LLM_FILE_ANALYSIS_TOKEN_LIMIT(self) -> int:
-        return int(os.getenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT", "35000"))
+        return int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_LIMIT", "35000"))
 
     @property
     def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
-        return os.getenv(
+        return self._getenv(
             "ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT",
             self._get_internal_default_prompt("file_extractor_system_prompt"),
         )
 
     @property
     def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
-        return os.getenv(
-            "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
+        return self._getenv(
+            "LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
             self._get_internal_default_prompt("repo_extractor_system_prompt"),
         )
 
     @property
     def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
-        return os.getenv(
-            "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
+        return self._getenv(
+            "LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
             self._get_internal_default_prompt("repo_summarizer_system_prompt"),
         )
 
     @property
     def LLM_HISTORY_DIR(self) -> str:
-        return os.getenv(
-            "ZRB_LLM_HISTORY_DIR",
+        return self._getenv(
+            "LLM_HISTORY_DIR",
             os.path.expanduser(os.path.join("~", ".zrb-llm-history")),
         )
 
     @property
     def LLM_ALLOW_ACCESS_LOCAL_FILE(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ACCESS_LOCAL_FILE", "1"))
+        return to_boolean(self._getenv("LLM_ACCESS_LOCAL_FILE", "1"))
 
     @property
     def LLM_ALLOW_ACCESS_SHELL(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ACCESS_SHELL", "1"))
+        return to_boolean(self._getenv("LLM_ACCESS_SHELL", "1"))
 
     @property
     def LLM_ALLOW_OPEN_WEB_PAGE(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_OPEN_WEB_PAGE", "1"))
 
     @property
     def LLM_ALLOW_SEARCH_INTERNET(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_INTERNET", "1"))
 
     @property
     def LLM_ALLOW_SEARCH_ARXIV(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_ARXIV", "1"))
 
     @property
     def LLM_ALLOW_SEARCH_WIKIPEDIA(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_WIKIPEDIA", "1"))
 
     @property
     def LLM_ALLOW_GET_CURRENT_LOCATION(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
 
     @property
     def LLM_ALLOW_GET_CURRENT_WEATHER(self) -> bool:
-        return to_boolean(os.getenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_WEATHER", "1"))
 
     @property
-    def RAG_EMBEDDING_API_KEY(self) -> str:
-        return os.getenv("ZRB_RAG_EMBEDDING_API_KEY", None)
+    def RAG_EMBEDDING_API_KEY(self) -> str | None:
+        value = self._getenv("RAG_EMBEDDING_API_KEY")
+        return None if value == "" else value
 
     @property
-    def RAG_EMBEDDING_BASE_URL(self) -> str:
-        return os.getenv("ZRB_RAG_EMBEDDING_BASE_URL", None)
+    def RAG_EMBEDDING_BASE_URL(self) -> str | None:
+        value = self._getenv("RAG_EMBEDDING_BASE_URL")
+        return None if value == "" else value
 
     @property
     def RAG_EMBEDDING_MODEL(self) -> str:
-        return os.getenv("ZRB_RAG_EMBEDDING_MODEL", "text-embedding-ada-002")
+        return self._getenv("RAG_EMBEDDING_MODEL", "text-embedding-ada-002")
 
     @property
     def RAG_CHUNK_SIZE(self) -> int:
-        return int(os.getenv("ZRB_RAG_CHUNK_SIZE", "1024"))
+        return int(self._getenv("RAG_CHUNK_SIZE", "1024"))
 
     @property
     def RAG_OVERLAP(self) -> int:
-        return int(os.getenv("ZRB_RAG_OVERLAP", "128"))
+        return int(self._getenv("RAG_OVERLAP", "128"))
 
     @property
     def RAG_MAX_RESULT_COUNT(self) -> int:
-        return int(os.getenv("ZRB_RAG_MAX_RESULT_COUNT", "5"))
+        return int(self._getenv("RAG_MAX_RESULT_COUNT", "5"))
 
     @property
     def SERPAPI_KEY(self) -> str:
@@ -404,13 +419,13 @@ class Config:
     @property
     def BANNER(self) -> str:
         return fstring_format(
-            os.getenv("ZRB_BANNER", _DEFAULT_BANNER),
+            self._getenv("BANNER", _DEFAULT_BANNER),
             {"VERSION": self.VERSION},
         )
 
     @property
     def LLM_CONTEXT_FILE(self) -> str:
-        return os.getenv("LLM_CONTEXT_FILE", "ZRB.md")
+        return self._getenv("LLM_CONTEXT_FILE", "ZRB.md")
 
 
 CFG = Config()
