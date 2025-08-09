@@ -1,5 +1,11 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.14.6
+
+- **Temporarily Fixed** Limitting OpenAi's library version.
+- **Added** New environment variable `_ZRB_ENV_PREFIX` to make white-labelling even easier.
+- **Changed** Update `open_web_page` tool internal working.
+
 # 1.14.5
 
 - **Fixed** Fix `_ask_for_approval` rejection reason containing `,`

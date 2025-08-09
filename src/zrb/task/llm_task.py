@@ -23,6 +23,7 @@ from zrb.task.llm.conversation_history import (
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_summarization import maybe_summarize_history
 from zrb.task.llm.prompt import (
+    get_attachments,
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
@@ -32,13 +33,12 @@ from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
+    from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
-else:
-    ToolOrCallable = Any
 
 
 class LLMTask(BaseTask):
@@ -72,6 +72,7 @@ class LLMTask(BaseTask):
         modes: StrListAttr | None = None,
         render_modes: bool = True,
         message: StrAttr | None = None,
+        attachment: "UserContent | list[UserContent] | Callable[[AnySharedContext], UserContent | list[UserContent]] | None" = None,  # noqa
         render_message: bool = True,
         tools: (
             list["ToolOrCallable"]
@@ -184,11 +185,12 @@ class LLMTask(BaseTask):
         self._conversation_context = conversation_context
         self._is_yolo_mode = is_yolo_mode
         self._render_yolo_mode = render_yolo_mode
+        self._attachment = attachment
 
-    def add_tool(self, *tool: ToolOrCallable):
+    def add_tool(self, *tool: "ToolOrCallable"):
         self.append_tool(*tool)
 
-    def append_tool(self, *tool: ToolOrCallable):
+    def append_tool(self, *tool: "ToolOrCallable"):
         for single_tool in tool:
             self._additional_tools.append(single_tool)
 
@@ -230,6 +232,7 @@ class LLMTask(BaseTask):
             render_summarization_prompt=self._render_summarization_prompt,
         )
         user_message = get_user_message(ctx, self._message, self._render_message)
+        attachments = get_attachments(ctx, self._attachment)
         # 1. Prepare initial state (read history from previous session)
         conversation_history = await read_conversation_history(
             ctx=ctx,
@@ -268,10 +271,11 @@ class LLMTask(BaseTask):
         )
         # 4. Run the agent iteration and save the results/history
         result = await self._execute_agent(
-            ctx,
-            agent,
-            user_message,
-            conversation_history,
+            ctx=ctx,
+            agent=agent,
+            user_prompt=user_message,
+            attachments=attachments,
+            conversation_history=conversation_history,
         )
         # 5. Summarize
         conversation_history = await maybe_summarize_history(
@@ -305,6 +309,7 @@ class LLMTask(BaseTask):
         ctx: AnyContext,
         agent: "Agent",
         user_prompt: str,
+        attachments: "list[UserContent]",
         conversation_history: ConversationHistory,
     ) -> Any:
         """Executes the agent, processes results, and saves history."""
@@ -313,6 +318,7 @@ class LLMTask(BaseTask):
                 ctx=ctx,
                 agent=agent,
                 user_prompt=user_prompt,
+                attachments=attachments,
                 history_list=conversation_history.history,
                 rate_limitter=self._rate_limitter,
             )

@@ -15,8 +15,6 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
-else:
-    ToolOrCallable = Any
 
 
 def create_sub_agent_tool(
@@ -25,7 +23,7 @@ def create_sub_agent_tool(
     system_prompt: str | None = None,
     model: "str | Model | None" = None,
     model_settings: "ModelSettings | None" = None,
-    tools: list[ToolOrCallable] = [],
+    tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
     is_yolo_mode: bool | None = None,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
@@ -97,7 +95,8 @@ def create_sub_agent_tool(
             ctx=ctx,
             agent=sub_agent_agent,
             user_prompt=query,
-            history_list=[],  # Start with empty history for the sub-agent
+            attachments=[],
+            history_list=[],
         )
 
         # Return the sub-agent's final message content

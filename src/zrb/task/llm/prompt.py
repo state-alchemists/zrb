@@ -2,15 +2,20 @@ import os
 import platform
 import re
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config as llm_config
 from zrb.config.llm_context.config import llm_context_config
 from zrb.context.any_context import AnyContext
+from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.llm.prompt import make_prompt_section
+
+if TYPE_CHECKING:
+    from pydantic_ai.messages import UserContent
 
 
 def get_persona(
@@ -193,7 +198,7 @@ def get_system_and_user_prompt(
 def extract_conversation_context(user_message: str) -> tuple[str, str]:
     modified_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
-    pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\s]+)"
+    pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\?\!\s]+)"
     potential_resource_path = re.findall(pattern, user_message)
     apendixes = []
     for i, ref in enumerate(potential_resource_path):
@@ -274,3 +279,21 @@ def get_summarization_system_prompt(
     if summarization_prompt is not None:
         return summarization_prompt
     return llm_config.default_summarization_prompt
+
+
+def get_attachments(
+    ctx: AnyContext,
+    attachment: "UserContent | list[UserContent] | Callable[[AnySharedContext], UserContent | list[UserContent]] | None" = None,  # noqa
+) -> "list[UserContent]":
+    if attachment is None:
+        return []
+    if callable(attachment):
+        result = attachment(ctx)
+        if result is None:
+            return []
+        if isinstance(result, list):
+            return result
+        return [result]
+    if isinstance(attachment, list):
+        return attachment
+    return [attachment]
