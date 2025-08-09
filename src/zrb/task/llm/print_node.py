@@ -23,6 +23,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
     elif Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
         print_func(stylize_faint("🧠 Processing..."))
+        # Reference: https://ai.pydantic.dev/agents/#streaming
         async with node.stream(agent_run.ctx) as request_stream:
             is_streaming = False
             async for event in request_stream:

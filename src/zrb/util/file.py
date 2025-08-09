@@ -14,14 +14,21 @@ def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
     """
     abs_file_path = os.path.abspath(os.path.expanduser(file_path))
     is_pdf = abs_file_path.lower().endswith(".pdf")
-    content = (
-        _read_pdf_file_content(abs_file_path)
-        if is_pdf
-        else _read_text_file_content(abs_file_path)
-    )
-    for key, val in replace_map.items():
-        content = content.replace(key, val)
-    return content
+    try:
+        content = (
+            _read_pdf_file_content(abs_file_path)
+            if is_pdf
+            else _read_text_file_content(abs_file_path)
+        )
+        for key, val in replace_map.items():
+            content = content.replace(key, val)
+        return content
+    except Exception:
+        import base64
+        from pathlib import Path
+
+        data = Path(abs_file_path).read_bytes()
+        return base64.b64encode(data).decode("ascii")
 
 
 def _read_text_file_content(file_path: str) -> str:

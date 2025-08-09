@@ -157,6 +157,7 @@ async def summarize_history(
             ctx=ctx,
             agent=summarization_agent,
             user_prompt=user_prompt,
+            attachments=[],
             history_list=[],
             rate_limitter=rate_limitter,
         )

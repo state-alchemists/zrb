@@ -329,7 +329,7 @@ class Config:
     @property
     def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
         return self._getenv(
-            "ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT",
+            "LLM_FILE_EXTRACTOR_SYSTEM_PROMPT",
             self._get_internal_default_prompt("file_extractor_system_prompt"),
         )
 

@@ -13,13 +13,12 @@ from zrb.task.llm.typing import ListOfDict
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.agent import AgentRun
+    from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
-else:
-    ToolOrCallable = Any
 
 
 def create_agent_instance(
@@ -27,7 +26,7 @@ def create_agent_instance(
     model: "str | Model | None" = None,
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
-    tools: list[ToolOrCallable] = [],
+    tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
     retries: int = 3,
     is_yolo_mode: bool | None = None,
@@ -80,9 +79,9 @@ def get_agent(
     system_prompt: str,
     model_settings: "ModelSettings | None",
     tools_attr: (
-        list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]
+        "list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]"
     ),
-    additional_tools: list[ToolOrCallable],
+    additional_tools: "list[ToolOrCallable]",
     toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]",  # noqa
     additional_toolsets: "list[AbstractToolset[Agent]]",
     retries: int = 3,
@@ -126,7 +125,8 @@ async def run_agent_iteration(
     ctx: AnyContext,
     agent: "Agent",
     user_prompt: str,
-    history_list: ListOfDict,
+    attachments: "list[UserContent] | None" = None,
+    history_list: ListOfDict | None = None,
     rate_limitter: LLMRateLimiter | None = None,
     max_retry: int = 2,
 ) -> "AgentRun":
@@ -154,8 +154,9 @@ async def run_agent_iteration(
                 ctx=ctx,
                 agent=agent,
                 user_prompt=user_prompt,
-                history_list=history_list,
-                rate_limitter=rate_limitter,
+                attachments=[] if attachments is None else attachments,
+                history_list=[] if history_list is None else history_list,
+                rate_limitter=llm_rate_limitter if rate_limitter is None else rate_limitter,
             )
         except BaseException:
             attempt += 1
@@ -168,21 +169,23 @@ async def _run_single_agent_iteration(
     ctx: AnyContext,
     agent: "Agent",
     user_prompt: str,
+    attachments: "list[UserContent]",
     history_list: ListOfDict,
-    rate_limitter: LLMRateLimiter | None = None,
+    rate_limitter: LLMRateLimiter,
 ) -> "AgentRun":
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-    agent_payload = estimate_request_payload(agent, user_prompt, history_list)
+    agent_payload = _estimate_request_payload(agent, user_prompt, attachments, history_list)
     if rate_limitter:
         await rate_limitter.throttle(agent_payload)
     else:
         await llm_rate_limitter.throttle(agent_payload)
 
+    user_prompt_with_attachments = [user_prompt] + attachments
     async with agent:
         async with agent.iter(
-            user_prompt=user_prompt,
+            user_prompt=user_prompt_with_attachments,
             message_history=ModelMessagesTypeAdapter.validate_python(history_list),
         ) as agent_run:
             async for node in agent_run:
@@ -202,8 +205,11 @@ async def _run_single_agent_iteration(
             return agent_run
 
 
-def estimate_request_payload(
-    agent: "Agent", user_prompt: str, history_list: ListOfDict
+def _estimate_request_payload(
+    agent: "Agent",
+    user_prompt: str,
+    attachments: "list[UserContent]",
+    history_list: ListOfDict,
 ) -> str:
     system_prompts = agent._system_prompts if hasattr(agent, "_system_prompts") else ()
     return json.dumps(
@@ -211,8 +217,17 @@ def estimate_request_payload(
             {"role": "system", "content": "\n".join(system_prompts)},
             *history_list,
             {"role": "user", "content": user_prompt},
+            *[_estimate_attachment_payload(attachment) for attachment in attachments],
         ]
     )
+
+
+def _estimate_attachment_payload(attachment: "UserContent") -> Any:
+    if hasattr(attachment, "url"):
+        return {"role": "user", "content": attachment.url}
+    if hasattr(attachment, "data"):
+        return {"role": "user", "content": "x" * len(attachment.data)}
+    return ""
 
 
 def _get_plain_printer(ctx: AnyContext):

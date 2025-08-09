@@ -97,7 +97,8 @@ def create_sub_agent_tool(
             ctx=ctx,
             agent=sub_agent_agent,
             user_prompt=query,
-            history_list=[],  # Start with empty history for the sub-agent
+            attachments=[],
+            history_list=[],
         )
 
         # Return the sub-agent's final message content

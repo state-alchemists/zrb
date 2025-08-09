@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "1.14.5"
+version = "1.14.6"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -43,26 +43,32 @@ black = "~25.1.0"
 isort = "~6.0.1"
 requests = "^2.32.4"
 libcst = "^1.7.0"
-chromadb = {version = "^0.6.3", optional = true}
-pdfplumber = {version = "^0.11.6", optional = true}
 beautifulsoup4 = "^4.13.3"
+pdfplumber = "^0.11.6"
 fastapi = {extras = ["standard"], version = "^0.116.1"}
 python-jose = {extras = ["cryptography"], version = "^3.4.0"}
 ulid-py = "^1.1.0"
-pydantic-ai = "^0.4.5"
-tiktoken = "^0.8.0"
-openai = {version = "^1.86.0", optional = true}
-playwright = {version = "^1.53.0", optional = true}
 psutil = "^7.0.0"
 pyjwt = "^2.10.1"
-prompt-toolkit = "^3.0.51"
-rich = "^14.0.0"
+
+tiktoken = "^0.8.0"
+
+# NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
+# - We want to include all models, as well as mcp capability.
+# - We also need prompt-toolkit and rich which are included in pydantic ai's cli optional dependency
+pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface", "cli", "mcp"], version = "0.4.6"} 
+
+openai="1.92.2"
+
+
+playwright = {version = "^1.53.0", optional = true}
+chromadb = {version = "^0.6.3", optional = true}
 
 [tool.poetry.extras]
 # poetry install -E rag
-rag = ["chromadb", "pdfplumber", "openai"]
+rag = ["chromadb"]
 playwright = ["playwright"]
-all = ["chromadb", "pdfplumber", "openai", "playwright"]
+all = ["chromadb", "playwright"]
 
 [tool.poetry.group.dev.dependencies]
 alembic = "^1.16.2" # FastApp dependencies

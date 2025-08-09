@@ -352,13 +352,13 @@ def test_llm_summarization_prompt(monkeypatch):
 
 
 def test_llm_max_requests_per_minute(monkeypatch):
-    monkeypatch.setenv("LLM_MAX_REQUESTS_PER_MINUTE", "30")
+    monkeypatch.setenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", "30")
     config = Config()
     assert config.LLM_MAX_REQUESTS_PER_MINUTE == 30
 
 
 def test_llm_max_requests_per_minute_none(monkeypatch):
-    monkeypatch.delenv("LLM_MAX_REQUESTS_PER_MINUTE", raising=False)
+    monkeypatch.delenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", raising=False)
     config = Config()
     assert config.LLM_MAX_REQUESTS_PER_MINUTE == 15
 
