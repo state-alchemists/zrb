@@ -2,6 +2,7 @@ from typing import Any
 
 from zrb.builtin.group import http_group
 from zrb.context.any_context import AnyContext
+from zrb.input.bool_input import BoolInput
 from zrb.input.option_input import OptionInput
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
@@ -32,10 +33,9 @@ from zrb.task.make_task import make_task
             prompt="Enter body as JSON",
             default="{}",
         ),
-        OptionInput(
+        BoolInput(
             name="verify_ssl",
-            default="true",
-            options=["true", "false"],
+            default=True,
             description="Verify SSL certificate",
         ),
     ],
@@ -55,7 +55,7 @@ def http_request(ctx: AnyContext) -> Any:
             body = json.loads(ctx.input.body)
 
         # Make request
-        verify = ctx.input.verify_ssl.lower() == "true"
+        verify = ctx.input.verify_ssl
         response = requests.request(
             method=ctx.input.method,
             url=ctx.input.url,
@@ -107,10 +107,9 @@ def http_request(ctx: AnyContext) -> Any:
             prompt="Enter body as JSON",
             default="{}",
         ),
-        OptionInput(
+        BoolInput(
             name="verify_ssl",
-            default="true",
-            options=["true", "false"],
+            default=True,
             description="Verify SSL certificate",
         ),
     ],
@@ -137,7 +136,7 @@ def generate_curl(ctx: AnyContext) -> str:
             parts.extend(["--data-raw", shlex.quote(ctx.input.body)])
 
         # Add SSL verification
-        if ctx.input.verify_ssl.lower() == "false":
+        if not ctx.input.verify_ssl:
             parts.append("--insecure")
 
         # Add URL
