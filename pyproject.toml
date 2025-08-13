@@ -54,10 +54,11 @@ pyjwt = "^2.10.1"
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
 # - We want to include all models, as well as mcp capability.
 # - We also need prompt-toolkit and rich which are included in pydantic ai's cli optional dependency
-pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface", "cli", "mcp"], version = "^0.6.2"} 
+pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface", "cli", "mcp"], version = "^0.7.0"} 
 
-# NOTE: On Pydantic AI 0.6.2, The last working version of OpenAI is 0.99.1
-openai = ">=1.92.0, <=1.99.1"
+# NOTE: On Pydantic AI 0.6.2, The last working version of OpenAI is 1.99.1
+# openai = ">=1.92.0, <=1.99.1"
+openai = ">=1.99.7"
 
 tiktoken = "^0.8.0"
 playwright = {version = "^1.53.0", optional = true}

@@ -52,6 +52,64 @@ class Group(AnyGroup):
         self._tasks[alias] = task
         return task
 
+    def remove_group(self, group: "AnyGroup | str"):
+        original_groups_len = len(self._groups)
+        if isinstance(group, AnyGroup):
+            new_groups = {
+                alias: existing_group for alias, existing_group in self._groups.items()
+                if group != existing_group
+            }
+            if len(new_groups) == original_groups_len:
+                raise ValueError(f"Cannot remove group {group} from {self}")
+            self._groups = new_groups
+            return
+        # group is string, try to remove by alias
+        new_groups = {
+            alias: existing_group for alias, existing_group in self._groups.items()
+            if alias != group
+        }
+        if len(new_groups) < original_groups_len:
+            self._groups = new_groups
+            return
+        # if alias removal didn't work, try to remove by name
+        new_groups = {
+            alias: existing_group for alias, existing_group in self._groups.items()
+            if existing_group.name != group
+        }
+        if len(new_groups) < original_groups_len:
+            self._groups = new_groups
+            return
+        raise ValueError(f"Cannot remove group {group} from {self}")
+
+    def remove_task(self, task: "AnyTask | str"):
+        original_tasks_len = len(self._tasks)
+        if isinstance(task, AnyTask):
+            new_tasks = {
+                alias: existing_task for alias, existing_task in self._tasks.items()
+                if task != existing_task
+            }
+            if len(new_tasks) == original_tasks_len:
+                raise ValueError(f"Cannot remove task {task} from {self}")
+            self._tasks = new_tasks
+            return
+        # task is string, try to remove by alias
+        new_tasks = {
+            alias: existing_task for alias, existing_task in self._tasks.items()
+            if alias != task
+        }
+        if len(new_tasks) < original_tasks_len:
+            self._tasks = new_tasks
+            return
+        # if alias removal didn't work, try to remove by name
+        new_tasks = {
+            alias: existing_task for alias, existing_task in self._tasks.items()
+            if existing_task.name != task
+        }
+        if len(new_tasks) < original_tasks_len:
+            self._tasks = new_tasks
+            return
+        raise ValueError(f"Cannot remove task {task} from {self}")
+
     def get_task_by_alias(self, alias: str) -> AnyTask | None:
         return self._tasks.get(alias)
 
