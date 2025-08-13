@@ -1,6 +1,7 @@
+import pytest
+
 from zrb.group.group import Group
 from zrb.task.base_task import BaseTask
-import pytest
 
 
 def test_remove_group_by_alias_and_name():
