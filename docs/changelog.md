@@ -3,6 +3,16 @@
 # 1.15.0
 
 - **Added** Introduce `remove_task` and `remove_group` to `AnyGroup` and `Group`.
+- **Feature: Granular File and Repo Analysis Control**:
+  - Introduced `analyze_repo` and `analyze_file` as optional tools for the LLM.
+  - Added new environment variables to control their availability:
+    - `ZRB_LLM_ALLOW_ANALYZE_REPO`: Enables the `analyze_repo` tool.
+    - `ZRB_LLM_ALLOW_ANALYZE_FILE`: Enables the `analyze_file` tool.
+- **Changed: Configuration Renaming for Clarity**:
+  - Renamed `ZRB_LLM_ACCESS_LOCAL_FILE` to `ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`.
+  - Renamed `ZRB_LLM_ACCESS_SHELL` to `ZRB_LLM_ALLOW_ACCESS_SHELL`.
+- **Changed: Default Model Update**:
+  - The default LLM is now `openai:gpt-4o`.
 
 # 1.14.8
 

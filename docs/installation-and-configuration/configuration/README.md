@@ -312,11 +312,19 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `~/.zrb-llm-history`
     * Possible values: Any valid directory path
 
-* `ZRB_LLM_ACCESS_LOCAL_FILE`: Whether to allow LLM to access local files.
+* `ZRB_LLM_ALLOW_ANALYZE_REPO`: Whether to allow LLM to analyze repository.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
+* `ZRB_LLM_ALLOW_ANALYZE_FILE`: Whether to allow LLM to analyze a file.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`: Whether to allow LLM to access local files.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_ALLOW_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
@@ -383,14 +391,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 * `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
     * Default: `~/.zrb-llm-history`
     * Possible values: Any valid directory path
-
-* `ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`: Whether to allow LLM to access local files.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_ACCESS_SHELL`: Whether to allow LLM to access shell.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
 
 ### RAG (Retrieval-Augmented Generation) Configuration
 

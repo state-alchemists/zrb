@@ -148,10 +148,14 @@ llm_group.add_task(
     alias="chat",
 )
 
+if CFG.LLM_ALLOW_ANALYZE_REPO:
+    llm_ask.append_tool(analyze_repo)
+
+if CFG.LLM_ALLOW_ANALYZE_FILE:
+    llm_ask.append_tool(analyze_file)
+
 if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
     llm_ask.append_tool(
-        analyze_repo,
-        analyze_file,
         search_files,
         list_files,
         read_from_file,

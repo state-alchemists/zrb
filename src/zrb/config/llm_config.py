@@ -147,12 +147,12 @@ class LLMConfig:
         )
 
     @property
-    def default_model(self) -> "Model | str | None":
+    def default_model(self) -> "Model | str":
         if self._default_model is not None:
             return self._default_model
         model_name = self.default_model_name
         if model_name is None:
-            return None
+            return "openai:gpt-4o"
         from pydantic_ai.models.openai import OpenAIModel
 
         return OpenAIModel(

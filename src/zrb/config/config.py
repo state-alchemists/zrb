@@ -356,11 +356,19 @@ class Config:
 
     @property
     def LLM_ALLOW_ACCESS_LOCAL_FILE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ACCESS_LOCAL_FILE", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_ACCESS_LOCAL_FILE", "1"))
+
+    @property
+    def LLM_ALLOW_ANALYZE_FILE(self) -> bool:
+        return to_boolean(self._getenv("LLM_ALLOW_ANALYZE_LOCAL_FILE", "1"))
+
+    @property
+    def LLM_ALLOW_ANALYZE_REPO(self) -> bool:
+        return to_boolean(self._getenv("LLM_ALLOW_ANALYZE_REPO", "1"))
 
     @property
     def LLM_ALLOW_ACCESS_SHELL(self) -> bool:
-        return to_boolean(self._getenv("LLM_ACCESS_SHELL", "1"))
+        return to_boolean(self._getenv("LLM_ALLOW_ACCESS_SHELL", "1"))
 
     @property
     def LLM_ALLOW_OPEN_WEB_PAGE(self) -> bool:

@@ -75,7 +75,7 @@ def get_model(
     render_model_base_url: bool = True,
     model_api_key_attr: StrAttr | None = None,
     render_model_api_key: bool = True,
-) -> "str | Model | None":
+) -> "str | Model":
     """Gets the model instance or name, handling defaults and configuration."""
     from pydantic_ai.models import Model
 

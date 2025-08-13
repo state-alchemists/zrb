@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 def create_agent_instance(
     ctx: AnyContext,
-    model: "str | Model | None" = None,
+    model: "str | Model",
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
     tools: "list[ToolOrCallable]" = [],
@@ -75,7 +75,7 @@ def create_agent_instance(
 def get_agent(
     ctx: AnyContext,
     agent_attr: "Agent | Callable[[AnySharedContext], Agent] | None",
-    model: "str | Model | None",
+    model: "str | Model",
     system_prompt: str,
     model_settings: "ModelSettings | None",
     tools_attr: (
