@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
 
 from zrb.task.any_task import AnyTask
 
@@ -31,12 +30,12 @@ class AnyGroup(ABC):
 
     @property
     @abstractmethod
-    def subgroups(self) -> dict[str, "AnyGroup"]:
+    def subgroups(self) -> "dict[str, AnyGroup]":
         """Group subgroups"""
         pass
 
     @abstractmethod
-    def add_group(self, group: Union["AnyGroup", str]) -> "AnyGroup":
+    def add_group(self, group: "AnyGroup | str") -> "AnyGroup":
         pass
 
     @abstractmethod
@@ -44,9 +43,17 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
+    def remove_group(self, group: "AnyGroup | str"):
+        pass
+
+    @abstractmethod
+    def remove_task(self, task: "AnyTask | str"):
+        pass
+
+    @abstractmethod
     def get_task_by_alias(self, alias: str) -> AnyTask | None:
         pass
 
     @abstractmethod
-    def get_group_by_alias(self, name: str) -> Optional["AnyGroup"]:
+    def get_group_by_alias(self, name: str) -> "AnyGroup | None":
         pass
