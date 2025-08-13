@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.0
+
+- **Added** Introduce `remove_task` and `remove_group` to `AnyGroup` and `Group`.
+
 # 1.14.8
 
 - **Changed** Make beautifulsoup lazy-loaded.
