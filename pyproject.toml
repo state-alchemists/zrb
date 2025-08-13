@@ -62,6 +62,7 @@ openai = ">=1.99.7"
 tiktoken = "^0.8.0"
 playwright = {version = "^1.53.0", optional = true}
 chromadb = {version = "^0.6.3", optional = true}
+markdownify = "^1.2.0"
 
 [tool.poetry.extras]
 # poetry install -E rag

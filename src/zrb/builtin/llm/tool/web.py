@@ -7,13 +7,19 @@ async def open_web_page(url: str) -> str:
     """
     Fetches, parses, and converts the content of a web page to Markdown.
 
-    This tool "reads" a web page by fetching its content, stripping away non-essential elements like scripts and styles, and then converting the cleaned HTML into Markdown format. This preserves the semantic structure of the content (headings, lists, etc.) while removing clutter. It also extracts all hyperlinks and resolves them to absolute URLs.
+    This tool "reads" a web page by fetching its content, stripping away
+    non-essential elements like scripts and styles, and then converting the
+    cleaned HTML into Markdown format. This preserves the semantic structure
+    of the content (headings, lists, etc.) while removing clutter. It also
+    extracts all hyperlinks and resolves them to absolute URLs.
 
     Args:
-        url (str): The full URL of the web page to open (e.g., "https://example.com/article").
+        url (str): The full URL of the web page to open (e.g.,
+            "https://example.com/article").
 
     Returns:
-        str: A JSON object containing the page's content in Markdown format and a list of all absolute links found on the page.
+        str: A JSON object containing the page's content in Markdown format
+            and a list of all absolute links found on the page.
     """
     html_content, links = await _fetch_page_content(url)
     markdown_content = _convert_html_to_markdown(html_content)
@@ -22,15 +28,19 @@ async def open_web_page(url: str) -> str:
 
 def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
     """
-    Creates a tool that searches the internet using the SerpAPI Google Search API.
+    Creates a tool that searches the internet using the SerpAPI Google Search
+    API.
 
-    This factory returns a function that can be used to find information on the web. The generated tool is the primary way to answer general knowledge questions or to find information on topics you are unfamiliar with.
+    This factory returns a function that can be used to find information on the
+    web. The generated tool is the primary way to answer general knowledge
+    questions or to find information on topics you are unfamiliar with.
 
     Args:
         serp_api_key (str): The API key for SerpAPI.
 
     Returns:
-        Callable: A function that takes a search query and returns a list of search results.
+        Callable: A function that takes a search query and returns a list of
+            search results.
     """
 
     def search_internet(query: str, num_results: int = 10) -> str:
@@ -74,13 +84,16 @@ def search_wikipedia(query: str) -> str:
     """
     Searches for articles on Wikipedia.
 
-    This is a specialized search tool for querying Wikipedia. It's best for when the user is asking for definitions, historical information, or biographical details that are likely to be found on an encyclopedia.
+    This is a specialized search tool for querying Wikipedia. It's best for
+    when the user is asking for definitions, historical information, or
+    biographical details that are likely to be found on an encyclopedia.
 
     Args:
         query (str): The search term or question.
 
     Returns:
-        str: The raw JSON response from the Wikipedia API, containing a list of search results.
+        str: The raw JSON response from the Wikipedia API, containing a list of
+            search results.
     """
     import requests
 
@@ -93,14 +106,19 @@ def search_arxiv(query: str, num_results: int = 10) -> str:
     """
     Searches for academic papers and preprints on ArXiv.
 
-    Use this tool when the user's query is scientific or technical in nature and they are likely looking for research papers, articles, or academic publications.
+    Use this tool when the user's query is scientific or technical in nature
+    and they are likely looking for research papers, articles, or academic
+    publications.
 
     Args:
-        query (str): The search query, which can include keywords, author names, or titles.
-        num_results (int, optional): The maximum number of results to return. Defaults to 10.
+        query (str): The search query, which can include keywords, author
+            names, or titles.
+        num_results (int, optional): The maximum number of results to return.
+            Defaults to 10.
 
     Returns:
-        str: The raw XML response from the ArXiv API, containing a list of matching papers.
+        str: The raw XML response from the ArXiv API, containing a list of
+            matching papers.
     """
     import requests
 

@@ -147,7 +147,7 @@ async def _ask_for_approval(
             user_responses.append("")
         approval_str, reason = user_responses
         try:
-            approved = to_boolean(approval_str)
+            approved = True if approval_str.strip() == "" else to_boolean(approval_str)
             if not approved and reason == "":
                 ctx.print(
                     stylize_error(

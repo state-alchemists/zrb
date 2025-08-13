@@ -102,17 +102,27 @@ def list_files(
     """
     Lists the files and directories within a specified path.
 
-    This is a fundamental tool for exploring the file system. Use it to discover the structure of a directory, find specific files, or get a general overview of the project layout before performing other operations.
+    This is a fundamental tool for exploring the file system. Use it to
+    discover the structure of a directory, find specific files, or get a
+    general overview of the project layout before performing other operations.
 
     Args:
-        path (str, optional): The directory path to list. Defaults to the current directory (".").
-        recursive (bool, optional): If True, lists files and directories recursively. If False, lists only the top-level contents. Defaults to True.
-        include_hidden (bool, optional): If True, includes hidden files and directories (those starting with a dot). Defaults to False.
-        excluded_patterns (list[str], optional): A list of glob patterns to exclude from the listing. This is useful for ignoring irrelevant files like build artifacts or virtual environments. Defaults to a standard list of common exclusion patterns.
+        path (str, optional): The directory path to list. Defaults to the
+            current directory (".").
+        recursive (bool, optional): If True, lists files and directories
+            recursively. If False, lists only the top-level contents.
+            Defaults to True.
+        include_hidden (bool, optional): If True, includes hidden files and
+            directories (those starting with a dot). Defaults to False.
+        excluded_patterns (list[str], optional): A list of glob patterns to
+            exclude from the listing. This is useful for ignoring irrelevant
+            files like build artifacts or virtual environments. Defaults to a
+            standard list of common exclusion patterns.
 
     Returns:
-        str: A JSON string containing a list of file and directory paths relative to the input path.
-             Example: '{"files": ["src/main.py", "README.md"]}'
+        str: A JSON string containing a list of file and directory paths
+            relative to the input path.
+            Example: '{"files": ["src/main.py", "README.md"]}'
     Raises:
         FileNotFoundError: If the specified path does not exist.
     """
@@ -213,26 +223,37 @@ def read_from_file(
     end_line: Optional[int] = None,
 ) -> str:
     """
-    Reads the content of a file, optionally from a specific start line to an end line.
+        Reads the content of a file, optionally from a specific start line to an
+        end line.
 
-    This tool is essential for inspecting file contents. It can read both text and PDF files. The returned content is prefixed with line numbers, which is crucial for providing context when you need to modify the file later with the `apply_diff` tool.
+        This tool is essential for inspecting file contents. It can read both text
+        and PDF files. The returned content is prefixed with line numbers, which is
+        crucial for providing context when you need to modify the file later with
+        the `apply_diff` tool.
 
-    Use this tool to:
-    - Examine the source code of a file.
-    - Read configuration files.
-    - Check the contents of a document.
+        Use this tool to:
+        - Examine the source code of a file.
+        - Read configuration files.
+        - Check the contents of a document.
 
-    Args:
-        path (str): The path to the file to read.
-        start_line (int, optional): The 1-based line number to start reading from. If omitted, reading starts from the beginning of the file.
-        end_line (int, optional): The 1-based line number to stop reading at (inclusive). If omitted, reads to the end of the file.
+        Args:
+            path (str): The path to the file to read.
+            start_line (int, optional): The 1-based line number to start reading
+                from. If omitted, reading starts from the beginning of the file.
+            end_line (int, optional): The 1-based line number to stop reading at
+                (inclusive). If omitted, reads to the end of the file.
 
-    Returns:
-        str: A JSON object containing the file path, the requested content with line numbers, the start and end lines, and the total number of lines in the file.
-             Example: '{"path": "src/main.py", "content": "1| import os\n2| \n3| print(\"Hello, World!\")", "start_line": 1, "end_line": 3, "total_lines": 3}'
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
+        Returns:
+            str: A JSON object containing the file path, the requested content
+                with line numbers, the start and end lines, and the total number
+                of lines in the file.
+                Example: '{"path": "src/main.py", "content": "1| import os\n2|
+    3| print(\"Hello, World!\")", "start_line": 1, "end_line": 3,
+                "total_lines": 3}'
+        Raises:
+            FileNotFoundError: If the specified file does not exist.
     """
+
     abs_path = os.path.abspath(os.path.expanduser(path))
     # Check if file exists
     if not os.path.exists(abs_path):
@@ -274,13 +295,18 @@ def write_to_file(
     content: str,
 ) -> str:
     """
-    Writes content to a file, completely overwriting it if it exists or creating it if it doesn't.
+    Writes content to a file, completely overwriting it if it exists or
+    creating it if it doesn't.
 
-    Use this tool to create new files or to replace the entire content of existing files. This is a destructive operation, so be certain of your actions. Always read the file first to understand its contents before overwriting it, unless you are creating a new file.
+    Use this tool to create new files or to replace the entire content of
+    existing files. This is a destructive operation, so be certain of your
+    actions. Always read the file first to understand its contents before
+    overwriting it, unless you are creating a new file.
 
     Args:
         path (str): The path to the file to write to.
-        content (str): The full, complete content to be written to the file. Do not use partial content or omit any lines.
+        content (str): The full, complete content to be written to the file.
+            Do not use partial content or omit any lines.
 
     Returns:
         str: A JSON object indicating success or failure.
@@ -308,18 +334,28 @@ def search_files(
     include_hidden: bool = True,
 ) -> str:
     """
-    Searches for a regular expression (regex) pattern within files in a specified directory.
+    Searches for a regular expression (regex) pattern within files in a
+    specified directory.
 
-    This tool is invaluable for finding specific code, configuration, or text across multiple files. Use it to locate function definitions, variable assignments, error messages, or any other text pattern.
+    This tool is invaluable for finding specific code, configuration, or text
+    across multiple files. Use it to locate function definitions, variable
+    assignments, error messages, or any other text pattern.
 
     Args:
         path (str): The directory path to start the search from.
-        regex (str): The Python-compatible regular expression pattern to search for.
-        file_pattern (str, optional): A glob pattern to filter which files get searched (e.g., "*.py", "*.md"). If omitted, all files are searched.
-        include_hidden (bool, optional): If True, the search will include hidden files and directories. Defaults to True.
+        regex (str): The Python-compatible regular expression pattern to search
+            for.
+        file_pattern (str, optional): A glob pattern to filter which files get
+            searched (e.g., "*.py", "*.md"). If omitted, all files are
+            searched.
+        include_hidden (bool, optional): If True, the search will include
+            hidden files and directories. Defaults to True.
 
     Returns:
-        str: A JSON object containing a summary of the search and a list of results. Each result includes the file path and a list of matches, with each match showing the line number, line content, and a few lines of context from before and after the match.
+        str: A JSON object containing a summary of the search and a list of
+            results. Each result includes the file path and a list of matches,
+            with each match showing the line number, line content, and a few
+            lines of context from before and after the match.
     Raises:
         ValueError: If the provided `regex` pattern is invalid.
     """
@@ -416,13 +452,18 @@ def replace_in_file(
     """
     Replaces the first occurrence of a string in a file.
 
-    This tool is for making targeted modifications to a file. It is a single-step operation that is generally safer and more ergonomic than `write_to_file` for small changes.
+    This tool is for making targeted modifications to a file. It is a
+    single-step operation that is generally safer and more ergonomic than
+    `write_to_file` for small changes.
 
-    To ensure the replacement is applied correctly and to avoid ambiguity, the `old_string` parameter should be a unique, multi-line string that includes context from before and after the code you want to change.
+    To ensure the replacement is applied correctly and to avoid ambiguity, the
+    `old_string` parameter should be a unique, multi-line string that includes
+    context from before and after the code you want to change.
 
     Args:
         path (str): The path of the file to modify.
-        old_string (str): The exact, verbatim string to search for and replace. This should be a unique, multi-line block of text.
+        old_string (str): The exact, verbatim string to search for and replace.
+            This should be a unique, multi-line block of text.
         new_string (str): The new string that will replace the `old_string`.
 
     Returns:
@@ -455,21 +496,37 @@ async def analyze_file(
     """
     Performs a deep, goal-oriented analysis of a single file using a sub-agent.
 
-    This tool is ideal for complex questions about a single file that go beyond simple reading or searching. It uses a specialized sub-agent to analyze the file's content in relation to a specific query.
+    This tool is ideal for complex questions about a single file that go beyond
+    simple reading or searching. It uses a specialized sub-agent to analyze the
+    file's content in relation to a specific query.
+
+    To ensure a focused and effective analysis, it is crucial to provide a
+    clear and specific query. Vague queries will result in a vague analysis
+    and may cause the tool to run for a long time.
 
     Use this tool to:
     - Summarize the purpose and functionality of a script or configuration file.
-    - Extract the structure of a file (e.g., "List all the function names in this Python file").
+    - Extract the structure of a file (e.g., "List all the function names in
+      this Python file").
     - Perform a detailed code review of a specific file.
-    - Answer complex questions like, "How is the 'User' class used in this file?".
+    - Answer complex questions like, "How is the 'User' class used in this
+      file?".
 
     Args:
         path (str): The path to the file to be analyzed.
-        query (str): A clear and specific question or instruction about what to analyze in the file.
-        token_limit (int, optional): The maximum token length of the file content to be passed to the analysis sub-agent.
+        query (str): A clear and specific question or instruction about what to
+            analyze in the file.
+            - Good query: "What is the purpose of the 'User' class in this
+              file?"
+            - Good query: "List all the function names in this Python file."
+            - Bad query: "Analyze this file."
+            - Bad query: "Tell me about this code."
+        token_limit (int, optional): The maximum token length of the file
+            content to be passed to the analysis sub-agent.
 
     Returns:
-        str: A detailed, markdown-formatted analysis of the file, tailored to the specified query.
+        str: A detailed, markdown-formatted analysis of the file, tailored to
+            the specified query.
     Raises:
         FileNotFoundError: If the specified file does not exist.
     """
@@ -496,14 +553,22 @@ def read_many_files(paths: list[str]) -> str:
     """
     Reads and returns the full content of multiple files at once.
 
-    This tool is highly efficient for gathering context from several files simultaneously. Use it when you need to understand how different files in a project relate to each other, or when you need to inspect a set of related configuration or source code files.
+    This tool is highly efficient for gathering context from several files
+    simultaneously. Use it when you need to understand how different files in a
+    project relate to each other, or when you need to inspect a set of related
+    configuration or source code files.
 
     Args:
-        paths (list[str]): A list of paths to the files you want to read. It is crucial to provide accurate paths. Use the `list_files` tool first if you are unsure about the exact file locations.
+        paths (list[str]): A list of paths to the files you want to read. It is
+            crucial to provide accurate paths. Use the `list_files` tool first
+            if you are unsure about the exact file locations.
 
     Returns:
-        str: A JSON object where keys are the file paths and values are their corresponding contents, prefixed with line numbers. If a file cannot be read, its value will be an error message.
-             Example: '{"results": {"src/api.py": "1| import ...", "config.yaml": "1| key: value"}}'
+        str: A JSON object where keys are the file paths and values are their
+            corresponding contents, prefixed with line numbers. If a file
+            cannot be read, its value will be an error message.
+            Example: '{"results": {"src/api.py": "1| import ...",
+            "config.yaml": "1| key: value"}}'
     """
     results = {}
     for path in paths:
@@ -522,16 +587,24 @@ def write_many_files(files: list[FileToWrite]) -> str:
     """
     Writes content to multiple files in a single, atomic operation.
 
-    This tool is for applying widespread changes to a project, such as creating a set of new files from a template, updating multiple configuration files, or performing a large-scale refactoring.
+    This tool is for applying widespread changes to a project, such as
+    creating a set of new files from a template, updating multiple
+    configuration files, or performing a large-scale refactoring.
 
-    Each file's content is completely replaced. If a file does not exist, it will be created. If it exists, its current content will be entirely overwritten. Therefore, you must provide the full, intended content for each file.
+    Each file's content is completely replaced. If a file does not exist, it
+    will be created. If it exists, its current content will be entirely
+    overwritten. Therefore, you must provide the full, intended content for
+    each file.
 
     Args:
-        files: A list of file objects, where each object is a dictionary containing a 'path' and the complete 'content'.
+        files: A list of file objects, where each object is a dictionary
+            containing a 'path' and the complete 'content'.
 
     Returns:
-        str: A JSON object summarizing the operation, listing successfully written files and any files that failed, along with corresponding error messages.
-             Example: '{"success": ["file1.py", "file2.txt"], "errors": {}}'
+        str: A JSON object summarizing the operation, listing successfully
+            written files and any files that failed, along with corresponding
+            error messages.
+            Example: '{"success": ["file1.py", "file2.txt"], "errors": {}}'
     """
     success = []
     errors = {}

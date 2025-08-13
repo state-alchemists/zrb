@@ -256,6 +256,7 @@ class LLMTask(BaseTask):
             render_modes=self._render_modes,
             conversation_history=conversation_history,
         )
+        print(system_prompt)
         # 3. Get the agent instance
         agent = get_agent(
             ctx=ctx,

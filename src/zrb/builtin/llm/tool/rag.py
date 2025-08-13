@@ -44,26 +44,40 @@ def create_rag_from_directory(
     openai_embedding_model: str | None = None,
 ):
     """
-    Creates a powerful Retrieval-Augmented Generation (RAG) tool for querying a local knowledge base.
+    Creates a powerful RAG tool for querying a local knowledge base.
 
-    This factory function generates a tool that can perform semantic searches over a directory of documents. It automatically indexes the documents into a vector database, keeping it updated as files change. The generated tool is ideal for answering questions based on a specific set of documents, such as project documentation, research papers, or internal wikis.
+    This factory function generates a tool that can perform semantic searches
+    over a directory of documents. It automatically indexes the documents into
+    a vector database, keeping it updated as files change. The generated tool
+    is ideal for answering questions based on a specific set of documents,
+    such as project documentation, research papers, or internal wikis.
 
     The created tool will:
     1.  Monitor a specified directory for file changes.
-    2.  Automatically update a vector database (ChromaDB) with the latest content.
-    3.  Accept a user query, embed it, and perform a similarity search against the document vectors.
+    2.  Automatically update a vector database (ChromaDB) with the latest
+        content.
+    3.  Accept a user query, embed it, and perform a similarity search against
+        the document vectors.
     4.  Return the most relevant document chunks that match the query.
 
     Args:
-        tool_name (str): The name for the generated RAG tool (e.g., "search_project_docs").
-        tool_description (str): A clear description of what the generated tool does and when to use it (e.g., "Searches the project's technical documentation to answer questions.").
-        document_dir_path (str, optional): The path to the directory containing the documents to be indexed.
-        vector_db_path (str, optional): The path to store the ChromaDB vector database.
-        vector_db_collection (str, optional): The name of the collection within the vector database.
+        tool_name (str): The name for the generated RAG tool (e.g.,
+            "search_project_docs").
+        tool_description (str): A clear description of what the generated tool
+            does and when to use it (e.g., "Searches the project's technical
+            documentation to answer questions.").
+        document_dir_path (str, optional): The path to the directory
+            containing the documents to be indexed.
+        vector_db_path (str, optional): The path to store the ChromaDB vector
+            database.
+        vector_db_collection (str, optional): The name of the collection within
+            the vector database.
         chunk_size (int, optional): The size of text chunks for embedding.
         overlap (int, optional): The overlap between text chunks.
-        max_result_count (int, optional): The maximum number of search results to return.
-        file_reader (list[RAGFileReader], optional): Custom file readers for specific file types.
+        max_result_count (int, optional): The maximum number of search results
+            to return.
+        file_reader (list[RAGFileReader], optional): Custom file readers for
+            specific file types.
         openai_api_key (str, optional): OpenAI API key for embeddings.
         openai_base_url (str, optional): OpenAI base URL for embeddings.
         openai_embedding_model (str, optional): The embedding model to use.
