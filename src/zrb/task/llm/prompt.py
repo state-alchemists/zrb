@@ -73,7 +73,7 @@ def get_modes(
     ctx: AnyContext,
     modes_attr: StrListAttr | None,
     render_modes: bool,
-) -> str:
+) -> list[str]:
     """Gets the modes, prioritizing task-specific, then default."""
     raw_modes = get_str_list_attr(
         ctx,
@@ -82,7 +82,7 @@ def get_modes(
     )
     if raw_modes is None:
         raw_modes = []
-    modes = [mode.strip() for mode in raw_modes if mode.strip() != ""]
+    modes = [mode.strip().lower() for mode in raw_modes if mode.strip() != ""]
     if len(modes) > 0:
         return modes
     return llm_config.default_modes or []
@@ -96,15 +96,15 @@ def get_workflow_prompt(
     modes = get_modes(ctx, modes_attr, render_modes)
     # Get user-defined workflows
     workflows = {
-        workflow_name: content
+        workflow_name.strip().lower(): content
         for workflow_name, content in llm_context_config.get_workflows().items()
-        if workflow_name in modes
+        if workflow_name.strip().lower() in modes
     }
     # Get requested builtin-workflow names
     requested_builtin_workflow_names = [
-        workflow_name
+        workflow_name.lower()
         for workflow_name in ("coding", "copywriting", "researching")
-        if workflow_name in modes and workflow_name not in workflows
+        if workflow_name.lower() in modes and workflow_name.lower() not in workflows
     ]
     # add builtin-workflows if requested
     if len(requested_builtin_workflow_names) > 0:

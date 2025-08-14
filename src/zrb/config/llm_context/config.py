@@ -64,7 +64,7 @@ class LLMContextConfig:
         for _, sections in reversed(all_sections):
             for key, value in sections.items():
                 if key.startswith("Workflow:"):
-                    workflow_name = key.replace("Workflow:", "").strip()
+                    workflow_name = key.replace("Workflow:", "").lower().strip()
                     if workflow_name not in workflows:
                         workflows[workflow_name] = value
         return workflows
