@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.2
+
+- **Fixed** Workflow cascading logic
+
 # 1.15.1
 
 - **Fixed** Workflow load is now case insensitive

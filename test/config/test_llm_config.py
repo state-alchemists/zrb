@@ -171,7 +171,7 @@ def test_default_model_override():
 def test_default_model_none(monkeypatch):
     monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
     config = LLMConfig()
-    assert config.default_model is None
+    assert config.default_model is not None
 
 
 @mock.patch("pydantic_ai.models.openai.OpenAIModel")

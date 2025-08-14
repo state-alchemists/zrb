@@ -44,7 +44,7 @@ class LLMContextConfig:
         for config_dir, sections in reversed(all_sections):
             for key, value in sections.items():
                 if key.startswith("Context:"):
-                    context_path = key.replace("Context:", "").strip()
+                    context_path = key[len("Context:") :].strip()
                     if context_path == ".":
                         context_path = config_dir
                     elif not os.path.isabs(context_path):
@@ -64,9 +64,9 @@ class LLMContextConfig:
         for _, sections in reversed(all_sections):
             for key, value in sections.items():
                 if key.startswith("Workflow:"):
+                    workflow_name = key[len("Workflow:") :].strip()
                     workflow_name = key.replace("Workflow:", "").lower().strip()
-                    if workflow_name not in workflows:
-                        workflows[workflow_name] = value
+                    workflows[workflow_name] = value
         return workflows
 
     def write_context(

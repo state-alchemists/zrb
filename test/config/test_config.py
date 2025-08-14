@@ -449,13 +449,13 @@ def test_llm_history_dir_custom(monkeypatch):
 
 
 def test_llm_allow_access_local_file(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ACCESS_LOCAL_FILE", "0")
+    monkeypatch.setenv("ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE", "0")
     config = Config()
     assert not config.LLM_ALLOW_ACCESS_LOCAL_FILE
 
 
 def test_llm_allow_access_shell(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ACCESS_SHELL", "0")
+    monkeypatch.setenv("ZRB_LLM_ALLOW_ACCESS_SHELL", "0")
     config = Config()
     assert not config.LLM_ALLOW_ACCESS_SHELL
 
