@@ -93,28 +93,54 @@ def get_workflow_prompt(
     modes_attr: StrListAttr | None,
     render_modes: bool,
 ) -> str:
-    modes = get_modes(ctx, modes_attr, render_modes)
+    builtin_workflow_dir = os.path.join(os.path.dirname(__file__), "default_workflow")
+    modes = set(get_modes(ctx, modes_attr, render_modes))
+
     # Get user-defined workflows
     workflows = {
         workflow_name.strip().lower(): content
         for workflow_name, content in llm_context_config.get_workflows().items()
         if workflow_name.strip().lower() in modes
     }
-    # Get requested builtin-workflow names
+
+    # Get available builtin workflow names from the file system
+    available_builtin_workflow_names = set()
+    try:
+        for filename in os.listdir(builtin_workflow_dir):
+            if filename.endswith(".md"):
+                available_builtin_workflow_names.add(filename[:-3].lower())
+    except FileNotFoundError:
+        # Handle case where the directory might not exist
+        ctx.log_error(
+            f"Warning: Default workflow directory not found at {builtin_workflow_dir}"
+        )
+    except Exception as e:
+        # Catch other potential errors during directory listing
+        ctx.log_error(f"Error listing default workflows: {e}")
+
+    # Determine which builtin workflows are requested and not already loaded
     requested_builtin_workflow_names = [
-        workflow_name.lower()
-        for workflow_name in ("coding", "copywriting", "researching")
-        if workflow_name.lower() in modes and workflow_name.lower() not in workflows
+        workflow_name
+        for workflow_name in available_builtin_workflow_names
+        if workflow_name in modes and workflow_name not in workflows
     ]
-    # add builtin-workflows if requested
+
+    # Add builtin-workflows if requested
     if len(requested_builtin_workflow_names) > 0:
-        dir_path = os.path.dirname(__file__)
         for workflow_name in requested_builtin_workflow_names:
             workflow_file_path = os.path.join(
-                dir_path, "default_workflow", f"{workflow_name}.md"
+                builtin_workflow_dir, f"{workflow_name}.md"
             )
-            with open(workflow_file_path, "r") as f:
-                workflows[workflow_name] = f.read()
+            try:
+                with open(workflow_file_path, "r") as f:
+                    workflows[workflow_name] = f.read()
+            except FileNotFoundError:
+                ctx.log_error(
+                    f"Warning: Builtin workflow file not found: {workflow_file_path}"
+                )
+            except Exception as e:
+                ctx.log_error(f"Error reading builtin workflow {workflow_name}: {e}")
+
     return "\n".join(
         [
             make_prompt_section(header.capitalize(), content)
