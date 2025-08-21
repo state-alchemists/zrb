@@ -111,6 +111,7 @@ def _show_info(ctx: AnyContext):
         ),
         plain=True,
     )
+    ctx.print("", plain=True)
 
 
 def _show_command(command: str, description: str) -> str:

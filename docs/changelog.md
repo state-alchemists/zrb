@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.3
+
+- **Changed** Fix llm task logging
+
 # 1.15.2
 
 - **Fixed** Workflow cascading logic
