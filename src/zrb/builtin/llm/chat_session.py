@@ -34,7 +34,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         # Get user input based on mode
         if not multiline_mode:
             ctx.print("💬 >>", plain=True)
-        user_input = await _read_next_line(is_tty, reader, ctx)
+        user_input = await _read_next_line(reader, ctx)
         if not multiline_mode:
             ctx.print("", plain=True)
         # Handle user input
@@ -157,9 +157,11 @@ async def _setup_input_reader(is_interactive: bool):
     return reader
 
 
-async def _read_next_line(is_interactive: bool, reader, ctx: AnyContext) -> str:
+async def _read_next_line(reader, ctx: AnyContext) -> str:
     """Reads one line of input using the provided reader."""
-    if is_interactive:
+    from prompt_toolkit import PromptSession
+
+    if isinstance(reader, PromptSession):
         return await reader.prompt_async()
 
     line_bytes = await reader.readline()

@@ -30,9 +30,8 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                 if isinstance(event, PartStartEvent) and event.part:
                     if is_streaming:
                         print_func("")
-                    print_func(
-                        stylize_faint(f"    Starting part {event.index}: {event.part}"),
-                    )
+                    content = _get_event_part_content(event)
+                    print_func(stylize_faint(f"    {content}"), end="")
                     is_streaming = False
                 elif isinstance(event, PartDeltaEvent):
                     if isinstance(event.delta, TextPartDelta) or isinstance(
@@ -92,3 +91,11 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
     elif Agent.is_end_node(node):
         # Once an End node is reached, the agent run is complete
         print_func(stylize_faint("✅ Completed..."))
+
+
+def _get_event_part_content(event: Any) -> str:
+    if not hasattr(event, "part"):
+        return f"{event}"
+    if not hasattr(event.part, "content"):
+        return f"{event.part}"
+    return getattr(event.part, "content")
