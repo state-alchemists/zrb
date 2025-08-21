@@ -93,6 +93,13 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
         print_func(stylize_faint("  ✅ Completed..."))
 
 
+def _format(text: str, first_line_indent: int = 0, indent: int = 0) -> str:
+    first_line_prefix = first_line_indent * " "
+    line_prefix = indent * " "
+    text = text.replace("\n", f"{line_prefix}\n")
+    return stylize_faint(f"{first_line_prefix}{text}")
+
+
 def _get_event_part_content(event: Any) -> str:
     if not hasattr(event, "part"):
         return f"{event}"
