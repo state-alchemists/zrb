@@ -139,9 +139,8 @@ async def _ask_for_approval(
     )
     while True:
         ctx.print(
-            f"\n ✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>) ",
+            f"\n✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>) ",
             plain=True,
-            end="",
         )
         user_input = await _read_line()
         ctx.print("", plain=True)
