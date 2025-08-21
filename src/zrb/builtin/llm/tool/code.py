@@ -6,6 +6,7 @@ from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.config.config import CFG
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
+from zrb.util.cli.style import stylize_faint
 
 _DEFAULT_EXTENSIONS = [
     "py",
@@ -112,7 +113,7 @@ async def analyze_repo(
         )
     abs_path = os.path.abspath(os.path.expanduser(path))
     file_metadatas = _get_file_metadatas(abs_path, extensions, exclude_patterns)
-    ctx.print("Extraction")
+    ctx.print(stylize_faint("  📝 Extraction"), plain=True)
     extracted_infos = await _extract_info(
         ctx,
         file_metadatas=file_metadatas,
@@ -121,10 +122,10 @@ async def analyze_repo(
     )
     if len(extracted_infos) == 1:
         return extracted_infos[0]
-    ctx.print("Summarization")
+    ctx.print(stylize_faint("  📝 Summarization"), plain=True)
     summarized_infos = extracted_infos
     while len(summarized_infos) > 1:
-        ctx.print("Summarization")
+        ctx.print(stylize_faint("  📝 Summarization"), plain=True)
         summarized_infos = await _summarize_info(
             ctx,
             extracted_infos=summarized_infos,

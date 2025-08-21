@@ -26,6 +26,7 @@ def create_sub_agent_tool(
     tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
     is_yolo_mode: bool | None = None,
+    log_indent_level: int = 2,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
     """
     Creates a "tool that is another AI agent," capable of handling complex,
@@ -110,6 +111,7 @@ def create_sub_agent_tool(
             user_prompt=query,
             attachments=[],
             history_list=[],
+            log_indent_level=log_indent_level,
         )
 
         # Return the sub-agent's final message content
