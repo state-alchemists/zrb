@@ -123,7 +123,7 @@ def _create_wrapper(
 
 
 async def _ask_for_approval(
-    ctx: AnyContext, func: Callable, args: list[Any], kwargs: dict[Any]
+    ctx: AnyContext, func: Callable, args: list[Any], kwargs: dict[str, Any]
 ) -> tuple[bool, str]:
     func_name = get_callable_name(func)
     normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]
@@ -139,9 +139,12 @@ async def _ask_for_approval(
     )
     while True:
         ctx.print(
-            f"✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>)", plain=True
+            f"\n ✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>) ",
+            plain=True,
+            end="",
         )
         user_input = await _read_line()
+        ctx.print("", plain=True)
         user_responses = [val.strip() for val in user_input.split(",", maxsplit=1)]
         while len(user_responses) < 2:
             user_responses.append("")
