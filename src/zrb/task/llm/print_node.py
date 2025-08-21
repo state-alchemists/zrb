@@ -97,14 +97,16 @@ def _format_header(text: str, log_indent_level: int = 0) -> str:
 
 def _format_content(text: str, log_indent_level: int = 0) -> str:
     return _format(
-        text, base_indent=2, first_indent=3, indent=0, log_indent_level=log_indent_level
+        text, base_indent=2, first_indent=3, indent=3, log_indent_level=log_indent_level
     )
 
 
 def _format_stream_content(text: str, log_indent_level: int = 0) -> str:
-    return _format(
-        text, base_indent=2, first_indent=0, indent=3, log_indent_level=log_indent_level
-    )
+    base_indent = 2
+    indent = 3
+    line_prefix = (base_indent * (log_indent_level + 1) + indent) * " "
+    processed_text = text.replace("\n", f"\n{line_prefix}")
+    return stylize_faint(processed_text)
 
 
 def _format(
@@ -116,8 +118,8 @@ def _format(
 ) -> str:
     first_line_prefix = (base_indent * (log_indent_level + 1) + first_indent) * " "
     line_prefix = (base_indent * (log_indent_level + 1) + indent) * " "
-    text = text.replace("\n", f"\n{line_prefix}")
-    return stylize_faint(f"{first_line_prefix}{text}")
+    processed_text = text.replace("\n", f"\n{line_prefix}")
+    return stylize_faint(f"{first_line_prefix}{processed_text}")
 
 
 def _get_event_part_args(event: Any) -> Any:
