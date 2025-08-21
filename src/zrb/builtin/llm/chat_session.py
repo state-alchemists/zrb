@@ -10,6 +10,7 @@ import sys
 
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_blue, stylize_bold_yellow, stylize_faint
 from zrb.util.string.conversion import to_boolean
 
@@ -200,25 +201,11 @@ async def _trigger_ask_and_wait_for_result(
         ctx, user_prompt, modes, yolo_mode, previous_session_name, start_new
     )
     result = await _wait_ask_result(ctx)
-    md_result = _render_markdown(result) if result is not None else ""
+    md_result = render_markdown(result) if result is not None else ""
     ctx.print("\n🤖 >>", plain=True)
     ctx.print(md_result, plain=True)
     ctx.print("", plain=True)
     return result
-
-
-def _render_markdown(markdown_text: str) -> str:
-    """
-    Renders Markdown to a string, ensuring link URLs are visible.
-    """
-    from rich.console import Console
-    from rich.markdown import Markdown
-
-    console = Console()
-    markdown = Markdown(markdown_text, hyperlinks=False)
-    with console.capture() as capture:
-        console.print(markdown)
-    return capture.get()
 
 
 def get_llm_ask_input_mapping(callback_ctx: AnyContext):

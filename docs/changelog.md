@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.4
+
+- **Changed** Better tool confirmation
+
 # 1.15.3
 
 - **Changed** Fix llm task logging

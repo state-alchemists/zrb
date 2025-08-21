@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.callable import get_callable_name
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import (
     stylize_blue,
     stylize_error,
@@ -126,22 +127,16 @@ async def _ask_for_approval(
     ctx: AnyContext, func: Callable, args: list[Any], kwargs: dict[str, Any]
 ) -> tuple[bool, str]:
     func_name = get_callable_name(func)
-    normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]
-    normalized_kwargs = []
-    for key, val in kwargs.items():
-        truncated_val = _truncate_arg(f"{val}")
-        normalized_kwargs.append(
-            f"{stylize_yellow(key)}={stylize_green(truncated_val)}"
-        )
-    func_param_str = ",".join(normalized_args + normalized_kwargs)
-    func_call_str = (
-        f"{stylize_blue(func_name + '(')}{func_param_str}{stylize_blue(')')}"
+    func_call_str = _get_func_call_str(func, args, kwargs)
+    func_detail_param = _get_detail_func_param(args, kwargs)
+    confirmation_message = render_markdown(
+        f"Allow to run `{func_name}`? (`Yes` | `No, <reason>`)"
+    )
+    complete_confirmation_message = (
+        f"\n✅ >> {func_call_str}" f"\n{func_detail_param}" f"\n{confirmation_message}"
     )
     while True:
-        ctx.print(
-            f"\n✅ >> Allow to run tool: {func_call_str} (Yes | No, <reason>) ",
-            plain=True,
-        )
+        ctx.print(complete_confirmation_message, plain=True)
         user_input = await _read_line()
         ctx.print("", plain=True)
         user_responses = [val.strip() for val in user_input.split(",", maxsplit=1)]
@@ -167,6 +162,39 @@ async def _ask_for_approval(
                 plain=True,
             )
             continue
+
+
+def _get_detail_func_param(args: list[Any], kwargs: dict[str, Any]) -> str:
+    markdown = "\n".join(
+        [_get_func_param_item(key, val) for key, val in kwargs.items()]
+    )
+    return render_markdown(markdown)
+
+
+def _get_func_param_item(key: str, val: Any) -> str:
+    upper_key = key.upper()
+    val_str = f"{val}"
+    val_parts = val_str.split("\n")
+    if len(val_parts) == 1:
+        return f"- {upper_key} `{val}`"
+    lines = [f"- {upper_key}", "  ```"]
+    for val_part in val_parts:
+        lines.append(f"  {val_part}")
+    lines.append("  ```")
+    return "\n".join(lines)
+
+
+def _get_func_call_str(func: Callable, args: list[Any], kwargs: dict[str, Any]) -> str:
+    func_name = get_callable_name(func)
+    normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]
+    normalized_kwargs = []
+    for key, val in kwargs.items():
+        truncated_val = _truncate_arg(f"{val}")
+        normalized_kwargs.append(
+            f"{stylize_yellow(key)}={stylize_green(truncated_val)}"
+        )
+    func_param_str = ", ".join(normalized_args + normalized_kwargs)
+    return f"{stylize_blue(func_name + '(')}{func_param_str}{stylize_blue(')')}"
 
 
 def _truncate_arg(arg: str, length: int = 19) -> str:
