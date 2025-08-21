@@ -19,10 +19,10 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
     )
 
     if Agent.is_user_prompt_node(node):
-        print_func(stylize_faint(" 🔠 Receiving input..."))
+        print_func(stylize_faint("  🔠 Receiving input..."))
     elif Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
-        print_func(stylize_faint(" 🧠 Processing..."))
+        print_func(stylize_faint("  🧠 Processing..."))
         # Reference: https://ai.pydantic.dev/agents/#streaming
         async with node.stream(agent_run.ctx) as request_stream:
             is_streaming = False
@@ -58,7 +58,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                 print_func("")
     elif Agent.is_call_tools_node(node):
         # A handle-response node => The model returned some data, potentially calls a tool
-        print_func(stylize_faint(" 🧰 Calling Tool..."))
+        print_func(stylize_faint("  🧰 Calling Tool..."))
         async with node.stream(agent_run.ctx) as handle_stream:
             async for event in handle_stream:
                 if isinstance(event, FunctionToolCallEvent):
@@ -90,7 +90,7 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                     )
     elif Agent.is_end_node(node):
         # Once an End node is reached, the agent run is complete
-        print_func(stylize_faint(" ✅ Completed..."))
+        print_func(stylize_faint("  ✅ Completed..."))
 
 
 def _get_event_part_content(event: Any) -> str:
