@@ -4,7 +4,9 @@ from typing import Any
 from zrb.util.cli.style import stylize_faint
 
 
-async def print_node(print_func: Callable, agent_run: Any, node: Any):
+async def print_node(
+    print_func: Callable, agent_run: Any, node: Any, log_indent_level: int = 0
+):
     """Prints the details of an agent execution node using a provided print function."""
     from pydantic_ai import Agent
     from pydantic_ai.messages import (
@@ -19,10 +21,10 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
     )
 
     if Agent.is_user_prompt_node(node):
-        print_func(stylize_faint("  🔠 Receiving input..."))
+        print_func(_format_header("🔠 Receiving input...", log_indent_level))
     elif Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
-        print_func(stylize_faint("  🧠 Processing..."))
+        print_func(_format_header("🧠 Processing...", log_indent_level))
         # Reference: https://ai.pydantic.dev/agents/#streaming
         async with node.stream(agent_run.ctx) as request_stream:
             is_streaming = False
@@ -31,73 +33,105 @@ async def print_node(print_func: Callable, agent_run: Any, node: Any):
                     if is_streaming:
                         print_func("")
                     content = _get_event_part_content(event)
-                    print_func(stylize_faint(f"     {content}"), end="")
-                    is_streaming = False
+                    print_func(_format_content(content, log_indent_level), end="")
+                    is_streaming = True
                 elif isinstance(event, PartDeltaEvent):
                     if isinstance(event.delta, TextPartDelta) or isinstance(
                         event.delta, ThinkingPartDelta
                     ):
+                        content_delta = event.delta.content_delta
                         print_func(
-                            stylize_faint(f"{event.delta.content_delta}"),
+                            _format_stream_content(content_delta, log_indent_level),
                             end="",
                         )
                     elif isinstance(event.delta, ToolCallPartDelta):
+                        args_delta = event.delta.args_delta
                         print_func(
-                            stylize_faint(f"{event.delta.args_delta}"),
-                            end="",
+                            _format_stream_content(args_delta, log_indent_level), end=""
                         )
                     is_streaming = True
                 elif isinstance(event, FinalResultEvent) and event.tool_name:
                     if is_streaming:
                         print_func("")
+                    tool_name = event.tool_name
                     print_func(
-                        stylize_faint(f"     Result: tool_name={event.tool_name}"),
+                        _format_content(
+                            f"Result: tool_name={tool_name}", log_indent_level
+                        )
                     )
                     is_streaming = False
             if is_streaming:
                 print_func("")
     elif Agent.is_call_tools_node(node):
         # A handle-response node => The model returned some data, potentially calls a tool
-        print_func(stylize_faint("  🧰 Calling Tool..."))
+        print_func(_format_header("🧰 Calling Tool...", log_indent_level))
         async with node.stream(agent_run.ctx) as handle_stream:
             async for event in handle_stream:
                 if isinstance(event, FunctionToolCallEvent):
-                    # Handle empty arguments across different providers
-                    if event.part.args == "" or event.part.args is None:
-                        event.part.args = {}
-                    elif isinstance(
-                        event.part.args, str
-                    ) and event.part.args.strip() in ["null", "{}"]:
-                        # Some providers might send "null" or "{}" as a string
-                        event.part.args = {}
-                    # Handle dummy property if present (from our schema sanitization)
-                    if (
-                        isinstance(event.part.args, dict)
-                        and "_dummy" in event.part.args
-                    ):
-                        del event.part.args["_dummy"]
+                    args = _get_event_part_args(event)
+                    call_id = event.part.tool_call_id
+                    tool_name = event.part.tool_name
                     print_func(
-                        stylize_faint(
-                            f"     {event.part.tool_call_id} | "
-                            f"Call {event.part.tool_name} {event.part.args}"
+                        _format_content(
+                            f"{call_id} | Call {tool_name} {args}", log_indent_level
                         )
                     )
                 elif isinstance(event, FunctionToolResultEvent):
+                    call_id = event.tool_call_id
+                    result_content = event.result.content
                     print_func(
-                        stylize_faint(
-                            f"     {event.tool_call_id} | {event.result.content}"
+                        _format_content(
+                            f"{call_id} | {result_content}", log_indent_level
                         )
                     )
     elif Agent.is_end_node(node):
         # Once an End node is reached, the agent run is complete
-        print_func(stylize_faint("  ✅ Completed..."))
+        print_func(_format_header("✅ Completed...", log_indent_level))
 
 
-def _format(text: str, first_line_indent: int = 0, indent: int = 0) -> str:
-    first_line_prefix = first_line_indent * " "
-    line_prefix = indent * " "
-    text = text.replace("\n", f"{line_prefix}\n")
+def _format_header(text: str, log_indent_level: int = 0) -> str:
+    return _format(
+        text, base_indent=2, first_indent=0, log_indent_level=log_indent_level
+    )
+
+
+def _format_content(text: str, log_indent_level: int = 0) -> str:
+    return _format(
+        text, base_indent=2, first_indent=3, indent=0, log_indent_level=log_indent_level
+    )
+
+
+def _format_stream_content(text: str, log_indent_level: int = 0) -> str:
+    return _format(
+        text, base_indent=2, first_indent=0, indent=3, log_indent_level=log_indent_level
+    )
+
+
+def _format(
+    text: str,
+    base_indent: int = 0,
+    first_indent: int = 0,
+    indent: int = 0,
+    log_indent_level: int = 0,
+) -> str:
+    first_line_prefix = (base_indent * (log_indent_level + 1) + first_indent) * " "
+    line_prefix = (base_indent * (log_indent_level + 1) + indent) * " "
+    text = text.replace("\n", f"\n{line_prefix}")
     return stylize_faint(f"{first_line_prefix}{text}")
+
+
+def _get_event_part_args(event: Any) -> Any:
+    # Handle empty arguments across different providers
+    if event.part.args == "" or event.part.args is None:
+        return {}
+    if isinstance(event.part.args, str):
+        # Some providers might send "null" or "{}" as a string
+        if event.part.args.strip() in ["null", "{}"]:
+            event.part.args = {}
+    # Handle dummy property if present (from our schema sanitization)
+    if isinstance(event.part.args, dict):
+        return {key: val for key, val in event.part.args.items() if key != "_dummy"}
+    return event.part.args
 
 
 def _get_event_part_content(event: Any) -> str:

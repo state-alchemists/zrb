@@ -129,6 +129,7 @@ async def run_agent_iteration(
     history_list: ListOfDict | None = None,
     rate_limitter: LLMRateLimiter | None = None,
     max_retry: int = 2,
+    log_indent_level: int = 0,
 ) -> "AgentRun":
     """
     Runs a single iteration of the agent execution loop.
@@ -159,6 +160,7 @@ async def run_agent_iteration(
                 rate_limitter=(
                     llm_rate_limitter if rate_limitter is None else rate_limitter
                 ),
+                log_indent_level=log_indent_level,
             )
         except BaseException:
             attempt += 1
@@ -174,6 +176,7 @@ async def _run_single_agent_iteration(
     attachments: "list[UserContent]",
     history_list: ListOfDict,
     rate_limitter: LLMRateLimiter,
+    log_indent_level: int,
 ) -> "AgentRun":
     from openai import APIError
     from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -196,7 +199,9 @@ async def _run_single_agent_iteration(
                 # Each node represents a step in the agent's execution
                 # Reference: https://ai.pydantic.dev/agents/#streaming
                 try:
-                    await print_node(_get_plain_printer(ctx), agent_run, node)
+                    await print_node(
+                        _get_plain_printer(ctx), agent_run, node, log_indent_level
+                    )
                 except APIError as e:
                     # Extract detailed error information from the response
                     error_details = extract_api_error_details(e)
