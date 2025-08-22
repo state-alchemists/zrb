@@ -3,25 +3,28 @@ import time
 from collections import deque
 from typing import Callable
 
-import tiktoken
-
 from zrb.config.config import CFG
 
 
 def _estimate_token(text: str) -> int:
-    """
-    Estimates the number of tokens in a given text.
-    Tries to use the 'gpt-4o' model's tokenizer for an accurate count.
-    If the tokenizer is unavailable (e.g., due to network issues),
-    it falls back to a heuristic of 4 characters per token.
-    """
     try:
-        # Primary method: Use tiktoken for an accurate count
-        enc = tiktoken.encoding_for_model("gpt-4o")
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
         # Fallback method: Heuristic (4 characters per token)
         return len(text) // 4
+
+
+def clip_prompt(prompt: str, limit: int) -> str:
+    import tiktoken
+    enc = tiktoken.get_encoding("cl100k_base")
+    tokens = enc.encode(prompt)
+    if len(tokens) <= limit:
+        return prompt
+    truncated = tokens[:limit]
+    clipped_text = enc.decode(truncated)
+    return clipped_text + "..."
 
 
 class LLMRateLimiter:
@@ -36,13 +39,11 @@ class LLMRateLimiter:
         max_tokens_per_minute: int | None = None,
         max_tokens_per_request: int | None = None,
         throttle_sleep: float | None = None,
-        token_counter_fn: Callable[[str], int] | None = None,
     ):
         self._max_requests_per_minute = max_requests_per_minute
         self._max_tokens_per_minute = max_tokens_per_minute
         self._max_tokens_per_request = max_tokens_per_request
         self._throttle_sleep = throttle_sleep
-        self._token_counter_fn = token_counter_fn
         self.request_times = deque()
         self.token_times = deque()
 
@@ -70,12 +71,6 @@ class LLMRateLimiter:
             return self._throttle_sleep
         return CFG.LLM_THROTTLE_SLEEP
 
-    @property
-    def count_token(self) -> Callable[[str], int]:
-        if self._token_counter_fn is not None:
-            return self._token_counter_fn
-        return _estimate_token
-
     def set_max_requests_per_minute(self, value: int):
         self._max_requests_per_minute = value
 
@@ -88,24 +83,14 @@ class LLMRateLimiter:
     def set_throttle_sleep(self, value: float):
         self._throttle_sleep = value
 
-    def set_token_counter_fn(self, fn: Callable[[str], int]):
-        self._token_counter_fn = fn
+    def count_token(self, prompt: str) -> int:
+        return len(prompt) // 4
 
     def clip_prompt(self, prompt: str, limit: int) -> str:
-        token_count = self.count_token(prompt)
-        if token_count <= limit:
-            return prompt
-        while token_count > limit:
-            prompt_parts = prompt.split(" ")
-            last_part_index = len(prompt_parts) - 2
-            clipped_prompt = " ".join(prompt_parts[:last_part_index])
-            clipped_prompt += "(Content clipped...)"
-            token_count = self.count_token(clipped_prompt)
-            if token_count < limit:
-                return clipped_prompt
-        return prompt[:limit]
+        char_limit = limit * 4 + 10
+        return prompt[:char_limit] + "..."
 
-    async def throttle(self, prompt: str):
+    async def throttle(self, prompt: str, callback: Callable | None = None):
         now = time.time()
         tokens = self.count_token(prompt)
         # Clean up old entries
@@ -123,6 +108,8 @@ class LLMRateLimiter:
             len(self.request_times) >= self.max_requests_per_minute
             or sum(t for _, t in self.token_times) + tokens > self.max_tokens_per_minute
         ):
+            if callback is not None:
+                callback()
             await asyncio.sleep(self.throttle_sleep)
             now = time.time()
             while self.request_times and now - self.request_times[0] > 60:

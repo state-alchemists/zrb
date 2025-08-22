@@ -282,7 +282,7 @@ class Config:
         Maximum number of LLM requests allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
         """
-        return int(self._getenv("LLM_MAX_REQUESTS_PER_MINUTE", "15"))
+        return int(self._getenv("LLM_MAX_REQUESTS_PER_MINUTE", "60"))
 
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:

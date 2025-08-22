@@ -128,14 +128,13 @@ def _create_wrapper(
 async def _ask_for_approval(
     ctx: AnyContext, func: Callable, args: list[Any], kwargs: dict[str, Any]
 ) -> tuple[bool, str]:
-    func_name = get_callable_name(func)
     func_call_str = _get_func_call_str(func, args, kwargs)
-    func_detail_param = _get_detail_func_param(args, kwargs)
-    confirmation_message = render_markdown(
-        f"Allow to run `{func_name}`? (`Yes` | `No, <reason>`)"
-    )
-    complete_confirmation_message = (
-        f"\n✅ >> {func_call_str}" f"\n{func_detail_param}" f"\n{confirmation_message}"
+    complete_confirmation_message = "\n".join(
+        [
+            f"\n🎰 >> {func_call_str}",
+            _get_detail_func_param(args, kwargs),
+            f"✅ >> {_get_run_func_confirmation(func)}",
+        ]
     )
     while True:
         ctx.print(complete_confirmation_message, plain=True)
@@ -164,6 +163,11 @@ async def _ask_for_approval(
                 plain=True,
             )
             continue
+
+
+def _get_run_func_confirmation(func: Callable) -> str:
+    func_name = get_callable_name(func)
+    return render_markdown(f"Allow to run `{func_name}`? (`Yes` | `No, <reason>`)").strip() 
 
 
 def _get_detail_func_param(args: list[Any], kwargs: dict[str, Any]) -> str:

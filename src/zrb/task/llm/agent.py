@@ -9,6 +9,7 @@ from zrb.task.llm.error import extract_api_error_details
 from zrb.task.llm.print_node import print_node
 from zrb.task.llm.tool_wrapper import wrap_func, wrap_tool
 from zrb.task.llm.typing import ListOfDict
+from zrb.util.cli.style import stylize_faint
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
@@ -184,10 +185,11 @@ async def _run_single_agent_iteration(
     agent_payload = _estimate_request_payload(
         agent, user_prompt, attachments, history_list
     )
+    callback = lambda: _print_throttle_notif(ctx)
     if rate_limitter:
-        await rate_limitter.throttle(agent_payload)
+        await rate_limitter.throttle(agent_payload, callback)
     else:
-        await llm_rate_limitter.throttle(agent_payload)
+        await llm_rate_limitter.throttle(agent_payload, callback)
 
     user_prompt_with_attachments = [user_prompt] + attachments
     async with agent:
@@ -212,6 +214,10 @@ async def _run_single_agent_iteration(
                     ctx.log_error(f"Error type: {type(e).__name__}")
                     raise
             return agent_run
+
+
+def _print_throttle_notif(ctx: AnyContext):
+    ctx.print(stylize_faint("  ⌛>> Request Throttled"), plain=True)
 
 
 def _estimate_request_payload(

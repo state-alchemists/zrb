@@ -118,9 +118,8 @@ def create_sub_agent_tool(
         if sub_agent_run and sub_agent_run.result:
             # Return the final message content as a string
             return json.dumps({"result": sub_agent_run.result.output})
-        else:
-            ctx.log_warning("Sub-agent run did not produce a result.")
-            return "Sub-agent failed to produce a result."
+        ctx.log_warning("Sub-agent run did not produce a result.")
+        raise ValueError(f"{tool_name} not returning any result")
 
     # Set the name and docstring for the callable function
     run_sub_agent.__name__ = tool_name

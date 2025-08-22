@@ -63,7 +63,7 @@ class Context(AnyContext):
 
     @property
     def session(self) -> AnySession | None:
-        return self._shared_ctx._session
+        return self._shared_ctx.session
 
     def update_task_env(self, task_env: dict[str, str]):
         self._env.update(task_env)

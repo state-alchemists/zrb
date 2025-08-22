@@ -40,11 +40,7 @@ class SharedContext(AnySharedContext):
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        input = self._input
-        args = self._args
-        env = self._env
-        xcom = self._xcom
-        return f"<{class_name} input={input} args={args} xcom={xcom} env={env}>"
+        return f"<{class_name}>"
 
     @property
     def is_web_mode(self) -> bool:

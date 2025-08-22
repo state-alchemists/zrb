@@ -323,6 +323,7 @@ class LLMTask(BaseTask):
                 history_list=conversation_history.history,
                 rate_limitter=self._rate_limitter,
             )
+
             if agent_run and agent_run.result:
                 new_history_list = json.loads(agent_run.result.all_messages_json())
                 conversation_history.history = new_history_list
