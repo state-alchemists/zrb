@@ -167,7 +167,9 @@ async def _ask_for_approval(
 
 def _get_run_func_confirmation(func: Callable) -> str:
     func_name = get_callable_name(func)
-    return render_markdown(f"Allow to run `{func_name}`? (`Yes` | `No, <reason>`)").strip() 
+    return render_markdown(
+        f"Allow to run `{func_name}`? (`Yes` | `No, <reason>`)"
+    ).strip()
 
 
 def _get_detail_func_param(args: list[Any], kwargs: dict[str, Any]) -> str:

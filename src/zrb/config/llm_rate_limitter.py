@@ -9,6 +9,7 @@ from zrb.config.config import CFG
 def _estimate_token(text: str) -> int:
     try:
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
@@ -18,6 +19,7 @@ def _estimate_token(text: str) -> int:
 
 def clip_prompt(prompt: str, limit: int) -> str:
     import tiktoken
+
     enc = tiktoken.get_encoding("cl100k_base")
     tokens = enc.encode(prompt)
     if len(tokens) <= limit:
