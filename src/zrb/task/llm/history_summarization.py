@@ -88,7 +88,7 @@ async def summarize_history(
     conversation_history: ConversationHistory,
     rate_limitter: LLMRateLimiter | None = None,
     retries: int = 3,
-) -> str:
+) -> ConversationHistory:
     """Runs an LLM call to update the conversation summary."""
     from pydantic_ai import Agent
 

@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.5
+
+- **Changed** Make tool confirmation in-line
+
 # 1.15.4
 
 - **Changed** Better tool confirmation
