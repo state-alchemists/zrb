@@ -111,6 +111,8 @@ def _create_wrapper(
                 if not approval:
                     raise ValueError(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
+        except KeyboardInterrupt as e:
+            raise e
         except Exception as e:
             error_model = ToolExecutionError(
                 tool_name=func.__name__,
@@ -198,9 +200,10 @@ def _get_func_call_str(func: Callable, args: list[Any], kwargs: dict[str, Any]) 
 
 
 def _truncate_arg(arg: str, length: int = 19) -> str:
-    if len(arg) > length:
-        return f"{arg[:length-4]} ..."
-    return arg
+    normalized_arg = arg.replace("\n", "\\n")
+    if len(normalized_arg) > length:
+        return f"{normalized_arg[:length-4]} ..."
+    return normalized_arg
 
 
 async def _read_line():

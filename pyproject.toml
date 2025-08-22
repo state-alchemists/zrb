@@ -37,30 +37,26 @@ exclude = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10.0,<4.0.0"
+python = ">=3.11.0,<4.0.0"
 python-dotenv = "^1.1.1"
-black = "~25.1.0"
-isort = "~6.0.1"
+black = "^25.1.0"
+isort = "^6.0.1"
 requests = "^2.32.4"
-libcst = "^1.7.0"
-beautifulsoup4 = "^4.13.3"
-pdfplumber = "^0.11.6"
+libcst = "^1.8.2"
+beautifulsoup4 = "^4.13.4"
+pdfplumber = "^0.11.7"
 fastapi = {extras = ["standard"], version = "^0.116.1"}
-python-jose = {extras = ["cryptography"], version = "^3.4.0"}
+python-jose = {extras = ["cryptography"], version = "^3.5.0"}
 ulid-py = "^1.1.0"
 psutil = "^7.0.0"
-pyjwt = "^2.10.1"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
 # - We want to include all models, as well as mcp capability.
 # - We also need prompt-toolkit and rich which are included in pydantic ai's cli optional dependency
-pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface", "cli", "mcp"], version = "^0.7.0"} 
-
-# NOTE: On Pydantic AI 0.7.0, OpenAI is 1.99.2 to 1.99.6 seems to be broken
-openai = ">=1.99.7"
+pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface", "cli", "mcp"], version = "~0.7.4"} 
 
 tiktoken = "^0.8.0"
-playwright = {version = "^1.53.0", optional = true}
+playwright = {version = "^1.54.0", optional = true}
 chromadb = {version = "^0.6.3", optional = true}
 markdownify = "^1.2.0"
 
@@ -71,14 +67,14 @@ playwright = ["playwright"]
 all = ["chromadb", "playwright"]
 
 [tool.poetry.group.dev.dependencies]
-alembic = "^1.16.2" # FastApp dependencies
-autopep8 = "^2.0.4"
-flake8 = "~7.2.0"
-pytest = "~8.3.5"
-pytest-cov = "~6.1.0"
-pytest-asyncio = "~0.26.0"
+alembic = "^1.16.4" # FastApp dependencies
+autopep8 = "^2.3.2"
+flake8 = "^7.2.0"
+pytest = "^8.3.5"
+pytest-cov = "^6.1.0"
+pytest-asyncio = "^0.26.0"
 sqlmodel = "^0.0.24" # FastApp dependencies
-tomlkit = "^0.13.2"
+tomlkit = "^0.13.3"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
