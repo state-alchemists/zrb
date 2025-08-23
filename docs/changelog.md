@@ -1,5 +1,18 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.6
+
+- **Features**:
+    - Added `ZRB_USE_TIKTOKEN` and `ZRB_TIKTOKEN_ENCODING` environment variables for more control over token counting.
+- **Changed**:
+    - Improved the tool confirmation prompt for better readability.
+    - Updated various dependencies.
+    - Refactored the `LLMRateLimiter` to use `tiktoken` more efficiently.
+    - Update envvar in docs (e.g., `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD` to `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT`).
+- **Fixes**:
+    - Fixed an issue where a sub-agent failing would not raise an exception.
+    - Corrected the default values for `LLM_MAX_REQUESTS_PER_MINUTE` and `LLM_MAX_TOKENS_PER_REQUEST`.
+
 # 1.15.5
 
 - **Changed** Make tool confirmation in-line
@@ -82,12 +95,12 @@
   - When rejecting a tool, the user is now required to provide a reason, which is fed back to the LLM.
 - **Changed: `write_many_files` Tool Signature**:
   - The `write_many_files` tool now accepts a list of dictionaries (`[{'path': '...', 'content': '...'}]`) instead of a list of tuples, making it more explicit.
-- **Changed**: The `is_yolo_mode` can now be passed when creating a sub-agent.
-- **Fixed**: The web runner now no longer inject fake environment variable anymore, it is now correctly use `is_web_mode` parameter while creating a new `SharedContext`, ensuring consistent behavior between web and terminal environments.
+- **Changed** The `is_yolo_mode` can now be passed when creating a sub-agent.
+- **Fixed** The web runner now no longer inject fake environment variable anymore, it is now correctly use `is_web_mode` parameter while creating a new `SharedContext`, ensuring consistent behavior between web and terminal environments.
 
 # 1.13.3
 
-- **Changed**: The `write_many_files` tool now accepts a list of tuples `(file_path, content)` instead of a dictionary. This improves the tool's predictability and consistency.
+- **Changed** The `write_many_files` tool now accepts a list of tuples `(file_path, content)` instead of a dictionary. This improves the tool's predictability and consistency.
 
 # 1.13.2
 
