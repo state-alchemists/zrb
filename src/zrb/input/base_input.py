@@ -58,11 +58,15 @@ class BaseInput(AnyInput):
         return f'<input name="{name}" placeholder="{description}" value="{default}" />'
 
     def update_shared_context(
-        self, shared_ctx: AnySharedContext, str_value: str | None = None
+        self,
+        shared_ctx: AnySharedContext,
+        str_value: str | None = None,
+        value: Any = None,
     ):
-        if str_value is None:
-            str_value = self.get_default_str(shared_ctx)
-        value = self._parse_str_value(str_value)
+        if value is None:
+            if str_value is None:
+                str_value = self.get_default_str(shared_ctx)
+            value = self._parse_str_value(str_value)
         if self.name in shared_ctx.input:
             raise ValueError(f"Input already defined in the context: {self.name}")
         shared_ctx.input[self.name] = value

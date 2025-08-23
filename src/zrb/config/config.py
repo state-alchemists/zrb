@@ -102,6 +102,7 @@ class Config:
         level = level.upper()
         log_levels = {
             "CRITICAL": logging.CRITICAL,  # 50
+            "FATAL": logging.CRITICAL,  # 50
             "ERROR": logging.ERROR,  # 40
             "WARN": logging.WARNING,  # 30
             "WARNING": logging.WARNING,  # 30
@@ -295,7 +296,7 @@ class Config:
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
-        return int(self._getenv("LLM_MAX_TOKENS_PER_REQUEST", "50000"))
+        return int(self._getenv("LLM_MAX_TOKENS_PER_REQUEST", "100000"))
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
@@ -434,6 +435,14 @@ class Config:
     @property
     def LLM_CONTEXT_FILE(self) -> str:
         return self._getenv("LLM_CONTEXT_FILE", "ZRB.md")
+
+    @property
+    def USE_TIKTOKEN(self) -> bool:
+        return to_boolean(self._getenv("USE_TIKTOKEN", "true"))
+
+    @property
+    def TIKTOKEN_ENCODING_NAME(self) -> str:
+        return self._getenv("TIKTOKEN_ENCODING_NAME", "cl100k_base")
 
 
 CFG = Config()

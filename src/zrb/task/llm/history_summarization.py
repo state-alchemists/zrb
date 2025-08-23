@@ -16,6 +16,7 @@ from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
 from zrb.util.cli.style import stylize_faint
 from zrb.util.llm.prompt import make_prompt_section
+from zrb.util.truncate import truncate_str
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -115,7 +116,7 @@ async def summarize_history(
             ),
             make_prompt_section(
                 "Recent Conversation (JSON)",
-                json.dumps(conversation_history.history),
+                json.dumps(truncate_str(conversation_history.history, 1000)),
                 as_code=True,
             ),
             make_prompt_section(

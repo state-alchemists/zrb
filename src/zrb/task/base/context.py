@@ -26,25 +26,33 @@ def build_task_context(task: AnyTask, session: AnySession) -> AnyContext:
 
 
 def fill_shared_context_inputs(
-    task: AnyTask, shared_context: AnySharedContext, str_kwargs: dict[str, str] = {}
+    shared_ctx: AnySharedContext,
+    task: AnyTask,
+    str_kwargs: dict[str, str] | None = None,
+    kwargs: dict[str, str] | None = None,
 ):
     """
-    Populates the shared context with input values provided via kwargs.
+    Populates the shared context with input values provided via str_kwargs.
     """
+    str_kwarg_dict = str_kwargs if str_kwargs is not None else {}
+    kwarg_dict = kwargs if kwargs is not None else {}
     for task_input in task.inputs:
-        if task_input.name not in shared_context.input:
-            str_value = str_kwargs.get(task_input.name, None)
-            task_input.update_shared_context(shared_context, str_value)
+        if task_input.name not in shared_ctx.input:
+            task_input.update_shared_context(
+                shared_ctx,
+                value=kwarg_dict.get(task_input.name, None),
+                str_value=str_kwarg_dict.get(task_input.name, None),
+            )
 
 
-def fill_shared_context_envs(shared_context: AnySharedContext):
+def fill_shared_context_envs(shared_ctx: AnySharedContext):
     """
     Injects OS environment variables into the shared context if they don't already exist.
     """
     os_env_map = {
-        key: val for key, val in os.environ.items() if key not in shared_context.env
+        key: val for key, val in os.environ.items() if key not in shared_ctx.env
     }
-    shared_context.env.update(os_env_map)
+    shared_ctx.env.update(os_env_map)
 
 
 def combine_inputs(

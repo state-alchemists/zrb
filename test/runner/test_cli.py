@@ -11,7 +11,7 @@ def test_show_info_for_existing_group():
     )
     error = None
     try:
-        cli.run(args=["math"])
+        cli.run(str_args=["math"])
     except Exception as e:
         error = e
     assert error is None
@@ -26,7 +26,7 @@ def test_show_info_for_inexisting_group():
     )
     error = None
     try:
-        cli.run(args=["computer"])
+        cli.run(str_args=["computer"])
     except Exception as e:
         error = e
     assert error is not None
@@ -43,7 +43,7 @@ def test_show_help_for_existing_task():
     )
     error = None
     try:
-        cli.run(args=["hello", "-h"])
+        cli.run(str_args=["hello", "-h"])
     except Exception as e:
         error = e
     assert error is None
@@ -54,7 +54,7 @@ def test_run_existing_task():
     cli.add_task(Task(name="hello", action="Hello World"))
     error = None
     try:
-        cli.run(args=["hello"])
+        cli.run(str_args=["hello"])
     except Exception as e:
         error = e
     assert error is None
@@ -65,7 +65,7 @@ def test_show_help_for_inexisting_task():
     cli.add_task(Task(name="hello", action="Hello world"))
     error = None
     try:
-        cli.run(args=["good-bye", "-h"])
+        cli.run(str_args=["good-bye", "-h"])
     except Exception as e:
         error = e
     assert error is not None
@@ -76,7 +76,7 @@ def test_run_inexisting_task():
     cli.add_task(Task(name="hello", action="Hello world"))
     error = None
     try:
-        cli.run(args=["good-bye"])
+        cli.run(str_args=["good-bye"])
     except Exception as e:
         error = e
     assert error is not None
@@ -85,7 +85,7 @@ def test_run_inexisting_task():
 def test_run_simple_task():
     cli = Cli()
     cli.add_task(Task(name="hello", action="Hello world"))
-    result = cli.run(args=["hello"])
+    result = cli.run(str_args=["hello"])
     assert result == "Hello world"
 
 
@@ -101,7 +101,7 @@ def test_run_simple_task_with_keyword_arguments_as_inputs():
             action="{ctx.input.a + ctx.input.b}",
         )
     )
-    result = cli.run(args=["add", "--a", "4", "--b", "5"])
+    result = cli.run(str_args=["add", "--a", "4", "--b", "5"])
     assert result == "9"
 
 
@@ -117,12 +117,12 @@ def test_run_simple_task_with_arguments_as_inputs():
             action="{ctx.input.a + ctx.input.b}",
         )
     )
-    result = cli.run(args=["add", "4", "5"])
+    result = cli.run(str_args=["add", "4", "5"])
     assert result == "9"
 
 
 def test_run_simple_task_with_arguments():
     cli = Cli()
     cli.add_task(Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}"))
-    result = cli.run(args=["add", "4", "5"])
+    result = cli.run(str_args=["add", "4", "5"])
     assert result == "9"

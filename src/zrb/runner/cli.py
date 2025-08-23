@@ -7,7 +7,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
-from zrb.runner.common_util import get_run_kwargs
+from zrb.runner.common_util import get_task_str_kwargs
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -38,23 +38,25 @@ class Cli(Group):
     def banner(self) -> str:
         return CFG.BANNER
 
-    def run(self, args: list[str] = []):
-        kwargs, args = self._extract_kwargs_from_args(args)
-        node, node_path, args = extract_node_from_args(self, args)
+    def run(self, str_args: list[str] = []):
+        str_kwargs, str_args = self._extract_kwargs_from_args(str_args)
+        node, node_path, str_args = extract_node_from_args(self, str_args)
         if isinstance(node, AnyGroup):
             self._show_group_info(node)
             return
-        if "h" in kwargs or "help" in kwargs:
+        if "h" in str_kwargs or "help" in str_kwargs:
             self._show_task_info(node)
             return
-        run_kwargs = get_run_kwargs(task=node, args=args, kwargs=kwargs, cli_mode=True)
+        task_str_kwargs = get_task_str_kwargs(
+            task=node, str_args=str_args, str_kwargs=str_kwargs, cli_mode=True
+        )
         try:
-            result = self._run_task(node, args, run_kwargs)
+            result = self._run_task(node, str_args, task_str_kwargs)
             if result is not None:
                 print(result)
             return result
         finally:
-            run_command = self._get_run_command(node_path, run_kwargs)
+            run_command = self._get_run_command(node_path, task_str_kwargs)
             self._print_run_command(run_command)
 
     def _print_run_command(self, run_command: str):
@@ -64,11 +66,14 @@ class Cli(Group):
             file=sys.stderr,
         )
 
-    def _get_run_command(self, node_path: list[str], run_kwargs: dict[str, str]) -> str:
+    def _get_run_command(
+        self, node_path: list[str], task_str_kwargs: dict[str, str]
+    ) -> str:
         parts = [self.name] + node_path
-        if len(run_kwargs) > 0:
+        if len(task_str_kwargs) > 0:
             parts += [
-                self._get_run_command_param(key, val) for key, val in run_kwargs.items()
+                self._get_run_command_param(key, val)
+                for key, val in task_str_kwargs.items()
             ]
         return " ".join(parts)
 
@@ -81,13 +86,9 @@ class Cli(Group):
         self, task: AnyTask, args: list[str], run_kwargs: dict[str, str]
     ) -> tuple[Any]:
         shared_ctx = SharedContext(args=args)
-        for task_input in task.inputs:
-            if task_input.name in run_kwargs:
-                task_input.update_shared_context(
-                    shared_ctx, run_kwargs[task_input.name]
-                )
-                continue
-        return task.run(Session(shared_ctx=shared_ctx, root_group=self))
+        return task.run(
+            Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=run_kwargs
+        )
 
     def _show_task_info(self, task: AnyTask):
         description = task.description

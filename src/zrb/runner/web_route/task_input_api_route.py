@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
-from zrb.runner.common_util import get_run_kwargs
+from zrb.runner.common_util import get_task_str_kwargs
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.task.any_task import AnyTask
 from zrb.util.group import NodeNotFoundError, extract_node_from_args
@@ -39,9 +39,9 @@ def serve_task_input_api(
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
                 return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
-            query_dict = json.loads(query)
-            run_kwargs = get_run_kwargs(
-                task=task, args=[], kwargs=query_dict, cli_mode=False
+            str_kwargs = json.loads(query)
+            task_str_kwargs = get_task_str_kwargs(
+                task=task, str_args=[], str_kwargs=str_kwargs, cli_mode=False
             )
-            return run_kwargs
+            return task_str_kwargs
         return JSONResponse(content={"detail": "Not found"}, status_code=404)

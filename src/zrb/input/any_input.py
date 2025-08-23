@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from zrb.context.any_shared_context import AnySharedContext
 
@@ -35,7 +36,10 @@ class AnyInput(ABC):
 
     @abstractmethod
     def update_shared_context(
-        self, shared_ctx: AnySharedContext, str_value: str | None = None
+        self,
+        shared_ctx: AnySharedContext,
+        str_value: str | None = None,
+        value: Any = None,
     ):
         pass
 

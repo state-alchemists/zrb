@@ -284,11 +284,11 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid extraction prompt string
 
-* `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
+* `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT`: Token limit for repository analysis extraction.
     * Default: `35000`
     * Possible values: Any positive integer
 
-* `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for repository analysis summarization.
+* `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT`: Token limit for repository analysis summarization.
     * Default: `35000`
     * Possible values: Any positive integer
 
@@ -316,7 +316,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_ALLOW_ANALYZE_FILE`: Whether to allow LLM to analyze a file.
+* `ZRB_LLM_ALLOW_ANALYZE_LOCAL_FILE`: Whether to allow LLM to analyze a local file.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
@@ -363,6 +363,14 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 * `ZRB_LLM_CONTEXT_FILE`: The path for context file.
     * Default: `ZRB.md`
     * Possible values: Any valid file name.
+
+* `ZRB_USE_TIKTOKEN`: Whether to use Tiktoken for token counting.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_TIKTOKEN_ENCODING`: The Tiktoken encoding to use.
+    * Default: `cl100k_base`
+    * Possible values: Any valid Tiktoken encoding name (e.g., `cl100k_base`, `p50k_base`)
 
 * `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
     * Default: `1` (true)

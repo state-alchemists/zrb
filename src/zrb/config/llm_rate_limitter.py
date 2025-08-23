@@ -6,29 +6,6 @@ from typing import Callable
 from zrb.config.config import CFG
 
 
-def _estimate_token(text: str) -> int:
-    try:
-        import tiktoken
-
-        enc = tiktoken.get_encoding("cl100k_base")
-        return len(enc.encode(text))
-    except Exception:
-        # Fallback method: Heuristic (4 characters per token)
-        return len(text) // 4
-
-
-def clip_prompt(prompt: str, limit: int) -> str:
-    import tiktoken
-
-    enc = tiktoken.get_encoding("cl100k_base")
-    tokens = enc.encode(prompt)
-    if len(tokens) <= limit:
-        return prompt
-    truncated = tokens[:limit]
-    clipped_text = enc.decode(truncated)
-    return clipped_text + "..."
-
-
 class LLMRateLimiter:
     """
     Helper class to enforce LLM API rate limits and throttling.
@@ -41,11 +18,15 @@ class LLMRateLimiter:
         max_tokens_per_minute: int | None = None,
         max_tokens_per_request: int | None = None,
         throttle_sleep: float | None = None,
+        use_tiktoken: bool | None = None,
+        tiktoken_encodeing_name: str | None = None,
     ):
         self._max_requests_per_minute = max_requests_per_minute
         self._max_tokens_per_minute = max_tokens_per_minute
         self._max_tokens_per_request = max_tokens_per_request
         self._throttle_sleep = throttle_sleep
+        self._use_tiktoken = use_tiktoken
+        self._tiktoken_encoding_name = tiktoken_encodeing_name
         self.request_times = deque()
         self.token_times = deque()
 
@@ -73,6 +54,18 @@ class LLMRateLimiter:
             return self._throttle_sleep
         return CFG.LLM_THROTTLE_SLEEP
 
+    @property
+    def use_tiktoken(self) -> bool:
+        if self._use_tiktoken is not None:
+            return self._use_tiktoken
+        return CFG.USE_TIKTOKEN
+
+    @property
+    def tiktoken_encoding_name(self) -> str:
+        if self._tiktoken_encoding_name is not None:
+            return self._tiktoken_encoding_name
+        return CFG.TIKTOKEN_ENCODING_NAME
+
     def set_max_requests_per_minute(self, value: int):
         self._max_requests_per_minute = value
 
@@ -86,13 +79,42 @@ class LLMRateLimiter:
         self._throttle_sleep = value
 
     def count_token(self, prompt: str) -> int:
+        if not self.use_tiktoken:
+            return self._fallback_count_token(prompt)
+        try:
+            import tiktoken
+
+            enc = tiktoken.get_encoding(self.tiktoken_encoding_name)
+            return len(enc.encode(prompt))
+        except Exception:
+            return self._fallback_count_token(prompt)
+
+    def _fallback_count_token(self, prompt: str) -> int:
         return len(prompt) // 4
 
     def clip_prompt(self, prompt: str, limit: int) -> str:
-        char_limit = limit * 4 + 10
+        if not self.use_tiktoken:
+            return self._fallback_clip_prompt(prompt, limit)
+        try:
+            import tiktoken
+
+            enc = tiktoken.get_encoding("cl100k_base")
+            tokens = enc.encode(prompt)
+            if len(tokens) <= limit:
+                return prompt
+            truncated = tokens[: limit - 3]
+            clipped_text = enc.decode(truncated)
+            return clipped_text + "..."
+        except Exception:
+            return self._fallback_clip_prompt(prompt, limit)
+
+    def _fallback_clip_prompt(self, prompt: str, limit: int) -> str:
+        char_limit = limit * 4 if limit * 4 <= 10 else limit * 4 - 10
         return prompt[:char_limit] + "..."
 
-    async def throttle(self, prompt: str, callback: Callable | None = None):
+    async def throttle(
+        self, prompt: str, throttle_notif_callback: Callable | None = None
+    ):
         now = time.time()
         tokens = self.count_token(prompt)
         # Clean up old entries
@@ -110,8 +132,8 @@ class LLMRateLimiter:
             len(self.request_times) >= self.max_requests_per_minute
             or sum(t for _, t in self.token_times) + tokens > self.max_tokens_per_minute
         ):
-            if callback is not None:
-                callback()
+            if throttle_notif_callback is not None:
+                throttle_notif_callback()
             await asyncio.sleep(self.throttle_sleep)
             now = time.time()
             while self.request_times and now - self.request_times[0] > 60:

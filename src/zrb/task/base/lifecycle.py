@@ -12,7 +12,8 @@ from zrb.util.run import run_async
 async def run_and_cleanup(
     task: AnyTask,
     session: AnySession | None = None,
-    str_kwargs: dict[str, str] = {},
+    str_kwargs: dict[str, str] | None = None,
+    kwargs: dict[str, Any] | None = None,
 ) -> Any:
     """
     Wrapper for async_run that ensures session termination and cleanup of
@@ -23,7 +24,9 @@ async def run_and_cleanup(
         session = Session(shared_ctx=SharedContext())
 
     # Create the main task execution coroutine
-    main_task_coro = asyncio.create_task(run_task_async(task, session, str_kwargs))
+    main_task_coro = asyncio.create_task(
+        run_task_async(task, session, str_kwargs, kwargs)
+    )
 
     try:
         result = await main_task_coro
@@ -67,7 +70,8 @@ async def run_and_cleanup(
 async def run_task_async(
     task: AnyTask,
     session: AnySession | None = None,
-    str_kwargs: dict[str, str] = {},
+    str_kwargs: dict[str, str] | None = None,
+    kwargs: dict[str, Any] | None = None,
 ) -> Any:
     """
     Asynchronous entry point for running a task (`task.async_run()`).
@@ -77,7 +81,7 @@ async def run_task_async(
         session = Session(shared_ctx=SharedContext())
 
     # Populate shared context with inputs and environment variables
-    fill_shared_context_inputs(task, session.shared_ctx, str_kwargs)
+    fill_shared_context_inputs(session.shared_ctx, task, str_kwargs, kwargs)
     fill_shared_context_envs(session.shared_ctx)  # Inject OS env vars
 
     # Start the execution chain from the root tasks

@@ -148,13 +148,17 @@ class AnyTask(ABC):
 
     @abstractmethod
     def run(
-        self, session: "AnySession | None" = None, str_kwargs: dict[str, str] = {}
+        self,
+        session: "AnySession | None" = None,
+        str_kwargs: dict[str, str] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> Any:
         """Runs the task synchronously.
 
         Args:
             session (AnySession): The shared session.
             str_kwargs(dict[str, str]): The input string values.
+            kwargs(dict[str, Any]): The input values.
 
         Returns:
             Any: The result of the task execution.
@@ -163,13 +167,17 @@ class AnyTask(ABC):
 
     @abstractmethod
     async def async_run(
-        self, session: "AnySession | None" = None, str_kwargs: dict[str, str] = {}
+        self,
+        session: "AnySession | None" = None,
+        str_kwargs: dict[str, str] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> Any:
         """Runs the task asynchronously.
 
         Args:
             session (AnySession): The shared session.
             str_kwargs(dict[str, str]): The input string values.
+            kwargs(dict[str, Any]): The input values.
 
         Returns:
             Any: The result of the task execution.

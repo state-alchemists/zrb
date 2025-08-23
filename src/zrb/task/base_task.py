@@ -216,7 +216,10 @@ class BaseTask(AnyTask):
         return build_task_context(self, session)
 
     def run(
-        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
+        self,
+        session: AnySession | None = None,
+        str_kwargs: dict[str, str] | None = None,
+        kwargs: dict[str, str] | None = None,
     ) -> Any:
         """
         Synchronously runs the task and its dependencies, handling async setup and cleanup.
@@ -235,12 +238,19 @@ class BaseTask(AnyTask):
             Any: The final result of the main task execution.
         """
         # Use asyncio.run() to execute the async cleanup wrapper
-        return asyncio.run(run_and_cleanup(self, session, str_kwargs))
+        return asyncio.run(
+            run_and_cleanup(self, session=session, str_kwargs=str_kwargs, kwargs=kwargs)
+        )
 
     async def async_run(
-        self, session: AnySession | None = None, str_kwargs: dict[str, str] = {}
+        self,
+        session: AnySession | None = None,
+        str_kwargs: dict[str, str] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> Any:
-        return await run_task_async(self, session, str_kwargs)
+        return await run_task_async(
+            self, session=session, str_kwargs=str_kwargs, kwargs=kwargs
+        )
 
     async def exec_root_tasks(self, session: AnySession):
         return await execute_root_tasks(self, session)
@@ -280,3 +290,43 @@ class BaseTask(AnyTask):
                 # fallback: use the __notes__ attribute directly
                 e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
             raise e
+
+    def to_fn(self):
+        # NOTE: Non documented feature, untested
+        from inspect import Parameter, Signature
+
+        from zrb.context.shared_context import SharedContext
+        from zrb.session.session import Session
+
+        def task_runner_fn(**kwargs):
+            str_kwargs = {k: str(v) for k, v in kwargs.items()}
+            shared_ctx = SharedContext()
+            session = Session(shared_ctx=shared_ctx)
+            return self.run(session=session, str_kwargs=str_kwargs)
+
+        # Create docstring
+        doc = f"{self.description}\n\n"
+        if len(self.inputs) > 0:
+            doc += "Args:\n"
+            for inp in self.inputs:
+                doc += f"    {inp.name}: {inp.description}"
+                if inp.default is not None:
+                    doc += f" (default: {inp.default})"
+                doc += "\n"
+        task_runner_fn.__doc__ = doc
+
+        # Create signature
+        params = []
+        for inp in self.inputs:
+            params.append(
+                Parameter(
+                    name=inp.name,
+                    kind=Parameter.POSITIONAL_OR_KEYWORD,
+                    default=inp.default if inp.default is not None else Parameter.empty,
+                )
+            )
+        sig = Signature(params)
+        task_runner_fn.__signature__ = sig
+        task_runner_fn.__name__ = self.name
+
+        return task_runner_fn
