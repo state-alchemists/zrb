@@ -133,7 +133,7 @@ async def _ask_for_approval(
         [
             f"\n🎰 >> {func_call_str}",
             _get_detail_func_param(args, kwargs),
-            f"✅ >> {_get_run_func_confirmation(func)}",
+            f"🎰  >> {_get_run_func_confirmation(func)}",
         ]
     )
     while True:
@@ -168,7 +168,7 @@ async def _ask_for_approval(
 def _get_run_func_confirmation(func: Callable) -> str:
     func_name = get_callable_name(func)
     return render_markdown(
-        f"Allow to run `{func_name}`? (`Yes` | `No, <reason>`)"
+        f"Allow to run `{func_name}`? (✅ `Yes` | ⛔ `No, <reason>`)"
     ).strip()
 
 
