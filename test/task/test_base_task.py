@@ -199,7 +199,7 @@ def test_base_task_run(mock_run_and_cleanup, mock_asyncio_run):
     task.run(session=mock_any_session, str_kwargs={"key": "value"})
 
     mock_run_and_cleanup.assert_called_once_with(
-        task, mock_any_session, {"key": "value"}
+        task, session=mock_any_session, str_kwargs={"key": "value"}, kwargs=None
     )
     # Assert that asyncio.run was called with a coroutine object
     mock_asyncio_run.assert_called_once()
@@ -213,7 +213,10 @@ def test_base_task_async_run(mock_run_task_async):
         task = BaseTask(name="test_task")
         await task.async_run(session=mock_any_session, str_kwargs={"key": "value"})
         mock_run_task_async.assert_called_once_with(
-            task, mock_any_session, {"key": "value"}
+            task,
+            session=mock_any_session,
+            str_kwargs={"key": "value"},
+            kwargs=None,
         )
 
     asyncio.run(run_async_test())

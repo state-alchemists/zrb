@@ -5,9 +5,10 @@ from typing import Any
 def truncate_str(value: Any, limit: int):
     # If value is a string, truncate
     if isinstance(value, str):
-        if limit < 4:
-            return value[:limit]
-        return value[: limit - 4] + " ..."
+        if len(value) > limit:
+            if limit < 4:
+                return value[:limit]
+            return value[: limit - 4] + " ..."
     # If value is a dict, process recursively
     elif isinstance(value, Mapping):
         return {k: truncate_str(v, limit) for k, v in value.items()}

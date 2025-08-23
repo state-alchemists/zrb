@@ -79,6 +79,7 @@ tomlkit = "^0.13.3"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+norecursedirs = "playground src/zrb/builtin/project/add/fastapp/fastapp_template"
 
 [tool.poetry.scripts]
 zrb = "zrb.__main__:serve_cli"
