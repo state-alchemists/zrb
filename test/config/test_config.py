@@ -360,7 +360,7 @@ def test_llm_max_requests_per_minute(monkeypatch):
 def test_llm_max_requests_per_minute_none(monkeypatch):
     monkeypatch.delenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", raising=False)
     config = Config()
-    assert config.LLM_MAX_REQUESTS_PER_MINUTE == 15
+    assert config.LLM_MAX_REQUESTS_PER_MINUTE == 60
 
 
 def test_llm_max_tokens_per_minute(monkeypatch):
