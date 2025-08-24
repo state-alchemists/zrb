@@ -41,6 +41,7 @@ class Cli(Group):
     def run(self, str_args: list[str] = []):
         str_kwargs, str_args = self._extract_kwargs_from_args(str_args)
         node, node_path, str_args = extract_node_from_args(self, str_args)
+        print("STR KWARGS", str_kwargs)
         if isinstance(node, AnyGroup):
             self._show_group_info(node)
             return
@@ -151,11 +152,11 @@ class Cli(Group):
                         kwargs[key] = args[i + 1]
                         i += 1  # Skip the next argument as it's a value
                     else:
-                        kwargs[key] = True
+                        kwargs[key] = "true"
             elif arg.startswith("-"):
                 # Handle short flags like -t or -n
                 key = arg[1:]
-                kwargs[key] = True
+                kwargs[key] = "true"
             else:
                 # Anything else is considered a positional argument
                 residual_args.append(arg)

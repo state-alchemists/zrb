@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.8
+
+- **Improved** default prompts
+
 # 1.15.7
 
 - **Fixed** Add handler for `UnexpectedModelBehavior`
