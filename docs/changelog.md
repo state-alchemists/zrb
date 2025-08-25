@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.10
+
+- **Fixed** More clear summarization prompt, make sure no loop happening with gemini-pro model
+- **Changed** Increase pydantic-ai-slim version
+
 # 1.15.9
 
 - **Changed** Remove debugging log
