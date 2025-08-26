@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.11
+
+- **Added** Introduce `UserDisapprovalError`
+- **Changed** Make sure summarization prompt final response
+
 # 1.15.10
 
 - **Fixed** More clear summarization prompt, make sure no loop happening with gemini-pro model

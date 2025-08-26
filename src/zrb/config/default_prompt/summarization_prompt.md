@@ -17,4 +17,4 @@ Follow these steps precisely:
 
 **Step 3: Finalize**
 
-After making all necessary tool calls, you MUST output the single word "DONE" and nothing else. This is the final step.
+After making all necessary tool calls, your FINAL RESPONSE must be a single word "DONE" marking the end of this session.
