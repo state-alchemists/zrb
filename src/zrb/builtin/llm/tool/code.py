@@ -122,7 +122,6 @@ async def analyze_repo(
     )
     if len(extracted_infos) == 1:
         return extracted_infos[0]
-    ctx.print(stylize_faint("  📝 Summarization"), plain=True)
     summarized_infos = extracted_infos
     while len(summarized_infos) > 1:
         ctx.print(stylize_faint("  📝 Summarization"), plain=True)

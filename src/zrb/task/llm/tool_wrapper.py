@@ -22,6 +22,10 @@ if TYPE_CHECKING:
     from pydantic_ai import Tool
 
 
+class ToolExecutionCancelled(ValueError):
+    pass
+
+
 def wrap_tool(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> "Tool":
     """Wraps a tool function to handle exceptions and context propagation."""
     from pydantic_ai import RunContext, Tool
@@ -109,7 +113,7 @@ def _create_wrapper(
             if not is_yolo_mode and not ctx.is_web_mode and ctx.is_tty:
                 approval, reason = await _ask_for_approval(ctx, func, args, kwargs)
                 if not approval:
-                    raise ValueError(f"User disapproving: {reason}")
+                    raise ToolExecutionCancelled(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
         except KeyboardInterrupt as e:
             raise e

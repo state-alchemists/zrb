@@ -17,6 +17,7 @@ from zrb.task.llm.config import (
     get_model_settings,
 )
 from zrb.task.llm.conversation_history import (
+    inject_conversation_history_notes,
     read_conversation_history,
     write_conversation_history,
 )
@@ -241,7 +242,7 @@ class LLMTask(BaseTask):
             render_history_file=self._render_history_file,
             conversation_history_attr=self._conversation_history,
         )
-        conversation_history.fetch_newest_notes()
+        inject_conversation_history_notes(conversation_history)
         # 2. Get system prompt and user prompt
         system_prompt, user_message = get_system_and_user_prompt(
             ctx=ctx,

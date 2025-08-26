@@ -1,5 +1,21 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.13
+
+- **Fixed** Ensure relative path when writing context to `ZRB.md`
+- **Changed** Make summarizer prompt easier
+
+# 1.15.12
+
+- **Changed** Fix summarization prompt again
+- **Changed** Renamed `UnserDisapprovalError` to `ToolExecutionCancelled`
+
+
+# 1.15.11
+
+- **Added** Introduce `UserDisapprovalError`
+- **Changed** Make sure summarization prompt final response
+
 # 1.15.10
 
 - **Fixed** More clear summarization prompt, make sure no loop happening with gemini-pro model
