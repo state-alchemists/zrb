@@ -1,5 +1,11 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.12
+
+- **Changed** Fix summarization prompt again
+- **Changed** Renamed `UnserDisapprovalError` to `ToolExecutionCancelled`
+
+
 # 1.15.11
 
 - **Added** Introduce `UserDisapprovalError`

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pydantic_ai import Tool
 
 
-class UserDisapproval(ValueError):
+class ToolExecutionCancelled(ValueError):
     pass
 
 
@@ -113,7 +113,7 @@ def _create_wrapper(
             if not is_yolo_mode and not ctx.is_web_mode and ctx.is_tty:
                 approval, reason = await _ask_for_approval(ctx, func, args, kwargs)
                 if not approval:
-                    raise UserDisapproval(f"User disapproving: {reason}")
+                    raise ToolExecutionCancelled(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
         except KeyboardInterrupt as e:
             raise e
