@@ -1,16 +1,44 @@
 import json
+import os
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
 from zrb.attr.type import StrAttr
+from zrb.config.llm_context.config import llm_context_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_str_attr
-from zrb.util.file import write_file
+from zrb.util.file import read_file, write_file
+from zrb.util.llm.prompt import make_prompt_section
 from zrb.util.run import run_async
+
+
+def inject_conversation_history_notes(conversation_history: ConversationHistory):
+    conversation_history.long_term_note = _fetch_long_term_note(
+        conversation_history.project_path
+    )
+    conversation_history.contextual_note = _fetch_contextual_note(
+        conversation_history.project_path
+    )
+
+
+def _fetch_long_term_note(project_path: str) -> str:
+    contexts = llm_context_config.get_contexts(cwd=project_path)
+    return contexts.get("/", "")
+
+
+def _fetch_contextual_note(project_path: str) -> str:
+    contexts = llm_context_config.get_contexts(cwd=project_path)
+    return "\n".join(
+        [
+            make_prompt_section(header, content)
+            for header, content in contexts.items()
+            if header != "/"
+        ]
+    )
 
 
 def get_history_file(
@@ -25,6 +53,49 @@ def get_history_file(
         "",
         auto_render=render_history_file,
     )
+
+
+async def _read_from_source(
+    ctx: AnyContext,
+    reader: Callable[[AnyContext], dict[str, Any] | list | None] | None,
+    file_path: str | None,
+) -> "ConversationHistory | None":
+    # Priority 1: Reader function
+    if reader:
+        try:
+            raw_data = await run_async(reader(ctx))
+            if raw_data:
+                instance = ConversationHistory.parse_and_validate(
+                    ctx, raw_data, "reader"
+                )
+                if instance:
+                    return instance
+        except Exception as e:
+            ctx.log_warning(
+                f"Error executing conversation history reader: {e}. Ignoring."
+            )
+    # Priority 2: History file
+    if file_path and os.path.isfile(file_path):
+        try:
+            content = read_file(file_path)
+            raw_data = json.loads(content)
+            instance = ConversationHistory.parse_and_validate(
+                ctx, raw_data, f"file '{file_path}'"
+            )
+            if instance:
+                return instance
+        except json.JSONDecodeError:
+            ctx.log_warning(
+                f"Could not decode JSON from history file '{file_path}'. "
+                "Ignoring file content."
+            )
+        except Exception as e:
+            ctx.log_warning(
+                f"Error reading history file '{file_path}': {e}. "
+                "Ignoring file content."
+            )
+    # Fallback: Return default value
+    return None
 
 
 async def read_conversation_history(
@@ -46,7 +117,7 @@ async def read_conversation_history(
         ctx, conversation_history_file_attr, render_history_file
     )
     # Use the class method defined above
-    history_data = await ConversationHistory.read_from_source(
+    history_data = await _read_from_source(
         ctx=ctx,
         reader=conversation_history_reader,
         file_path=history_file,

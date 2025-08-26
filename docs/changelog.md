@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.13
+
+- **Fixed** Ensure relative path when writing context to `ZRB.md`
+- **Changed** Make summarizer prompt easier
+
 # 1.15.12
 
 - **Changed** Fix summarization prompt again

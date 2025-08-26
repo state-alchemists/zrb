@@ -9,9 +9,13 @@ from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.conversation_history import (
     count_part_in_history_list,
+    inject_conversation_history_notes,
     replace_system_prompt_in_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
+from zrb.task.llm.history_summarization_tool import (
+    create_history_summarization_tool,
+)
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
 from zrb.util.cli.style import stylize_faint
@@ -93,6 +97,7 @@ async def summarize_history(
     """Runs an LLM call to update the conversation summary."""
     from pydantic_ai import Agent
 
+    inject_conversation_history_notes(conversation_history)
     ctx.log_info("Attempting to summarize conversation history...")
     # Construct the user prompt for the summarization agent
     user_prompt = "\n".join(
@@ -143,14 +148,7 @@ async def summarize_history(
         system_prompt=system_prompt,
         model_settings=settings,
         retries=retries,
-        tools=[
-            conversation_history.write_past_conversation_summary,
-            conversation_history.write_past_conversation_transcript,
-            conversation_history.read_long_term_note,
-            conversation_history.write_long_term_note,
-            conversation_history.read_contextual_note,
-            conversation_history.write_contextual_note,
-        ],
+        tools=[create_history_summarization_tool(conversation_history)],
     )
     try:
         ctx.print(stylize_faint("  📝 Rollup Conversation"), plain=True)
