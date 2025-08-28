@@ -98,7 +98,13 @@ def search_wikipedia(query: str) -> str:
     import requests
 
     params = {"action": "query", "list": "search", "srsearch": query, "format": "json"}
-    response = requests.get("https://en.wikipedia.org/w/api.php", params=params)
+    response = requests.get(
+        "https://en.wikipedia.org/w/api.php",
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        },
+        params=params,
+    )
     return response.json()
 
 
@@ -123,7 +129,13 @@ def search_arxiv(query: str, num_results: int = 10) -> str:
     import requests
 
     params = {"search_query": f"all:{query}", "start": 0, "max_results": num_results}
-    response = requests.get("http://export.arxiv.org/api/query", params=params)
+    response = requests.get(
+        "http://export.arxiv.org/api/query",
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        },
+        params=params,
+    )
     return response.content
 
 
