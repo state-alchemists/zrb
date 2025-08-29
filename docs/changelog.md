@@ -1,5 +1,14 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.15
+
+- **Changed** Update summarizer prompt again
+- **Changed** Update pydantic ai to 0.8.0
+
+# 1.15.4
+
+- **Fixed** Add request header at wikipedia/arxiv tool
+
 # 1.15.13
 
 - **Fixed** Ensure relative path when writing context to `ZRB.md`
