@@ -48,6 +48,12 @@ async def print_node(
                                 _format_stream_content(content_delta, log_indent_level),
                                 end="",
                             )
+                        elif isinstance(event.delta, ThinkingPartDelta):
+                            content_delta = event.delta.content_delta
+                            print_func(
+                                _format_stream_content(content_delta, log_indent_level),
+                                end="",
+                            )
                         elif isinstance(event.delta, ToolCallPartDelta):
                             args_delta = event.delta.args_delta
                             print_func(
@@ -71,7 +77,10 @@ async def print_node(
             print_func("")  # ensure newline consistency
             print_func(
                 _format_content(
-                    f"⚠️ Unexpected Model Behavior: {e}. node_id={meta}",
+                    (
+                        f"⚠️ Unexpected Model Behavior: {e}. "
+                        f"Cause: {e.__cause__}. Node.Id: {meta}"
+                    ),
                     log_indent_level,
                 )
             )
@@ -102,7 +111,10 @@ async def print_node(
             print_func("")  # ensure newline consistency
             print_func(
                 _format_content(
-                    f"⚠️ Unexpected Model Behavior: {e}. node_id={meta}",
+                    (
+                        f"⚠️ Unexpected Model Behavior: {e}. "
+                        f"Cause: {e.__cause__}. Node.Id: {meta}"
+                    ),
                     log_indent_level,
                 )
             )

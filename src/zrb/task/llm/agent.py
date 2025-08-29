@@ -185,7 +185,7 @@ async def _run_single_agent_iteration(
     agent_payload = _estimate_request_payload(
         agent, user_prompt, attachments, history_list
     )
-    callback = lambda: _print_throttle_notif(ctx)
+    callback = _create_print_throttle_notif(ctx)
     if rate_limitter:
         await rate_limitter.throttle(agent_payload, callback)
     else:
@@ -216,8 +216,11 @@ async def _run_single_agent_iteration(
             return agent_run
 
 
-def _print_throttle_notif(ctx: AnyContext):
-    ctx.print(stylize_faint("  ⌛>> Request Throttled"), plain=True)
+def _create_print_throttle_notif(ctx: AnyContext) -> Callable[[], None]:
+    def _print_throttle_notif(ctx: AnyContext):
+        ctx.print(stylize_faint("  ⌛>> Request Throttled"), plain=True)
+
+    return _print_throttle_notif
 
 
 def _estimate_request_payload(
