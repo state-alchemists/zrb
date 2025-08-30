@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.16
+
+- **Changed** On tty mode, use promptollkit to read user input
+
 # 1.15.15
 
 - **Changed** Update summarizer prompt again

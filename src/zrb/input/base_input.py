@@ -96,10 +96,18 @@ class BaseInput(AnyInput):
         if default_str != "":
             prompt_message = f"{prompt_message} [{default_str}]"
         print(f"{prompt_message}: ", end="")
-        value = input()
+        value = self._read_line(shared_ctx)
         if value.strip() == "":
             value = default_str
         return value
+
+    def _read_line(self, shared_ctx: AnySharedContext) -> str:
+        if not shared_ctx.is_tty:
+            return input()
+        from prompt_toolkit import PromptSession
+
+        reader = PromptSession()
+        return reader.prompt()
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
         """Get default value as str"""
