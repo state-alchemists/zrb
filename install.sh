@@ -96,12 +96,12 @@ install_pyenv() {
 }
 
 install_python_on_pyenv() {
-    # install python 3.10.0
-    log_info "Installing python 3.10.0"
-    pyenv install 3.10.0
-    # set global python to 3.10.0
-    log_info "Setting python 3.10.0 as global"
-    pyenv global 3.10.0
+    # install python 3.13.0
+    log_info "Installing python 3.13.0"
+    pyenv install 3.13.0
+    # set global python to 3.13.0
+    log_info "Setting python 3.13.0 as global"
+    pyenv global 3.13.0
 }
 
 install_poetry() {

@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.17
+
+- **Fixed** Promptoolkit user input
+
 # 1.15.16
 
 - **Changed** On tty mode, use promptollkit to read user input
@@ -21,7 +25,7 @@
 # 1.15.12
 
 - **Changed** Fix summarization prompt again
-- **Changed** Renamed `UnserDisapprovalError` to `ToolExecutionCancelled`
+- **Changed** Renamed `UserDisapprovalError` to `ToolExecutionCancelled`
 
 
 # 1.15.11
