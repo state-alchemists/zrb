@@ -21,6 +21,7 @@ from zrb.task.base.execution import (
 )
 from zrb.task.base.lifecycle import execute_root_tasks, run_and_cleanup, run_task_async
 from zrb.task.base.operators import handle_lshift, handle_rshift
+from zrb.util.string.conversion import to_snake_case
 
 
 class BaseTask(AnyTask):
@@ -219,7 +220,7 @@ class BaseTask(AnyTask):
         self,
         session: AnySession | None = None,
         str_kwargs: dict[str, str] | None = None,
-        kwargs: dict[str, str] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> Any:
         """
         Synchronously runs the task and its dependencies, handling async setup and cleanup.
@@ -286,7 +287,7 @@ class BaseTask(AnyTask):
             # Add definition location to the error
             if hasattr(e, "add_note"):
                 e.add_note(additional_error_note)
-            else:
+            elif hasattr(e, "__notes__"):
                 # fallback: use the __notes__ attribute directly
                 e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
             raise e
@@ -298,20 +299,30 @@ class BaseTask(AnyTask):
         from zrb.context.shared_context import SharedContext
         from zrb.session.session import Session
 
-        def task_runner_fn(**kwargs):
-            str_kwargs = {k: str(v) for k, v in kwargs.items()}
+        stub_shared_ctx = SharedContext()
+        str_input_default_values = {}
+        for inp in self.inputs:
+            str_input_default_values[inp.name] = inp.get_default_str(stub_shared_ctx)
+
+        def task_runner_fn(**kwargs) -> Any:
+            task_kwargs = {}
+            for inp in self.inputs:
+                snake_input_name = to_snake_case(inp.name)
+                if snake_input_name in kwargs:
+                    task_kwargs[snake_input_name] = kwargs[snake_input_name]
             shared_ctx = SharedContext()
             session = Session(shared_ctx=shared_ctx)
-            return self.run(session=session, str_kwargs=str_kwargs)
+            return self.run(session=session, kwargs=task_kwargs)
 
         # Create docstring
         doc = f"{self.description}\n\n"
         if len(self.inputs) > 0:
             doc += "Args:\n"
             for inp in self.inputs:
-                doc += f"    {inp.name}: {inp.description}"
-                if inp.default is not None:
-                    doc += f" (default: {inp.default})"
+                str_input_default = str_input_default_values.get(inp.name, "")
+                doc += (
+                    f"    {inp.name}: {inp.description} (default: {str_input_default})"
+                )
                 doc += "\n"
         task_runner_fn.__doc__ = doc
 
@@ -320,9 +331,8 @@ class BaseTask(AnyTask):
         for inp in self.inputs:
             params.append(
                 Parameter(
-                    name=inp.name,
+                    name=to_snake_case(inp.name),
                     kind=Parameter.POSITIONAL_OR_KEYWORD,
-                    default=inp.default if inp.default is not None else Parameter.empty,
                 )
             )
         sig = Signature(params)
