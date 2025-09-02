@@ -1,7 +1,7 @@
 from __future__ import annotations  # Enables forward references
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -210,4 +210,9 @@ class AnyTask(ABC):
         Args:
             session (AnySession): The shared session.
         """
+        pass
+
+    @abstractmethod
+    def to_function(self) -> Callable[..., Any]:
+        """Turn a task into a function"""
         pass

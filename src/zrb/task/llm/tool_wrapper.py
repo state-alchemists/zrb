@@ -26,23 +26,27 @@ class ToolExecutionCancelled(ValueError):
     pass
 
 
-def wrap_tool(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> "Tool":
+def wrap_tool(func: Callable, ctx: AnyContext, yolo_mode: bool | list[str]) -> "Tool":
     """Wraps a tool function to handle exceptions and context propagation."""
     from pydantic_ai import RunContext, Tool
 
     original_sig = inspect.signature(func)
     needs_run_context_for_pydantic = _has_context_parameter(original_sig, RunContext)
-    wrapper = wrap_func(func, ctx, is_yolo_mode)
+    wrapper = wrap_func(func, ctx, yolo_mode)
     return Tool(wrapper, takes_ctx=needs_run_context_for_pydantic)
 
 
-def wrap_func(func: Callable, ctx: AnyContext, is_yolo_mode: bool) -> Callable:
+def wrap_func(func: Callable, ctx: AnyContext, yolo_mode: bool | list[str]) -> Callable:
     original_sig = inspect.signature(func)
     needs_any_context_for_injection = _has_context_parameter(original_sig, AnyContext)
     takes_no_args = len(original_sig.parameters) == 0
     # Pass individual flags to the wrapper creator
     wrapper = _create_wrapper(
-        func, original_sig, ctx, needs_any_context_for_injection, is_yolo_mode
+        func=func,
+        original_sig=original_sig,
+        ctx=ctx,
+        needs_any_context_for_injection=needs_any_context_for_injection,
+        yolo_mode=yolo_mode,
     )
     _adjust_signature(wrapper, original_sig, takes_no_args)
     return wrapper
@@ -82,7 +86,7 @@ def _create_wrapper(
     original_sig: inspect.Signature,
     ctx: AnyContext,
     needs_any_context_for_injection: bool,
-    is_yolo_mode: bool,
+    yolo_mode: bool | list[str],
 ) -> Callable:
     """Creates the core wrapper function."""
 
@@ -110,10 +114,13 @@ def _create_wrapper(
         if "_dummy" in kwargs and "_dummy" not in original_sig.parameters:
             del kwargs["_dummy"]
         try:
-            if not is_yolo_mode and not ctx.is_web_mode and ctx.is_tty:
-                approval, reason = await _ask_for_approval(ctx, func, args, kwargs)
-                if not approval:
-                    raise ToolExecutionCancelled(f"User disapproving: {reason}")
+            if not ctx.is_web_mode and ctx.is_tty:
+                if (
+                    isinstance(yolo_mode, list) and func.__name__ not in yolo_mode
+                ) or not yolo_mode:
+                    approval, reason = await _ask_for_approval(ctx, func, args, kwargs)
+                    if not approval:
+                        raise ToolExecutionCancelled(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
         except KeyboardInterrupt as e:
             raise e

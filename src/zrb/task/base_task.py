@@ -292,28 +292,36 @@ class BaseTask(AnyTask):
                 e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
             raise e
 
-    def to_fn(self):
-        # NOTE: Non documented feature, untested
-        from inspect import Parameter, Signature
-
+    def to_function(self) -> Callable[..., Any]:
         from zrb.context.shared_context import SharedContext
         from zrb.session.session import Session
+
+        def task_runner_fn(**kwargs) -> Any:
+            task_kwargs = self._get_func_kwargs(kwargs)
+            shared_ctx = SharedContext()
+            session = Session(shared_ctx=shared_ctx)
+            return self.run(session=session, kwargs=task_kwargs)
+
+        task_runner_fn.__doc__ = self._create_fn_docstring()
+        task_runner_fn.__signature__ = self._create_fn_signature()
+        task_runner_fn.__name__ = self.name
+        return task_runner_fn
+
+    def _get_func_kwargs(self, kwargs: dict[str, Any]) -> dict[str, Any]:
+        fn_kwargs = {}
+        for inp in self.inputs:
+            snake_input_name = to_snake_case(inp.name)
+            if snake_input_name in kwargs:
+                fn_kwargs[inp.name] = kwargs[snake_input_name]
+        return fn_kwargs
+
+    def _create_fn_docstring(self) -> str:
+        from zrb.context.shared_context import SharedContext
 
         stub_shared_ctx = SharedContext()
         str_input_default_values = {}
         for inp in self.inputs:
             str_input_default_values[inp.name] = inp.get_default_str(stub_shared_ctx)
-
-        def task_runner_fn(**kwargs) -> Any:
-            task_kwargs = {}
-            for inp in self.inputs:
-                snake_input_name = to_snake_case(inp.name)
-                if snake_input_name in kwargs:
-                    task_kwargs[inp.name] = kwargs[snake_input_name]
-            shared_ctx = SharedContext()
-            session = Session(shared_ctx=shared_ctx)
-            return self.run(session=session, kwargs=task_kwargs)
-
         # Create docstring
         doc = f"{self.description}\n\n"
         if len(self.inputs) > 0:
@@ -324,19 +332,15 @@ class BaseTask(AnyTask):
                     f"    {inp.name}: {inp.description} (default: {str_input_default})"
                 )
                 doc += "\n"
-        task_runner_fn.__doc__ = doc
+        return doc
 
-        # Create signature
+    def _create_fn_signature(self) -> inspect.Signature:
         params = []
         for inp in self.inputs:
             params.append(
-                Parameter(
+                inspect.Parameter(
                     name=to_snake_case(inp.name),
-                    kind=Parameter.POSITIONAL_OR_KEYWORD,
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 )
             )
-        sig = Signature(params)
-        task_runner_fn.__signature__ = sig
-        task_runner_fn.__name__ = self.name
-
-        return task_runner_fn
+        return inspect.Signature(params)

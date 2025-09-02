@@ -106,7 +106,7 @@ def _show_info(ctx: AnyContext):
                 _show_command("/modes", "Show current modes"),
                 _show_subcommand("<mode1,mode2,..>", "Set current modes"),
                 _show_command("/yolo", "Get current YOLO mode"),
-                _show_subcommand("<true|false>", "Set YOLO mode to true/false"),
+                _show_subcommand("<true|false|list-of-tools>", "Set YOLO mode"),
                 _show_command("/help", "Show this message"),
             ]
         ),
@@ -179,7 +179,7 @@ async def _trigger_ask_and_wait_for_result(
     ctx: AnyContext,
     user_prompt: str,
     modes: str,
-    yolo_mode: bool,
+    yolo_mode: bool | str,
     previous_session_name: str | None = None,
     start_new: bool = False,
 ) -> str | None:
@@ -239,7 +239,7 @@ async def _trigger_ask(
     ctx: AnyContext,
     user_prompt: str,
     modes: str,
-    yolo_mode: bool,
+    yolo_mode: bool | str,
     previous_session_name: str | None = None,
     start_new: bool = False,
 ):

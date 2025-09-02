@@ -8,20 +8,27 @@ from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
-from zrb.util.attr import get_attr, get_bool_attr
+from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
 
 
-def get_is_yolo_mode(
+def get_yolo_mode(
     ctx: AnyContext,
-    is_yolo_mode_attr: BoolAttr | None = None,
+    yolo_mode_attr: BoolAttr | StrAttr | None = None,
     render_yolo_mode: bool = True,
-):
-    return get_bool_attr(
-        ctx,
-        is_yolo_mode_attr,
-        llm_config.default_yolo_mode,
-        auto_render=render_yolo_mode,
-    )
+) -> bool | list[str]:
+    try:
+        return get_bool_attr(
+            ctx,
+            yolo_mode_attr,
+            llm_config.default_yolo_mode,
+            auto_render=render_yolo_mode,
+        )
+    except Exception:
+        return get_str_list_attr(
+            ctx,
+            yolo_mode_attr,
+            auto_render=render_yolo_mode,
+        )
 
 
 def get_model_settings(
