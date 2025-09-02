@@ -309,7 +309,7 @@ class BaseTask(AnyTask):
             for inp in self.inputs:
                 snake_input_name = to_snake_case(inp.name)
                 if snake_input_name in kwargs:
-                    task_kwargs[snake_input_name] = kwargs[snake_input_name]
+                    task_kwargs[inp.name] = kwargs[snake_input_name]
             shared_ctx = SharedContext()
             session = Session(shared_ctx=shared_ctx)
             return self.run(session=session, kwargs=task_kwargs)
