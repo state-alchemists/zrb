@@ -12,9 +12,9 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.task.llm.agent import get_agent, run_agent_iteration
 from zrb.task.llm.config import (
-    get_is_yolo_mode,
     get_model,
     get_model_settings,
+    get_yolo_mode,
 )
 from zrb.task.llm.conversation_history import (
     inject_conversation_history_notes,
@@ -107,7 +107,8 @@ class LLMTask(BaseTask):
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
-        is_yolo_mode: bool | None = None,
+        yolo_mode: StrListAttr | BoolAttr | None = None,
+        is_yolo_mode: BoolAttr | None = None,
         render_yolo_mode: bool = True,
         readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
@@ -184,7 +185,11 @@ class LLMTask(BaseTask):
         )
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
-        self._is_yolo_mode = is_yolo_mode
+        self._yolo_mode = yolo_mode
+        if is_yolo_mode is not None:
+            print("[DEPRECATED] use `yolo_mode` instead of `is_yolo_mode`")
+            if self._yolo_mode is None:
+                self._yolo_mode = is_yolo_mode
         self._render_yolo_mode = render_yolo_mode
         self._attachment = attachment
 
@@ -210,6 +215,12 @@ class LLMTask(BaseTask):
     ):
         self._history_summarization_token_threshold = summarization_token_threshold
 
+    def set_modes(self, modes: StrListAttr):
+        self._modes = modes
+
+    def set_yolo_mode(self, yolo_mode: StrListAttr | BoolAttr):
+        self._yolo_mode = yolo_mode
+
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # Get dependent configurations first
         model_settings = get_model_settings(ctx, self._model_settings)
@@ -222,9 +233,9 @@ class LLMTask(BaseTask):
             model_api_key_attr=self._model_api_key,
             render_model_api_key=self._render_model_api_key,
         )
-        is_yolo_mode = get_is_yolo_mode(
+        yolo_mode = get_yolo_mode(
             ctx=ctx,
-            is_yolo_mode_attr=self._is_yolo_mode,
+            yolo_mode_attr=self._yolo_mode,
             render_yolo_mode=self._render_yolo_mode,
         )
         summarization_prompt = get_summarization_system_prompt(
@@ -269,7 +280,7 @@ class LLMTask(BaseTask):
             additional_tools=self._additional_tools,
             toolsets_attr=self._toolsets,
             additional_toolsets=self._additional_toolsets,
-            is_yolo_mode=is_yolo_mode,
+            yolo_mode=yolo_mode,
         )
         # 4. Run the agent iteration and save the results/history
         result = await self._execute_agent(

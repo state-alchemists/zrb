@@ -25,7 +25,7 @@ def create_sub_agent_tool(
     model_settings: "ModelSettings | None" = None,
     tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
-    is_yolo_mode: bool | None = None,
+    yolo_mode: bool | list[str] | None = None,
     log_indent_level: int = 2,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
     """
@@ -99,7 +99,7 @@ def create_sub_agent_tool(
             model_settings=resolved_model_settings,
             tools=tools,
             toolsets=toolsets,
-            is_yolo_mode=is_yolo_mode,
+            yolo_mode=yolo_mode,
         )
 
         sub_agent_run = None

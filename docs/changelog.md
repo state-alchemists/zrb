@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.18
+
+- **Feature**: YOLO mode can now be a list of tool names to allow selective tool execution without confirmation.
+- **Feature**: Tasks can now be converted to Python functions using the `to_function()` method.
+- **Changed**: Upgraded `pydantic-ai` dependency, replacing `OpenAIModel` with `OpenAIChatModel`.
+- **Fixed**: Minor bug fixes and refactoring.
+
 # 1.15.17
 
 - **Fixed** Promptoolkit user input

@@ -153,9 +153,9 @@ class LLMConfig:
         model_name = self.default_model_name
         if model_name is None:
             return "openai:gpt-4o"
-        from pydantic_ai.models.openai import OpenAIModel
+        from pydantic_ai.models.openai import OpenAIChatModel
 
-        return OpenAIModel(
+        return OpenAIChatModel(
             model_name=model_name,
             provider=self.default_model_provider,
         )

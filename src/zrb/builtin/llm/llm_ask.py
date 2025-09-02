@@ -24,11 +24,13 @@ from zrb.builtin.llm.tool.web import (
 from zrb.callback.callback import Callback
 from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
+from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
+from zrb.util.string.conversion import to_boolean
 
 _llm_ask_inputs = [
     StrInput(
@@ -82,7 +84,7 @@ _llm_ask_inputs = [
         allow_positional_parsing=False,
         always_prompt=False,
     ),
-    BoolInput(
+    StrInput(
         "yolo",
         description="YOLO mode (LLM Agent will start in YOLO Mode)",
         prompt="YOLO mode (LLM Agent will start in YOLO Mode)",
@@ -100,6 +102,19 @@ _llm_ask_inputs = [
         always_prompt=False,
     ),
 ]
+
+
+def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
+    if ctx.input.yolo.strip() == "":
+        return None
+    elements = ctx.input.yolo.split(",")
+    if len(elements) == 0:
+        try:
+            return to_boolean(elements[0])
+        except Exception:
+            pass
+    return elements
+
 
 llm_ask: LLMTask = llm_group.add_task(
     LLMTask(
@@ -122,7 +137,7 @@ llm_ask: LLMTask = llm_group.add_task(
             None if ctx.input.modes.strip() == "" else ctx.input.modes.split(",")
         ),
         message="{ctx.input.message}",
-        is_yolo_mode="{ctx.input.yolo}",
+        yolo_mode=_render_yolo_mode_input,
         retries=0,
     ),
     alias="ask",

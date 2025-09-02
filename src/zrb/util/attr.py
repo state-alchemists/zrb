@@ -96,9 +96,9 @@ def get_bool_attr(
         bool: The boolean attribute value.
     """
     val = get_attr(shared_ctx, attr, default, auto_render)
-    if isinstance(val, str):
-        return to_boolean(val)
-    return val
+    if isinstance(val, bool):
+        return val
+    return to_boolean(val)
 
 
 def get_int_attr(
@@ -120,9 +120,9 @@ def get_int_attr(
         int: The integer attribute value.
     """
     val = get_attr(shared_ctx, attr, default, auto_render)
-    if isinstance(val, str):
-        return int(val)
-    return val
+    if isinstance(val, int):
+        return val
+    return int(val)
 
 
 def get_float_attr(
@@ -144,9 +144,9 @@ def get_float_attr(
         float | None: The float attribute value.
     """
     val = get_attr(shared_ctx, attr, default, auto_render)
-    if isinstance(val, str):
-        return float(val)
-    return val
+    if isinstance(val, (int, float)):
+        return val
+    return float(val)
 
 
 def get_attr(

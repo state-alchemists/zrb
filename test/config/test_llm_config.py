@@ -174,7 +174,7 @@ def test_default_model_none(monkeypatch):
     assert config.default_model is not None
 
 
-@mock.patch("pydantic_ai.models.openai.OpenAIModel")
+@mock.patch("pydantic_ai.models.openai.OpenAIChatModel")
 def test_default_model_from_name(mock_model, monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MODEL", "gpt-4")
     config = LLMConfig()

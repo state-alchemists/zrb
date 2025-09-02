@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -29,7 +29,7 @@ def fill_shared_context_inputs(
     shared_ctx: AnySharedContext,
     task: AnyTask,
     str_kwargs: dict[str, str] | None = None,
-    kwargs: dict[str, str] | None = None,
+    kwargs: dict[str, Any] | None = None,
 ):
     """
     Populates the shared context with input values provided via str_kwargs.
