@@ -26,7 +26,7 @@ class LLMConfig:
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
         default_model_provider: "Provider | None" = None,
-        default_yolo_mode: bool | None = None,
+        default_yolo_mode: bool | list[str] | None = None,
     ):
         self.__internal_default_prompt: dict[str, str] = {}
         self._default_model_name = default_model_name
@@ -175,7 +175,7 @@ class LLMConfig:
         )
 
     @property
-    def default_yolo_mode(self) -> bool:
+    def default_yolo_mode(self) -> bool | list[str]:
         return self._get_property(
             self._default_yolo_mode, CFG.LLM_YOLO_MODE, lambda: False
         )
@@ -236,7 +236,7 @@ class LLMConfig:
     def set_default_model_settings(self, model_settings: "ModelSettings"):
         self._default_model_settings = model_settings
 
-    def set_default_yolo_mode(self, yolo_mode: bool):
+    def set_default_yolo_mode(self, yolo_mode: bool | list[str]):
         self._default_yolo_mode = yolo_mode
 
 

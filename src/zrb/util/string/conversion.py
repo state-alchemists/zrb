@@ -1,7 +1,7 @@
 import re
 
 NON_ALPHA_NUM = re.compile(r"[^a-zA-Z0-9]+")
-TRUE_STRS = ["true", "1", "yes", "y", "active", "on"]
+TRUE_STRS = ["true", "1", "yes", "y", "active", "on", "okay", "ok"]
 FALSE_STRS = ["false", "0", "no", "n", "inactive", "off"]
 
 

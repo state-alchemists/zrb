@@ -304,8 +304,12 @@ class Config:
         return float(self._getenv("LLM_THROTTLE_SLEEP", "1.0"))
 
     @property
-    def LLM_YOLO_MODE(self) -> bool:
-        return to_boolean(self._getenv("LLM_YOLO_MODE", "false"))
+    def LLM_YOLO_MODE(self) -> bool | list[str]:
+        str_val = self._getenv("LLM_YOLO_MODE", "false")
+        try:
+            return to_boolean(str_val)
+        except Exception:
+            return [val.strip() for val in str_val.split(",") if val.strip() != ""]
 
     @property
     def LLM_SUMMARIZE_HISTORY(self) -> bool:

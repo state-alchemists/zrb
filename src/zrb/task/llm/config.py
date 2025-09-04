@@ -16,11 +16,13 @@ def get_yolo_mode(
     yolo_mode_attr: BoolAttr | StrAttr | None = None,
     render_yolo_mode: bool = True,
 ) -> bool | list[str]:
+    if yolo_mode_attr is None:
+        return llm_config.default_yolo_mode
     try:
         return get_bool_attr(
             ctx,
             yolo_mode_attr,
-            llm_config.default_yolo_mode,
+            False,
             auto_render=render_yolo_mode,
         )
     except Exception:

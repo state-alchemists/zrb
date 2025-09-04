@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.19
+
+- **Changed** Allows list of tool (comma separated) as `ZRB_LLM_YOLO_MODE` value.
+
 # 1.15.18
 
 - **Feature**: YOLO mode can now be a list of tool names to allow selective tool execution without confirmation.
