@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.20
+
+- **Fixed** Yolo mode input value
+
 # 1.15.19
 
 - **Changed** Allows list of tool (comma separated) as `ZRB_LLM_YOLO_MODE` value.
