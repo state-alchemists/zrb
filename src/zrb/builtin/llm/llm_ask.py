@@ -32,6 +32,26 @@ from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
 from zrb.util.string.conversion import to_boolean
 
+
+def _get_default_yolo_mode(ctx: AnyContext) -> str:
+    default_value = llm_config.default_yolo_mode
+    if isinstance(default_value, list):
+        return ",".join(default_value)
+    return f"{default_value}"
+
+
+def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
+    if ctx.input.yolo.strip() == "":
+        return None
+    elements = ctx.input.yolo.split(",")
+    if len(elements) == 0:
+        try:
+            return to_boolean(elements[0])
+        except Exception:
+            pass
+    return elements
+
+
 _llm_ask_inputs = [
     StrInput(
         "model",
@@ -88,7 +108,7 @@ _llm_ask_inputs = [
         "yolo",
         description="YOLO mode (LLM Agent will start in YOLO Mode)",
         prompt="YOLO mode (LLM Agent will start in YOLO Mode)",
-        default=lambda ctx: llm_config.default_yolo_mode,
+        default=_get_default_yolo_mode,
         allow_positional_parsing=False,
         always_prompt=False,
     ),
@@ -102,19 +122,6 @@ _llm_ask_inputs = [
         always_prompt=False,
     ),
 ]
-
-
-def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
-    if ctx.input.yolo.strip() == "":
-        return None
-    elements = ctx.input.yolo.split(",")
-    if len(elements) == 0:
-        try:
-            return to_boolean(elements[0])
-        except Exception:
-            pass
-    return elements
-
 
 llm_ask: LLMTask = llm_group.add_task(
     LLMTask(
