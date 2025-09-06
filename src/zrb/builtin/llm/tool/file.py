@@ -244,12 +244,19 @@ def read_from_file(
                 (inclusive). If omitted, reads to the end of the file.
 
         Returns:
-            str: A JSON object containing the file path, the requested content
+            str: A JSON string containing the file path, the requested content
                 with line numbers, the start and end lines, and the total number
                 of lines in the file.
-                Example: '{"path": "src/main.py", "content": "1| import os\n2|
-    3| print(\"Hello, World!\")", "start_line": 1, "end_line": 3,
-                "total_lines": 3}'
+                Example:
+                ```
+                {
+                    "path": "src/main.py",
+                    "content": "1| import os\n2|3| print(\"Hello, World!\")",
+                    "start_line": 1,
+                    "end_line": 3,
+                    "total_lines": 3
+                }
+                ```
         Raises:
             FileNotFoundError: If the specified file does not exist.
     """
@@ -309,7 +316,7 @@ def write_to_file(
             Do not use partial content or omit any lines.
 
     Returns:
-        str: A JSON object indicating success or failure.
+        str: A JSON string indicating success or failure.
              Example: '{"success": true, "path": "new_file.txt"}'
     """
     try:
@@ -352,7 +359,7 @@ def search_files(
             hidden files and directories. Defaults to True.
 
     Returns:
-        str: A JSON object containing a summary of the search and a list of
+        str: A JSON string containing a summary of the search and a list of
             results. Each result includes the file path and a list of matches,
             with each match showing the line number, line content, and a few
             lines of context from before and after the match.
@@ -467,7 +474,7 @@ def replace_in_file(
         new_string (str): The new string that will replace the `old_string`.
 
     Returns:
-        str: A JSON object indicating the success or failure of the operation.
+        str: A JSON string indicating the success or failure of the operation.
     Raises:
         FileNotFoundError: If the specified file does not exist.
         ValueError: If the `old_string` is not found in the file.
@@ -564,7 +571,7 @@ def read_many_files(paths: list[str]) -> str:
             if you are unsure about the exact file locations.
 
     Returns:
-        str: A JSON object where keys are the file paths and values are their
+        str: A JSON string where keys are the file paths and values are their
             corresponding contents, prefixed with line numbers. If a file
             cannot be read, its value will be an error message.
             Example: '{"results": {"src/api.py": "1| import ...",
@@ -601,7 +608,7 @@ def write_many_files(files: list[FileToWrite]) -> str:
             containing a 'path' and the complete 'content'.
 
     Returns:
-        str: A JSON object summarizing the operation, listing successfully
+        str: A JSON string summarizing the operation, listing successfully
             written files and any files that failed, along with corresponding
             error messages.
             Example: '{"success": ["file1.py", "file2.txt"], "errors": {}}'

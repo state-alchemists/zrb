@@ -18,7 +18,7 @@ async def open_web_page(url: str) -> str:
             "https://example.com/article").
 
     Returns:
-        str: A JSON object containing the page's content in Markdown format
+        str: A JSON string containing the page's content in Markdown format
             and a list of all absolute links found on the page.
     """
     html_content, links = await _fetch_page_content(url)
