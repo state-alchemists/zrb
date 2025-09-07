@@ -6,6 +6,7 @@ from collections.abc import Callable
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
+from zrb.util.cli.text import edit_text
 from zrb.util.file import read_file
 
 
@@ -85,24 +86,10 @@ class TextInput(BaseInput):
         comment_prompt_message = (
             f"{self.comment_start}{prompt_message}{self.comment_end}"
         )
-        comment_prompt_message_eol = f"{comment_prompt_message}\n"
         default_value = self.get_default_str(shared_ctx)
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=self._extension
-        ) as temp_file:
-            temp_file_name = temp_file.name
-            temp_file.write(comment_prompt_message_eol.encode())
-            # Pre-fill with default content
-            if default_value:
-                temp_file.write(default_value.encode())
-            temp_file.flush()
-            subprocess.call([self.editor_cmd, temp_file_name])
-            # Read the edited content
-            edited_content = read_file(temp_file_name)
-        parts = [
-            text.strip() for text in edited_content.split(comment_prompt_message, 1)
-        ]
-        edited_content = "\n".join(parts).lstrip()
-        os.remove(temp_file_name)
-        print(f"{prompt_message}: {edited_content}")
-        return edited_content
+        return edit_text(
+            prompt_message=comment_prompt_message,
+            value=default_value,
+            editor=self.editor_cmd,
+            extension=self._extension,
+        )
