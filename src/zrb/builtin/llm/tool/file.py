@@ -223,42 +223,42 @@ def read_from_file(
     end_line: Optional[int] = None,
 ) -> str:
     """
-        Reads the content of a file, optionally from a specific start line to an
-        end line.
+    Reads the content of a file, optionally from a specific start line to an
+    end line.
 
-        This tool is essential for inspecting file contents. It can read both text
-        and PDF files. The returned content is prefixed with line numbers, which is
-        crucial for providing context when you need to modify the file later with
-        the `apply_diff` tool.
+    This tool is essential for inspecting file contents. It can read both text
+    and PDF files. The returned content is prefixed with line numbers, which is
+    crucial for providing context when you need to modify the file later with
+    the `apply_diff` tool.
 
-        Use this tool to:
-        - Examine the source code of a file.
-        - Read configuration files.
-        - Check the contents of a document.
+    Use this tool to:
+    - Examine the source code of a file.
+    - Read configuration files.
+    - Check the contents of a document.
 
-        Args:
-            path (str): The path to the file to read.
-            start_line (int, optional): The 1-based line number to start reading
-                from. If omitted, reading starts from the beginning of the file.
-            end_line (int, optional): The 1-based line number to stop reading at
-                (inclusive). If omitted, reads to the end of the file.
+    Args:
+        path (str): The path to the file to read.
+        start_line (int, optional): The 1-based line number to start reading
+            from. If omitted, reading starts from the beginning of the file.
+        end_line (int, optional): The 1-based line number to stop reading at
+            (inclusive). If omitted, reads to the end of the file.
 
-        Returns:
-            str: A JSON string containing the file path, the requested content
-                with line numbers, the start and end lines, and the total number
-                of lines in the file.
-                Example:
-                ```
-                {
-                    "path": "src/main.py",
-                    "content": "1| import os\n2|3| print(\"Hello, World!\")",
-                    "start_line": 1,
-                    "end_line": 3,
-                    "total_lines": 3
-                }
-                ```
-        Raises:
-            FileNotFoundError: If the specified file does not exist.
+    Returns:
+        str: A JSON string containing the file path, the requested content
+            with line numbers, the start and end lines, and the total number
+            of lines in the file.
+            Example:
+            ```
+            {
+                "path": "src/main.py",
+                "content": "1| import os\n2|3| print(\"Hello, World!\")",
+                "start_line": 1,
+                "end_line": 3,
+                "total_lines": 3
+            }
+            ```
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
     """
 
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -316,7 +316,7 @@ def write_to_file(
             Do not use partial content or omit any lines.
 
     Returns:
-        str: A JSON string indicating success or failure.
+        dict[str, Any]: A dictionary indicating success or failure.
              Example: '{"success": true, "path": "new_file.txt"}'
     """
     try:
@@ -326,8 +326,7 @@ def write_to_file(
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
         write_file(abs_path, content)
-        result_data = {"success": True, "path": path}
-        return json.dumps(result_data)
+        return {"success": True, "path": path}
     except (OSError, IOError) as e:
         raise OSError(f"Error writing file {path}: {e}")
     except Exception as e:
@@ -359,7 +358,7 @@ def search_files(
             hidden files and directories. Defaults to True.
 
     Returns:
-        str: A JSON string containing a summary of the search and a list of
+        dict[str, Any]: A dictionary containing a summary of the search and a list of
             results. Each result includes the file path and a list of matches,
             with each match showing the line number, line content, and a few
             lines of context from before and after the match.
@@ -411,9 +410,7 @@ def search_files(
                 f"Found {match_count} matches in {file_match_count} files "
                 f"(searched {searched_file_count} files)."
             )
-        return json.dumps(
-            search_results
-        )  # No need for pretty printing for LLM consumption
+        return search_results
     except (OSError, IOError) as e:
         raise OSError(f"Error searching files in {path}: {e}")
     except Exception as e:
@@ -474,7 +471,7 @@ def replace_in_file(
         new_string (str): The new string that will replace the `old_string`.
 
     Returns:
-        str: A JSON string indicating the success or failure of the operation.
+        dict[str, Any]: A dictionary indicating the success or failure of the operation.
     Raises:
         FileNotFoundError: If the specified file does not exist.
         ValueError: If the `old_string` is not found in the file.
@@ -488,7 +485,7 @@ def replace_in_file(
             raise ValueError(f"old_string not found in file: {path}")
         new_content = content.replace(old_string, new_string, 1)
         write_file(abs_path, new_content)
-        return json.dumps({"success": True, "path": path})
+        return {"success": True, "path": path}
     except ValueError as e:
         raise e
     except (OSError, IOError) as e:
@@ -571,11 +568,10 @@ def read_many_files(paths: list[str]) -> str:
             if you are unsure about the exact file locations.
 
     Returns:
-        str: A JSON string where keys are the file paths and values are their
-            corresponding contents, prefixed with line numbers. If a file
-            cannot be read, its value will be an error message.
-            Example: '{"results": {"src/api.py": "1| import ...",
-            "config.yaml": "1| key: value"}}'
+        dict[str, str]:  a dictionary where keys are the file paths and values
+            are their corresponding contents, prefixed with line numbers.
+            If a file cannot be read, its value will be an error message.
+            Example: {"src/api.py": "1| import ...", "config.yaml": "1| key: value"}
     """
     results = {}
     for path in paths:
@@ -587,7 +583,7 @@ def read_many_files(paths: list[str]) -> str:
             results[path] = content
         except Exception as e:
             results[path] = f"Error reading file: {e}"
-    return json.dumps({"results": results})
+    return results
 
 
 def write_many_files(files: list[FileToWrite]) -> str:
@@ -608,10 +604,10 @@ def write_many_files(files: list[FileToWrite]) -> str:
             containing a 'path' and the complete 'content'.
 
     Returns:
-        str: A JSON string summarizing the operation, listing successfully
+        str: A dictionary summarizing the operation, listing successfully
             written files and any files that failed, along with corresponding
             error messages.
-            Example: '{"success": ["file1.py", "file2.txt"], "errors": {}}'
+            Example: {"success": ["file1.py", "file2.txt"], "errors": {}}
     """
     success = []
     errors = {}
@@ -630,4 +626,4 @@ def write_many_files(files: list[FileToWrite]) -> str:
             success.append(path)
         except Exception as e:
             errors[path] = f"Error writing file: {e}"
-    return json.dumps({"success": success, "errors": errors})
+    return {"success": success, "errors": errors}

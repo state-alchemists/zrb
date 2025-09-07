@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.21
+
+- **Removed** `_dummy` tool parameter is no longer needed.
+- **Changed** Use dictionary input instead of json string.
+
 # 1.15.20
 
 - **Fixed** Yolo mode input value

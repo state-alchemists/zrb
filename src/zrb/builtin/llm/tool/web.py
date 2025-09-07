@@ -2,6 +2,8 @@ import json
 from collections.abc import Callable
 from urllib.parse import urljoin
 
+_DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
+
 
 async def open_web_page(url: str) -> str:
     """
@@ -47,22 +49,22 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
         """
         Performs an internet search using Google and returns a summary of the results.
 
-        Use this tool to find information on the web, answer general knowledge questions, or research topics.
+        Use this tool to find information on the web, answer general knowledge questions,
+        or research topics.
 
         Args:
             query (str): The search query.
             num_results (int, optional): The desired number of search results. Defaults to 10.
 
         Returns:
-            str: A formatted string summarizing the search results, including titles, links, and snippets.
+            str: A formatted string summarizing the search results,
+                including titles, links, and snippets.
         """
         import requests
 
         response = requests.get(
             "https://serpapi.com/search",
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            },
+            headers={"User-Agent": _DEFAULT_USER_AGENT},
             params={
                 "q": query,
                 "num": num_results,
@@ -73,7 +75,7 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
         )
         if response.status_code != 200:
             raise Exception(
-                f"Error: Unable to retrieve search results (status code: {response.status_code})"
+                f"Error: Unable to retrieve search results (status code: {response.status_code})"  # noqa
             )
         return response.json()
 
@@ -100,9 +102,7 @@ def search_wikipedia(query: str) -> str:
     params = {"action": "query", "list": "search", "srsearch": query, "format": "json"}
     response = requests.get(
         "https://en.wikipedia.org/w/api.php",
-        headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        },
+        headers={"User-Agent": _DEFAULT_USER_AGENT},
         params=params,
     )
     return response.json()
@@ -131,9 +131,7 @@ def search_arxiv(query: str, num_results: int = 10) -> str:
     params = {"search_query": f"all:{query}", "start": 0, "max_results": num_results}
     response = requests.get(
         "http://export.arxiv.org/api/query",
-        headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        },
+        headers={"User-Agent": _DEFAULT_USER_AGENT},
         params=params,
     )
     return response.content
@@ -141,14 +139,13 @@ def search_arxiv(query: str, num_results: int = 10) -> str:
 
 async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
     """Fetches the HTML content and all absolute links from a URL."""
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     try:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
-            await page.set_extra_http_headers({"User-Agent": user_agent})
+            await page.set_extra_http_headers({"User-Agent": _DEFAULT_USER_AGENT})
             try:
                 await page.goto(url, wait_until="networkidle", timeout=30000)
                 await page.wait_for_load_state("domcontentloaded")
@@ -176,7 +173,7 @@ async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
         import requests
         from bs4 import BeautifulSoup
 
-        response = requests.get(url, headers={"User-Agent": user_agent})
+        response = requests.get(url, headers={"User-Agent": _DEFAULT_USER_AGENT})
         if response.status_code != 200:
             raise Exception(
                 f"Unable to retrieve page content. Status code: {response.status_code}"

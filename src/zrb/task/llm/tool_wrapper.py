@@ -108,11 +108,6 @@ def _create_wrapper(
             # Inject the captured ctx into kwargs. This will overwrite if the LLM
             # somehow provided it.
             kwargs[any_context_param_name] = ctx
-        # If the dummy argument was added for schema generation and is present in kwargs,
-        # remove it before calling the original function, unless the original function
-        # actually expects a parameter named '_dummy'.
-        if "_dummy" in kwargs and "_dummy" not in original_sig.parameters:
-            del kwargs["_dummy"]
         try:
             if not ctx.is_web_mode and ctx.is_tty:
                 if (
@@ -247,22 +242,4 @@ def _adjust_signature(
         if not _is_annotated_with_context(param.annotation, RunContext)
         and not _is_annotated_with_context(param.annotation, AnyContext)
     ]
-
-    # If after removing context parameters, there are no parameters left,
-    # and the original function took no args, keep the dummy.
-    # If after removing context parameters, there are no parameters left,
-    # but the original function *did* take args (only context), then the schema
-    # should have no parameters.
-    if not params_for_schema and takes_no_args:
-        # Keep the dummy if the original function truly had no parameters
-        new_sig = inspect.Signature(
-            parameters=[
-                inspect.Parameter(
-                    "_dummy", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None
-                )
-            ]
-        )
-    else:
-        new_sig = inspect.Signature(parameters=params_for_schema)
-
-    wrapper.__signature__ = new_sig
+    wrapper.__signature__ = inspect.Signature(parameters=params_for_schema)

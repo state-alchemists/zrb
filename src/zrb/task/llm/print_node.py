@@ -191,7 +191,7 @@ def _get_event_part_args(event: Any) -> Any:
 
 
 def _truncate_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
-    return {key: _truncate_arg(val) for key, val in kwargs.items() if key != "_dummy"}
+    return {key: _truncate_arg(val) for key, val in kwargs.items()}
 
 
 def _truncate_arg(arg: str, length: int = 19) -> str:

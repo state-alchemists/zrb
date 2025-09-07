@@ -1,8 +1,7 @@
-import json
 from typing import Literal
 
 
-def get_current_location() -> str:
+def get_current_location() -> dict[str, float]:
     """
     Fetches the user's current geographical location based on their IP address.
 
@@ -11,8 +10,9 @@ def get_current_location() -> str:
     answered.
 
     Returns:
-        str: A JSON string containing the 'lat' and 'lon' of the current
-            location. Example: '{"lat": 48.8584, "lon": 2.2945}'
+        dict[str, float]: A dictionary containing the 'lat' and 'lon' of the current
+            location.
+            Example: {"lat": 48.8584, "lon": 2.2945}
     Raises:
         requests.RequestException: If the API request to the location service
             fails.
@@ -22,7 +22,7 @@ def get_current_location() -> str:
     try:
         response = requests.get("http://ip-api.com/json?fields=lat,lon", timeout=5)
         response.raise_for_status()
-        return json.dumps(response.json())
+        return dict(response.json())
     except requests.RequestException as e:
         raise requests.RequestException(f"Failed to get location: {e}") from None
 
@@ -46,7 +46,7 @@ def get_current_weather(
             for the temperature reading.
 
     Returns:
-        str: A JSON string containing detailed weather data, including
+        dict[str, Any]: A dictionary containing detailed weather data, including
             temperature, wind speed, and weather code.
     Raises:
         requests.RequestException: If the API request to the weather service
@@ -66,6 +66,6 @@ def get_current_weather(
             timeout=5,
         )
         response.raise_for_status()
-        return json.dumps(response.json())
+        return dict(response.json())
     except requests.RequestException as e:
         raise requests.RequestException(f"Failed to get weather data: {e}") from None

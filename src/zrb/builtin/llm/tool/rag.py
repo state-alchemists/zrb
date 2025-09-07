@@ -201,7 +201,7 @@ def create_rag_from_directory(
             query_embeddings=query_vector,
             n_results=max_result_count_val,
         )
-        return json.dumps(results)
+        return dict(results)
 
     retrieve.__name__ = tool_name
     retrieve.__doc__ = dedent(
@@ -210,7 +210,7 @@ def create_rag_from_directory(
         Args:
             query (str): The user query to search for in documents.
         Returns:
-            str: JSON string with search results: {{"ids": [...], "documents": [...], ...}}
+            str: dictionary with search results: {{"ids": [...], "documents": [...], ...}}
         """
     ).strip()
     return retrieve

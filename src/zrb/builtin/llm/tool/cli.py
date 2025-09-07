@@ -1,4 +1,3 @@
-import json
 import subprocess
 
 
@@ -19,7 +18,7 @@ def run_shell_command(command: str) -> str:
         command (str): The exact shell command to execute.
 
     Returns:
-        str: A JSON string containing return code, standard output (stdout),
+        dict[str, Any]: A dictionary containing return code, standard output (stdout),
             and standard error (stderr) from the command.
             Example: {"return_code": 0, "stdout": "ok", "stderr": ""}
     """
@@ -29,10 +28,8 @@ def run_shell_command(command: str) -> str:
         capture_output=True,
         text=True,
     )
-    return json.dumps(
-        {
-            "return_code": result.returncode,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-        }
-    )
+    return {
+        "return_code": result.returncode,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+    }
