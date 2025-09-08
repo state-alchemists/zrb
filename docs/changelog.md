@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.22
+
+- **Added** Capability to edit LLM tool call parameter
+
 # 1.15.21
 
 - **Removed** `_dummy` tool parameter is no longer needed.
