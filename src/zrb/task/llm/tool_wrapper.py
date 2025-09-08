@@ -15,6 +15,7 @@ from zrb.util.cli.style import (
     stylize_green,
     stylize_yellow,
 )
+from zrb.util.cli.text import edit_text
 from zrb.util.run import run_async
 from zrb.util.string.conversion import to_boolean
 
@@ -39,7 +40,6 @@ def wrap_tool(func: Callable, ctx: AnyContext, yolo_mode: bool | list[str]) -> "
 def wrap_func(func: Callable, ctx: AnyContext, yolo_mode: bool | list[str]) -> Callable:
     original_sig = inspect.signature(func)
     needs_any_context_for_injection = _has_context_parameter(original_sig, AnyContext)
-    takes_no_args = len(original_sig.parameters) == 0
     # Pass individual flags to the wrapper creator
     wrapper = _create_wrapper(
         func=func,
@@ -48,7 +48,7 @@ def wrap_func(func: Callable, ctx: AnyContext, yolo_mode: bool | list[str]) -> C
         needs_any_context_for_injection=needs_any_context_for_injection,
         yolo_mode=yolo_mode,
     )
-    _adjust_signature(wrapper, original_sig, takes_no_args)
+    _adjust_signature(wrapper, original_sig)
     return wrapper
 
 
@@ -113,7 +113,9 @@ def _create_wrapper(
                 if (
                     isinstance(yolo_mode, list) and func.__name__ not in yolo_mode
                 ) or not yolo_mode:
-                    approval, reason = await _ask_for_approval(ctx, func, args, kwargs)
+                    approval, reason = await _handle_user_response(
+                        ctx, func, args, kwargs
+                    )
                     if not approval:
                         raise ToolExecutionCancelled(f"User disapproving: {reason}")
             return await run_async(func(*args, **kwargs))
@@ -131,8 +133,11 @@ def _create_wrapper(
     return wrapper
 
 
-async def _ask_for_approval(
-    ctx: AnyContext, func: Callable, args: list[Any], kwargs: dict[str, Any]
+async def _handle_user_response(
+    ctx: AnyContext,
+    func: Callable,
+    args: list[Any] | tuple[Any],
+    kwargs: dict[str, Any],
 ) -> tuple[bool, str]:
     func_call_str = _get_func_call_str(func, args, kwargs)
     complete_confirmation_message = "\n".join(
@@ -144,41 +149,54 @@ async def _ask_for_approval(
     )
     while True:
         ctx.print(complete_confirmation_message, plain=True)
-        user_input = await _read_line()
+        user_response = await _read_line()
         ctx.print("", plain=True)
-        user_responses = [val.strip() for val in user_input.split(",", maxsplit=1)]
-        while len(user_responses) < 2:
-            user_responses.append("")
-        approval_str, reason = user_responses
-        try:
-            approved = True if approval_str.strip() == "" else to_boolean(approval_str)
-            if not approved and reason == "":
-                ctx.print(
-                    stylize_error(
-                        f"You must specify rejection reason (i.e., No, <why>) for {func_call_str}"  # noqa
-                    ),
-                    plain=True,
-                )
-                continue
-            return approved, reason
-        except Exception:
+        approval_and_reason = _get_user_approval_and_reason(
+            ctx, user_response, func_call_str
+        )
+        if approval_and_reason is None:
+            continue
+        return approval_and_reason
+
+
+def _get_user_approval_and_reason(
+    ctx: AnyContext, user_response: str, func_call_str: str
+) -> tuple[bool, str] | None:
+    user_approval_responses = [
+        val.strip() for val in user_response.split(",", maxsplit=1)
+    ]
+    while len(user_approval_responses) < 2:
+        user_approval_responses.append("")
+    approval_str, reason = user_approval_responses
+    try:
+        approved = True if approval_str.strip() == "" else to_boolean(approval_str)
+        if not approved and reason == "":
             ctx.print(
                 stylize_error(
-                    f"Invalid approval value for {func_call_str}: {approval_str}"
+                    f"You must specify rejection reason (i.e., No, <why>) for {func_call_str}"  # noqa
                 ),
                 plain=True,
             )
-            continue
+            return None
+        return approved, reason
+    except Exception:
+        ctx.print(
+            stylize_error(
+                f"Invalid approval value for {func_call_str}: {approval_str}"
+            ),
+            plain=True,
+        )
+        return None
 
 
 def _get_run_func_confirmation(func: Callable) -> str:
     func_name = get_callable_name(func)
     return render_markdown(
-        f"Allow to run `{func_name}`? (✅ `Yes` | ⛔ `No, <reason>`)"
+        f"Allow to run `{func_name}`? (✅ `Yes` | ⛔ `No, <reason>` | ✏️ `Edit <param> <value>`)"
     ).strip()
 
 
-def _get_detail_func_param(args: list[Any], kwargs: dict[str, Any]) -> str:
+def _get_detail_func_param(args: list[Any] | tuple[Any], kwargs: dict[str, Any]) -> str:
     markdown = "\n".join(
         [_get_func_param_item(key, val) for key, val in kwargs.items()]
     )
@@ -198,7 +216,9 @@ def _get_func_param_item(key: str, val: Any) -> str:
     return "\n".join(lines)
 
 
-def _get_func_call_str(func: Callable, args: list[Any], kwargs: dict[str, Any]) -> str:
+def _get_func_call_str(
+    func: Callable, args: list[Any] | tuple[Any], kwargs: dict[str, Any]
+) -> str:
     func_name = get_callable_name(func)
     normalized_args = [stylize_green(_truncate_arg(arg)) for arg in args]
     normalized_kwargs = []
@@ -225,9 +245,7 @@ async def _read_line():
     return await reader.prompt_async()
 
 
-def _adjust_signature(
-    wrapper: Callable, original_sig: inspect.Signature, takes_no_args: bool
-):
+def _adjust_signature(wrapper: Callable, original_sig: inspect.Signature):
     """Adjusts the wrapper function's signature for schema generation."""
     # The wrapper's signature should represent the arguments the *LLM* needs to provide.
     # The LLM does not provide RunContext (pydantic-ai injects it) or AnyContext
