@@ -159,6 +159,17 @@ async def _handle_user_response(
         return approval_and_reason
 
 
+def _get_edited_kwargs(
+    cx: AnyContext, user_response: str, kwargs: dict[str, Any]
+) -> dict[str, Any]:
+    user_edit_responses = [val for val in user_response.split(" ", maxsplit=2)]
+    if len(user_edit_responses) < 2:
+        pass
+    if len(user_edit_responses) == 3:
+        pass
+    return kwargs
+
+
 def _get_user_approval_and_reason(
     ctx: AnyContext, user_response: str, func_call_str: str
 ) -> tuple[bool, str] | None:
