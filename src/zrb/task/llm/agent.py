@@ -199,7 +199,6 @@ async def _run_single_agent_iteration(
         ) as agent_run:
             async for node in agent_run:
                 # Each node represents a step in the agent's execution
-                # Reference: https://ai.pydantic.dev/agents/#streaming
                 try:
                     await print_node(
                         _get_plain_printer(ctx), agent_run, node, log_indent_level

@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.23
+
+- **Fixed** Chose emojis with good visibilities on terminal
+- **Updated** Pydantic AI to 1.0.1
+
 # 1.15.22
 
 - **Added** Capability to edit LLM tool call parameter

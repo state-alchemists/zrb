@@ -28,7 +28,7 @@ async def print_node(
     elif Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
         print_func(_format_header("🧠 Processing...", log_indent_level))
-        # Reference: https://ai.pydantic.dev/agents/#streaming
+        # Reference: https://ai.pydantic.dev/agents/#streaming-all-events-and-output
         try:
             async with node.stream(agent_run.ctx) as request_stream:
                 is_streaming = False
@@ -40,9 +40,7 @@ async def print_node(
                         print_func(_format_content(content, log_indent_level), end="")
                         is_streaming = True
                     elif isinstance(event, PartDeltaEvent):
-                        if isinstance(event.delta, TextPartDelta) or isinstance(
-                            event.delta, ThinkingPartDelta
-                        ):
+                        if isinstance(event.delta, TextPartDelta):
                             content_delta = event.delta.content_delta
                             print_func(
                                 _format_stream_content(content_delta, log_indent_level),
@@ -78,7 +76,7 @@ async def print_node(
             print_func(
                 _format_content(
                     (
-                        f"⚠️ Unexpected Model Behavior: {e}. "
+                        f"🟡 Unexpected Model Behavior: {e}. "
                         f"Cause: {e.__cause__}. Node.Id: {meta}"
                     ),
                     log_indent_level,
@@ -112,7 +110,7 @@ async def print_node(
             print_func(
                 _format_content(
                     (
-                        f"⚠️ Unexpected Model Behavior: {e}. "
+                        f"🟡 Unexpected Model Behavior: {e}. "
                         f"Cause: {e.__cause__}. Node.Id: {meta}"
                     ),
                     log_indent_level,
@@ -123,7 +121,7 @@ async def print_node(
         print_func(_format_header("✅ Completed...", log_indent_level))
 
 
-def _format_header(text: str, log_indent_level: int = 0) -> str:
+def _format_header(text: str | None, log_indent_level: int = 0) -> str:
     return _format(
         text,
         base_indent=2,
@@ -133,7 +131,7 @@ def _format_header(text: str, log_indent_level: int = 0) -> str:
     )
 
 
-def _format_content(text: str, log_indent_level: int = 0) -> str:
+def _format_content(text: str | None, log_indent_level: int = 0) -> str:
     return _format(
         text,
         base_indent=2,
@@ -143,7 +141,7 @@ def _format_content(text: str, log_indent_level: int = 0) -> str:
     )
 
 
-def _format_stream_content(text: str, log_indent_level: int = 0) -> str:
+def _format_stream_content(text: str | None, log_indent_level: int = 0) -> str:
     return _format(
         text,
         base_indent=2,
@@ -154,13 +152,15 @@ def _format_stream_content(text: str, log_indent_level: int = 0) -> str:
 
 
 def _format(
-    text: str,
+    text: str | None,
     base_indent: int = 0,
     first_indent: int = 0,
     indent: int = 0,
     log_indent_level: int = 0,
     is_stream: bool = False,
 ) -> str:
+    if text is None:
+        text = ""
     line_prefix = (base_indent * (log_indent_level + 1) + indent) * " "
     processed_text = text.replace("\n", f"\n{line_prefix}")
     if is_stream:

@@ -220,7 +220,7 @@ def _get_user_approval_and_reason(
 def _get_run_func_confirmation(func: Callable) -> str:
     func_name = get_callable_name(func)
     return render_markdown(
-        f"Allow to run `{func_name}`? (✅ `Yes` | ⛔ `No, <reason>` | ✏️ `Edit <param> <value>`)"
+        f"Allow to run `{func_name}`? (✅ `Yes` | ⛔ `No, <reason>` | 📝 `Edit <param> <value>`)"
     ).strip()
 
 
