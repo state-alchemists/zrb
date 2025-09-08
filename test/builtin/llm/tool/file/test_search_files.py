@@ -113,7 +113,7 @@ def test_search_files_basic(temp_dir):
 
     # Explicitly exclude hidden files to avoid OS-specific temp files interfering
     result = search_files(path=temp_dir, regex="target", include_hidden=False)
-    data = json.loads(result)
+    data = result
 
     # Use regex to check summary counts robustly
     summary_match = re.search(
@@ -162,7 +162,7 @@ def test_search_files_no_matches(temp_dir):
     create_file(os.path.join(temp_dir, "file2.py"), "import os\nprint('done')")
 
     result = search_files(path=temp_dir, regex="nonexistent_pattern")
-    data = json.loads(result)
+    data = result
 
     assert "No matches found" in data["summary"]
     assert len(data["results"]) == 0
@@ -175,7 +175,7 @@ def test_search_files_with_file_pattern(temp_dir):
 
     # Search only in .txt files
     result = search_files(path=temp_dir, regex="target", file_pattern="*.txt")
-    data = json.loads(result)
+    data = result
 
     assert "Found 2 matches in 2 files" in data["summary"]
     assert len(data["results"]) == 2
@@ -195,7 +195,7 @@ def test_search_files_hidden_files(temp_dir):
 
     # Default: include_hidden=True
     result_incl = search_files(path=temp_dir, regex="target")
-    data_incl = json.loads(result_incl)
+    data_incl = result_incl
     # TODO: Investigate why search_files reports 2 matches/files here when include_hidden=True.
     # Based on setup, expected 3 matches in 3 files. Adjusting assert for now.
     summary_match_incl = re.search(
@@ -212,7 +212,7 @@ def test_search_files_hidden_files(temp_dir):
 
     # Explicitly exclude hidden
     result_excl = search_files(path=temp_dir, regex="target", include_hidden=False)
-    data_excl = json.loads(result_excl)
+    data_excl = result_excl
     # Adjust regex to handle optional 's' for pluralization
     summary_match_excl = re.search(
         r"Found (\d+) match(?:es)? in (\d+) file(?:s)?", data_excl["summary"]
@@ -236,7 +236,7 @@ def test_search_files_path_not_exist(temp_dir):
     non_existent_path = os.path.join(temp_dir, "non_existent_dir")
     # Should return "No matches found" summary, not raise OSError
     result = search_files(path=non_existent_path, regex=".*")
-    data = json.loads(result)
+    data = result
     assert "No matches found" in data["summary"]
     assert f"in path '{non_existent_path}'" in data["summary"]
     assert len(data["results"]) == 0
@@ -257,7 +257,7 @@ def test_search_files_read_error(temp_dir):
         pytest.skip("Could not change file permissions to test read error.")
 
     result = search_files(path=temp_dir, regex="target")
-    data = json.loads(result)
+    data = result
 
     # Restore permissions for cleanup
     os.chmod(file_path, 0o644)

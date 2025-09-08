@@ -29,7 +29,7 @@ def test_write_to_file_create_new(temp_dir):
     content = "Hello\nWorld"
 
     result = write_to_file(path=file_path, content=content)
-    data = json.loads(result)
+    data = result
 
     assert data["success"] is True
     assert data["path"] == file_path
@@ -46,7 +46,7 @@ def test_write_to_file_overwrite_existing(temp_dir):
     new_content = "Overwritten\nContent"
 
     result = write_to_file(path=file_path, content=new_content)
-    data = json.loads(result)
+    data = result
 
     assert data["success"] is True
     assert data["path"] == file_path
@@ -60,7 +60,7 @@ def test_write_to_file_create_subdir(temp_dir):
     content = "Content in subdir"
 
     result = write_to_file(path=file_path, content=content)
-    data = json.loads(result)
+    data = result
 
     assert data["success"] is True
     assert data["path"] == file_path
@@ -75,7 +75,7 @@ def test_write_to_file_empty_content(temp_dir):
     content = ""
 
     result = write_to_file(path=file_path, content=content)
-    data = json.loads(result)
+    data = result
 
     assert data["success"] is True
     assert data["path"] == file_path
