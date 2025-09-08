@@ -168,6 +168,7 @@ def _get_edited_kwargs(
     cx: AnyContext, user_response: str, kwargs: dict[str, Any]
 ) -> tuple[dict[str, Any], bool]:
     user_edit_responses = [val for val in user_response.split(" ", maxsplit=2)]
+    print("DEBUG", len(user_edit_responses), user_edit_responses[0].lower())
     if len(user_edit_responses) >= 2 and user_edit_responses[0].lower() != "edit":
         return kwargs, False
     while len(user_edit_responses) < 3:
