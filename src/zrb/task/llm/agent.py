@@ -217,7 +217,7 @@ async def _run_single_agent_iteration(
 
 
 def _create_print_throttle_notif(ctx: AnyContext) -> Callable[[], None]:
-    def _print_throttle_notif(ctx: AnyContext):
+    def _print_throttle_notif():
         ctx.print(stylize_faint("  ⌛>> Request Throttled"), plain=True)
 
     return _print_throttle_notif
