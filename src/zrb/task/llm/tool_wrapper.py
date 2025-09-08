@@ -5,6 +5,7 @@ import typing
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.callable import get_callable_name
@@ -139,18 +140,22 @@ async def _handle_user_response(
     args: list[Any] | tuple[Any],
     kwargs: dict[str, Any],
 ) -> tuple[bool, str]:
-    func_call_str = _get_func_call_str(func, args, kwargs)
-    complete_confirmation_message = "\n".join(
-        [
-            f"\n🎰 >> {func_call_str}",
-            _get_detail_func_param(args, kwargs),
-            f"🎰  >> {_get_run_func_confirmation(func)}",
-        ]
-    )
     while True:
+        func_call_str = _get_func_call_str(func, args, kwargs)
+        complete_confirmation_message = "\n".join(
+            [
+                f"\n🎰 >> {func_call_str}",
+                _get_detail_func_param(args, kwargs),
+                f"🎰  >> {_get_run_func_confirmation(func)}",
+            ]
+        )
         ctx.print(complete_confirmation_message, plain=True)
         user_response = await _read_line()
         ctx.print("", plain=True)
+        new_kwargs, is_edited = _get_edited_kwargs(ctx, user_response, kwargs)
+        if is_edited:
+            kwargs = new_kwargs
+            continue
         approval_and_reason = _get_user_approval_and_reason(
             ctx, user_response, func_call_str
         )
@@ -161,13 +166,25 @@ async def _handle_user_response(
 
 def _get_edited_kwargs(
     cx: AnyContext, user_response: str, kwargs: dict[str, Any]
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], bool]:
     user_edit_responses = [val for val in user_response.split(" ", maxsplit=2)]
-    if len(user_edit_responses) < 2:
-        pass
-    if len(user_edit_responses) == 3:
-        pass
-    return kwargs
+    if len(user_edit_responses) >= 2 and user_edit_responses[0].lower() != "edit":
+        return kwargs, False
+    while len(user_edit_responses) < 3:
+        user_edit_responses.append("")
+    key, val = user_edit_responses[1:]
+    if key not in kwargs:
+        return kwargs, True
+    if val != "":
+        kwargs[key] = val
+        return kwargs, True
+    val = edit_text(
+        prompt_message=f"// {key}",
+        value=kwargs.get(key, ""),
+        editor=CFG.DEFAULT_EDITOR,
+    )
+    kwargs[key] = val
+    return kwargs, True
 
 
 def _get_user_approval_and_reason(
