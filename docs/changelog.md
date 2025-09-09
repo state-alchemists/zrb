@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.24
+
+- **Updated** Use [output function](https://ai.pydantic.dev/output/#output-functions) for summarization.
+
 # 1.15.23
 
 - **Fixed** Chose emojis with good visibilities on terminal
