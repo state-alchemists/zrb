@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from pydantic_ai.agent import AgentRun
     from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
+    from pydantic_ai.output import OutputDataT, OutputSpec
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.toolsets import AbstractToolset
 
@@ -25,13 +26,14 @@ if TYPE_CHECKING:
 def create_agent_instance(
     ctx: AnyContext,
     model: "str | Model",
+    output_type: "OutputSpec[OutputDataT]" = str,
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
     tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[Agent]"] = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
-) -> "Agent":
+) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import GenerateToolJsonSchema
@@ -63,8 +65,9 @@ def create_agent_instance(
             # Turn function into tool
             tool_list.append(wrap_tool(tool_or_callable, ctx, yolo_mode))
     # Return Agent
-    return Agent(
+    return Agent[None, Any](
         model=model,
+        output_type=output_type,
         system_prompt=system_prompt,
         tools=tool_list,
         toolsets=toolsets,
@@ -77,14 +80,15 @@ def get_agent(
     ctx: AnyContext,
     agent_attr: "Agent | Callable[[AnySharedContext], Agent] | None",
     model: "str | Model",
-    system_prompt: str,
-    model_settings: "ModelSettings | None",
+    output_type: "OutputSpec[OutputDataT]" = str,
+    system_prompt: str = "",
+    model_settings: "ModelSettings | None" = None,
     tools_attr: (
         "list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]"
-    ),
-    additional_tools: "list[ToolOrCallable]",
-    toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]",  # noqa
-    additional_toolsets: "list[AbstractToolset[Agent]]",
+    ) = [],
+    additional_tools: "list[ToolOrCallable]" = [],
+    toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]" = [],  # noqa
+    additional_toolsets: "list[AbstractToolset[Agent]]" = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
 ) -> "Agent":
@@ -113,6 +117,7 @@ def get_agent(
     return create_agent_instance(
         ctx=ctx,
         model=model,
+        output_type=output_type,
         system_prompt=system_prompt,
         tools=tools,
         toolsets=tool_sets,
@@ -124,7 +129,7 @@ def get_agent(
 
 async def run_agent_iteration(
     ctx: AnyContext,
-    agent: "Agent",
+    agent: "Agent[None, Any]",
     user_prompt: str,
     attachments: "list[UserContent] | None" = None,
     history_list: ListOfDict | None = None,

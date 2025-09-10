@@ -143,12 +143,13 @@ async def summarize_history(
             ),
         ]
     )
-    summarization_agent = Agent(
+    summarize = create_history_summarization_tool(conversation_history)
+    summarization_agent = Agent[None, str](
         model=model,
+        output_type=summarize,
         system_prompt=system_prompt,
         model_settings=settings,
         retries=retries,
-        tools=[create_history_summarization_tool(conversation_history)],
     )
     try:
         ctx.print(stylize_faint("  📝 Rollup Conversation"), plain=True)
