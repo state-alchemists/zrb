@@ -61,6 +61,7 @@ _LAZY_LOAD = {
 }
 
 if TYPE_CHECKING:
+    from zrb import builtin
     from zrb.attr.type import (
         AnyAttr,
         BoolAttr,
@@ -126,9 +127,4 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# Eager load CFG
-CFG = __getattr__("CFG")
-if CFG.LOAD_BUILTIN:
-    from zrb import builtin
-
-    assert builtin
+from zrb import builtin

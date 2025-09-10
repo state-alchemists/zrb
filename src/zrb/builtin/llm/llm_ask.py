@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
@@ -31,6 +34,42 @@ from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
 from zrb.util.string.conversion import to_boolean
+
+if TYPE_CHECKING:
+    from pydantic_ai import Tool
+
+    ToolOrCallable = Tool | Callable
+
+
+def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
+    tools = []
+    if CFG.LLM_ALLOW_ANALYZE_REPO:
+        tools.append(analyze_repo)
+    if CFG.LLM_ALLOW_ANALYZE_FILE:
+        tools.append(analyze_file)
+    if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
+        tools.append(search_files)
+        tools.append(list_files)
+        tools.append(read_from_file)
+        tools.append(read_many_files)
+        tools.append(replace_in_file)
+        tools.append(write_to_file)
+        tools.append(write_many_files)
+    if CFG.LLM_ALLOW_ACCESS_SHELL:
+        tools.append(run_shell_command)
+    if CFG.LLM_ALLOW_OPEN_WEB_PAGE:
+        tools.append(open_web_page)
+    if CFG.LLM_ALLOW_SEARCH_WIKIPEDIA:
+        tools.append(search_wikipedia)
+    if CFG.LLM_ALLOW_SEARCH_ARXIV:
+        tools.append(search_arxiv)
+    if CFG.LLM_ALLOW_GET_CURRENT_LOCATION:
+        tools.append(get_current_location)
+    if CFG.LLM_ALLOW_GET_CURRENT_WEATHER:
+        tools.append(get_current_weather)
+    if CFG.SERPAPI_KEY != "" and CFG.LLM_ALLOW_SEARCH_INTERNET:
+        tools.append(create_search_internet_tool(CFG.SERPAPI_KEY))
+    return tools
 
 
 def _get_default_yolo_mode(ctx: AnyContext) -> str:
@@ -92,7 +131,7 @@ _llm_ask_inputs = [
         "modes",
         description="Modes",
         prompt="Modes",
-        default="coding",
+        default=lambda ctx: ",".join(llm_config.default_modes),
         allow_positional_parsing=False,
         always_prompt=False,
     ),
@@ -144,6 +183,7 @@ llm_ask: LLMTask = llm_group.add_task(
             None if ctx.input.modes.strip() == "" else ctx.input.modes.split(",")
         ),
         message="{ctx.input.message}",
+        tools=_get_tool,
         yolo_mode=_render_yolo_mode_input,
         retries=0,
     ),
@@ -169,41 +209,3 @@ llm_group.add_task(
     ),
     alias="chat",
 )
-
-if CFG.LLM_ALLOW_ANALYZE_REPO:
-    llm_ask.append_tool(analyze_repo)
-
-if CFG.LLM_ALLOW_ANALYZE_FILE:
-    llm_ask.append_tool(analyze_file)
-
-if CFG.LLM_ALLOW_ACCESS_LOCAL_FILE:
-    llm_ask.append_tool(
-        search_files,
-        list_files,
-        read_from_file,
-        read_many_files,
-        replace_in_file,
-        write_to_file,
-        write_many_files,
-    )
-
-if CFG.LLM_ALLOW_ACCESS_SHELL:
-    llm_ask.append_tool(run_shell_command)
-
-if CFG.LLM_ALLOW_OPEN_WEB_PAGE:
-    llm_ask.append_tool(open_web_page)
-
-if CFG.LLM_ALLOW_SEARCH_WIKIPEDIA:
-    llm_ask.append_tool(search_wikipedia)
-
-if CFG.LLM_ALLOW_SEARCH_ARXIV:
-    llm_ask.append_tool(search_arxiv)
-
-if CFG.LLM_ALLOW_GET_CURRENT_LOCATION:
-    llm_ask.append_tool(get_current_location)
-
-if CFG.LLM_ALLOW_GET_CURRENT_WEATHER:
-    llm_ask.append_tool(get_current_weather)
-
-if CFG.SERPAPI_KEY != "" and CFG.LLM_ALLOW_SEARCH_INTERNET:
-    llm_ask.append_tool(create_search_internet_tool(CFG.SERPAPI_KEY))
