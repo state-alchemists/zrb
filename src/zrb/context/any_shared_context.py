@@ -29,26 +29,32 @@ class AnySharedContext(ABC):
         pass
 
     @property
+    @abstractmethod
     def input(self) -> DotDict:
         pass
 
     @property
+    @abstractmethod
     def env(self) -> DotDict:
         pass
 
     @property
+    @abstractmethod
     def args(self) -> list[Any]:
         pass
 
     @property
-    def xcom(self) -> DotDict[str, Xcom]:
+    @abstractmethod
+    def xcom(self) -> DotDict:
         pass
 
     @property
+    @abstractmethod
     def shared_log(self) -> list[str]:
         pass
 
     @property
+    @abstractmethod
     def session(self) -> any_session.AnySession | None:
         pass
 

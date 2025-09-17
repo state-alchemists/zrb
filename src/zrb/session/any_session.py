@@ -1,5 +1,6 @@
 from __future__ import annotations  # Enables forward references
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Coroutine, TypeVar
 
@@ -62,12 +63,13 @@ class AnySession(ABC):
 
     @property
     @abstractmethod
-    def parent(self) -> TAnySession | None:
+    def parent(self) -> "AnySession | None":
         """Parent session"""
         pass
 
+    @property
     @abstractmethod
-    def task_path(self) -> str:
+    def task_path(self) -> list[str]:
         """Main task's path"""
         pass
 
@@ -105,7 +107,9 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def defer_monitoring(self, task: "AnyTask", coro: Coroutine):
+    def defer_monitoring(
+        self, task: "AnyTask", coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
+    ):
         """Defers the execution of a task's monitoring coroutine for later processing.
 
         Args:
@@ -115,7 +119,9 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def defer_action(self, task: "AnyTask", coro: Coroutine):
+    def defer_action(
+        self, task: "AnyTask", coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
+    ):
         """Defers the execution of a task's coroutine for later processing.
 
         Args:
@@ -125,7 +131,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def defer_coro(self, coro: Coroutine):
+    def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
         """Defers the execution of a coroutine for later processing.
 
         Args:
@@ -185,7 +191,7 @@ class AnySession(ABC):
         pass
 
     @abstractmethod
-    def is_allowed_to_run(self, task: "AnyTask"):
+    def is_allowed_to_run(self, task: "AnyTask") -> bool:
         """Determines if the specified task is allowed to run based on its current state.
 
         Args:

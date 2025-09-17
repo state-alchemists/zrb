@@ -127,7 +127,7 @@ class BaseTrigger(BaseTask):
         return self._callbacks
 
     async def exec_root_tasks(self, session: AnySession):
-        exchange_xcom = self.get_exchange_xcom(session)
+        exchange_xcom = self._get_exchange_xcom(session)
         exchange_xcom.add_push_callback(lambda: self._exchange_push_callback(session))
         return await super().exec_root_tasks(session)
 
@@ -136,8 +136,7 @@ class BaseTrigger(BaseTask):
         session.defer_coro(coro)
 
     async def _fanout_and_trigger_callback(self, session: AnySession):
-        exchange_xcom = self.get_exchange_xcom(session)
-        data = exchange_xcom.pop()
+        data = self.pop_exchange_xcom(session)
         coros = []
         for callback in self.callbacks:
             xcom_dict = DotDict({self.queue_name: Xcom([data])})
@@ -156,8 +155,16 @@ class BaseTrigger(BaseTask):
             )
         await asyncio.gather(*coros)
 
-    def get_exchange_xcom(self, session: AnySession) -> Xcom:
+    def _get_exchange_xcom(self, session: AnySession) -> Xcom:
         shared_ctx = session.shared_ctx
         if self.queue_name not in shared_ctx.xcom:
             shared_ctx.xcom[self.queue_name] = Xcom()
         return shared_ctx.xcom[self.queue_name]
+
+    def push_exchange_xcom(self, session: AnySession, data: Any):
+        exchange_xcom = self._get_exchange_xcom(session)
+        exchange_xcom.push(data)
+
+    def pop_exchange_xcom(self, session: AnySession) -> Any:
+        exchange_xcom = self._get_exchange_xcom(session)
+        return exchange_xcom.pop()

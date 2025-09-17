@@ -66,7 +66,7 @@ class SharedContext(AnySharedContext):
         return self._args
 
     @property
-    def xcom(self) -> DotDict[str, Xcom]:
+    def xcom(self) -> DotDict:
         return self._xcom
 
     @property
@@ -81,7 +81,7 @@ class SharedContext(AnySharedContext):
         self._log.append(message)
         session = self.session
         if session is not None:
-            session_parent: AnySession = session.parent
+            session_parent: AnySession | None = session.parent
             if session_parent is not None:
                 session_parent.shared_ctx.append_to_shared_log(message)
 

@@ -24,7 +24,7 @@ class Scheduler(BaseTrigger):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        schedule: StrAttr = None,
+        schedule: StrAttr | None = None,
         execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
         queue_name: fstring | None = None,
         callback: list[AnyCallback] | AnyCallback = [],
@@ -76,6 +76,6 @@ class Scheduler(BaseTrigger):
             ctx.print(f"Current time: {now}")
             if match_cron(cron_pattern, now):
                 ctx.print(f"Matching {now} with pattern: {cron_pattern}")
-                xcom = self.get_exchange_xcom(ctx.session)
-                xcom.push(now)
+                if ctx.session is not None:
+                    self.push_exchange_xcom(ctx.session, now)
             await asyncio.sleep(60)

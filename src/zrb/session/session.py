@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 from typing import TYPE_CHECKING, Any, Coroutine
 
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
-from zrb.session.any_session import AnySession
+from zrb.session.any_session import AnySession, TAnySession
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -48,10 +50,10 @@ class Session(AnySession):
         self._context: dict[AnyTask, Context] = {}
         self._shared_ctx = shared_ctx
         self._shared_ctx.set_session(self)
-        self._parent = parent
-        self._action_coros: dict[AnyTask, asyncio.Task] = {}
-        self._monitoring_coros: dict[AnyTask, asyncio.Task] = {}
-        self._coros: list[asyncio.Task] = []
+        self._parent: AnySession | None = parent
+        self._action_coros: dict[AnyTask, asyncio.Task[Any]] = {}
+        self._monitoring_coros: dict[AnyTask, asyncio.Task[Any]] = {}
+        self._coros: list[asyncio.Task[Any]] = []
         self._colors = [
             GREEN,
             YELLOW,
@@ -114,11 +116,13 @@ class Session(AnySession):
         return self._parent
 
     @property
-    def task_path(self) -> str:
+    def task_path(self) -> list[str]:
         return self._main_task_path
 
     @property
     def final_result(self) -> Any:
+        if self._main_task is None:
+            return None
         xcom: Xcom = self.shared_ctx.xcom[self._main_task.name]
         try:
             return xcom.peek()
@@ -134,7 +138,11 @@ class Session(AnySession):
     def set_main_task(self, main_task: AnyTask):
         self.register_task(main_task)
         self._main_task = main_task
-        main_task_path = get_node_path(self._root_group, main_task)
+        main_task_path = (
+            None
+            if self._root_group is None
+            else get_node_path(self._root_group, main_task)
+        )
         self._main_task_path = [] if main_task_path is None else main_task_path
 
     def as_state_log(self) -> "SessionStateLog":
@@ -171,7 +179,7 @@ class Session(AnySession):
         return SessionStateLog(
             name=self.name,
             start_time=log_start_time,
-            main_task_name=self._main_task.name,
+            main_task_name="" if self._main_task is None else self._main_task.name,
             path=self.task_path,
             final_result=(
                 remove_style(f"{self.final_result}")
@@ -188,16 +196,29 @@ class Session(AnySession):
         self._register_single_task(task)
         return self._context[task]
 
-    def defer_monitoring(self, task: AnyTask, coro: Coroutine):
+    def defer_monitoring(
+        self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
+    ):
         self._register_single_task(task)
-        self._monitoring_coros[task] = coro
+        if isinstance(coro, asyncio.Task):
+            self._monitoring_coros[task] = coro
+        else:
+            self._monitoring_coros[task] = asyncio.create_task(coro)
 
-    def defer_action(self, task: AnyTask, coro: Coroutine):
+    def defer_action(
+        self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
+    ):
         self._register_single_task(task)
-        self._action_coros[task] = coro
+        if isinstance(coro, asyncio.Task):
+            self._action_coros[task] = coro
+        else:
+            self._action_coros[task] = asyncio.create_task(coro)
 
-    def defer_coro(self, coro: Coroutine):
-        self._coros.append(coro)
+    def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
+        if isinstance(coro, asyncio.Task):
+            self._coros.append(coro)
+        else:
+            self._coros.append(asyncio.create_task(coro))
         self._coros = [
             existing_coro for existing_coro in self._coros if not existing_coro.done()
         ]
@@ -246,15 +267,15 @@ class Session(AnySession):
 
     def get_next_tasks(self, task: AnyTask) -> list[AnyTask]:
         self._register_single_task(task)
-        return self._downstreams.get(task)
+        return self._downstreams.get(task, [])
 
     def get_task_status(self, task: AnyTask) -> TaskStatus:
         self._register_single_task(task)
         return self._task_status[task]
 
     def _register_single_task(self, task: AnyTask):
-        if task.name not in self._shared_ctx._xcom:
-            self._shared_ctx._xcom[task.name] = Xcom([])
+        if task.name not in self._shared_ctx.xcom:
+            self._shared_ctx.xcom[task.name] = Xcom([])
         if task not in self._context:
             self._context[task] = Context(
                 shared_ctx=self._shared_ctx,
@@ -278,7 +299,7 @@ class Session(AnySession):
             self._color_index = 0
         return chosen
 
-    def _get_icon(self, task: AnyTask) -> int:
+    def _get_icon(self, task: AnyTask) -> str:
         if task.icon is not None:
             return task.icon
         chosen = self._icons[self._icon_index]

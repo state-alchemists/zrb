@@ -19,7 +19,7 @@ def get_user_by_credentials(
 
 async def get_user_from_request(
     web_auth_config: WebAuthConfig, request: "Request"
-) -> User | None:
+) -> User:
     from fastapi.security import OAuth2PasswordBearer
 
     if not web_auth_config.enable_auth:
@@ -45,7 +45,11 @@ def _get_user_from_cookie(
     return None
 
 
-def _get_user_from_token(web_auth_config: WebAuthConfig, token: str) -> User | None:
+def _get_user_from_token(
+    web_auth_config: WebAuthConfig, token: str | None
+) -> User | None:
+    if token is None:
+        return None
     try:
         from jose import jwt
 
@@ -54,7 +58,7 @@ def _get_user_from_token(web_auth_config: WebAuthConfig, token: str) -> User | N
             web_auth_config.secret_key,
             options={"require_sub": True, "require_exp": True},
         )
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             return None
         user = web_auth_config.find_user_by_username(username)

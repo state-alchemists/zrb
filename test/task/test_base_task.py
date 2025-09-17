@@ -210,6 +210,9 @@ def test_base_task_run(mock_run_and_cleanup, mock_asyncio_run):
 @patch("zrb.task.base_task.run_task_async")
 def test_base_task_async_run(mock_run_task_async):
     async def run_async_test():
+        mock_run_task_async.return_value = asyncio.Future()
+        mock_run_task_async.return_value.set_result(None)
+
         task = BaseTask(name="test_task")
         await task.async_run(session=mock_any_session, str_kwargs={"key": "value"})
         mock_run_task_async.assert_called_once_with(
@@ -225,8 +228,12 @@ def test_base_task_async_run(mock_run_task_async):
 @patch("zrb.task.base_task.execute_root_tasks")
 def test_base_task_exec_root_tasks(mock_execute_root_tasks):
     async def run_async_test():
+        mock_execute_root_tasks.return_value = asyncio.Future()
+        mock_execute_root_tasks.return_value.set_result(None)
+
         task = BaseTask(name="test_task")
         await task.exec_root_tasks(mock_any_session)
+
         mock_execute_root_tasks.assert_called_once_with(task, mock_any_session)
 
     asyncio.run(run_async_test())
