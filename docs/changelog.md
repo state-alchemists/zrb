@@ -1,5 +1,8 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.26
+- **Added** Confirmation for MCP tools
+
 # 1.15.25
 - **Fixed** Make sure most configuration can be overridden with `zrb_init.py` by definine environment variable value.
 - **Changed** `builtin` will always be imported.

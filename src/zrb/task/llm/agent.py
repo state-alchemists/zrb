@@ -1,5 +1,7 @@
+import inspect
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
@@ -30,13 +32,44 @@ def create_agent_instance(
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
     tools: "list[ToolOrCallable]" = [],
-    toolsets: list["AbstractToolset[Agent]"] = [],
+    toolsets: list["AbstractToolset[None]"] = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
 ) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
-    from pydantic_ai import Agent, Tool
+    from pydantic_ai import Agent, RunContext, Tool
     from pydantic_ai.tools import GenerateToolJsonSchema
+    from pydantic_ai.toolsets import ToolsetTool, WrapperToolset
+
+    @dataclass
+    class ConfirmationWrapperToolset(WrapperToolset):
+        ctx: AnyContext
+        yolo_mode: bool | list[str]
+
+        async def call_tool(
+            self, name: str, tool_args: dict, ctx: RunContext, tool: ToolsetTool[None]
+        ) -> Any:
+            # The `tool` object is passed in. Use it for inspection.
+            # Define a temporary function that performs the actual tool call.
+            async def execute_delegated_tool_call(**params):
+                # Pass all arguments down the chain.
+                return await self.wrapped.call_tool(name, tool_args, ctx, tool)
+
+            # For the confirmation UI, make our temporary function look like the real one.
+            try:
+                execute_delegated_tool_call.__name__ = tool.function.__name__
+                execute_delegated_tool_call.__doc__ = tool.function.__doc__
+                execute_delegated_tool_call.__signature__ = inspect.signature(
+                    tool.function
+                )
+            except (AttributeError, TypeError):
+                pass  # Ignore if we can't inspect the original function
+            # Use the existing wrap_func to get the confirmation logic
+            wrapped_executor = wrap_func(
+                execute_delegated_tool_call, self.ctx, self.yolo_mode
+            )
+            # Call the wrapped executor. This will trigger the confirmation prompt.
+            return await wrapped_executor(**tool_args)
 
     if yolo_mode is None:
         yolo_mode = False
@@ -64,13 +97,18 @@ def create_agent_instance(
         else:
             # Turn function into tool
             tool_list.append(wrap_tool(tool_or_callable, ctx, yolo_mode))
+    # Wrap toolsets
+    wrapped_toolsets = [
+        ConfirmationWrapperToolset(wrapped=toolset, ctx=ctx, yolo_mode=yolo_mode)
+        for toolset in toolsets
+    ]
     # Return Agent
     return Agent[None, Any](
         model=model,
         output_type=output_type,
         system_prompt=system_prompt,
         tools=tool_list,
-        toolsets=toolsets,
+        toolsets=wrapped_toolsets,
         model_settings=model_settings,
         retries=retries,
     )
