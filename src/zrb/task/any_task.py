@@ -36,6 +36,14 @@ class AnyTask(ABC):
     the actual implementation for these abstract members.
     """
 
+    @abstractmethod
+    def __rshift__(self, other: "AnyTask | list[AnyTask]") -> "AnyTask | list[AnyTask]":
+        pass
+
+    @abstractmethod
+    def __lshift__(self, other: "AnyTask | list[AnyTask]") -> "AnyTask":
+        pass
+
     @property
     @abstractmethod
     def name(self) -> str:
