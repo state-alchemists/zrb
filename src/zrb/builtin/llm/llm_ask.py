@@ -162,7 +162,7 @@ _llm_ask_inputs = [
     ),
 ]
 
-llm_ask = llm_group.add_task(
+llm_ask: LLMTask = llm_group.add_task(
     LLMTask(
         name="llm-ask",
         input=_llm_ask_inputs,
