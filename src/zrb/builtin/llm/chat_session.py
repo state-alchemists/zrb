@@ -88,6 +88,8 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             )
             if result is not None:
                 final_result = result
+                if ctx.is_web_mode:
+                    return final_result
     return final_result
 
 

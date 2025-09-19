@@ -69,6 +69,9 @@ async def analyze_repo(
     clear and specific goal. Vague goals will result in a vague analysis and
     may cause the tool to run for a long time.
 
+    Make sure to skim the repository or directory first so that you can put
+    effective parameters.
+
     Use this tool for:
     - Understanding a large or unfamiliar codebase.
     - Generating high-level summaries of a project's architecture.

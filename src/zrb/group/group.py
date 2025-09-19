@@ -1,8 +1,10 @@
-from zrb.group.any_group import AnyGroup
+from typing import Generic, TypeVar
+
+from zrb.group.any_group import AnyGroup, GroupType, TaskType
 from zrb.task.any_task import AnyTask
 
 
-class Group(AnyGroup):
+class Group(AnyGroup, Generic[GroupType, TaskType]):
     def __init__(
         self, name: str, description: str | None = None, banner: str | None = None
     ):
@@ -41,13 +43,13 @@ class Group(AnyGroup):
         alias.sort()
         return {name: self._tasks.get(name) for name in alias}
 
-    def add_group(self, group: AnyGroup | str, alias: str | None = None) -> AnyGroup:
-        real_group = Group(group) if isinstance(group, str) else group
+    def add_group(self, group: GroupType, alias: str | None = None) -> GroupType:
+        real_group: GroupType = Group(group) if isinstance(group, str) else group
         alias = alias if alias is not None else real_group.name
         self._groups[alias] = real_group
         return real_group
 
-    def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
+    def add_task(self, task: TaskType, alias: str | None = None) -> TaskType:
         alias = alias if alias is not None else task.name
         self._tasks[alias] = task
         return task

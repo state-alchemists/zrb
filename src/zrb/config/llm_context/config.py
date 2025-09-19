@@ -115,7 +115,12 @@ class LLMContextConfig:
         if context_path is None:
             context_path = cwd
 
-        config_file = os.path.join(cwd, CFG.LLM_CONTEXT_FILE)
+        config_files = self._find_config_files(cwd)
+        if config_files:
+            config_file = config_files[0]
+        else:
+            home_dir = os.path.expanduser("~")
+            config_file = os.path.join(home_dir, CFG.LLM_CONTEXT_FILE)
 
         sections = {}
         if os.path.exists(config_file):

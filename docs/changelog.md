@@ -1,5 +1,8 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.15.27
+- **Changed** Not creating `./ZRB.md` if the file is not exists, instead try to use/create `~/ZRB.md`.
+
 # 1.15.26
 - **Added** Confirmation for MCP tools
 
