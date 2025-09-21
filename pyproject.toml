@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "1.16.0"
+version = "1.16.1"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -64,6 +64,7 @@ playwright = {version = "^1.54.0", optional = true}
 chromadb = {version = "^0.6.3", optional = true}
 markdownify = "^1.2.0"
 pyjwt = "^2.10.1"
+xmltodict = "^1.0.2"
 
 [tool.poetry.extras]
 # poetry install -E rag

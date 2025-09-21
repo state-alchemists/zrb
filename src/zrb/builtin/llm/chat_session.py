@@ -31,7 +31,10 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     final_result: str = ""
     while True:
         await asyncio.sleep(0.01)
-        previous_session_name = ctx.input.previous_session if is_first_time else None
+        previous_session_name: str | None = (
+            ctx.input.previous_session if is_first_time else None
+        )
+        start_new: bool = ctx.input.start_new if is_first_time else False
         if is_first_time:
             is_first_time = False
         # Get user input based on mode
@@ -50,6 +53,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 modes=current_modes,
                 yolo_mode=current_yolo_mode,
                 previous_session_name=previous_session_name,
+                start_new=start_new,
             )
             if result is not None:
                 final_result = result
@@ -67,6 +71,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 modes=current_modes,
                 yolo_mode=current_yolo_mode,
                 previous_session_name=previous_session_name,
+                start_new=start_new,
             )
             if result is not None:
                 final_result = result
@@ -101,6 +106,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 modes=current_modes,
                 yolo_mode=current_yolo_mode,
                 previous_session_name=previous_session_name,
+                start_new=start_new,
             )
             if result is not None:
                 final_result = result

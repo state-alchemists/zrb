@@ -5795,6 +5795,21 @@ files = [
 ]
 
 [[package]]
+name = "xmltodict"
+version = "1.0.2"
+description = "Makes working with XML feel like you are working with JSON"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "xmltodict-1.0.2-py3-none-any.whl", hash = "sha256:62d0fddb0dcbc9f642745d8bbf4d81fd17d6dfaec5a15b5c1876300aad92af0d"},
+    {file = "xmltodict-1.0.2.tar.gz", hash = "sha256:54306780b7c2175a3967cad1db92f218207e5bc1aba697d887807c0fb68b7649"},
+]
+
+[package.extras]
+test = ["pytest", "pytest-cov"]
+
+[[package]]
 name = "yarl"
 version = "1.20.1"
 description = "Yet another URL library"
@@ -5941,4 +5956,4 @@ rag = ["chromadb"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "aae400128a616f02df9a2dca72dab1ac43cab6e8433510a43c5a0d29fdaa3344"
+content-hash = "bfc51b31a1aca67e76915f2dfec42027067584da9bca2fcd09590879f68b596a"
