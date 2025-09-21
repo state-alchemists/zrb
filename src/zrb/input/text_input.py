@@ -1,13 +1,9 @@
-import os
-import subprocess
-import tempfile
 from collections.abc import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
 from zrb.util.cli.text import edit_text
-from zrb.util.file import read_file
 
 
 class TextInput(BaseInput):

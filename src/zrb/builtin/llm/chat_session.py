@@ -21,17 +21,19 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     Orchestrates the session by calling helper functions.
     """
     _show_info(ctx)
-    final_result = await _handle_initial_message(ctx)
-    if ctx.is_web_mode:
-        return final_result
-    is_tty = ctx.is_tty
+    is_tty: bool = ctx.is_tty
     reader = await _setup_input_reader(is_tty)
     multiline_mode = False
-    current_modes = ctx.input.modes
-    current_yolo_mode = ctx.input.yolo
-    user_inputs = []
+    is_first_time = True
+    current_modes: str = ctx.input.modes
+    current_yolo_mode: bool | str = ctx.input.yolo
+    user_inputs: list[str] = []
+    final_result: str = ""
     while True:
         await asyncio.sleep(0.01)
+        previous_session_name = ctx.input.previous_session if is_first_time else None
+        if is_first_time:
+            is_first_time = False
         # Get user input based on mode
         if not multiline_mode:
             ctx.print("💬 >>", plain=True)
@@ -43,7 +45,11 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(
-                ctx, user_prompt, current_modes, current_yolo_mode
+                ctx=ctx,
+                user_prompt=user_prompt,
+                modes=current_modes,
+                yolo_mode=current_yolo_mode,
+                previous_session_name=previous_session_name,
             )
             if result is not None:
                 final_result = result
@@ -56,10 +62,16 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(
-                ctx, user_prompt, current_modes, current_yolo_mode
+                ctx=ctx,
+                user_prompt=user_prompt,
+                modes=current_modes,
+                yolo_mode=current_yolo_mode,
+                previous_session_name=previous_session_name,
             )
             if result is not None:
                 final_result = result
+                if ctx.is_web_mode or not is_tty:
+                    return final_result
         elif user_input.strip().lower().startswith("/mode"):
             mode_parts = user_input.split(" ", maxsplit=2)
             if len(mode_parts) > 1:
@@ -84,11 +96,15 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_prompt = "\n".join(user_inputs)
             user_inputs = []
             result = await _trigger_ask_and_wait_for_result(
-                ctx, user_prompt, current_modes, current_yolo_mode
+                ctx=ctx,
+                user_prompt=user_prompt,
+                modes=current_modes,
+                yolo_mode=current_yolo_mode,
+                previous_session_name=previous_session_name,
             )
             if result is not None:
                 final_result = result
-                if ctx.is_web_mode:
+                if ctx.is_web_mode or not is_tty:
                     return final_result
     return final_result
 
@@ -127,24 +143,6 @@ def _show_subcommand(command: str, description: str) -> str:
     styled_command = stylize_blue(f"    {command}".ljust(25))
     styled_description = stylize_faint(description)
     return f"  {styled_command} {styled_description}"
-
-
-async def _handle_initial_message(ctx: AnyContext) -> str:
-    """Processes the initial message from the command line."""
-    if not ctx.input.message or ctx.input.message.strip() == "":
-        return ""
-    ctx.print("💬 >>", plain=True)
-    ctx.print(ctx.input.message, plain=True)
-    ctx.print("", plain=True)
-    result = await _trigger_ask_and_wait_for_result(
-        ctx,
-        user_prompt=ctx.input.message,
-        modes=ctx.input.modes,
-        yolo_mode=ctx.input.yolo,
-        previous_session_name=ctx.input.previous_session,
-        start_new=ctx.input.start_new,
-    )
-    return result if result is not None else ""
 
 
 async def _setup_input_reader(is_interactive: bool):

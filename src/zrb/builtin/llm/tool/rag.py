@@ -5,6 +5,7 @@ import os
 import sys
 from collections.abc import Callable
 from textwrap import dedent
+from typing import Any
 
 import ulid
 
@@ -86,7 +87,7 @@ def create_rag_from_directory(
         Callable: An asynchronous function that serves as the RAG tool.
     """
 
-    async def retrieve(query: str) -> str:
+    async def retrieve(query: str) -> dict[str, Any]:
         # Docstring will be set dynamically below
         from chromadb import PersistentClient
         from chromadb.config import Settings
@@ -210,7 +211,8 @@ def create_rag_from_directory(
         Args:
             query (str): The user query to search for in documents.
         Returns:
-            str: dictionary with search results: {{"ids": [...], "documents": [...], ...}}
+            dict[str, Any]: dictionary with search results:
+                {{"ids": [...], "documents": [...], ...}}
         """
     ).strip()
     return retrieve

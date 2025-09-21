@@ -98,12 +98,13 @@ def list_files(
     recursive: bool = True,
     include_hidden: bool = False,
     excluded_patterns: Optional[list[str]] = None,
-) -> str:
+) -> dict[str, list[str]]:
     """
     Lists the files and directories within a specified path.
 
     This is a fundamental tool for exploring the file system. Use it to
     discover the structure of a directory, find specific files, or get a
+
     general overview of the project layout before performing other operations.
 
     Args:
@@ -120,9 +121,9 @@ def list_files(
             standard list of common exclusion patterns.
 
     Returns:
-        str: A JSON string containing a list of file and directory paths
+        dict[str, list[str]]: A dictionary containing a list of file and directory paths
             relative to the input path.
-            Example: '{"files": ["src/main.py", "README.md"]}'
+            Example: {"files": ["src/main.py", "README.md"]}
     Raises:
         FileNotFoundError: If the specified path does not exist.
     """
@@ -173,14 +174,14 @@ def list_files(
         # Return paths relative to the original path requested
         try:
             rel_files = [os.path.relpath(f, abs_path) for f in all_files]
-            return json.dumps({"files": sorted(rel_files)})
+            return {"files": sorted(rel_files)}
         except (
             ValueError
         ) as e:  # Handle case where path is '.' and abs_path is CWD root
             if "path is on mount '" in str(e) and "' which is not on mount '" in str(e):
                 # If paths are on different mounts, just use absolute paths
                 rel_files = all_files
-                return json.dumps({"files": sorted(rel_files)})
+                return {"files": sorted(rel_files)}
             raise
     except (OSError, IOError) as e:
         raise OSError(f"Error listing files in {path}: {e}")
@@ -221,7 +222,7 @@ def read_from_file(
     path: str,
     start_line: Optional[int] = None,
     end_line: Optional[int] = None,
-) -> str:
+) -> dict[str, Any]:
     """
     Reads the content of a file, optionally from a specific start line to an
     end line.
@@ -244,7 +245,7 @@ def read_from_file(
             (inclusive). If omitted, reads to the end of the file.
 
     Returns:
-        str: A JSON string containing the file path, the requested content
+        dict[str, Any]: A dictionary containing the file path, the requested content
             with line numbers, the start and end lines, and the total number
             of lines in the file.
             Example:
@@ -282,15 +283,13 @@ def read_from_file(
         # Select the lines for the result
         selected_lines = lines[start_idx:end_idx]
         content_result = "\n".join(selected_lines)
-        return json.dumps(
-            {
-                "path": path,
-                "content": content_result,
-                "start_line": start_idx + 1,  # Convert back to 1-based for output
-                "end_line": end_idx,  # end_idx is already exclusive upper bound
-                "total_lines": total_lines,
-            }
-        )
+        return {
+            "path": path,
+            "content": content_result,
+            "start_line": start_idx + 1,  # Convert back to 1-based for output
+            "end_line": end_idx,  # end_idx is already exclusive upper bound
+            "total_lines": total_lines,
+        }
     except (OSError, IOError) as e:
         raise OSError(f"Error reading file {path}: {e}")
     except Exception as e:
@@ -300,7 +299,7 @@ def read_from_file(
 def write_to_file(
     path: str,
     content: str,
-) -> str:
+) -> dict[str, Any]:
     """
     Writes content to a file, completely overwriting it if it exists or
     creating it if it doesn't.
@@ -317,7 +316,7 @@ def write_to_file(
 
     Returns:
         dict[str, Any]: A dictionary indicating success or failure.
-             Example: '{"success": true, "path": "new_file.txt"}'
+             Example: {"success": true, "path": "new_file.txt"}
     """
     try:
         abs_path = os.path.abspath(os.path.expanduser(path))
@@ -338,7 +337,7 @@ def search_files(
     regex: str,
     file_pattern: Optional[str] = None,
     include_hidden: bool = True,
-) -> str:
+) -> dict[str, Any]:
     """
     Searches for a regular expression (regex) pattern within files in a
     specified directory.
@@ -452,7 +451,7 @@ def replace_in_file(
     path: str,
     old_string: str,
     new_string: str,
-) -> str:
+) -> dict[str, Any]:
     """
     Replaces the first occurrence of a string in a file.
 
@@ -496,7 +495,7 @@ def replace_in_file(
 
 async def analyze_file(
     ctx: AnyContext, path: str, query: str, token_limit: int | None = None
-) -> str:
+) -> dict[str, Any]:
     """
     Performs a deep, goal-oriented analysis of a single file using a sub-agent.
 
@@ -529,7 +528,7 @@ async def analyze_file(
             content to be passed to the analysis sub-agent.
 
     Returns:
-        str: A detailed, markdown-formatted analysis of the file, tailored to
+        dict[str, Any]: A detailed, markdown-formatted analysis of the file, tailored to
             the specified query.
     Raises:
         FileNotFoundError: If the specified file does not exist.
@@ -553,7 +552,7 @@ async def analyze_file(
     return await _analyze_file(ctx, clipped_payload)
 
 
-def read_many_files(paths: list[str]) -> str:
+def read_many_files(paths: list[str]) -> dict[str, str]:
     """
     Reads and returns the full content of multiple files at once.
 
@@ -586,7 +585,7 @@ def read_many_files(paths: list[str]) -> str:
     return results
 
 
-def write_many_files(files: list[FileToWrite]) -> str:
+def write_many_files(files: list[FileToWrite]) -> dict[str, Any]:
     """
     Writes content to multiple files in a single, atomic operation.
 
@@ -604,7 +603,7 @@ def write_many_files(files: list[FileToWrite]) -> str:
             containing a 'path' and the complete 'content'.
 
     Returns:
-        str: A dictionary summarizing the operation, listing successfully
+        dict[str, Any]: A dictionary summarizing the operation, listing successfully
             written files and any files that failed, along with corresponding
             error messages.
             Example: {"success": ["file1.py", "file2.txt"], "errors": {}}

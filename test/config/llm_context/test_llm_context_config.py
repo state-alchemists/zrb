@@ -1,6 +1,7 @@
 import os
 from unittest import mock
 
+from zrb.config.config import CFG
 from zrb.config.llm_context.config import LLMContextConfig
 
 # Mock data for a config file in a project directory
@@ -95,15 +96,17 @@ def test_get_context_and_workflow(mock_config_os, mock_open):
     mock_config_os.getcwd.return_value = "/home/user/coba"
 
     # Setup file system
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    coba_config_path = f"/home/user/coba/{CFG.LLM_CONTEXT_FILE}"
     setup_fs(
         {
-            "/home/user/ZRB.md": (
+            home_config_path: (
                 "# Context: coba\n\n"
                 "some context\n\n"
                 "# Workflow: fiction-writing\n\n"
                 "write fiction\n"
             ),
-            "/home/user/coba/ZRB.md": "# Context: .\n\noverride context\n",
+            coba_config_path: "# Context: .\n\noverride context\n",
         }
     )
 
@@ -112,7 +115,7 @@ def test_get_context_and_workflow(mock_config_os, mock_open):
     workflows = config.get_workflows()
 
     assert contexts == {
-        "/home/user/coba": "override context",
+        "/home/user/coba": "some context",
     }
     assert workflows == {
         "fiction-writing": "write fiction",
@@ -121,7 +124,7 @@ def test_get_context_and_workflow(mock_config_os, mock_open):
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-def test_get_contexts_cascading(mock_config_os, mock_open):
+def test_get_contexts_no_cascading(mock_config_os, mock_open):
     # Setup mocks
     mock_config_os.path.expanduser.side_effect = lambda p: p.replace("~", "/home/user")
     mock_config_os.path.abspath.side_effect = os.path.abspath
@@ -136,26 +139,27 @@ def test_get_contexts_cascading(mock_config_os, mock_open):
     mock_config_os.getcwd.return_value = "/home/user/project"
 
     # Setup file system
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    project_config_path = f"/home/user/project/{CFG.LLM_CONTEXT_FILE}"
     setup_fs(
         {
-            "/home/user/ZRB.md": HOME_CONFIG_CONTENT,
-            "/home/user/project/ZRB.md": PROJECT_CONFIG_CONTENT,
+            home_config_path: HOME_CONFIG_CONTENT,
+            project_config_path: PROJECT_CONFIG_CONTENT,
         }
     )
 
     config = LLMContextConfig()
     context = config.get_contexts()
 
-    assert "/home/user/project" in context
     assert "/home/user" in context
     assert "This is the home context." in context["/home/user"]
-    assert "This is the project context." in context["/home/user/project"]
-    assert "This is the home context." not in context["/home/user/project"]
+    # Project context should not be loaded
+    assert "/home/user/project" not in context
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-def test_get_contexts_with_absolute_path_and_fenced_code(mock_config_os, mock_open):
+def test_get_contexts_from_home_config_only(mock_config_os, mock_open):
     mock_config_os.path.expanduser.side_effect = lambda p: p.replace("~", "/home/user")
     mock_config_os.path.abspath.side_effect = os.path.abspath
     mock_config_os.path.join.side_effect = os.path.join
@@ -168,21 +172,36 @@ def test_get_contexts_with_absolute_path_and_fenced_code(mock_config_os, mock_op
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
 
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    project_config_path = f"/home/user/project/{CFG.LLM_CONTEXT_FILE}"
     setup_fs(
         {
-            "/home/user/project/ZRB.md": FENCED_CONFIG_CONTENT,
-            "/home/user/ZRB.md": PROJECT_CONFIG_CONTENT,
+            project_config_path: FENCED_CONFIG_CONTENT,
+            home_config_path: PROJECT_CONFIG_CONTENT,
         }
     )
 
     config = LLMContextConfig()
     context = config.get_contexts()
 
+    # Only home config is read.
+    # Fenced content from project config should not be present.
+    assert "This context has code fences." not in str(context.values())
+
+    # From home config (PROJECT_CONFIG_CONTENT):
+    # "Context: ." is relative to /home/user, so it's for /home/user.
+    # It is an ancestor of cwd (/home/user/project), so it's included.
+    assert "/home/user" in context
+    assert context["/home/user"] == "This is the project context."
+
+    # "Context: ./specific" is for /home/user/specific, not an ancestor.
+    assert "/home/user/specific" not in context
+
+    # "Context: /tmp/global" is not an ancestor.
     assert "/tmp/global" not in context
-    assert "This context has code fences." in context["/home/user/project"]
-    assert "# this is a hello function" in context["/home/user/project"]
-    assert "def hello()" in context["/home/user/project"]
-    assert "# Context: ./another-project" not in context["/home/user/project"]
+
+    # There is no context for /home/user/project in the home config.
+    assert "/home/user/project" not in context
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
@@ -199,7 +218,8 @@ def test_get_contexts_with_tilde_path(mock_config_os, mock_open):
     mock_config_os.path.exists.side_effect = mock_exists_side_effect
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
-    setup_fs({"/home/user/ZRB.md": "# Context: ~/project\nHome config for project"})
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    setup_fs({home_config_path: "# Context: ~/project\nHome config for project"})
     config = LLMContextConfig()
     contexts = config.get_contexts()
     assert "/home/user/project" in contexts
@@ -217,10 +237,12 @@ def test_get_workflows_override(mock_config_os, mock_open):
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
 
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    project_config_path = f"/home/user/project/{CFG.LLM_CONTEXT_FILE}"
     setup_fs(
         {
-            "/home/user/ZRB.md": ("# Workflow: coding\n" "Global coding workflow"),
-            "/home/user/project/ZRB.md": (
+            home_config_path: ("# Workflow: coding\n" "Global coding workflow"),
+            project_config_path: (
                 "# Workflow: coding\n"
                 "Project coding workflow\n"
                 "# Workflow: testing\n"
@@ -255,9 +277,10 @@ def test_write_context_new_file(mock_config_os, mock_open):
     config = LLMContextConfig()
     config.write_context("New content.")
 
-    assert "/home/user/project/ZRB.md" in mock_files
-    assert "# Context: ." in mock_files["/home/user/project/ZRB.md"]
-    assert "New content." in mock_files["/home/user/project/ZRB.md"]
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    assert home_config_path in mock_files
+    assert "# Context: project" in mock_files[home_config_path]
+    assert "New content." in mock_files[home_config_path]
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
@@ -280,9 +303,10 @@ def test_write_context_new_file_global(mock_config_os, mock_open):
     config = LLMContextConfig()
     config.write_context("Global content.", context_path="/tmp/global")
 
-    assert "/home/user/project/ZRB.md" in mock_files
-    assert "# Context: /tmp/global" in mock_files["/home/user/project/ZRB.md"]
-    assert "Global content." in mock_files["/home/user/project/ZRB.md"]
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    assert home_config_path in mock_files
+    assert "# Context: /tmp/global" in mock_files[home_config_path]
+    assert "Global content." in mock_files[home_config_path]
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
@@ -305,9 +329,10 @@ def test_write_context_home_relative_path(mock_config_os, mock_open):
     config = LLMContextConfig()
     config.write_context("Some docs", context_path="/home/user/docs")
 
-    assert "/home/user/project/ZRB.md" in mock_files
-    assert "# Context: ~/docs" in mock_files["/home/user/project/ZRB.md"]
-    assert "Some docs" in mock_files["/home/user/project/ZRB.md"]
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
+    assert home_config_path in mock_files
+    assert "# Context: docs" in mock_files[home_config_path]
+    assert "Some docs" in mock_files[home_config_path]
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
@@ -325,19 +350,20 @@ def test_write_context_overwrites_existing_section(mock_config_os, mock_open):
     mock_open.side_effect = mock_open_side_effect
     mock_config_os.getcwd.return_value = "/home/user/project"
 
+    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
     file_content = (
-        "# Context: .\n"
+        "# Context: project\n"
         "Original content\n"
         "\n"
-        "# Context: /home/user/another_project\n"
+        "# Context: another_project\n"
         "Some other content\n"
     )
-    setup_fs({"/home/user/project/ZRB.md": file_content})
+    setup_fs({home_config_path: file_content})
 
     config = LLMContextConfig()
     config.write_context("Updated content", context_path="/home/user/project")
 
-    final_content = mock_files["/home/user/project/ZRB.md"]
+    final_content = mock_files[home_config_path]
     assert "Original content" not in final_content
     assert "Updated content" in final_content
     assert "Some other content" in final_content

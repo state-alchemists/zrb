@@ -1,11 +1,11 @@
-import json
 from collections.abc import Callable
+from typing import Any
 from urllib.parse import urljoin
 
 _DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
 
 
-async def open_web_page(url: str) -> str:
+async def open_web_page(url: str) -> dict[str, Any]:
     """
     Fetches, parses, and converts the content of a web page to Markdown.
 
@@ -20,15 +20,17 @@ async def open_web_page(url: str) -> str:
             "https://example.com/article").
 
     Returns:
-        str: A JSON string containing the page's content in Markdown format
+        dict[str, Any]: A dictionary containing the page's content in Markdown format
             and a list of all absolute links found on the page.
     """
     html_content, links = await _fetch_page_content(url)
     markdown_content = _convert_html_to_markdown(html_content)
-    return json.dumps({"content": markdown_content, "links_on_page": links})
+    return {"content": markdown_content, "links_on_page": links}
 
 
-def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
+def create_search_internet_tool(
+    serp_api_key: str,
+) -> Callable[[str, int], dict[str, Any]]:
     """
     Creates a tool that searches the internet using the SerpAPI Google Search
     API.
@@ -45,7 +47,7 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
             search results.
     """
 
-    def search_internet(query: str, num_results: int = 10) -> str:
+    def search_internet(query: str, num_results: int = 10) -> dict[str, Any]:
         """
         Performs an internet search using Google and returns a summary of the results.
 
@@ -57,7 +59,7 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
             num_results (int, optional): The desired number of search results. Defaults to 10.
 
         Returns:
-            str: A formatted string summarizing the search results,
+            dict[str, Any]: A formatted string summarizing the search results,
                 including titles, links, and snippets.
         """
         import requests
@@ -82,7 +84,7 @@ def create_search_internet_tool(serp_api_key: str) -> Callable[[str, int], str]:
     return search_internet
 
 
-def search_wikipedia(query: str) -> str:
+def search_wikipedia(query: str) -> dict[str, Any]:
     """
     Searches for articles on Wikipedia.
 
@@ -94,7 +96,7 @@ def search_wikipedia(query: str) -> str:
         query (str): The search term or question.
 
     Returns:
-        str: The raw JSON response from the Wikipedia API, containing a list of
+        dict[str, Any]: The raw JSON response from the Wikipedia API, containing a list of
             search results.
     """
     import requests
@@ -108,7 +110,7 @@ def search_wikipedia(query: str) -> str:
     return response.json()
 
 
-def search_arxiv(query: str, num_results: int = 10) -> str:
+def search_arxiv(query: str, num_results: int = 10) -> dict[str, Any]:
     """
     Searches for academic papers and preprints on ArXiv.
 
@@ -123,10 +125,11 @@ def search_arxiv(query: str, num_results: int = 10) -> str:
             Defaults to 10.
 
     Returns:
-        str: The raw XML response from the ArXiv API, containing a list of
+        dict[str, Any]: The raw XML response from the ArXiv API, containing a list of
             matching papers.
     """
     import requests
+    import xmltodict
 
     params = {"search_query": f"all:{query}", "start": 0, "max_results": num_results}
     response = requests.get(
@@ -134,7 +137,7 @@ def search_arxiv(query: str, num_results: int = 10) -> str:
         headers={"User-Agent": _DEFAULT_USER_AGENT},
         params=params,
     )
-    return response.content
+    return xmltodict.parse(response.content)
 
 
 async def _fetch_page_content(url: str) -> tuple[str, list[str]]:

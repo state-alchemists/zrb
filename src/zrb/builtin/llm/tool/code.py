@@ -57,20 +57,19 @@ async def analyze_repo(
     summarization_token_threshold: int | None = None,
 ) -> str:
     """
-    Performs a deep, goal-oriented analysis of a code repository or directory.
+    Performs a high-level, goal-oriented analysis of a code repository or directory.
 
-    This powerful tool recursively reads all relevant files in a directory,
-    extracts key information, and then summarizes that information in relation
-    to a specific goal. It uses intelligent sub-agents for extraction and
-    summarization, making it ideal for complex tasks that require a holistic
-    understanding of a codebase.
+    This tool recursively reads all relevant files in a directory, extracts
+    key information, and then summarizes that information in relation to a specific
+    goal. It uses intelligent sub-agents for extraction and summarization, making it
+    ideal for complex tasks that require a holistic understanding of a codebase.
 
     To ensure a focused and effective analysis, it is crucial to provide a
     clear and specific goal. Vague goals will result in a vague analysis and
-    may cause the tool to run for a long time.
+    may cause low quality result.
 
-    Make sure to skim the repository or directory first so that you can put
-    effective parameters.
+    Make sure to skim the repository or directory first (e.g., by list the file
+    names or read the README/docs file) so that you can put effective parameters.
 
     Use this tool for:
     - Understanding a large or unfamiliar codebase.
@@ -78,8 +77,6 @@ async def analyze_repo(
     - Performing a preliminary code review.
     - Creating documentation or diagrams (e.g., "Generate a Mermaid C4 diagram
       for this service").
-    - Answering broad questions like "How does the authentication in this
-      project work?".
 
     Args:
         path (str): The path to the directory or repository to analyze.
@@ -182,7 +179,7 @@ async def _extract_info(
         file_str = json.dumps(file_obj)
         if current_token_count + llm_rate_limitter.count_token(file_str) > token_limit:
             if content_buffer:
-                prompt = _create_extract_info_prompt(goal, content_buffer)
+                prompt = json.dumps(_create_extract_info_prompt(goal, content_buffer))
                 extracted_info = await extract(
                     ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
                 )
@@ -195,7 +192,7 @@ async def _extract_info(
 
     # Process any remaining content in the buffer
     if content_buffer:
-        prompt = _create_extract_info_prompt(goal, content_buffer)
+        prompt = json.dumps(_create_extract_info_prompt(goal, content_buffer))
         extracted_info = await extract(
             ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
         )
@@ -203,13 +200,11 @@ async def _extract_info(
     return extracted_infos
 
 
-def _create_extract_info_prompt(goal: str, content_buffer: list[dict]) -> str:
-    return json.dumps(
-        {
-            "main_assistant_goal": goal,
-            "files": content_buffer,
-        }
-    )
+def _create_extract_info_prompt(goal: str, content_buffer: list[dict]) -> dict:
+    return {
+        "main_assistant_goal": goal,
+        "files": content_buffer,
+    }
 
 
 async def _summarize_info(
@@ -229,7 +224,7 @@ async def _summarize_info(
         new_prompt = content_buffer + extracted_info
         if llm_rate_limitter.count_token(new_prompt) > token_limit:
             if content_buffer:
-                prompt = _create_summarize_info_prompt(goal, content_buffer)
+                prompt = json.dumps(_create_summarize_info_prompt(goal, content_buffer))
                 summarized_info = await summarize(
                     ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
                 )
@@ -240,7 +235,7 @@ async def _summarize_info(
 
     # Process any remaining content in the buffer
     if content_buffer:
-        prompt = _create_summarize_info_prompt(goal, content_buffer)
+        prompt = json.dumps(_create_summarize_info_prompt(goal, content_buffer))
         summarized_info = await summarize(
             ctx, llm_rate_limitter.clip_prompt(prompt, token_limit)
         )
@@ -248,10 +243,8 @@ async def _summarize_info(
     return summarized_infos
 
 
-def _create_summarize_info_prompt(goal: str, content_buffer: str) -> str:
-    return json.dumps(
-        {
-            "main_assistant_goal": goal,
-            "extracted_info": content_buffer,
-        }
-    )
+def _create_summarize_info_prompt(goal: str, content_buffer: str) -> dict:
+    return {
+        "main_assistant_goal": goal,
+        "extracted_info": content_buffer,
+    }

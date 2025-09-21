@@ -33,8 +33,7 @@ def create_file(path, content=""):
 
 
 def test_read_from_file_full(sample_file):
-    result = read_from_file(path=sample_file)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file)
     assert data["path"] == sample_file
     assert (
         data["content"] == "1 | Line 1\n2 | Line 2\n3 | Line 3\n4 | Line 4\n5 | Line 5"
@@ -45,8 +44,7 @@ def test_read_from_file_full(sample_file):
 
 
 def test_read_from_file_partial(sample_file):
-    result = read_from_file(path=sample_file, start_line=2, end_line=4)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, start_line=2, end_line=4)
     assert data["path"] == sample_file
     assert data["content"] == "2 | Line 2\n3 | Line 3\n4 | Line 4"
     assert data["start_line"] == 2
@@ -55,8 +53,7 @@ def test_read_from_file_partial(sample_file):
 
 
 def test_read_from_file_start_only(sample_file):
-    result = read_from_file(path=sample_file, start_line=4)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, start_line=4)
     assert data["content"] == "4 | Line 4\n5 | Line 5"
     assert data["start_line"] == 4
     assert data["end_line"] == 5
@@ -64,8 +61,7 @@ def test_read_from_file_start_only(sample_file):
 
 
 def test_read_from_file_end_only(sample_file):
-    result = read_from_file(path=sample_file, end_line=2)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, end_line=2)
     assert data["content"] == "1 | Line 1\n2 | Line 2"
     assert data["start_line"] == 1
     assert data["end_line"] == 2
@@ -73,8 +69,7 @@ def test_read_from_file_end_only(sample_file):
 
 
 def test_read_from_file_single_line(sample_file):
-    result = read_from_file(path=sample_file, start_line=3, end_line=3)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, start_line=3, end_line=3)
     assert data["content"] == "3 | Line 3"
     assert data["start_line"] == 3
     assert data["end_line"] == 3
@@ -83,24 +78,21 @@ def test_read_from_file_single_line(sample_file):
 
 def test_read_from_file_invalid_range(sample_file):
     # Start > End
-    result = read_from_file(path=sample_file, start_line=4, end_line=2)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, start_line=4, end_line=2)
     assert data["content"] == ""  # Empty content for invalid range
     assert data["start_line"] == 3
     assert data["end_line"] == 2
     assert data["total_lines"] == 5
 
     # Start < 1
-    result = read_from_file(path=sample_file, start_line=0, end_line=2)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, start_line=0, end_line=2)
     assert data["content"] == "1 | Line 1\n2 | Line 2"  # Corrected to 1
     assert data["start_line"] == 1  # Corrected to 1
     assert data["end_line"] == 2
     assert data["total_lines"] == 5
 
     # End > total_lines
-    result = read_from_file(path=sample_file, start_line=4, end_line=10)
-    data = json.loads(result)
+    data = read_from_file(path=sample_file, start_line=4, end_line=10)
     assert data["content"] == "4 | Line 4\n5 | Line 5"
     assert data["start_line"] == 4  # Corrected to total_lines
     assert data["end_line"] == 5  # Corrected to total_lines
@@ -116,8 +108,7 @@ def test_read_from_file_not_exist(temp_dir):
 def test_read_from_file_empty(temp_dir):
     empty_path = os.path.join(temp_dir, "empty.txt")
     create_file(empty_path, "")
-    result = read_from_file(path=empty_path)
-    data = json.loads(result)
+    data = read_from_file(path=empty_path)
     assert data["path"] == empty_path  # Empty file content is empty string
     assert data["content"] == ""  # Empty file content is empty string
     assert data["start_line"] == 1  # end_idx is 0 for empty file

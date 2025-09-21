@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 
 def get_current_location() -> dict[str, float]:
@@ -31,7 +31,7 @@ def get_current_weather(
     latitude: float,
     longitude: float,
     temperature_unit: Literal["celsius", "fahrenheit"],
-) -> str:
+) -> dict[str, Any]:
     """
     Retrieves the current weather conditions for a given geographical location.
 

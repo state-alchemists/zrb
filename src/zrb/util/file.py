@@ -61,6 +61,8 @@ def read_file_with_line_numbers(
         The content of the file with line numbers and replacements applied.
     """
     content = read_file(file_path, replace_map)
+    if not content:
+        return ""
     lines = content.splitlines()
     numbered_lines = [f"{i + 1} | {line}" for i, line in enumerate(lines)]
     return "\n".join(numbered_lines)

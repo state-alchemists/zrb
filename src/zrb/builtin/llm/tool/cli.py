@@ -1,7 +1,8 @@
 import subprocess
+from typing import Any
 
 
-def run_shell_command(command: str) -> str:
+def run_shell_command(command: str) -> dict[str, Any]:
     """
     Executes a shell command on the user's local machine and returns the output.
 

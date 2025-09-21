@@ -31,13 +31,11 @@ def test_list_files_non_recursive(temp_dir):
     os.makedirs(os.path.join(temp_dir, ".hiddendir"))
 
     # Default: non-recursive, exclude hidden
-    result = list_files(path=temp_dir, recursive=False, include_hidden=False)
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=False, include_hidden=False)
     assert sorted(data["files"]) == ["file1.txt", "subdir"]
 
     # Non-recursive, include hidden
-    result = list_files(path=temp_dir, recursive=False, include_hidden=True)
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=False, include_hidden=True)
     assert sorted(data["files"]) == [".hiddendir", ".hiddenfile", "file1.txt", "subdir"]
 
 
@@ -51,8 +49,7 @@ def test_list_files_recursive(temp_dir):
     create_file(os.path.join(temp_dir, ".hiddendir", "file3.txt"))
 
     # Recursive, exclude hidden
-    result = list_files(path=temp_dir, recursive=True, include_hidden=False)
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=True, include_hidden=False)
     # Note: os.path.join creates OS-specific paths
     expected = sorted(
         [
@@ -63,8 +60,7 @@ def test_list_files_recursive(temp_dir):
     assert sorted(data["files"]) == expected
 
     # Recursive, include hidden
-    result = list_files(path=temp_dir, recursive=True, include_hidden=True)
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=True, include_hidden=True)
     expected = sorted(
         [
             ".hiddenfile",
@@ -87,8 +83,7 @@ def test_list_files_exclusions(temp_dir):
     create_file(os.path.join(temp_dir, "subdir", "another.log"))
 
     # Default exclusions (recursive) - node_modules should be excluded, .log should NOT
-    result = list_files(path=temp_dir, recursive=True, include_hidden=False)
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=True, include_hidden=False)
     expected = sorted(
         [
             "file1.txt",
@@ -104,8 +99,7 @@ def test_list_files_exclusions(temp_dir):
     assert actual == expected
 
     # Custom exclusions (recursive)
-    result = list_files(path=temp_dir, recursive=True, excluded_patterns=["*.txt"])
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=True, excluded_patterns=["*.txt"])
     expected = sorted(
         [
             "file.log",  # Default exclusions not applied here
@@ -122,8 +116,7 @@ def test_list_files_exclusions(temp_dir):
     assert actual == expected
 
     # Exclude specific dir (non-recursive)
-    result = list_files(path=temp_dir, recursive=False, excluded_patterns=["subdir"])
-    data = json.loads(result)
+    data = list_files(path=temp_dir, recursive=False, excluded_patterns=["subdir"])
     expected = sorted(
         [
             "file.log",  # Default exclusions not applied here

@@ -50,19 +50,25 @@ class LLMContextConfig:
         """Gathers all relevant contexts for a given path."""
         if cwd is None:
             cwd = os.getcwd()
-        all_sections = self._get_all_sections(cwd)
+        home_dir = os.path.expanduser("~")
+        config_file = os.path.join(home_dir, CFG.LLM_CONTEXT_FILE)
+        if not os.path.exists(config_file):
+            return {}
+
+        config_dir = os.path.dirname(config_file)
+        sections = self._parse_config(config_file)
+
         contexts: dict[str, str] = {}
-        for config_dir, sections in reversed(all_sections):
-            for key, value in sections.items():
-                if key.startswith("Context:"):
-                    context_path_str = key[len("Context:") :].strip()
-                    abs_context_path = self._normalize_context_path(
-                        context_path_str,
-                        config_dir,
-                    )
-                    # A context is relevant if its path is an ancestor of cwd
-                    if os.path.commonpath([cwd, abs_context_path]) == abs_context_path:
-                        contexts[abs_context_path] = value
+        for key, value in sections.items():
+            if key.startswith("Context:"):
+                context_path_str = key[len("Context:") :].strip()
+                abs_context_path = self._normalize_context_path(
+                    context_path_str,
+                    config_dir,
+                )
+                # A context is relevant if its path is an ancestor of cwd
+                if os.path.commonpath([cwd, abs_context_path]) == abs_context_path:
+                    contexts[abs_context_path] = value
         return contexts
 
     def get_workflows(self, cwd: str | None = None) -> dict[str, str]:
@@ -84,17 +90,19 @@ class LLMContextConfig:
     def _format_context_path_for_writing(
         self,
         path_to_write: str,
-        cwd: str,
+        relative_to_dir: str,
     ) -> str:
         """Formats a path for writing into a context file key."""
         home_dir = os.path.expanduser("~")
-        abs_path_to_write = os.path.abspath(os.path.join(cwd, path_to_write))
-        abs_cwd = os.path.abspath(cwd)
-        # Rule 1: Inside CWD
-        if abs_path_to_write.startswith(abs_cwd):
-            if abs_path_to_write == abs_cwd:
+        abs_path_to_write = os.path.abspath(
+            os.path.join(relative_to_dir, path_to_write)
+        )
+        abs_relative_to_dir = os.path.abspath(relative_to_dir)
+        # Rule 1: Inside relative_to_dir
+        if abs_path_to_write.startswith(abs_relative_to_dir):
+            if abs_path_to_write == abs_relative_to_dir:
                 return "."
-            return os.path.relpath(abs_path_to_write, abs_cwd)
+            return os.path.relpath(abs_path_to_write, abs_relative_to_dir)
         # Rule 2: Inside Home
         if abs_path_to_write.startswith(home_dir):
             if abs_path_to_write == home_dir:
@@ -109,18 +117,14 @@ class LLMContextConfig:
         context_path: str | None = None,
         cwd: str | None = None,
     ):
-        """Writes content to a context block in CWD's configuration file."""
+        """Writes content to a context block in the user's home configuration file."""
         if cwd is None:
             cwd = os.getcwd()
         if context_path is None:
             context_path = cwd
 
-        config_files = self._find_config_files(cwd)
-        if config_files:
-            config_file = config_files[0]
-        else:
-            home_dir = os.path.expanduser("~")
-            config_file = os.path.join(home_dir, CFG.LLM_CONTEXT_FILE)
+        home_dir = os.path.expanduser("~")
+        config_file = os.path.join(home_dir, CFG.LLM_CONTEXT_FILE)
 
         sections = {}
         if os.path.exists(config_file):
@@ -144,9 +148,10 @@ class LLMContextConfig:
         if found_key:
             sections[found_key] = content
         else:
+            config_dir = os.path.dirname(config_file)
             formatted_path = self._format_context_path_for_writing(
-                context_path,
-                cwd,
+                abs_context_path,
+                config_dir,
             )
             new_key = f"Context: {formatted_path}"
             sections[new_key] = content

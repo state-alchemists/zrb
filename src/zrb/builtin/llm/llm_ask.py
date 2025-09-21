@@ -193,7 +193,7 @@ llm_ask: LLMTask = llm_group.add_task(
 llm_group.add_task(
     BaseTrigger(
         name="llm-chat",
-        input=_llm_ask_inputs,
+        input=[input for input in _llm_ask_inputs if input.name != "message"],
         description="💬 Chat with LLM",
         queue_name="ask_trigger",
         action=read_user_prompt,

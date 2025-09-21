@@ -27,7 +27,7 @@ def create_sub_agent_tool(
     toolsets: list["AbstractToolset[Agent]"] = [],
     yolo_mode: bool | list[str] | None = None,
     log_indent_level: int = 2,
-) -> Callable[[AnyContext, str], Coroutine[Any, Any, str]]:
+) -> Callable[[AnyContext, str], Coroutine[Any, Any, dict[str, Any]]]:
     """
     Creates a "tool that is another AI agent," capable of handling complex,
     multi-step sub-tasks.
@@ -61,7 +61,7 @@ def create_sub_agent_tool(
             its final result.
     """
 
-    async def run_sub_agent(ctx: AnyContext, query: str) -> str:
+    async def run_sub_agent(ctx: AnyContext, query: str) -> dict[str, Any]:
         """
         Runs the sub-agent with the given query.
         """
@@ -116,8 +116,8 @@ def create_sub_agent_tool(
 
         # Return the sub-agent's final message content
         if sub_agent_run and sub_agent_run.result:
-            # Return the final message content as a string
-            return json.dumps({"result": sub_agent_run.result.output})
+            # Return the final message content
+            return {"result": sub_agent_run.result.output}
         ctx.log_warning("Sub-agent run did not produce a result.")
         raise ValueError(f"{tool_name} not returning any result")
 
@@ -131,7 +131,7 @@ def create_sub_agent_tool(
             query (str): The query or task for the sub-agent.
 
         Returns:
-            str: The final response or result from the sub-agent.
+            dict[str, Any]: The final response or result from the sub-agent.
         """
     ).strip()
 
