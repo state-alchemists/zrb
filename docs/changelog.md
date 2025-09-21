@@ -1,6 +1,6 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
-# 1.6.0
+# 1.16.0
 
 - **Breaking Change**: Many LLM tools now return a dictionary (`dict[str, Any]`) instead of a JSON string for more structured output. This affects `run_shell_command`, `list_files`, `read_from_file`, `write_to_file`, `search_files`, `replace_in_file`, `analyze_file`, `read_many_files`, `write_many_files`, `open_web_page`, `search_internet`, `search_wikipedia`, `search_arxiv`, and sub-agent tools.
 - **Feature**: Introduced a new `Context` section in `ZRB.md` for cascading context, distinct from `Note` sections.
