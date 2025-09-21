@@ -93,10 +93,7 @@ def get_project_context_prompt() -> str:
     context_prompts = []
     for context_path, context in context_dict.items():
         context_prompts.append(
-            make_prompt_section(
-                header=f"Context at `{context_path}`",
-                content=context
-            )
+            make_prompt_section(header=f"Context at `{context_path}`", content=context)
         )
     return "\n".join(context_prompts)
 

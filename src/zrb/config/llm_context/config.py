@@ -90,7 +90,7 @@ class LLMContextConfig:
                     if workflow_name not in workflows:
                         workflows[workflow_name] = value
         return workflows
- 
+
     def get_contexts(self, cwd: str | None = None) -> dict[str, str]:
         """Gathers all context for a given path."""
         if cwd is None:
@@ -104,7 +104,7 @@ class LLMContextConfig:
                     if context_path not in contexts:
                         contexts[context_path] = value
         return contexts
-    
+
     def _format_context_path_for_writing(
         self,
         path_to_write: str,
@@ -170,7 +170,6 @@ class LLMContextConfig:
         if os.path.isabs(expanded_path):
             return os.path.abspath(expanded_path)
         return os.path.abspath(os.path.join(relative_to_dir, expanded_path))
-
 
 
 llm_context_config = LLMContextConfig()
