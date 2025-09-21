@@ -28,11 +28,11 @@ def create_history_summarization_tool(
         conversation_history.past_conversation_summary = past_conversation_summary
         conversation_history.past_conversation_transcript = past_conversation_transcript
         if long_term_note is not None:
-            llm_context_config.write_context(long_term_note, context_path="/")
+            llm_context_config.write_note(long_term_note, context_path="/")
         if contextual_note is not None:
             if context_path is None:
                 context_path = conversation_history.project_path
-            llm_context_config.write_context(contextual_note, context_path=context_path)
+            llm_context_config.write_note(contextual_note, context_path=context_path)
         return "Conversation memory updated"
 
     return update_conversation_memory

@@ -60,6 +60,7 @@ graph TD
         *   System details (OS, current directory).
         *   The enriched **Long-Term Context**.
         *   The **Narrative Summary**.
+        *   Contexts and Notes from `ZRB.md` files (see [LLM Context and Workflow Requirements](../../../technical-specs/llm-context.md)).
         *   The full content of any local files or directories you reference with `@` (e.g., `what is in @src/main.py?`).
 
 5.  **Agent Execution**: With the prompt finalized, a `pydantic-ai` agent is created. This agent is equipped with a set of powerful tools (for file I/O, shell commands, web searches, etc.) and the meticulously crafted prompt. It then processes your message, and its response is streamed back to you in real-time.

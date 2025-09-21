@@ -88,6 +88,19 @@ def get_modes(
     return llm_config.default_modes or []
 
 
+def get_project_context_prompt() -> str:
+    context_dict = llm_context_config.get_contexts()
+    context_prompts = []
+    for context_path, context in context_dict.items():
+        context_prompts.append(
+            make_prompt_section(
+                header=f"Context at `{context_path}`",
+                content=context
+            )
+        )
+    return "\n".join(context_prompts)
+
+
 def get_workflow_prompt(
     ctx: AnyContext,
     modes_attr: StrListAttr | None,
@@ -172,6 +185,7 @@ def get_system_and_user_prompt(
         ctx, special_instruction_prompt_attr, render_special_instruction_prompt
     )
     workflow_prompt = get_workflow_prompt(ctx, modes_attr, render_modes)
+    project_context_prompt = get_project_context_prompt()
     if conversation_history is None:
         conversation_history = ConversationHistory()
     conversation_context, new_user_message = extract_conversation_context(user_message)
@@ -215,6 +229,7 @@ def get_system_and_user_prompt(
                     ]
                 ),
             ),
+            make_prompt_section("Project Context", project_context_prompt),
             make_prompt_section("Conversation Context", conversation_context),
         ]
     )

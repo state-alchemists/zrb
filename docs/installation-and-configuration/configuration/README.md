@@ -14,6 +14,7 @@ Furthermore, Zrb also allows you to override some configurations with a special 
 
 - [LLM Integration](./llm-integration.md): Integration with LLM
 - [LLM Workflow](./llm-workflow.md): How `zrb` thinks and manages context.
+- [LLM Context File (`ZRB.md`)](../../technical-specs/llm-context.md): Detailed guide on defining Workflows, Contexts, and Notes.
 - [LLM Config](./llm-config.md): Configuring LLM configurations programmatically.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
 - [Web Auth Config](./web-auth-config.md): Configuring Zrb Web Server authentication programmatically.

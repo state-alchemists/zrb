@@ -26,12 +26,12 @@ def inject_conversation_history_notes(conversation_history: ConversationHistory)
 
 
 def _fetch_long_term_note(project_path: str) -> str:
-    contexts = llm_context_config.get_contexts(cwd=project_path)
+    contexts = llm_context_config.get_notes(cwd=project_path)
     return contexts.get("/", "")
 
 
 def _fetch_contextual_note(project_path: str) -> str:
-    contexts = llm_context_config.get_contexts(cwd=project_path)
+    contexts = llm_context_config.get_notes(cwd=project_path)
     return "\n".join(
         [
             make_prompt_section(header, content)
