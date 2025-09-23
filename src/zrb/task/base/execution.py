@@ -169,8 +169,9 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             session.get_task_status(task).mark_as_completed()
 
             # Store result in XCom
-            task_xcom: Xcom = ctx.xcom.get(task.name)
-            task_xcom.push(result)
+            task_xcom: Xcom | None = ctx.xcom.get(task.name)
+            if task_xcom is not None:
+                task_xcom.push(result)
 
             # Skip fallbacks and execute successors on success
             skip_fallbacks(task, session)
