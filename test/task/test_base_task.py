@@ -2,7 +2,9 @@ import asyncio
 from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
+from zrb.context.shared_context import SharedContext
 from zrb.session.any_session import AnySession
+from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 
@@ -267,3 +269,46 @@ def test_base_task_exec_action(mock_run_default_action):
         mock_run_default_action.assert_called_once_with(task, mock_any_context)
 
     asyncio.run(run_async_test())
+
+
+@patch("zrb.task.base.execution.execute_action_with_retry")
+def test_base_task_execute_condition_skipped(mock_execute_action_with_retry):
+    """
+    When a task is skipped, its successors should still be executed.
+    """
+    task1 = BaseTask(name="task1", execute_condition=False)
+    task2 = BaseTask(name="task2")
+    task3 = BaseTask(name="task3")
+    task1 >> task2
+    task2 >> task3
+
+    shared_ctx = MagicMock(spec=SharedContext)
+    shared_ctx.xcom = {}
+    shared_ctx.input = {}
+    shared_ctx.get_logging_level.return_value = 20  # logging.INFO
+    shared_ctx.append_to_shared_log.return_value = None
+    session = Session(shared_ctx=shared_ctx)
+    shared_ctx.session = session
+    session.register_task(task1)
+    session.register_task(task2)
+    session.register_task(task3)
+
+    async def run_test():
+        async def side_effect(task, session):
+            session.get_task_status(task).mark_as_completed()
+            return None
+
+        mock_execute_action_with_retry.side_effect = side_effect
+
+        await task1.exec_chain(session)
+
+        # execute_action_with_retry should be called for task2 and task3,
+        # but not for task1
+        assert mock_execute_action_with_retry.call_count == 2
+        mock_execute_action_with_retry.assert_any_call(task2, session)
+        mock_execute_action_with_retry.assert_any_call(task3, session)
+        assert session.get_task_status(task1).is_skipped
+        assert session.get_task_status(task2).is_completed
+        assert session.get_task_status(task3).is_completed
+
+    asyncio.run(run_test())
