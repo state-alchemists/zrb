@@ -17,9 +17,13 @@ async def monitor_task_readiness(
     """
     ctx = task.get_ctx(session)
     readiness_checks = task.readiness_checks
-    readiness_check_period = getattr(task, "_readiness_check_period", 5.0)
-    readiness_failure_threshold = getattr(task, "_readiness_failure_threshold", 1)
-    readiness_timeout = getattr(task, "_readiness_timeout", 60)
+    readiness_check_period = (
+        task._readiness_check_period if task._readiness_check_period else 5.0
+    )
+    readiness_failure_threshold = (
+        task._readiness_failure_threshold if task._readiness_failure_threshold else 1
+    )
+    readiness_timeout = task._readiness_timeout if task._readiness_timeout else 60
 
     if not readiness_checks:
         ctx.log_debug("No readiness checks defined, monitoring is not applicable.")
@@ -41,8 +45,9 @@ async def monitor_task_readiness(
                 session.get_task_status(check).reset_history()
                 session.get_task_status(check).reset()
                 # Clear previous XCom data for the check task if needed
-                check_xcom: Xcom = ctx.xcom.get(check.name)
-                check_xcom.clear()
+                check_xcom: Xcom | None = ctx.xcom.get(check.name)
+                if check_xcom is not None:
+                    check_xcom.clear()
 
             readiness_check_coros = [
                 run_async(check.exec_chain(session)) for check in readiness_checks
@@ -77,7 +82,7 @@ async def monitor_task_readiness(
                 )
                 # Ensure check tasks are marked as failed on timeout
                 for check in readiness_checks:
-                    if not session.get_task_status(check).is_finished:
+                    if not session.get_task_status(check).is_ready:
                         session.get_task_status(check).mark_as_failed()
 
             except (asyncio.CancelledError, KeyboardInterrupt):
@@ -92,7 +97,7 @@ async def monitor_task_readiness(
                 )
                 # Mark checks as failed
                 for check in readiness_checks:
-                    if not session.get_task_status(check).is_finished:
+                    if not session.get_task_status(check).is_ready:
                         session.get_task_status(check).mark_as_failed()
 
         # If failure threshold is reached

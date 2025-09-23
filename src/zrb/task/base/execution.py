@@ -53,7 +53,9 @@ def check_execute_condition(task: "BaseTask", session: AnySession) -> bool:
     Evaluates the task's execute_condition attribute.
     """
     ctx = task.get_ctx(session)
-    execute_condition_attr = getattr(task, "_execute_condition", True)
+    execute_condition_attr = (
+        task._execute_condition if task._execute_condition is not None else True
+    )
     return get_bool_attr(ctx, execute_condition_attr, True, auto_render=True)
 
 
@@ -63,8 +65,12 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
     """
     ctx = task.get_ctx(session)
     readiness_checks = task.readiness_checks
-    readiness_check_delay = getattr(task, "_readiness_check_delay", 0.5)
-    monitor_readiness = getattr(task, "_monitor_readiness", False)
+    readiness_check_delay = (
+        task._readiness_check_delay if task._readiness_check_delay is not None else 0.5
+    )
+    monitor_readiness = (
+        task._monitor_readiness if task._monitor_readiness is not None else False
+    )
 
     if not readiness_checks:  # Simplified check for empty list
         ctx.log_info("No readiness checks")
@@ -140,8 +146,8 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
     handling success (triggering successors) and failure (triggering fallbacks).
     """
     ctx = task.get_ctx(session)
-    retries = getattr(task, "_retries", 2)
-    retry_period = getattr(task, "_retry_period", 0)
+    retries = task._retries if task._retries is not None else 2
+    retry_period = task._retry_period if task._retry_period is not None else 0
     max_attempt = retries + 1
     ctx.set_max_attempt(max_attempt)
 
@@ -201,7 +207,7 @@ async def run_default_action(task: "BaseTask", ctx: AnyContext) -> Any:
     This is the default implementation called by BaseTask._exec_action.
     Subclasses like LLMTask override _exec_action with their own logic.
     """
-    action = getattr(task, "_action", None)
+    action = task._action
     if action is None:
         ctx.log_debug("No action defined for this task.")
         return None
