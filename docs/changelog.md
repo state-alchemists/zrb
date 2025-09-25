@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.16.2
+
+- **Dependencies**: Rolled back the version of several dependencies in `poetry.lock`, including `cohere`, `mistralai`, `openai`, and `pydantic-ai-slim`.
+- **Refactor**: Simplified `read_user_prompt` in `chat_session.py` for better readability and removed unnecessary condition checks.
+- **Cleanup**: Removed unused imports and methods from several modules including `llm_ask.py` and `tool_wrapper.py`.
+- **Bug Fixes**: Corrected logic in `base/execution.py` and adjusted task monitoring checks in `base/monitoring.py` for task readiness.
+
 # 1.16.1
 
 - **Added** `xmltodict` for arxiv tool
@@ -14,12 +21,15 @@
 - **Tests**: Increased test coverage for `zrb.config.llm_context.config` from 87% to 96%.
 
 # 1.15.27
+
 - **Changed** Not creating `./ZRB.md` if the file is not exists, instead try to use/create `~/ZRB.md`.
 
 # 1.15.26
+
 - **Added** Confirmation for MCP tools
 
 # 1.15.25
+
 - **Fixed** Make sure most configuration can be overridden with `zrb_init.py` by definine environment variable value.
 - **Changed** `builtin` will always be imported.
 
@@ -83,7 +93,6 @@
 - **Changed** Fix summarization prompt again
 - **Changed** Renamed `UserDisapprovalError` to `ToolExecutionCancelled`
 
-
 # 1.15.11
 
 - **Added** Introduce `UserDisapprovalError`
@@ -109,15 +118,15 @@
 # 1.15.6
 
 - **Features**:
-    - Added `ZRB_USE_TIKTOKEN` and `ZRB_TIKTOKEN_ENCODING` environment variables for more control over token counting.
+  - Added `ZRB_USE_TIKTOKEN` and `ZRB_TIKTOKEN_ENCODING` environment variables for more control over token counting.
 - **Changed**:
-    - Improved the tool confirmation prompt for better readability.
-    - Updated various dependencies.
-    - Refactored the `LLMRateLimiter` to use `tiktoken` more efficiently.
-    - Update envvar in docs (e.g., `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD` to `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT`).
+  - Improved the tool confirmation prompt for better readability.
+  - Updated various dependencies.
+  - Refactored the `LLMRateLimiter` to use `tiktoken` more efficiently.
+  - Update envvar in docs (e.g., `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD` to `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT`).
 - **Fixes**:
-    - Fixed an issue where a sub-agent failing would not raise an exception.
-    - Corrected the default values for `LLM_MAX_REQUESTS_PER_MINUTE` and `LLM_MAX_TOKENS_PER_REQUEST`.
+  - Fixed an issue where a sub-agent failing would not raise an exception.
+  - Corrected the default values for `LLM_MAX_REQUESTS_PER_MINUTE` and `LLM_MAX_TOKENS_PER_REQUEST`.
 
 # 1.15.5
 
@@ -564,9 +573,9 @@
 - Introduce `ZRB_INIT_FILE_NAME`, `ZRB_BANNER`, `ZRB_WEB_TITLE`, `ZRB_WEB_JARGON`, `ZRB_WEB_HOMEPAGE_INTRO` configuration.
 - Change Configuration mechanism, use `zrb.config.CFG` that allows lazy load.
 - 💥 Breaking changes:
-    - `zrb.builtin.llm.llm_chat` is now `zrb.builtin.llm.llm_ask`
-    - We now have `llm_ask` for one time interaction, replacing the old `llm_chat`
-    - The new `llm_chat` can only be accessed via CLI
+  - `zrb.builtin.llm.llm_chat` is now `zrb.builtin.llm.llm_ask`
+  - We now have `llm_ask` for one time interaction, replacing the old `llm_chat`
+  - The new `llm_chat` can only be accessed via CLI
 
 # 1.5.17
 
@@ -650,10 +659,10 @@
 
 - Remove `read_all_files` as it might use all token
 - Roo Code style tools:
-    - Rename `read_text_file` to `read_from_file`
-    - Rename `write_text_file` to `write_to_file`
-    - Introduce `search_files`
-    - Introduce `apply_diff`
+  - Rename `read_text_file` to `read_from_file`
+  - Rename `write_text_file` to `write_to_file`
+  - Introduce `search_files`
+  - Introduce `apply_diff`
 - Add `filter` parameter on todo tasks
 
 # 1.4.3
@@ -672,9 +681,9 @@
 
 - Introduce LLMConfig
 - Rename tool and update signatures:
-    - Rename `list_file` to `list_files`
-    - Rename `read_source_code` to `read_all_files`
-    - Remove parameter `extensions`, add parameters `included_patterns` and `excluded_patterns`.
+  - Rename `list_file` to `list_files`
+  - Rename `read_source_code` to `read_all_files`
+  - Remove parameter `extensions`, add parameters `included_patterns` and `excluded_patterns`.
 
 # 1.3.1
 

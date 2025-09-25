@@ -304,7 +304,7 @@ def write_to_file(
     Writes content to a file, completely overwriting it if it exists or
     creating it if it doesn't.
 
-    Use this tool to create new files or to replace the entire content of
+    Use this tool to create new files or to overwrite the entire content of
     existing files. This is a destructive operation, so be certain of your
     actions. Always read the file first to understand its contents before
     overwriting it, unless you are creating a new file.
@@ -497,7 +497,7 @@ async def analyze_file(
     ctx: AnyContext, path: str, query: str, token_limit: int | None = None
 ) -> dict[str, Any]:
     """
-    Performs a deep, goal-oriented analysis of a single file using a sub-agent.
+    Performs a high level, goal-oriented analysis of a single file using a sub-agent.
 
     This tool is ideal for complex questions about a single file that go beyond
     simple reading or searching. It uses a specialized sub-agent to analyze the
