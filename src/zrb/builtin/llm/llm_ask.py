@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -35,7 +36,6 @@ from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
 from zrb.util.string.conversion import to_boolean
-import os
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -47,10 +47,14 @@ if TYPE_CHECKING:
 def _get_toolset(ctx: AnyContext) -> list["AbstractToolset[None] | str"]:
     cwd = os.getcwd()
     toolsets = []
-    for config_path in  [os.path.join(cwd, "mcp_config.json"), os.path.join(cwd, "mcp-config.json")]:
+    for config_path in [
+        os.path.join(cwd, "mcp_config.json"),
+        os.path.join(cwd, "mcp-config.json"),
+    ]:
         if os.path.isfile(config_path):
             toolsets.append(config_path)
     return toolsets
+
 
 def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
     tools = []
@@ -179,6 +183,7 @@ def _get_inputs(require_message: bool = True) -> list[AnyInput]:
             always_prompt=False,
         ),
     ]
+
 
 llm_ask: LLMTask = llm_group.add_task(
     LLMTask(

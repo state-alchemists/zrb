@@ -80,7 +80,8 @@ class LLMTask(BaseTask):
             | Callable[[AnySharedContext], list["ToolOrCallable"]]
         ) = [],
         toolsets: (
-            list["AbstractToolset[None] | str"] | Callable[[AnySharedContext], list["AbstractToolset[None] | str"]]
+            list["AbstractToolset[None] | str"]
+            | Callable[[AnySharedContext], list["AbstractToolset[None] | str"]]
         ) = [],
         conversation_history: (
             ConversationHistory
@@ -205,6 +206,7 @@ class LLMTask(BaseTask):
 
     def append_toolset(self, *toolset: "AbstractToolset[None] | str"):
         from pydantic_ai.mcp import load_mcp_servers
+
         for single_toolset in toolset:
             self._additional_toolsets.append(single_toolset)
 

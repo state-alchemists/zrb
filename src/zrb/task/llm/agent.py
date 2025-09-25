@@ -149,7 +149,9 @@ def get_agent(
     tools = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools.extend(additional_tools)
     # Get Toolsets for agent
-    toolset_or_str_list = list(toolsets_attr(ctx) if callable(toolsets_attr) else toolsets_attr)
+    toolset_or_str_list = list(
+        toolsets_attr(ctx) if callable(toolsets_attr) else toolsets_attr
+    )
     toolset_or_str_list.extend(additional_toolsets)
     toolsets = _render_toolset_or_str_list(ctx, toolset_or_str_list)
     # If no agent provided, create one using the configuration
@@ -165,13 +167,15 @@ def get_agent(
         yolo_mode=yolo_mode,
     )
 
+
 def _render_toolset_or_str_list(
     ctx: AnyContext, toolset_or_str_list: list["AbstractToolset[None] | str"]
 ) -> list["AbstractToolset[None]"]:
     from pydantic_ai.mcp import load_mcp_servers
+
     toolsets = []
     for toolset_or_str in toolset_or_str_list:
-        if isinstance(toolset_or_str, str) :
+        if isinstance(toolset_or_str, str):
             try:
                 servers = load_mcp_servers(toolset_or_str)
                 for server in servers:
@@ -181,6 +185,7 @@ def _render_toolset_or_str_list(
             continue
         toolsets.append(toolset_or_str)
     return toolsets
+
 
 async def run_agent_iteration(
     ctx: AnyContext,

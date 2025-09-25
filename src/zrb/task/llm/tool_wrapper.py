@@ -1,6 +1,6 @@
 import functools
-import json
 import inspect
+import json
 import traceback
 import typing
 from collections.abc import Callable
