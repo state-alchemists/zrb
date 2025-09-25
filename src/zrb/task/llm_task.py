@@ -80,7 +80,8 @@ class LLMTask(BaseTask):
             | Callable[[AnySharedContext], list["ToolOrCallable"]]
         ) = [],
         toolsets: (
-            list["AbstractToolset[Agent]"] | Callable[[AnySharedContext], list["Tool"]]
+            list["AbstractToolset[None] | str"]
+            | Callable[[AnySharedContext], list["AbstractToolset[None] | str"]]
         ) = [],
         conversation_history: (
             ConversationHistory
@@ -169,7 +170,7 @@ class LLMTask(BaseTask):
         self._rate_limitter = rate_limitter
         self._additional_tools: list["ToolOrCallable"] = []
         self._toolsets = toolsets
-        self._additional_toolsets: list["AbstractToolset[Agent]"] = []
+        self._additional_toolsets: list["AbstractToolset[None] | str"] = []
         self._conversation_history = conversation_history
         self._conversation_history_reader = conversation_history_reader
         self._conversation_history_writer = conversation_history_writer
@@ -200,10 +201,12 @@ class LLMTask(BaseTask):
         for single_tool in tool:
             self._additional_tools.append(single_tool)
 
-    def add_toolset(self, *toolset: "AbstractToolset[Agent]"):
+    def add_toolset(self, *toolset: "AbstractToolset[None] | str"):
         self.append_toolset(*toolset)
 
-    def append_toolset(self, *toolset: "AbstractToolset[Agent]"):
+    def append_toolset(self, *toolset: "AbstractToolset[None] | str"):
+        from pydantic_ai.mcp import load_mcp_servers
+
         for single_toolset in toolset:
             self._additional_toolsets.append(single_toolset)
 

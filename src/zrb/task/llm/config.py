@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 
-from zrb.attr.type import BoolAttr, StrAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -13,7 +13,7 @@ from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
 
 def get_yolo_mode(
     ctx: AnyContext,
-    yolo_mode_attr: BoolAttr | StrAttr | None = None,
+    yolo_mode_attr: BoolAttr | StrListAttr | None = None,
     render_yolo_mode: bool = True,
 ) -> bool | list[str]:
     if yolo_mode_attr is None:

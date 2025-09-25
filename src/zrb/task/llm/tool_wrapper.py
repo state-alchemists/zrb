@@ -1,5 +1,6 @@
 import functools
 import inspect
+import json
 import traceback
 import typing
 from collections.abc import Callable
@@ -172,18 +173,17 @@ def _get_edited_kwargs(
         return kwargs, False
     while len(user_edit_responses) < 3:
         user_edit_responses.append("")
-    key, val = user_edit_responses[1:]
+    key, val_str = user_edit_responses[1:]
     if key not in kwargs:
         return kwargs, True
-    if val != "":
-        kwargs[key] = val
-        return kwargs, True
-    val = edit_text(
-        prompt_message=f"// {key}",
-        value=kwargs.get(key, ""),
-        editor=CFG.DEFAULT_EDITOR,
-    )
-    kwargs[key] = val
+    is_str_param = isinstance(kwargs[key], str)
+    if val_str == "":
+        val_str = edit_text(
+            prompt_message=f"// {key}",
+            value=_get_val_str(kwargs[key]),
+            editor=CFG.DEFAULT_EDITOR,
+        )
+    kwargs[key] = val_str if is_str_param else json.loads(val_str)
     return kwargs, True
 
 
@@ -233,7 +233,7 @@ def _get_detail_func_param(args: list[Any] | tuple[Any], kwargs: dict[str, Any])
 
 def _get_func_param_item(key: str, val: Any) -> str:
     upper_key = key.upper()
-    val_str = f"{val}"
+    val_str = _get_val_str(val)
     val_parts = val_str.split("\n")
     if len(val_parts) == 1:
         return f"- {upper_key} `{val}`"
@@ -242,6 +242,15 @@ def _get_func_param_item(key: str, val: Any) -> str:
         lines.append(f"  {val_part}")
     lines.append("  ```")
     return "\n".join(lines)
+
+
+def _get_val_str(val: Any) -> str:
+    if isinstance(val, str):
+        return val
+    try:
+        return json.dumps(val, indent=4)
+    except Exception:
+        return f"{val}"
 
 
 def _get_func_call_str(
