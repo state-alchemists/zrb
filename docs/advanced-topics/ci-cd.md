@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # Use a specific version for consistency
-      image: stalchmst/zrb:1.15.0
+      image: stalchmst/zrb:1.16.2
 
     steps:
       - name: Check out repository code
