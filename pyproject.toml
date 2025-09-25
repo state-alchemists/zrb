@@ -50,10 +50,10 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface"], version = "~1.0.1"} 
+pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "mistral", "bedrock", "huggingface"], version = "~1.0.10"} 
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
-openai = ">=1.99.9"
+openai = ">=1.107.2"
 prompt-toolkit = ">=3"
 rich = ">=13"
 mcp = ">1.12.3"

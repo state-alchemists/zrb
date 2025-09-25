@@ -24,7 +24,7 @@ def create_sub_agent_tool(
     model: "str | Model | None" = None,
     model_settings: "ModelSettings | None" = None,
     tools: "list[ToolOrCallable]" = [],
-    toolsets: list["AbstractToolset[Agent]"] = [],
+    toolsets: list["AbstractToolset[None]"] = [],
     yolo_mode: bool | list[str] | None = None,
     log_indent_level: int = 2,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, dict[str, Any]]]:

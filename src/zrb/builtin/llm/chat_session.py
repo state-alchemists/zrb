@@ -35,14 +35,16 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             ctx.input.previous_session if is_first_time else None
         )
         start_new: bool = ctx.input.start_new if is_first_time else False
-        if is_first_time:
-            is_first_time = False
-        # Get user input based on mode
-        if not multiline_mode:
-            ctx.print("💬 >>", plain=True)
-        user_input = await _read_next_line(reader, ctx)
-        if not multiline_mode:
-            ctx.print("", plain=True)
+        if is_first_time and ctx.input.message.strip() != "":
+            user_input = ctx.input.message
+        else:
+            # Get user input based on mode
+            if not multiline_mode:
+                ctx.print("💬 >>", plain=True)
+            user_input = await _read_next_line(reader, ctx)
+            if not multiline_mode:
+                ctx.print("", plain=True)
+        is_first_time = False
         # Handle user input
         if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
             user_prompt = "\n".join(user_inputs)

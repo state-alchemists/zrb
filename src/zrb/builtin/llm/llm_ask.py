@@ -28,18 +28,29 @@ from zrb.callback.callback import Callback
 from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
+from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.llm_task import LLMTask
 from zrb.util.string.conversion import to_boolean
+import os
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
+    from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
 
+
+def _get_toolset(ctx: AnyContext) -> list["AbstractToolset[None] | str"]:
+    cwd = os.getcwd()
+    toolsets = []
+    for config_path in  [os.path.join(cwd, "mcp_config.json"), os.path.join(cwd, "mcp-config.json")]:
+        if os.path.isfile(config_path):
+            toolsets.append(config_path)
+    return toolsets
 
 def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
     tools = []
@@ -91,81 +102,88 @@ def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
     return elements
 
 
-_llm_ask_inputs = [
-    StrInput(
-        "model",
-        description="LLM Model",
-        prompt="LLM Model",
-        default="",
-        allow_positional_parsing=False,
-        always_prompt=False,
-        allow_empty=True,
-    ),
-    StrInput(
-        "base-url",
-        description="LLM API Base URL",
-        prompt="LLM API Base URL",
-        default="",
-        allow_positional_parsing=False,
-        always_prompt=False,
-        allow_empty=True,
-    ),
-    StrInput(
-        "api-key",
-        description="LLM API Key",
-        prompt="LLM API Key",
-        default="",
-        allow_positional_parsing=False,
-        always_prompt=False,
-        allow_empty=True,
-    ),
-    TextInput(
-        "system-prompt",
-        description="System prompt",
-        prompt="System prompt",
-        default="",
-        allow_positional_parsing=False,
-        always_prompt=False,
-    ),
-    TextInput(
-        "modes",
-        description="Modes",
-        prompt="Modes",
-        default=lambda ctx: ",".join(llm_config.default_modes),
-        allow_positional_parsing=False,
-        always_prompt=False,
-    ),
-    BoolInput(
-        "start-new",
-        description="Start new session (LLM Agent will forget past conversation)",
-        prompt="Start new session (LLM Agent will forget past conversation)",
-        default=False,
-        allow_positional_parsing=False,
-        always_prompt=False,
-    ),
-    StrInput(
-        "yolo",
-        description="YOLO mode (LLM Agent will start in YOLO Mode)",
-        prompt="YOLO mode (LLM Agent will start in YOLO Mode)",
-        default=_get_default_yolo_mode,
-        allow_positional_parsing=False,
-        always_prompt=False,
-    ),
-    TextInput("message", description="User message", prompt="Your message"),
-    PreviousSessionInput(
-        "previous-session",
-        description="Previous conversation session",
-        prompt="Previous conversation session (can be empty)",
-        allow_positional_parsing=False,
-        allow_empty=True,
-        always_prompt=False,
-    ),
-]
+def _get_inputs(require_message: bool = True) -> list[AnyInput]:
+    return [
+        StrInput(
+            "model",
+            description="LLM Model",
+            prompt="LLM Model",
+            default="",
+            allow_positional_parsing=False,
+            always_prompt=False,
+            allow_empty=True,
+        ),
+        StrInput(
+            "base-url",
+            description="LLM API Base URL",
+            prompt="LLM API Base URL",
+            default="",
+            allow_positional_parsing=False,
+            always_prompt=False,
+            allow_empty=True,
+        ),
+        StrInput(
+            "api-key",
+            description="LLM API Key",
+            prompt="LLM API Key",
+            default="",
+            allow_positional_parsing=False,
+            always_prompt=False,
+            allow_empty=True,
+        ),
+        TextInput(
+            "system-prompt",
+            description="System prompt",
+            prompt="System prompt",
+            default="",
+            allow_positional_parsing=False,
+            always_prompt=False,
+        ),
+        TextInput(
+            "modes",
+            description="Modes",
+            prompt="Modes",
+            default=lambda ctx: ",".join(llm_config.default_modes),
+            allow_positional_parsing=False,
+            always_prompt=False,
+        ),
+        BoolInput(
+            "start-new",
+            description="Start new session (LLM Agent will forget past conversation)",
+            prompt="Start new session (LLM Agent will forget past conversation)",
+            default=False,
+            allow_positional_parsing=False,
+            always_prompt=False,
+        ),
+        StrInput(
+            "yolo",
+            description="YOLO mode (LLM Agent will start in YOLO Mode)",
+            prompt="YOLO mode (LLM Agent will start in YOLO Mode)",
+            default=_get_default_yolo_mode,
+            allow_positional_parsing=False,
+            always_prompt=False,
+        ),
+        TextInput(
+            "message",
+            description="User message",
+            prompt="Your message",
+            always_prompt=require_message,
+            allow_empty=not require_message,
+        ),
+        PreviousSessionInput(
+            "previous-session",
+            description="Previous conversation session",
+            prompt="Previous conversation session (can be empty)",
+            allow_positional_parsing=False,
+            allow_empty=True,
+            always_prompt=False,
+        ),
+    ]
 
 llm_ask: LLMTask = llm_group.add_task(
     LLMTask(
         name="llm-ask",
-        input=_llm_ask_inputs,
+        input=_get_inputs(True),
         description="❓ Ask LLM",
         model=lambda ctx: None if ctx.input.model.strip() == "" else ctx.input.model,
         model_base_url=lambda ctx: (
@@ -184,6 +202,7 @@ llm_ask: LLMTask = llm_group.add_task(
         ),
         message="{ctx.input.message}",
         tools=_get_tool,
+        toolsets=_get_toolset,
         yolo_mode=_render_yolo_mode_input,
         retries=0,
     ),
@@ -193,7 +212,7 @@ llm_ask: LLMTask = llm_group.add_task(
 llm_group.add_task(
     BaseTrigger(
         name="llm-chat",
-        input=[input for input in _llm_ask_inputs if input.name != "message"],
+        input=_get_inputs(False),
         description="💬 Chat with LLM",
         queue_name="ask_trigger",
         action=read_user_prompt,

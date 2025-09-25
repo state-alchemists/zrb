@@ -125,8 +125,8 @@ def get_agent(
         "list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]"
     ) = [],
     additional_tools: "list[ToolOrCallable]" = [],
-    toolsets_attr: "list[AbstractToolset[Agent]] | Callable[[AnySharedContext], list[AbstractToolset[Agent]]]" = [],  # noqa
-    additional_toolsets: "list[AbstractToolset[Agent]]" = [],
+    toolsets_attr: "list[AbstractToolset[None] | str] | Callable[[AnySharedContext], list[AbstractToolset[None] | str]]" = [],  # noqa
+    additional_toolsets: "list[AbstractToolset[None] | str]" = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
 ) -> "Agent":
@@ -149,8 +149,9 @@ def get_agent(
     tools = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools.extend(additional_tools)
     # Get Toolsets for agent
-    tool_sets = list(toolsets_attr(ctx) if callable(toolsets_attr) else toolsets_attr)
-    tool_sets.extend(additional_toolsets)
+    toolset_or_str_list = list(toolsets_attr(ctx) if callable(toolsets_attr) else toolsets_attr)
+    toolset_or_str_list.extend(additional_toolsets)
+    toolsets = _render_toolset_or_str_list(ctx, toolset_or_str_list)
     # If no agent provided, create one using the configuration
     return create_agent_instance(
         ctx=ctx,
@@ -158,12 +159,28 @@ def get_agent(
         output_type=output_type,
         system_prompt=system_prompt,
         tools=tools,
-        toolsets=tool_sets,
+        toolsets=toolsets,
         model_settings=model_settings,
         retries=retries,
         yolo_mode=yolo_mode,
     )
 
+def _render_toolset_or_str_list(
+    ctx: AnyContext, toolset_or_str_list: list["AbstractToolset[None] | str"]
+) -> list["AbstractToolset[None]"]:
+    from pydantic_ai.mcp import load_mcp_servers
+    toolsets = []
+    for toolset_or_str in toolset_or_str_list:
+        if isinstance(toolset_or_str, str) :
+            try:
+                servers = load_mcp_servers(toolset_or_str)
+                for server in servers:
+                    toolsets.append(server)
+            except Exception as e:
+                ctx.log_error(f"Invalid MCP Config {toolset_or_str}: {e}")
+            continue
+        toolsets.append(toolset_or_str)
+    return toolsets
 
 async def run_agent_iteration(
     ctx: AnyContext,
