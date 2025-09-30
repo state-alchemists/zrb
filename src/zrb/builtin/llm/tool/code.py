@@ -120,6 +120,10 @@ async def analyze_repo(
         goal=goal,
         token_limit=extraction_token_threshold,
     )
+    if len(extracted_infos) == 0:
+        raise RuntimeError(
+            "No info can be extracted, adjust extensions or exclude_patterns."
+        )
     if len(extracted_infos) == 1:
         return extracted_infos[0]
     summarized_infos = extracted_infos
@@ -146,11 +150,11 @@ def _get_file_metadatas(
             if not any(file.endswith(f".{ext}") for ext in extensions):
                 continue
             file_path = os.path.join(root, file)
-            if is_excluded(file_path, exclude_patterns):
-                continue
             try:
+                rel_path = os.path.relpath(file_path, dir_path)
+                if is_excluded(rel_path, exclude_patterns):
+                    continue
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    rel_path = os.path.relpath(file_path, dir_path)
                     metadata_list.append({"path": rel_path, "content": f.read()})
             except Exception as e:
                 print(f"Error reading file {file_path}: {e}")

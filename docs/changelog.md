@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.16.3
+
+- **Added**: Introduce `llm_chat_trigger`
+- **Fixed**: Several minor bug fixes
+
 # 1.16.2
 
 - **Dependencies**: Rolled back the version of several dependencies in `poetry.lock`, including `cohere`, `mistralai`, `openai`, and `pydantic-ai-slim`.

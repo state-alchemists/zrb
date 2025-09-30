@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Coroutine
@@ -9,7 +8,7 @@ from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.prompt import get_system_and_user_prompt
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent, Tool
+    from pydantic_ai import Tool
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.toolsets import AbstractToolset

@@ -7,12 +7,19 @@ conversation flow via XCom.
 
 import asyncio
 import sys
+from typing import TYPE_CHECKING, Any
 
+from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_blue, stylize_bold_yellow, stylize_faint
 from zrb.util.string.conversion import to_boolean
+
+if TYPE_CHECKING:
+    from asyncio import StreamReader
+
+    from prompt_toolkit import PromptSession
 
 
 async def read_user_prompt(ctx: AnyContext) -> str:
@@ -22,7 +29,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     """
     _show_info(ctx)
     is_tty: bool = ctx.is_tty
-    reader = await _setup_input_reader(is_tty)
+    reader: PromptSession[Any] | StreamReader = await _setup_input_reader(is_tty)
     multiline_mode = False
     is_first_time = True
     current_modes: str = ctx.input.modes
@@ -32,7 +39,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     while True:
         await asyncio.sleep(0.01)
         previous_session_name: str | None = (
-            ctx.input.previous_session if is_first_time else None
+            ctx.input.previous_session if is_first_time else ""
         )
         start_new: bool = ctx.input.start_new if is_first_time else False
         if is_first_time and ctx.input.message.strip() != "":
@@ -41,7 +48,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             # Get user input based on mode
             if not multiline_mode:
                 ctx.print("💬 >>", plain=True)
-            user_input = await _read_next_line(reader, ctx)
+            user_input = await llm_chat_trigger.wait(reader, ctx)
             if not multiline_mode:
                 ctx.print("", plain=True)
         is_first_time = False
@@ -153,7 +160,9 @@ def _show_subcommand(command: str, description: str) -> str:
     return f"  {styled_command} {styled_description}"
 
 
-async def _setup_input_reader(is_interactive: bool):
+async def _setup_input_reader(
+    is_interactive: bool,
+) -> "PromptSession[Any] | StreamReader":
     """Sets up and returns the appropriate asynchronous input reader."""
     if is_interactive:
         from prompt_toolkit import PromptSession
@@ -165,22 +174,6 @@ async def _setup_input_reader(is_interactive: bool):
     protocol = asyncio.StreamReaderProtocol(reader)
     await loop.connect_read_pipe(lambda: protocol, sys.stdin)
     return reader
-
-
-async def _read_next_line(reader, ctx: AnyContext) -> str:
-    """Reads one line of input using the provided reader."""
-    from prompt_toolkit import PromptSession
-
-    if isinstance(reader, PromptSession):
-        return await reader.prompt_async()
-
-    line_bytes = await reader.readline()
-    if not line_bytes:
-        return "/bye"  # Signal to exit
-
-    user_input = line_bytes.decode().strip()
-    ctx.print(user_input, plain=True)
-    return user_input
 
 
 async def _trigger_ask_and_wait_for_result(

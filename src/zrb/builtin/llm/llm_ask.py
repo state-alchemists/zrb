@@ -106,7 +106,7 @@ def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
     return elements
 
 
-def _get_inputs(require_message: bool = True) -> list[AnyInput]:
+def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
     return [
         StrInput(
             "model",
