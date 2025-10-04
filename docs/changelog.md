@@ -1,5 +1,17 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.16.4
+
+- **Feature: Note Taking Tool**: Introduced a new `note` tool that allows the AI agent to manage long-term and contextual notes, improving its ability to recall information across sessions.
+- **Feature: User Interception of Tool Calls**: The system now notified about users parameters edit of a tool call before it is executed.
+- **Refactor: Simplified History Summarization**: The history summarization process has been streamlined. It no longer handles note-taking, which is now managed by the dedicated `note` tool.
+- **Docs: Enhanced Tool and Workflow Documentation**:
+  - The documentation for file system tools (`list_files`, `read_from_file`, `read_many_files`) has been updated to clarify the handling of line numbers and encourage robust file path discovery.
+  - The domain-specific workflow for coding tasks has been significantly expanded to provide a more comprehensive and structured development process.
+- **Testing**:
+  - Added unit tests for the new `note` tool to ensure its reliability.
+  - Updated the end-to-end test script (`zrb-test-llm-chat.sh`) to use the `llm-ask` command, aligning with the latest changes.
+
 # 1.16.3
 
 - **Added**: Introduce `llm_chat_trigger`
