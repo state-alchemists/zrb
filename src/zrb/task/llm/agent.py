@@ -57,7 +57,7 @@ def create_agent_instance(
 
             # For the confirmation UI, make our temporary function look like the real one.
             try:
-                execute_delegated_tool_call.__name__ = tool.function.__name__
+                execute_delegated_tool_call.__name__ = name
                 execute_delegated_tool_call.__doc__ = tool.function.__doc__
                 execute_delegated_tool_call.__signature__ = inspect.signature(
                     tool.function

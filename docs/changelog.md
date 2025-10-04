@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.16.5
+
+- **Fixed**: Correct function name (in approval/confirmation flow) when using MCP
+
 # 1.16.4
 
 - **Feature: Note Taking Tool**: Introduced a new `note` tool that allows the AI agent to manage long-term and contextual notes, improving its ability to recall information across sessions.
