@@ -104,8 +104,10 @@ def list_files(
 
     This is a fundamental tool for exploring the file system. Use it to
     discover the structure of a directory, find specific files, or get a
-
     general overview of the project layout before performing other operations.
+    **NOTE:**
+    User might provide inaccurate file path, so if you failed to read a file,
+    it is a good idea to list the files to get the accurate file path.
 
     Args:
         path (str, optional): The directory path to list. Defaults to the
@@ -228,9 +230,16 @@ def read_from_file(
     end line.
 
     This tool is essential for inspecting file contents. It can read both text
-    and PDF files. The returned content is prefixed with line numbers, which is
-    crucial for providing context when you need to modify the file later with
-    the `apply_diff` tool.
+    and PDF files. The `content` field in the returned dictionary is **always**
+    prefixed with line numbers (`line_number | `) for each line. These prefixes
+    are added by the tool for internal processing and to provide contextual
+    information to the AI agent (e.g., for accurately applying diffs or for
+    referencing specific lines). They are **not** part of the actual file content.
+
+    When presenting the file content to a user, the AI agent **MUST** omit these
+    line number prefixes by default for better readability. They should only
+    be included if explicitly requested by the user or if the request inherently
+    requires line number context (e.g., 'show me lines 10-20').
 
     Use this tool to:
     - Examine the source code of a file.
@@ -246,18 +255,28 @@ def read_from_file(
 
     Returns:
         dict[str, Any]: A dictionary containing the file path, the requested content
-            with line numbers, the start and end lines, and the total number
+            (always with line numbers), the start and end lines, and the total number
             of lines in the file.
             Example:
             ```
             {
                 "path": "src/main.py",
-                "content": "1| import os\n2|3| print(\"Hello, World!\")",
+                "content": "1| import os\n2|\n3| print(\"Hello, World!\")",
                 "start_line": 1,
                 "end_line": 3,
                 "total_lines": 3
             }
             ```
+            If the file 'src/main.py' contains:
+            ```
+            import os
+
+            print("Hello, World!")
+            ```
+            The 'content' field in the returned dictionary will be:
+            `"1| import os\n2|\n3| print(\"Hello, World!\")"`
+            **IMPORTANT:** The "1|", "2|", "3|" prefixes are NOT part of the
+            original file. They are for internal agent use.
     Raises:
         FileNotFoundError: If the specified file does not exist.
     """
@@ -561,6 +580,17 @@ def read_many_files(paths: list[str]) -> dict[str, str]:
     project relate to each other, or when you need to inspect a set of related
     configuration or source code files.
 
+    The content for each file in the returned dictionary is **always** prefixed
+    with line numbers (`line_number | `) for each line. These prefixes are added
+    by the tool for internal processing and to provide contextual information to
+    the AI agent (e.g., for accurately applying diffs or for referencing specific
+    lines). They are **not** part of the actual file content.
+
+    When presenting the file content to a user, the AI agent **MUST** omit these
+    line number prefixes by default for better readability. They should only
+    be included if explicitly requested by the user or if the request inherently
+    requires line number context (e.g., 'show me lines 10-20').
+
     Args:
         paths (list[str]): A list of paths to the files you want to read. It is
             crucial to provide accurate paths. Use the `list_files` tool first
@@ -568,9 +598,25 @@ def read_many_files(paths: list[str]) -> dict[str, str]:
 
     Returns:
         dict[str, str]:  a dictionary where keys are the file paths and values
-            are their corresponding contents, prefixed with line numbers.
+            are their corresponding contents (always with line numbers).
             If a file cannot be read, its value will be an error message.
-            Example: {"src/api.py": "1| import ...", "config.yaml": "1| key: value"}
+            Example:
+            ```
+            {
+                "src/api.py": "1| import os\n2|\n3| print("Hello, World!")",
+                "config.yaml": "1| key: value"
+            }
+            ```
+            If the file 'src/api.py' contains:
+            ```
+            import os
+
+            print("Hello, World!")
+            ```
+            The content for 'src/api.py' in the returned dictionary will be:
+            `"1| import os\n2|\n3| print("Hello, World!")"`
+            **IMPORTANT:** The "1|", "2|", "3|" prefixes are NOT part of the
+            original file. They are for internal agent use.
     """
     results = {}
     for path in paths:

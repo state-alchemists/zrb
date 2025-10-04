@@ -205,8 +205,6 @@ class LLMTask(BaseTask):
         self.append_toolset(*toolset)
 
     def append_toolset(self, *toolset: "AbstractToolset[None] | str"):
-        from pydantic_ai.mcp import load_mcp_servers
-
         for single_toolset in toolset:
             self._additional_toolsets.append(single_toolset)
 

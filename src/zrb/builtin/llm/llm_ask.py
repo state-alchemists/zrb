@@ -19,6 +19,12 @@ from zrb.builtin.llm.tool.file import (
     write_many_files,
     write_to_file,
 )
+from zrb.builtin.llm.tool.note import (
+    read_contextual_note,
+    read_long_term_note,
+    write_contextual_note,
+    write_long_term_note,
+)
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
@@ -57,7 +63,12 @@ def _get_toolset(ctx: AnyContext) -> list["AbstractToolset[None] | str"]:
 
 
 def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
-    tools = []
+    tools = [
+        read_long_term_note,
+        write_long_term_note,
+        read_contextual_note,
+        write_contextual_note,
+    ]
     if CFG.LLM_ALLOW_ANALYZE_REPO:
         tools.append(analyze_repo)
     if CFG.LLM_ALLOW_ANALYZE_FILE:
@@ -97,8 +108,8 @@ def _get_default_yolo_mode(ctx: AnyContext) -> str:
 def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
     if ctx.input.yolo.strip() == "":
         return None
-    elements = ctx.input.yolo.split(",")
-    if len(elements) == 0:
+    elements = [element.strip() for element in ctx.input.yolo.split(",")]
+    if len(elements) == 1:
         try:
             return to_boolean(elements[0])
         except Exception:

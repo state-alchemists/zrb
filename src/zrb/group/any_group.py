@@ -1,13 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
 
 from zrb.task.any_task import AnyTask
 
-GroupType = TypeVar("GroupType", bound="AnyGroup")
-TaskType = TypeVar("TaskType", bound=AnyTask)
 
-
-class AnyGroup(ABC, Generic[GroupType, TaskType]):
+class AnyGroup(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
@@ -39,11 +35,11 @@ class AnyGroup(ABC, Generic[GroupType, TaskType]):
         pass
 
     @abstractmethod
-    def add_group(self, group: GroupType, alias: str | None) -> GroupType:
+    def add_group(self, group: "AnyGroup", alias: str | None) -> "AnyGroup":
         pass
 
     @abstractmethod
-    def add_task(self, task: TaskType, alias: str | None = None) -> TaskType:
+    def add_task(self, task: "AnyTask", alias: str | None = None) -> "AnyTask":
         pass
 
     @abstractmethod

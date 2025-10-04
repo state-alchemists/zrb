@@ -124,23 +124,6 @@ async def summarize_history(
                 json.dumps(truncate_str(conversation_history.history, 1000)),
                 as_code=True,
             ),
-            make_prompt_section(
-                "Notes",
-                "\n".join(
-                    [
-                        make_prompt_section(
-                            "Long Term",
-                            conversation_history.long_term_note,
-                            as_code=True,
-                        ),
-                        make_prompt_section(
-                            "Contextual",
-                            conversation_history.contextual_note,
-                            as_code=True,
-                        ),
-                    ]
-                ),
-            ),
         ]
     )
     summarize = create_history_summarization_tool(conversation_history)

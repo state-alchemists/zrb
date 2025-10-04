@@ -111,16 +111,24 @@ def _create_wrapper(
             # somehow provided it.
             kwargs[any_context_param_name] = ctx
         try:
+            has_ever_edited = False
             if not ctx.is_web_mode and ctx.is_tty:
                 if (
                     isinstance(yolo_mode, list) and func.__name__ not in yolo_mode
                 ) or not yolo_mode:
-                    approval, reason = await _handle_user_response(
+                    approval, reason, has_ever_edited = await _handle_user_response(
                         ctx, func, args, kwargs
                     )
                     if not approval:
                         raise ToolExecutionCancelled(f"User disapproving: {reason}")
-            return await run_async(func(*args, **kwargs))
+            result = await run_async(func(*args, **kwargs))
+            if has_ever_edited:
+                return {
+                    "tool_call_result": result,
+                    "new_tool_parameters": kwargs,
+                    "message": "User has intercepted tool call and updated the parameters",
+                }
+            return result
         except KeyboardInterrupt as e:
             raise e
         except Exception as e:
@@ -140,7 +148,8 @@ async def _handle_user_response(
     func: Callable,
     args: list[Any] | tuple[Any],
     kwargs: dict[str, Any],
-) -> tuple[bool, str]:
+) -> tuple[bool, str, bool]:
+    has_ever_edited = False
     while True:
         func_call_str = _get_func_call_str(func, args, kwargs)
         complete_confirmation_message = "\n".join(
@@ -156,13 +165,15 @@ async def _handle_user_response(
         new_kwargs, is_edited = _get_edited_kwargs(ctx, user_response, kwargs)
         if is_edited:
             kwargs = new_kwargs
+            has_ever_edited = True
             continue
         approval_and_reason = _get_user_approval_and_reason(
             ctx, user_response, func_call_str
         )
         if approval_and_reason is None:
             continue
-        return approval_and_reason
+        approval, reason = approval_and_reason
+        return approval, reason, has_ever_edited
 
 
 def _get_edited_kwargs(

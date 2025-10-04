@@ -1,10 +1,8 @@
-from typing import Generic, TypeVar
-
-from zrb.group.any_group import AnyGroup, GroupType, TaskType
+from zrb.group.any_group import AnyGroup
 from zrb.task.any_task import AnyTask
 
 
-class Group(AnyGroup, Generic[GroupType, TaskType]):
+class Group(AnyGroup):
     def __init__(
         self, name: str, description: str | None = None, banner: str | None = None
     ):
@@ -35,21 +33,21 @@ class Group(AnyGroup, Generic[GroupType, TaskType]):
     def subgroups(self) -> dict[str, AnyGroup]:
         names = list(self._groups.keys())
         names.sort()
-        return {name: self._groups.get(name) for name in names}
+        return {name: self._groups[name] for name in names}
 
     @property
     def subtasks(self) -> dict[str, AnyTask]:
         alias = list(self._tasks.keys())
         alias.sort()
-        return {name: self._tasks.get(name) for name in alias}
+        return {name: self._tasks[name] for name in alias}
 
-    def add_group(self, group: GroupType, alias: str | None = None) -> GroupType:
-        real_group: GroupType = Group(group) if isinstance(group, str) else group
+    def add_group(self, group: AnyGroup, alias: str | None = None) -> AnyGroup:
+        real_group = Group(group) if isinstance(group, str) else group
         alias = alias if alias is not None else real_group.name
         self._groups[alias] = real_group
         return real_group
 
-    def add_task(self, task: TaskType, alias: str | None = None) -> TaskType:
+    def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
         alias = alias if alias is not None else task.name
         self._tasks[alias] = task
         return task

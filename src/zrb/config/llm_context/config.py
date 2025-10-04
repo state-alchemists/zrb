@@ -54,7 +54,7 @@ class LLMContextConfig:
             f.write(new_file_content)
 
     def get_notes(self, cwd: str | None = None) -> dict[str, str]:
-        """Gathers all relevant contexts for a given path."""
+        """Gathers all notes for a given path."""
         if cwd is None:
             cwd = os.getcwd()
         config_file = self._get_home_config_file()
