@@ -33,6 +33,9 @@ class LLMConfig:
         default_small_model_settings: "ModelSettings | None" = None,
         default_small_model_provider: "Provider | None" = None,
         default_yolo_mode: bool | list[str] | None = None,
+        default_weather_tool: Callable | None = None,
+        default_current_location_tool: Callable | None = None,
+        default_search_internet_tool: Callable | None = None,
     ):
         self.__internal_default_prompt: dict[str, str] = {}
         self._default_model_name = default_model_name

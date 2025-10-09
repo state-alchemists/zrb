@@ -441,8 +441,20 @@ class Config:
         return int(self._getenv("RAG_MAX_RESULT_COUNT", "5"))
 
     @property
+    def SEARCH_INTERNET_METHOD(self) -> str:
+        return self._getenv("SEARCH_INTERNET_METHOD", "searxng")
+
+    @property
     def SERPAPI_KEY(self) -> str:
         return os.getenv("SERPAPI_KEY", "")
+
+    @property
+    def SEARXNG_PORT(self) -> int:
+        return int(self._getenv("SEARXNG_PORT", "8080"))
+
+    @property
+    def SEARXNG_CONFIG_PATH(self) -> str:
+        return self._getenv("SEARXNG_CONFIG_PATH", "")
 
     @property
     def BANNER(self) -> str:
