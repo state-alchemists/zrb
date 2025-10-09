@@ -35,7 +35,7 @@ def create_search_internet_tool() -> Callable:
     if llm_config.default_search_internet_tool is not None:
         return llm_config.default_search_internet_tool
 
-    def search_internet(query: str, num_results: int = 10) -> dict[str, Any]:
+    def search_internet(query: str, page: int = 1) -> dict[str, Any]:
         """
         Performs an internet search using Google and returns a summary of the results.
 
@@ -44,7 +44,7 @@ def create_search_internet_tool() -> Callable:
 
         Args:
             query (str): The search query.
-            num_results (int, optional): The desired number of search results. Defaults to 10.
+            Page (int, optional): The search page number, default to 1.
 
         Returns:
             dict[str, Any]: A formatted string summarizing the search results,
@@ -52,17 +52,29 @@ def create_search_internet_tool() -> Callable:
         """
         import requests
 
-        response = requests.get(
-            "https://serpapi.com/search",
-            headers={"User-Agent": _DEFAULT_USER_AGENT},
-            params={
-                "q": query,
-                "num": num_results,
-                "hl": "en",
-                "safe": "off",
-                "api_key": CFG.SERPAPI_KEY,
-            },
-        )
+        if CFG.SEARCH_INTERNET_METHOD.strip() == "serpapi" and CFG.SERPAPI_KEY != "":
+            response = requests.get(
+                "https://serpapi.com/search",
+                headers={"User-Agent": _DEFAULT_USER_AGENT},
+                params={
+                    "q": query,
+                    "start": (page - 1) * 10,
+                    "hl": "en",
+                    "safe": "off",
+                    "api_key": CFG.SERPAPI_KEY,
+                },
+            )
+        else:
+            response = requests.get(
+                url=f"{CFG.SEARXNG_BASE_URL}/search",
+                headers={"User-Agent": _DEFAULT_USER_AGENT},
+                params={
+                    "q": query,
+                    "format": "json",
+                    "pageno": page,
+                    "safesearch": 0,
+                },
+            )
         if response.status_code != 200:
             raise Exception(
                 f"Error: Unable to retrieve search results (status code: {response.status_code})"  # noqa

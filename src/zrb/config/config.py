@@ -434,7 +434,8 @@ class Config:
 
     @property
     def SEARCH_INTERNET_METHOD(self) -> str:
-        return self._getenv("SEARCH_INTERNET_METHOD", "searxng")
+        """Either serpapi or searxng"""
+        return self._getenv("SEARCH_INTERNET_METHOD", "serpapi")
 
     @property
     def SERPAPI_KEY(self) -> str:
@@ -443,10 +444,6 @@ class Config:
     @property
     def SEARXNG_PORT(self) -> int:
         return int(self._getenv("SEARXNG_PORT", "8080"))
-
-    @property
-    def SEARXNG_CONFIG_PATH(self) -> str:
-        return self._getenv("SEARXNG_CONFIG_PATH", "")
 
     @property
     def SEARXNG_BASE_URL(self) -> str:

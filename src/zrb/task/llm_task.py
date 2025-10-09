@@ -63,6 +63,17 @@ class LLMTask(BaseTask):
         model_settings: (
             "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
         ) = None,
+        small_model: (
+            "Callable[[AnySharedContext], Model | str | fstring] | Model | None"
+        ) = None,
+        render_small_model: bool = True,
+        small_model_base_url: StrAttr | None = None,
+        render_small_model_base_url: bool = True,
+        small_model_api_key: StrAttr | None = None,
+        render_small_model_api_key: bool = True,
+        small_model_settings: (
+            "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
+        ) = None,
         persona: StrAttr | None = None,
         render_persona: bool = False,
         system_prompt: StrAttr | None = None,
@@ -152,6 +163,13 @@ class LLMTask(BaseTask):
         self._model_api_key = model_api_key
         self._render_model_api_key = render_model_api_key
         self._model_settings = model_settings
+        self._small_model = small_model
+        self._render_small_model = render_small_model
+        self._small_model_base_url = small_model_base_url
+        self._render_small_model_base_url = render_small_model_base_url
+        self._small_model_api_key = small_model_api_key
+        self._render_small_model_api_key = render_small_model_api_key
+        self._small_model_settings = small_model_settings
         self._persona = persona
         self._render_persona = render_persona
         self._system_prompt = system_prompt
@@ -289,6 +307,16 @@ class LLMTask(BaseTask):
             conversation_history=conversation_history,
         )
         # 5. Summarize
+        small_model = get_model(
+            ctx=ctx,
+            model_attr=self._small_model,
+            render_model=self._render_small_model,
+            model_base_url_attr=self._small_model_base_url,
+            render_model_base_url=self._render_small_model_base_url,
+            model_api_key_attr=self._small_model_api_key,
+            render_model_api_key=self._render_small_model_api_key,
+        )
+        small_model_settings = get_model_settings(ctx, self._small_model_settings)
         conversation_history = await maybe_summarize_history(
             ctx=ctx,
             conversation_history=conversation_history,
@@ -300,8 +328,8 @@ class LLMTask(BaseTask):
             render_history_summarization_token_threshold=(
                 self._render_history_summarization_token_threshold
             ),
-            model=model,
-            model_settings=model_settings,
+            model=small_model,
+            model_settings=small_model_settings,
             summarization_prompt=summarization_prompt,
             rate_limitter=self._rate_limitter,
         )

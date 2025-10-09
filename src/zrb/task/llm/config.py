@@ -84,12 +84,15 @@ def get_model(
     render_model_base_url: bool = True,
     model_api_key_attr: StrAttr | None = None,
     render_model_api_key: bool = True,
+    is_small_model: bool = False,
 ) -> "str | Model":
     """Gets the model instance or name, handling defaults and configuration."""
     from pydantic_ai.models import Model
 
     model = get_attr(ctx, model_attr, None, auto_render=render_model)
     if model is None:
+        if is_small_model:
+            return llm_config.default_small_model
         return llm_config.default_model
     if isinstance(model, str):
         model_base_url = get_model_base_url(
@@ -102,7 +105,7 @@ def get_model(
             default_model_api_key=model_api_key,
         )
         if model_base_url is None and model_api_key is None:
-            default_model_provider = llm_config.default_model_provider
+            default_model_provider = _get_default_model_provider(is_small_model)
             if default_model_provider is not None:
                 new_llm_config.set_default_model_provider(default_model_provider)
         return new_llm_config.default_model
@@ -110,3 +113,9 @@ def get_model(
     if isinstance(model, Model):
         return model
     raise ValueError(f"Invalid model type resolved: {type(model)}, value: {model}")
+
+
+def _get_default_model_provider(is_small_model: bool = False):
+    if is_small_model:
+        return llm_config.default_small_model_provider
+    return llm_config.default_model_provider

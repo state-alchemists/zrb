@@ -162,7 +162,8 @@ class LLMConfig:
         from pydantic_ai.providers.openai import OpenAIProvider
 
         return OpenAIProvider(
-            base_url=self.default_model_base_url, api_key=self.default_model_api_key
+            base_url=self.default_small_model_base_url,
+            api_key=self.default_small_model_api_key,
         )
 
     @property
