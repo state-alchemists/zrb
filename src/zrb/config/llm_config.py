@@ -33,7 +33,7 @@ class LLMConfig:
         default_small_model_settings: "ModelSettings | None" = None,
         default_small_model_provider: "Provider | None" = None,
         default_yolo_mode: bool | list[str] | None = None,
-        default_weather_tool: Callable | None = None,
+        default_current_weather_tool: Callable | None = None,
         default_current_location_tool: Callable | None = None,
         default_search_internet_tool: Callable | None = None,
     ):
@@ -61,6 +61,9 @@ class LLMConfig:
         self._default_small_model_settings = default_small_model_settings
         self._default_small_model_provider = default_small_model_provider
         self._default_yolo_mode = default_yolo_mode
+        self._default_current_weather_tool = default_current_weather_tool
+        self._default_current_location_tool = default_current_location_tool
+        self._default_search_internet_tool = default_search_internet_tool
 
     def _get_internal_default_prompt(self, name: str) -> str:
         if name not in self.__internal_default_prompt:
@@ -242,6 +245,18 @@ class LLMConfig:
             self._default_yolo_mode, CFG.LLM_YOLO_MODE, lambda: False
         )
 
+    @property
+    def default_current_weather_tool(self) -> Callable | None:
+        return self._default_current_weather_tool
+
+    @property
+    def default_current_location_tool(self) -> Callable | None:
+        return self._default_current_location_tool
+
+    @property
+    def default_search_internet_tool(self) -> Callable | None:
+        return self._default_search_internet_tool
+
     def set_default_persona(self, persona: str):
         self._default_persona = persona
 
@@ -300,6 +315,15 @@ class LLMConfig:
 
     def set_default_yolo_mode(self, yolo_mode: bool | list[str]):
         self._default_yolo_mode = yolo_mode
+
+    def set_default_current_weather_tool(self, tool: Callable):
+        self._default_current_weather_tool = tool
+
+    def set_default_current_location_tool(self, tool: Callable):
+        self._default_current_location_tool = tool
+
+    def set_default_search_internet_tool(self, tool: Callable):
+        self._default_search_internet_tool = tool
 
 
 llm_config = LLMConfig()

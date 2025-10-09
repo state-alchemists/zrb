@@ -2,6 +2,9 @@ from collections.abc import Callable
 from typing import Any
 from urllib.parse import urljoin
 
+from zrb.config.config import CFG
+from zrb.config.llm_config import llm_config
+
 _DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
 
 
@@ -28,24 +31,9 @@ async def open_web_page(url: str) -> dict[str, Any]:
     return {"content": markdown_content, "links_on_page": links}
 
 
-def create_search_internet_tool(
-    serp_api_key: str,
-) -> Callable[[str, int], dict[str, Any]]:
-    """
-    Creates a tool that searches the internet using the SerpAPI Google Search
-    API.
-
-    This factory returns a function that can be used to find information on the
-    web. The generated tool is the primary way to answer general knowledge
-    questions or to find information on topics you are unfamiliar with.
-
-    Args:
-        serp_api_key (str): The API key for SerpAPI.
-
-    Returns:
-        Callable: A function that takes a search query and returns a list of
-            search results.
-    """
+def create_search_internet_tool() -> Callable:
+    if llm_config.default_search_internet_tool is not None:
+        return llm_config.default_search_internet_tool
 
     def search_internet(query: str, num_results: int = 10) -> dict[str, Any]:
         """
@@ -72,7 +60,7 @@ def create_search_internet_tool(
                 "num": num_results,
                 "hl": "en",
                 "safe": "off",
-                "api_key": serp_api_key,
+                "api_key": CFG.SERPAPI_KEY,
             },
         )
         if response.status_code != 200:
