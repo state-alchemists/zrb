@@ -457,6 +457,10 @@ class Config:
         return self._getenv("SEARXNG_CONFIG_PATH", "")
 
     @property
+    def SEARXNG_BASE_URL(self) -> str:
+        return self._getenv("SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}")
+
+    @property
     def BANNER(self) -> str:
         return fstring_format(
             self._getenv("BANNER", _DEFAULT_BANNER),
