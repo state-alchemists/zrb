@@ -399,14 +399,6 @@ class Config:
         return to_boolean(self._getenv("LLM_ALLOW_SEARCH_INTERNET", "1"))
 
     @property
-    def LLM_ALLOW_SEARCH_ARXIV(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_ARXIV", "1"))
-
-    @property
-    def LLM_ALLOW_SEARCH_WIKIPEDIA(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_WIKIPEDIA", "1"))
-
-    @property
     def LLM_ALLOW_GET_CURRENT_LOCATION(self) -> bool:
         return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
 

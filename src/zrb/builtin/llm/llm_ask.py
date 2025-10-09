@@ -31,8 +31,6 @@ from zrb.builtin.llm.tool.note import (
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
-    search_arxiv,
-    search_wikipedia,
 )
 from zrb.callback.callback import Callback
 from zrb.config.config import CFG
@@ -88,10 +86,6 @@ def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
         tools.append(run_shell_command)
     if CFG.LLM_ALLOW_OPEN_WEB_PAGE:
         tools.append(open_web_page)
-    if CFG.LLM_ALLOW_SEARCH_WIKIPEDIA:
-        tools.append(search_wikipedia)
-    if CFG.LLM_ALLOW_SEARCH_ARXIV:
-        tools.append(search_arxiv)
     if CFG.LLM_ALLOW_GET_CURRENT_LOCATION:
         tools.append(create_get_current_location())
     if CFG.LLM_ALLOW_GET_CURRENT_WEATHER:

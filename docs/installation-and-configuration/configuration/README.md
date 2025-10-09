@@ -337,14 +337,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_ALLOW_SEARCH_ARXIV`: Allows the LLM to search for papers on arXiv.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA`: Allows the LLM to search Wikipedia.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
 * `ZRB_LLM_ALLOW_GET_CURRENT_LOCATION`: Allows the LLM to get the current geographical location.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)

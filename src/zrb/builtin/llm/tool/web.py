@@ -72,62 +72,6 @@ def create_search_internet_tool() -> Callable:
     return search_internet
 
 
-def search_wikipedia(query: str) -> dict[str, Any]:
-    """
-    Searches for articles on Wikipedia.
-
-    This is a specialized search tool for querying Wikipedia. It's best for
-    when the user is asking for definitions, historical information, or
-    biographical details that are likely to be found on an encyclopedia.
-
-    Args:
-        query (str): The search term or question.
-
-    Returns:
-        dict[str, Any]: The raw JSON response from the Wikipedia API, containing a list of
-            search results.
-    """
-    import requests
-
-    params = {"action": "query", "list": "search", "srsearch": query, "format": "json"}
-    response = requests.get(
-        "https://en.wikipedia.org/w/api.php",
-        headers={"User-Agent": _DEFAULT_USER_AGENT},
-        params=params,
-    )
-    return response.json()
-
-
-def search_arxiv(query: str, num_results: int = 10) -> dict[str, Any]:
-    """
-    Searches for academic papers and preprints on ArXiv.
-
-    Use this tool when the user's query is scientific or technical in nature
-    and they are likely looking for research papers, articles, or academic
-    publications.
-
-    Args:
-        query (str): The search query, which can include keywords, author
-            names, or titles.
-        num_results (int, optional): The maximum number of results to return.
-            Defaults to 10.
-
-    Returns:
-        dict[str, Any]: The raw XML response from the ArXiv API, containing a list of
-            matching papers.
-    """
-    import requests
-    import xmltodict
-
-    params = {"search_query": f"all:{query}", "start": 0, "max_results": num_results}
-    response = requests.get(
-        "http://export.arxiv.org/api/query",
-        headers={"User-Agent": _DEFAULT_USER_AGENT},
-        params=params,
-    )
-    return xmltodict.parse(response.content)
-
-
 async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
     """Fetches the HTML content and all absolute links from a URL."""
     try:
