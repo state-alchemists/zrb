@@ -63,7 +63,6 @@ class LLMTask(BaseTask):
         model_settings: (
             "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
         ) = None,
-        agent: "Agent | Callable[[AnySharedContext], Agent] | None" = None,
         persona: StrAttr | None = None,
         render_persona: bool = False,
         system_prompt: StrAttr | None = None,
@@ -153,7 +152,6 @@ class LLMTask(BaseTask):
         self._model_api_key = model_api_key
         self._render_model_api_key = render_model_api_key
         self._model_settings = model_settings
-        self._agent = agent
         self._persona = persona
         self._render_persona = render_persona
         self._system_prompt = system_prompt
@@ -273,7 +271,6 @@ class LLMTask(BaseTask):
         # 3. Get the agent instance
         agent = get_agent(
             ctx=ctx,
-            agent_attr=self._agent,
             model=model,
             system_prompt=system_prompt,
             model_settings=model_settings,

@@ -226,6 +226,15 @@ class LLMConfig:
         )
 
     @property
+    def default_small_model(self) -> "Model | str":
+        if self._default_small_model is not None:
+            return self._default_small_model
+        model_name = self.default_small_model_name
+        if model_name is None:
+            return "openai:gpt-4o"
+        return self.default_model
+
+    @property
     def default_summarize_history(self) -> bool:
         return self._get_property(
             self._default_summarize_history, CFG.LLM_SUMMARIZE_HISTORY, lambda: False
