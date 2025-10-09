@@ -245,6 +245,21 @@ class Config:
         return None if value == "" else value
 
     @property
+    def LLM_MODEL_SMALL(self) -> str | None:
+        value = self._getenv("LLM_MODEL_SMALL")
+        return None if value == "" else value
+
+    @property
+    def LLM_BASE_URL_SMALL(self) -> str | None:
+        value = self._getenv("LLM_BASE_URL_SMALL")
+        return None if value == "" else value
+
+    @property
+    def LLM_API_KEY_SMALL(self) -> str | None:
+        value = self._getenv("LLM_API_KEY_SMALL")
+        return None if value == "" else value
+
+    @property
     def LLM_SYSTEM_PROMPT(self) -> str | None:
         value = self._getenv("LLM_SYSTEM_PROMPT")
         return None if value == "" else value

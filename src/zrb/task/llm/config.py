@@ -98,8 +98,8 @@ def get_model(
         model_api_key = get_model_api_key(ctx, model_api_key_attr, render_model_api_key)
         new_llm_config = LLMConfig(
             default_model_name=model,
-            default_base_url=model_base_url,
-            default_api_key=model_api_key,
+            default_model_base_url=model_base_url,
+            default_model_api_key=model_api_key,
         )
         if model_base_url is None and model_api_key is None:
             default_model_provider = llm_config.default_model_provider
