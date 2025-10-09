@@ -1,4 +1,4 @@
-🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [XCom](./xcom.md)
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Core Concepts](../README.md) > [Session and Context](./README.md) > [XCom](./xcom.md)
 
 # XCom (Cross-Communication)
 

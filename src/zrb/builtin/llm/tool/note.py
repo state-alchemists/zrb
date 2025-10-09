@@ -20,6 +20,7 @@ def write_long_term_note(content: str) -> str:
     Writes content to the global long-term note.
     The content of this note is intended to be read by the AI Agent in the future.
     It should contain global information/preference.
+    Use this tool proactively when you find information worth noted.
 
     Args:
         content: The content to write to the long-term note (overwriting the existing one).
@@ -57,6 +58,8 @@ def write_contextual_note(content: str, path: str | None = None) -> str:
     The content should contain contextual information.
 
     If no path is provided, it defaults to the current working directory.
+
+    Use this tool proactively when you find information worth noted.
 
     Args:
         content: The new content of the note (overwriting the existing one).

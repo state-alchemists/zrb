@@ -21,7 +21,7 @@ def test_default_model_name_none(monkeypatch):
 
 
 def test_default_model_base_url_override():
-    config = LLMConfig(default_base_url="http://test.com")
+    config = LLMConfig(default_model_base_url="http://test.com")
     assert config.default_model_base_url == "http://test.com"
 
 
@@ -38,7 +38,7 @@ def test_default_model_base_url_none(monkeypatch):
 
 
 def test_default_model_api_key_override():
-    config = LLMConfig(default_api_key="test-key")
+    config = LLMConfig(default_model_api_key="test-key")
     assert config.default_model_api_key == "test-key"
 
 

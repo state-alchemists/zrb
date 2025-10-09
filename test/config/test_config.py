@@ -490,36 +490,6 @@ def test_llm_allow_search_internet(monkeypatch):
     assert config.LLM_ALLOW_SEARCH_INTERNET
 
 
-def test_llm_allow_search_arxiv(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_ARXIV
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_SEARCH_ARXIV
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_ARXIV", "1")
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_ARXIV
-
-
-def test_llm_allow_search_wikipedia(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_WIKIPEDIA
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_SEARCH_WIKIPEDIA
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA", "1")
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_WIKIPEDIA
-
-
 def test_llm_allow_get_current_location(monkeypatch):
     # Test default value
     monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", raising=False)

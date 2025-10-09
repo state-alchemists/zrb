@@ -1,4 +1,4 @@
-🔖 [Home](../../../README.md) > [Documentation](../../../../README.md) > [Core Concepts](../../README.md) > [Session and Context](./README.md) > [Context](./context.md)
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Core Concepts](../README.md) > [Session and Context](./README.md) > [Context](./context.md)
 
 # The Context (`ctx`)
 

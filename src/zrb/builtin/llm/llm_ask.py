@@ -6,7 +6,10 @@ from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
 from zrb.builtin.llm.input import PreviousSessionInput
-from zrb.builtin.llm.tool.api import get_current_location, get_current_weather
+from zrb.builtin.llm.tool.api import (
+    create_get_current_location,
+    create_get_current_weather,
+)
 from zrb.builtin.llm.tool.cli import run_shell_command
 from zrb.builtin.llm.tool.code import analyze_repo
 from zrb.builtin.llm.tool.file import (
@@ -28,8 +31,6 @@ from zrb.builtin.llm.tool.note import (
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
-    search_arxiv,
-    search_wikipedia,
 )
 from zrb.callback.callback import Callback
 from zrb.config.config import CFG
@@ -85,16 +86,12 @@ def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
         tools.append(run_shell_command)
     if CFG.LLM_ALLOW_OPEN_WEB_PAGE:
         tools.append(open_web_page)
-    if CFG.LLM_ALLOW_SEARCH_WIKIPEDIA:
-        tools.append(search_wikipedia)
-    if CFG.LLM_ALLOW_SEARCH_ARXIV:
-        tools.append(search_arxiv)
     if CFG.LLM_ALLOW_GET_CURRENT_LOCATION:
-        tools.append(get_current_location)
+        tools.append(create_get_current_location())
     if CFG.LLM_ALLOW_GET_CURRENT_WEATHER:
-        tools.append(get_current_weather)
+        tools.append(create_get_current_weather())
     if CFG.SERPAPI_KEY != "" and CFG.LLM_ALLOW_SEARCH_INTERNET:
-        tools.append(create_search_internet_tool(CFG.SERPAPI_KEY))
+        tools.append(create_search_internet_tool())
     return tools
 
 

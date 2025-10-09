@@ -337,14 +337,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_LLM_ALLOW_SEARCH_ARXIV`: Allows the LLM to search for papers on arXiv.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_SEARCH_WIKIPEDIA`: Allows the LLM to search Wikipedia.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
 * `ZRB_LLM_ALLOW_GET_CURRENT_LOCATION`: Allows the LLM to get the current geographical location.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
@@ -427,11 +419,23 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `5`
     * Possible values: Any positive integer
 
-## SerpAPI Configuration
+## Search Engine Configuration
+
+* `ZRB_SEARCH_INTERNET_METHOD`: The search engine to use.
+    * Default: `serpapi`
+    * Possible values: `serpapi`, `searxng`
 
 * `SERPAPI_KEY`: API key for SerpAPI.
     * Default: Empty
     * Possible values: Any valid SerpAPI key
+
+* `ZRB_SEARXNG_PORT`: Port for the SearXNG instance.
+    * Default: `8080`
+    * Possible values: Any valid port number
+
+* `ZRB_SEARXNG_BASE_URL`: Base URL for the SearXNG instance.
+    * Default: `http://localhost:8080`
+    * Possible values: Any valid URL
 
 ---
 🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md)

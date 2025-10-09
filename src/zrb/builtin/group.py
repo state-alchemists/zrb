@@ -41,7 +41,7 @@ todo_group = _maybe_add_group(Group(name="todo", description="✅ Todo managemen
 shell_group = _maybe_add_group(
     Group(name="shell", description="💬 Shell related commands")
 )
-shell_autocomplete_group: Group = shell_group.add_group(
+shell_autocomplete_group = shell_group.add_group(
     Group(name="autocomplete", description="⌨️ Shell autocomplete related commands")
 )
 
@@ -58,4 +58,8 @@ add_fastapp_to_project_group = add_to_project_group.add_group(
 setup_group = _maybe_add_group(Group(name="setup", description="🔧 Setup"))
 setup_latex_group = setup_group.add_group(
     Group(name="latex", description="✍️ Setup LaTeX")
+)
+
+searxng_group = _maybe_add_group(
+    Group(name="searxng", description="🔎 Searxng related command")
 )
