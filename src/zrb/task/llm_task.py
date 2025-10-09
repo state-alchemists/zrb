@@ -119,7 +119,6 @@ class LLMTask(BaseTask):
         retries: int = 2,
         retry_period: float = 0,
         yolo_mode: StrListAttr | BoolAttr | None = None,
-        is_yolo_mode: BoolAttr | None = None,
         render_yolo_mode: bool = True,
         readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
@@ -203,10 +202,6 @@ class LLMTask(BaseTask):
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
         self._yolo_mode = yolo_mode
-        if is_yolo_mode is not None:
-            print("[DEPRECATED] use `yolo_mode` instead of `is_yolo_mode`")
-            if self._yolo_mode is None:
-                self._yolo_mode = is_yolo_mode
         self._render_yolo_mode = render_yolo_mode
         self._attachment = attachment
 
