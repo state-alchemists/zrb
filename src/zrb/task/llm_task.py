@@ -63,7 +63,17 @@ class LLMTask(BaseTask):
         model_settings: (
             "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
         ) = None,
-        agent: "Agent | Callable[[AnySharedContext], Agent] | None" = None,
+        small_model: (
+            "Callable[[AnySharedContext], Model | str | fstring] | Model | None"
+        ) = None,
+        render_small_model: bool = True,
+        small_model_base_url: StrAttr | None = None,
+        render_small_model_base_url: bool = True,
+        small_model_api_key: StrAttr | None = None,
+        render_small_model_api_key: bool = True,
+        small_model_settings: (
+            "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
+        ) = None,
         persona: StrAttr | None = None,
         render_persona: bool = False,
         system_prompt: StrAttr | None = None,
@@ -109,7 +119,6 @@ class LLMTask(BaseTask):
         retries: int = 2,
         retry_period: float = 0,
         yolo_mode: StrListAttr | BoolAttr | None = None,
-        is_yolo_mode: BoolAttr | None = None,
         render_yolo_mode: bool = True,
         readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
@@ -153,7 +162,13 @@ class LLMTask(BaseTask):
         self._model_api_key = model_api_key
         self._render_model_api_key = render_model_api_key
         self._model_settings = model_settings
-        self._agent = agent
+        self._small_model = small_model
+        self._render_small_model = render_small_model
+        self._small_model_base_url = small_model_base_url
+        self._render_small_model_base_url = render_small_model_base_url
+        self._small_model_api_key = small_model_api_key
+        self._render_small_model_api_key = render_small_model_api_key
+        self._small_model_settings = small_model_settings
         self._persona = persona
         self._render_persona = render_persona
         self._system_prompt = system_prompt
@@ -187,10 +202,6 @@ class LLMTask(BaseTask):
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
         self._yolo_mode = yolo_mode
-        if is_yolo_mode is not None:
-            print("[DEPRECATED] use `yolo_mode` instead of `is_yolo_mode`")
-            if self._yolo_mode is None:
-                self._yolo_mode = is_yolo_mode
         self._render_yolo_mode = render_yolo_mode
         self._attachment = attachment
 
@@ -273,7 +284,6 @@ class LLMTask(BaseTask):
         # 3. Get the agent instance
         agent = get_agent(
             ctx=ctx,
-            agent_attr=self._agent,
             model=model,
             system_prompt=system_prompt,
             model_settings=model_settings,
@@ -292,6 +302,16 @@ class LLMTask(BaseTask):
             conversation_history=conversation_history,
         )
         # 5. Summarize
+        small_model = get_model(
+            ctx=ctx,
+            model_attr=self._small_model,
+            render_model=self._render_small_model,
+            model_base_url_attr=self._small_model_base_url,
+            render_model_base_url=self._render_small_model_base_url,
+            model_api_key_attr=self._small_model_api_key,
+            render_model_api_key=self._render_small_model_api_key,
+        )
+        small_model_settings = get_model_settings(ctx, self._small_model_settings)
         conversation_history = await maybe_summarize_history(
             ctx=ctx,
             conversation_history=conversation_history,
@@ -303,8 +323,8 @@ class LLMTask(BaseTask):
             render_history_summarization_token_threshold=(
                 self._render_history_summarization_token_threshold
             ),
-            model=model,
-            model_settings=model_settings,
+            model=small_model,
+            model_settings=small_model_settings,
             summarization_prompt=summarization_prompt,
             rate_limitter=self._rate_limitter,
         )

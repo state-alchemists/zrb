@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.17.0
+
+- **Feature: SearXNG Integration**: Added support for SearXNG as a local, privacy-respecting alternative to SerpAPI for internet searches.
+  - New configuration variables: `ZRB_SEARCH_INTERNET_METHOD`, `ZRB_SEARXNG_PORT`, `ZRB_SEARXNG_BASE_URL`.
+- **Feature: Customizable LLM Tools**: `get_current_location`, `get_current_weather`, and `search_internet` can now be customized through factory functions in `LLMConfig`.
+- **Breaking Change**: Removed `search_wikipedia` and `search_arxiv` tools.
+- **Deprecated**: The `is_yolo_mode` parameter in `LLMTask` is deprecated. Use `yolo_mode` instead.
+
 # 1.16.5
 
 - **Fixed**: Correct function name (in approval/confirmation flow) when using MCP

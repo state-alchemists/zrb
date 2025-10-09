@@ -35,7 +35,7 @@ class AnyGroup(ABC):
         pass
 
     @abstractmethod
-    def add_group(self, group: "AnyGroup", alias: str | None) -> "AnyGroup":
+    def add_group(self, group: "AnyGroup", alias: str | None = None) -> "AnyGroup":
         pass
 
     @abstractmethod

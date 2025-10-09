@@ -116,7 +116,6 @@ def create_agent_instance(
 
 def get_agent(
     ctx: AnyContext,
-    agent_attr: "Agent | Callable[[AnySharedContext], Agent] | None",
     model: "str | Model",
     output_type: "OutputSpec[OutputDataT]" = str,
     system_prompt: str = "",
@@ -131,20 +130,6 @@ def get_agent(
     yolo_mode: bool | list[str] | None = None,
 ) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
-    from pydantic_ai import Agent
-
-    # Render agent instance and return if agent_attr is already an agent
-    if isinstance(agent_attr, Agent):
-        return agent_attr
-    if callable(agent_attr):
-        agent_instance = agent_attr(ctx)
-        if not isinstance(agent_instance, Agent):
-            err_msg = (
-                "Callable agent factory did not return an Agent instance, "
-                f"got: {type(agent_instance)}"
-            )
-            raise TypeError(err_msg)
-        return agent_instance
     # Get tools for agent
     tools = list(tools_attr(ctx) if callable(tools_attr) else tools_attr)
     tools.extend(additional_tools)

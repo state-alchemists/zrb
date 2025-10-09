@@ -25,8 +25,9 @@ The following environment variables are used to configure the LLM in `zrb`:
 
 These variables control the LLM's access to local files and the internet:
 
-- **`ZRB_LLM_ACCESS_LOCAL_FILE`**: Set to `true` to allow the LLM to read local files (default: `false`).
-- **`ZRB_LLM_ACCESS_INTERNET`**: Set to `true` to allow the LLM to access the internet (default: `false`).
+- **`ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`**: Set to `true` to allow the LLM to read local files (default: `false`).
+- **`ZRB_LLM_ALLOW_OPEN_WEB_PAGE`**: Set to `true` to allow the LLM to open web pages (default: `false`).
+- **`ZRB_LLM_ALLOW_SEARCH_INTERNET`**: Set to `true` to allow the LLM to search the internet (default: `false`).
 
 ### Rate Limiting
 

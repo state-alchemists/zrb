@@ -245,6 +245,21 @@ class Config:
         return None if value == "" else value
 
     @property
+    def LLM_MODEL_SMALL(self) -> str | None:
+        value = self._getenv("LLM_MODEL_SMALL")
+        return None if value == "" else value
+
+    @property
+    def LLM_BASE_URL_SMALL(self) -> str | None:
+        value = self._getenv("LLM_BASE_URL_SMALL")
+        return None if value == "" else value
+
+    @property
+    def LLM_API_KEY_SMALL(self) -> str | None:
+        value = self._getenv("LLM_API_KEY_SMALL")
+        return None if value == "" else value
+
+    @property
     def LLM_SYSTEM_PROMPT(self) -> str | None:
         value = self._getenv("LLM_SYSTEM_PROMPT")
         return None if value == "" else value
@@ -384,14 +399,6 @@ class Config:
         return to_boolean(self._getenv("LLM_ALLOW_SEARCH_INTERNET", "1"))
 
     @property
-    def LLM_ALLOW_SEARCH_ARXIV(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_ARXIV", "1"))
-
-    @property
-    def LLM_ALLOW_SEARCH_WIKIPEDIA(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_WIKIPEDIA", "1"))
-
-    @property
     def LLM_ALLOW_GET_CURRENT_LOCATION(self) -> bool:
         return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
 
@@ -426,8 +433,21 @@ class Config:
         return int(self._getenv("RAG_MAX_RESULT_COUNT", "5"))
 
     @property
+    def SEARCH_INTERNET_METHOD(self) -> str:
+        """Either serpapi or searxng"""
+        return self._getenv("SEARCH_INTERNET_METHOD", "serpapi")
+
+    @property
     def SERPAPI_KEY(self) -> str:
         return os.getenv("SERPAPI_KEY", "")
+
+    @property
+    def SEARXNG_PORT(self) -> int:
+        return int(self._getenv("SEARXNG_PORT", "8080"))
+
+    @property
+    def SEARXNG_BASE_URL(self) -> str:
+        return self._getenv("SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}")
 
     @property
     def BANNER(self) -> str:

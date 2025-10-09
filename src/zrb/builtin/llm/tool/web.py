@@ -2,6 +2,9 @@ from collections.abc import Callable
 from typing import Any
 from urllib.parse import urljoin
 
+from zrb.config.config import CFG
+from zrb.config.llm_config import llm_config
+
 _DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
 
 
@@ -28,26 +31,11 @@ async def open_web_page(url: str) -> dict[str, Any]:
     return {"content": markdown_content, "links_on_page": links}
 
 
-def create_search_internet_tool(
-    serp_api_key: str,
-) -> Callable[[str, int], dict[str, Any]]:
-    """
-    Creates a tool that searches the internet using the SerpAPI Google Search
-    API.
+def create_search_internet_tool() -> Callable:
+    if llm_config.default_search_internet_tool is not None:
+        return llm_config.default_search_internet_tool
 
-    This factory returns a function that can be used to find information on the
-    web. The generated tool is the primary way to answer general knowledge
-    questions or to find information on topics you are unfamiliar with.
-
-    Args:
-        serp_api_key (str): The API key for SerpAPI.
-
-    Returns:
-        Callable: A function that takes a search query and returns a list of
-            search results.
-    """
-
-    def search_internet(query: str, num_results: int = 10) -> dict[str, Any]:
+    def search_internet(query: str, page: int = 1) -> dict[str, Any]:
         """
         Performs an internet search using Google and returns a summary of the results.
 
@@ -56,7 +44,7 @@ def create_search_internet_tool(
 
         Args:
             query (str): The search query.
-            num_results (int, optional): The desired number of search results. Defaults to 10.
+            Page (int, optional): The search page number, default to 1.
 
         Returns:
             dict[str, Any]: A formatted string summarizing the search results,
@@ -64,17 +52,29 @@ def create_search_internet_tool(
         """
         import requests
 
-        response = requests.get(
-            "https://serpapi.com/search",
-            headers={"User-Agent": _DEFAULT_USER_AGENT},
-            params={
-                "q": query,
-                "num": num_results,
-                "hl": "en",
-                "safe": "off",
-                "api_key": serp_api_key,
-            },
-        )
+        if CFG.SEARCH_INTERNET_METHOD.strip() == "serpapi" and CFG.SERPAPI_KEY != "":
+            response = requests.get(
+                "https://serpapi.com/search",
+                headers={"User-Agent": _DEFAULT_USER_AGENT},
+                params={
+                    "q": query,
+                    "start": (page - 1) * 10,
+                    "hl": "en",
+                    "safe": "off",
+                    "api_key": CFG.SERPAPI_KEY,
+                },
+            )
+        else:
+            response = requests.get(
+                url=f"{CFG.SEARXNG_BASE_URL}/search",
+                headers={"User-Agent": _DEFAULT_USER_AGENT},
+                params={
+                    "q": query,
+                    "format": "json",
+                    "pageno": page,
+                    "safesearch": 0,
+                },
+            )
         if response.status_code != 200:
             raise Exception(
                 f"Error: Unable to retrieve search results (status code: {response.status_code})"  # noqa
@@ -82,62 +82,6 @@ def create_search_internet_tool(
         return response.json()
 
     return search_internet
-
-
-def search_wikipedia(query: str) -> dict[str, Any]:
-    """
-    Searches for articles on Wikipedia.
-
-    This is a specialized search tool for querying Wikipedia. It's best for
-    when the user is asking for definitions, historical information, or
-    biographical details that are likely to be found on an encyclopedia.
-
-    Args:
-        query (str): The search term or question.
-
-    Returns:
-        dict[str, Any]: The raw JSON response from the Wikipedia API, containing a list of
-            search results.
-    """
-    import requests
-
-    params = {"action": "query", "list": "search", "srsearch": query, "format": "json"}
-    response = requests.get(
-        "https://en.wikipedia.org/w/api.php",
-        headers={"User-Agent": _DEFAULT_USER_AGENT},
-        params=params,
-    )
-    return response.json()
-
-
-def search_arxiv(query: str, num_results: int = 10) -> dict[str, Any]:
-    """
-    Searches for academic papers and preprints on ArXiv.
-
-    Use this tool when the user's query is scientific or technical in nature
-    and they are likely looking for research papers, articles, or academic
-    publications.
-
-    Args:
-        query (str): The search query, which can include keywords, author
-            names, or titles.
-        num_results (int, optional): The maximum number of results to return.
-            Defaults to 10.
-
-    Returns:
-        dict[str, Any]: The raw XML response from the ArXiv API, containing a list of
-            matching papers.
-    """
-    import requests
-    import xmltodict
-
-    params = {"search_query": f"all:{query}", "start": 0, "max_results": num_results}
-    response = requests.get(
-        "http://export.arxiv.org/api/query",
-        headers={"User-Agent": _DEFAULT_USER_AGENT},
-        params=params,
-    )
-    return xmltodict.parse(response.content)
 
 
 async def _fetch_page_content(url: str) -> tuple[str, list[str]]:

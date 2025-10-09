@@ -16,6 +16,7 @@ from zrb.builtin.project.add.fastapp.fastapp_task import add_fastapp_to_project
 from zrb.builtin.project.create.project_task import create_project
 from zrb.builtin.python import format_python_code
 from zrb.builtin.random import shuffle_values, throw_dice
+from zrb.builtin.searxng.start import start_searxng
 from zrb.builtin.setup.asdf.asdf import setup_asdf
 from zrb.builtin.setup.latex.ubuntu import setup_latex_on_ubuntu
 from zrb.builtin.setup.tmux.tmux import setup_tmux

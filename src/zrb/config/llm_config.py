@@ -13,8 +13,11 @@ class LLMConfig:
     def __init__(
         self,
         default_model_name: str | None = None,
-        default_base_url: str | None = None,
-        default_api_key: str | None = None,
+        default_model_base_url: str | None = None,
+        default_model_api_key: str | None = None,
+        default_small_model_name: str | None = None,
+        default_small_model_base_url: str | None = None,
+        default_small_model_api_key: str | None = None,
         default_persona: str | None = None,
         default_system_prompt: str | None = None,
         default_interactive_system_prompt: str | None = None,
@@ -26,12 +29,21 @@ class LLMConfig:
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
         default_model_provider: "Provider | None" = None,
+        default_small_model: "Model | None" = None,
+        default_small_model_settings: "ModelSettings | None" = None,
+        default_small_model_provider: "Provider | None" = None,
         default_yolo_mode: bool | list[str] | None = None,
+        default_current_weather_tool: Callable | None = None,
+        default_current_location_tool: Callable | None = None,
+        default_search_internet_tool: Callable | None = None,
     ):
         self.__internal_default_prompt: dict[str, str] = {}
         self._default_model_name = default_model_name
-        self._default_model_base_url = default_base_url
-        self._default_model_api_key = default_api_key
+        self._default_model_base_url = default_model_base_url
+        self._default_model_api_key = default_model_api_key
+        self._default_small_model_name = default_small_model_name
+        self._default_small_model_base_url = default_small_model_base_url
+        self._default_small_model_api_key = default_small_model_api_key
         self._default_persona = default_persona
         self._default_system_prompt = default_system_prompt
         self._default_interactive_system_prompt = default_interactive_system_prompt
@@ -45,7 +57,13 @@ class LLMConfig:
         self._default_model = default_model
         self._default_model_settings = default_model_settings
         self._default_model_provider = default_model_provider
+        self._default_small_model = default_small_model
+        self._default_small_model_settings = default_small_model_settings
+        self._default_small_model_provider = default_small_model_provider
         self._default_yolo_mode = default_yolo_mode
+        self._default_current_weather_tool = default_current_weather_tool
+        self._default_current_location_tool = default_current_location_tool
+        self._default_search_internet_tool = default_search_internet_tool
 
     def _get_internal_default_prompt(self, name: str) -> str:
         if name not in self.__internal_default_prompt:
@@ -98,6 +116,54 @@ class LLMConfig:
 
         return OpenAIProvider(
             base_url=self.default_model_base_url, api_key=self.default_model_api_key
+        )
+
+    @property
+    def default_small_model_name(self) -> str | None:
+        return self._get_property(
+            self._default_small_model_name,
+            CFG.LLM_MODEL_SMALL,
+            lambda: self.default_model_name,
+        )
+
+    @property
+    def default_small_model_base_url(self) -> str | None:
+        return self._get_property(
+            self._default_small_model_base_url,
+            CFG.LLM_BASE_URL_SMALL,
+            lambda: self.default_model_base_url,
+        )
+
+    @property
+    def default_small_model_api_key(self) -> str | None:
+        return self._get_property(
+            self._default_small_model_api_key,
+            CFG.LLM_API_KEY_SMALL,
+            lambda: self.default_model_api_key,
+        )
+
+    @property
+    def default_small_model_settings(self) -> "ModelSettings | None":
+        return self._get_property(
+            self._default_small_model_settings,
+            None,
+            lambda: self.default_model_settings,
+        )
+
+    @property
+    def default_small_model_provider(self) -> "Provider | str":
+        if self._default_small_model_provider is not None:
+            return self._default_small_model_provider
+        if (
+            self.default_small_model_base_url is None
+            and self.default_small_model_api_key is None
+        ):
+            return self.default_model_provider
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        return OpenAIProvider(
+            base_url=self.default_small_model_base_url,
+            api_key=self.default_small_model_api_key,
         )
 
     @property
@@ -161,6 +227,15 @@ class LLMConfig:
         )
 
     @property
+    def default_small_model(self) -> "Model | str":
+        if self._default_small_model is not None:
+            return self._default_small_model
+        model_name = self.default_small_model_name
+        if model_name is None:
+            return "openai:gpt-4o"
+        return self.default_model
+
+    @property
     def default_summarize_history(self) -> bool:
         return self._get_property(
             self._default_summarize_history, CFG.LLM_SUMMARIZE_HISTORY, lambda: False
@@ -179,6 +254,18 @@ class LLMConfig:
         return self._get_property(
             self._default_yolo_mode, CFG.LLM_YOLO_MODE, lambda: False
         )
+
+    @property
+    def default_current_weather_tool(self) -> Callable | None:
+        return self._default_current_weather_tool
+
+    @property
+    def default_current_location_tool(self) -> Callable | None:
+        return self._default_current_location_tool
+
+    @property
+    def default_search_internet_tool(self) -> Callable | None:
+        return self._default_search_internet_tool
 
     def set_default_persona(self, persona: str):
         self._default_persona = persona
@@ -238,6 +325,15 @@ class LLMConfig:
 
     def set_default_yolo_mode(self, yolo_mode: bool | list[str]):
         self._default_yolo_mode = yolo_mode
+
+    def set_default_current_weather_tool(self, tool: Callable):
+        self._default_current_weather_tool = tool
+
+    def set_default_current_location_tool(self, tool: Callable):
+        self._default_current_location_tool = tool
+
+    def set_default_search_internet_tool(self, tool: Callable):
+        self._default_search_internet_tool = tool
 
 
 llm_config = LLMConfig()
