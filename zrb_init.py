@@ -205,7 +205,7 @@ publish_pip = publish_group.add_task(
         name="publish-zrb-to-pip",
         description="Publish Zrb as pip package",
         cwd=_DIR,
-        cmd="poetry publish --build",
+        cmd="poetry publish --build --skip-existing",
     ),
     alias="pip",
 )

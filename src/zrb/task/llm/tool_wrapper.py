@@ -120,13 +120,15 @@ def _create_wrapper(
                         ctx, func, args, kwargs
                     )
                     if not approval:
-                        raise ToolExecutionCancelled(f"User disapproving: {reason}")
+                        raise ToolExecutionCancelled(
+                            f"Tool execution cancelled. User disapproving: {reason}"
+                        )
             result = await run_async(func(*args, **kwargs))
             if has_ever_edited:
                 return {
                     "tool_call_result": result,
                     "new_tool_parameters": kwargs,
-                    "message": "User has intercepted tool call and updated the parameters",
+                    "message": "User correction: Tool was called with user's parameters",
                 }
             return result
         except KeyboardInterrupt as e:
