@@ -100,34 +100,19 @@ def list_files(
     excluded_patterns: Optional[list[str]] = None,
 ) -> dict[str, list[str]]:
     """
-    Lists the files and directories within a specified path.
+    Lists files and directories within a specified path, providing a map of the filesystem.
 
-    This is a fundamental tool for exploring the file system. Use it to
-    discover the structure of a directory, find specific files, or get a
-    general overview of the project layout before performing other operations.
-    **NOTE:**
-    User might provide inaccurate file path, so if you failed to read a file,
-    it is a good idea to list the files to get the accurate file path.
+    Use this tool to explore and understand the directory structure of the project. It's essential for finding files before reading or modifying them. If you receive an error about a file not being found, use this tool to verify the correct path.
 
     Args:
-        path (str, optional): The directory path to list. Defaults to the
-            current directory (".").
-        recursive (bool, optional): If True, lists files and directories
-            recursively. If False, lists only the top-level contents.
-            Defaults to True.
-        include_hidden (bool, optional): If True, includes hidden files and
-            directories (those starting with a dot). Defaults to False.
-        excluded_patterns (list[str], optional): A list of glob patterns to
-            exclude from the listing. This is useful for ignoring irrelevant
-            files like build artifacts or virtual environments. Defaults to a
-            standard list of common exclusion patterns.
+        path (str, optional): The directory path to list, preferably an absolute path. Defaults to the current directory (".").
+        recursive (bool, optional): If True, lists contents recursively. Defaults to True.
+        include_hidden (bool, optional): If True, includes hidden files (e.g., .gitignore). Defaults to False.
+        excluded_patterns (list[str], optional): A list of glob patterns to ignore (e.g., ["*.log", "node_modules/"]). Defaults to a standard list of ignores.
 
     Returns:
-        dict[str, list[str]]: A dictionary containing a list of file and directory paths
-            relative to the input path.
-            Example: {"files": ["src/main.py", "README.md"]}
-    Raises:
-        FileNotFoundError: If the specified path does not exist.
+        dict[str, list[str]]: A dictionary with a single key "files" containing a sorted list of file and directory paths relative to the input path.
+        Example: {"files": ["README.md", "src/main.py", "src/utils/helpers.py"]}
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -226,59 +211,24 @@ def read_from_file(
     end_line: Optional[int] = None,
 ) -> dict[str, Any]:
     """
-    Reads the content of a file, optionally from a specific start line to an
-    end line.
+    Reads the content of a single file.
 
-    This tool is essential for inspecting file contents. It can read both text
-    and PDF files. The `content` field in the returned dictionary is **always**
-    prefixed with line numbers (`line_number | `) for each line. These prefixes
-    are added by the tool for internal processing and to provide contextual
-    information to the AI agent (e.g., for accurately applying diffs or for
-    referencing specific lines). They are **not** part of the actual file content.
-
-    When presenting the file content to a user, the AI agent **MUST** omit these
-    line number prefixes by default for better readability. They should only
-    be included if explicitly requested by the user or if the request inherently
-    requires line number context (e.g., 'show me lines 10-20').
-
-    Use this tool to:
-    - Examine the source code of a file.
-    - Read configuration files.
-    - Check the contents of a document.
+    Use this tool to inspect the contents of a specific file. You can read the entire file or specify a range of lines. The content returned will include line numbers, which are useful for other tools like `replace_in_file`.
 
     Args:
-        path (str): The path to the file to read.
-        start_line (int, optional): The 1-based line number to start reading
-            from. If omitted, reading starts from the beginning of the file.
-        end_line (int, optional): The 1-based line number to stop reading at
-            (inclusive). If omitted, reads to the end of the file.
+        path (str): The absolute path to the file to read.
+        start_line (int, optional): The 1-based line number to start reading from. Defaults to the beginning of the file.
+        end_line (int, optional): The 1-based line number to stop reading at (inclusive). Defaults to the end of the file.
 
     Returns:
-        dict[str, Any]: A dictionary containing the file path, the requested content
-            (always with line numbers), the start and end lines, and the total number
-            of lines in the file.
-            Example:
-            ```
-            {
-                "path": "src/main.py",
-                "content": "1| import os\n2|\n3| print(\"Hello, World!\")",
-                "start_line": 1,
-                "end_line": 3,
-                "total_lines": 3
-            }
-            ```
-            If the file 'src/main.py' contains:
-            ```
-            import os
-
-            print("Hello, World!")
-            ```
-            The 'content' field in the returned dictionary will be:
-            `"1| import os\n2|\n3| print(\"Hello, World!\")"`
-            **IMPORTANT:** The "1|", "2|", "3|" prefixes are NOT part of the
-            original file. They are for internal agent use.
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
+        dict[str, Any]: A dictionary containing the file path and its content with line numbers.
+        Example: {
+            "path": "src/main.py",
+            "content": "1| import os\n2|\n3| print(\"Hello, World!\")",
+            "start_line": 1,
+            "end_line": 3,
+            "total_lines": 3
+        }
     """
 
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -318,24 +268,19 @@ def read_from_file(
 def write_to_file(
     path: str,
     content: str,
-) -> dict[str, Any]:
+) -> str:
     """
-    Writes content to a file, completely overwriting it if it exists or
-    creating it if it doesn't.
+    Writes content to a file, creating it or completely overwriting it.
 
-    Use this tool to create new files or to overwrite the entire content of
-    existing files. This is a destructive operation, so be certain of your
-    actions. Always read the file first to understand its contents before
-    overwriting it, unless you are creating a new file.
+    Use this tool to create a new file or replace an existing file's entire content.
+    **WARNING:** This is a destructive operation and will overwrite the file if it exists. Use `replace_in_file` for safer, targeted changes.
 
     Args:
-        path (str): The path to the file to write to.
-        content (str): The full, complete content to be written to the file.
-            Do not use partial content or omit any lines.
+        path (str): The absolute path of the file to write to.
+        content (str): The full content to be written to the file.
 
     Returns:
-        dict[str, Any]: A dictionary indicating success or failure.
-             Example: {"success": true, "path": "new_file.txt"}
+        str: A confirmation message indicating the file was written successfully.
     """
     try:
         abs_path = os.path.abspath(os.path.expanduser(path))
@@ -344,7 +289,7 @@ def write_to_file(
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
         write_file(abs_path, content)
-        return {"success": True, "path": path}
+        return f"Successfully wrote to file: {path}"
     except (OSError, IOError) as e:
         raise OSError(f"Error writing file {path}: {e}")
     except Exception as e:
@@ -470,29 +415,19 @@ def replace_in_file(
     path: str,
     old_string: str,
     new_string: str,
-) -> dict[str, Any]:
+) -> str:
     """
     Replaces the first occurrence of a string in a file.
 
-    This tool is for making targeted modifications to a file. It is a
-    single-step operation that is generally safer and more ergonomic than
-    `write_to_file` for small changes.
-
-    To ensure the replacement is applied correctly and to avoid ambiguity, the
-    `old_string` parameter should be a unique, multi-line string that includes
-    context from before and after the code you want to change.
+    This tool is for making targeted modifications to a file. It is safer than `write_to_file` for small changes. First, use `read_from_file` to get the exact text block you want to change. Then, use that block as the `old_string`.
 
     Args:
-        path (str): The path of the file to modify.
-        old_string (str): The exact, verbatim string to search for and replace.
-            This should be a unique, multi-line block of text.
+        path (str): The absolute path of the file to modify.
+        old_string (str): The exact, verbatim string to replace. This should be a unique, multi-line block of text copied from the file.
         new_string (str): The new string that will replace the `old_string`.
 
     Returns:
-        dict[str, Any]: A dictionary indicating the success or failure of the operation.
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
-        ValueError: If the `old_string` is not found in the file.
+        str: A confirmation message on success.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -503,7 +438,7 @@ def replace_in_file(
             raise ValueError(f"old_string not found in file: {path}")
         new_content = content.replace(old_string, new_string, 1)
         write_file(abs_path, new_content)
-        return {"success": True, "path": path}
+        return f"Successfully replaced content in {path}"
     except ValueError as e:
         raise e
     except (OSError, IOError) as e:

@@ -17,13 +17,12 @@ def read_long_term_note() -> str:
 
 def write_long_term_note(content: str) -> str:
     """
-    Writes content to the global long-term note.
-    The content of this note is intended to be read by the AI Agent in the future.
-    It should contain global information/preference.
-    Use this tool proactively when you find information worth noted.
+    Writes or overwrites the global long-term note for the user.
+
+    Use this to remember key user preferences, goals, or facts that should apply to all future conversations (e.g., "The user prefers TypeScript," "The user's favorite color is read"). This note is persistent across all projects.
 
     Args:
-        content: The content to write to the long-term note (overwriting the existing one).
+        content: The information to save. This will overwrite the entire note.
 
     Returns:
         A confirmation message.
@@ -53,21 +52,16 @@ def read_contextual_note(path: str | None = None) -> str:
 
 def write_contextual_note(content: str, path: str | None = None) -> str:
     """
-    Writes a contextual note for a specific path.
-    The content of this note is intended to be read by the AI Agent in the future.
-    The content should contain contextual information.
+    Writes or overwrites a note for a specific file or directory.
 
-    If no path is provided, it defaults to the current working directory.
-
-    Use this tool proactively when you find information worth noted.
+    Use this to save your findings, summaries, or conclusions about a specific part of the project. This note will be available in the future when you are working within that same context.
 
     Args:
-        content: The new content of the note (overwriting the existing one).
-        path: The file or directory path to associate the note with.
-              Defaults to the current working directory.
+        content: The information to save about the path. This overwrites any existing note for this path.
+        path (str, optional): The absolute file or directory path to associate the note with. Defaults to the current working directory.
 
     Returns:
-        A confirmation message indicating where the note was saved.
+        A confirmation message.
     """
     if path is None:
         path = os.getcwd()

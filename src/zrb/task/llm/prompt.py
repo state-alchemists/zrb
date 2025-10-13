@@ -233,6 +233,50 @@ def get_system_and_user_prompt(
     return new_system_prompt, new_user_message
 
 
+def _generate_directory_tree(
+    dir_path: str,
+    max_depth: int = 2,
+    ignore_dirs: list[str] | None = None,
+) -> str:
+    """
+    Generates a string representation of a directory tree, pure Python.
+    """
+    if ignore_dirs is None:
+        ignore_dirs = [
+            ".git",
+            ".venv",
+            "node_modules",
+            "__pycache__",
+            ".idea",
+            "dist",
+            "build",
+        ]
+    tree_lines = []
+
+    def recurse(path: str, depth: int, prefix: str):
+        if depth > max_depth:
+            return
+        try:
+            entries = sorted(
+                [e for e in os.scandir(path) if e.name not in ignore_dirs],
+                key=lambda e: e.name,
+            )
+        except FileNotFoundError:
+            return
+
+        for i, entry in enumerate(entries):
+            is_last = i == len(entries) - 1
+            connector = "└───" if is_last else "├───"
+            tree_lines.append(f"{prefix}{connector}{entry.name}")
+            if entry.is_dir():
+                new_prefix = prefix + ("    " if is_last else "│   ")
+                recurse(entry.path, depth + 1, new_prefix)
+
+    tree_lines.append(os.path.basename(dir_path))
+    recurse(dir_path, 1, "")
+    return "\n".join(tree_lines)
+
+
 def extract_conversation_context(user_message: str) -> tuple[str, str]:
     modified_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
@@ -262,15 +306,19 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
                     as_code=True,
                 )
             )
+    current_directory = os.getcwd()
+    directory_tree = _generate_directory_tree(current_directory, max_depth=2)
     conversation_context = "\n".join(
         [
             make_prompt_section("Current OS", platform.system()),
             make_prompt_section("OS Version", platform.version()),
             make_prompt_section("Python Version", platform.python_version()),
+            make_prompt_section(
+                "Directory Tree (depth=2)", directory_tree, as_code=True
+            ),
         ]
     )
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
-    current_directory = os.getcwd()
     modified_user_message = "\n".join(
         [
             make_prompt_section("User Message", modified_user_message),

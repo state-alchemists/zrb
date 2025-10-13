@@ -245,12 +245,11 @@ def _get_detail_func_param(args: list[Any] | tuple[Any], kwargs: dict[str, Any])
 
 
 def _get_func_param_item(key: str, val: Any) -> str:
-    upper_key = key.upper()
     val_str = _get_val_str(val)
     val_parts = val_str.split("\n")
     if len(val_parts) == 1:
-        return f"- {upper_key} `{val}`"
-    lines = [f"- {upper_key}", "  ```"]
+        return f"- {key} `{val}`"
+    lines = [f"- {key}", "  ```"]
     for val_part in val_parts:
         lines.append(f"  {val_part}")
     lines.append("  ```")
