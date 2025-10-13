@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.17.1
+
+- **Feature: Enhanced Context Awareness**: Added directory tree display (depth=2) to conversation context for better project structure visibility.
+- **Improved Documentation**: Updated docstrings for LLM file system tools (`list_files`, `read_from_file`, `write_to_file`, `replace_in_file`) and note tools (`read_long_term_note`, `write_long_term_note`, `read_contextual_note`, `write_contextual_note`) for better clarity and consistency.
+- **Enhanced Tool Execution Messages**: Improved user feedback messages for tool execution, including clearer cancellation and parameter update notifications.
+- **Publishing Enhancement**: Added `--skip-existing` flag to pip publishing command to prevent errors when publishing existing versions.
+
 # 1.17.0
 
 - **Feature: SearXNG Integration**: Added support for SearXNG as a local, privacy-respecting alternative to SerpAPI for internet searches.
