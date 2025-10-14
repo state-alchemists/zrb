@@ -185,7 +185,9 @@ def get_system_and_user_prompt(
     project_context_prompt = get_project_context_prompt()
     if conversation_history is None:
         conversation_history = ConversationHistory()
-    conversation_context, new_user_message = extract_conversation_context(user_message)
+    conversation_environment, new_user_message = extract_conversation_environment(
+        user_message
+    )
     new_system_prompt = "\n".join(
         [
             make_prompt_section("Persona", persona),
@@ -227,7 +229,7 @@ def get_system_and_user_prompt(
                 ),
             ),
             make_prompt_section("Project Context", project_context_prompt),
-            make_prompt_section("Conversation Context", conversation_context),
+            make_prompt_section("Conversation Environment", conversation_environment),
         ]
     )
     return new_system_prompt, new_user_message
@@ -236,21 +238,11 @@ def get_system_and_user_prompt(
 def _generate_directory_tree(
     dir_path: str,
     max_depth: int = 2,
-    ignore_dirs: list[str] | None = None,
+    max_children: int = 10,
 ) -> str:
     """
     Generates a string representation of a directory tree, pure Python.
     """
-    if ignore_dirs is None:
-        ignore_dirs = [
-            ".git",
-            ".venv",
-            "node_modules",
-            "__pycache__",
-            ".idea",
-            "dist",
-            "build",
-        ]
     tree_lines = []
 
     def recurse(path: str, depth: int, prefix: str):
@@ -258,13 +250,16 @@ def _generate_directory_tree(
             return
         try:
             entries = sorted(
-                [e for e in os.scandir(path) if e.name not in ignore_dirs],
+                [e for e in os.scandir(path)],
                 key=lambda e: e.name,
             )
         except FileNotFoundError:
             return
 
         for i, entry in enumerate(entries):
+            if i >= max_children:
+                tree_lines.append(f"{prefix}└───... (more)")
+                break
             is_last = i == len(entries) - 1
             connector = "└───" if is_last else "├───"
             tree_lines.append(f"{prefix}{connector}{entry.name}")
@@ -277,7 +272,7 @@ def _generate_directory_tree(
     return "\n".join(tree_lines)
 
 
-def extract_conversation_context(user_message: str) -> tuple[str, str]:
+def extract_conversation_environment(user_message: str) -> tuple[str, str]:
     modified_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
     pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\?\!\s]+)"
@@ -308,7 +303,7 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
             )
     current_directory = os.getcwd()
     directory_tree = _generate_directory_tree(current_directory, max_depth=2)
-    conversation_context = "\n".join(
+    conversation_environment = "\n".join(
         [
             make_prompt_section("Current OS", platform.system()),
             make_prompt_section("OS Version", platform.version()),
@@ -336,7 +331,7 @@ def extract_conversation_context(user_message: str) -> tuple[str, str]:
             ),
         ]
     )
-    return conversation_context, modified_user_message
+    return conversation_environment, modified_user_message
 
 
 def get_user_message(

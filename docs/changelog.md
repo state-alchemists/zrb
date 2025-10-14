@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.17.2
+
+- **Changed: Rename Convesation Context to Conversation Environment** A better diction, hopefully help LLM distinguish context and environment.
+- **Added: Maximum Item for Directory Tree Display** Make sure to not overwhelm LLM with too much context.
+
 # 1.17.1
 
 - **Feature: Enhanced Context Awareness**: Added directory tree display (depth=2) to conversation context for better project structure visibility.
