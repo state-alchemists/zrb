@@ -309,4 +309,7 @@ def _adjust_signature(wrapper: Callable, original_sig: inspect.Signature):
         if not _is_annotated_with_context(param.annotation, RunContext)
         and not _is_annotated_with_context(param.annotation, AnyContext)
     ]
-    wrapper.__signature__ = inspect.Signature(parameters=params_for_schema)
+    if hasattr(wrapper, "__signature__"):
+        setattr(
+            wrapper, "__signature__", inspect.Signature(parameters=params_for_schema)
+        )

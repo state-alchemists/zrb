@@ -297,7 +297,7 @@ def extract_conversation_environment(user_message: str) -> tuple[str, str]:
             apendixes.append(
                 make_prompt_section(
                     f"{placeholder} ({ref_type} path: `{resource_path}`)",
-                    content,
+                    content if isinstance(content, str) else "\n".join(content),
                     as_code=True,
                 )
             )
