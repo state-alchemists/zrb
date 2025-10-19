@@ -4,7 +4,8 @@ from typing import Any
 
 def run_shell_command(command: str) -> dict[str, Any]:
     """
-    Executes a shell command on the user's local machine and returns the output.
+    Executes a non interactive shell command on the user's local machine and returns
+    the output.
 
     This tool is powerful and should be used for tasks that require interacting
     with the command line, such as running scripts, managing system processes,
@@ -14,6 +15,9 @@ def run_shell_command(command: str) -> dict[str, Any]:
     as the user running the assistant. Before executing any command that could
     modify files or system state (e.g., `git`, `npm`, `pip`, `docker`), you
     MUST explain what the command does and ask the user for confirmation.
+
+    **Note:** Makse sure to run any server or long running process, as background process.
+    (e.g., python -m http.server &)
 
     Args:
         command (str): The exact shell command to execute.
