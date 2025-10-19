@@ -316,7 +316,7 @@ class Config:
     @property
     def LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT(self) -> int:
         """Maximum number of tokens allowed per tool call result."""
-        return int(self._getenv("LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT", "25000"))
+        return int(self._getenv("LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT", "75000"))
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:

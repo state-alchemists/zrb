@@ -385,6 +385,10 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `50000`
     * Possible values: Any positive integer
 
+* `ZRB_LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT`: Maximum number of tokens allowed per tool call result.
+    * Default: `75000`
+    * Possible values: Any positive integer
+
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
     * Default: `1.0`
     * Possible values: Any positive float

@@ -20,6 +20,9 @@ llm_config.llm_rate_limitter.set_max_tokens_per_minute(100000)
 # Set the maximum number of tokens per request
 llm_config.llm_rate_limitter.set_max_tokens_per_request(50000)
 
+# Set the maximum number of tokens per tool call result
+llm_config.llm_rate_limitter.set_max_tokens_per_tool_call_result(30000)
+
 # Set the throttle sleep duration
 llm_config.llm_rate_limitter.set_throttle_sleep(1.0)
 
@@ -44,6 +47,11 @@ llm_config.llm_rate_limitter.set_token_counter_fn(lambda x: len(x.split()))
 - **Type**: `int`
 - **Environment Variable**: `ZRB_LLM_MAX_TOKENS_PER_REQUEST`
 
+### `max_tokens_per_tool_call_result`
+- **Description**: The maximum number of tokens allowed per tool call result.
+- **Type**: `int`
+- **Environment Variable**: `ZRB_LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT`
+
 ### `throttle_sleep`
 - **Description**: The number of seconds to sleep when throttling is required.
 - **Type**: `float`
@@ -63,6 +71,9 @@ llm_config.llm_rate_limitter.set_token_counter_fn(lambda x: len(x.split()))
 
 ### `set_max_tokens_per_request(value: int)`
 - **Description**: Sets the maximum number of tokens per request.
+
+### `set_max_tokens_per_tool_call_result(value: int)`
+- **Description**: Sets the maximum number of tokens allowed per tool call result.
 
 ### `set_throttle_sleep(value: float)`
 - **Description**: Sets the number of seconds to sleep when throttling is required.

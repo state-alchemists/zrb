@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.17.3
+
+- **Feature: Enhanced Token Management**: Added `LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT` configuration to limit tool call result sizes and prevent excessive token usage.
+- **Improved: Rate Limiter Enhancements**: Enhanced the `LLMRateLimiter` with better token counting, prompt clipping, and JSON handling capabilities.
+- **Documentation: Enhanced Tool Documentation**: Added more detailed documentation for `run_shell_command` about running background processes.
+- **Security: Tool Result Validation**: Added automatic validation of tool call result sizes to prevent token overflow.
+- **Refactor: Prompt System Improvements**: Refactored prompt construction logic for better maintainability and token usage tracking.
+
 # 1.17.2
 
 - **Changed: Rename Convesation Context to Conversation Environment** A better diction, hopefully help LLM distinguish context and environment.
