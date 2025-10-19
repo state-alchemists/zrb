@@ -463,10 +463,6 @@ class Config:
         return self._getenv("SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}")
 
     @property
-    def SEARXNG_FORMAT(self) -> str:
-        return self._getenv("SEARXNG_FORMAT", "xml")
-
-    @property
     def SEARXNG_SAFE(self) -> int:
         return int(self._getenv("SEARXNG_SAFE", "0"))
 
