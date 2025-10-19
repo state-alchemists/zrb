@@ -59,8 +59,8 @@ def create_search_internet_tool() -> Callable:
                 params={
                     "q": query,
                     "start": (page - 1) * 10,
-                    "hl": "en",
-                    "safe": "off",
+                    "hl": CFG.SERPAPI_LANG,
+                    "safe": CFG.SERPAPI_SAFE,
                     "api_key": CFG.SERPAPI_KEY,
                 },
             )
@@ -72,7 +72,8 @@ def create_search_internet_tool() -> Callable:
                     "q": query,
                     "format": "json",
                     "pageno": page,
-                    "safesearch": 0,
+                    "safesearch": CFG.SEARXNG_SAFE,
+                    "language": CFG.SEARXNG_LANG,
                 },
             )
         if response.status_code != 200:

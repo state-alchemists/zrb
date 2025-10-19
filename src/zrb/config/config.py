@@ -447,12 +447,32 @@ class Config:
         return os.getenv("SERPAPI_KEY", "")
 
     @property
+    def SERPAPI_SAFE(self) -> str:
+        return os.getenv("SERPAPI_SAFE", "off")
+
+    @property
+    def SERPAPI_LANG(self) -> str:
+        return os.getenv("SERPAPI_LANG", "en")
+
+    @property
     def SEARXNG_PORT(self) -> int:
         return int(self._getenv("SEARXNG_PORT", "8080"))
 
     @property
     def SEARXNG_BASE_URL(self) -> str:
         return self._getenv("SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}")
+
+    @property
+    def SEARXNG_FORMAT(self) -> str:
+        return self._getenv("SEARXNG_FORMAT", "xml")
+
+    @property
+    def SEARXNG_SAFE(self) -> int:
+        return int(self._getenv("SEARXNG_SAFE", "0"))
+
+    @property
+    def SEARXNG_LANG(self) -> int:
+        return int(self._getenv("SEARXNG_LANG", "en"))
 
     @property
     def BANNER(self) -> str:
