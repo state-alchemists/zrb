@@ -500,10 +500,13 @@ async def analyze_file(
         tools=[read_from_file, search_files],
     )
     payload = json.dumps(
-        {"instruction": query, "file_path": abs_path, "file_content": file_content}
+        {
+            "instruction": query,
+            "file_path": abs_path,
+            "file_content": llm_rate_limitter.clip_prompt(file_content, token_limit),
+        }
     )
-    clipped_payload = llm_rate_limitter.clip_prompt(payload, token_limit)
-    return await _analyze_file(ctx, clipped_payload)
+    return await _analyze_file(ctx, payload)
 
 
 def read_many_files(paths: list[str]) -> dict[str, str]:
@@ -593,11 +596,9 @@ def write_many_files(files: list[FileToWrite]) -> dict[str, Any]:
     errors = {}
     # 4. Access the data using dictionary key-lookup syntax.
     for file in files:
+        path = file["path"]
+        content = file["content"]
         try:
-            # Use file['path'] and file['content'] instead of file.path
-            path = file["path"]
-            content = file["content"]
-
             abs_path = os.path.abspath(os.path.expanduser(path))
             directory = os.path.dirname(abs_path)
             if directory and not os.path.exists(directory):

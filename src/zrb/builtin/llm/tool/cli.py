@@ -16,7 +16,7 @@ def run_shell_command(command: str) -> dict[str, Any]:
     modify files or system state (e.g., `git`, `npm`, `pip`, `docker`), you
     MUST explain what the command does and ask the user for confirmation.
 
-    **Note:** Makse sure to run any server or long running process, as background process.
+    **Note:** Make sure to run any server or long running process, as background process.
     (e.g., python -m http.server &)
 
     Args:

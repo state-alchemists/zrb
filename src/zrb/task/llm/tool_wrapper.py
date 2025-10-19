@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
 from zrb.util.callable import get_callable_name
@@ -124,6 +125,7 @@ def _create_wrapper(
                             f"Tool execution cancelled. User disapproving: {reason}"
                         )
             result = await run_async(func(*args, **kwargs))
+            _check_tool_call_result_limit(result)
             if has_ever_edited:
                 return {
                     "tool_call_result": result,
@@ -143,6 +145,14 @@ def _create_wrapper(
             return error_model.model_dump_json()
 
     return wrapper
+
+
+def _check_tool_call_result_limit(result: Any):
+    if (
+        llm_rate_limitter.count_token(result)
+        > llm_rate_limitter.max_tokens_per_tool_call_result
+    ):
+        raise ValueError("Result value is too large, please adjust the parameter")
 
 
 async def _handle_user_response(
@@ -309,4 +319,5 @@ def _adjust_signature(wrapper: Callable, original_sig: inspect.Signature):
         if not _is_annotated_with_context(param.annotation, RunContext)
         and not _is_annotated_with_context(param.annotation, AnyContext)
     ]
-    wrapper.__signature__ = inspect.Signature(parameters=params_for_schema)
+    if hasattr(wrapper, "__signature__"):
+        wrapper.__signature__ = inspect.Signature(parameters=params_for_schema)

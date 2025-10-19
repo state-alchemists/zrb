@@ -2,11 +2,12 @@ import os
 import platform
 import re
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
-from zrb.config.llm_config import llm_config as llm_config
+from zrb.config.llm_config import llm_config
 from zrb.config.llm_context.config import llm_context_config
+from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
@@ -173,7 +174,43 @@ def get_system_and_user_prompt(
     render_modes: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> tuple[str, str]:
-    """Combines persona, base system prompt, and special instructions."""
+    if conversation_history is None:
+        conversation_history = ConversationHistory()
+    modified_user_message, user_message_context = _extract_user_prompt_components(
+        user_message
+    )
+    new_system_prompt = _construct_system_prompt(
+        ctx=ctx,
+        persona_attr=persona_attr,
+        render_persona=render_persona,
+        system_prompt_attr=system_prompt_attr,
+        render_system_prompt=render_system_prompt,
+        special_instruction_prompt_attr=special_instruction_prompt_attr,
+        render_special_instruction_prompt=render_special_instruction_prompt,
+        modes_attr=modes_attr,
+        render_modes=render_modes,
+        conversation_history=conversation_history,
+    )
+    user_message_context["Token Counter"] = _get_token_usage_info(
+        new_system_prompt, user_message, conversation_history
+    )
+    return new_system_prompt, _contruct_user_message_prompt(
+        modified_user_message, user_message_context
+    )
+
+
+def _construct_system_prompt(
+    ctx: AnyContext,
+    persona_attr: StrAttr | None = None,
+    render_persona: bool = False,
+    system_prompt_attr: StrAttr | None = None,
+    render_system_prompt: bool = False,
+    special_instruction_prompt_attr: StrAttr | None = None,
+    render_special_instruction_prompt: bool = False,
+    modes_attr: StrListAttr | None = None,
+    render_modes: bool = False,
+    conversation_history: ConversationHistory | None = None,
+) -> str:
     persona = get_persona(ctx, persona_attr, render_persona)
     base_system_prompt = get_base_system_prompt(
         ctx, system_prompt_attr, render_system_prompt
@@ -185,10 +222,9 @@ def get_system_and_user_prompt(
     project_context_prompt = get_project_context_prompt()
     if conversation_history is None:
         conversation_history = ConversationHistory()
-    conversation_environment, new_user_message = extract_conversation_environment(
-        user_message
-    )
-    new_system_prompt = "\n".join(
+    current_directory = os.getcwd()
+    directory_tree = _generate_directory_tree(current_directory, max_depth=2)
+    return "\n".join(
         [
             make_prompt_section("Persona", persona),
             make_prompt_section("System Prompt", base_system_prompt),
@@ -229,10 +265,42 @@ def get_system_and_user_prompt(
                 ),
             ),
             make_prompt_section("Project Context", project_context_prompt),
-            make_prompt_section("Conversation Environment", conversation_environment),
+            make_prompt_section(
+                "Conversation Environment",
+                "\n".join(
+                    [
+                        make_prompt_section("Current OS", platform.system()),
+                        make_prompt_section("OS Version", platform.version()),
+                        make_prompt_section(
+                            "Python Version", platform.python_version()
+                        ),
+                        make_prompt_section(
+                            "Directory Tree (depth=2)", directory_tree, as_code=True
+                        ),
+                    ]
+                ),
+            ),
         ]
     )
-    return new_system_prompt, new_user_message
+
+
+def _contruct_user_message_prompt(
+    modified_user_message: str, user_message_context: dict[str, str]
+) -> str:
+    return "\n".join(
+        [
+            make_prompt_section("User Message", modified_user_message),
+            make_prompt_section(
+                "Context",
+                "\n".join(
+                    [
+                        make_prompt_section(key, val)
+                        for key, val in user_message_context.items()
+                    ]
+                ),
+            ),
+        ]
+    )
 
 
 def _generate_directory_tree(
@@ -258,13 +326,13 @@ def _generate_directory_tree(
 
         for i, entry in enumerate(entries):
             if i >= max_children:
-                tree_lines.append(f"{prefix}└───... (more)")
+                tree_lines.append(f"{prefix}└─... (more)")
                 break
             is_last = i == len(entries) - 1
-            connector = "└───" if is_last else "├───"
+            connector = "└─" if is_last else "├─"
             tree_lines.append(f"{prefix}{connector}{entry.name}")
             if entry.is_dir():
-                new_prefix = prefix + ("    " if is_last else "│   ")
+                new_prefix = prefix + ("  " if is_last else "│ ")
                 recurse(entry.path, depth + 1, new_prefix)
 
     tree_lines.append(os.path.basename(dir_path))
@@ -272,7 +340,24 @@ def _generate_directory_tree(
     return "\n".join(tree_lines)
 
 
-def extract_conversation_environment(user_message: str) -> tuple[str, str]:
+def _get_token_usage_info(
+    system_prompt: str, user_message: str, conversation_history: ConversationHistory
+) -> str:
+    system_prompt_token_count = llm_rate_limitter.count_token(system_prompt)
+    user_message_token_count = llm_rate_limitter.count_token(user_message)
+    conversation_history_token_count = llm_rate_limitter.count_token(
+        conversation_history.history
+    )
+    total_token_count = (
+        system_prompt_token_count
+        + user_message_token_count
+        + conversation_history_token_count
+    )
+    max_token = llm_rate_limitter.max_tokens_per_request
+    return f"{total_token_count} tokens of {max_token} tokens"
+
+
+def _extract_user_prompt_components(user_message: str) -> tuple[str, dict[str, Any]]:
     modified_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
     pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\?\!\s]+)"
@@ -302,36 +387,13 @@ def extract_conversation_environment(user_message: str) -> tuple[str, str]:
                 )
             )
     current_directory = os.getcwd()
-    directory_tree = _generate_directory_tree(current_directory, max_depth=2)
-    conversation_environment = "\n".join(
-        [
-            make_prompt_section("Current OS", platform.system()),
-            make_prompt_section("OS Version", platform.version()),
-            make_prompt_section("Python Version", platform.python_version()),
-            make_prompt_section(
-                "Directory Tree (depth=2)", directory_tree, as_code=True
-            ),
-        ]
-    )
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
-    modified_user_message = "\n".join(
-        [
-            make_prompt_section("User Message", modified_user_message),
-            make_prompt_section(
-                "Context",
-                "\n".join(
-                    [
-                        make_prompt_section(
-                            "Current working directory", current_directory
-                        ),
-                        make_prompt_section("Current time", iso_date),
-                        make_prompt_section("Apendixes", "\n".join(apendixes)),
-                    ]
-                ),
-            ),
-        ]
-    )
-    return conversation_environment, modified_user_message
+    user_message_context = {
+        "Current Working Directory": current_directory,
+        "Current Time": iso_date,
+        "Apendixes": "\n".join(apendixes),
+    }
+    return modified_user_message, user_message_context
 
 
 def get_user_message(
