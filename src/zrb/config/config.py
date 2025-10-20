@@ -448,11 +448,11 @@ class Config:
 
     @property
     def SERPAPI_SAFE(self) -> str:
-        return os.getenv("SERPAPI_SAFE", "off")
+        return self._getenv("SERPAPI_SAFE", "off")
 
     @property
     def SERPAPI_LANG(self) -> str:
-        return os.getenv("SERPAPI_LANG", "en")
+        return self._getenv("SERPAPI_LANG", "en")
 
     @property
     def SEARXNG_PORT(self) -> int:
