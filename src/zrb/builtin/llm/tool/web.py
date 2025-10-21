@@ -52,7 +52,10 @@ def create_search_internet_tool() -> Callable:
         """
         import requests
 
-        if CFG.SEARCH_INTERNET_METHOD.strip() == "serpapi" and CFG.SERPAPI_KEY != "":
+        if (
+            CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
+            and CFG.SERPAPI_KEY != ""
+        ):
             response = requests.get(
                 "https://serpapi.com/search",
                 headers={"User-Agent": _DEFAULT_USER_AGENT},
@@ -62,6 +65,26 @@ def create_search_internet_tool() -> Callable:
                     "hl": CFG.SERPAPI_LANG,
                     "safe": CFG.SERPAPI_SAFE,
                     "api_key": CFG.SERPAPI_KEY,
+                },
+            )
+        elif (
+            CFG.SEARCH_INTERNET_METHOD.strip().lower() == "brave"
+            and CFG.BRAVE_API_KEY != ""
+        ):
+            response = requests.get(
+                "https://api.search.brave.com/res/v1/web/search",
+                headers={
+                    "User-Agent": _DEFAULT_USER_AGENT,
+                    "Accept": "application/json",
+                    "x-subscription-token": CFG.BRAVE_API_KEY,
+                },
+                params={
+                    "q": query,
+                    "count": "10",
+                    "offset": (page - 1) * 10,
+                    "safesearch": CFG.BRAVE_API_SAFE,
+                    "search_lang": CFG.BRAVE_API_LANG,
+                    "summary": "true",
                 },
             )
         else:

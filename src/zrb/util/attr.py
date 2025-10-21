@@ -27,9 +27,11 @@ def get_str_list_attr(
     Returns:
         list[str]: A list of string attributes.
     """
+    if attr is None:
+        return []
     if callable(attr):
         return attr(shared_ctx)
-    return {get_str_attr(shared_ctx, val, "", auto_render) for val in attr}
+    return [get_str_attr(shared_ctx, val, "", auto_render) for val in attr]
 
 
 def get_str_dict_attr(
@@ -46,6 +48,8 @@ def get_str_dict_attr(
     Returns:
         dict[str, Any]: A dictionary of string attributes.
     """
+    if attr is None:
+        return {}
     if callable(attr):
         return attr(shared_ctx)
     return {

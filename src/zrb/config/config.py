@@ -443,6 +443,18 @@ class Config:
         return self._getenv("SEARCH_INTERNET_METHOD", "serpapi")
 
     @property
+    def BRAVE_API_KEY(self) -> str:
+        return os.getenv("BRAVE_API_KEY", "")
+
+    @property
+    def BRAVE_API_SAFE(self) -> str:
+        return self._getenv("BRAVE_API_SAFE", "off")
+
+    @property
+    def BRAVE_API_LANG(self) -> str:
+        return self._getenv("BRAVE_API_LANG", "en")
+
+    @property
     def SERPAPI_KEY(self) -> str:
         return os.getenv("SERPAPI_KEY", "")
 
