@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.17.4
+
+- **Feature: Enhanced Search Engine Support**: Added Brave Search API integration as an alternative search method with configurable language and safe search settings.
+- **Feature: Improved RsyncTask**: Added `exclude-from` parameter support for more flexible file synchronization patterns.
+- **Improved: Search Engine Configuration**: Enhanced all search engines (SerpAPI, Brave, SearXNG) with configurable language and safe search parameters.
+- **Fixed: Type Annotation Issues**: Corrected type annotations in RsyncTask and utility functions for better type safety.
+- **Refactor: Utility Function Fix**: Fixed `get_str_list_attr` function to return a list instead of a set for consistent behavior.
+
 # 1.17.3
 
 - **Feature: Enhanced Token Management**: Added `LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT` configuration to limit tool call result sizes and prevent excessive token usage.

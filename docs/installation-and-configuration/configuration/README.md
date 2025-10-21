@@ -427,11 +427,31 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 
 * `ZRB_SEARCH_INTERNET_METHOD`: The search engine to use.
     * Default: `serpapi`
-    * Possible values: `serpapi`, `searxng`
+    * Possible values: `serpapi`, `searxng`, `brave`
 
 * `SERPAPI_KEY`: API key for SerpAPI.
     * Default: Empty
     * Possible values: Any valid SerpAPI key
+
+* `SERPAPI_LANG`: Language for SerpAPI search results.
+    * Default: `en`
+    * Possible values: Any valid language code (e.g., `en`, `fr`, `de`, `es`)
+
+* `SERPAPI_SAFE`: Safe search setting for SerpAPI.
+    * Default: `off`
+    * Possible values: `on`, `off`
+
+* `BRAVE_API_KEY`: API key for Brave Search.
+    * Default: Empty
+    * Possible values: Any valid Brave Search API key
+
+* `BRAVE_API_LANG`: Language for Brave Search results.
+    * Default: `en`
+    * Possible values: Any valid language code (e.g., `en`, `fr`, `de`, `es`)
+
+* `BRAVE_API_SAFE`: Safe search setting for Brave Search.
+    * Default: `off`
+    * Possible values: `off`, `moderate`, `strict`
 
 * `ZRB_SEARXNG_PORT`: Port for the SearXNG instance.
     * Default: `8080`
@@ -440,6 +460,14 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 * `ZRB_SEARXNG_BASE_URL`: Base URL for the SearXNG instance.
     * Default: `http://localhost:8080`
     * Possible values: Any valid URL
+
+* `ZRB_SEARXNG_LANG`: Language for SearXNG search results.
+    * Default: `en`
+    * Possible values: Any valid language code (e.g., `en`, `fr`, `de`, `es`)
+
+* `ZRB_SEARXNG_SAFE`: Safe search setting for SearXNG.
+    * Default: `0`
+    * Possible values: `0` (off), `1` (moderate), `2` (strict)
 
 ---
 🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md)
