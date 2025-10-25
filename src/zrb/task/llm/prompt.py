@@ -100,16 +100,17 @@ def get_project_context_prompt() -> str:
 
 
 def _get_available_workflows() -> dict[str, LLMWorkflow]:
-    builtin_workflow_dir = os.path.join(os.path.dirname(__file__), "default_workflow")
     available_workflows = {
         workflow_name.strip().lower(): workflow
         for workflow_name, workflow in llm_context_config.get_workflows().items()
     }
-    for filename in os.listdir(builtin_workflow_dir):
-        if not filename.endswith(".md"):
+    builtin_workflow_location = os.path.join(os.path.dirname(__file__), "default_workflow")
+    for builtin_workflow_name in os.listdir(builtin_workflow_location):
+        builtin_workflow_dir = os.path.join(builtin_workflow_location, builtin_workflow_name)
+        builtin_workflow_file = os.path.join(builtin_workflow_dir, "workflow.md")
+        if not os.path.isfile(builtin_workflow_file):
             continue
-        builtin_workflow_name = filename[:-3].lower()
-        with open(os.path.join(builtin_workflow_dir, filename), "r") as f:
+        with open(builtin_workflow_file, "r") as f:
             builtin_workflow_content = f.read()
         available_workflows[builtin_workflow_name] = LLMWorkflow(
             name=builtin_workflow_name.capitalize(),
@@ -139,7 +140,7 @@ def get_workflow_prompt(
                 "\n".join(
                     [
                         "---",
-                        f"Workflow definition location: {workflow.path}",
+                        f"The `{workflow.name}` workflow is located at: `{workflow.path}`",
                         "```",
                         _generate_directory_tree(workflow.path),
                         "```",
