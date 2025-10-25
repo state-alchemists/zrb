@@ -1,5 +1,3 @@
-# Coding Workflow
-
 When writing, refactoring, or fixing code, follow this streamlined development process for safe, high-quality contributions.
 
 ## Core Rules

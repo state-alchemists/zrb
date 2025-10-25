@@ -104,9 +104,13 @@ def _get_available_workflows() -> dict[str, LLMWorkflow]:
         workflow_name.strip().lower(): workflow
         for workflow_name, workflow in llm_context_config.get_workflows().items()
     }
-    builtin_workflow_location = os.path.join(os.path.dirname(__file__), "default_workflow")
+    builtin_workflow_location = os.path.join(
+        os.path.dirname(__file__), "default_workflow"
+    )
     for builtin_workflow_name in os.listdir(builtin_workflow_location):
-        builtin_workflow_dir = os.path.join(builtin_workflow_location, builtin_workflow_name)
+        builtin_workflow_dir = os.path.join(
+            builtin_workflow_location, builtin_workflow_name
+        )
         builtin_workflow_file = os.path.join(builtin_workflow_dir, "workflow.md")
         if not os.path.isfile(builtin_workflow_file):
             continue
