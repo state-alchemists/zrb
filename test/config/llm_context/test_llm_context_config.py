@@ -117,9 +117,10 @@ def test_get_note_and_workflow(mock_config_os, mock_open):
     assert contexts == {
         "/home/user/coba": "some context",
     }
-    assert workflows == {
-        "fiction-writing": "write fiction",
-    }
+    assert "fiction-writing" in workflows
+    assert workflows["fiction-writing"].name == "fiction-writing"
+    assert workflows["fiction-writing"].content == "write fiction"
+    assert workflows["fiction-writing"].path == "/home/user"
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
@@ -256,8 +257,10 @@ def test_get_workflows_override(mock_config_os, mock_open):
 
     assert "coding" in workflows
     assert "testing" in workflows
-    assert workflows["coding"] == "Project coding workflow"
-    assert workflows["testing"] == "Project testing workflow"
+    assert workflows["coding"].content == "Project coding workflow"
+    assert workflows["coding"].path == "/home/user/project"
+    assert workflows["testing"].content == "Project testing workflow"
+    assert workflows["testing"].path == "/home/user/project"
 
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)

@@ -90,14 +90,14 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             workflow_parts = user_input.split(" ", maxsplit=2)
             if len(workflow_parts) > 1:
                 current_workflows = workflow_parts[1]
-            ctx.print(f"Current workflow: {current_workflows}", plain=True)
+            ctx.print(f"Current workflows: {current_workflows}", plain=True)
             ctx.print("", plain=True)
             continue
         elif user_input.strip().lower().startswith("/yolo"):
             yolo_mode_parts = user_input.split(" ", maxsplit=2)
             if len(yolo_mode_parts) > 1:
                 current_yolo_mode = to_boolean(yolo_mode_parts[1])
-            ctx.print(f"Current_yolo mode: {current_yolo_mode}", plain=True)
+            ctx.print(f"Current YOLO mode: {current_yolo_mode}", plain=True)
             ctx.print("", plain=True)
             continue
         elif user_input.strip().lower() in ("/help", "/info"):

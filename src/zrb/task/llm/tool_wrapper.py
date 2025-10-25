@@ -134,7 +134,9 @@ def _create_wrapper(
                 }
             return result
         except KeyboardInterrupt as e:
-            raise e
+            raise ToolExecutionCancelled(
+                f"Tool execution cancelled by keyboard interrupt: {e}"
+            )
         except Exception as e:
             error_model = ToolExecutionError(
                 tool_name=func.__name__,

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_context.config import llm_context_config
+from zrb.config.llm_context.config import llm_context_config, LLMWorkflow
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -14,6 +14,7 @@ from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.llm.prompt import make_prompt_section
+
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
@@ -70,7 +71,7 @@ def get_special_instruction_prompt(
     return llm_config.default_special_instruction_prompt
 
 
-def get_workflows(
+def get_workflow_names(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
@@ -99,66 +100,55 @@ def get_project_context_prompt() -> str:
     return "\n".join(context_prompts)
 
 
+def _get_available_workflows() -> dict[str, LLMWorkflow]:
+    builtin_workflow_dir = os.path.join(os.path.dirname(__file__), "default_workflow")
+    available_workflows = {
+        workflow_name.strip().lower(): workflow
+        for workflow_name, workflow in llm_context_config.get_workflows().items()
+    }
+    for filename in os.listdir(builtin_workflow_dir):
+        if not filename.endswith(".md"):
+            continue
+        builtin_workflow_name = filename[:-3].lower()
+        with open(os.path.join(builtin_workflow_dir, filename), "r") as f:
+            builtin_workflow_content = f.read()
+        available_workflows[builtin_workflow_name] = LLMWorkflow(
+            name=builtin_workflow_name.capitalize(),
+            path=builtin_workflow_dir,
+            content=builtin_workflow_content,
+        )
+    return available_workflows
+
+
 def get_workflow_prompt(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
 ) -> str:
-    builtin_workflow_dir = os.path.join(os.path.dirname(__file__), "default_workflow")
-    active_workflows = set(get_workflows(ctx, workflows_attr, render_workflows))
-
-    # Get user-defined workflows
-    workflows = {
-        workflow_name.strip().lower(): content
-        for workflow_name, content in llm_context_config.get_workflows().items()
-        if workflow_name.strip().lower() in active_workflows
-    }
-
-    # Get available builtin workflow names from the file system
-    available_builtin_workflow_names = set()
-    try:
-        for filename in os.listdir(builtin_workflow_dir):
-            if filename.endswith(".md"):
-                available_builtin_workflow_names.add(filename[:-3].lower())
-    except FileNotFoundError:
-        # Handle case where the directory might not exist
-        ctx.log_error(
-            f"Warning: Default workflow directory not found at {builtin_workflow_dir}"
-        )
-    except Exception as e:
-        # Catch other potential errors during directory listing
-        ctx.log_error(f"Error listing default workflows: {e}")
-
-    # Determine which builtin workflows are requested and not already loaded
-    requested_builtin_workflow_names = [
-        workflow_name
-        for workflow_name in available_builtin_workflow_names
-        if workflow_name in active_workflows and workflow_name not in workflows
-    ]
-
-    # Add builtin-workflows if requested
-    if len(requested_builtin_workflow_names) > 0:
-        for workflow_name in requested_builtin_workflow_names:
-            workflow_file_path = os.path.join(
-                builtin_workflow_dir, f"{workflow_name}.md"
-            )
-            try:
-                with open(workflow_file_path, "r") as f:
-                    workflows[workflow_name] = f.read()
-            except FileNotFoundError:
-                ctx.log_error(
-                    f"Warning: Builtin workflow file not found: {workflow_file_path}"
+    available_workflows = _get_available_workflows()
+    active_workflow_names = set(get_workflow_names(ctx, workflows_attr, render_workflows))
+    workflow_prompts = []
+    for active_workflow_name in active_workflow_names:
+        if active_workflow_name not in available_workflows:
+            continue
+        workflow = available_workflows[active_workflow_name]
+        workflow_prompts.append(
+            make_prompt_section(
+                workflow.name,
+                "\n".join(
+                    [
+                        "---",
+                        f"Workflow definition location: {workflow.path}",
+                        "```",
+                        _generate_directory_tree(workflow.path),
+                        "```",
+                        "---",
+                        workflow.content,
+                    ]
                 )
-            except Exception as e:
-                ctx.log_error(f"Error reading builtin workflow {workflow_name}: {e}")
-
-    return "\n".join(
-        [
-            make_prompt_section(header.capitalize(), content)
-            for header, content in workflows.items()
-            if header.lower() in active_workflows
-        ]
-    )
+            )
+        )
+    return "\n".join(workflow_prompts)
 
 
 def get_system_and_user_prompt(
@@ -229,7 +219,7 @@ def _construct_system_prompt(
             make_prompt_section("Persona", persona),
             make_prompt_section("System Prompt", base_system_prompt),
             make_prompt_section("Special Instruction", special_instruction_prompt),
-            make_prompt_section("Special Workflows", workflow_prompt),
+            make_prompt_section("Available Workflows", workflow_prompt),
             make_prompt_section(
                 "Past Conversation",
                 "\n".join(

@@ -5,6 +5,25 @@ from zrb.config.llm_context.config_parser import markdown_to_dict
 from zrb.util.llm.prompt import demote_markdown_headers
 
 
+class LLMWorkflow():
+    def __init__(self, name: str, path: str, content: str):
+        self._name = name
+        self._path = path
+        self._content = content
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @property
+    def content(self) -> str:
+        return self._content
+
+
 class LLMContextConfig:
     """High-level API for interacting with cascaded configurations."""
 
@@ -75,20 +94,24 @@ class LLMContextConfig:
                     notes[abs_context_path] = value
         return notes
 
-    def get_workflows(self, cwd: str | None = None) -> dict[str, str]:
+    def get_workflows(self, cwd: str | None = None) -> dict[str, LLMWorkflow]:
         """Gathers all relevant workflows for a given path."""
         if cwd is None:
             cwd = os.getcwd()
         all_sections = self._get_all_sections(cwd)
-        workflows: dict[str, str] = {}
+        workflows: dict[str, LLMWorkflow] = {}
         # Iterate from closest to farthest
-        for _, sections in all_sections:
+        for config_dir, sections in all_sections:
             for key, value in sections.items():
                 if key.lower().startswith("workflow:"):
                     workflow_name = key[len("workflow:") :].strip().lower()
                     # First one found wins
                     if workflow_name not in workflows:
-                        workflows[workflow_name] = value
+                        workflows[workflow_name] = LLMWorkflow(
+                            name=workflow_name,
+                            content=value,
+                            path=config_dir,
+                        )
         return workflows
 
     def get_contexts(self, cwd: str | None = None) -> dict[str, str]:
