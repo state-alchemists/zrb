@@ -285,6 +285,18 @@ class Config:
         return workflows
 
     @property
+    def LLM_BUILTIN_WORKFLOW_PATHS(self) -> list[str]:
+        """Get a list of additional builtin workflow paths from environment variables."""
+        builtin_workflow_paths_str = self._getenv("LLM_BUILTIN_WORKFLOW_PATHS", "")
+        if builtin_workflow_paths_str != "":
+            return [
+                path.strip()
+                for path in builtin_workflow_paths_str.split(":")
+                if path.strip() != ""
+            ]
+        return []
+
+    @property
     def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
         value = self._getenv("LLM_SPECIAL_INSTRUCTION_PROMPT")
         return None if value == "" else value

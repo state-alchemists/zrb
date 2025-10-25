@@ -243,13 +243,7 @@ def _get_user_approval_and_reason(
             return None
         return approved, reason
     except Exception:
-        ctx.print(
-            stylize_error(
-                f"Invalid approval value for {func_call_str}: {approval_str}"
-            ),
-            plain=True,
-        )
-        return None
+        return False, user_response
 
 
 def _get_run_func_confirmation(func: Callable) -> str:

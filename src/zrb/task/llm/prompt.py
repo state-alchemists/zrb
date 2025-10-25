@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
+from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
 from zrb.config.llm_context.config import LLMWorkflow, llm_context_config
 from zrb.config.llm_rate_limitter import llm_rate_limitter
@@ -104,23 +105,33 @@ def _get_available_workflows() -> dict[str, LLMWorkflow]:
         workflow_name.strip().lower(): workflow
         for workflow_name, workflow in llm_context_config.get_workflows().items()
     }
-    builtin_workflow_location = os.path.join(
-        os.path.dirname(__file__), "default_workflow"
+    # Define builtin workflow locations in order of precedence
+    builtin_workflow_locations = [
+        os.path.expanduser(additional_builtin_workflow_path)
+        for additional_builtin_workflow_path in CFG.LLM_BUILTIN_WORKFLOW_PATHS
+        if os.path.isdir(os.path.expanduser(additional_builtin_workflow_path))
+    ]
+    builtin_workflow_locations.append(
+        os.path.join(os.path.dirname(__file__), "default_workflow")
     )
-    for builtin_workflow_name in os.listdir(builtin_workflow_location):
-        builtin_workflow_dir = os.path.join(
-            builtin_workflow_location, builtin_workflow_name
-        )
-        builtin_workflow_file = os.path.join(builtin_workflow_dir, "workflow.md")
-        if not os.path.isfile(builtin_workflow_file):
+    # Load workflows from all locations
+    for workflow_location in builtin_workflow_locations:
+        if not os.path.isdir(workflow_location):
             continue
-        with open(builtin_workflow_file, "r") as f:
-            builtin_workflow_content = f.read()
-        available_workflows[builtin_workflow_name] = LLMWorkflow(
-            name=builtin_workflow_name.capitalize(),
-            path=builtin_workflow_dir,
-            content=builtin_workflow_content,
-        )
+        for workflow_name in os.listdir(workflow_location):
+            workflow_dir = os.path.join(workflow_location, workflow_name)
+            workflow_file = os.path.join(workflow_dir, "workflow.md")
+            if not os.path.isfile(workflow_file):
+                continue
+            # Only add if not already defined (earlier locations have precedence)
+            if workflow_name not in available_workflows:
+                with open(workflow_file, "r") as f:
+                    workflow_content = f.read()
+                available_workflows[workflow_name] = LLMWorkflow(
+                    name=workflow_name.capitalize(),
+                    path=workflow_dir,
+                    content=workflow_content,
+                )
     return available_workflows
 
 
@@ -143,8 +154,7 @@ def get_workflow_prompt(
                 workflow.name,
                 "\n".join(
                     [
-                        "---",
-                        f"The `{workflow.name}` workflow is located at: `{workflow.path}`",
+                        f"This workflow is located at: `{workflow.path}`",
                         "```",
                         _generate_directory_tree(workflow.path),
                         "```",
