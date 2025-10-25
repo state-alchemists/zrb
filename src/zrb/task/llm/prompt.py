@@ -70,23 +70,23 @@ def get_special_instruction_prompt(
     return llm_config.default_special_instruction_prompt
 
 
-def get_modes(
+def get_workflows(
     ctx: AnyContext,
-    modes_attr: StrListAttr | None,
-    render_modes: bool,
+    workflows_attr: StrListAttr | None,
+    render_workflows: bool,
 ) -> list[str]:
-    """Gets the modes, prioritizing task-specific, then default."""
-    raw_modes = get_str_list_attr(
+    """Gets the workflows, prioritizing task-specific, then default."""
+    raw_workflows = get_str_list_attr(
         ctx,
-        [] if modes_attr is None else modes_attr,
-        auto_render=render_modes,
+        [] if workflows_attr is None else workflows_attr,
+        auto_render=render_workflows,
     )
-    if raw_modes is None:
-        raw_modes = []
-    modes = [mode.strip().lower() for mode in raw_modes if mode.strip() != ""]
-    if len(modes) > 0:
-        return modes
-    return llm_config.default_modes or []
+    if raw_workflows is None:
+        raw_workflows = []
+    workflows = [w.strip().lower() for w in raw_workflows if w.strip() != ""]
+    if len(workflows) > 0:
+        return workflows
+    return llm_config.default_workflows or []
 
 
 def get_project_context_prompt() -> str:
@@ -101,17 +101,17 @@ def get_project_context_prompt() -> str:
 
 def get_workflow_prompt(
     ctx: AnyContext,
-    modes_attr: StrListAttr | None,
-    render_modes: bool,
+    workflows_attr: StrListAttr | None,
+    render_workflows: bool,
 ) -> str:
     builtin_workflow_dir = os.path.join(os.path.dirname(__file__), "default_workflow")
-    modes = set(get_modes(ctx, modes_attr, render_modes))
+    active_workflows = set(get_workflows(ctx, workflows_attr, render_workflows))
 
     # Get user-defined workflows
     workflows = {
         workflow_name.strip().lower(): content
         for workflow_name, content in llm_context_config.get_workflows().items()
-        if workflow_name.strip().lower() in modes
+        if workflow_name.strip().lower() in active_workflows
     }
 
     # Get available builtin workflow names from the file system
@@ -133,7 +133,7 @@ def get_workflow_prompt(
     requested_builtin_workflow_names = [
         workflow_name
         for workflow_name in available_builtin_workflow_names
-        if workflow_name in modes and workflow_name not in workflows
+        if workflow_name in active_workflows and workflow_name not in workflows
     ]
 
     # Add builtin-workflows if requested
@@ -156,7 +156,7 @@ def get_workflow_prompt(
         [
             make_prompt_section(header.capitalize(), content)
             for header, content in workflows.items()
-            if header.lower() in modes
+            if header.lower() in active_workflows
         ]
     )
 
@@ -170,8 +170,8 @@ def get_system_and_user_prompt(
     render_system_prompt: bool = False,
     special_instruction_prompt_attr: StrAttr | None = None,
     render_special_instruction_prompt: bool = False,
-    modes_attr: StrListAttr | None = None,
-    render_modes: bool = False,
+    workflows_attr: StrListAttr | None = None,
+    render_workflows: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> tuple[str, str]:
     if conversation_history is None:
@@ -187,8 +187,8 @@ def get_system_and_user_prompt(
         render_system_prompt=render_system_prompt,
         special_instruction_prompt_attr=special_instruction_prompt_attr,
         render_special_instruction_prompt=render_special_instruction_prompt,
-        modes_attr=modes_attr,
-        render_modes=render_modes,
+        workflows_attr=workflows_attr,
+        render_workflows=render_workflows,
         conversation_history=conversation_history,
     )
     user_message_context["Token Counter"] = _get_token_usage_info(
@@ -207,8 +207,8 @@ def _construct_system_prompt(
     render_system_prompt: bool = False,
     special_instruction_prompt_attr: StrAttr | None = None,
     render_special_instruction_prompt: bool = False,
-    modes_attr: StrListAttr | None = None,
-    render_modes: bool = False,
+    workflows_attr: StrListAttr | None = None,
+    render_workflows: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> str:
     persona = get_persona(ctx, persona_attr, render_persona)
@@ -218,7 +218,7 @@ def _construct_system_prompt(
     special_instruction_prompt = get_special_instruction_prompt(
         ctx, special_instruction_prompt_attr, render_special_instruction_prompt
     )
-    workflow_prompt = get_workflow_prompt(ctx, modes_attr, render_modes)
+    workflow_prompt = get_workflow_prompt(ctx, workflows_attr, render_workflows)
     project_context_prompt = get_project_context_prompt()
     if conversation_history is None:
         conversation_history = ConversationHistory()

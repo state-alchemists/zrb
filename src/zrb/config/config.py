@@ -275,12 +275,14 @@ class Config:
         return None if value == "" else value
 
     @property
-    def LLM_MODES(self) -> list[str]:
-        return [
-            mode.strip()
-            for mode in self._getenv("LLM_MODES", "coding").split(",")
-            if mode.strip() != ""
-        ]
+    def LLM_WORKFLOWS(self) -> list[str]:
+        """Get a list of LLM workflows from environment variables."""
+        workflows = []
+        for workflow in self._getenv("LLM_WORKFLOWS", "coding").split(","):
+            workflow = workflow.strip()
+            if workflow != "":
+                workflows.append(workflow)
+        return workflows
 
     @property
     def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
@@ -479,8 +481,8 @@ class Config:
         return int(self._getenv("SEARXNG_SAFE", "0"))
 
     @property
-    def SEARXNG_LANG(self) -> int:
-        return int(self._getenv("SEARXNG_LANG", "en"))
+    def SEARXNG_LANG(self) -> str:
+        return self._getenv("SEARXNG_LANG", "en")
 
     @property
     def BANNER(self) -> str:

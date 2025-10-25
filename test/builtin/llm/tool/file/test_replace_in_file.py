@@ -25,7 +25,7 @@ def test_replace_in_file_success(temp_dir):
         path=file_path, old_string="Hello world", new_string="Hello ZRB"
     )
 
-    assert result == {"success": True, "path": file_path}
+    assert result == f"Successfully replaced content in {file_path}"
 
     with open(file_path, "r") as f:
         content = f.read()

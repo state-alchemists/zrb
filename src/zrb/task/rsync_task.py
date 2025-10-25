@@ -164,10 +164,11 @@ class RsyncTask(CmdTask):
         src = self._get_source_path(ctx)
         dst = self._get_destination_path(ctx)
         exclude_from = self._get_exclude_from_param(ctx)
+        exclude_from_with_space = exclude_from if exclude_from != "" else ""
         if key != "" and password != "":
-            return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from} {src} {dst}'  # noqa
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
         if key != "":
-            return f'rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from} {src} {dst}'
+            return f'rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
         if password != "":
-            return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -p {port}" {exclude_from} {src} {dst}'  # noqa
-        return f'rsync --mkpath -avz -e "ssh -p {port}" {exclude_from} {src} {dst}'
+            return f'sshpass -p "$_ZRB_SSH_PASSWORD" rsync --mkpath -avz -e "ssh -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
+        return f'rsync --mkpath -avz -e "ssh -p {port}" {exclude_from_with_space}{src} {dst}'

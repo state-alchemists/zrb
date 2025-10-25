@@ -32,7 +32,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     reader: PromptSession[Any] | StreamReader = await _setup_input_reader(is_tty)
     multiline_mode = False
     is_first_time = True
-    current_modes: str = ctx.input.modes
+    current_workflows: str = ctx.input.workflows
     current_yolo_mode: bool | str = ctx.input.yolo
     user_inputs: list[str] = []
     final_result: str = ""
@@ -59,7 +59,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             result = await _trigger_ask_and_wait_for_result(
                 ctx=ctx,
                 user_prompt=user_prompt,
-                modes=current_modes,
+                workflows=current_workflows,
                 yolo_mode=current_yolo_mode,
                 previous_session_name=previous_session_name,
                 start_new=start_new,
@@ -77,7 +77,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             result = await _trigger_ask_and_wait_for_result(
                 ctx=ctx,
                 user_prompt=user_prompt,
-                modes=current_modes,
+                workflows=current_workflows,
                 yolo_mode=current_yolo_mode,
                 previous_session_name=previous_session_name,
                 start_new=start_new,
@@ -86,11 +86,11 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 final_result = result
                 if ctx.is_web_mode or not is_tty:
                     return final_result
-        elif user_input.strip().lower().startswith("/mode"):
-            mode_parts = user_input.split(" ", maxsplit=2)
-            if len(mode_parts) > 1:
-                current_modes = mode_parts[1]
-            ctx.print(f"Current mode: {current_modes}", plain=True)
+        elif user_input.strip().lower().startswith("/workflow"):
+            workflow_parts = user_input.split(" ", maxsplit=2)
+            if len(workflow_parts) > 1:
+                current_workflows = workflow_parts[1]
+            ctx.print(f"Current workflow: {current_workflows}", plain=True)
             ctx.print("", plain=True)
             continue
         elif user_input.strip().lower().startswith("/yolo"):
@@ -112,7 +112,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             result = await _trigger_ask_and_wait_for_result(
                 ctx=ctx,
                 user_prompt=user_prompt,
-                modes=current_modes,
+                workflows=current_workflows,
                 yolo_mode=current_yolo_mode,
                 previous_session_name=previous_session_name,
                 start_new=start_new,
@@ -136,8 +136,8 @@ def _show_info(ctx: AnyContext):
                 _show_command("/bye", "Quit from chat session"),
                 _show_command("/multi", "Start multiline input"),
                 _show_command("/end", "End multiline input"),
-                _show_command("/modes", "Show current modes"),
-                _show_subcommand("<mode1,mode2,..>", "Set current modes"),
+                _show_command("/workflows", "Show current workflows"),
+                _show_subcommand("<wf1,wf2,..>", "Set current workflows"),
                 _show_command("/yolo", "Get current YOLO mode"),
                 _show_subcommand("<true|false|list-of-tools>", "Set YOLO mode"),
                 _show_command("/help", "Show this message"),
@@ -179,7 +179,7 @@ async def _setup_input_reader(
 async def _trigger_ask_and_wait_for_result(
     ctx: AnyContext,
     user_prompt: str,
-    modes: str,
+    workflows: str,
     yolo_mode: bool | str,
     previous_session_name: str | None = None,
     start_new: bool = False,
@@ -199,7 +199,7 @@ async def _trigger_ask_and_wait_for_result(
     if user_prompt.strip() == "":
         return None
     await _trigger_ask(
-        ctx, user_prompt, modes, yolo_mode, previous_session_name, start_new
+        ctx, user_prompt, workflows, yolo_mode, previous_session_name, start_new
     )
     result = await _wait_ask_result(ctx)
     md_result = render_markdown(result) if result is not None else ""
@@ -231,7 +231,7 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
         "start-new": data.get("start_new"),
         "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),
-        "modes": data.get("modes"),
+        "workflows": data.get("workflows"),
         "yolo": data.get("yolo"),
     }
 
@@ -239,7 +239,7 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
 async def _trigger_ask(
     ctx: AnyContext,
     user_prompt: str,
-    modes: str,
+    workflows: str,
     yolo_mode: bool | str,
     previous_session_name: str | None = None,
     start_new: bool = False,
@@ -260,7 +260,7 @@ async def _trigger_ask(
             "previous_session_name": previous_session_name,
             "start_new": start_new,
             "message": user_prompt,
-            "modes": modes,
+            "workflows": workflows,
             "yolo": yolo_mode,
         }
     )

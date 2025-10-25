@@ -25,7 +25,7 @@ class LLMConfig:
         default_summarization_prompt: str | None = None,
         default_summarize_history: bool | None = None,
         default_history_summarization_token_threshold: int | None = None,
-        default_modes: list[str] | None = None,
+        default_workflows: list[str] | None = None,
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
         default_model_provider: "Provider | None" = None,
@@ -53,7 +53,7 @@ class LLMConfig:
         self._default_history_summarization_token_threshold = (
             default_history_summarization_token_threshold
         )
-        self._default_modes = default_modes
+        self._default_workflows = default_workflows
         self._default_model = default_model
         self._default_model_settings = default_model_settings
         self._default_model_provider = default_model_provider
@@ -191,9 +191,9 @@ class LLMConfig:
         )
 
     @property
-    def default_modes(self) -> list[str]:
+    def default_workflows(self) -> list[str]:
         return self._get_property(
-            self._default_modes, CFG.LLM_MODES, lambda: ["coding"]
+            self._default_workflows, CFG.LLM_WORKFLOWS, lambda: ["coding"]
         )
 
     @property
@@ -279,18 +279,18 @@ class LLMConfig:
     def set_default_special_instruction_prompt(self, special_instruction_prompt: str):
         self._default_special_instruction_prompt = special_instruction_prompt
 
-    def set_default_modes(self, modes: list[str]):
-        self._default_modes = modes
+    def set_default_workflows(self, workflows: list[str]):
+        self._default_workflows = workflows
 
-    def add_default_mode(self, mode: str):
-        if self._default_modes is None:
-            self._default_modes = []
-        self._default_modes.append(mode)
+    def add_default_workflow(self, workflow: str):
+        if self._default_workflows is None:
+            self._default_workflows = []
+        self._default_workflows.append(workflow)
 
-    def remove_default_mode(self, mode: str):
-        if self._default_modes is None:
-            self._default_modes = []
-        self._default_modes.remove(mode)
+    def remove_default_workflow(self, workflow: str):
+        if self._default_workflows is None:
+            self._default_workflows = []
+        self._default_workflows.remove(workflow)
 
     def set_default_summarization_prompt(self, summarization_prompt: str):
         self._default_summarization_prompt = summarization_prompt
