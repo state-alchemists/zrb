@@ -80,8 +80,8 @@ class LLMTask(BaseTask):
         render_system_prompt: bool = False,
         special_instruction_prompt: StrAttr | None = None,
         render_special_instruction_prompt: bool = False,
-        modes: StrListAttr | None = None,
-        render_modes: bool = True,
+        workflows: StrListAttr | None = None,
+        render_workflows: bool = True,
         message: StrAttr | None = None,
         attachment: "UserContent | list[UserContent] | Callable[[AnySharedContext], UserContent | list[UserContent]] | None" = None,  # noqa
         render_message: bool = True,
@@ -175,8 +175,8 @@ class LLMTask(BaseTask):
         self._render_system_prompt = render_system_prompt
         self._special_instruction_prompt = special_instruction_prompt
         self._render_special_instruction_prompt = render_special_instruction_prompt
-        self._modes = modes
-        self._render_modes = render_modes
+        self._workflows = workflows
+        self._render_workflows = render_workflows
         self._message = message
         self._render_message = render_message
         self._summarization_prompt = summarization_prompt
@@ -227,8 +227,8 @@ class LLMTask(BaseTask):
     ):
         self._history_summarization_token_threshold = summarization_token_threshold
 
-    def set_modes(self, modes: StrListAttr):
-        self._modes = modes
+    def set_workflows(self, workflows: StrListAttr):
+        self._workflows = workflows
 
     def set_yolo_mode(self, yolo_mode: StrListAttr | BoolAttr):
         self._yolo_mode = yolo_mode
@@ -276,8 +276,8 @@ class LLMTask(BaseTask):
             render_system_prompt=self._render_system_prompt,
             special_instruction_prompt_attr=self._special_instruction_prompt,
             render_special_instruction_prompt=self._render_special_instruction_prompt,
-            modes_attr=self._modes,
-            render_modes=self._render_modes,
+            workflows_attr=self._workflows,
+            render_workflows=self._render_workflows,
             conversation_history=conversation_history,
         )
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
@@ -356,7 +356,6 @@ class LLMTask(BaseTask):
                 history_list=conversation_history.history,
                 rate_limitter=self._rate_limitter,
             )
-
             if agent_run and agent_run.result:
                 new_history_list = json.loads(agent_run.result.all_messages_json())
                 conversation_history.history = new_history_list

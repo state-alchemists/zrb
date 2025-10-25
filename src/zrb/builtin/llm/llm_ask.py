@@ -152,10 +152,10 @@ def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
             always_prompt=False,
         ),
         TextInput(
-            "modes",
-            description="Modes",
-            prompt="Modes",
-            default=lambda ctx: ",".join(llm_config.default_modes),
+            "workflows",
+            description="Workflows",
+            prompt="Workflows",
+            default=lambda ctx: ",".join(llm_config.default_workflows),
             allow_positional_parsing=False,
             always_prompt=False,
         ),
@@ -210,8 +210,10 @@ llm_ask: LLMTask = llm_group.add_task(
         system_prompt=lambda ctx: (
             None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
         ),
-        modes=lambda ctx: (
-            None if ctx.input.modes.strip() == "" else ctx.input.modes.split(",")
+        workflows=lambda ctx: (
+            None
+            if ctx.input.workflows.strip() == ""
+            else ctx.input.workflows.split(",")
         ),
         message="{ctx.input.message}",
         tools=_get_tool,

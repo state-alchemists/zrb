@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
+from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_context.config import llm_context_config
+from zrb.config.llm_context.config import LLMWorkflow, llm_context_config
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -70,23 +71,23 @@ def get_special_instruction_prompt(
     return llm_config.default_special_instruction_prompt
 
 
-def get_modes(
+def get_workflow_names(
     ctx: AnyContext,
-    modes_attr: StrListAttr | None,
-    render_modes: bool,
+    workflows_attr: StrListAttr | None,
+    render_workflows: bool,
 ) -> list[str]:
-    """Gets the modes, prioritizing task-specific, then default."""
-    raw_modes = get_str_list_attr(
+    """Gets the workflows, prioritizing task-specific, then default."""
+    raw_workflows = get_str_list_attr(
         ctx,
-        [] if modes_attr is None else modes_attr,
-        auto_render=render_modes,
+        [] if workflows_attr is None else workflows_attr,
+        auto_render=render_workflows,
     )
-    if raw_modes is None:
-        raw_modes = []
-    modes = [mode.strip().lower() for mode in raw_modes if mode.strip() != ""]
-    if len(modes) > 0:
-        return modes
-    return llm_config.default_modes or []
+    if raw_workflows is None:
+        raw_workflows = []
+    workflows = [w.strip().lower() for w in raw_workflows if w.strip() != ""]
+    if len(workflows) > 0:
+        return workflows
+    return llm_config.default_workflows or []
 
 
 def get_project_context_prompt() -> str:
@@ -99,66 +100,71 @@ def get_project_context_prompt() -> str:
     return "\n".join(context_prompts)
 
 
+def _get_available_workflows() -> dict[str, LLMWorkflow]:
+    available_workflows = {
+        workflow_name.strip().lower(): workflow
+        for workflow_name, workflow in llm_context_config.get_workflows().items()
+    }
+    # Define builtin workflow locations in order of precedence
+    builtin_workflow_locations = [
+        os.path.expanduser(additional_builtin_workflow_path)
+        for additional_builtin_workflow_path in CFG.LLM_BUILTIN_WORKFLOW_PATHS
+        if os.path.isdir(os.path.expanduser(additional_builtin_workflow_path))
+    ]
+    builtin_workflow_locations.append(
+        os.path.join(os.path.dirname(__file__), "default_workflow")
+    )
+    # Load workflows from all locations
+    for workflow_location in builtin_workflow_locations:
+        if not os.path.isdir(workflow_location):
+            continue
+        for workflow_name in os.listdir(workflow_location):
+            workflow_dir = os.path.join(workflow_location, workflow_name)
+            workflow_file = os.path.join(workflow_dir, "workflow.md")
+            if not os.path.isfile(workflow_file):
+                continue
+            # Only add if not already defined (earlier locations have precedence)
+            if workflow_name not in available_workflows:
+                with open(workflow_file, "r") as f:
+                    workflow_content = f.read()
+                available_workflows[workflow_name] = LLMWorkflow(
+                    name=workflow_name.capitalize(),
+                    path=workflow_dir,
+                    content=workflow_content,
+                )
+    return available_workflows
+
+
 def get_workflow_prompt(
     ctx: AnyContext,
-    modes_attr: StrListAttr | None,
-    render_modes: bool,
+    workflows_attr: StrListAttr | None,
+    render_workflows: bool,
 ) -> str:
-    builtin_workflow_dir = os.path.join(os.path.dirname(__file__), "default_workflow")
-    modes = set(get_modes(ctx, modes_attr, render_modes))
-
-    # Get user-defined workflows
-    workflows = {
-        workflow_name.strip().lower(): content
-        for workflow_name, content in llm_context_config.get_workflows().items()
-        if workflow_name.strip().lower() in modes
-    }
-
-    # Get available builtin workflow names from the file system
-    available_builtin_workflow_names = set()
-    try:
-        for filename in os.listdir(builtin_workflow_dir):
-            if filename.endswith(".md"):
-                available_builtin_workflow_names.add(filename[:-3].lower())
-    except FileNotFoundError:
-        # Handle case where the directory might not exist
-        ctx.log_error(
-            f"Warning: Default workflow directory not found at {builtin_workflow_dir}"
-        )
-    except Exception as e:
-        # Catch other potential errors during directory listing
-        ctx.log_error(f"Error listing default workflows: {e}")
-
-    # Determine which builtin workflows are requested and not already loaded
-    requested_builtin_workflow_names = [
-        workflow_name
-        for workflow_name in available_builtin_workflow_names
-        if workflow_name in modes and workflow_name not in workflows
-    ]
-
-    # Add builtin-workflows if requested
-    if len(requested_builtin_workflow_names) > 0:
-        for workflow_name in requested_builtin_workflow_names:
-            workflow_file_path = os.path.join(
-                builtin_workflow_dir, f"{workflow_name}.md"
-            )
-            try:
-                with open(workflow_file_path, "r") as f:
-                    workflows[workflow_name] = f.read()
-            except FileNotFoundError:
-                ctx.log_error(
-                    f"Warning: Builtin workflow file not found: {workflow_file_path}"
-                )
-            except Exception as e:
-                ctx.log_error(f"Error reading builtin workflow {workflow_name}: {e}")
-
-    return "\n".join(
-        [
-            make_prompt_section(header.capitalize(), content)
-            for header, content in workflows.items()
-            if header.lower() in modes
-        ]
+    available_workflows = _get_available_workflows()
+    active_workflow_names = set(
+        get_workflow_names(ctx, workflows_attr, render_workflows)
     )
+    workflow_prompts = []
+    for active_workflow_name in active_workflow_names:
+        if active_workflow_name not in available_workflows:
+            continue
+        workflow = available_workflows[active_workflow_name]
+        workflow_prompts.append(
+            make_prompt_section(
+                workflow.name,
+                "\n".join(
+                    [
+                        f"This workflow is located at: `{workflow.path}`",
+                        "```",
+                        _generate_directory_tree(workflow.path),
+                        "```",
+                        "---",
+                        workflow.content,
+                    ]
+                ),
+            )
+        )
+    return "\n".join(workflow_prompts)
 
 
 def get_system_and_user_prompt(
@@ -170,8 +176,8 @@ def get_system_and_user_prompt(
     render_system_prompt: bool = False,
     special_instruction_prompt_attr: StrAttr | None = None,
     render_special_instruction_prompt: bool = False,
-    modes_attr: StrListAttr | None = None,
-    render_modes: bool = False,
+    workflows_attr: StrListAttr | None = None,
+    render_workflows: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> tuple[str, str]:
     if conversation_history is None:
@@ -187,8 +193,8 @@ def get_system_and_user_prompt(
         render_system_prompt=render_system_prompt,
         special_instruction_prompt_attr=special_instruction_prompt_attr,
         render_special_instruction_prompt=render_special_instruction_prompt,
-        modes_attr=modes_attr,
-        render_modes=render_modes,
+        workflows_attr=workflows_attr,
+        render_workflows=render_workflows,
         conversation_history=conversation_history,
     )
     user_message_context["Token Counter"] = _get_token_usage_info(
@@ -207,8 +213,8 @@ def _construct_system_prompt(
     render_system_prompt: bool = False,
     special_instruction_prompt_attr: StrAttr | None = None,
     render_special_instruction_prompt: bool = False,
-    modes_attr: StrListAttr | None = None,
-    render_modes: bool = False,
+    workflows_attr: StrListAttr | None = None,
+    render_workflows: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> str:
     persona = get_persona(ctx, persona_attr, render_persona)
@@ -218,7 +224,7 @@ def _construct_system_prompt(
     special_instruction_prompt = get_special_instruction_prompt(
         ctx, special_instruction_prompt_attr, render_special_instruction_prompt
     )
-    workflow_prompt = get_workflow_prompt(ctx, modes_attr, render_modes)
+    workflow_prompt = get_workflow_prompt(ctx, workflows_attr, render_workflows)
     project_context_prompt = get_project_context_prompt()
     if conversation_history is None:
         conversation_history = ConversationHistory()

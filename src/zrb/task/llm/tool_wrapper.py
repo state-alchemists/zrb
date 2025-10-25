@@ -1,6 +1,7 @@
 import functools
 import inspect
 import json
+import signal
 import traceback
 import typing
 from collections.abc import Callable
@@ -15,6 +16,7 @@ from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import (
     stylize_blue,
     stylize_error,
+    stylize_faint,
     stylize_green,
     stylize_yellow,
 )
@@ -46,7 +48,7 @@ def wrap_func(func: Callable, ctx: AnyContext, yolo_mode: bool | list[str]) -> C
     # Pass individual flags to the wrapper creator
     wrapper = _create_wrapper(
         func=func,
-        original_sig=original_sig,
+        original_signature=original_sig,
         ctx=ctx,
         needs_any_context_for_injection=needs_any_context_for_injection,
         yolo_mode=yolo_mode,
@@ -86,7 +88,7 @@ def _is_annotated_with_context(param_annotation, context_type):
 
 def _create_wrapper(
     func: Callable,
-    original_sig: inspect.Signature,
+    original_signature: inspect.Signature,
     ctx: AnyContext,
     needs_any_context_for_injection: bool,
     yolo_mode: bool | list[str],
@@ -98,7 +100,7 @@ def _create_wrapper(
         # Identify AnyContext parameter name from the original signature if needed
         any_context_param_name = None
         if needs_any_context_for_injection:
-            for param in original_sig.parameters.values():
+            for param in original_signature.parameters.values():
                 if _is_annotated_with_context(param.annotation, AnyContext):
                     any_context_param_name = param.name
                     break  # Found it, no need to continue
@@ -111,6 +113,10 @@ def _create_wrapper(
             # Inject the captured ctx into kwargs. This will overwrite if the LLM
             # somehow provided it.
             kwargs[any_context_param_name] = ctx
+        # We will need to overwrite SIGINT handler, so that when user press ctrl + c,
+        # the program won't immediately exit
+        original_sigint_handler = signal.getsignal(signal.SIGINT)
+        tool_name = get_callable_name(func)
         try:
             has_ever_edited = False
             if not ctx.is_web_mode and ctx.is_tty:
@@ -124,6 +130,8 @@ def _create_wrapper(
                         raise ToolExecutionCancelled(
                             f"Tool execution cancelled. User disapproving: {reason}"
                         )
+            signal.signal(signal.SIGINT, _tool_wrapper_sigint_handler)
+            ctx.print(stylize_faint(f"Run {tool_name}"), plain=True)
             result = await run_async(func(*args, **kwargs))
             _check_tool_call_result_limit(result)
             if has_ever_edited:
@@ -133,18 +141,22 @@ def _create_wrapper(
                     "message": "User correction: Tool was called with user's parameters",
                 }
             return result
-        except KeyboardInterrupt as e:
-            raise e
-        except Exception as e:
+        except BaseException as e:
             error_model = ToolExecutionError(
-                tool_name=func.__name__,
+                tool_name=tool_name,
                 error_type=type(e).__name__,
                 message=str(e),
                 details=traceback.format_exc(),
             )
             return error_model.model_dump_json()
+        finally:
+            signal.signal(signal.SIGINT, original_sigint_handler)
 
     return wrapper
+
+
+def _tool_wrapper_sigint_handler(signum, frame):
+    raise KeyboardInterrupt("SIGINT detected while running tool")
 
 
 def _check_tool_call_result_limit(result: Any):
@@ -231,13 +243,7 @@ def _get_user_approval_and_reason(
             return None
         return approved, reason
     except Exception:
-        ctx.print(
-            stylize_error(
-                f"Invalid approval value for {func_call_str}: {approval_str}"
-            ),
-            plain=True,
-        )
-        return None
+        return False, user_response
 
 
 def _get_run_func_confirmation(func: Callable) -> str:

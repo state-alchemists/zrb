@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import tempfile
@@ -26,13 +25,10 @@ def create_file(path, content=""):
 def test_write_to_file_create_new(temp_dir):
     """Test writing content to a new file."""
     file_path = os.path.join(temp_dir, "new_file.txt")
-    content = "Hello\nWorld"
-
+    content = "Hello World"
     result = write_to_file(path=file_path, content=content)
-    data = result
 
-    assert data["success"] is True
-    assert data["path"] == file_path
+    assert result == f"Successfully wrote to file: {file_path}"
     assert os.path.exists(file_path)
     with open(file_path, "r") as f:
         assert f.read() == content
@@ -46,10 +42,8 @@ def test_write_to_file_overwrite_existing(temp_dir):
     new_content = "Overwritten\nContent"
 
     result = write_to_file(path=file_path, content=new_content)
-    data = result
 
-    assert data["success"] is True
-    assert data["path"] == file_path
+    assert result == f"Successfully wrote to file: {file_path}"
     with open(file_path, "r") as f:
         assert f.read() == new_content
 
@@ -60,10 +54,8 @@ def test_write_to_file_create_subdir(temp_dir):
     content = "Content in subdir"
 
     result = write_to_file(path=file_path, content=content)
-    data = result
 
-    assert data["success"] is True
-    assert data["path"] == file_path
+    assert result == f"Successfully wrote to file: {file_path}"
     assert os.path.exists(file_path)
     with open(file_path, "r") as f:
         assert f.read() == content
@@ -75,10 +67,8 @@ def test_write_to_file_empty_content(temp_dir):
     content = ""
 
     result = write_to_file(path=file_path, content=content)
-    data = result
 
-    assert data["success"] is True
-    assert data["path"] == file_path
+    assert result == f"Successfully wrote to file: {file_path}"
     assert os.path.exists(file_path)
     with open(file_path, "r") as f:
         assert f.read() == ""

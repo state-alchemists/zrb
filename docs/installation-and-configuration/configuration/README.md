@@ -14,6 +14,7 @@ Furthermore, Zrb also allows you to override some configurations with a special 
 
 - [LLM Integration](./llm-integration.md): Integration with LLM
 - [LLM Workflow](./llm-workflow.md): How `zrb` thinks and manages context.
+- [LLM Workflow Config](./llm-workflow-config.md): How to configure LLM workflows.
 - [LLM Context File (`ZRB.md`)](../../technical-specs/llm-context.md): Detailed guide on defining Workflows, Contexts, and Notes.
 - [LLM Config](./llm-config.md): Configuring LLM configurations programmatically.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
@@ -269,9 +270,13 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid persona prompt
 
-* `ZRB_LLM_MODES`: Comma-separated list of modes to activate special instructions.
+* `ZRB_LLM_WORKFLOWS`: Comma-separated list of workflows to activate special instructions.
     * Default: `coding`
     * Possible values: `coding`, `copywriting`, `researching`, or any workflow defined on `ZRB.md`
+
+* `ZRB_LLM_BUILTIN_WORKFLOW_PATHS`: Colon-separated list of paths to custom workflow directories.
+    * Default: Empty
+    * Possible values: Any valid directory paths separated by colons
 
 * `ZRB_LLM_YOLO_MODE`: Whether to skip tool execution confirmation.
     * Default: `false`

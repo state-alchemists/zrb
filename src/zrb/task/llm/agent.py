@@ -106,7 +106,7 @@ def create_agent_instance(
     return Agent[None, Any](
         model=model,
         output_type=output_type,
-        system_prompt=system_prompt,
+        instructions=system_prompt,
         tools=tool_list,
         toolsets=wrapped_toolsets,
         model_settings=model_settings,
