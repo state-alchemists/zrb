@@ -16,9 +16,9 @@ from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import (
     stylize_blue,
     stylize_error,
+    stylize_faint,
     stylize_green,
     stylize_yellow,
-    stylize_faint,
 )
 from zrb.util.cli.text import edit_text
 from zrb.util.run import run_async

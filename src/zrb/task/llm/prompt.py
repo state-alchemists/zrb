@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_context.config import llm_context_config, LLMWorkflow
+from zrb.config.llm_context.config import LLMWorkflow, llm_context_config
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -14,7 +14,6 @@ from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.llm.prompt import make_prompt_section
-
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
@@ -126,7 +125,9 @@ def get_workflow_prompt(
     render_workflows: bool,
 ) -> str:
     available_workflows = _get_available_workflows()
-    active_workflow_names = set(get_workflow_names(ctx, workflows_attr, render_workflows))
+    active_workflow_names = set(
+        get_workflow_names(ctx, workflows_attr, render_workflows)
+    )
     workflow_prompts = []
     for active_workflow_name in active_workflow_names:
         if active_workflow_name not in available_workflows:
@@ -145,7 +146,7 @@ def get_workflow_prompt(
                         "---",
                         workflow.content,
                     ]
-                )
+                ),
             )
         )
     return "\n".join(workflow_prompts)

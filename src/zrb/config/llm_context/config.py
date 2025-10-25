@@ -5,7 +5,7 @@ from zrb.config.llm_context.config_parser import markdown_to_dict
 from zrb.util.llm.prompt import demote_markdown_headers
 
 
-class LLMWorkflow():
+class LLMWorkflow:
     def __init__(self, name: str, path: str, content: str):
         self._name = name
         self._path = path
