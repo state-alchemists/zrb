@@ -1,5 +1,21 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.0
+
+- **Feature: LLM Workflow Refactoring**:
+  - Replaced the concept of "modes" with "workflows" for a more structured and intuitive experience.
+  - Workflows now support a directory-based structure with a `workflow.md` file, allowing for better organization and management.
+  - Added new language-specific workflow guides for Python, JavaScript/TypeScript, Go, Rust, Git, and Shell to provide tailored development support.
+- **Feature: Enhanced Tool Execution**:
+  - Implemented `SIGINT` (Ctrl+C) handling in the tool wrapper to ensure graceful interruption of tool execution without terminating the program.
+  - Improved the output of `write_to_file` and `replace_in_file` tools to be more user-friendly and informative.
+- **Fixed: System Prompt Handling in LLM Task**:
+  - Internally, use `instructions` instead of `system_prompts` because of [this issue](https://github.com/pydantic/pydantic-ai/issues/1032)
+- **Refactor: Rsync Task Improvement**:
+  - Adjusted the `rsync` command to include a space before the source and destination paths for better command-line compatibility.
+- **Testing**:
+  - Updated tests for `write_to_file`, `replace_in_file`, and `llm_context_config` to align with the latest changes and ensure continued stability.
+
 # 1.17.4
 
 - **Feature: Enhanced Search Engine Support**: Added Brave Search API integration as an alternative search method with configurable language and safe search settings.
