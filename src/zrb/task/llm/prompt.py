@@ -235,7 +235,7 @@ def _construct_system_prompt(
             make_prompt_section("Persona", persona),
             make_prompt_section("System Prompt", base_system_prompt),
             make_prompt_section("Special Instruction", special_instruction_prompt),
-            make_prompt_section("Available Workflows", workflow_prompt),
+            make_prompt_section("Special Workflows", workflow_prompt),
             make_prompt_section(
                 "Past Conversation",
                 "\n".join(
