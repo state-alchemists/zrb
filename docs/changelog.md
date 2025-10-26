@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.1
+
+- **Feature:** Improve default workflows
+
 # 1.18.0
 
 - **Feature: LLM Workflow Refactoring**:

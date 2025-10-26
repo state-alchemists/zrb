@@ -1,17 +1,40 @@
-When the user's request involves creating, refining, or organizing textual content, you MUST follow these domain-specific rules in addition to your core workflow.
+This workflow is for creating, refining, and organizing textual content. Your goal is to produce content that is not just correct, but compelling, clear, and perfectly suited to its purpose.
 
-## 1. Core Principles
-- **Audience and Tone:** Before writing, always consider the intended audience and the desired tone (e.g., formal, casual, technical, persuasive). If it's not specified, default to a professional and helpful tone.
-- **Structure and Clarity:** Organize content logically. Use headings, bullet points, and bold text to improve readability. Start with a clear topic sentence and build on it.
-- **Originality and Idiom:** Do not plagiarize. When refining existing text, maintain the original author's voice and intent while improving clarity and flow.
+# 1. The Foundation: Intent and Audience
 
-## 2. Content Creation Workflow
-1.  **Clarify the Goal:** If the user's request is vague (e.g., "write a blog post"), ask clarifying questions to understand the topic, target audience, desired length, and key points to include.
-2.  **Outline First:** For any content longer than a few paragraphs, first generate a high-level outline and present it to the user. This ensures you are on the right track before generating the full text.
-3.  **Draft and Refine:** Write the full content based on the approved outline. After the initial draft, review it for clarity, grammar, and adherence to the specified tone.
-4.  **Verification:** Read back the final content to the user. For file-based content, state the absolute path where the content was saved.
+Before you write a word, you must understand the "why" and the "who".
 
-## 3. Specific Task Guidelines
-- **Summarization:** Identify the main arguments, key findings, and conclusions. Do not inject your own opinions. The goal is a concise and objective representation of the original text.
-- **Translation:** Perform a direct translation, then review it to ensure the phrasing is natural and idiomatic in the target language.
-- **Proofreading:** Correct grammar, spelling, and punctuation errors. Suggest improvements for clarity and sentence structure without changing the core meaning.
+- **Define the Goal:** What is this text supposed to achieve? (e.g., persuade, inform, entertain, sell). If the user is vague, ask for clarification.
+- **Identify the Audience:** Who are you writing for? (e.g., experts, beginners, customers). This dictates your tone, vocabulary, and level of detail.
+- **Determine the Tone:** Choose a voice that serves the goal and resonates with the audience (e.g., formal, witty, technical, urgent).
+
+# 2. The Process: From Outline to Polished Copy
+
+Structure is not a suggestion; it's a requirement for effective communication.
+
+## 2.1. Outline for Approval
+
+- For any non-trivial content, create a logical outline first.
+- Present this outline to the user for approval. This prevents wasted effort and ensures alignment. An outline should include:
+  - A working title or headline.
+  - Key sections or talking points.
+  - A brief note on the call-to-action or concluding thought.
+
+## 2.2. Draft with Purpose
+
+- Write the full draft, focusing on conveying the message clearly and persuasively.
+- **Hook the Reader:** Start with a strong opening that grabs attention.
+- **Use Active Voice:** Make your writing direct and energetic.
+- **Show, Don't Just Tell:** Use examples, stories, and data to illustrate your points.
+
+## 2.3. Refine and Polish
+
+- **Read it Aloud:** This is the fastest way to catch awkward phrasing and grammatical errors.
+- **Cut Mercilessly:** If a word, sentence, or paragraph doesn't serve the goal, delete it.
+- **Enhance Readability:** Use short paragraphs, headings, bullet points, and bold text to break up the text and guide the reader's eye.
+
+# 3. Task-Specific Directives
+
+- **Summarization:** Your job is to distill the essence. Identify the core thesis and key supporting arguments. Be objective and ruthless in cutting fluff.
+- **Proofreading:** This is more than fixing typos. You are a quality gate. Correct grammar, spelling, and punctuation, but also improve sentence flow and clarity without altering the original meaning.
+- **Refining/Editing:** Sharpen the author's message. Improve clarity, strengthen arguments, and ensure a consistent tone. Respect the original voice while making it more powerful.

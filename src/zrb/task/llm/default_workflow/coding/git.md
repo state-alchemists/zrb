@@ -1,142 +1,58 @@
-# Git Command Guidelines
+# Git Workflow Guide
 
-## Core Principles
+This guide governs all version control operations. Adhere to it for safety and consistency.
 
-- **Safety First:** Always verify current branch and status before destructive operations
-- **Atomic Commits:** Each commit should represent a single logical change
-- **Descriptive Messages:** Write clear, concise commit messages that explain "why" not just "what"
-- **Interactive Mode:** Use interactive rebase and staging for precise control
+## 1. Core Principles & Safety
 
-## Essential Commands
+- **Atomic Commits:** One logical change per commit. Use `git add -p` for precision.
+- **Descriptive Messages:** Explain the "why" in the imperative mood (e.g., "Add feature"). Follow the 50/72 format.
+- **Safety First:**
+  - Always run `git status` before operations.
+  - Use `git push --force-with-lease`, not `--force`.
+  - Ensure the working directory is clean before `git rebase`.
 
-### Repository Status
-```bash
-# Check current status and branch
-git status
-git branch -v
+## 2. Standard Workflow
 
-# See uncommitted changes
-git diff
-git diff --staged
-```
+This is the primary development cycle.
 
-### Safe Branch Operations
-```bash
-# Create and switch to new branch
-git checkout -b feature/new-feature
+1. **Branch:** `git checkout -b <branch-name>`
+2. **Code & Verify:** Make changes, then run all tests, linters, and builds.
+3. **Stage:** `git add <file>` or, for more precision, `git add -p`.
+4. **Commit:** `git commit` with a descriptive message.
+    ```
+    feat: Add user authentication endpoint
 
-# Switch branches safely
-git switch main
-git switch feature/branch-name
+    Implement the /login endpoint using JWT for token-based auth.
+    This resolves issue #123 by providing a mechanism for users to
+    log in and receive an access token.
+    ```
+5. **Review/Amend:** Use `git log -1` to review. If needed, fix with `git commit --amend`.
+6. **Push:** `git push origin <branch-name>`
 
-# List all branches
-git branch -a
-```
+## 3. Command Reference
 
-### Staging and Committing
-```bash
-# Stage specific files
-git add path/to/file.py
-git add src/
+### Status & History
+- `git status`: Check working directory status.
+- `git diff`: See uncommitted changes to tracked files.
+- `git diff --staged`: See staged changes.
+- `git log --oneline --graph -10`: View recent commit history.
+- `git blame <file>`: See who changed what in a file.
 
-# Stage interactively
-git add -p
-
-# Commit with descriptive message
-git commit -m "feat: add user authentication
-
-- Implement JWT token generation
-- Add login/logout endpoints
-- Add password hashing"
-
-# Amend last commit (use carefully)
-git commit --amend
-```
-
-### History and Logs
-```bash
-# View commit history
-git log --oneline --graph -10
-git log --stat
-
-# See who changed what
-git blame file.py
-```
-
-## Advanced Operations
-
-### Rebasing and Merging
-```bash
-# Update feature branch from main
-git switch feature/branch
-git rebase main
-
-# Interactive rebase for cleanup
-git rebase -i HEAD~5
-
-# Safe merge
-git merge --no-ff feature/branch
-```
+### Branching & Merging
+- `git checkout -b <name>`: Create and switch to a new branch.
+- `git switch <name>`: Switch to an existing branch.
+- `git rebase main`: Update the current branch from `main`. **(Use with care)**.
+- `git merge --no-ff <branch>`: Merge a branch without fast-forwarding.
 
 ### Stashing
-```bash
-# Save uncommitted changes temporarily
-git stash push -m "WIP: feature implementation"
-
-# List stashes
-git stash list
-
-# Apply and keep stash
-git stash apply stash@{0}
-
-# Apply and drop stash
-git stash pop
-```
+- `git stash push -m "msg"`: Save uncommitted changes temporarily.
+- `git stash list`: List all stashes.
+- `git stash pop`: Apply and remove the last stash.
 
 ### Remote Operations
-```bash
-# Fetch and check before pulling
-git fetch origin
-git log origin/main..main
+- `git fetch origin`: Fetch updates from the remote repository.
+- `git push origin <branch>`: Push a branch to the remote.
+- `git push origin --delete <branch>`: Delete a remote branch.
 
-# Push safely
-git push origin feature/branch
-git push --force-with-lease  # Safer than --force
-```
-
-## Safety Checklist
-
-1. **Before destructive operations:** Always run `git status` and `git branch -v`
-2. **Before force push:** Use `--force-with-lease` instead of `--force`
-3. **Before rebase:** Ensure working directory is clean
-4. **Before merge:** Resolve conflicts immediately
-5. **Regularly:** Fetch and integrate upstream changes
-
-## Common Patterns
-
-### Feature Development
-```bash
-git checkout -b feature/new-feature
-# ... make changes ...
-git add .
-git commit -m "feat: implement new feature"
-git push origin feature/new-feature
-```
-
-### Hotfix Workflow
-```bash
-git checkout -b hotfix/critical-bug main
-# ... fix the bug ...
-git add .
-git commit -m "fix: resolve critical issue"
-git push origin hotfix/critical-bug
-```
-
-### Cleanup
-```bash
-# Delete merged branches locally
-git branch --merged main | grep -v "main" | xargs git branch -d
-
-# Delete remote branches
-git push origin --delete old-branch
-```
+### Advanced
+- `git cherry-pick <commit-hash>`: Apply a specific commit from another branch. **(Use with caution to avoid duplicate commits)**.
