@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.2
+
+- **Fix:** Fixing `RsyncTask`'s `exclude-from` parameter parsing.
+
 # 1.18.1
 
 - **Feature:** Improve default workflows
