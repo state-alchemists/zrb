@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, Any, Callable
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_context.config import LLMWorkflow, llm_context_config
+from zrb.config.llm_context.config import llm_context_config
+from zrb.config.llm_context.workflow import LLMWorkflow
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
