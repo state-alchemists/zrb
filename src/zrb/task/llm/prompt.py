@@ -122,7 +122,9 @@ def _get_available_workflows() -> dict[str, LLMWorkflow]:
             workflow_dir = os.path.join(workflow_location, workflow_name)
             workflow_file = os.path.join(workflow_dir, "workflow.md")
             if not os.path.isfile(workflow_file):
-                continue
+                workflow_file = os.path.join(workflow_dir, "SKILL.md")
+                if not os.path.isfile(path=workflow_file):
+                    continue
             # Only add if not already defined (earlier locations have precedence)
             if workflow_name not in available_workflows:
                 with open(workflow_file, "r") as f:

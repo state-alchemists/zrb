@@ -6,10 +6,11 @@ from zrb.util.llm.prompt import demote_markdown_headers
 
 
 class LLMWorkflow:
-    def __init__(self, name: str, path: str, content: str):
+    def __init__(self, name: str, path: str, content: str, description: str | None = NOne):
         self._name = name
         self._path = path
         self._content = content
+        self._description = description
 
     @property
     def name(self) -> str:
@@ -21,6 +22,14 @@ class LLMWorkflow:
 
     @property
     def content(self) -> str:
+        return self._content
+
+    @property
+    def description(self) -> str:
+        if self._description is not None:
+            return self._description
+        if len(self._content) > 1000:
+            return self._content[:1000] + "... (more)"
         return self._content
 
 
