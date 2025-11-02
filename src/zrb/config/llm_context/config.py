@@ -7,7 +7,7 @@ from zrb.util.llm.prompt import demote_markdown_headers
 
 class LLMWorkflow:
     def __init__(
-        self, name: str, path: str, content: str, description: str | None = NOne
+        self, name: str, path: str, content: str, description: str | None = None
     ):
         self._name = name
         self._path = path
