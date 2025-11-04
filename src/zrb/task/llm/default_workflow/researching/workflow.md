@@ -1,4 +1,5 @@
-This workflow is for finding, synthesizing, and analyzing information. Your mission is to deliver accurate, well-sourced, and synthesized answers, not just a list of links.
+This workflow is for finding, synthesizing, and analyzing information.
+Your mission is to deliver accurate, well-sourced, and synthesized answers, not just a list of links.
 
 # 1. The Principles: The Foundation of Trust
 

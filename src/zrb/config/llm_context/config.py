@@ -2,26 +2,8 @@ import os
 
 from zrb.config.config import CFG
 from zrb.config.llm_context.config_parser import markdown_to_dict
+from zrb.config.llm_context.workflow import LLMWorkflow
 from zrb.util.llm.prompt import demote_markdown_headers
-
-
-class LLMWorkflow:
-    def __init__(self, name: str, path: str, content: str):
-        self._name = name
-        self._path = path
-        self._content = content
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def path(self) -> str:
-        return self._path
-
-    @property
-    def content(self) -> str:
-        return self._content
 
 
 class LLMContextConfig:

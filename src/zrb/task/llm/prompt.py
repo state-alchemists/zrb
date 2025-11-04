@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING, Any, Callable
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_context.config import LLMWorkflow, llm_context_config
+from zrb.config.llm_context.config import llm_context_config
+from zrb.config.llm_context.workflow import LLMWorkflow
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
+from zrb.task.llm.workflow import get_available_workflows
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.llm.prompt import make_prompt_section
@@ -100,66 +102,39 @@ def get_project_context_prompt() -> str:
     return "\n".join(context_prompts)
 
 
-def _get_available_workflows() -> dict[str, LLMWorkflow]:
-    available_workflows = {
-        workflow_name.strip().lower(): workflow
-        for workflow_name, workflow in llm_context_config.get_workflows().items()
-    }
-    # Define builtin workflow locations in order of precedence
-    builtin_workflow_locations = [
-        os.path.expanduser(additional_builtin_workflow_path)
-        for additional_builtin_workflow_path in CFG.LLM_BUILTIN_WORKFLOW_PATHS
-        if os.path.isdir(os.path.expanduser(additional_builtin_workflow_path))
-    ]
-    builtin_workflow_locations.append(
-        os.path.join(os.path.dirname(__file__), "default_workflow")
-    )
-    # Load workflows from all locations
-    for workflow_location in builtin_workflow_locations:
-        if not os.path.isdir(workflow_location):
-            continue
-        for workflow_name in os.listdir(workflow_location):
-            workflow_dir = os.path.join(workflow_location, workflow_name)
-            workflow_file = os.path.join(workflow_dir, "workflow.md")
-            if not os.path.isfile(workflow_file):
-                continue
-            # Only add if not already defined (earlier locations have precedence)
-            if workflow_name not in available_workflows:
-                with open(workflow_file, "r") as f:
-                    workflow_content = f.read()
-                available_workflows[workflow_name] = LLMWorkflow(
-                    name=workflow_name.capitalize(),
-                    path=workflow_dir,
-                    content=workflow_content,
-                )
-    return available_workflows
-
-
 def get_workflow_prompt(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
 ) -> str:
-    available_workflows = _get_available_workflows()
+    available_workflows = get_available_workflows()
     active_workflow_names = set(
         get_workflow_names(ctx, workflows_attr, render_workflows)
     )
     workflow_prompts = []
-    for active_workflow_name in active_workflow_names:
-        if active_workflow_name not in available_workflows:
+    for workflow_name, workflow in available_workflows.items():
+        if workflow_name in active_workflow_names:
+            workflow_prompts.append(
+                make_prompt_section(
+                    workflow.name.capitalize(),
+                    "\n".join(
+                        [
+                            f"> Workflow Name: `{workflow.name}`",
+                            f"> Workflow Location: `{workflow.path}`",
+                            workflow.content,
+                        ]
+                    ),
+                )
+            )
             continue
-        workflow = available_workflows[active_workflow_name]
         workflow_prompts.append(
             make_prompt_section(
-                workflow.name,
+                workflow.name.capitalize(),
                 "\n".join(
                     [
-                        f"This workflow is located at: `{workflow.path}`",
-                        "```",
-                        _generate_directory_tree(workflow.path),
-                        "```",
-                        "---",
-                        workflow.content,
+                        "> To load this workflow, use `load_workflow` tool",
+                        f"> Workflow Name: `{workflow.name}`",
+                        f"> Description: {workflow.description}",
                     ]
                 ),
             )
@@ -381,13 +356,13 @@ def _extract_user_prompt_components(user_message: str) -> tuple[str, dict[str, A
             ref_type = "directory"
         if content != "":
             # Replace the @-reference in the user message with the placeholder
-            placeholder = f"[Reference {i+1}: {os.path.basename(ref)}]"
+            placeholder = f"[Reference {i+1}: `{os.path.basename(ref)}`]"
             modified_user_message = modified_user_message.replace(
                 f"@{ref}", placeholder, 1
             )
             apendixes.append(
                 make_prompt_section(
-                    f"{placeholder} ({ref_type} path: `{resource_path}`)",
+                    f"Content of {placeholder} ({ref_type} path: `{resource_path}`)",
                     "\n".join(content) if isinstance(content, list) else content,
                     as_code=True,
                 )

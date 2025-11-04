@@ -458,8 +458,10 @@ async def analyze_file(
     file's content in relation to a specific query.
 
     To ensure a focused and effective analysis, it is crucial to provide a
-    clear and specific query. Vague queries will result in a vague analysis
-    and may cause the tool to run for a long time.
+    clear and specific query + guideline. Vague queries will result in a vague analysis
+    and may cause low quality result.
+
+    The query should also contain all necessary guidelines to perform the analysis.
 
     Use this tool to:
     - Summarize the purpose and functionality of a script or configuration file.

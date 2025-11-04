@@ -5693,4 +5693,4 @@ rag = ["chromadb"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "0a06e81e941706269358f3c2f93231f5e39cc4c23d52d69973a80592f06a8ec2"
+content-hash = "a1427d48b484adba5b62f158bffad1625bc0221c8cdf0fc7f952d5c54acbed40"
