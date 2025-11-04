@@ -1,5 +1,18 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.3
+
+- **Feature: Enhanced Analysis Tools**:
+  - Improved `analyze_repo` and `analyze_file` tools with better parameter naming (`goal` → `query`) and enhanced documentation for more effective codebase analysis.
+  - Added YAML metadata support for workflow descriptions in `LLMWorkflow` class.
+- **Feature: New Workflow Management**:
+  - Introduced `load_workflow` tool for dynamic workflow loading during LLM sessions.
+  - Enhanced workflow discovery with support for both `workflow.md` and `SKILL.md` files.
+  - Improved workflow display with better descriptions and metadata extraction.
+- **Feature: Enhanced Reference Handling**:
+  - Improved file and directory reference formatting in user messages for better clarity.
+- **Dependency**: Added `pyyaml` dependency for YAML metadata parsing in workflows.
+
 # 1.18.2
 
 - **Fix:** Fixing `RsyncTask`'s `exclude-from` parameter parsing.
