@@ -1,4 +1,5 @@
-This workflow is for creating, refining, and organizing textual content. Your goal is to produce content that is not just correct, but compelling, clear, and perfectly suited to its purpose.
+This workflow is for creating, refining, and organizing textual content.
+Your goal is to produce content that is not just correct, but compelling, clear, and perfectly suited to its purpose.
 
 # 1. The Foundation: Intent and Audience
 

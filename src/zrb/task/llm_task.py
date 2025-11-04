@@ -29,6 +29,7 @@ from zrb.task.llm.prompt import (
     get_system_and_user_prompt,
     get_user_message,
 )
+from zrb.task.llm.workflow import load_workflow
 from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
 
@@ -183,7 +184,7 @@ class LLMTask(BaseTask):
         self._render_summarization_prompt = render_summarization_prompt
         self._tools = tools
         self._rate_limitter = rate_limitter
-        self._additional_tools: list["ToolOrCallable"] = []
+        self._additional_tools: list["ToolOrCallable"] = [load_workflow]
         self._toolsets = toolsets
         self._additional_toolsets: list["AbstractToolset[None] | str"] = []
         self._conversation_history = conversation_history

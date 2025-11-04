@@ -69,5 +69,13 @@ class LLMWorkflow:
         if self._description is not None:
             return self._description
         if len(self._content) > 1000:
-            return self._content[:1000] + "... (more)"
+            non_empty_lines = [
+                line for line in self._content.split("\n") if line.strip() != ""
+            ]
+            first_non_empty_line = (
+                non_empty_lines[0] if len(non_empty_lines) > 0 else ""
+            )
+            if len(first_non_empty_line) > 200:
+                return first_non_empty_line[:200] + "... (more)"
+            return first_non_empty_line
         return self._content
