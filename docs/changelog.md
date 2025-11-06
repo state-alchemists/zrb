@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.4
+
+- **Refactor: Split Coding Workflow into several workflows**
+- **Feature:** `load_workflow` is now accepting list as well.
+
 # 1.18.3
 
 - **Feature: Enhanced Analysis Tools**:

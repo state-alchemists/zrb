@@ -5,9 +5,9 @@ from zrb.config.llm_context.config import llm_context_config
 from zrb.config.llm_context.workflow import LLMWorkflow
 
 
-def load_workflow(workflow_name: str) -> str:
+def load_workflow(workflow_name: str | list[str]) -> str:
     """
-    Loads and formats a workflow document for LLM consumption.
+    Loads and formats one or more workflow documents for LLM consumption.
 
     Retrieves a workflow (SOP/documentation) by name from available workflows,
     formats it with descriptive headers, and returns it as a string ready
@@ -17,25 +17,31 @@ def load_workflow(workflow_name: str) -> str:
     - The actual workflow content
 
     Args:
-        workflow_name: Name of the workflow to load (case-insensitive)
+        workflow_name: Name or list of names of the workflow(s) to load
 
     Returns:
         Formatted workflow content as a string with headers
 
     Raises:
-        ValueError: If the specified workflow name is not found
+        ValueError: If any specified workflow name is not found
     """
+    names = [workflow_name] if isinstance(workflow_name, str) else workflow_name
     available_workflows = get_available_workflows()
-    workflow = available_workflows.get(workflow_name, None)
-    if workflow is None:
-        raise ValueError(f"Workflow not found: {workflow_name}")
-    return "\n".join(
-        [
-            f"# {workflow.name}",
-            f"> Workflow Location: `{workflow.path}`",
-            workflow.content,
-        ]
-    )
+    contents = []
+    for name in names:
+        workflow = available_workflows.get(name.strip().lower())
+        if workflow is None:
+            raise ValueError(f"Workflow not found: {name}")
+        contents.append(
+            "\n".join(
+                [
+                    f"# {workflow.name}",
+                    f"> Workflow Location: `{workflow.path}`",
+                    workflow.content,
+                ]
+            )
+        )
+    return "\n".join(contents)
 
 
 def get_available_workflows() -> dict[str, LLMWorkflow]:
