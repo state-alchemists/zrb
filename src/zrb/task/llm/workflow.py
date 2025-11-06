@@ -25,9 +25,7 @@ def load_workflow(workflow_name: str | list[str]) -> str:
     Raises:
         ValueError: If any specified workflow name is not found
     """
-    names = (
-        [workflow_name] if isinstance(workflow_name, str) else workflow_name
-    )
+    names = [workflow_name] if isinstance(workflow_name, str) else workflow_name
     available_workflows = get_available_workflows()
     contents = []
     for name in names:
