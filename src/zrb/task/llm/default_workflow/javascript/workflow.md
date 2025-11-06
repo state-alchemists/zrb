@@ -1,8 +1,5 @@
 ---
 description: "A workflow for developing with JavaScript and TypeScript, including project analysis and best practices."
-when: "(javascript|js|typescript|ts|react|vue|angular|node)"
-priority: 3
-default: false
 ---
 # JavaScript/TypeScript Development Guide
 

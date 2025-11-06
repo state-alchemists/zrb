@@ -1,8 +1,5 @@
 ---
 description: "A workflow for developing with HTML and CSS, including project analysis and best practices."
-when: "(html|css)"
-priority: 3
-default: false
 ---
 # HTML/CSS Development Guide
 

@@ -1,8 +1,5 @@
 ---
 description: "A workflow for developing with Python, including project analysis and best practices."
-when: "(python|py)"
-priority: 3
-default: false
 ---
 # Python Development Guide
 

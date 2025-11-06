@@ -1,8 +1,5 @@
 ---
 description: "A workflow for developing with Rust, including project analysis and best practices."
-when: "(rust)"
-priority: 3
-default: false
 ---
 # Rust Development Guide
 

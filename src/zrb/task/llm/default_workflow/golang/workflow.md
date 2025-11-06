@@ -1,8 +1,5 @@
 ---
 description: "A workflow for developing with Go, including project analysis and best practices."
-when: "(golang|go)"
-priority: 3
-default: false
 ---
 # Go Development Guide
 

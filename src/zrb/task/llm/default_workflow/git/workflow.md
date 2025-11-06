@@ -1,8 +1,5 @@
 ---
 description: "A workflow for managing version control with git."
-when: "(git|commit|push|pull|merge|branch|rebase)"
-priority: 1
-default: true
 ---
 # Git Workflow Guide
 

@@ -1,8 +1,5 @@
 ---
 description: "A workflow for writing robust, safe, and maintainable shell scripts."
-when: "(shell|bash|sh|script)"
-priority: 3
-default: false
 ---
 # Shell Scripting Guide
 
