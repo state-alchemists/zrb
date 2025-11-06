@@ -1,3 +1,9 @@
+---
+description: "A general-purpose workflow for writing, modifying, and debugging code."
+when: "(write|change|update|modify|refactor|add|implement|fix|debug|create|generate).*(code|script|program|test|feature|bug|issue|error|problem)"
+priority: 1
+default: true
+---
 Follow this workflow to deliver high-quality, idiomatic code that respects the project's existing patterns and conventions.
 
 # Tool Usage Guideline

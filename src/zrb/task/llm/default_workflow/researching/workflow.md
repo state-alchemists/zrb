@@ -1,3 +1,9 @@
+---
+description: "A workflow for finding, synthesizing, and analyzing information from various sources."
+when: "(research|find|search|analyze|what is|who is|tell me about)"
+priority: 2
+default: true
+---
 This workflow is for finding, synthesizing, and analyzing information.
 Your mission is to deliver accurate, well-sourced, and synthesized answers, not just a list of links.
 

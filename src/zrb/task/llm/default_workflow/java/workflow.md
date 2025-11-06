@@ -1,3 +1,9 @@
+---
+description: "A workflow for developing with Java, including project analysis and best practices."
+when: "(java)"
+priority: 3
+default: false
+---
 # Java Development Guide
 
 This guide provides the baseline for Java development. It is superseded by project-specific conventions.

@@ -77,6 +77,7 @@ def get_workflow_names(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
+    user_message: str,
 ) -> list[str]:
     """Gets the workflows, prioritizing task-specific, then default."""
     raw_workflows = get_str_list_attr(
@@ -84,12 +85,22 @@ def get_workflow_names(
         [] if workflows_attr is None else workflows_attr,
         auto_render=render_workflows,
     )
-    if raw_workflows is None:
-        raw_workflows = []
-    workflows = [w.strip().lower() for w in raw_workflows if w.strip() != ""]
-    if len(workflows) > 0:
-        return workflows
-    return llm_config.default_workflows or []
+    if raw_workflows is not None and len(raw_workflows) > 0:
+        return [w.strip().lower() for w in raw_workflows if w.strip() != ""]
+
+    # Auto select workflows
+    available_workflows = get_available_workflows()
+    selected_workflows = {}
+    for workflow_name, workflow in available_workflows.items():
+        if workflow.default:
+            selected_workflows[workflow_name] = workflow
+        if workflow.when:
+            if re.search(workflow.when, user_message, re.IGNORECASE):
+                selected_workflows[workflow_name] = workflow
+
+    # Sort by priority
+    sorted_workflows = sorted(selected_workflows.values(), key=lambda w: w.priority)
+    return [w.name for w in sorted_workflows]
 
 
 def get_project_context_prompt() -> str:
@@ -106,10 +117,11 @@ def get_workflow_prompt(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
+    user_message: str,
 ) -> str:
     available_workflows = get_available_workflows()
     active_workflow_names = set(
-        get_workflow_names(ctx, workflows_attr, render_workflows)
+        get_workflow_names(ctx, workflows_attr, render_workflows, user_message)
     )
     workflow_prompts = []
     for workflow_name, workflow in available_workflows.items():
@@ -162,6 +174,7 @@ def get_system_and_user_prompt(
     )
     new_system_prompt = _construct_system_prompt(
         ctx=ctx,
+        user_message=user_message,
         persona_attr=persona_attr,
         render_persona=render_persona,
         system_prompt_attr=system_prompt_attr,
@@ -182,6 +195,7 @@ def get_system_and_user_prompt(
 
 def _construct_system_prompt(
     ctx: AnyContext,
+    user_message: str,
     persona_attr: StrAttr | None = None,
     render_persona: bool = False,
     system_prompt_attr: StrAttr | None = None,
@@ -199,7 +213,9 @@ def _construct_system_prompt(
     special_instruction_prompt = get_special_instruction_prompt(
         ctx, special_instruction_prompt_attr, render_special_instruction_prompt
     )
-    workflow_prompt = get_workflow_prompt(ctx, workflows_attr, render_workflows)
+    workflow_prompt = get_workflow_prompt(
+        ctx, workflows_attr, render_workflows, user_message
+    )
     project_context_prompt = get_project_context_prompt()
     if conversation_history is None:
         conversation_history = ConversationHistory()

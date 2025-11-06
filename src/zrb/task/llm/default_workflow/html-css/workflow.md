@@ -1,3 +1,9 @@
+---
+description: "A workflow for developing with HTML and CSS, including project analysis and best practices."
+when: "(html|css)"
+priority: 3
+default: false
+---
 # HTML/CSS Development Guide
 
 This guide provides the baseline for HTML and CSS development. It is superseded by project-specific conventions.

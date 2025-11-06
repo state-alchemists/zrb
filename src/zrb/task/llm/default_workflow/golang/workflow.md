@@ -1,3 +1,9 @@
+---
+description: "A workflow for developing with Go, including project analysis and best practices."
+when: "(golang|go)"
+priority: 3
+default: false
+---
 # Go Development Guide
 
 This guide provides the baseline for Go development. It is superseded by project-specific conventions.

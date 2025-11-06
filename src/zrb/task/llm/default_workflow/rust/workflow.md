@@ -1,3 +1,9 @@
+---
+description: "A workflow for developing with Rust, including project analysis and best practices."
+when: "(rust)"
+priority: 3
+default: false
+---
 # Rust Development Guide
 
 This guide provides the baseline for Rust development. It is superseded by project-specific conventions.

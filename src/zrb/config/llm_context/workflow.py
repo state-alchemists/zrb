@@ -4,21 +4,31 @@ class LLMWorkflow:
     ):
         self._name = name
         self._path = path
+        self._when: str | None = None
+        self._priority: int = 100
+        self._default: bool = False
 
         # Extract YAML metadata and clean content
-        extracted_description, cleaned_content = (
-            self._extract_yaml_metadata_and_clean_content(content)
-        )
+        (
+            extracted_description,
+            extracted_when,
+            extracted_priority,
+            extracted_default,
+            cleaned_content,
+        ) = self._extract_yaml_metadata_and_clean_content(content)
         self._content = cleaned_content
 
         # Use provided description or extracted one
         self._description = (
             description if description is not None else extracted_description
         )
+        self._when = extracted_when
+        self._priority = extracted_priority
+        self._default = extracted_default
 
     def _extract_yaml_metadata_and_clean_content(
         self, content: str
-    ) -> tuple[str | None, str]:
+    ) -> tuple[str | None, str | None, int, bool, str]:
         """Extract YAML metadata and clean content.
 
         Looks for YAML metadata between --- lines, extracts the 'description' field,
@@ -39,18 +49,25 @@ class LLMWorkflow:
                 description = (
                     metadata.get("description") if isinstance(metadata, dict) else None
                 )
+                when = metadata.get("when") if isinstance(metadata, dict) else None
+                priority = (
+                    metadata.get("priority") if isinstance(metadata, dict) else 100
+                )
+                default = (
+                    metadata.get("default") if isinstance(metadata, dict) else False
+                )
 
                 # Remove the YAML metadata from content
                 cleaned_content = re.sub(
                     yaml_pattern, "", content, count=1, flags=re.DOTALL | re.MULTILINE
                 )
-                return description, cleaned_content.strip()
+                return description, when, priority, default, cleaned_content.strip()
             except yaml.YAMLError:
                 # If YAML parsing fails, return original content
                 pass
 
         # No YAML metadata found, return original content
-        return None, content
+        return None, None, 100, False, content
 
     @property
     def name(self) -> str:
@@ -79,3 +96,15 @@ class LLMWorkflow:
                 return first_non_empty_line[:200] + "... (more)"
             return first_non_empty_line
         return self._content
+
+    @property
+    def when(self) -> str | None:
+        return self._when
+
+    @property
+    def priority(self) -> int:
+        return self._priority
+
+    @property
+    def default(self) -> bool:
+        return self._default

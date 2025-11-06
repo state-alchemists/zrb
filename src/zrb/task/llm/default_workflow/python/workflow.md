@@ -1,3 +1,9 @@
+---
+description: "A workflow for developing with Python, including project analysis and best practices."
+when: "(python|py)"
+priority: 3
+default: false
+---
 # Python Development Guide
 
 This guide provides the baseline for Python development. It is superseded by project-specific conventions.
