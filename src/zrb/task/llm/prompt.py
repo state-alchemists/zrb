@@ -144,7 +144,6 @@ def get_workflow_prompt(
                 workflow.name.capitalize(),
                 "\n".join(
                     [
-                        "> To load this workflow, use `load_workflow` tool",
                         f"> Workflow Name: `{workflow.name}`",
                         f"> Description: {workflow.description}",
                     ]
@@ -226,7 +225,16 @@ def _construct_system_prompt(
             make_prompt_section("Persona", persona),
             make_prompt_section("System Prompt", base_system_prompt),
             make_prompt_section("Special Instruction", special_instruction_prompt),
-            make_prompt_section("Special Workflows", workflow_prompt),
+            make_prompt_section(
+                "Special Workflows",
+                "\n".join(
+                    [
+                        ">**NOTE:** Eagerly load all necessary workflows before doing any action.",
+                        "Use `load_workflow` tool to load specific workflows",
+                        workflow_prompt,
+                    ]
+                ),
+            ),
             make_prompt_section(
                 "Past Conversation",
                 "\n".join(
