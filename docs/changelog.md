@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.5
+
+- **Changed:** workflow part on system prompt is now a bit shorter.
+
 # 1.18.4
 
 - **Refactor: Split Coding Workflow into several workflows**
