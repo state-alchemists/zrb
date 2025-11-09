@@ -6,6 +6,7 @@ conversation flow via XCom.
 """
 
 import asyncio
+import os
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -13,7 +14,13 @@ from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_blue, stylize_bold_yellow, stylize_faint
+from zrb.util.cli.style import (
+    stylize_blue,
+    stylize_bold_yellow,
+    stylize_error,
+    stylize_faint,
+)
+from zrb.util.file import write_file
 from zrb.util.string.conversion import to_boolean
 
 if TYPE_CHECKING:
@@ -72,11 +79,26 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 ctx.print("", plain=True)
                 continue
             elif user_input.strip().lower().startswith("/workflow"):
-                workflow_parts = user_input.split(" ", maxsplit=2)
-                if len(workflow_parts) > 1:
-                    current_workflows = workflow_parts[1]
+                save_parts = user_input.split(" ", maxsplit=2)
+                if len(save_parts) > 1:
+                    current_workflows = save_parts[1]
                 ctx.print(f"Current workflows: {current_workflows}", plain=True)
                 ctx.print("", plain=True)
+                continue
+            elif user_input.strip().lower().startswith("/save"):
+                save_parts = user_input.split(" ", maxsplit=2)
+                if len(save_parts) < 2:
+                    ctx.print(stylize_error("File path required"), plain=True)
+                    continue
+                save_path = save_parts[1]
+                if os.path.exists(save_path):
+                    ctx.print(
+                        stylize_error(f"Cannot save to existing file: {save_path}"),
+                        plain=True,
+                    )
+                    continue
+                write_file(save_path, final_result)
+                ctx.print(f"Response saved to {save_path}", plain=True)
                 continue
             elif user_input.strip().lower().startswith("/attach"):
                 attach_parts = user_input.split(" ", maxsplit=2)
@@ -97,7 +119,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 ctx.print(f"Current YOLO mode: {current_yolo_mode}", plain=True)
                 ctx.print("", plain=True)
                 continue
-            elif user_input.strip().lower() in ("/help", "/info"):
+            elif user_input.strip().lower() in ("/help", "/info", "/"):
                 _show_info(ctx)
                 continue
             else:
@@ -137,6 +159,7 @@ def _show_info(ctx: AnyContext):
                 _show_subcommand("<new-attachment>", "Attach a file"),
                 _show_command("/workflows", "Show current workflows"),
                 _show_subcommand("<wf1,wf2,..>", "Set current workflows"),
+                _show_command("/save <file-path>", "Save last response to a file"),
                 _show_command("/yolo", "Get current YOLO mode"),
                 _show_subcommand("<true|false|list-of-tools>", "Set YOLO mode"),
                 _show_command("/help", "Show this message"),
@@ -148,13 +171,13 @@ def _show_info(ctx: AnyContext):
 
 
 def _show_command(command: str, description: str) -> str:
-    styled_command = stylize_bold_yellow(command.ljust(25))
+    styled_command = stylize_bold_yellow(command.ljust(30))
     styled_description = stylize_faint(description)
     return f"  {styled_command} {styled_description}"
 
 
 def _show_subcommand(command: str, description: str) -> str:
-    styled_command = stylize_blue(f"    {command}".ljust(25))
+    styled_command = stylize_blue(f"    {command}".ljust(30))
     styled_description = stylize_faint(description)
     return f"  {styled_command} {styled_description}"
 
