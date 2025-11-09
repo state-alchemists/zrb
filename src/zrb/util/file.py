@@ -89,7 +89,8 @@ def write_file(file_path: str, content: str | list[str]):
     """
     if isinstance(content, list):
         content = "\n".join([line for line in content if line is not None])
-    dir_path = os.path.dirname(file_path)
+    abs_file_path = os.path.abspath(os.path.expanduser(file_path))
+    dir_path = os.path.dirname(abs_file_path)
     os.makedirs(dir_path, exist_ok=True)
     should_add_eol = content.endswith("\n")
     # Remove trailing newlines, but keep one if the file originally ended up with newline
@@ -97,5 +98,5 @@ def write_file(file_path: str, content: str | list[str]):
     content = content.rstrip("\n")
     if should_add_eol:
         content += "\n"
-    with open(os.path.abspath(os.path.expanduser(file_path)), "w") as f:
+    with open(abs_file_path, "w") as f:
         f.write(content)

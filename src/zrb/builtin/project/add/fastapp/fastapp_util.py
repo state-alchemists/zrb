@@ -22,7 +22,7 @@ def is_project_zrb_init_file(ctx: AnyContext, file_path: str) -> bool:
 def update_project_zrb_init_file(ctx: AnyContext, zrb_init_path: str):
     existing_zrb_init_code = read_file(zrb_init_path)
     write_file(
-        file_path=zrb_init_path,
+        abs_file_path=zrb_init_path,
         content=[
             _get_import_load_file_code(existing_zrb_init_code),
             existing_zrb_init_code.strip(),

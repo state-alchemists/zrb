@@ -90,7 +90,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 if len(save_parts) < 2:
                     ctx.print(stylize_error("File path required"), plain=True)
                     continue
-                save_path = save_parts[1]
+                save_path = os.path.expanduser(save_parts[1])
                 if os.path.exists(save_path):
                     ctx.print(
                         stylize_error(f"Cannot save to existing file: {save_path}"),

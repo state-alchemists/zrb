@@ -73,7 +73,7 @@ def update_app_zrb_config_file(ctx: AnyContext, zrb_config_file_path: str):
         ]
     )
     write_file(
-        file_path=zrb_config_file_path,
+        abs_file_path=zrb_config_file_path,
         content=append_key_to_dict(
             original_code=existing_zrb_config_code,
             dictionary_name="MICROSERVICES_ENV_VARS",
@@ -86,7 +86,7 @@ def update_app_zrb_config_file(ctx: AnyContext, zrb_config_file_path: str):
 def update_app_zrb_task_file(ctx: AnyContext, zrb_task_file_path: str):
     existing_zrb_task_code = read_file(zrb_task_file_path)
     write_file(
-        file_path=zrb_task_file_path,
+        abs_file_path=zrb_task_file_path,
         content=[
             existing_zrb_task_code.strip(),
             "",
@@ -126,7 +126,7 @@ def _get_task_definition_code(existing_code: str, module_name: str) -> str | Non
 def update_app_main_file(ctx: AnyContext, app_main_file_path: str):
     existing_app_main_code = read_file(app_main_file_path)
     write_file(
-        file_path=app_main_file_path,
+        abs_file_path=app_main_file_path,
         content=[
             _get_import_module_route_code(existing_app_main_code, ctx.input.module),
             existing_app_main_code,
@@ -187,7 +187,7 @@ def update_gateway_route_file(ctx: AnyContext, gateway_route_file_path: str):
     existing_gateway_route_code = read_file(gateway_route_file_path)
     snake_module_name = to_snake_case(ctx.input.module)
     write_file(
-        file_path=gateway_route_file_path,
+        abs_file_path=gateway_route_file_path,
         content=[
             _get_module_subroute_import(existing_gateway_route_code, ctx.input.module),
             append_code_to_function(
@@ -233,7 +233,7 @@ def update_gateway_navigation_config_file(
         },
     ).strip()
     write_file(
-        file_path=gateway_navigation_config_file_path,
+        abs_file_path=gateway_navigation_config_file_path,
         content=[
             existing_gateway_navigation_config_code,
             new_navigation_config_code,

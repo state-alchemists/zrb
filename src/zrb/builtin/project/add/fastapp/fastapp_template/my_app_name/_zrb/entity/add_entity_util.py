@@ -204,7 +204,7 @@ def update_migration_metadata_file(ctx: AnyContext, migration_metadata_file_path
     app_name = os.path.basename(APP_DIR)
     existing_migration_metadata_code = read_file(migration_metadata_file_path)
     write_file(
-        file_path=migration_metadata_file_path,
+        abs_file_path=migration_metadata_file_path,
         content=[
             _get_migration_import_schema_code(
                 existing_migration_metadata_code, app_name, ctx.input.entity
@@ -251,7 +251,7 @@ def update_client_file(ctx: AnyContext, client_file_path: str):
     snake_plural_entity_name = to_snake_case(ctx.input.plural)
     pascal_entity_name = to_pascal_case(ctx.input.entity)
     write_file(
-        file_path=client_file_path,
+        abs_file_path=client_file_path,
         content=[
             _get_import_schema_for_client_code(
                 existing_code=existing_client_code, entity_name=ctx.input.entity
@@ -305,7 +305,7 @@ def update_api_client_file(ctx: AnyContext, api_client_file_path: str):
     snake_module_name = to_snake_case(ctx.input.module)
     pascal_module_name = to_pascal_case(ctx.input.module)
     write_file(
-        file_path=api_client_file_path,
+        abs_file_path=api_client_file_path,
         content=[
             f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_service_factory import {snake_entity_name}_service",  # noqa
             prepend_code_to_module(
@@ -327,7 +327,7 @@ def update_direct_client_file(ctx: AnyContext, direct_client_file_path: str):
     snake_module_name = to_snake_case(ctx.input.module)
     pascal_module_name = to_pascal_case(ctx.input.module)
     write_file(
-        file_path=direct_client_file_path,
+        abs_file_path=direct_client_file_path,
         content=[
             f"from {app_name}.module.{snake_module_name}.service.{snake_entity_name}.{snake_entity_name}_service_factory import {snake_entity_name}_service",  # noqa
             prepend_code_to_module(
@@ -348,7 +348,7 @@ def update_route_file(ctx: AnyContext, route_file_path: str):
     app_name = os.path.basename(APP_DIR)
     module_name = to_snake_case(ctx.input.module)
     write_file(
-        file_path=route_file_path,
+        abs_file_path=route_file_path,
         content=[
             f"from {app_name}.module.{module_name}.service.{entity_name}.{entity_name}_service_factory import {entity_name}_service",  # noqa
             append_code_to_function(
@@ -370,7 +370,7 @@ def update_gateway_subroute_file(ctx: AnyContext, module_gateway_subroute_path: 
     pascal_entity_name = to_pascal_case(ctx.input.entity)
     existing_gateway_subroute_code = read_file(module_gateway_subroute_path)
     write_file(
-        file_path=module_gateway_subroute_path,
+        abs_file_path=module_gateway_subroute_path,
         content=[
             _get_import_client_for_gateway_subroute_code(
                 existing_gateway_subroute_code, module_name=ctx.input.module
@@ -456,7 +456,7 @@ def update_gateway_navigation_config_file(
         },
     ).strip()
     write_file(
-        file_path=gateway_navigation_config_file_path,
+        abs_file_path=gateway_navigation_config_file_path,
         content=[
             existing_gateway_navigation_config_code,
             new_navigation_config_code,
