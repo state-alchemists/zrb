@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.7
+
+- **Changed:** Separate active and inactive workflow on system prompt.
+
 # 1.18.6
 
 - **Updated:** Update pydantic AI to `1.12.0`.
