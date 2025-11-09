@@ -34,9 +34,11 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     is_first_time = True
     current_workflows: str = ctx.input.workflows
     current_yolo_mode: bool | str = ctx.input.yolo
+    current_attach: str = ctx.input.attach
     user_inputs: list[str] = []
     final_result: str = ""
-    while True:
+    should_end = False
+    while not should_end:
         await asyncio.sleep(0.01)
         previous_session_name: str | None = (
             ctx.input.previous_session if is_first_time else ""
@@ -51,76 +53,71 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             user_input = await llm_chat_trigger.wait(reader, ctx)
             if not multiline_mode:
                 ctx.print("", plain=True)
-        is_first_time = False
-        # Handle user input
-        if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
-            user_prompt = "\n".join(user_inputs)
-            user_inputs = []
-            result = await _trigger_ask_and_wait_for_result(
-                ctx=ctx,
-                user_prompt=user_prompt,
-                workflows=current_workflows,
-                yolo_mode=current_yolo_mode,
-                previous_session_name=previous_session_name,
-                start_new=start_new,
-            )
-            if result is not None:
-                final_result = result
-            break
-        elif user_input.strip().lower() in ("/multi",):
-            multiline_mode = True
-        elif user_input.strip().lower() in ("/end",):
-            ctx.print("", plain=True)
-            multiline_mode = False
-            user_prompt = "\n".join(user_inputs)
-            user_inputs = []
-            result = await _trigger_ask_and_wait_for_result(
-                ctx=ctx,
-                user_prompt=user_prompt,
-                workflows=current_workflows,
-                yolo_mode=current_yolo_mode,
-                previous_session_name=previous_session_name,
-                start_new=start_new,
-            )
-            if result is not None:
-                final_result = result
-                if ctx.is_web_mode or not is_tty:
-                    return final_result
-        elif user_input.strip().lower().startswith("/workflow"):
-            workflow_parts = user_input.split(" ", maxsplit=2)
-            if len(workflow_parts) > 1:
-                current_workflows = workflow_parts[1]
-            ctx.print(f"Current workflows: {current_workflows}", plain=True)
-            ctx.print("", plain=True)
-            continue
-        elif user_input.strip().lower().startswith("/yolo"):
-            yolo_mode_parts = user_input.split(" ", maxsplit=2)
-            if len(yolo_mode_parts) > 1:
-                current_yolo_mode = to_boolean(yolo_mode_parts[1])
-            ctx.print(f"Current YOLO mode: {current_yolo_mode}", plain=True)
-            ctx.print("", plain=True)
-            continue
-        elif user_input.strip().lower() in ("/help", "/info"):
-            _show_info(ctx)
-            continue
-        else:
-            user_inputs.append(user_input)
-            if multiline_mode:
+        # At this point, is_first_time has to be False
+        if is_first_time:
+            is_first_time = False
+        # Handle user input (including slash commands)
+        if multiline_mode:
+            if user_input.strip().lower() in ("/end",):
+                ctx.print("", plain=True)
+                multiline_mode = False
+            else:
+                user_inputs.append(user_input)
                 continue
-            user_prompt = "\n".join(user_inputs)
-            user_inputs = []
-            result = await _trigger_ask_and_wait_for_result(
-                ctx=ctx,
-                user_prompt=user_prompt,
-                workflows=current_workflows,
-                yolo_mode=current_yolo_mode,
-                previous_session_name=previous_session_name,
-                start_new=start_new,
-            )
-            if result is not None:
-                final_result = result
-                if ctx.is_web_mode or not is_tty:
-                    return final_result
+        else:
+            if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
+                should_end = True
+            elif user_input.strip().lower() in ("/multi",):
+                multiline_mode = True
+                ctx.print("", plain=True)
+                continue
+            elif user_input.strip().lower().startswith("/workflow"):
+                workflow_parts = user_input.split(" ", maxsplit=2)
+                if len(workflow_parts) > 1:
+                    current_workflows = workflow_parts[1]
+                ctx.print(f"Current workflows: {current_workflows}", plain=True)
+                ctx.print("", plain=True)
+                continue
+            elif user_input.strip().lower().startswith("/attach"):
+                attach_parts = user_input.split(" ", maxsplit=2)
+                if len(attach_parts) > 1:
+                    attachment = attach_parts[1]
+                    if attachment.strip() != "":
+                        if current_attach.strip() != "":
+                            current_attach += ","
+                        current_attach += attachment
+                        continue
+                ctx.print(f"Current attachments: {current_attach}", plain=True)
+                ctx.print("", plain=True)
+                continue
+            elif user_input.strip().lower().startswith("/yolo"):
+                yolo_mode_parts = user_input.split(" ", maxsplit=2)
+                if len(yolo_mode_parts) > 1:
+                    current_yolo_mode = to_boolean(yolo_mode_parts[1])
+                ctx.print(f"Current YOLO mode: {current_yolo_mode}", plain=True)
+                ctx.print("", plain=True)
+                continue
+            elif user_input.strip().lower() in ("/help", "/info"):
+                _show_info(ctx)
+                continue
+            else:
+                user_inputs.append(user_input)
+        # Trigger LLM
+        user_prompt = "\n".join(user_inputs)
+        user_inputs = []
+        result = await _trigger_ask_and_wait_for_result(
+            ctx=ctx,
+            user_prompt=user_prompt,
+            attach=current_attach,
+            workflows=current_workflows,
+            yolo_mode=current_yolo_mode,
+            previous_session_name=previous_session_name,
+            start_new=start_new,
+        )
+        current_attach = ""
+        final_result = final_result if result is None else result
+        if ctx.is_web_mode or not is_tty:
+            return final_result
     return final_result
 
 
@@ -136,6 +133,8 @@ def _show_info(ctx: AnyContext):
                 _show_command("/bye", "Quit from chat session"),
                 _show_command("/multi", "Start multiline input"),
                 _show_command("/end", "End multiline input"),
+                _show_command("/attach", "Show current attachment"),
+                _show_subcommand("<new-attachment>", "Attach a file"),
                 _show_command("/workflows", "Show current workflows"),
                 _show_subcommand("<wf1,wf2,..>", "Set current workflows"),
                 _show_command("/yolo", "Get current YOLO mode"),
@@ -179,6 +178,7 @@ async def _setup_input_reader(
 async def _trigger_ask_and_wait_for_result(
     ctx: AnyContext,
     user_prompt: str,
+    attach: str,
     workflows: str,
     yolo_mode: bool | str,
     previous_session_name: str | None = None,
@@ -199,7 +199,7 @@ async def _trigger_ask_and_wait_for_result(
     if user_prompt.strip() == "":
         return None
     await _trigger_ask(
-        ctx, user_prompt, workflows, yolo_mode, previous_session_name, start_new
+        ctx, user_prompt, attach, workflows, yolo_mode, previous_session_name, start_new
     )
     result = await _wait_ask_result(ctx)
     md_result = render_markdown(result) if result is not None else ""
@@ -231,6 +231,7 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
         "start-new": data.get("start_new"),
         "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),
+        "attach": data.get("attach"),
         "workflows": data.get("workflows"),
         "yolo": data.get("yolo"),
     }
@@ -239,6 +240,7 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
 async def _trigger_ask(
     ctx: AnyContext,
     user_prompt: str,
+    attach: str,
     workflows: str,
     yolo_mode: bool | str,
     previous_session_name: str | None = None,
@@ -260,6 +262,7 @@ async def _trigger_ask(
             "previous_session_name": previous_session_name,
             "start_new": start_new,
             "message": user_prompt,
+            "attach": attach,
             "workflows": workflows,
             "yolo": yolo_mode,
         }

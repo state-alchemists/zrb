@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr, StrListAttr, fstring
 from zrb.config.llm_rate_limitter import LLMRateLimiter
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
@@ -34,11 +33,9 @@ from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent, Tool
-    from pydantic_ai.messages import UserContent
+    from pydantic_ai import AbstractToolset, Agent, Tool, UserContent
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
-    from pydantic_ai.toolsets import AbstractToolset
 
     ToolOrCallable = Tool | Callable
 
@@ -53,19 +50,17 @@ class LLMTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        model: (
-            "Callable[[AnySharedContext], Model | str | fstring] | Model | None"
-        ) = None,
+        model: "Callable[[AnyContext], Model | str | fstring] | Model | None" = None,
         render_model: bool = True,
         model_base_url: StrAttr | None = None,
         render_model_base_url: bool = True,
         model_api_key: StrAttr | None = None,
         render_model_api_key: bool = True,
         model_settings: (
-            "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
+            "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
         ) = None,
         small_model: (
-            "Callable[[AnySharedContext], Model | str | fstring] | Model | None"
+            "Callable[[AnyContext], Model | str | fstring] | Model | None"
         ) = None,
         render_small_model: bool = True,
         small_model_base_url: StrAttr | None = None,
@@ -73,7 +68,7 @@ class LLMTask(BaseTask):
         small_model_api_key: StrAttr | None = None,
         render_small_model_api_key: bool = True,
         small_model_settings: (
-            "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
+            "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
         ) = None,
         persona: StrAttr | None = None,
         render_persona: bool = False,
@@ -84,28 +79,26 @@ class LLMTask(BaseTask):
         workflows: StrListAttr | None = None,
         render_workflows: bool = True,
         message: StrAttr | None = None,
-        attachment: "UserContent | list[UserContent] | Callable[[AnySharedContext], UserContent | list[UserContent]] | None" = None,  # noqa
+        attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,
         render_message: bool = True,
         tools: (
-            list["ToolOrCallable"]
-            | Callable[[AnySharedContext], list["ToolOrCallable"]]
+            list["ToolOrCallable"] | Callable[[AnyContext], list["ToolOrCallable"]]
         ) = [],
         toolsets: (
             list["AbstractToolset[None] | str"]
-            | Callable[[AnySharedContext], list["AbstractToolset[None] | str"]]
+            | Callable[[AnyContext], list["AbstractToolset[None] | str"]]
         ) = [],
         conversation_history: (
             ConversationHistory
-            | Callable[[AnySharedContext], ConversationHistory | dict | list]
+            | Callable[[AnyContext], ConversationHistory | dict | list]
             | dict
             | list
         ) = ConversationHistory(),
         conversation_history_reader: (
-            Callable[[AnySharedContext], ConversationHistory | dict | list | None]
-            | None
+            Callable[[AnyContext], ConversationHistory | dict | list | None] | None
         ) = None,
         conversation_history_writer: (
-            Callable[[AnySharedContext, ConversationHistory], None] | None
+            Callable[[AnyContext, ConversationHistory], None] | None
         ) = None,
         conversation_history_file: StrAttr | None = None,
         render_history_file: bool = True,
@@ -116,12 +109,14 @@ class LLMTask(BaseTask):
         history_summarization_token_threshold: IntAttr | None = None,
         render_history_summarization_token_threshold: bool = True,
         rate_limitter: LLMRateLimiter | None = None,
-        execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
+        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
         yolo_mode: StrListAttr | BoolAttr | None = None,
         render_yolo_mode: bool = True,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: (
+            list[AnyTask] | AnyTask | None | Callable[[AnyContext], None]
+        ) = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
@@ -132,7 +127,7 @@ class LLMTask(BaseTask):
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
         conversation_context: (
-            dict[str, Any] | Callable[[AnySharedContext], dict[str, Any]] | None
+            dict[str, Any] | Callable[[AnyContext], dict[str, Any]] | None
         ) = None,
     ):
         super().__init__(

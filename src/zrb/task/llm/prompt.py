@@ -5,10 +5,8 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
-from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
 from zrb.config.llm_context.config import llm_context_config
-from zrb.config.llm_context.workflow import LLMWorkflow
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
@@ -123,11 +121,11 @@ def get_workflow_prompt(
     active_workflow_names = set(
         get_workflow_names(ctx, workflows_attr, render_workflows, user_message)
     )
-    available_workflow_prompts = []
     active_workflow_prompts = []
+    available_workflow_prompts = []
     for workflow_name, workflow in available_workflows.items():
         if workflow_name in active_workflow_names:
-            available_workflow_prompts.append(
+            active_workflow_prompts.append(
                 make_prompt_section(
                     workflow.name.capitalize(),
                     "\n".join(
@@ -140,7 +138,7 @@ def get_workflow_prompt(
                 )
             )
             continue
-        active_workflow_prompts.append(
+        available_workflow_prompts.append(
             make_prompt_section(
                 workflow.name.capitalize(),
                 "\n".join(
@@ -158,7 +156,7 @@ def get_workflow_prompt(
     if len(available_workflow_prompts) > 0:
         available_workflow_prompts = [
             "The following workflows are not automatically loaded.",
-            "Use `load workflow` tool to load necessary workflows based on your current task requirements.",
+            "Use `load workflow` tool to load necessary workflows based on your current task requirements.",  # noqa
         ] + available_workflow_prompts
     return "\n".join(
         [
@@ -455,7 +453,7 @@ def get_summarization_system_prompt(
 
 def get_attachments(
     ctx: AnyContext,
-    attachment: "UserContent | list[UserContent] | Callable[[AnySharedContext], UserContent | list[UserContent]] | None" = None,  # noqa
+    attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
 ) -> "list[UserContent]":
     if attachment is None:
         return []

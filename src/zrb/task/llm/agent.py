@@ -121,10 +121,10 @@ def get_agent(
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
     tools_attr: (
-        "list[ToolOrCallable] | Callable[[AnySharedContext], list[ToolOrCallable]]"
+        "list[ToolOrCallable] | Callable[[AnyContext], list[ToolOrCallable]]"
     ) = [],
     additional_tools: "list[ToolOrCallable]" = [],
-    toolsets_attr: "list[AbstractToolset[None] | str] | Callable[[AnySharedContext], list[AbstractToolset[None] | str]]" = [],  # noqa
+    toolsets_attr: "list[AbstractToolset[None] | str] | Callable[[AnyContext], list[AbstractToolset[None] | str]]" = [],  # noqa
     additional_toolsets: "list[AbstractToolset[None] | str]" = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,

@@ -1,7 +1,5 @@
-import json
 from typing import Callable
 
-from zrb.config.llm_context.config import llm_context_config
 from zrb.task.llm.conversation_history_model import ConversationHistory
 
 

@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.builtin.group import llm_group
+from zrb.builtin.llm.attachment import get_media_type
 from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
 from zrb.builtin.llm.input import PreviousSessionInput
@@ -45,8 +46,7 @@ from zrb.task.llm_task import LLMTask
 from zrb.util.string.conversion import to_boolean
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.toolsets import AbstractToolset
+    from pydantic_ai import AbstractToolset, Tool, UserContent
 
     ToolOrCallable = Tool | Callable
 
@@ -102,9 +102,9 @@ def _get_default_yolo_mode(ctx: AnyContext) -> str:
     return f"{default_value}"
 
 
-def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
+def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool:
     if ctx.input.yolo.strip() == "":
-        return None
+        return []
     elements = [element.strip() for element in ctx.input.yolo.split(",")]
     if len(elements) == 1:
         try:
@@ -112,6 +112,30 @@ def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool | None:
         except Exception:
             pass
     return elements
+
+
+def _render_attach_input(ctx: AnyContext) -> "list[UserContent]":
+    from pathlib import Path
+
+    from pydantic_ai import BinaryContent
+
+    attachment_paths: list[str] = [
+        attachment_path.strip()
+        for attachment_path in ctx.input.attach.split(",")
+        if attachment_path.strip() != ""
+    ]
+    if len(attachment_paths) == 0:
+        return []
+    attachments = []
+    for attachment_path in attachment_paths:
+        attachment_path = os.path.abspath(os.path.expanduser(attachment_path))
+        media_type = get_media_type(attachment_path)
+        if media_type is None:
+            ctx.log_error(f"Cannot get media type of {attachment_path}")
+            continue
+        data = Path(attachment_path).read_bytes()
+        attachments.append(BinaryContent(data, media_type=media_type))
+    return attachments
 
 
 def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
@@ -182,6 +206,13 @@ def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
             always_prompt=require_message,
             allow_empty=not require_message,
         ),
+        StrInput(
+            name="attach",
+            description="Comma separated attachments",
+            default="",
+            allow_positional_parsing=False,
+            always_prompt=False,
+        ),
         PreviousSessionInput(
             "previous-session",
             description="Previous conversation session",
@@ -212,6 +243,7 @@ llm_ask = LLMTask(
     workflows=lambda ctx: (
         None if ctx.input.workflows.strip() == "" else ctx.input.workflows.split(",")
     ),
+    attachment=_render_attach_input,
     message="{ctx.input.message}",
     tools=_get_tool,
     toolsets=_get_toolset,

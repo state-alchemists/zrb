@@ -18,7 +18,7 @@ def make_task(
     cli_only: bool = False,
     input: list[AnyInput | None] | AnyInput | None = None,
     env: list[AnyEnv | None] | AnyEnv | None = None,
-    execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
+    execute_condition: bool | str | Callable[[AnyContext], bool] = True,
     retries: int = 2,
     retry_period: float = 0,
     readiness_check: list[AnyTask] | AnyTask | None = None,

@@ -1,12 +1,12 @@
 from typing import Any, Callable
 
-from zrb.context.any_shared_context import AnySharedContext
+from zrb.context.any_context import AnyContext
 
 fstring = str
-AnyAttr = Any | fstring | Callable[[AnySharedContext], Any]
-StrAttr = str | fstring | Callable[[AnySharedContext], str]
-BoolAttr = bool | fstring | Callable[[AnySharedContext], bool]
-IntAttr = int | fstring | Callable[[AnySharedContext], int]
-FloatAttr = float | fstring | Callable[[AnySharedContext], float]
-StrDictAttr = dict[str, StrAttr] | Callable[[AnySharedContext], dict[str, Any]]
-StrListAttr = list[StrAttr] | Callable[[AnySharedContext], list[str]]
+AnyAttr = Any | fstring | Callable[[AnyContext], Any]
+StrAttr = str | fstring | Callable[[AnyContext], str]
+BoolAttr = bool | fstring | Callable[[AnyContext], bool]
+IntAttr = int | fstring | Callable[[AnyContext], int]
+FloatAttr = float | fstring | Callable[[AnyContext], float]
+StrDictAttr = dict[str, StrAttr] | Callable[[AnyContext], dict[str, Any]]
+StrListAttr = list[StrAttr] | Callable[[AnyContext], list[str]]

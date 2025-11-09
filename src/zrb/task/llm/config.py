@@ -36,7 +36,7 @@ def get_yolo_mode(
 def get_model_settings(
     ctx: AnyContext,
     model_settings_attr: (
-        "ModelSettings | Callable[[AnySharedContext], ModelSettings] | None"
+        "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
     ) = None,
 ) -> "ModelSettings | None":
     """Gets the model settings, resolving callables if necessary."""
@@ -78,7 +78,7 @@ def get_model_api_key(
 
 def get_model(
     ctx: AnyContext,
-    model_attr: "Callable[[AnySharedContext], Model | str | fstring] | Model | None",
+    model_attr: "Callable[[AnyContext], Model | str | fstring] | Model | None",
     render_model: bool,
     model_base_url_attr: StrAttr | None = None,
     render_model_base_url: bool = True,

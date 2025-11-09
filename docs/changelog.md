@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.8
+
+- **Feature:** New attachment interface for `llm_ask` and `llm_chat`
+- **Refactor: Simplify llm_ask user handling logic**
+
 # 1.18.7
 
 - **Changed:** Separate active and inactive workflow on system prompt.

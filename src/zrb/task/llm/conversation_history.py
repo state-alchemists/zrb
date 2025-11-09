@@ -101,13 +101,13 @@ async def _read_from_source(
 async def read_conversation_history(
     ctx: AnyContext,
     conversation_history_reader: (
-        Callable[[AnySharedContext], ConversationHistory | dict | list | None] | None
+        Callable[[AnyContext], ConversationHistory | dict | list | None] | None
     ),
     conversation_history_file_attr: StrAttr | None,
     render_history_file: bool,
     conversation_history_attr: (
         ConversationHistory
-        | Callable[[AnySharedContext], ConversationHistory | dict | list]
+        | Callable[[AnyContext], ConversationHistory | dict | list]
         | dict
         | list
     ),
@@ -151,7 +151,7 @@ async def write_conversation_history(
     ctx: AnyContext,
     history_data: ConversationHistory,
     conversation_history_writer: (
-        Callable[[AnySharedContext, ConversationHistory], None] | None
+        Callable[[AnyContext, ConversationHistory], None] | None
     ),
     conversation_history_file_attr: StrAttr | None,
     render_history_file: bool,

@@ -36,7 +36,7 @@ class BaseTrigger(BaseTask):
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
         action: fstring | Callable[[AnyContext], Any] | None = None,
-        execute_condition: bool | str | Callable[[AnySharedContext], bool] = True,
+        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         queue_name: fstring | None = None,
         callback: list[AnyCallback] | AnyCallback = [],
         retries: int = 2,
