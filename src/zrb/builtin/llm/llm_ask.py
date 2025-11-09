@@ -193,36 +193,32 @@ def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
     ]
 
 
-llm_ask: LLMTask = llm_group.add_task(
-    LLMTask(
-        name="llm-ask",
-        input=_get_inputs(True),
-        description="❓ Ask LLM",
-        model=lambda ctx: None if ctx.input.model.strip() == "" else ctx.input.model,
-        model_base_url=lambda ctx: (
-            None if ctx.input.base_url.strip() == "" else ctx.input.base_url
-        ),
-        model_api_key=lambda ctx: (
-            None if ctx.input.api_key.strip() == "" else ctx.input.api_key
-        ),
-        conversation_history_reader=read_chat_conversation,
-        conversation_history_writer=write_chat_conversation,
-        system_prompt=lambda ctx: (
-            None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
-        ),
-        workflows=lambda ctx: (
-            None
-            if ctx.input.workflows.strip() == ""
-            else ctx.input.workflows.split(",")
-        ),
-        message="{ctx.input.message}",
-        tools=_get_tool,
-        toolsets=_get_toolset,
-        yolo_mode=_render_yolo_mode_input,
-        retries=0,
+llm_ask = LLMTask(
+    name="llm-ask",
+    input=_get_inputs(True),
+    description="❓ Ask LLM",
+    model=lambda ctx: None if ctx.input.model.strip() == "" else ctx.input.model,
+    model_base_url=lambda ctx: (
+        None if ctx.input.base_url.strip() == "" else ctx.input.base_url
     ),
-    alias="ask",
+    model_api_key=lambda ctx: (
+        None if ctx.input.api_key.strip() == "" else ctx.input.api_key
+    ),
+    conversation_history_reader=read_chat_conversation,
+    conversation_history_writer=write_chat_conversation,
+    system_prompt=lambda ctx: (
+        None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
+    ),
+    workflows=lambda ctx: (
+        None if ctx.input.workflows.strip() == "" else ctx.input.workflows.split(",")
+    ),
+    message="{ctx.input.message}",
+    tools=_get_tool,
+    toolsets=_get_toolset,
+    yolo_mode=_render_yolo_mode_input,
+    retries=0,
 )
+llm_group.add_task(llm_ask, alias="ask")
 
 llm_group.add_task(
     BaseTrigger(

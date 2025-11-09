@@ -123,10 +123,11 @@ def get_workflow_prompt(
     active_workflow_names = set(
         get_workflow_names(ctx, workflows_attr, render_workflows, user_message)
     )
-    workflow_prompts = []
+    available_workflow_prompts = []
+    active_workflow_prompts = []
     for workflow_name, workflow in available_workflows.items():
         if workflow_name in active_workflow_names:
-            workflow_prompts.append(
+            available_workflow_prompts.append(
                 make_prompt_section(
                     workflow.name.capitalize(),
                     "\n".join(
@@ -139,7 +140,7 @@ def get_workflow_prompt(
                 )
             )
             continue
-        workflow_prompts.append(
+        active_workflow_prompts.append(
             make_prompt_section(
                 workflow.name.capitalize(),
                 "\n".join(
@@ -150,7 +151,23 @@ def get_workflow_prompt(
                 ),
             )
         )
-    return "\n".join(workflow_prompts)
+    if len(active_workflow_prompts) > 0:
+        active_workflow_prompts = [
+            "The following workflows are automatically loaded.",
+        ] + active_workflow_prompts
+    if len(available_workflow_prompts) > 0:
+        available_workflow_prompts = [
+            "The following workflows are not automatically loaded.",
+            "Use `load workflow` tool to load necessary workflows based on your current task requirements.",
+        ] + available_workflow_prompts
+    return "\n".join(
+        [
+            make_prompt_section("Active Workflows", "\n".join(active_workflow_prompts)),
+            make_prompt_section(
+                "Available Workflows", "\n".join(available_workflow_prompts)
+            ),
+        ]
+    )
 
 
 def get_system_and_user_prompt(
@@ -229,8 +246,15 @@ def _construct_system_prompt(
                 "Special Workflows",
                 "\n".join(
                     [
-                        ">**NOTE:** Eagerly load all necessary workflows before doing any action.",
-                        "Use `load_workflow` tool to load specific workflows",
+                        "Workflows are SOP/guidelines for performing actions/tasks effectively.",  # noqa
+                        "Always ensure you have all necessary workflows loaded before executing any action/task.",  # noqa
+                        "",
+                        "**Workflow Loading Strategy:**",
+                        "- **Language-specific workflows:** Always load the appropriate programming language workflow when working on projects in that language",  # noqa
+                        "- **Domain-specific workflows:** Load relevant workflows based on the task type (e.g., version control, scripting, content creation)",  # noqa
+                        "- **General workflows:** Load general-purpose workflows that provide foundational best practices for most development tasks",  # noqa
+                        "",
+                        "**Example:** When working on a programming project, always load both the general coding workflow and the specific language workflow.",  # noqa
                         workflow_prompt,
                     ]
                 ),

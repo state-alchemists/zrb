@@ -355,15 +355,15 @@ class Config:
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
-        return int(self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "35000"))
+        return int(self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "100000"))
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return int(self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "35000"))
+        return int(self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "20000"))
 
     @property
     def LLM_FILE_ANALYSIS_TOKEN_LIMIT(self) -> int:
-        return int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_LIMIT", "35000"))
+        return int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_LIMIT", "100000"))
 
     @property
     def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
