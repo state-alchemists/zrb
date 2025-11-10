@@ -79,15 +79,3 @@ class LLMWorkflow:
                 return first_non_empty_line[:200] + "... (more)"
             return first_non_empty_line
         return self._content
-
-    @property
-    def when(self) -> str | None:
-        return self._when
-
-    @property
-    def priority(self) -> int:
-        return self._priority
-
-    @property
-    def default(self) -> bool:
-        return self._default

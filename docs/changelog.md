@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.10
+
+- **Fix** Remove invalid property from `LLMWorkflow`.
+
 # 1.18.9
 
 - **Feature: Enhanced LLM Chat Session**:

@@ -75,7 +75,6 @@ def get_workflow_names(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
-    user_message: str,
 ) -> list[str]:
     """Gets the workflows, prioritizing task-specific, then default."""
     raw_workflows = get_str_list_attr(
@@ -85,20 +84,7 @@ def get_workflow_names(
     )
     if raw_workflows is not None and len(raw_workflows) > 0:
         return [w.strip().lower() for w in raw_workflows if w.strip() != ""]
-
-    # Auto select workflows
-    available_workflows = get_available_workflows()
-    selected_workflows = {}
-    for workflow_name, workflow in available_workflows.items():
-        if workflow.default:
-            selected_workflows[workflow_name] = workflow
-        if workflow.when:
-            if re.search(workflow.when, user_message, re.IGNORECASE):
-                selected_workflows[workflow_name] = workflow
-
-    # Sort by priority
-    sorted_workflows = sorted(selected_workflows.values(), key=lambda w: w.priority)
-    return [w.name for w in sorted_workflows]
+    return []
 
 
 def get_project_context_prompt() -> str:
