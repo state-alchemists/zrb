@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.9
+
+- **Feature: Enhanced LLM Chat Session**:
+  - Added `/save <file-path>` command to save the last response to a file.
+  - Improved command formatting in help display for better readability.
+- **Refactor: write_file**: Ensure to expanduser before checking and creating directory.
+
 # 1.18.8
 
 - **Feature:** New attachment interface for `llm_ask` and `llm_chat`
