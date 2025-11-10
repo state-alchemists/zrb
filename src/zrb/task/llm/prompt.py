@@ -105,7 +105,7 @@ def get_workflow_prompt(
 ) -> str:
     available_workflows = get_available_workflows()
     active_workflow_names = set(
-        get_workflow_names(ctx, workflows_attr, render_workflows, user_message)
+        get_workflow_names(ctx, workflows_attr, render_workflows)
     )
     active_workflow_prompts = []
     available_workflow_prompts = []

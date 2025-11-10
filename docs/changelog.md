@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.18.11
+
+- **Fix** Fix `get_workflow_name` parameter.
+
 # 1.18.10
 
 - **Fix** Remove invalid property from `LLMWorkflow`.
