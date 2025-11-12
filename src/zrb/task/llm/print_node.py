@@ -186,7 +186,6 @@ def _get_event_part_args(event: Any) -> Any:
     # Handle dummy property if present (from our schema sanitization)
     if isinstance(event.part.args, dict):
         return _truncate_kwargs(event.part.args)
-    print(type(event.part.args))
     return event.part.args
 
 
