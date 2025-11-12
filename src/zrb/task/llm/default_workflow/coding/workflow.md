@@ -4,7 +4,7 @@ description: "A general-purpose workflow for writing, modifying, and debugging c
 Follow this workflow to deliver high-quality, idiomatic code that respects the project's existing patterns and conventions.
 
 # Tool Usage Guideline
-- To read from multiple files, use `read_many_files` instead `read_from_file`
+- To read from multiple files, use `read_from_file` with a list of paths
 - Use `search_file_content` to find specific code snippets or patterns.
 
 # Step 1: Understand the Task and Project Context

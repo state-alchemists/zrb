@@ -206,31 +206,61 @@ def is_excluded(name: str, patterns: list[str]) -> bool:
 
 
 def read_from_file(
-    path: str,
+    path: str | list[str],
     start_line: Optional[int] = None,
     end_line: Optional[int] = None,
-) -> dict[str, Any]:
+) -> dict[str, Any] | dict[str, str]:
     """
-    Reads the content of a single file.
+    Reads the content of one or more files.
 
-    Use this tool to inspect the contents of a specific file. You can read the entire file or specify a range of lines. The content returned will include line numbers, which are useful for other tools like `replace_in_file`.
+    Use this tool to inspect the contents of specific files. You can read the entire file(s) or specify a range of lines for single file reading. The content returned will include line numbers, which are useful for other tools like `replace_in_file`.
 
     Args:
-        path (str): The absolute path to the file to read.
-        start_line (int, optional): The 1-based line number to start reading from. Defaults to the beginning of the file.
-        end_line (int, optional): The 1-based line number to stop reading at (inclusive). Defaults to the end of the file.
+        path (str | list[str]): The absolute path to a single file or a list of file paths to read.
+        start_line (int, optional): The 1-based line number to start reading from (single file only). Defaults to the beginning of the file.
+        end_line (int, optional): The 1-based line number to stop reading at (inclusive, single file only). Defaults to the end of the file.
 
     Returns:
-        dict[str, Any]: A dictionary containing the file path and its content with line numbers.
-        Example: {
+        dict[str, Any] | dict[str, str]:
+            - For single file: A dictionary containing the file path and its content with line numbers.
+            - For multiple files: A dictionary where keys are file paths and values are their corresponding contents (always with line numbers).
+
+        Single file example:
+        {
             "path": "src/main.py",
             "content": "1| import os\n2|\n3| print(\"Hello, World!\")",
             "start_line": 1,
             "end_line": 3,
             "total_lines": 3
         }
+
+        Multiple files example:
+        {
+            "src/api.py": "1| import os\n2|\n3| print(\"Hello, World!\")",
+            "config.yaml": "1| key: value"
+        }
     """
 
+    # Handle multiple files
+    if isinstance(path, list):
+        if start_line is not None or end_line is not None:
+            raise ValueError(
+                "start_line and end_line parameters are only supported for single file reading"
+            )
+
+        results = {}
+        for single_path in path:
+            try:
+                abs_path = os.path.abspath(os.path.expanduser(single_path))
+                if not os.path.exists(abs_path):
+                    raise FileNotFoundError(f"File not found: {single_path}")
+                content = read_file_with_line_numbers(abs_path)
+                results[single_path] = content
+            except Exception as e:
+                results[single_path] = f"Error reading file: {e}"
+        return results
+
+    # Handle single file
     abs_path = os.path.abspath(os.path.expanduser(path))
     # Check if file exists
     if not os.path.exists(abs_path):
@@ -509,66 +539,6 @@ async def analyze_file(
         }
     )
     return await _analyze_file(ctx, payload)
-
-
-def read_many_files(paths: list[str]) -> dict[str, str]:
-    """
-    Reads and returns the full content of multiple files at once.
-
-    This tool is highly efficient for gathering context from several files
-    simultaneously. Use it when you need to understand how different files in a
-    project relate to each other, or when you need to inspect a set of related
-    configuration or source code files.
-
-    The content for each file in the returned dictionary is **always** prefixed
-    with line numbers (`line_number | `) for each line. These prefixes are added
-    by the tool for internal processing and to provide contextual information to
-    the AI agent (e.g., for accurately applying diffs or for referencing specific
-    lines). They are **not** part of the actual file content.
-
-    When presenting the file content to a user, the AI agent **MUST** omit these
-    line number prefixes by default for better readability. They should only
-    be included if explicitly requested by the user or if the request inherently
-    requires line number context (e.g., 'show me lines 10-20').
-
-    Args:
-        paths (list[str]): A list of paths to the files you want to read. It is
-            crucial to provide accurate paths. Use the `list_files` tool first
-            if you are unsure about the exact file locations.
-
-    Returns:
-        dict[str, str]:  a dictionary where keys are the file paths and values
-            are their corresponding contents (always with line numbers).
-            If a file cannot be read, its value will be an error message.
-            Example:
-            ```
-            {
-                "src/api.py": "1| import os\n2|\n3| print("Hello, World!")",
-                "config.yaml": "1| key: value"
-            }
-            ```
-            If the file 'src/api.py' contains:
-            ```
-            import os
-
-            print("Hello, World!")
-            ```
-            The content for 'src/api.py' in the returned dictionary will be:
-            `"1| import os\n2|\n3| print("Hello, World!")"`
-            **IMPORTANT:** The "1|", "2|", "3|" prefixes are NOT part of the
-            original file. They are for internal agent use.
-    """
-    results = {}
-    for path in paths:
-        try:
-            abs_path = os.path.abspath(os.path.expanduser(path))
-            if not os.path.exists(abs_path):
-                raise FileNotFoundError(f"File not found: {path}")
-            content = read_file_with_line_numbers(abs_path)
-            results[path] = content
-        except Exception as e:
-            results[path] = f"Error reading file: {e}"
-    return results
 
 
 def write_many_files(files: list[FileToWrite]) -> dict[str, Any]:

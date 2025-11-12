@@ -119,7 +119,13 @@ class Context(AnyContext):
             return
         color = self._color
         icon = self._icon
-        max_name_length = max(len(name) + len(icon) for name in self.session.task_names)
+        # Handle case where session is None (e.g., in tests)
+        if self.session is None:
+            max_name_length = len(self._task_name) + len(icon)
+        else:
+            max_name_length = max(
+                len(name) + len(icon) for name in self.session.task_names
+            )
         styled_task_name = f"{icon} {self._task_name}"
         padded_styled_task_name = styled_task_name.rjust(max_name_length + 1)
         if self._attempt == 0:

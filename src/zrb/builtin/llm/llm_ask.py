@@ -17,7 +17,6 @@ from zrb.builtin.llm.tool.file import (
     analyze_file,
     list_files,
     read_from_file,
-    read_many_files,
     replace_in_file,
     search_files,
     write_many_files,
@@ -78,7 +77,6 @@ def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
         tools.append(search_files)
         tools.append(list_files)
         tools.append(read_from_file)
-        tools.append(read_many_files)
         tools.append(replace_in_file)
         tools.append(write_to_file)
         tools.append(write_many_files)

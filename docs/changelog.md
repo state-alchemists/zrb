@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.19.0
+
+- **Fix** Remove `read_many_files`.
+
 # 1.18.11
 
 - **Fix** Fix `get_workflow_name` parameter.
