@@ -263,7 +263,7 @@ class LLMTask(BaseTask):
         )
         inject_conversation_history_notes(conversation_history)
         # 2. Get system prompt and user prompt
-        system_prompt, user_message = get_system_and_user_prompt(
+        system_prompt, user_prompt = get_system_and_user_prompt(
             ctx=ctx,
             user_message=user_message,
             persona_attr=self._persona,
@@ -276,7 +276,8 @@ class LLMTask(BaseTask):
             render_workflows=self._render_workflows,
             conversation_history=conversation_history,
         )
-        ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
+        ctx.log_debug(f"SYSTEM PROMPT:\n{system_prompt}")
+        ctx.log_debug(f"USER PROMPT:\n{user_prompt}")
         # 3. Get the agent instance
         agent = get_agent(
             ctx=ctx,
@@ -293,7 +294,7 @@ class LLMTask(BaseTask):
         result = await self._execute_agent(
             ctx=ctx,
             agent=agent,
-            user_prompt=user_message,
+            user_prompt=user_prompt,
             attachments=attachments,
             conversation_history=conversation_history,
         )

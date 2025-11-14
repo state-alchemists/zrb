@@ -8,7 +8,6 @@ def _adjust_markdown_headers(md: str, level_change: int) -> str:
     for line in lines:
         stripped_line = line.strip()
         fence_match = re.match(r"^([`~]{3,})", stripped_line)
-
         if fence_match:
             current_fence = fence_match.group(1)
             if (
@@ -31,7 +30,7 @@ def _adjust_markdown_headers(md: str, level_change: int) -> str:
                 new_lines.append(new_header)
             else:
                 new_lines.append(line)
-    return "\n".join(new_lines)
+    return "\n".join(new_lines).rstrip()
 
 
 def demote_markdown_headers(md: str) -> str:
@@ -42,7 +41,7 @@ def promote_markdown_headers(md: str) -> str:
     return _adjust_markdown_headers(md, level_change=-1)
 
 
-def make_prompt_section(header: str, content: str, as_code: bool = False) -> str:
+def make_markdown_section(header: str, content: str, as_code: bool = False) -> str:
     if content.strip() == "":
         return ""
     if as_code:
@@ -59,5 +58,5 @@ def make_prompt_section(header: str, content: str, as_code: bool = False) -> str
         if longest_backtick_sequence >= fence_len:
             fence_len = longest_backtick_sequence + 1
         fence = "`" * fence_len
-        return f"# {header}\n{fence}\n{content.strip()}\n{fence}\n"
-    return f"# {header}\n{demote_markdown_headers(content.strip())}\n"
+        return f"# {header}\n{fence}\n{content.rstrip()}\n{fence}\n"
+    return f"# {header}\n{demote_markdown_headers(content.rstrip())}\n"

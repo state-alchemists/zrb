@@ -7,14 +7,12 @@ from typing import TYPE_CHECKING, Any, Callable
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config
 from zrb.config.llm_context.config import llm_context_config
-from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.workflow import get_available_workflows
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
-from zrb.util.llm.prompt import make_prompt_section
+from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
@@ -92,7 +90,9 @@ def get_project_context_prompt() -> str:
     context_prompts = []
     for context_path, context in context_dict.items():
         context_prompts.append(
-            make_prompt_section(header=f"Context at `{context_path}`", content=context)
+            make_markdown_section(
+                header=f"Context at `{context_path}`", content=context
+            )
         )
     return "\n".join(context_prompts)
 
@@ -112,7 +112,7 @@ def get_workflow_prompt(
     for workflow_name, workflow in available_workflows.items():
         if workflow_name in active_workflow_names:
             active_workflow_prompts.append(
-                make_prompt_section(
+                make_markdown_section(
                     workflow.name.capitalize(),
                     "\n".join(
                         [
@@ -125,7 +125,7 @@ def get_workflow_prompt(
             )
             continue
         available_workflow_prompts.append(
-            make_prompt_section(
+            make_markdown_section(
                 workflow.name.capitalize(),
                 "\n".join(
                     [
@@ -137,17 +137,18 @@ def get_workflow_prompt(
         )
     if len(active_workflow_prompts) > 0:
         active_workflow_prompts = [
-            "The following workflows are automatically loaded.",
+            "> These workflows are automatically loaded.",
         ] + active_workflow_prompts
     if len(available_workflow_prompts) > 0:
         available_workflow_prompts = [
-            "The following workflows are not automatically loaded.",
-            "Use `load workflow` tool to load necessary workflows based on your current task requirements.",  # noqa
+            "> You should load the following workflows using `load_workflow` tool.",
         ] + available_workflow_prompts
     return "\n".join(
         [
-            make_prompt_section("Active Workflows", "\n".join(active_workflow_prompts)),
-            make_prompt_section(
+            make_markdown_section(
+                "Active Workflows", "\n".join(active_workflow_prompts)
+            ),
+            make_markdown_section(
                 "Available Workflows", "\n".join(available_workflow_prompts)
             ),
         ]
@@ -185,9 +186,6 @@ def get_system_and_user_prompt(
         render_workflows=render_workflows,
         conversation_history=conversation_history,
     )
-    user_message_context["Token Counter"] = _get_token_usage_info(
-        new_system_prompt, user_message, conversation_history
-    )
     return new_system_prompt, _contruct_user_message_prompt(
         modified_user_message, user_message_context
     )
@@ -223,36 +221,28 @@ def _construct_system_prompt(
     directory_tree = _generate_directory_tree(current_directory, max_depth=2)
     return "\n".join(
         [
-            make_prompt_section("Persona", persona),
-            make_prompt_section("System Prompt", base_system_prompt),
-            make_prompt_section("Special Instruction", special_instruction_prompt),
-            make_prompt_section(
-                "Special Workflows",
+            make_markdown_section("Persona", persona),
+            make_markdown_section("System Prompt", base_system_prompt),
+            make_markdown_section("Special Instruction", special_instruction_prompt),
+            make_markdown_section(
+                "Workflows",
                 "\n".join(
                     [
-                        "Workflows are SOP/guidelines for performing actions/tasks effectively.",  # noqa
-                        "Always ensure you have all necessary workflows loaded before executing any action/task.",  # noqa
-                        "",
-                        "**Workflow Loading Strategy:**",
-                        "- **Language-specific workflows:** Always load the appropriate programming language workflow when working on projects in that language",  # noqa
-                        "- **Domain-specific workflows:** Load relevant workflows based on the task type (e.g., version control, scripting, content creation)",  # noqa
-                        "- **General workflows:** Load general-purpose workflows that provide foundational best practices for most development tasks",  # noqa
-                        "",
-                        "**Example:** When working on a programming project, always load both the general coding workflow and the specific language workflow.",  # noqa
+                        "**CRITICAL:** You MUST load all relevant workflows before starting any task execution. Failure to do so will result in incomplete or incorrect implementations.",  # noqa
                         workflow_prompt,
                     ]
                 ),
             ),
-            make_prompt_section(
+            make_markdown_section(
                 "Past Conversation",
                 "\n".join(
                     [
-                        make_prompt_section(
+                        make_markdown_section(
                             "Summary",
                             conversation_history.past_conversation_summary,
                             as_code=True,
                         ),
-                        make_prompt_section(
+                        make_markdown_section(
                             "Last Transcript",
                             conversation_history.past_conversation_transcript,
                             as_code=True,
@@ -260,16 +250,16 @@ def _construct_system_prompt(
                     ]
                 ),
             ),
-            make_prompt_section(
+            make_markdown_section(
                 "Notes",
                 "\n".join(
                     [
-                        make_prompt_section(
+                        make_markdown_section(
                             "Long Term",
                             conversation_history.long_term_note,
                             as_code=True,
                         ),
-                        make_prompt_section(
+                        make_markdown_section(
                             "Contextual",
                             conversation_history.contextual_note,
                             as_code=True,
@@ -277,17 +267,19 @@ def _construct_system_prompt(
                     ]
                 ),
             ),
-            make_prompt_section("Project Context", project_context_prompt),
-            make_prompt_section(
+            make_markdown_section("Project Context", project_context_prompt),
+            make_markdown_section(
                 "Conversation Environment",
                 "\n".join(
                     [
-                        make_prompt_section("Current OS", platform.system()),
-                        make_prompt_section("OS Version", platform.version()),
-                        make_prompt_section(
+                        make_markdown_section(
+                            "Current OS/Version",
+                            f"{platform.system()} - {platform.version()}",
+                        ),
+                        make_markdown_section(
                             "Python Version", platform.python_version()
                         ),
-                        make_prompt_section(
+                        make_markdown_section(
                             "Directory Tree (depth=2)", directory_tree, as_code=True
                         ),
                     ]
@@ -302,12 +294,12 @@ def _contruct_user_message_prompt(
 ) -> str:
     return "\n".join(
         [
-            make_prompt_section("User Message", modified_user_message),
-            make_prompt_section(
+            make_markdown_section("User Message", modified_user_message),
+            make_markdown_section(
                 "Context",
                 "\n".join(
                     [
-                        make_prompt_section(key, val)
+                        make_markdown_section(key, val)
                         for key, val in user_message_context.items()
                     ]
                 ),
@@ -320,6 +312,7 @@ def _generate_directory_tree(
     dir_path: str,
     max_depth: int = 2,
     max_children: int = 10,
+    include_hidden: bool = False,
 ) -> str:
     """
     Generates a string representation of a directory tree, pure Python.
@@ -336,38 +329,25 @@ def _generate_directory_tree(
             )
         except FileNotFoundError:
             return
-
+        child_count = 0
+        entry_count = len(entries)
         for i, entry in enumerate(entries):
-            if i >= max_children:
+            if not include_hidden and entry.name.startswith("."):
+                continue
+            if child_count >= max_children:
                 tree_lines.append(f"{prefix}└─... (more)")
                 break
-            is_last = i == len(entries) - 1
+            is_last = i == entry_count - 1
             connector = "└─" if is_last else "├─"
             tree_lines.append(f"{prefix}{connector}{entry.name}")
             if entry.is_dir():
                 new_prefix = prefix + ("  " if is_last else "│ ")
                 recurse(entry.path, depth + 1, new_prefix)
+            child_count += 1
 
     tree_lines.append(os.path.basename(dir_path))
     recurse(dir_path, 1, "")
     return "\n".join(tree_lines)
-
-
-def _get_token_usage_info(
-    system_prompt: str, user_message: str, conversation_history: ConversationHistory
-) -> str:
-    system_prompt_token_count = llm_rate_limitter.count_token(system_prompt)
-    user_message_token_count = llm_rate_limitter.count_token(user_message)
-    conversation_history_token_count = llm_rate_limitter.count_token(
-        conversation_history.history
-    )
-    total_token_count = (
-        system_prompt_token_count
-        + user_message_token_count
-        + conversation_history_token_count
-    )
-    max_token = llm_rate_limitter.max_tokens_per_request
-    return f"{total_token_count} tokens of {max_token} tokens"
 
 
 def _extract_user_prompt_components(user_message: str) -> tuple[str, dict[str, Any]]:
@@ -393,7 +373,7 @@ def _extract_user_prompt_components(user_message: str) -> tuple[str, dict[str, A
                 f"@{ref}", placeholder, 1
             )
             apendixes.append(
-                make_prompt_section(
+                make_markdown_section(
                     f"Content of {placeholder} ({ref_type} path: `{resource_path}`)",
                     "\n".join(content) if isinstance(content, list) else content,
                     as_code=True,

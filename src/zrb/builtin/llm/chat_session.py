@@ -1,27 +1,32 @@
-"""
-This module provides functions for managing interactive chat sessions with an LLM.
-
-It handles reading user input, triggering the LLM task, and managing the
-conversation flow via XCom.
-"""
-
 import asyncio
-import os
 import sys
 from typing import TYPE_CHECKING, Any
 
+from zrb.builtin.llm.chat_session_cmd import (
+    ATTACHMENT_CMD,
+    HELP_CMD,
+    MULTILINE_END_CMD,
+    MULTILINE_START_CMD,
+    QUIT_CMD,
+    RUN_CLI_CMD,
+    SAVE_CMD,
+    WORKFLOW_CMD,
+    YOLO_CMD,
+    get_new_attachments,
+    get_new_workflows,
+    get_new_yolo_mode,
+    is_command_match,
+    print_commands,
+    print_current_attachments,
+    print_current_workflows,
+    print_current_yolo_mode,
+    run_cli_command,
+    save_final_result,
+)
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import (
-    stylize_blue,
-    stylize_bold_yellow,
-    stylize_error,
-    stylize_faint,
-)
-from zrb.util.file import write_file
-from zrb.util.string.conversion import to_boolean
 
 if TYPE_CHECKING:
     from asyncio import StreamReader
@@ -34,14 +39,14 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     Reads user input from the CLI for an interactive chat session.
     Orchestrates the session by calling helper functions.
     """
-    _show_info(ctx)
+    print_commands(ctx)
     is_tty: bool = ctx.is_tty
     reader: PromptSession[Any] | StreamReader = await _setup_input_reader(is_tty)
     multiline_mode = False
     is_first_time = True
     current_workflows: str = ctx.input.workflows
     current_yolo_mode: bool | str = ctx.input.yolo
-    current_attach: str = ctx.input.attach
+    current_attachments: str = ctx.input.attach
     user_inputs: list[str] = []
     final_result: str = ""
     should_end = False
@@ -65,62 +70,41 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             is_first_time = False
         # Handle user input (including slash commands)
         if multiline_mode:
-            if user_input.strip().lower() in ("/end",):
+            if is_command_match(user_input, MULTILINE_END_CMD):
                 ctx.print("", plain=True)
                 multiline_mode = False
             else:
                 user_inputs.append(user_input)
                 continue
         else:
-            if user_input.strip().lower() in ("/bye", "/quit", "/q", "/exit"):
+            if is_command_match(user_input, QUIT_CMD):
                 should_end = True
-            elif user_input.strip().lower() in ("/multi",):
+            elif is_command_match(user_input, MULTILINE_START_CMD):
                 multiline_mode = True
                 ctx.print("", plain=True)
                 continue
-            elif user_input.strip().lower().startswith("/workflow"):
-                save_parts = user_input.split(" ", maxsplit=2)
-                if len(save_parts) > 1:
-                    current_workflows = save_parts[1]
-                ctx.print(f"Current workflows: {current_workflows}", plain=True)
-                ctx.print("", plain=True)
+            elif is_command_match(user_input, WORKFLOW_CMD):
+                current_workflows = get_new_workflows(current_workflows, user_input)
+                print_current_workflows(ctx, current_workflows)
                 continue
-            elif user_input.strip().lower().startswith("/save"):
-                save_parts = user_input.split(" ", maxsplit=2)
-                if len(save_parts) < 2:
-                    ctx.print(stylize_error("File path required"), plain=True)
-                    continue
-                save_path = os.path.expanduser(save_parts[1])
-                if os.path.exists(save_path):
-                    ctx.print(
-                        stylize_error(f"Cannot save to existing file: {save_path}"),
-                        plain=True,
-                    )
-                    continue
-                write_file(save_path, final_result)
-                ctx.print(f"Response saved to {save_path}", plain=True)
+            elif is_command_match(user_input, SAVE_CMD):
+                save_final_result(ctx, user_input, final_result)
                 continue
-            elif user_input.strip().lower().startswith("/attach"):
-                attach_parts = user_input.split(" ", maxsplit=2)
-                if len(attach_parts) > 1:
-                    attachment = attach_parts[1]
-                    if attachment.strip() != "":
-                        if current_attach.strip() != "":
-                            current_attach += ","
-                        current_attach += attachment
-                        continue
-                ctx.print(f"Current attachments: {current_attach}", plain=True)
-                ctx.print("", plain=True)
+            elif is_command_match(user_input, ATTACHMENT_CMD):
+                current_attachments = get_new_attachments(
+                    current_attachments, user_input
+                )
+                print_current_attachments(ctx, current_attachments)
                 continue
-            elif user_input.strip().lower().startswith("/yolo"):
-                yolo_mode_parts = user_input.split(" ", maxsplit=2)
-                if len(yolo_mode_parts) > 1:
-                    current_yolo_mode = to_boolean(yolo_mode_parts[1])
-                ctx.print(f"Current YOLO mode: {current_yolo_mode}", plain=True)
-                ctx.print("", plain=True)
+            elif is_command_match(user_input, YOLO_CMD):
+                current_yolo_mode = get_new_yolo_mode(current_yolo_mode, user_input)
+                print_current_yolo_mode(ctx, current_yolo_mode)
                 continue
-            elif user_input.strip().lower() in ("/help", "/info", "/"):
-                _show_info(ctx)
+            elif is_command_match(user_input, RUN_CLI_CMD):
+                run_cli_command(ctx, user_input)
+                continue
+            elif is_command_match(user_input, HELP_CMD):
+                print_commands(ctx)
                 continue
             else:
                 user_inputs.append(user_input)
@@ -130,56 +114,17 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         result = await _trigger_ask_and_wait_for_result(
             ctx=ctx,
             user_prompt=user_prompt,
-            attach=current_attach,
+            attach=current_attachments,
             workflows=current_workflows,
             yolo_mode=current_yolo_mode,
             previous_session_name=previous_session_name,
             start_new=start_new,
         )
-        current_attach = ""
+        current_attachments = ""
         final_result = final_result if result is None else result
         if ctx.is_web_mode or not is_tty:
             return final_result
     return final_result
-
-
-def _show_info(ctx: AnyContext):
-    """
-    Displays the available chat session commands to the user.
-    Args:
-        ctx: The context object for the task.
-    """
-    ctx.print(
-        "\n".join(
-            [
-                _show_command("/bye", "Quit from chat session"),
-                _show_command("/multi", "Start multiline input"),
-                _show_command("/end", "End multiline input"),
-                _show_command("/attach", "Show current attachment"),
-                _show_subcommand("<new-attachment>", "Attach a file"),
-                _show_command("/workflows", "Show current workflows"),
-                _show_subcommand("<wf1,wf2,..>", "Set current workflows"),
-                _show_command("/save <file-path>", "Save last response to a file"),
-                _show_command("/yolo", "Get current YOLO mode"),
-                _show_subcommand("<true|false|list-of-tools>", "Set YOLO mode"),
-                _show_command("/help", "Show this message"),
-            ]
-        ),
-        plain=True,
-    )
-    ctx.print("", plain=True)
-
-
-def _show_command(command: str, description: str) -> str:
-    styled_command = stylize_bold_yellow(command.ljust(30))
-    styled_description = stylize_faint(description)
-    return f"  {styled_command} {styled_description}"
-
-
-def _show_subcommand(command: str, description: str) -> str:
-    styled_command = stylize_blue(f"    {command}".ljust(30))
-    styled_description = stylize_faint(description)
-    return f"  {styled_command} {styled_description}"
 
 
 async def _setup_input_reader(

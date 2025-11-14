@@ -1,6 +1,6 @@
 import re
 
-from zrb.util.llm.prompt import promote_markdown_headers
+from zrb.util.markdown import promote_markdown_headers
 
 
 def markdown_to_dict(markdown: str) -> dict[str, str]:

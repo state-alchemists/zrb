@@ -19,7 +19,7 @@ from zrb.task.llm.history_summarization_tool import (
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_bool_attr, get_int_attr
 from zrb.util.cli.style import stylize_faint
-from zrb.util.llm.prompt import make_prompt_section
+from zrb.util.markdown import make_markdown_section
 from zrb.util.truncate import truncate_str
 
 if TYPE_CHECKING:
@@ -102,16 +102,16 @@ async def summarize_history(
     # Construct the user prompt for the summarization agent
     user_prompt = "\n".join(
         [
-            make_prompt_section(
+            make_markdown_section(
                 "Past Conversation",
                 "\n".join(
                     [
-                        make_prompt_section(
+                        make_markdown_section(
                             "Summary",
                             conversation_history.past_conversation_summary,
                             as_code=True,
                         ),
-                        make_prompt_section(
+                        make_markdown_section(
                             "Last Transcript",
                             conversation_history.past_conversation_transcript,
                             as_code=True,
@@ -119,7 +119,7 @@ async def summarize_history(
                     ]
                 ),
             ),
-            make_prompt_section(
+            make_markdown_section(
                 "Recent Conversation (JSON)",
                 json.dumps(truncate_str(conversation_history.history, 1000)),
                 as_code=True,

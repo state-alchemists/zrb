@@ -1,6 +1,6 @@
-from zrb.util.llm.prompt import (
+from zrb.util.markdown import (
     demote_markdown_headers,
-    make_prompt_section,
+    make_markdown_section,
     promote_markdown_headers,
 )
 
@@ -101,7 +101,7 @@ def test_promote_markdown_headers_mixed_content():
 
 # Test cases for make_prompt_section
 def test_make_prompt_section_empty_content():
-    result = make_prompt_section("Empty", "   ")
+    result = make_markdown_section("Empty", "   ")
     assert result == ""
 
 
@@ -109,7 +109,7 @@ def test_make_prompt_section_not_as_code():
     header = "Test Header"
     content = "# A Title\nSome text."
     expected = "# Test Header\n## A Title\nSome text.\n"
-    result = make_prompt_section(header, content, as_code=False)
+    result = make_markdown_section(header, content, as_code=False)
     assert result == expected
 
 
@@ -117,7 +117,7 @@ def test_make_prompt_section_as_code_simple():
     header = "Code Block"
     content = "print('hello')"
     expected = "# Code Block\n````\nprint('hello')\n````\n"
-    result = make_prompt_section(header, content, as_code=True)
+    result = make_markdown_section(header, content, as_code=True)
     assert result == expected
 
 
@@ -130,7 +130,7 @@ def test_make_prompt_section_as_code_with_backticks():
         "Here is some code: ```python\nprint('hello')\n```\n"
         "````\n"
     )
-    result = make_prompt_section(header, content, as_code=True)
+    result = make_markdown_section(header, content, as_code=True)
     assert result == expected
 
 
@@ -143,7 +143,7 @@ def test_make_prompt_section_as_code_with_four_backticks():
         "Code block: ````\nThis is tricky\n````\n"
         "`````\n"
     )
-    result = make_prompt_section(header, content, as_code=True)
+    result = make_markdown_section(header, content, as_code=True)
     assert result == expected
 
 
@@ -158,5 +158,5 @@ def test_make_prompt_section_as_code_with_mixed_backticks():
         f"{content.strip()}\n"
         f"{expected_fence}\n"
     )
-    result = make_prompt_section(header, content, as_code=True)
+    result = make_markdown_section(header, content, as_code=True)
     assert result == expected

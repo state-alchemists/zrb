@@ -12,7 +12,7 @@ from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_str_attr
 from zrb.util.file import read_file, write_file
-from zrb.util.llm.prompt import make_prompt_section
+from zrb.util.markdown import make_markdown_section
 from zrb.util.run import run_async
 
 
@@ -34,7 +34,7 @@ def _fetch_contextual_note(project_path: str) -> str:
     contexts = llm_context_config.get_notes(cwd=project_path)
     return "\n".join(
         [
-            make_prompt_section(header, content)
+            make_markdown_section(header, content)
             for header, content in contexts.items()
             if header != "/"
         ]

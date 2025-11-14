@@ -3,7 +3,7 @@ import os
 from zrb.config.config import CFG
 from zrb.config.llm_context.config_parser import markdown_to_dict
 from zrb.config.llm_context.workflow import LLMWorkflow
-from zrb.util.llm.prompt import demote_markdown_headers
+from zrb.util.markdown import demote_markdown_headers
 
 
 class LLMContextConfig:
