@@ -1,5 +1,32 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.20.0
+
+- **Feature: Enhanced Chat Session Commands**:
+  - Refactored chat session commands into a dedicated `chat_session_cmd.py` module for better organization and maintainability.
+  - Added new `/run <cli-command>` command to execute non-interactive shell commands directly from the chat session.
+  - Enhanced workflow and attachment management with subcommands:
+    - `/workflow add <workflow>` - Add a workflow to active workflows
+    - `/workflow set <workflow1,workflow2,...>` - Set active workflows
+    - `/workflow clear` - Deactivate all workflows
+    - `/attachment add <attachment>` - Add a file attachment
+    - `/attachment set <attachment1,attachment2,...>` - Set attachments
+    - `/attachment clear` - Clear all attachments
+  - Improved command matching system with support for multiple command aliases and subcommands.
+- **Feature: Improved System Prompts**:
+  - Enhanced both interactive and standard system prompts with explicit workflow loading requirements.
+  - Added "Load Relevant Workflows" as the first step in both workflows to ensure proper workflow initialization.
+  - Improved workflow section formatting with clearer distinction between active and available workflows.
+- **Refactor: Markdown Utility Renaming**:
+  - Renamed `make_prompt_section` utility to `make_markdown_section` for better clarity and consistency.
+  - Moved markdown utilities from `src/zrb/util/llm/prompt.py` to `src/zrb/util/markdown.py`.
+  - Updated all references across the codebase to use the new naming convention.
+- **Improved: Directory Tree Generation**:
+  - Enhanced directory tree generation to exclude hidden files by default for cleaner output.
+  - Added proper child counting to respect the `max_children` limit accurately.
+- **Removed: Token Usage Display**:
+  - Removed token counter from user message context to reduce clutter and improve performance.
+
 # 1.19.0
 
 - **Fix** Remove `read_many_files`.
