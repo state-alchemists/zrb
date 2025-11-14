@@ -29,7 +29,7 @@
 
 # 1.19.0
 
-- **Fix** Remove `read_many_files`.
+- **Changed** Remove `read_many_files`.
 
 # 1.18.11
 
