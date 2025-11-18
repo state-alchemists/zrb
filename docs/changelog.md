@@ -1,5 +1,14 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.20.1
+
+- **Fix: Shell Autocompletion Customization**:
+  - Fixed Bash and Zsh autocompletion scripts to respect the configured root group name (`CFG.ROOT_GROUP_NAME`) instead of hardcoding "zrb".
+  - Updated autocompletion task signatures to use `AnyContext` instead of `Context` for better type consistency.
+- **Refactor: Type Annotation Improvements**:
+  - Removed unused `AnySharedContext` import from `make_task.py`.
+  - Updated `make_task` function to return `AnyTask` type annotation for better type safety.
+
 # 1.20.0
 
 - **Feature: Enhanced Chat Session Commands**:
