@@ -1,5 +1,6 @@
 from zrb.builtin.group import shell_autocomplete_group
-from zrb.context.context import Context
+from zrb.config.config import CFG
+from zrb.context.context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """
@@ -33,5 +34,5 @@ compdef _zrb_complete zrb
     group=shell_autocomplete_group,
     alias="zsh",
 )
-def make_zsh_autocomplete(ctx: Context):
-    return _COMPLETION_SCRIPT
+def make_zsh_autocomplete(ctx: AnyContext):
+    return _COMPLETION_SCRIPT.replace("zrb", CFG.ROOT_GROUP_NAME)

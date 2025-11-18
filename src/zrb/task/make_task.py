@@ -2,7 +2,6 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.group.any_group import AnyGroup
 from zrb.input.any_input import AnyInput
@@ -33,7 +32,7 @@ def make_task(
     group: AnyGroup | None = None,
     alias: str | None = None,
 ) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
-    def _make_task(fn: Callable[[AnyContext], Any]) -> BaseTask:
+    def _make_task(fn: Callable[[AnyContext], Any]) -> AnyTask:
         task = BaseTask(
             name=name,
             color=color,
