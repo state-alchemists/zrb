@@ -278,7 +278,7 @@ class Config:
     def LLM_WORKFLOWS(self) -> list[str]:
         """Get a list of LLM workflows from environment variables."""
         workflows = []
-        for workflow in self._getenv("LLM_WORKFLOWS", "coding").split(","):
+        for workflow in self._getenv("LLM_WORKFLOWS", "").split(","):
             workflow = workflow.strip()
             if workflow != "":
                 workflows.append(workflow)

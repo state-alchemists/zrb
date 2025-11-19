@@ -9,15 +9,13 @@ def create_get_current_location() -> Callable:
 
     def get_current_location() -> dict[str, float]:
         """
-        Fetches the user's current geographical location based on their IP address.
+        Get the user's current geographical location (latitude and longitude) based on their IP address.
 
-        Use when user asks "Where am I?", "What is my current location?", or has query requiring location.
+        Use when a user asks "Where am I?" or has a query that requires their current location.
 
         Returns:
-            dict[str, float]: Dictionary containing 'lat' and 'lon' of current location.
+            dict[str, float]: A dictionary containing 'lat' and 'lon' keys.
                 Example: {"lat": 48.8584, "lon": 2.2945}
-        Raises:
-            requests.RequestException: If API request to location service fails
         """
         import requests
 
@@ -41,19 +39,17 @@ def create_get_current_weather() -> Callable:
         temperature_unit: Literal["celsius", "fahrenheit"],
     ) -> dict[str, Any]:
         """
-        Retrieves the current weather conditions for a given geographical location.
+        Get the current weather conditions for a given latitude and longitude.
 
-        Use when user asks about weather. If no location provided, use `get_current_location` first.
+        Use when a user asks about the weather. If the location is not provided, use `get_current_location` first.
 
         Args:
-            latitude (float): Latitude of the location
-            longitude (float): Longitude of the location
-            temperature_unit (Literal["celsius", "fahrenheit"]): Desired unit for temperature reading
+            latitude (float): The latitude of the location.
+            longitude (float): The longitude of the location.
+            temperature_unit (Literal["celsius", "fahrenheit"]): The desired unit for the temperature reading.
 
         Returns:
-            dict[str, Any]: Dictionary containing detailed weather data including temperature, wind speed, and weather code
-        Raises:
-            requests.RequestException: If API request to weather service fails
+            dict[str, Any]: A dictionary containing detailed weather data, including temperature, wind speed, and a weather code.
         """
         import requests
 

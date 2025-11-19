@@ -141,24 +141,16 @@ def list_files(
     excluded_patterns: Optional[list[str]] = None,
 ) -> dict[str, list[str]]:
     """
-    Lists files and directories within a specified path.
-
-    Essential for exploring project structure and finding files before reading/modifying them.
+    List files and directories in a given path, with options for recursive listing, including hidden files, and excluding patterns.
 
     Args:
-        path (str): Directory path to list. Defaults to current directory.
-        recursive (bool): Whether to list files recursively. Defaults to True.
-        include_hidden (bool): Whether to include hidden files. Defaults to False.
-        excluded_patterns (Optional[list[str]]): Glob patterns to exclude. Uses sensible defaults if None.
+        path (str): The directory path to list. Defaults to the current directory.
+        recursive (bool): If True, lists files recursively. Defaults to True.
+        include_hidden (bool): If True, includes hidden files (dotfiles). Defaults to False.
+        excluded_patterns (Optional[list[str]]): A list of glob patterns to exclude. Uses sensible defaults if None.
 
     Returns:
-        dict[str, list[str]]: Dictionary with 'files' key containing sorted list of relative file paths.
-
-    Examples:
-        - List all files in current directory: `list_files()`
-        - List files in specific directory: `list_files("src/")`
-        - List non-recursively: `list_files(recursive=False)`
-        - Include hidden files: `list_files(include_hidden=True)`
+        A dictionary with a 'files' key containing a sorted list of relative file paths.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -255,30 +247,18 @@ def read_from_file(
     file: FileToRead | list[FileToRead],
 ) -> str | dict[str, Any]:
     """
-    Reads the content of one or more files.
-
-    Essential for inspecting file contents. Returns content with line numbers for use with `replace_in_file`.
+    Read the content of a file or a specific range of lines. Can also read multiple files at once.
 
     Args:
-        file (FileToRead | list[FileToRead]): Single file config or list of file configs.
-            Each FileToRead should have:
-            - path (str): File path to read
-            - start_line (int | None): Starting line number (1-based, inclusive). If None, reads from beginning.
-            - end_line (int | None): Ending line number (1-based, exclusive). If None, reads to end.
+        file (FileToRead | list[FileToRead]): A single file configuration or a list of them.
+            Each `FileToRead` should have:
+            - path (str): The path to the file to read.
+            - start_line (int | None): The 1-based line number to start reading from. Defaults to the beginning.
+            - end_line (int | None): The 1-based line number to stop reading at (exclusive). Defaults to the end.
 
     Returns:
-        str | dict[str, Any]:
-            - Single file: String with content including line numbers
-            - Multiple files: Dictionary mapping file paths to file info including content
-
-    Examples:
-        - Read entire file: `read_from_file({"path": "file.txt"})`
-        - Read specific lines: `read_from_file({"path": "file.txt", "start_line": 10, "end_line": 20})`
-        - Read multiple files: `read_from_file([{"path": "file1.txt"}, {"path": "file2.txt"}])`
-
-    Note:
-        - Line numbers are 1-based
-        - Always use before `replace_in_file` to get exact text blocks
+        If a single file is read, returns its content as a string.
+        If multiple files are read, returns a dictionary mapping each file path to its content and other info.
     """
     # Handle single file input
     if not isinstance(file, list):
@@ -306,9 +286,17 @@ def read_from_file(
             # Select the lines for the result
             selected_lines = lines[start_idx:end_idx]
             content_result = "\n".join(selected_lines)
-            return content_result
+            return {
+                "path": path,
+                "content": content_result,
+                "start_line": start_idx + 1,
+                "end_line": end_idx,
+                "total_lines": total_lines,
+            }
+        except (OSError, IOError) as e:
+            raise OSError(f"Error reading file {path}: {e}")
         except Exception as e:
-            raise RuntimeError(f"Error reading file {path}: {e}")
+            raise RuntimeError(f"Unexpected error reading file {path}: {e}")
 
     # Handle list of files input
     results = {}
@@ -352,30 +340,19 @@ def write_to_file(
     file: FileToWrite | list[FileToWrite],
 ) -> str | dict[str, Any]:
     """
-    Writes content to one or more files, creating them or completely overwriting them.
+    Write content to a file, completely overwriting it if it exists. Creates parent directories if needed.
 
-    **WARNING:** Destructive operation - overwrites existing files. Use `replace_in_file` for safer targeted changes.
+    **WARNING:** This is a destructive operation. For targeted changes, use `replace_in_file`.
 
     Args:
-        file (FileToWrite | list[FileToWrite]): Single file config or list of file configs.
-            Each FileToWrite should have:
-            - path (str): File path to write
-            - content (str): Content to write to the file
+        file (FileToWrite | list[FileToWrite]): A single file configuration or a list of them.
+            Each `FileToWrite` should have:
+            - path (str): The path of the file to write to.
+            - content (str): The content to write.
 
     Returns:
-        str | dict[str, Any]:
-            - Single file: Success message string
-            - Multiple files: Dictionary with 'success' and 'errors' keys
-
-    Examples:
-        - Write single file: `write_to_file({"path": "new_file.txt", "content": "Hello World"})`
-        - Write multiple files: `write_to_file([{"path": "file1.txt", "content": "content1"}, {"path": "file2.txt", "content": "content2"}])`
-
-    Important:
-        - **DESTRUCTIVE:** Completely overwrites existing files
-        - Creates parent directories if needed
-        - Use `replace_in_file` for partial modifications
-        - Always verify file paths before writing
+        If a single file is written, returns a success message.
+        If multiple files are written, returns a dictionary with 'success' and 'errors' keys.
     """
     # Normalize to list
     files = file if isinstance(file, list) else [file]
@@ -413,31 +390,16 @@ def search_files(
     include_hidden: bool = True,
 ) -> dict[str, Any]:
     """
-    Searches for a regular expression (regex) pattern within files in a specified directory.
-
-    Essential for finding specific code, configuration, or text across multiple files.
+    Search for a regular expression (regex) pattern in files within a given directory.
 
     Args:
-        path (str): Directory path to search in
-        regex (str): Regular expression pattern to search for
-        file_pattern (Optional[str]): Glob pattern to filter files (e.g., "*.py", "*.md")
-        include_hidden (bool): Whether to search hidden files. Defaults to True.
+        path (str): The directory path to search in.
+        regex (str): The regular expression pattern to search for.
+        file_pattern (Optional[str]): A glob pattern to filter files (e.g., "*.py", "*.md").
+        include_hidden (bool): If True, searches hidden files. Defaults to True.
 
     Returns:
-        dict[str, Any]: Search results with:
-            - summary (str): Summary of search results
-            - results (list): List of matches per file with context
-
-    Examples:
-        - Search for function: `search_files("src/", r"def my_function")`
-        - Search in Python files: `search_files("src/", r"class.*:", file_pattern="*.py")`
-        - Search with regex: `search_files(".", r"TODO|FIXME")`
-
-    Note:
-        - Returns matches with line numbers and context
-        - Invalid regex patterns raise ValueError
-        - Searches recursively by default
-        - File patterns use glob syntax
+        A dictionary containing a 'summary' of the search and a 'results' list with matches per file.
     """
     try:
         pattern = re.compile(regex)
@@ -526,34 +488,22 @@ def replace_in_file(
     file_replacement: FileReplacement | list[FileReplacement],
 ) -> str | dict[str, Any]:
     """
-    Replaces one or more strings in one or more files.
+    Replace the first occurrence of one or more strings in a file.
 
-    Safer than `write_to_file` for targeted modifications. Always use `read_from_file` first to get exact text blocks.
+    **CRITICAL:** `old_string` must be an exact match of the file content, including whitespace and newlines. Always use `read_from_file` first to get the exact text block.
 
     Args:
-        file_replacement (FileReplacement | list[FileReplacement]): Single or multiple file replacements.
-            Each FileReplacement should have:
-            - path (str): File path to modify
-            - replacements (list[Replacement]): List of replacement operations
-                Each Replacement should have:
-                - old_string (str): Exact string to replace (must exist in file)
-                - new_string (str): New string to replace with
+        file_replacement (FileReplacement | list[FileReplacement]): A single or multiple file replacement configurations.
+            Each `FileReplacement` should have:
+            - path (str): The path of the file to modify.
+            - replacements (list[Replacement]): A list of replacement operations.
+                Each `Replacement` should have:
+                - old_string (str): The exact string to be replaced.
+                - new_string (str): The new string to insert.
 
     Returns:
-        str | dict[str, Any]:
-            - Single file: Success message string
-            - Multiple files: Dictionary with 'success' and 'errors' keys
-
-    Examples:
-        - Single replacement: `replace_in_file({"path": "file.txt", "replacements": [{"old_string": "old text", "new_string": "new text"}]})`
-        - Multiple replacements: `replace_in_file({"path": "file.txt", "replacements": [{"old_string": "text1", "new_string": "text1_new"}, {"old_string": "text2", "new_string": "text2_new"}]})`
-
-    Important:
-        - **CRITICAL:** `old_string` must exactly match content in file (including whitespace)
-        - Always use `read_from_file` first to get exact text blocks
-        - Only replaces first occurrence of each `old_string`
-        - Returns error if `old_string` not found
-        - No changes made if `old_string` equals `new_string`
+        If a single file is modified, returns a success message.
+        If multiple files are modified, returns a dictionary with 'success' and 'errors' keys.
     """
     # Normalize to list
     file_replacements = (
@@ -601,29 +551,18 @@ async def analyze_file(
     ctx: AnyContext, path: str, query: str, token_limit: int | None = None
 ) -> dict[str, Any]:
     """
-    Performs a high level, goal-oriented analysis of a single file using a sub-agent.
+    Perform a high-level, goal-oriented analysis of a single file to answer a specific query.
 
-    Ideal for complex questions about a single file that go beyond simple reading or searching.
+    Uses a sub-agent for complex questions about code structure, documentation quality, or other file-specific analysis.
 
     Args:
-        ctx (AnyContext): Execution context
-        path (str): Path to the file to analyze
-        query (str): Specific analysis query with clear guidelines
-        token_limit (int | None): Maximum tokens for analysis. Uses default if None.
+        ctx (AnyContext): The execution context.
+        path (str): The path to the file to analyze.
+        query (str): A specific analysis query with clear guidelines.
+        token_limit (int | None): The maximum number of tokens for the analysis. Uses a default if None.
 
     Returns:
-        dict[str, Any]: Analysis results from the sub-agent
-
-    Examples:
-        - Analyze code structure: `analyze_file(ctx, "src/main.py", "Analyze the main function structure and identify potential improvements")`
-        - Review documentation: `analyze_file(ctx, "README.md", "Check if the documentation covers all major features and suggest improvements")`
-
-    Important:
-        - **QUERY QUALITY:** Provide clear, specific queries with guidelines
-        - Vague queries result in poor analysis quality
-        - Include analysis goals and expected output format in query
-        - Uses sub-agent with access to `read_from_file` and `search_files` tools
-        - File content is automatically clipped to token limit if needed
+        A dictionary containing the analysis results from the sub-agent.
     """
     if token_limit is None:
         token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_LIMIT

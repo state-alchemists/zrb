@@ -57,35 +57,25 @@ async def analyze_repo(
     summarization_token_threshold: int | None = None,
 ) -> str:
     """
-    Performs a high-level, goal-oriented analysis of a code repository or directory.
+    Analyze a code repository or directory to answer a specific query.
 
-    Recursively reads relevant files, extracts key information, and summarizes in relation to a specific query.
-    Uses intelligent sub-agents for extraction and summarization.
+    This tool recursively reads files, extracts relevant information using a sub-agent, and then summarizes that information to provide a comprehensive answer. It is ideal for understanding large codebases, generating architectural summaries, or creating documentation.
 
-    **CRITICAL:** Provide clear, specific queries. Vague queries result in poor analysis quality.
-
-    Use this tool for:
-    - Understanding large or unfamiliar codebases
-    - Generating high-level summaries of project architecture
-    - Performing high-level code reviews
-    - Creating documentation or diagrams (e.g., "Generate a Mermaid C4 diagram for this service")
+    **CRITICAL:** The quality of your analysis depends entirely on the quality of your query. Vague queries will result in poor results.
 
     Args:
-        path (str): Path to the directory or repository to analyze
-        query (str): Clear and specific description of what you want to achieve
-            - Good: "Understand the database schema by analyzing all the .sql files"
-            - Good: "Create a summary of all the API endpoints defined in the 'api' directory"
-            - Bad: "Analyze the repo"
-            - Bad: "Tell me about the code"
-        extensions (list[str], optional): File extensions to include. Defaults to comprehensive list
-        exclude_patterns (list[str], optional): Glob patterns to exclude. Defaults to common patterns
-        extraction_token_threshold (int, optional): Maximum token threshold for extraction sub-agent
-        summarization_token_threshold (int, optional): Maximum token threshold for summarization sub-agent
+        path (str): The path to the directory or repository to analyze.
+        query (str): A clear and specific question or goal for the analysis.
+            - Good: "Understand the database schema by analyzing all the .sql files."
+            - Good: "Create a summary of all API endpoints defined in the 'api' directory."
+            - Bad: "Analyze the repo."
+        extensions (list[str], optional): File extensions to include. Defaults to a comprehensive list of common code and text file extensions.
+        exclude_patterns (list[str], optional): Glob patterns to exclude from the analysis. Defaults to common temporary and build artifact patterns.
+        extraction_token_threshold (int, optional): The token limit for the extraction sub-agent.
+        summarization_token_threshold (int, optional): The token limit for the summarization sub-agent.
 
     Returns:
-        str: Detailed, markdown-formatted analysis and summary tailored to the specified goal
-    Raises:
-        Exception: If an error occurs during the analysis
+        A detailed, markdown-formatted analysis and summary that directly addresses the query.
     """
     if extraction_token_threshold is None:
         extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD

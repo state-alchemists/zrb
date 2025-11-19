@@ -10,16 +10,15 @@ _DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
 
 async def open_web_page(url: str) -> dict[str, Any]:
     """
-    Fetches, parses, and converts the content of a web page to Markdown.
+    Fetch, parse, and convert the content of a web page to clean, readable Markdown.
 
-    "Reads" web pages by fetching content, stripping non-essential elements, and converting to clean Markdown.
-    Preserves semantic structure (headings, lists) while removing clutter. Extracts all absolute links.
+    It preserves semantic structure while removing non-essential elements like navigation and ads. Also extracts all absolute links from the page.
 
     Args:
-        url (str): Full URL of the web page to open (e.g., "https://example.com/article")
+        url (str): The full URL of the web page to open (e.g., "https://example.com/article").
 
     Returns:
-        dict[str, Any]: Dictionary containing page content in Markdown format and list of absolute links
+        A dictionary containing the page content in Markdown format and a list of absolute links found on the page.
     """
     html_content, links = await _fetch_page_content(url)
     markdown_content = _convert_html_to_markdown(html_content)
@@ -32,16 +31,16 @@ def create_search_internet_tool() -> Callable:
 
     def search_internet(query: str, page: int = 1) -> dict[str, Any]:
         """
-        Performs an internet search and returns a summary of the results.
+        Perform an internet search using a search engine.
 
-        Use to find information on the web, answer general knowledge questions, or research topics.
+        Use this to find information on the web, answer general knowledge questions, or research topics.
 
         Args:
-            query (str): The search query
-            page (int, optional): Search page number, defaults to 1
+            query (str): The search query.
+            page (int, optional): The search result page number. Defaults to 1.
 
         Returns:
-            dict[str, Any]: Formatted string summarizing search results including titles, links, and snippets
+            A dictionary summarizing the search results, including titles, links, and snippets.
         """
         import requests
 

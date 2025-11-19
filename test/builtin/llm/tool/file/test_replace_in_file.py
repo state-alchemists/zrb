@@ -22,10 +22,13 @@ def test_replace_in_file_success(temp_dir):
         f.write("Hello world\nThis is a test\n")
 
     result = replace_in_file(
-        path=file_path, old_string="Hello world", new_string="Hello ZRB"
+        file_replacement={
+            "path": file_path,
+            "replacements": [{"old_string": "Hello world", "new_string": "Hello ZRB"}],
+        }
     )
 
-    assert result == f"Successfully replaced content in {file_path}"
+    assert result == f"Successfully applied replacement(s) to {file_path}"
 
     with open(file_path, "r") as f:
         content = f.read()
@@ -37,15 +40,27 @@ def test_replace_in_file_not_found(temp_dir):
     with open(file_path, "w") as f:
         f.write("Hello world\nThis is a test\n")
 
-    with pytest.raises(ValueError) as excinfo:
-        replace_in_file(path=file_path, old_string="Not found", new_string="Hello ZRB")
-    assert str(excinfo.value) == f"old_string not found in file: {file_path}"
+    with pytest.raises(RuntimeError) as excinfo:
+        replace_in_file(
+            file_replacement={
+                "path": file_path,
+                "replacements": [
+                    {"old_string": "Not found", "new_string": "Hello ZRB"}
+                ],
+            }
+        )
+    assert "old_string not found in file" in str(excinfo.value)
 
 
 def test_replace_in_file_file_not_found(temp_dir):
     file_path = os.path.join(temp_dir, "non_existent_file.txt")
-    with pytest.raises(FileNotFoundError) as excinfo:
+    with pytest.raises(RuntimeError) as excinfo:
         replace_in_file(
-            path=file_path, old_string="Hello world", new_string="Hello ZRB"
+            file_replacement={
+                "path": file_path,
+                "replacements": [
+                    {"old_string": "Hello world", "new_string": "Hello ZRB"}
+                ],
+            }
         )
-    assert str(excinfo.value) == f"File not found: {file_path}"
+    assert "File not found" in str(excinfo.value)
