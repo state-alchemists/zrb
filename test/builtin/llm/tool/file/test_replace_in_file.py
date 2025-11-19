@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import tempfile
@@ -22,7 +21,7 @@ def test_replace_in_file_success(temp_dir):
         f.write("Hello world\nThis is a test\n")
 
     result = replace_in_file(
-        file_replacement={
+        file={
             "path": file_path,
             "replacements": [{"old_string": "Hello world", "new_string": "Hello ZRB"}],
         }
@@ -42,7 +41,7 @@ def test_replace_in_file_not_found(temp_dir):
 
     with pytest.raises(RuntimeError) as excinfo:
         replace_in_file(
-            file_replacement={
+            file={
                 "path": file_path,
                 "replacements": [
                     {"old_string": "Not found", "new_string": "Hello ZRB"}
@@ -56,7 +55,7 @@ def test_replace_in_file_file_not_found(temp_dir):
     file_path = os.path.join(temp_dir, "non_existent_file.txt")
     with pytest.raises(RuntimeError) as excinfo:
         replace_in_file(
-            file_replacement={
+            file={
                 "path": file_path,
                 "replacements": [
                     {"old_string": "Hello world", "new_string": "Hello ZRB"}

@@ -485,7 +485,7 @@ def _get_file_matches(
 
 
 def replace_in_file(
-    file_replacement: FileReplacement | list[FileReplacement],
+    file: FileReplacement | list[FileReplacement],
 ) -> str | dict[str, Any]:
     """
     Replace the first occurrence of one or more strings in a file.
@@ -506,9 +506,7 @@ def replace_in_file(
         If multiple files are modified, returns a dictionary with 'success' and 'errors' keys.
     """
     # Normalize to list
-    file_replacements = (
-        file_replacement if isinstance(file_replacement, list) else [file_replacement]
-    )
+    file_replacements = file if isinstance(file, list) else [file]
     success = []
     errors = {}
     for file_replacement_config in file_replacements:
@@ -537,14 +535,14 @@ def replace_in_file(
         except Exception as e:
             errors[path] = f"Error applying replacement to {path}: {e}"
     # Return appropriate response based on input type
-    if isinstance(file_replacement, list):
+    if isinstance(file, list):
         return {"success": success, "errors": errors}
     else:
         if errors:
             raise RuntimeError(
-                f"Error applying replacement to {file_replacement['path']}: {errors[file_replacement['path']]}"
+                f"Error applying replacement to {file['path']}: {errors[file['path']]}"
             )
-        return f"Successfully applied replacement(s) to {file_replacement['path']}"
+        return f"Successfully applied replacement(s) to {file['path']}"
 
 
 async def analyze_file(
