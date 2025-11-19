@@ -17,11 +17,52 @@ else:
     from typing_extensions import TypedDict
 
 
+class FileToRead(TypedDict):
+    """
+    Configuration for reading a file or file section.
+
+    Attributes:
+        path (str): Absolute or relative path to the file
+        start_line (int | None): Starting line number (1-based, inclusive). If None, reads from beginning.
+        end_line (int | None): Ending line number (1-based, exclusive). If None, reads to end.
+    """
+
+    path: str
+    start_line: int | None
+    end_line: int | None
+
+
 class FileToWrite(TypedDict):
-    """Represents a file to be written, with a 'path' and 'content'."""
+    """
+    Configuration for writing content to a file.
+
+    Attributes:
+        path (str): Absolute or relative path where file will be written
+        content (str): Content to write to the file (overwrites existing content)
+    """
 
     path: str
     content: str
+
+
+class Replacement(TypedDict):
+    """
+    Configuration for a single text replacement operation.
+
+    Attributes:
+        old_string (str): Exact text to find and replace (must match file content exactly)
+        new_string (str): New text to replace with
+    """
+
+    old_string: str
+    new_string: str
+
+
+class FileReplacement(TypedDict):
+    """Represents a file replacement operation with path and one or more replacements."""
+
+    path: str
+    replacements: list[Replacement]
 
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -105,14 +146,19 @@ def list_files(
     Use this tool to explore and understand the directory structure of the project. It's essential for finding files before reading or modifying them. If you receive an error about a file not being found, use this tool to verify the correct path.
 
     Args:
-        path (str, optional): The directory path to list, preferably an absolute path. Defaults to the current directory (".").
-        recursive (bool, optional): If True, lists contents recursively. Defaults to True.
-        include_hidden (bool, optional): If True, includes hidden files (e.g., .gitignore). Defaults to False.
-        excluded_patterns (list[str], optional): A list of glob patterns to ignore (e.g., ["*.log", "node_modules/"]). Defaults to a standard list of ignores.
+        path (str): The directory path to list. Defaults to current directory.
+        recursive (bool): Whether to list files recursively. Defaults to True.
+        include_hidden (bool): Whether to include hidden files (starting with '.'). Defaults to False.
+        excluded_patterns (Optional[list[str]]): List of glob patterns to exclude. Uses sensible defaults if None.
 
     Returns:
-        dict[str, list[str]]: A dictionary with a single key "files" containing a sorted list of file and directory paths relative to the input path.
-        Example: {"files": ["README.md", "src/main.py", "src/utils/helpers.py"]}
+        dict[str, list[str]]: A dictionary with key 'files' containing sorted list of relative file paths.
+
+    Examples:
+        - List all files in current directory: `list_files()`
+        - List files in specific directory: `list_files("src/")`
+        - List non-recursively: `list_files(recursive=False)`
+        - Include hidden files: `list_files(include_hidden=True)`
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -206,124 +252,160 @@ def is_excluded(name: str, patterns: list[str]) -> bool:
 
 
 def read_from_file(
-    path: str | list[str],
-    start_line: Optional[int] = None,
-    end_line: Optional[int] = None,
-) -> dict[str, Any] | dict[str, str]:
+    file: FileToRead | list[FileToRead],
+) -> str | dict[str, Any]:
     """
     Reads the content of one or more files.
 
     Use this tool to inspect the contents of specific files. You can read the entire file(s) or specify a range of lines for single file reading. The content returned will include line numbers, which are useful for other tools like `replace_in_file`.
 
     Args:
-        path (str | list[str]): The absolute path to a single file or a list of file paths to read.
-        start_line (int, optional): The 1-based line number to start reading from (single file only). Defaults to the beginning of the file.
-        end_line (int, optional): The 1-based line number to stop reading at (inclusive, single file only). Defaults to the end of the file.
+        file (FileToRead | list[FileToRead]): Single file config or list of file configs.
+            Each FileToRead should have:
+            - path (str): File path to read
+            - start_line (int | None): Starting line number (1-based, inclusive). If None, reads from beginning.
+            - end_line (int | None): Ending line number (1-based, exclusive). If None, reads to end.
 
     Returns:
-        dict[str, Any] | dict[str, str]:
-            - For single file: A dictionary containing the file path and its content with line numbers.
-            - For multiple files: A dictionary where keys are file paths and values are their corresponding contents (always with line numbers).
+        str | dict[str, Any]:
+            - For single file: String with file content including line numbers
+            - For multiple files: Dictionary mapping file paths to file info including content
 
-        Single file example:
-        {
-            "path": "src/main.py",
-            "content": "1| import os\n2|\n3| print(\"Hello, World!\")",
-            "start_line": 1,
-            "end_line": 3,
-            "total_lines": 3
-        }
+    Examples:
+        - Read entire file: `read_from_file({"path": "file.txt"})`
+        - Read specific lines: `read_from_file({"path": "file.txt", "start_line": 10, "end_line": 20})`
+        - Read multiple files: `read_from_file([{"path": "file1.txt"}, {"path": "file2.txt"}])`
 
-        Multiple files example:
-        {
-            "src/api.py": "1| import os\n2|\n3| print(\"Hello, World!\")",
-            "config.yaml": "1| key: value"
-        }
+    Note:
+        - Line numbers are 1-based (first line is line 1)
+        - Content includes line numbers for easy reference
+        - Use this before `replace_in_file` to get exact text blocks for replacement
     """
+    # Handle single file input
+    if not isinstance(file, list):
+        file_config = file
+        path = file_config["path"]
+        start_line = file_config.get("start_line")
+        end_line = file_config.get("end_line")
+        try:
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            if not os.path.exists(abs_path):
+                raise FileNotFoundError(f"File not found: {path}")
+            content = read_file_with_line_numbers(abs_path)
+            lines = content.splitlines()
+            total_lines = len(lines)
+            # Adjust line indices (convert from 1-based to 0-based)
+            start_idx = (start_line - 1) if start_line is not None else 0
+            end_idx = end_line if end_line is not None else total_lines
+            # Validate indices
+            if start_idx < 0:
+                start_idx = 0
+            if end_idx > total_lines:
+                end_idx = total_lines
+            if start_idx > end_idx:
+                start_idx = end_idx
+            # Select the lines for the result
+            selected_lines = lines[start_idx:end_idx]
+            content_result = "\n".join(selected_lines)
+            return content_result
+        except Exception as e:
+            raise RuntimeError(f"Error reading file {path}: {e}")
 
-    # Handle multiple files
-    if isinstance(path, list):
-        if start_line is not None or end_line is not None:
-            raise ValueError(
-                "start_line and end_line parameters are only supported for single file reading"
-            )
-
-        results = {}
-        for single_path in path:
-            try:
-                abs_path = os.path.abspath(os.path.expanduser(single_path))
-                if not os.path.exists(abs_path):
-                    raise FileNotFoundError(f"File not found: {single_path}")
-                content = read_file_with_line_numbers(abs_path)
-                results[single_path] = content
-            except Exception as e:
-                results[single_path] = f"Error reading file: {e}"
-        return results
-
-    # Handle single file
-    abs_path = os.path.abspath(os.path.expanduser(path))
-    # Check if file exists
-    if not os.path.exists(abs_path):
-        raise FileNotFoundError(f"File not found: {path}")
-    try:
-        content = read_file_with_line_numbers(abs_path)
-        lines = content.splitlines()
-        total_lines = len(lines)
-        # Adjust line indices (convert from 1-based to 0-based)
-        start_idx = (start_line - 1) if start_line is not None else 0
-        end_idx = end_line if end_line is not None else total_lines
-        # Validate indices
-        if start_idx < 0:
-            start_idx = 0
-        if end_idx > total_lines:
-            end_idx = total_lines
-        if start_idx > end_idx:
-            start_idx = end_idx
-        # Select the lines for the result
-        selected_lines = lines[start_idx:end_idx]
-        content_result = "\n".join(selected_lines)
-        return {
-            "path": path,
-            "content": content_result,
-            "start_line": start_idx + 1,  # Convert back to 1-based for output
-            "end_line": end_idx,  # end_idx is already exclusive upper bound
-            "total_lines": total_lines,
-        }
-    except (OSError, IOError) as e:
-        raise OSError(f"Error reading file {path}: {e}")
-    except Exception as e:
-        raise RuntimeError(f"Unexpected error reading file {path}: {e}")
+    # Handle list of files input
+    results = {}
+    for file_config in file:
+        path = file_config["path"]
+        start_line = file_config.get("start_line")
+        end_line = file_config.get("end_line")
+        try:
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            if not os.path.exists(abs_path):
+                raise FileNotFoundError(f"File not found: {path}")
+            content = read_file_with_line_numbers(abs_path)
+            lines = content.splitlines()
+            total_lines = len(lines)
+            # Adjust line indices (convert from 1-based to 0-based)
+            start_idx = (start_line - 1) if start_line is not None else 0
+            end_idx = end_line if end_line is not None else total_lines
+            # Validate indices
+            if start_idx < 0:
+                start_idx = 0
+            if end_idx > total_lines:
+                end_idx = total_lines
+            if start_idx > end_idx:
+                start_idx = end_idx
+            # Select the lines for the result
+            selected_lines = lines[start_idx:end_idx]
+            content_result = "\n".join(selected_lines)
+            results[path] = {
+                "path": path,
+                "content": content_result,
+                "start_line": start_idx + 1,  # Convert back to 1-based for output
+                "end_line": end_idx,  # end_idx is already exclusive upper bound
+                "total_lines": total_lines,
+            }
+        except Exception as e:
+            results[path] = f"Error reading file: {e}"
+    return results
 
 
 def write_to_file(
-    path: str,
-    content: str,
-) -> str:
+    file: FileToWrite | list[FileToWrite],
+) -> str | dict[str, Any]:
     """
-    Writes content to a file, creating it or completely overwriting it.
+    Writes content to one or more files, creating them or completely overwriting them.
 
-    Use this tool to create a new file or replace an existing file's entire content.
-    **WARNING:** This is a destructive operation and will overwrite the file if it exists. Use `replace_in_file` for safer, targeted changes.
+    Use this tool to create new files or replace existing files' entire content.
+    **WARNING:** This is a destructive operation and will overwrite files if they exist. Use `replace_in_file` for safer, targeted changes.
 
     Args:
-        path (str): The absolute path of the file to write to.
-        content (str): The full content to be written to the file.
+        file (FileToWrite | list[FileToWrite]): Single file config or list of file configs.
+            Each FileToWrite should have:
+            - path (str): File path to write
+            - content (str): Content to write to the file
 
     Returns:
-        str: A confirmation message indicating the file was written successfully.
+        str | dict[str, Any]:
+            - For single file: Success message string
+            - For multiple files: Dictionary with 'success' and 'errors' keys
+
+    Examples:
+        - Write single file: `write_to_file({"path": "new_file.txt", "content": "Hello World"})`
+        - Write multiple files: `write_to_file([{"path": "file1.txt", "content": "content1"}, {"path": "file2.txt", "content": "content2"}])`
+
+    Important:
+        - **DESTRUCTIVE OPERATION:** This completely overwrites existing files
+        - Creates parent directories if they don't exist
+        - For partial file modifications, use `replace_in_file` instead
+        - Always verify file paths before writing
     """
-    try:
-        abs_path = os.path.abspath(os.path.expanduser(path))
-        # Ensure directory exists
-        directory = os.path.dirname(abs_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory, exist_ok=True)
-        write_file(abs_path, content)
-        return f"Successfully wrote to file: {path}"
-    except (OSError, IOError) as e:
-        raise OSError(f"Error writing file {path}: {e}")
-    except Exception as e:
-        raise RuntimeError(f"Unexpected error writing file {path}: {e}")
+    # Normalize to list
+    files = file if isinstance(file, list) else [file]
+
+    success = []
+    errors = {}
+    for file_config in files:
+        path = file_config["path"]
+        content = file_config["content"]
+        try:
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            directory = os.path.dirname(abs_path)
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
+            write_file(abs_path, content)
+            success.append(path)
+        except Exception as e:
+            errors[path] = f"Error writing file: {e}"
+
+    # Return appropriate response based on input type
+    if isinstance(file, list):
+        return {"success": success, "errors": errors}
+    else:
+        if errors:
+            raise RuntimeError(
+                f"Error writing file {file['path']}: {errors[file['path']]}"
+            )
+        return f"Successfully wrote to file: {file['path']}"
 
 
 def search_files(
@@ -341,22 +423,26 @@ def search_files(
     assignments, error messages, or any other text pattern.
 
     Args:
-        path (str): The directory path to start the search from.
-        regex (str): The Python-compatible regular expression pattern to search
-            for.
-        file_pattern (str, optional): A glob pattern to filter which files get
-            searched (e.g., "*.py", "*.md"). If omitted, all files are
-            searched.
-        include_hidden (bool, optional): If True, the search will include
-            hidden files and directories. Defaults to True.
+        path (str): Directory path to search in
+        regex (str): Regular expression pattern to search for
+        file_pattern (Optional[str]): Glob pattern to filter files (e.g., "*.py", "*.md")
+        include_hidden (bool): Whether to search hidden files. Defaults to True.
 
     Returns:
-        dict[str, Any]: A dictionary containing a summary of the search and a list of
-            results. Each result includes the file path and a list of matches,
-            with each match showing the line number, line content, and a few
-            lines of context from before and after the match.
-    Raises:
-        ValueError: If the provided `regex` pattern is invalid.
+        dict[str, Any]: Search results with:
+            - summary (str): Summary of search results
+            - results (list): List of matches per file with context
+
+    Examples:
+        - Search for function: `search_files("src/", r"def my_function")`
+        - Search in Python files: `search_files("src/", r"class.*:", file_pattern="*.py")`
+        - Search with regex: `search_files(".", r"TODO|FIXME")`
+
+    Note:
+        - Returns matches with line numbers and surrounding context
+        - Invalid regex patterns will raise ValueError
+        - Searches recursively by default
+        - File patterns use glob syntax (e.g., "*.py", "*.md")
     """
     try:
         pattern = re.compile(regex)
@@ -442,39 +528,78 @@ def _get_file_matches(
 
 
 def replace_in_file(
-    path: str,
-    old_string: str,
-    new_string: str,
-) -> str:
+    file_replacement: FileReplacement | list[FileReplacement],
+) -> str | dict[str, Any]:
     """
-    Replaces the first occurrence of a string in a file.
+    Replaces one or more strings in one or more files.
 
-    This tool is for making targeted modifications to a file. It is safer than `write_to_file` for small changes. First, use `read_from_file` to get the exact text block you want to change. Then, use that block as the `old_string`.
+    This tool is for making targeted modifications to files. It is safer than `write_to_file` for small changes. First, use `read_from_file` to get the exact text block you want to change. Then, use that block as the `old_string`.
 
     Args:
-        path (str): The absolute path of the file to modify.
-        old_string (str): The exact, verbatim string to replace. This should be a unique, multi-line block of text copied from the file.
-        new_string (str): The new string that will replace the `old_string`.
+        file_replacement (FileReplacement | list[FileReplacement]): Single or multiple file replacements.
+            Each FileReplacement should have:
+            - path (str): File path to modify
+            - replacements (list[Replacement]): List of replacement operations
+                Each Replacement should have:
+                - old_string (str): Exact string to replace (must exist in file)
+                - new_string (str): New string to replace with
 
     Returns:
-        str: A confirmation message on success.
+        str | dict[str, Any]:
+            - For single file: Success message string
+            - For multiple files: Dictionary with 'success' and 'errors' keys
+
+    Examples:
+        - Single replacement: `replace_in_file({"path": "file.txt", "replacements": [{"old_string": "old text", "new_string": "new text"}]})`
+        - Multiple replacements: `replace_in_file({"path": "file.txt", "replacements": [{"old_string": "text1", "new_string": "text1_new"}, {"old_string": "text2", "new_string": "text2_new"}]})`
+
+    Important:
+        - **CRITICAL:** `old_string` must exactly match content in file (including whitespace)
+        - Always use `read_from_file` first to get exact text blocks
+        - Only replaces first occurrence of each `old_string`
+        - Returns error if `old_string` not found
+        - No changes made if `old_string` equals `new_string`
     """
-    abs_path = os.path.abspath(os.path.expanduser(path))
-    if not os.path.exists(abs_path):
-        raise FileNotFoundError(f"File not found: {path}")
-    try:
-        content = read_file(abs_path)
-        if old_string not in content:
-            raise ValueError(f"old_string not found in file: {path}")
-        new_content = content.replace(old_string, new_string, 1)
-        write_file(abs_path, new_content)
-        return f"Successfully replaced content in {path}"
-    except ValueError as e:
-        raise e
-    except (OSError, IOError) as e:
-        raise OSError(f"Error applying replacement to {path}: {e}")
-    except Exception as e:
-        raise RuntimeError(f"Unexpected error applying replacement to {path}: {e}")
+    # Normalize to list
+    file_replacements = (
+        file_replacement if isinstance(file_replacement, list) else [file_replacement]
+    )
+    success = []
+    errors = {}
+    for file_replacement_config in file_replacements:
+        path = file_replacement_config["path"]
+        replacements = file_replacement_config["replacements"]
+        try:
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            if not os.path.exists(abs_path):
+                raise FileNotFoundError(f"File not found: {path}")
+            content = read_file(abs_path)
+            original_content = content
+            # Apply all replacements
+            for replacement in replacements:
+                old_string = replacement["old_string"]
+                new_string = replacement["new_string"]
+                if old_string not in content:
+                    raise ValueError(f"old_string not found in file: {path}")
+                # Replace first occurrence only (maintains current behavior)
+                content = content.replace(old_string, new_string, 1)
+            # Only write if content actually changed
+            if content != original_content:
+                write_file(abs_path, content)
+                success.append(path)
+            else:
+                success.append(f"{path} (no changes needed)")
+        except Exception as e:
+            errors[path] = f"Error applying replacement to {path}: {e}"
+    # Return appropriate response based on input type
+    if isinstance(file_replacement, list):
+        return {"success": success, "errors": errors}
+    else:
+        if errors:
+            raise RuntimeError(
+                f"Error applying replacement to {file_replacement['path']}: {errors[file_replacement['path']]}"
+            )
+        return f"Successfully applied replacement(s) to {file_replacement['path']}"
 
 
 async def analyze_file(
@@ -487,37 +612,25 @@ async def analyze_file(
     simple reading or searching. It uses a specialized sub-agent to analyze the
     file's content in relation to a specific query.
 
-    To ensure a focused and effective analysis, it is crucial to provide a
-    clear and specific query + guideline. Vague queries will result in a vague analysis
-    and may cause low quality result.
-
-    The query should also contain all necessary guidelines to perform the analysis.
-
-    Use this tool to:
-    - Summarize the purpose and functionality of a script or configuration file.
-    - Extract the structure of a file (e.g., "List all the function names in
-      this Python file").
-    - Perform a detailed code review of a specific file.
-    - Answer complex questions like, "How is the 'User' class used in this
-      file?".
-
     Args:
-        path (str): The path to the file to be analyzed.
-        query (str): A clear and specific question or instruction about what to
-            analyze in the file.
-            - Good query: "What is the purpose of the 'User' class in this
-              file?"
-            - Good query: "List all the function names in this Python file."
-            - Bad query: "Analyze this file."
-            - Bad query: "Tell me about this code."
-        token_limit (int, optional): The maximum token length of the file
-            content to be passed to the analysis sub-agent.
+        ctx (AnyContext): Execution context
+        path (str): Path to the file to analyze
+        query (str): Specific analysis query with clear guidelines
+        token_limit (int | None): Maximum tokens for analysis. Uses default if None.
 
     Returns:
-        dict[str, Any]: A detailed, markdown-formatted analysis of the file, tailored to
-            the specified query.
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
+        dict[str, Any]: Analysis results from the sub-agent
+
+    Examples:
+        - Analyze code structure: `analyze_file(ctx, "src/main.py", "Analyze the main function structure and identify potential improvements")`
+        - Review documentation: `analyze_file(ctx, "README.md", "Check if the documentation covers all major features and suggest improvements")`
+
+    Important:
+        - **QUERY QUALITY:** Provide clear, specific queries with guidelines
+        - Vague queries result in poor analysis quality
+        - Include analysis goals and expected output format in query
+        - Uses sub-agent with access to `read_from_file` and `search_files` tools
+        - File content is automatically clipped to token limit if needed
     """
     if token_limit is None:
         token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_LIMIT
@@ -527,7 +640,7 @@ async def analyze_file(
     file_content = read_file(abs_path)
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
-        tool_description="analyze file with LLM capability",
+        tool_description="Analyze file content using LLM sub-agent for complex questions about code structure, documentation quality, or file-specific analysis. Use for questions that require understanding beyond simple text reading.",
         system_prompt=CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )
@@ -539,44 +652,3 @@ async def analyze_file(
         }
     )
     return await _analyze_file(ctx, payload)
-
-
-def write_many_files(files: list[FileToWrite]) -> dict[str, Any]:
-    """
-    Writes content to multiple files in a single, atomic operation.
-
-    This tool is for applying widespread changes to a project, such as
-    creating a set of new files from a template, updating multiple
-    configuration files, or performing a large-scale refactoring.
-
-    Each file's content is completely replaced. If a file does not exist, it
-    will be created. If it exists, its current content will be entirely
-    overwritten. Therefore, you must provide the full, intended content for
-    each file.
-
-    Args:
-        files: A list of file objects, where each object is a dictionary
-            containing a 'path' and the complete 'content'.
-
-    Returns:
-        dict[str, Any]: A dictionary summarizing the operation, listing successfully
-            written files and any files that failed, along with corresponding
-            error messages.
-            Example: {"success": ["file1.py", "file2.txt"], "errors": {}}
-    """
-    success = []
-    errors = {}
-    # 4. Access the data using dictionary key-lookup syntax.
-    for file in files:
-        path = file["path"]
-        content = file["content"]
-        try:
-            abs_path = os.path.abspath(os.path.expanduser(path))
-            directory = os.path.dirname(abs_path)
-            if directory and not os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
-            write_file(abs_path, content)
-            success.append(path)
-        except Exception as e:
-            errors[path] = f"Error writing file: {e}"
-    return {"success": success, "errors": errors}

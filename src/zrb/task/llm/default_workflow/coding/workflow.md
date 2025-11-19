@@ -53,7 +53,7 @@ If the session is interactive, ask for user approval first before continue.
 - Execute build processes if applicable
 - Fix any issues found
 
-# Step 6. Finalize
+#### Step 6. Finalize
 
 - Keep all created files (including tests)
 - Await user instruction for next steps

@@ -19,7 +19,6 @@ from zrb.builtin.llm.tool.file import (
     read_from_file,
     replace_in_file,
     search_files,
-    write_many_files,
     write_to_file,
 )
 from zrb.builtin.llm.tool.note import (
@@ -79,7 +78,6 @@ def _get_tool(ctx: AnyContext) -> list["ToolOrCallable"]:
         tools.append(read_from_file)
         tools.append(replace_in_file)
         tools.append(write_to_file)
-        tools.append(write_many_files)
     if CFG.LLM_ALLOW_ACCESS_SHELL:
         tools.append(run_shell_command)
     if CFG.LLM_ALLOW_OPEN_WEB_PAGE:

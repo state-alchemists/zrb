@@ -26,7 +26,7 @@ def test_write_to_file_create_new(temp_dir):
     """Test writing content to a new file."""
     file_path = os.path.join(temp_dir, "new_file.txt")
     content = "Hello World"
-    result = write_to_file(path=file_path, content=content)
+    result = write_to_file(file=file_path, content=content)
 
     assert result == f"Successfully wrote to file: {file_path}"
     assert os.path.exists(file_path)
@@ -41,7 +41,7 @@ def test_write_to_file_overwrite_existing(temp_dir):
 
     new_content = "Overwritten\nContent"
 
-    result = write_to_file(path=file_path, content=new_content)
+    result = write_to_file(file=file_path, content=new_content)
 
     assert result == f"Successfully wrote to file: {file_path}"
     with open(file_path, "r") as f:
@@ -53,7 +53,7 @@ def test_write_to_file_create_subdir(temp_dir):
     file_path = os.path.join(temp_dir, "subdir", "another_file.txt")
     content = "Content in subdir"
 
-    result = write_to_file(path=file_path, content=content)
+    result = write_to_file(file=file_path, content=content)
 
     assert result == f"Successfully wrote to file: {file_path}"
     assert os.path.exists(file_path)
@@ -66,7 +66,7 @@ def test_write_to_file_empty_content(temp_dir):
     file_path = os.path.join(temp_dir, "empty_file.txt")
     content = ""
 
-    result = write_to_file(path=file_path, content=content)
+    result = write_to_file(file=file_path, content=content)
 
     assert result == f"Successfully wrote to file: {file_path}"
     assert os.path.exists(file_path)
@@ -83,7 +83,7 @@ def test_write_to_file_invalid_path(temp_dir):
     content = "This should fail"
 
     with pytest.raises(OSError):
-        write_to_file(path=invalid_path, content=content)
+        write_to_file(file=invalid_path, content=content)
 
 
 def test_write_to_file_generic_exception(temp_dir, monkeypatch):
@@ -98,7 +98,7 @@ def test_write_to_file_generic_exception(temp_dir, monkeypatch):
     content = "Some content"
 
     with pytest.raises(RuntimeError, match="Unexpected error writing file"):
-        write_to_file(path=file_path, content=content)
+        write_to_file(file=file_path, content=content)
 
 
 def test_write_to_file_os_error(temp_dir, monkeypatch):
@@ -113,4 +113,4 @@ def test_write_to_file_os_error(temp_dir, monkeypatch):
     content = "Some content"
 
     with pytest.raises(OSError, match="Error writing file"):
-        write_to_file(path=file_path, content=content)
+        write_to_file(file=file_path, content=content)
