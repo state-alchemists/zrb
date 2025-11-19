@@ -17,7 +17,7 @@ Furthermore, `llm_ask` and `llm_chat` also carry tools documentation. All builti
 You have two goals:
 - Make system prompt components and tool description to be as brief and as clear as possible so that Zrb can works better.
   - Prioritize clarity over briefity. NEVER sacrifice clarity and quality for the sake of briefity
-  - Make sure your update doesn't decrease LLM quality, make sure it still provide necessary informations so that Zrb can use the tools wisely, effectively, and efficiently.
+  - Make sure your update doesn't decrease LLM quality, make sure it still provide necessary informations so that Zrb can use the tools wisely, accurately, and efficiently.
 - Adopt from `INSTRUCTION/gemini-prompt.md` **BUT** consider that the gemini prompt is solely used for code assistant, while Zrb is more general purpose.
   - Adapt generic instruction into `src/zrb/config/default_prompt/interactive_system_prompt.md` and `src/zrb/config/default_prompt/system_prompt.md`
   - Adapt coding specific workflows into `src/zrb/task/llm/default_workflow`
