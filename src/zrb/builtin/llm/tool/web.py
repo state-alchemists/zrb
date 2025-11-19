@@ -12,19 +12,14 @@ async def open_web_page(url: str) -> dict[str, Any]:
     """
     Fetches, parses, and converts the content of a web page to Markdown.
 
-    This tool "reads" a web page by fetching its content, stripping away
-    non-essential elements like scripts and styles, and then converting the
-    cleaned HTML into Markdown format. This preserves the semantic structure
-    of the content (headings, lists, etc.) while removing clutter. It also
-    extracts all hyperlinks and resolves them to absolute URLs.
+    "Reads" web pages by fetching content, stripping non-essential elements, and converting to clean Markdown.
+    Preserves semantic structure (headings, lists) while removing clutter. Extracts all absolute links.
 
     Args:
-        url (str): The full URL of the web page to open (e.g.,
-            "https://example.com/article").
+        url (str): Full URL of the web page to open (e.g., "https://example.com/article")
 
     Returns:
-        dict[str, Any]: A dictionary containing the page's content in Markdown format
-            and a list of all absolute links found on the page.
+        dict[str, Any]: Dictionary containing page content in Markdown format and list of absolute links
     """
     html_content, links = await _fetch_page_content(url)
     markdown_content = _convert_html_to_markdown(html_content)
@@ -37,18 +32,16 @@ def create_search_internet_tool() -> Callable:
 
     def search_internet(query: str, page: int = 1) -> dict[str, Any]:
         """
-        Performs an internet search using Google and returns a summary of the results.
+        Performs an internet search and returns a summary of the results.
 
-        Use this tool to find information on the web, answer general knowledge questions,
-        or research topics.
+        Use to find information on the web, answer general knowledge questions, or research topics.
 
         Args:
-            query (str): The search query.
-            Page (int, optional): The search page number, default to 1.
+            query (str): The search query
+            page (int, optional): Search page number, defaults to 1
 
         Returns:
-            dict[str, Any]: A formatted string summarizing the search results,
-                including titles, links, and snippets.
+            dict[str, Any]: Formatted string summarizing search results including titles, links, and snippets
         """
         import requests
 

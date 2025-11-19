@@ -1,61 +1,118 @@
 ---
 description: "A workflow for managing version control with git."
 ---
-# Git Workflow Guide
+Follow this workflow for safe, consistent, and effective version control operations.
 
-This guide governs all version control operations. Adhere to it for safety and consistency.
+# Core Mandates
 
-## 1. Core Principles & Safety
+- **Safety First:** Never force operations that could lose data
+- **Atomic Commits:** One logical change per commit
+- **Descriptive Messages:** Explain the "why" in imperative mood
+- **Clean History:** Maintain a readable and useful commit history
 
-- **Atomic Commits:** One logical change per commit. Use `git add -p` for precision.
-- **Descriptive Messages:** Explain the "why" in the imperative mood (e.g., "Add feature"). Follow the 50/72 format.
-- **Safety First:**
-  - Always run `git status` before operations.
-  - Use `git push --force-with-lease`, not `--force`.
-  - Ensure the working directory is clean before `git rebase`.
+# Tool Usage Guideline
+- Use `run_shell_command` for all git operations
+- Use `read_from_file` to examine git configuration files
+- Use `search_files` to find specific commit messages or patterns
 
-## 2. Standard Workflow
+# Step 1: Pre-Operation Safety Check
 
-This is the primary development cycle.
+1. **Check Status:** Always run `git status` before operations
+2. **Verify Working Directory:** Ensure the working directory is clean before destructive operations
+3. **Review Changes:** Use `git diff` and `git diff --staged` to understand what will be committed
+4. **Backup Important Changes:** Consider stashing or creating a backup branch for risky operations
 
-1. **Branch:** `git checkout -b <branch-name>`
-2. **Code & Verify:** Make changes, then run all tests, linters, and builds.
-3. **Stage:** `git add <file>` or, for more precision, `git add -p`.
-4. **Commit:** `git commit` with a descriptive message.
-    ```
-    feat: Add user authentication endpoint
+# Step 2: Standard Development Workflow
 
-    Implement the /login endpoint using JWT for token-based auth.
-    This resolves issue #123 by providing a mechanism for users to
-    log in and receive an access token.
-    ```
-5. **Review/Amend:** Use `git log -1` to review. If needed, fix with `git commit --amend`.
-6. **Push:** `git push origin <branch-name>`
+1. **Create Feature Branch:** `git checkout -b <branch-name>`
+2. **Make Changes:** Implement features or fixes
+3. **Stage Changes:** Use `git add -p` for precision staging
+4. **Commit with Description:** Write clear, descriptive commit messages
+5. **Review and Amend:** Use `git log -1` to review, amend if needed
+6. **Push to Remote:** `git push origin <branch-name>`
 
-## 3. Command Reference
+# Step 3: Commit Message Standards
 
-### Status & History
-- `git status`: Check working directory status.
-- `git diff`: See uncommitted changes to tracked files.
-- `git diff --staged`: See staged changes.
-- `git log --oneline --graph -10`: View recent commit history.
-- `git blame <file>`: See who changed what in a file.
+```
+feat: Add user authentication endpoint
 
-### Branching & Merging
-- `git checkout -b <name>`: Create and switch to a new branch.
-- `git switch <name>`: Switch to an existing branch.
-- `git rebase main`: Update the current branch from `main`. **(Use with care)**.
-- `git merge --no-ff <branch>`: Merge a branch without fast-forwarding.
+Implement the /login endpoint using JWT for token-based auth.
+This resolves issue #123 by providing a mechanism for users to
+log in and receive an access token.
+```
 
-### Stashing
-- `git stash push -m "msg"`: Save uncommitted changes temporarily.
-- `git stash list`: List all stashes.
-- `git stash pop`: Apply and remove the last stash.
+- **Type Prefix:** feat, fix, docs, style, refactor, test, chore
+- **Imperative Mood:** "Add feature" not "Added feature"
+- **50/72 Rule:** 50 character subject, 72 character body lines
 
-### Remote Operations
-- `git fetch origin`: Fetch updates from the remote repository.
-- `git push origin <branch>`: Push a branch to the remote.
-- `git push origin --delete <branch>`: Delete a remote branch.
+# Step 4: Branch Management
 
-### Advanced
-- `git cherry-pick <commit-hash>`: Apply a specific commit from another branch. **(Use with caution to avoid duplicate commits)**.
+## Safe Branch Operations
+- **Create:** `git checkout -b <name>` or `git switch -c <name>`
+- **Switch:** `git switch <name>`
+- **Update:** `git rebase main` (use with care)
+- **Merge:** `git merge --no-ff <branch>` for explicit merge commits
+
+## Remote Branch Operations
+- **Fetch Updates:** `git fetch origin`
+- **Push:** `git push origin <branch>`
+- **Delete Remote:** `git push origin --delete <branch>`
+
+# Step 5: Advanced Operations (Use with Caution)
+
+## Rebasing
+- **Update Branch:** `git rebase main`
+- **Interactive:** `git rebase -i <commit>` for history editing
+- **Safety:** Never rebase shared/public branches
+
+## Stashing
+- **Save Changes:** `git stash push -m "message"`
+- **List Stashes:** `git stash list`
+- **Apply:** `git stash pop` or `git stash apply`
+
+## Cherry-picking
+- **Apply Specific Commit:** `git cherry-pick <commit-hash>`
+- **Use Case:** Only when absolutely necessary to avoid duplicate commits
+
+# Step 6: Verification and Cleanup
+
+1. **Verify Operations:** Check `git status` and `git log` after operations
+2. **Run Tests:** Ensure all tests pass after changes
+3. **Clean Up:** Remove temporary branches and stashes when no longer needed
+4. **Document:** Update documentation if workflow changes affect team processes
+
+# Risk Assessment Guidelines
+
+## Low Risk (Proceed Directly)
+- `git status`, `git log`, `git diff`
+- Creating new branches
+- Stashing changes
+
+## Moderate Risk (Explain and Confirm)
+- `git rebase` operations
+- `git push --force-with-lease`
+- Deleting branches
+
+## High Risk (Refuse and Explain)
+- `git push --force` (use --force-with-lease instead)
+- Operations that could lose commit history
+- Modifying shared/public branches
+
+# Common Commands Reference
+
+## Status & History
+- `git status`: Check working directory status
+- `git diff`: See uncommitted changes to tracked files
+- `git diff --staged`: See staged changes
+- `git log --oneline --graph -10`: View recent commit history
+- `git blame <file>`: See who changed what in a file
+
+## Branch Operations
+- `git branch -a`: List all branches (local and remote)
+- `git branch -d <branch>`: Delete a local branch
+- `git remote prune origin`: Clean up remote tracking branches
+
+## Configuration
+- `git config --list`: View current configuration
+- `git config user.name "Your Name"`: Set user name
+- `git config user.email "your.email@example.com"`: Set user email

@@ -141,18 +141,18 @@ def list_files(
     excluded_patterns: Optional[list[str]] = None,
 ) -> dict[str, list[str]]:
     """
-    Lists files and directories within a specified path, providing a map of the filesystem.
+    Lists files and directories within a specified path.
 
-    Use this tool to explore and understand the directory structure of the project. It's essential for finding files before reading or modifying them. If you receive an error about a file not being found, use this tool to verify the correct path.
+    Essential for exploring project structure and finding files before reading/modifying them.
 
     Args:
-        path (str): The directory path to list. Defaults to current directory.
+        path (str): Directory path to list. Defaults to current directory.
         recursive (bool): Whether to list files recursively. Defaults to True.
-        include_hidden (bool): Whether to include hidden files (starting with '.'). Defaults to False.
-        excluded_patterns (Optional[list[str]]): List of glob patterns to exclude. Uses sensible defaults if None.
+        include_hidden (bool): Whether to include hidden files. Defaults to False.
+        excluded_patterns (Optional[list[str]]): Glob patterns to exclude. Uses sensible defaults if None.
 
     Returns:
-        dict[str, list[str]]: A dictionary with key 'files' containing sorted list of relative file paths.
+        dict[str, list[str]]: Dictionary with 'files' key containing sorted list of relative file paths.
 
     Examples:
         - List all files in current directory: `list_files()`
@@ -257,7 +257,7 @@ def read_from_file(
     """
     Reads the content of one or more files.
 
-    Use this tool to inspect the contents of specific files. You can read the entire file(s) or specify a range of lines for single file reading. The content returned will include line numbers, which are useful for other tools like `replace_in_file`.
+    Essential for inspecting file contents. Returns content with line numbers for use with `replace_in_file`.
 
     Args:
         file (FileToRead | list[FileToRead]): Single file config or list of file configs.
@@ -268,8 +268,8 @@ def read_from_file(
 
     Returns:
         str | dict[str, Any]:
-            - For single file: String with file content including line numbers
-            - For multiple files: Dictionary mapping file paths to file info including content
+            - Single file: String with content including line numbers
+            - Multiple files: Dictionary mapping file paths to file info including content
 
     Examples:
         - Read entire file: `read_from_file({"path": "file.txt"})`
@@ -277,9 +277,8 @@ def read_from_file(
         - Read multiple files: `read_from_file([{"path": "file1.txt"}, {"path": "file2.txt"}])`
 
     Note:
-        - Line numbers are 1-based (first line is line 1)
-        - Content includes line numbers for easy reference
-        - Use this before `replace_in_file` to get exact text blocks for replacement
+        - Line numbers are 1-based
+        - Always use before `replace_in_file` to get exact text blocks
     """
     # Handle single file input
     if not isinstance(file, list):
@@ -355,8 +354,7 @@ def write_to_file(
     """
     Writes content to one or more files, creating them or completely overwriting them.
 
-    Use this tool to create new files or replace existing files' entire content.
-    **WARNING:** This is a destructive operation and will overwrite files if they exist. Use `replace_in_file` for safer, targeted changes.
+    **WARNING:** Destructive operation - overwrites existing files. Use `replace_in_file` for safer targeted changes.
 
     Args:
         file (FileToWrite | list[FileToWrite]): Single file config or list of file configs.
@@ -366,17 +364,17 @@ def write_to_file(
 
     Returns:
         str | dict[str, Any]:
-            - For single file: Success message string
-            - For multiple files: Dictionary with 'success' and 'errors' keys
+            - Single file: Success message string
+            - Multiple files: Dictionary with 'success' and 'errors' keys
 
     Examples:
         - Write single file: `write_to_file({"path": "new_file.txt", "content": "Hello World"})`
         - Write multiple files: `write_to_file([{"path": "file1.txt", "content": "content1"}, {"path": "file2.txt", "content": "content2"}])`
 
     Important:
-        - **DESTRUCTIVE OPERATION:** This completely overwrites existing files
-        - Creates parent directories if they don't exist
-        - For partial file modifications, use `replace_in_file` instead
+        - **DESTRUCTIVE:** Completely overwrites existing files
+        - Creates parent directories if needed
+        - Use `replace_in_file` for partial modifications
         - Always verify file paths before writing
     """
     # Normalize to list
@@ -415,12 +413,9 @@ def search_files(
     include_hidden: bool = True,
 ) -> dict[str, Any]:
     """
-    Searches for a regular expression (regex) pattern within files in a
-    specified directory.
+    Searches for a regular expression (regex) pattern within files in a specified directory.
 
-    This tool is invaluable for finding specific code, configuration, or text
-    across multiple files. Use it to locate function definitions, variable
-    assignments, error messages, or any other text pattern.
+    Essential for finding specific code, configuration, or text across multiple files.
 
     Args:
         path (str): Directory path to search in
@@ -439,10 +434,10 @@ def search_files(
         - Search with regex: `search_files(".", r"TODO|FIXME")`
 
     Note:
-        - Returns matches with line numbers and surrounding context
-        - Invalid regex patterns will raise ValueError
+        - Returns matches with line numbers and context
+        - Invalid regex patterns raise ValueError
         - Searches recursively by default
-        - File patterns use glob syntax (e.g., "*.py", "*.md")
+        - File patterns use glob syntax
     """
     try:
         pattern = re.compile(regex)
@@ -533,7 +528,7 @@ def replace_in_file(
     """
     Replaces one or more strings in one or more files.
 
-    This tool is for making targeted modifications to files. It is safer than `write_to_file` for small changes. First, use `read_from_file` to get the exact text block you want to change. Then, use that block as the `old_string`.
+    Safer than `write_to_file` for targeted modifications. Always use `read_from_file` first to get exact text blocks.
 
     Args:
         file_replacement (FileReplacement | list[FileReplacement]): Single or multiple file replacements.
@@ -546,8 +541,8 @@ def replace_in_file(
 
     Returns:
         str | dict[str, Any]:
-            - For single file: Success message string
-            - For multiple files: Dictionary with 'success' and 'errors' keys
+            - Single file: Success message string
+            - Multiple files: Dictionary with 'success' and 'errors' keys
 
     Examples:
         - Single replacement: `replace_in_file({"path": "file.txt", "replacements": [{"old_string": "old text", "new_string": "new text"}]})`
@@ -608,9 +603,7 @@ async def analyze_file(
     """
     Performs a high level, goal-oriented analysis of a single file using a sub-agent.
 
-    This tool is ideal for complex questions about a single file that go beyond
-    simple reading or searching. It uses a specialized sub-agent to analyze the
-    file's content in relation to a specific query.
+    Ideal for complex questions about a single file that go beyond simple reading or searching.
 
     Args:
         ctx (AnyContext): Execution context

@@ -4,27 +4,19 @@ from typing import Any
 
 def run_shell_command(command: str) -> dict[str, Any]:
     """
-    Executes a non interactive shell command on the user's local machine and returns
-    the output.
+    Executes a non interactive shell command on the user's local machine and returns the output.
 
-    This tool is powerful and should be used for tasks that require interacting
-    with the command line, such as running scripts, managing system processes,
-    or using command-line tools.
+    Powerful tool for interacting with command line, running scripts, managing processes, or using CLI tools.
 
-    **Security Warning:** This tool executes commands with the same permissions
-    as the user running the assistant. Before executing any command that could
-    modify files or system state (e.g., `git`, `npm`, `pip`, `docker`), you
-    MUST explain what the command does and ask the user for confirmation.
+    **Security Warning:** Executes commands with user permissions. Before executing commands that modify files or system state (e.g., `git`, `npm`, `pip`, `docker`), you MUST explain what the command does and ask for confirmation.
 
-    **Note:** Make sure to run any server or long running process, as background process.
-    (e.g., python -m http.server &)
+    **Note:** Run servers or long running processes as background processes (e.g., `python -m http.server &`).
 
     Args:
         command (str): The exact shell command to execute.
 
     Returns:
-        dict[str, Any]: A dictionary containing return code, standard output (stdout),
-            and standard error (stderr) from the command.
+        dict[str, Any]: Dictionary containing return code, stdout, and stderr.
             Example: {"return_code": 0, "stdout": "ok", "stderr": ""}
     """
     result = subprocess.run(

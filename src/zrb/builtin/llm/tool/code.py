@@ -59,53 +59,33 @@ async def analyze_repo(
     """
     Performs a high-level, goal-oriented analysis of a code repository or directory.
 
-    This tool recursively reads all relevant files in a directory, extracts
-    key information, and then summarizes that information in relation to a specific
-    query. It uses intelligent sub-agents for extraction and summarization, making it
-    ideal for complex tasks that require a holistic understanding of a codebase.
+    Recursively reads relevant files, extracts key information, and summarizes in relation to a specific query.
+    Uses intelligent sub-agents for extraction and summarization.
 
-    To ensure a focused and effective analysis, it is crucial to provide a
-    clear and specific query. Vague queries will result in a vague analysis and
-    may cause low quality result.
-
-    The query should also contain all necessary guidelines to perform the analysis.
-
-    Make sure to skim the repository or directory first (e.g., by list the file
-    names or read the README/docs file) so that you can put effective parameters.
+    **CRITICAL:** Provide clear, specific queries. Vague queries result in poor analysis quality.
 
     Use this tool for:
-    - Understanding a large or unfamiliar codebase.
-    - Generating high-level summaries of a project's architecture.
-    - Performing a high-level code review.
-    - Creating documentation or diagrams (e.g., "Generate a Mermaid C4 diagram
-      for this service").
+    - Understanding large or unfamiliar codebases
+    - Generating high-level summaries of project architecture
+    - Performing high-level code reviews
+    - Creating documentation or diagrams (e.g., "Generate a Mermaid C4 diagram for this service")
 
     Args:
-        path (str): The path to the directory or repository to analyze.
-        query (str): A clear and specific description of what you want to
-            achieve. A good query is critical for getting a useful result.
-            - Good query: "Understand the database schema by analyzing all the
-              .sql files"
-            - Good query: "Create a summary of all the API endpoints defined in
-              the 'api' directory"
-            - Bad query: "Analyze the repo"
-            - Bad query: "Tell me about the code"
-        extensions (list[str], optional): A list of file extensions to include
-            in the analysis. Defaults to a comprehensive list of common code
-            and configuration files.
-        exclude_patterns (list[str], optional): A list of glob patterns for
-            files and directories to exclude from the analysis. Defaults to
-            common patterns like '.git', 'node_modules', and '.venv'.
-        extraction_token_threshold (int, optional): The maximum token
-            threshold for the extraction sub-agent.
-        summarization_token_threshold (int, optional): The maximum token
-            threshold for the summarization sub-agent.
+        path (str): Path to the directory or repository to analyze
+        query (str): Clear and specific description of what you want to achieve
+            - Good: "Understand the database schema by analyzing all the .sql files"
+            - Good: "Create a summary of all the API endpoints defined in the 'api' directory"
+            - Bad: "Analyze the repo"
+            - Bad: "Tell me about the code"
+        extensions (list[str], optional): File extensions to include. Defaults to comprehensive list
+        exclude_patterns (list[str], optional): Glob patterns to exclude. Defaults to common patterns
+        extraction_token_threshold (int, optional): Maximum token threshold for extraction sub-agent
+        summarization_token_threshold (int, optional): Maximum token threshold for summarization sub-agent
 
     Returns:
-        str: A detailed, markdown-formatted analysis and summary of the
-            repository, tailored to the specified goal.
+        str: Detailed, markdown-formatted analysis and summary tailored to the specified goal
     Raises:
-        Exception: If an error occurs during the analysis.
+        Exception: If an error occurs during the analysis
     """
     if extraction_token_threshold is None:
         extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD

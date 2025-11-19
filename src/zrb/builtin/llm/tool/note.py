@@ -19,10 +19,10 @@ def write_long_term_note(content: str) -> str:
     """
     Writes or overwrites the global long-term note for the user.
 
-    Use this to remember key user preferences, goals, or facts that should apply to all future conversations (e.g., "The user prefers TypeScript," "The user's favorite color is read"). This note is persistent across all projects.
+    Use to remember key user preferences, goals, or facts that apply to all future conversations (e.g., "The user prefers TypeScript," "The user's favorite color is read"). Persistent across all projects.
 
     Args:
-        content: The information to save. This will overwrite the entire note.
+        content: Information to save. Overwrites the entire note.
 
     Returns:
         A confirmation message.
@@ -54,11 +54,11 @@ def write_contextual_note(content: str, path: str | None = None) -> str:
     """
     Writes or overwrites a note for a specific file or directory.
 
-    Use this to save your findings, summaries, or conclusions about a specific part of the project. This note will be available in the future when you are working within that same context.
+    Use to save findings, summaries, or conclusions about specific parts of the project. Available in future when working within same context.
 
     Args:
-        content: The information to save about the path. This overwrites any existing note for this path.
-        path (str, optional): The absolute file or directory path to associate the note with. Defaults to the current working directory.
+        content: Information to save about the path. Overwrites any existing note for this path.
+        path (str, optional): Absolute file or directory path to associate the note with. Defaults to current working directory.
 
     Returns:
         A confirmation message.

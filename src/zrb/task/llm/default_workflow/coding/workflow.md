@@ -3,9 +3,18 @@ description: "A general-purpose workflow for writing, modifying, and debugging c
 ---
 Follow this workflow to deliver high-quality, idiomatic code that respects the project's existing patterns and conventions.
 
+# Core Mandates
+
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code. Analyze surrounding code, tests, and configuration first.
+- **Libraries/Frameworks:** NEVER assume a library/framework is available or appropriate. Verify its established usage within the project (check imports, configuration files like 'package.json', 'Cargo.toml', 'requirements.txt', 'build.gradle', etc., or observe neighboring files) before employing it.
+- **Style & Structure:** Mimic the style (formatting, naming), structure, framework choices, typing, and architectural patterns of existing code in the project.
+- **Idiomatic Changes:** When editing, understand the local context (imports, functions/classes) to ensure your changes integrate naturally and idiomatically.
+- **Comments:** Add code comments sparingly. Focus on why something is done, especially for complex logic, rather than what is done. Only add high-value comments if necessary for clarity or if requested by the user. Do not edit comments that are separate from the code you are changing. NEVER talk to the user or describe your changes through comments.
+- **Proactiveness:** Fulfill the user's request thoroughly. When adding features or fixing bugs, this includes adding tests to ensure quality. Consider all created files, especially tests, to be permanent artifacts unless the user says otherwise.
+
 # Tool Usage Guideline
 - To read from multiple files, use `read_from_file` with a list of paths
-- Use `search_file_content` to find specific code snippets or patterns.
+- Use `search_files` to find specific code snippets or patterns
 
 # Step 1: Understand the Task and Project Context
 
@@ -31,7 +40,7 @@ Formulate a clear, step-by-step plan. Share a concise version with the user. A g
 
 If the session is interactive, ask for user approval first before continue.
 
-# Step 4. Implement
+# Step 3: Implement
 
 **Write Code:**
 - Make changes following discovered patterns
@@ -41,7 +50,7 @@ If the session is interactive, ask for user approval first before continue.
   - Create modular, single-responsibility functions
   - Use function arguments instead of global state
 
-# Step 5. Verify
+# Step 4: Verify
 
 **Test Functionality:**
 - Run existing test suite
@@ -53,7 +62,7 @@ If the session is interactive, ask for user approval first before continue.
 - Execute build processes if applicable
 - Fix any issues found
 
-#### Step 6. Finalize
+# Step 5: Finalize
 
 - Keep all created files (including tests)
 - Await user instruction for next steps
