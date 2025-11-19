@@ -222,10 +222,10 @@ def _construct_system_prompt(
         [
             persona,
             base_system_prompt,
-            make_markdown_section("📝 Special Instruction", special_instruction_prompt),
-            make_markdown_section("🛠️ Workflows", workflow_prompt),
+            make_markdown_section("📝 SPECIAL INSTRUCTION", special_instruction_prompt),
+            make_markdown_section("🛠️ WORKFLOWS", workflow_prompt),
             make_markdown_section(
-                "📚 Context",
+                "📚 CONTEXT",
                 "\n".join(
                     [
                         make_markdown_section(
@@ -262,7 +262,7 @@ def _construct_system_prompt(
                 ),
             ),
             make_markdown_section(
-                "💬 Conversation", conversation_history.past_conversation_transcript
+                "💬 CONVERSATION", conversation_history.past_conversation_transcript
             ),
         ]
     )
