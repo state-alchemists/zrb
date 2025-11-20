@@ -7,8 +7,6 @@ import typing
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-import yaml
-
 from zrb.config.config import CFG
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
@@ -25,6 +23,7 @@ from zrb.util.cli.style import (
 from zrb.util.cli.text import edit_text
 from zrb.util.run import run_async
 from zrb.util.string.conversion import to_boolean
+from zrb.util.yaml import edit_obj, yaml_dump
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -203,143 +202,17 @@ async def _handle_user_response(
 
 
 def _get_edited_kwargs(
-    cx: AnyContext, user_response: str, kwargs: dict[str, Any]
+    ctx: AnyContext, user_response: str, kwargs: dict[str, Any]
 ) -> tuple[dict[str, Any], bool]:
     user_edit_responses = [val for val in user_response.split(" ", maxsplit=2)]
     if len(user_edit_responses) >= 1 and user_edit_responses[0].lower() != "edit":
         return kwargs, False
+    # TODO: Fix this
     while len(user_edit_responses) < 3:
         user_edit_responses.append("")
     key, val_str = user_edit_responses[1:]
-
-    # Handle nested parameter editing with dot notation and array indexing
-    if "." in key or "[" in key:
-        try:
-            _set_nested_value(kwargs, key, val_str)
-            return kwargs, True
-        except (KeyError, IndexError, ValueError) as e:
-            cx.print(stylize_error(f"Invalid parameter key: {key}. {e}"))
-            return kwargs, True
-
-    if key not in kwargs:
-        cx.print(stylize_error(f"Invalid parameter key: {key}"))
-        return kwargs, True
-
-    is_str_param = isinstance(kwargs[key], str)
-    if val_str.strip() == "":
-        val_str = edit_text(
-            prompt_message=f"// {key}",
-            value=_get_val_str(kwargs[key]),
-            editor=CFG.DEFAULT_EDITOR,
-        )
-
-    # Use YAML parsing instead of JSON for better readability
-    kwargs[key] = val_str if is_str_param else _parse_yaml_or_json(val_str)
+    kwargs = edit_obj(kwargs, key, val_str)
     return kwargs, True
-
-
-def _set_nested_value(data: dict[str, Any], path: str, value_str: str) -> None:
-    """
-    Set a nested value in a dictionary using dot notation and array indexing.
-    Examples:
-    - file.name -> data['file']['name']
-    - files[0].name -> data['files'][0]['name']
-    - config.database.host -> data['config']['database']['host']
-    """
-    parts = []
-    current_part = ""
-
-    # Parse the path into parts (handling array indices)
-    i = 0
-    while i < len(path):
-        char = path[i]
-        if char == ".":
-            if current_part:
-                parts.append(current_part)
-                current_part = ""
-        elif char == "[":
-            if current_part:
-                parts.append(current_part)
-                current_part = ""
-            # Find the closing bracket
-            j = path.find("]", i)
-            if j == -1:
-                raise ValueError(f"Unclosed bracket in path: {path}")
-            index_str = path[i + 1 : j]
-            try:
-                index = int(index_str)
-                parts.append(index)
-            except ValueError:
-                raise ValueError(f"Invalid array index: {index_str}")
-            i = j  # Skip to closing bracket
-        else:
-            current_part += char
-        i += 1
-
-    if current_part:
-        parts.append(current_part)
-
-    # Navigate to the parent object
-    current = data
-    for part in parts[:-1]:
-        if isinstance(part, int):
-            # Array index
-            if not isinstance(current, (list, tuple)) or part >= len(current):
-                raise IndexError(f"Array index {part} out of bounds")
-            current = current[part]
-        else:
-            # Dictionary key
-            if not isinstance(current, dict) or part not in current:
-                raise KeyError(f"Key '{part}' not found")
-            current = current[part]
-
-    last_part = parts[-1]
-
-    # Get current value
-    if isinstance(last_part, int):
-        if not isinstance(current, (list, tuple)) or last_part >= len(current):
-            raise IndexError(f"Array index {last_part} out of bounds")
-        current_value = current[last_part]
-    else:
-        if not isinstance(current, dict) or last_part not in current:
-            raise KeyError(f"Key '{last_part}' not found")
-        current_value = current[last_part]
-
-    is_str_param = isinstance(current_value, str)
-    if value_str.strip() == "":
-        value_str = edit_text(
-            prompt_message=f"// Editing {path}",
-            value=_get_val_str(current_value),
-            editor=CFG.DEFAULT_EDITOR,
-        )
-
-    new_value = value_str if is_str_param else _parse_yaml_or_json(value_str)
-
-    # Set the value on the parent object
-    if isinstance(last_part, int):
-        current[last_part] = new_value
-    else:
-        current[last_part] = new_value
-
-
-def _parse_yaml_or_json(value_str: str) -> Any:
-    """
-    Parse a string value as YAML first, falling back to JSON if YAML parsing fails.
-    This provides better readability for complex structures.
-    """
-    if not value_str.strip():
-        return None
-
-    # Try YAML parsing first (more human-readable)
-    try:
-        return yaml.safe_load(value_str)
-    except yaml.YAMLError:
-        # Fall back to JSON parsing
-        try:
-            return json.loads(value_str)
-        except json.JSONDecodeError:
-            # If both fail, return as string
-            return value_str
 
 
 def _get_user_approval_and_reason(
@@ -376,79 +249,10 @@ def _get_run_func_confirmation(func: Callable) -> str:
 def _get_detail_func_param(args: list[Any] | tuple[Any], kwargs: dict[str, Any]) -> str:
     if not kwargs:
         return ""
-    # Convert the entire kwargs dictionary to a YAML string
-    try:
-        # Use the existing dumper that handles multiline strings nicely
-        yaml_str = _dump_yaml_with_block_styles(kwargs)
-    except Exception:
-        # Fallback if the custom dumper fails
-        yaml_str = yaml.dump(kwargs, allow_unicode=True, indent=2)
+    yaml_str = yaml_dump(kwargs)
     # Create the final markdown string
     markdown = f"```yaml\n{yaml_str}\n```"
     return render_markdown(markdown)
-
-
-def _get_val_str(val: Any) -> str:
-    if val is None:
-        return ""
-    if isinstance(val, bool):
-        return "true" if val else "false"
-    if isinstance(val, (int, float)):
-        return str(val)
-    if isinstance(val, str):
-        # For multiline strings, use YAML block style for better readability
-        # Only use block style for meaningful multiline content
-        if "\n" in val and len(val.strip()) > 0:
-            lines = val.split("\n")
-            non_empty_lines = [line for line in lines if line.strip()]
-            if len(non_empty_lines) >= 2:
-                try:
-                    return yaml.dump(
-                        val, default_style="|", indent=2, allow_unicode=True
-                    ).strip()
-                except Exception:
-                    return val
-        return val
-    try:
-        # Use custom YAML dumper that handles multiline strings in complex objects
-        return _dump_yaml_with_block_styles(val)
-    except Exception:
-        try:
-            return json.dumps(val, indent=4)
-        except Exception:
-            return f"{val}"
-
-
-def _dump_yaml_with_block_styles(data: Any) -> str:
-    """
-    Dump YAML with proper block styles for multiline strings.
-    This handles multiline strings within complex objects.
-    """
-    import yaml
-
-    class BlockStyleDumper(yaml.SafeDumper):
-        def represent_str(self, data):
-            # Use block style only for strings that have meaningful multiline content
-            # Avoid block style for edge cases like strings with only newlines
-            if "\n" in data and len(data.strip()) > 0:
-                lines = data.split("\n")
-                # Only use block style if there are at least 2 non-empty lines
-                non_empty_lines = [line for line in lines if line.strip()]
-                if len(non_empty_lines) >= 2:
-                    return self.represent_scalar(
-                        "tag:yaml.org,2002:str", data, style="|"
-                    )
-            return self.represent_scalar("tag:yaml.org,2002:str", data)
-
-    BlockStyleDumper.add_representer(str, BlockStyleDumper.represent_str)
-
-    return yaml.dump(
-        data,
-        Dumper=BlockStyleDumper,
-        default_flow_style=False,
-        indent=2,
-        allow_unicode=True,
-    ).strip()
 
 
 def _get_func_call_str(
