@@ -69,9 +69,8 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
         if isinstance(obj, dict) and isinstance(parsed_value, dict):
             # Patch/merge the dict values
             return {**obj, **parsed_value}
-        else:
-            # Replace entire object with parsed value
-            return parsed_value
+        # Replace entire object with parsed value
+        return parsed_value
 
     # Split the key by dots
     key_parts = _parse_key(key)

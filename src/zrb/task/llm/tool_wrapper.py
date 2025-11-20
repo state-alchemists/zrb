@@ -123,8 +123,8 @@ def _create_wrapper(
                 if (
                     isinstance(yolo_mode, list) and func.__name__ not in yolo_mode
                 ) or not yolo_mode:
-                    approval, reason, has_ever_edited = await _handle_user_response(
-                        ctx, func, args, kwargs
+                    approval, reason, kwargs, has_ever_edited = (
+                        await _handle_user_response(ctx, func, args, kwargs)
                     )
                     if not approval:
                         raise ToolExecutionCancelled(
@@ -172,7 +172,7 @@ async def _handle_user_response(
     func: Callable,
     args: list[Any] | tuple[Any],
     kwargs: dict[str, Any],
-) -> tuple[bool, str, bool]:
+) -> tuple[bool, str, dict[str, Any], bool]:
     has_ever_edited = False
     while True:
         func_call_str = _get_func_call_str(func, args, kwargs)
@@ -197,7 +197,7 @@ async def _handle_user_response(
         if approval_and_reason is None:
             continue
         approval, reason = approval_and_reason
-        return approval, reason, has_ever_edited
+        return approval, reason, kwargs, has_ever_edited
 
 
 def _get_edited_kwargs(
@@ -222,9 +222,6 @@ def _get_edited_kwargs(
             editor=CFG.DEFAULT_EDITOR,
             extension=".yaml",
         )
-    print(f"OLD {old_val_str}")
-    print(f"NEW {val_str}")
-    print(f"EQUAL {val_str == old_val_str}")
     if old_val_str == val_str:
         return kwargs, True
     edited_kwargs = edit_obj(kwargs, key, val_str)
