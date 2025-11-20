@@ -1,6 +1,5 @@
 import functools
 import inspect
-import json
 import signal
 import traceback
 import typing
@@ -23,6 +22,7 @@ from zrb.util.cli.style import (
 from zrb.util.cli.text import edit_text
 from zrb.util.run import run_async
 from zrb.util.string.conversion import to_boolean
+from zrb.util.yaml import edit_obj, yaml_dump
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -201,7 +201,7 @@ async def _handle_user_response(
 
 
 def _get_edited_kwargs(
-    cx: AnyContext, user_response: str, kwargs: dict[str, Any]
+    ctx: AnyContext, user_response: str, kwargs: dict[str, Any]
 ) -> tuple[dict[str, Any], bool]:
     user_edit_responses = [val for val in user_response.split(" ", maxsplit=2)]
     if len(user_edit_responses) >= 1 and user_edit_responses[0].lower() != "edit":
@@ -209,17 +209,26 @@ def _get_edited_kwargs(
     while len(user_edit_responses) < 3:
         user_edit_responses.append("")
     key, val_str = user_edit_responses[1:]
-    if key not in kwargs:
-        return kwargs, True
-    is_str_param = isinstance(kwargs[key], str)
+    # Make sure first segment of the key is in kwargs
+    if key != "":
+        key_parts = key.split(".")
+        if len(key_parts) > 0 and key_parts[0] not in kwargs:
+            return kwargs, True
+    old_val_str = yaml_dump(kwargs, key)
     if val_str == "":
         val_str = edit_text(
-            prompt_message=f"// {key}",
-            value=_get_val_str(kwargs[key]),
+            prompt_message=f"# {key}",
+            value=old_val_str,
             editor=CFG.DEFAULT_EDITOR,
+            extension=".yaml",
         )
-    kwargs[key] = val_str if is_str_param else json.loads(val_str)
-    return kwargs, True
+    print(f"OLD {old_val_str}")
+    print(f"NEW {val_str}")
+    print(f"EQUAL {val_str == old_val_str}")
+    if old_val_str == val_str:
+        return kwargs, True
+    edited_kwargs = edit_obj(kwargs, key, val_str)
+    return edited_kwargs, True
 
 
 def _get_user_approval_and_reason(
@@ -254,31 +263,12 @@ def _get_run_func_confirmation(func: Callable) -> str:
 
 
 def _get_detail_func_param(args: list[Any] | tuple[Any], kwargs: dict[str, Any]) -> str:
-    markdown = "\n".join(
-        [_get_func_param_item(key, val) for key, val in kwargs.items()]
-    )
+    if not kwargs:
+        return ""
+    yaml_str = yaml_dump(kwargs)
+    # Create the final markdown string
+    markdown = f"```yaml\n{yaml_str}\n```"
     return render_markdown(markdown)
-
-
-def _get_func_param_item(key: str, val: Any) -> str:
-    val_str = _get_val_str(val)
-    val_parts = val_str.split("\n")
-    if len(val_parts) == 1:
-        return f"- {key} `{val}`"
-    lines = [f"- {key}", "  ```"]
-    for val_part in val_parts:
-        lines.append(f"  {val_part}")
-    lines.append("  ```")
-    return "\n".join(lines)
-
-
-def _get_val_str(val: Any) -> str:
-    if isinstance(val, str):
-        return val
-    try:
-        return json.dumps(val, indent=4)
-    except Exception:
-        return f"{val}"
 
 
 def _get_func_call_str(

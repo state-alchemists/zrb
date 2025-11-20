@@ -9,12 +9,7 @@ def load_workflow(workflow_name: str | list[str]) -> str:
     """
     Loads and formats one or more workflow documents for LLM consumption.
 
-    Retrieves a workflow (SOP/documentation) by name from available workflows,
-    formats it with descriptive headers, and returns it as a string ready
-    for LLM context injection. The workflow content is formatted with:
-    - A title header using the workflow name
-    - The workflow file location
-    - The actual workflow content
+    Retrieves workflows by name, formats with descriptive headers for LLM context injection.
 
     Args:
         workflow_name: Name or list of names of the workflow(s) to load

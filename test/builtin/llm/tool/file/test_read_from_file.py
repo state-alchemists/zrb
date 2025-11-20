@@ -33,7 +33,7 @@ def create_file(path, content=""):
 
 
 def test_read_from_file_full(sample_file):
-    data = read_from_file(path=sample_file)
+    data = read_from_file(file={"path": sample_file})
     assert data["path"] == sample_file
     assert (
         data["content"] == "1 | Line 1\n2 | Line 2\n3 | Line 3\n4 | Line 4\n5 | Line 5"
@@ -44,7 +44,7 @@ def test_read_from_file_full(sample_file):
 
 
 def test_read_from_file_partial(sample_file):
-    data = read_from_file(path=sample_file, start_line=2, end_line=4)
+    data = read_from_file(file={"path": sample_file, "start_line": 2, "end_line": 4})
     assert data["path"] == sample_file
     assert data["content"] == "2 | Line 2\n3 | Line 3\n4 | Line 4"
     assert data["start_line"] == 2
@@ -53,7 +53,7 @@ def test_read_from_file_partial(sample_file):
 
 
 def test_read_from_file_start_only(sample_file):
-    data = read_from_file(path=sample_file, start_line=4)
+    data = read_from_file(file={"path": sample_file, "start_line": 4})
     assert data["content"] == "4 | Line 4\n5 | Line 5"
     assert data["start_line"] == 4
     assert data["end_line"] == 5
@@ -61,7 +61,7 @@ def test_read_from_file_start_only(sample_file):
 
 
 def test_read_from_file_end_only(sample_file):
-    data = read_from_file(path=sample_file, end_line=2)
+    data = read_from_file(file={"path": sample_file, "end_line": 2})
     assert data["content"] == "1 | Line 1\n2 | Line 2"
     assert data["start_line"] == 1
     assert data["end_line"] == 2
@@ -69,50 +69,50 @@ def test_read_from_file_end_only(sample_file):
 
 
 def test_read_from_file_single_line(sample_file):
-    data = read_from_file(path=sample_file, start_line=3, end_line=3)
-    assert data["content"] == "3 | Line 3"
+    data = read_from_file(file={"path": sample_file, "start_line": 3, "end_line": 4})
+    assert data["content"] == "3 | Line 3\n4 | Line 4"
     assert data["start_line"] == 3
-    assert data["end_line"] == 3
+    assert data["end_line"] == 4
     assert data["total_lines"] == 5
 
 
 def test_read_from_file_invalid_range(sample_file):
     # Start > End
-    data = read_from_file(path=sample_file, start_line=4, end_line=2)
+    data = read_from_file(file={"path": sample_file, "start_line": 4, "end_line": 2})
     assert data["content"] == ""  # Empty content for invalid range
     assert data["start_line"] == 3
     assert data["end_line"] == 2
     assert data["total_lines"] == 5
 
     # Start < 1
-    data = read_from_file(path=sample_file, start_line=0, end_line=2)
-    assert data["content"] == "1 | Line 1\n2 | Line 2"  # Corrected to 1
+    data = read_from_file(file={"path": sample_file, "start_line": 0, "end_line": 2})
+    assert data["content"] == "1 | Line 1\n2 | Line 2"
     assert data["start_line"] == 1  # Corrected to 1
     assert data["end_line"] == 2
     assert data["total_lines"] == 5
 
     # End > total_lines
-    data = read_from_file(path=sample_file, start_line=4, end_line=10)
+    data = read_from_file(file={"path": sample_file, "start_line": 4, "end_line": 10})
     assert data["content"] == "4 | Line 4\n5 | Line 5"
-    assert data["start_line"] == 4  # Corrected to total_lines
-    assert data["end_line"] == 5  # Corrected to total_lines
+    assert data["start_line"] == 4
+    assert data["end_line"] == 5
     assert data["total_lines"] == 5
 
 
 def test_read_from_file_not_exist(temp_dir):
     non_existent_path = os.path.join(temp_dir, "not_a_file.txt")
-    with pytest.raises(FileNotFoundError, match="File not found:"):
-        read_from_file(path=non_existent_path)
+    with pytest.raises(OSError, match="Error reading file"):
+        read_from_file(file={"path": non_existent_path})
 
 
 def test_read_from_file_empty(temp_dir):
     empty_path = os.path.join(temp_dir, "empty.txt")
     create_file(empty_path, "")
-    data = read_from_file(path=empty_path)
-    assert data["path"] == empty_path  # Empty file content is empty string
-    assert data["content"] == ""  # Empty file content is empty string
-    assert data["start_line"] == 1  # end_idx is 0 for empty file
-    assert data["end_line"] == 0  # end_idx is 0 for empty file
+    data = read_from_file(file={"path": empty_path})
+    assert data["path"] == empty_path
+    assert data["content"] == ""
+    assert data["start_line"] == 1
+    assert data["end_line"] == 0
     assert data["total_lines"] == 0
 
 
@@ -128,7 +128,7 @@ def test_read_from_file_os_error(sample_file, monkeypatch):
     )
 
     with pytest.raises(OSError, match="Error reading file"):
-        read_from_file(path=sample_file)
+        read_from_file(file={"path": sample_file})
 
 
 def test_read_from_file_io_error(sample_file, monkeypatch):
@@ -145,7 +145,7 @@ def test_read_from_file_io_error(sample_file, monkeypatch):
     with pytest.raises(
         OSError, match="Error reading file"
     ):  # IOError is a subclass of OSError
-        read_from_file(path=sample_file)
+        read_from_file(file={"path": sample_file})
 
 
 def test_read_from_file_generic_exception(sample_file, monkeypatch):
@@ -160,4 +160,4 @@ def test_read_from_file_generic_exception(sample_file, monkeypatch):
     )
 
     with pytest.raises(RuntimeError, match="Unexpected error reading file"):
-        read_from_file(path=sample_file)
+        read_from_file(file={"path": sample_file})

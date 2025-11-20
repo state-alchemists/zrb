@@ -193,7 +193,7 @@ class LLMConfig:
     @property
     def default_workflows(self) -> list[str]:
         return self._get_property(
-            self._default_workflows, CFG.LLM_WORKFLOWS, lambda: ["coding"]
+            self._default_workflows, CFG.LLM_WORKFLOWS, lambda: []
         )
 
     @property

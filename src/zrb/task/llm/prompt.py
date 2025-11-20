@@ -137,7 +137,7 @@ def get_workflow_prompt(
         )
     if len(active_workflow_prompts) > 0:
         active_workflow_prompts = [
-            "> These workflows are automatically loaded.",
+            "> These workflows are automatically loaded, You DON'T NEED to load them.",
         ] + active_workflow_prompts
     if len(available_workflow_prompts) > 0:
         available_workflow_prompts = [
@@ -146,10 +146,10 @@ def get_workflow_prompt(
     return "\n".join(
         [
             make_markdown_section(
-                "Active Workflows", "\n".join(active_workflow_prompts)
+                "💡 Active Workflows", "\n".join(active_workflow_prompts)
             ),
             make_markdown_section(
-                "Available Workflows", "\n".join(available_workflow_prompts)
+                "🗂️ Available Workflows", "\n".join(available_workflow_prompts)
             ),
         ]
     )
@@ -170,12 +170,11 @@ def get_system_and_user_prompt(
 ) -> tuple[str, str]:
     if conversation_history is None:
         conversation_history = ConversationHistory()
-    modified_user_message, user_message_context = _extract_user_prompt_components(
-        user_message
-    )
+    new_user_message_prompt, apendixes = _get_user_message_prompt(user_message)
     new_system_prompt = _construct_system_prompt(
         ctx=ctx,
         user_message=user_message,
+        apendixes=apendixes,
         persona_attr=persona_attr,
         render_persona=render_persona,
         system_prompt_attr=system_prompt_attr,
@@ -186,14 +185,13 @@ def get_system_and_user_prompt(
         render_workflows=render_workflows,
         conversation_history=conversation_history,
     )
-    return new_system_prompt, _contruct_user_message_prompt(
-        modified_user_message, user_message_context
-    )
+    return new_system_prompt, new_user_message_prompt
 
 
 def _construct_system_prompt(
     ctx: AnyContext,
     user_message: str,
+    apendixes: str,
     persona_attr: StrAttr | None = None,
     render_persona: bool = False,
     system_prompt_attr: StrAttr | None = None,
@@ -218,91 +216,53 @@ def _construct_system_prompt(
     if conversation_history is None:
         conversation_history = ConversationHistory()
     current_directory = os.getcwd()
+    iso_date = datetime.now(timezone.utc).astimezone().isoformat()
     directory_tree = _generate_directory_tree(current_directory, max_depth=2)
     return "\n".join(
         [
-            make_markdown_section("Persona", persona),
-            make_markdown_section("System Prompt", base_system_prompt),
-            make_markdown_section("Special Instruction", special_instruction_prompt),
+            persona,
+            base_system_prompt,
+            make_markdown_section("📝 SPECIAL INSTRUCTION", special_instruction_prompt),
+            make_markdown_section("🛠️ WORKFLOWS", workflow_prompt),
             make_markdown_section(
-                "Workflows",
-                "\n".join(
-                    [
-                        "**CRITICAL:** You MUST load all relevant workflows before starting any task execution. Failure to do so will result in incomplete or incorrect implementations.",  # noqa
-                        workflow_prompt,
-                    ]
-                ),
-            ),
-            make_markdown_section(
-                "Past Conversation",
+                "📚 CONTEXT",
                 "\n".join(
                     [
                         make_markdown_section(
-                            "Summary",
-                            conversation_history.past_conversation_summary,
-                            as_code=True,
+                            "ℹ️ System Information",
+                            "\n".join(
+                                [
+                                    f"- OS: {platform.system()} {platform.version()}",
+                                    f"- Python Version: {platform.python_version()}",
+                                    f"- Current Directory: {current_directory}",
+                                    f"- Current Time: {iso_date}",
+                                    "---",
+                                    "Directory Tree (depth=2):",
+                                    "---",
+                                    directory_tree,
+                                ]
+                            ),
                         ),
                         make_markdown_section(
-                            "Last Transcript",
-                            conversation_history.past_conversation_transcript,
-                            as_code=True,
-                        ),
-                    ]
-                ),
-            ),
-            make_markdown_section(
-                "Notes",
-                "\n".join(
-                    [
-                        make_markdown_section(
-                            "Long Term",
+                            "🧠 Long Term Context",
                             conversation_history.long_term_note,
-                            as_code=True,
                         ),
                         make_markdown_section(
-                            "Contextual",
-                            conversation_history.contextual_note,
-                            as_code=True,
+                            "📜 Narrative Summary",
+                            conversation_history.past_conversation_summary,
+                        ),
+                        make_markdown_section(
+                            "📄 File/Directory Content",
+                            apendixes,
+                        ),
+                        make_markdown_section(
+                            "📝 Project Context", project_context_prompt
                         ),
                     ]
                 ),
             ),
-            make_markdown_section("Project Context", project_context_prompt),
             make_markdown_section(
-                "Conversation Environment",
-                "\n".join(
-                    [
-                        make_markdown_section(
-                            "Current OS/Version",
-                            f"{platform.system()} - {platform.version()}",
-                        ),
-                        make_markdown_section(
-                            "Python Version", platform.python_version()
-                        ),
-                        make_markdown_section(
-                            "Directory Tree (depth=2)", directory_tree, as_code=True
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-def _contruct_user_message_prompt(
-    modified_user_message: str, user_message_context: dict[str, str]
-) -> str:
-    return "\n".join(
-        [
-            make_markdown_section("User Message", modified_user_message),
-            make_markdown_section(
-                "Context",
-                "\n".join(
-                    [
-                        make_markdown_section(key, val)
-                        for key, val in user_message_context.items()
-                    ]
-                ),
+                "💬 CONVERSATION", conversation_history.past_conversation_transcript
             ),
         ]
     )
@@ -350,12 +310,12 @@ def _generate_directory_tree(
     return "\n".join(tree_lines)
 
 
-def _extract_user_prompt_components(user_message: str) -> tuple[str, dict[str, Any]]:
-    modified_user_message = user_message
+def _get_user_message_prompt(user_message: str) -> tuple[str, str]:
+    processed_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
     pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\?\!\s]+)"
     potential_resource_path = re.findall(pattern, user_message)
-    apendixes = []
+    apendix_list = []
     for i, ref in enumerate(potential_resource_path):
         resource_path = os.path.abspath(os.path.expanduser(ref))
         content = ""
@@ -369,24 +329,31 @@ def _extract_user_prompt_components(user_message: str) -> tuple[str, dict[str, A
         if content != "":
             # Replace the @-reference in the user message with the placeholder
             placeholder = f"[Reference {i+1}: `{os.path.basename(ref)}`]"
-            modified_user_message = modified_user_message.replace(
+            processed_user_message = processed_user_message.replace(
                 f"@{ref}", placeholder, 1
             )
-            apendixes.append(
+            apendix_list.append(
                 make_markdown_section(
                     f"Content of {placeholder} ({ref_type} path: `{resource_path}`)",
                     "\n".join(content) if isinstance(content, list) else content,
                     as_code=True,
                 )
             )
+    apendixes = "\n".join(apendix_list)
     current_directory = os.getcwd()
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
-    user_message_context = {
-        "Current Working Directory": current_directory,
-        "Current Time": iso_date,
-        "Apendixes": "\n".join(apendixes),
-    }
-    return modified_user_message, user_message_context
+    modified_user_message = make_markdown_section(
+        "User Request",
+        "\n".join(
+            [
+                f"- Current Directory: {current_directory}",
+                f"- Current Time: {iso_date}",
+                "---",
+                processed_user_message,
+            ]
+        ),
+    )
+    return modified_user_message, apendixes
 
 
 def get_user_message(

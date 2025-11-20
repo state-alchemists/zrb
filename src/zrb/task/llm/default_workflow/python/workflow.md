@@ -1,47 +1,160 @@
 ---
 description: "A workflow for developing with Python, including project analysis and best practices."
 ---
-# Python Development Guide
+Follow this workflow to deliver clean, maintainable Python code that follows PEP standards and project conventions.
 
-This guide provides the baseline for Python development. It is superseded by project-specific conventions.
+# Core Mandates
 
-## 1. Project Analysis Checklist
+- **PEP 8 Compliance:** Follow Python style guide unless project specifies otherwise
+- **Type Safety:** Use type hints when project supports them
+- **Virtual Environments:** Always work within appropriate Python environments
+- **Testing Excellence:** Write comprehensive tests for all functionality
 
-Before coding, inspect the project for these files to determine its conventions:
+# Tool Usage Guideline
+- Use `read_from_file` to analyze pyproject.toml, requirements.txt, and source code
+- Use `search_files` to find Python patterns and conventions
+- Use `run_shell_command` for Python toolchain operations
+- Use `list_files` to understand project structure
 
-- **Dependency Management:** `pyproject.toml` (and `poetry.lock` or `pdm.lock`), `requirements.txt`, `setup.py`. Note the exact libraries and versions used.
-- **Virtual Environment:** Check for a `.venv` or `venv` directory. If it exists, activate it using `source .venv/bin/activate`. If not, create one using `python -m venv .venv` and then activate it.
-- **Python Version:** Look for a `.python-version` file or check `pyproject.toml`.
-- **Style & Linting Config:** `ruff.toml`, `pyproject.toml` (for `black`, `isort`, `ruff`), `.flake8`, `.pylintrc`. These define the coding standard.
-- **Type Checking Config:** `mypy.ini`, `pyrightconfig.json`.
-- **Testing Framework:** Look for a `tests/` directory, `pytest.ini`, or `tox.ini` to identify `pytest`, `unittest`, etc.
+# Step 1: Project Analysis
 
-## 2. Core Principles
+1. **Dependency Management:** Examine `pyproject.toml`, `requirements.txt`, `setup.py`
+2. **Virtual Environment:** Check for `.venv`, `venv`, or other environment indicators
+3. **Python Version:** Look for `.python-version` or configuration in `pyproject.toml`
+4. **Linting Configuration:** Check for `ruff.toml`, `.flake8`, `.pylintrc`
+5. **Type Checking:** Look for `mypy.ini`, `pyrightconfig.json`
+6. **Testing Framework:** Analyze `tests/` directory, `pytest.ini`, `tox.ini`
 
-- **Style:** Strictly adhere to the project's configured linter (e.g., `ruff`, `flake8`) and formatter (e.g., `black`, `autopep8`). If none exist, default to PEP 8.
-- **Type Hints:** If the project uses type hints, you MUST use them for all new code. Match the existing style.
-- **Imports:** Follow the project's import organization (e.g., stdlib, third-party, local). Use the configured import sorter (like `isort`).
-- **Docstrings:** Match the existing docstring format (e.g., Google, NumPy, reStructuredText).
+# Step 2: Environment Setup
 
-## 3. Dependency Management
+1. **Activate Virtual Environment:**
+   ```bash
+   source .venv/bin/activate  # Linux/Mac
+   .venv\Scripts\activate     # Windows
+   ```
+2. **Create Environment if Missing:**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -e .  # Install project in development mode
+   ```
+3. **Install Dependencies:** Use appropriate package manager (pip, poetry, pdm)
 
-- **`pip`:** If the project uses `requirements.txt`, add new dependencies to the file and then run `pip install -r requirements.txt`.
-- **`poetry`:** If the project uses `pyproject.toml` with poetry, add new dependencies using `poetry add <package-name>` and install them with `poetry install`.
+# Step 3: Understand Conventions
 
-## 4. Implementation Patterns
+1. **Code Style:** Adhere to project's configured linter (ruff, flake8, pylint)
+2. **Type Hints:** Use type hints if project supports them, following existing patterns
+3. **Import Organization:** Follow project's import sorting (isort, ruff)
+4. **Docstring Format:** Match existing format (Google, NumPy, reStructuredText)
+5. **Testing Patterns:** Follow established pytest or unittest patterns
 
-- **Error Handling:** Replicate the existing patterns for exceptions, logging, and error wrapping.
-- **Testing:** Use the project's existing test structure, fixtures, and mocking libraries. Add tests for all new code.
-- **Debugging:** Use the built-in `pdb` for debugging, or `ipdb` if it's available in the project.
+# Step 4: Implementation Planning
 
-## 5. Project Structure
+1. **Module Structure:** Plan where new code should be placed
+2. **Class Design:** Design classes following Pythonic principles
+3. **Function Design:** Create focused, single-responsibility functions
+4. **Type Annotations:** Plan appropriate type hints for new code
+5. **Testing Strategy:** Plan comprehensive unit and integration tests
 
-- **Simple scripts:** For single-file scripts, keep them in the root of the project.
-- **Larger projects:** For larger projects, use a `src` layout, where the main source code resides in a `src` directory. Tests should be in a separate `tests` directory.
+# Step 5: Write Code
 
-## 6. Common Commands
+## Code Quality Standards
+- **Formatting:** Use black, autopep8, or ruff format with project configuration
+- **Linting:** Address all linter warnings (ruff, flake8, pylint)
+- **Type Hints:** Add comprehensive type annotations
+- **Documentation:** Write clear docstrings following project format
+- **Naming:** Use snake_case for variables/functions, PascalCase for classes
 
-- **Formatting:** `black .`, `autopep8 .`
-- **Linting:** `ruff check .`, `flake8 .`, `pylint .`
-- **Type Checking:** `mypy .`, `pyright .`
-- **Testing:** `pytest`, `python -m unittest discover`
+## Pythonic Patterns
+- **List Comprehensions:** Use for simple transformations
+- **Context Managers:** Use `with` statements for resource management
+- **Generators:** Use for large datasets or streaming data
+- **Decorators:** Use for cross-cutting concerns
+- **Data Classes:** Use for simple data containers (Python 3.7+)
+
+# Step 6: Testing and Verification
+
+1. **Write Tests:** Create comprehensive tests using project's test framework
+2. **Run Tests:** Execute `pytest` or `python -m unittest`
+3. **Type Checking:** Run `mypy` or `pyright` if configured
+4. **Linting:** Run `ruff check` or project's linter
+5. **Formatting:** Run `black` or project's formatter
+
+# Step 7: Quality Assurance
+
+## Testing Standards
+- **Test Organization:** Follow project's test structure and naming
+- **Fixtures:** Use pytest fixtures for test setup
+- **Mocking:** Use unittest.mock or pytest-mock appropriately
+- **Coverage:** Aim for high test coverage of business logic
+- **Parametrized Tests:** Use for testing multiple input scenarios
+
+## Code Review Checklist
+- [ ] Code follows PEP 8 and project formatting standards
+- [ ] All tests pass with good coverage
+- [ ] Type checking passes (if configured)
+- [ ] No linter warnings
+- [ ] Docstrings are complete and follow project format
+- [ ] Error handling is appropriate
+- [ ] Performance considerations addressed
+
+# Step 8: Package Management
+
+## Dependency Management
+- **pip:** Add to `requirements.txt` and run `pip install -r requirements.txt`
+- **poetry:** Use `poetry add <package>` and `poetry install`
+- **pdm:** Use `pdm add <package>` and `pdm install`
+
+## Common Commands
+- `python -m pytest`: Run tests with pytest
+- `python -m mypy .`: Run type checking with mypy
+- `python -m black .`: Format code with black
+- `python -m ruff check .`: Lint code with ruff
+- `python -m isort .`: Sort imports with isort
+
+# Step 9: Finalize and Deliver
+
+1. **Verify Environment:** Ensure virtual environment is active and dependencies installed
+2. **Run Full Test Suite:** Verify all existing tests still pass
+3. **Static Analysis:** Address any remaining linting or type issues
+4. **Documentation:** Update relevant documentation, docstrings, and README
+5. **Packaging:** Verify package can be built and installed if applicable
+
+# Advanced Python Features
+
+## Modern Python (3.8+)
+- **Walrus Operator:** Use `:=` for assignment in expressions
+- **Structural Pattern Matching:** Use `match`/`case` for complex conditionals
+- **Positional-only Parameters:** Use `/` in function definitions
+- **Dataclasses:** Use for simple data containers
+
+## Performance Optimization
+- **Profiling:** Use cProfile for performance analysis
+- **Caching:** Use functools.lru_cache for expensive function calls
+- **Async/Await:** Use for I/O-bound operations
+- **C Extensions:** Consider for performance-critical code
+
+## Security Considerations
+- **Input Validation:** Validate and sanitize all user inputs
+- **Dependency Security:** Use tools like safety or bandit
+- **Secret Management:** Never hardcode secrets in code
+- **SQL Injection:** Use parameterized queries
+
+# Risk Assessment Guidelines
+
+## Low Risk (Proceed Directly)
+- Adding tests to existing test suites
+- Implementing utility functions following established patterns
+- Creating new modules in established patterns
+
+## Moderate Risk (Explain and Confirm)
+- Modifying core business logic
+- Changing public API interfaces
+- Adding new dependencies
+- Modifying virtual environment or dependency configuration
+
+## High Risk (Refuse and Explain)
+- Breaking backward compatibility
+- Modifying critical security components
+- Changes affecting multiple packages
+- Operations that could break the virtual environment
