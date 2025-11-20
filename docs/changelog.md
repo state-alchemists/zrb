@@ -1,5 +1,20 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.1
+
+- **Fix: LLM Chat Parameter Editing**:
+  - Fixed bug where editing parameters without specifying a key in LLM chat sessions was not working correctly.
+  - Improved parameter editing flow to properly handle empty keys and merge dictionary values.
+  - Removed debug print statements from the parameter editing logic.
+
+# 1.21.0
+
+- **Feature: Enhanced Prompt System**:
+  - Updated system prompts and interactive prompts for better clarity and workflow guidance.
+  - Enhanced all default workflows (coding, copywriting, git, golang, html-css, java, javascript, python, researching, rust, shell) with improved instructions and examples.
+  - Improved tool documentation and parameter handling across all LLM tools.
+  - Added comprehensive YAML utility functions for better parameter parsing and editing.
+
 # 1.20.1
 
 - **Fix: Shell Autocompletion Customization**:
