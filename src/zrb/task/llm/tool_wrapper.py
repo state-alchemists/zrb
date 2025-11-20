@@ -1,6 +1,5 @@
 import functools
 import inspect
-import json
 import signal
 import traceback
 import typing
@@ -207,12 +206,29 @@ def _get_edited_kwargs(
     user_edit_responses = [val for val in user_response.split(" ", maxsplit=2)]
     if len(user_edit_responses) >= 1 and user_edit_responses[0].lower() != "edit":
         return kwargs, False
-    # TODO: Fix this
     while len(user_edit_responses) < 3:
         user_edit_responses.append("")
     key, val_str = user_edit_responses[1:]
-    kwargs = edit_obj(kwargs, key, val_str)
-    return kwargs, True
+    # Make sure first segment of the key is in kwargs
+    if key != "":
+        key_parts = key.split(".")
+        if len(key_parts) > 0 and key_parts[0] not in kwargs:
+            return kwargs, True
+    old_val_str = yaml_dump(kwargs, key)
+    if val_str == "":
+        val_str = edit_text(
+            prompt_message=f"# {key}",
+            value=old_val_str,
+            editor=CFG.DEFAULT_EDITOR,
+            extension=".yaml",
+        )
+    print(f"OLD {old_val_str}")
+    print(f"NEW {val_str}")
+    print(f"EQUAL {val_str == old_val_str}")
+    if old_val_str == val_str:
+        return kwargs, True
+    edited_kwargs = edit_obj(kwargs, key, val_str)
+    return edited_kwargs, True
 
 
 def _get_user_approval_and_reason(
