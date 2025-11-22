@@ -120,28 +120,79 @@ task = Task(
 cli.add_task(task)
 ```
 
-### 3. Dependencies (Upstream Tasks)
+### 3. Controlling The Flow: Dependencies and Chains
 
-Tasks can depend on other tasks. An `upstream` task is a prerequisite that must complete successfully before the current task can run.
+Zrb provides a powerful system for controlling the order of execution and handling success or failure. You can define dependencies between tasks to build complex, resilient workflows.
+
+#### Upstream (Prerequisites)
+
+An `upstream` task is a prerequisite that must complete successfully before the current task can run.
 
 ```python
 from zrb import Task, cli
 
-task1 = Task(name="task1", action=lambda ctx: print("Task 1"))
-task2 = Task(name="task2", action=lambda ctx: print("Task 2"))
+setup = Task(name="setup", action=lambda ctx: print("Setting up..."))
+main_task = Task(name="main-task", action=lambda ctx: print("Main task running."))
 
-# task3 will only run after task1 and task2 are complete
-task3 = Task(name="task3", upstream=[task1, task2], action=lambda ctx: print("Task 3"))
+# Define 'setup' as an upstream for 'main_task'
+main_task.add_upstream(setup)
 
-# You can also define dependencies with the `>>` operator
-task1 >> task3
-task2 >> task3
+# Or, more elegantly, use the `<<` operator
+main_task << setup
 
-# Or chain them for sequential execution
-task1 >> task2 >> task3  # task3 depends on task2, which depends on task1
+# For sequential chains, the `>>` operator is often more readable
+# This means 'main_task' becomes an upstream for 'teardown'
+teardown = Task(name="teardown", action=lambda ctx: print("Tearing down..."))
+main_task >> teardown
 
-cli.add_task(task1, task2, task3)
+# All three tasks are now chained: setup -> main_task -> teardown
+cli.add_task(setup, main_task, teardown)
 ```
+When you run `zrb teardown`, Zrb automatically runs `setup`, then `main_task`, and finally `teardown`.
+
+#### Fallback (Error Handling)
+
+A `fallback` task is executed only if the main task fails. This is perfect for cleanup operations or sending notifications.
+
+```python
+from zrb import CmdTask, cli
+
+main_task = CmdTask(
+    name="main-task",
+    cmd="exit 1"  # This command will fail
+)
+cleanup_task = CmdTask(
+    name="cleanup-task",
+    cmd="echo 'Main task failed. Cleaning up...'"
+)
+
+# Set 'cleanup_task' as the fallback for 'main_task'
+main_task.set_fallback(cleanup_task)
+cli.add_task(main_task, cleanup_task)
+```
+Running `zrb main-task` will execute `main_task`, see it fail, and then automatically run `cleanup-task`.
+
+#### Successor (On Success)
+
+A `successor` task is executed only after the main task completes successfully. While similar to chaining with `>>`, it's useful for defining optional post-completion actions that aren't direct dependencies of other downstream tasks.
+
+```python
+from zrb import Task, cli
+
+main_task = Task(
+    name="main-task",
+    action=lambda ctx: print("Main task completed successfully.")
+)
+notification_task = Task(
+    name="notification-task",
+    action=lambda ctx: print("Notifying team about success.")
+)
+
+# Set 'notification_task' as the successor for 'main_task'
+main_task.set_successor(notification_task)
+cli.add_task(main_task, notification_task)
+```
+Running `zrb main-task` will execute `main_task`, and upon its success, `notification_task` will be triggered.
 
 ### 4. Other Key Features
 
@@ -150,6 +201,62 @@ cli.add_task(task1, task2, task3)
 *   **`retries`**: The number of times to retry a task if it fails.
 *   **`fallbacks`**: A list of tasks to run if the main task fails.
 *   **`successors`**: A list of tasks to run after the main task succeeds.
+
+## Advanced Task Features
+
+Beyond the basics, Zrb tasks have powerful features for better integration and less boilerplate.
+
+### Using Tasks as Python Functions
+
+Every Zrb task can be converted into a regular Python function using the `.to_function()` method. This allows you to call a task from other Python scripts, just like any other function. Zrb automatically maps the task's `Input`s to function arguments.
+
+```python
+from zrb import CmdTask, StrInput
+
+# Define a task
+greet_task = CmdTask(
+    name="greet",
+    input=StrInput(name="name", default="world"),
+    cmd="echo Hello, {ctx.input.name}"
+)
+
+# Convert it to a callable function
+greet_fn = greet_task.to_function()
+
+# Now you can call it from Python!
+result = greet_fn(name="Zaruba")  # Sets the 'name' input
+# This will print "Hello, Zaruba" to the console
+```
+This feature makes it easy to integrate your Zrb workflows with other Python applications or testing frameworks.
+
+### Automatic Context Inheritance
+
+To keep your code DRY (Don't Repeat Yourself), Zrb automatically makes the `Input`s and `Env`s of all upstream tasks available to downstream tasks. You only need to define a shared configuration once.
+
+```python
+from zrb import Task, StrInput, Env, cli
+
+# Define an input and environment variable in a setup task
+set_config = Task(
+    name="set-config",
+    input=StrInput(name="user", default="default-user"),
+    env=Env(name="APP_HOST", default="localhost")
+)
+
+# This task can access 'user' and 'APP_HOST' without redefining them
+use_config = Task(
+    name="use-config",
+    action=lambda ctx: print(
+        f"User is {ctx.input.user}, and Host is {ctx.env.APP_HOST}"
+    )
+)
+
+# Chain the tasks
+set_config >> use_config
+
+cli.add_task(set_config, use_config)
+```
+When you run `zrb use-config --user="my-user"`, Zrb first processes the `set-config` task, populating `ctx.input.user`. This context is then passed along to `use_config`, which can access the value seamlessly.
 
 ## Task Types
 
@@ -162,7 +269,7 @@ Zrb comes with a variety of specialized task types for common operations.
 *   [**`LLMTask`**](./types/llm-task.md): For interacting with Large Language Models.
 *   [**`RsyncTask`**](./types/rsync-task.md): For synchronizing files.
 *   [**`Scaffolder`**](./types/scaffolder.md): For generating files from templates.
-*   [**`Scheduler`**](./types/scheduler.md): For triggering tasks on a schedule.
+*   [**`Trigger` and `Scheduler`**](./types/trigger-and-scheduler.md): For event-driven and scheduled tasks.
 
 ## Readiness Checks in Action
 
