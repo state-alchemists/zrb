@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "1.21.1"
+version = "1.21.2"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -37,7 +37,7 @@ exclude = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10.0,<4.0.0"
+python = ">=3.11.0,<4.0.0"
 python-dotenv = "^1.1.1"
 black = "^25.1.0"
 isort = "^6.0.1"
@@ -50,7 +50,7 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = {extras = ["openai", "cohere", "vertexai", "google", "anthropic", "groq", "openrouter", "mistral", "bedrock", "huggingface"], version = "~1.22.0"} 
+pydantic-ai-slim = "~1.22.0"
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
 openai = ">=2.8.0"
@@ -60,17 +60,41 @@ mcp = ">1.18.0"
 requests = "^2.32.2"
 
 tiktoken = "^0.8.0"
-playwright = {version = "^1.54.0", optional = true}
-chromadb = {version = "^0.6.3", optional = true}
 markdownify = "^1.2.0"
 pyjwt = "^2.10.1"
 pyyaml = "^6.0.3"
 
+# Optional packages
+playwright = {version = "^1.54.0", optional = true}
+chromadb = {version = "^0.6.3", optional = true}
+cohere = {version = ">=5.18.0", optional = true}
+google-auth = {version = ">=2.36.0", optional = true}
+google-genai = {version = ">=1.51.0", optional = true}
+anthropic = {version = ">=0.70.0", optional = true}
+groq = {version = ">=0.25.0", optional = true}
+mistralai = {version = ">=1.9.10", optional = true}
+boto3 = {version = ">=1.40.14", optional = true}
+huggingface-hub = {version = ">=0.33.5", extras = ["inference"], optional = true}
+
 [tool.poetry.extras]
-# poetry install -E rag
+# Install all extras:
+# - poetry install --all-extras
+# - pip install zrb[all]
+# Install specific extra:
+# - poetry install -E rag
+# - pip install zrb[rag]
+
 rag = ["chromadb"]
 playwright = ["playwright"]
-all = ["chromadb", "playwright"]
+cohere = ["cohere"]
+vertexai = ["google-auth"]
+google = ["google-genai"]
+anthropic = ["anthropic"]
+groq = ["groq"]
+mistral = ["mistralai"]
+bedrock = ["boto3"]
+huggingface = ["huggingface-hub"]
+all = ["chromadb", "playwright", "cohere", "google-auth", "google-genai", "anthropic", "groq", "mistral", "bedrock", "huggingface"]
 
 [tool.poetry.group.dev.dependencies]
 alembic = "^1.16.4" # FastApp dependencies
