@@ -8,7 +8,7 @@ ARG CI_TOOLS=true
 RUN if [ "$CI_TOOLS" = "true" ] || [ "$DIND" = "true" ]; then \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    $(if [ "$CI_TOOLS" = "true" ]; then echo "git curl wget jq unzip"; fi) \
+    $(if [ "$CI_TOOLS" = "true" ]; then echo "git curl wget jq unzip rsync openssh-client"; fi) \
     $(if [ "$DIND" = "true" ]; then echo "docker.io"; fi) \
     && \
     rm -rf /var/lib/apt/lists/*; \

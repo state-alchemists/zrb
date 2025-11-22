@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.2
+
+- **Update dependencies**: pydantic-ai-slim `1.22.0`.
+- **Changed** Other AI provider except OpenAI is now not installed by default.
+
 # 1.21.1
 
 - **Fix: LLM Chat Parameter Editing**:
