@@ -2,13 +2,15 @@
 
 # XCom (Cross-Communication)
 
-`XCom` is the secret sauce for making your tasks talk to each other. It's a simple yet powerful mechanism for passing small pieces of data—like results, IDs, or status messages—from one task to another.
+`XCom` is the system that allows tasks to communicate with each other. It works by creating a message queue for each task, where data can be passed from one task to another.
 
-Think of `XCom` as a shared dictionary of message queues available during a session. Each task can have its own named queue where it can `push` data, and other tasks can `pop` data from it.
+Here’s the core mechanism:
 
-Zrb makes this even easier: by default, the return value of a task's `action` is automatically pushed to its `XCom` queue.
+1.  **A Queue for Every Task**: During a `Session`, Zrb maintains a collection of queues. By default, every task gets its own queue named after the task (e.g., a task named `my-task` has a queue named `my-task`).
+2.  **Automatic Return Value Pushing**: The return value of a task's `action` is automatically pushed into the task's own `XCom` queue.
+3.  **Accessing Data**: Other tasks can then access this data by "popping" it from the queue of the task that produced it.
 
-You can access `XCom` through the context object: `ctx.xcom`.
+You can access all the `XCom` queues through the context object: `ctx.xcom`. For example, to get data from `my-task`, you would use `ctx.xcom['my-task'].pop()`.
 
 ## A Simple Data-Passing Example
 

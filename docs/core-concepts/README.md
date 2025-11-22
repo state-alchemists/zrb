@@ -53,6 +53,9 @@ flowchart LR
 
 Here’s a breakdown of the most important concepts in Zrb.
 
+### [How It Works: The Zrb Lifecycle](./how-it-works.md)
+Before diving into the components, see the step-by-step lifecycle of a task from command-line execution to completion. This provides the "big picture" of how everything fits together.
+
 ### [CLI and Group](./cli-and-group.md)
 The `cli` object is the root of all your tasks. You can organize tasks into `Group`s to create a clean, hierarchical command structure, making your automations easy to navigate and run.
 
