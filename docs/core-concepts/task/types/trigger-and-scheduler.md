@@ -4,126 +4,147 @@
 
 While most tasks run once and then complete, Zrb also supports long-running tasks that can react to events or run on a schedule. These are built on two key components: the `BaseTrigger` and the `Scheduler`.
 
-## `BaseTrigger`: The Foundation for Event-Driven Tasks
+These components work by using a `Callback` object to wrap the task that should be executed when an event occurs.
 
-A `BaseTrigger` is a special type of task that listens for internal events and triggers other tasks (called `callbacks`) in response. It's the foundation of Zrb's event-driven architecture.
+## The `Callback` Wrapper
+
+A `Callback` is an essential adapter that connects a trigger's event to a task's execution. You don't use a `Task` directly as a callback; you wrap it in a `Callback` object first.
+
+The `Callback` class is responsible for:
+1.  **Wrapping a Task**: It holds a reference to the task that should be run.
+2.  **Mapping Inputs**: It uses an `input_mapping` dictionary to take data from the trigger's event and pass it to the inputs of the wrapped task.
+
+## `BaseTrigger`: For Event-Driven Tasks
+
+A `BaseTrigger` is a special type of task designed to be a long-running process that listens for events and triggers `callback`s in response.
 
 ### How It Works
 
-1.  **Listens on a Queue**: A `BaseTrigger` monitors an `XCom` queue, which is identified by its `queue_name`.
-2.  **Waits for Data**: It waits for another task or process to push data into that queue.
-3.  **Triggers Callbacks**: When data is received, the `BaseTrigger` immediately executes its `callback` tasks, passing the received data to them.
+1.  **Define a Long-Running `action`**: The core of a `BaseTrigger` is its `action`. This is a long-running Python function you provide that listens for an event (e.g., watching a file, polling an API).
+2.  **Push to XCom Queue**: When the event occurs, the `action` pushes data to the trigger's own `XCom` queue using `ctx.task.push_exchange_xcom(ctx.session, data)`. The `ctx.task` refers to the trigger instance itself.
+3.  **Trigger `Callback`**: This push automatically executes the `Callback` object(s) defined in the `callback` parameter. The `Callback` then uses its `input_mapping` to retrieve the data from the XCom queue and runs its wrapped task.
 
-This creates a powerful publish-subscribe (pub/sub) system inside Zrb, allowing you to build reactive workflows.
+### Example: A File Watcher
 
-### Example: A Manual Trigger
-
-Here's a scenario where we manually trigger a `callback` task by pushing data to its queue.
+Here is a correct implementation of a trigger that watches a file for changes.
 
 ```python
-from zrb import cli, Group, CmdTask, BaseTrigger, StrInput
+import asyncio
+import os
+from zrb import cli, Group, CmdTask, BaseTrigger, StrInput, AnyContext, Callback
 
-# The callback task that will be triggered
-email_sender = CmdTask(
-    name="send-email",
-    input=StrInput(name="message"),
-    cmd="echo 'Sending email with message: {ctx.input.message}'"
+# 1. The task that will be executed by the callback
+process_file_content = CmdTask(
+    name="process-file-content",
+    input=StrInput(name="content", help="The content of the file"),
+    cmd='echo "File content processed: {ctx.input.content}"'
 )
 
-# The trigger task that waits for a message
-email_trigger = BaseTrigger(
-    name="email-trigger",
-    description="Waits for a message to send an email",
-    queue_name="email_queue",
-    callback=email_sender
-)
+# 2. The long-running action for the trigger
+async def watch_file_action(ctx: AnyContext):
+    file_path = ctx.input.file_path
+    ctx.print(f"Watching file: {file_path}")
+    
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            f.write("initial content")
 
-# A task to manually push a message to the trigger's queue
-push_message = CmdTask(
-    name="push-message",
-    description="Pushes a message to the email queue",
-    input=StrInput(name="message"),
-    # This task's action is to call the trigger's push method
-    action=lambda ctx: email_trigger.push_exchange_xcom(
-        ctx.session, ctx.input.message
+    with open(file_path, "r") as f:
+        last_content = f.read()
+    ctx.print(f"Initial content: {last_content}")
+
+    while True:
+        await asyncio.sleep(2)
+        with open(file_path, "r") as f:
+            current_content = f.read()
+        
+        if current_content != last_content:
+            ctx.print("Content changed, triggering callback...")
+            # The action pushes to its own trigger's queue
+            ctx.task.push_exchange_xcom(ctx.session, current_content)
+            last_content = current_content
+
+# 3. The trigger task definition
+file_watcher = BaseTrigger(
+    name="file-watcher",
+    description="Watches content.txt for changes",
+    input=StrInput(name="file_path", default="content.txt"),
+    queue_name="file_updates",
+    action=watch_file_action,
+    # Wrap the task in a Callback and map the inputs
+    callback=Callback(
+        task=process_file_content,
+        input_mapping={"content": "{ctx.xcom.file_updates.pop()}"}
     )
 )
 
-# Register the tasks in a group
-trigger_group = cli.add_group(Group(name="trigger-example"))
-trigger_group.add_task(email_trigger)
-trigger_group.add_task(push_message)
+# A helper task to test the trigger
+update_file = CmdTask(
+    name="update-file",
+    input=StrInput(name="content", default="new content"),
+    cmd='echo "{ctx.input.content}" > content.txt'
+)
+
+watch_group = cli.add_group(Group(name="watch-example"))
+watch_group.add_task(file_watcher)
+watch_group.add_task(update_file)
 ```
 
 **How to run this:**
-
-1.  First, start the trigger in one terminal. It will run indefinitely, waiting for a message.
+1.  In one terminal, start the `file-watcher`. It will run forever.
     ```sh
-    $ zrb trigger-example email-trigger
+    $ zrb watch-example file-watcher
     ```
-2.  In a second terminal, push a message to the queue.
+2.  In a second terminal, change the file's content.
     ```sh
-    $ zrb trigger-example push-message --message="Hello from Zrb"
+    $ zrb watch-example update-file --content="hello world"
     ```
-3.  The first terminal will show the `email-sender` task being executed.
+3.  The first terminal detects the change and the `Callback` executes `process-file-content`.
     ```
-    Sending email with message: Hello from Zrb
+    Content changed, triggering callback...
+    File content processed: hello world
     ```
 
 ## `Scheduler`: For Time-Based Automation
 
-The `Scheduler` is a specialized `BaseTrigger` that runs tasks on a schedule, much like a traditional cron job.
+The `Scheduler` is a specialized `BaseTrigger` with a built-in `action` that loops and checks the time. When the `schedule` matches the current time, it pushes the timestamp to its `XCom` queue, triggering its `callback`.
 
-It runs continuously, and at a specified time, it pushes the current timestamp to its `XCom` queue, which in turn triggers its `callback` tasks.
-
-### Key Parameters
-
-*   **`schedule`**: A cron-style pattern that defines when the task should run.
-*   **`callback`**: The task or list of tasks to execute when the schedule matches.
-
-| Cron Pattern | Description                                           |
-|--------------|-------------------------------------------------------|
-| `@yearly`    | Run once a year, i.e. `0 0 1 1 *`                       |
-| `@annually`  | (Same as `@yearly`)                                   |
-| `@monthly`   | Run once a month, i.e. `0 0 1 * *`                      |
-| `@weekly`    | Run once a week, i.e. `0 0 * * 0`                       |
-| `@daily`     | Run once a day, i.e. `0 0 * * *`                        |
-| `@hourly`    | Run once an hour, i.e. `0 * * * *`                      |
-| `@minutely`  | Run once a minute, i.e. `* * * * *`                     |
-| `* * * * *`  | Standard 5-field cron pattern (minute, hour, day, etc.) |
+You must wrap the callback task in a `Callback` object, just like with `BaseTrigger`.
 
 ### Example: A Daily Report
 
-Here's how to set up a `Scheduler` to run a `generate-report` task every day at midnight.
+Here is a corrected example of a `Scheduler`.
 
 ```python
-from zrb import cli, Group, CmdTask, Scheduler
+from zrb import cli, Group, CmdTask, Scheduler, Callback
 
 # The task to be executed on schedule
 generate_report = CmdTask(
     name="generate-report",
-    cmd="echo 'Generating daily report...'"
+    input=StrInput(name="timestamp"),
+    cmd="echo 'Generating daily report for timestamp: {ctx.input.timestamp}'"
 )
 
 # The scheduler task
 daily_scheduler = Scheduler(
     name="daily-report-scheduler",
     description="Runs the daily report task at midnight",
-    schedule="@daily",  # You can also use "0 0 * * *"
-    callback=generate_report
+    schedule="@minutely",  # Using @minutely for easy testing
+    queue_name="report_schedule",
+    callback=Callback(
+        task=generate_report,
+        input_mapping={"timestamp": "{ctx.xcom.report_schedule.pop()}"}
+    )
 )
 
-# Register the scheduler in a group
 schedule_group = cli.add_group(Group(name="schedule-example"))
 schedule_group.add_task(daily_scheduler)
 ```
 
-To start the scheduler, simply run its task. It will then run in the foreground, waiting for the schedule to match.
-
+To start the scheduler, run its task. It will run in the foreground, and every minute, it will trigger the `generate-report` task.
 ```sh
 $ zrb schedule-example daily-report-scheduler
-Monitoring cron pattern: @daily
-Current time: 2023-10-27 10:30:00
+Monitoring cron pattern: @minutely
 ...
 ```
 
