@@ -54,6 +54,8 @@ async def print_node(
                             )
                         elif isinstance(event.delta, ToolCallPartDelta):
                             args_delta = event.delta.args_delta
+                            if isinstance(args_delta, dict):
+                                args_delta = json.dumps(args_delta)
                             print_func(
                                 _format_stream_content(args_delta, log_indent_level),
                                 end="",
@@ -97,7 +99,10 @@ async def print_node(
                                 f"{call_id} | Call {tool_name} {args}", log_indent_level
                             )
                         )
-                    elif isinstance(event, FunctionToolResultEvent):
+                    elif (
+                        isinstance(event, FunctionToolResultEvent)
+                        and event.tool_call_id
+                    ):
                         call_id = event.tool_call_id
                         result_content = event.result.content
                         print_func(

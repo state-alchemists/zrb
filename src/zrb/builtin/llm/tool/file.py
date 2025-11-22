@@ -245,7 +245,7 @@ def is_excluded(name: str, patterns: list[str]) -> bool:
 
 def read_from_file(
     file: FileToRead | list[FileToRead],
-) -> str | dict[str, Any]:
+) -> dict[str, Any]:
     """
     Read the content of a file or a specific range of lines. Can also read multiple files at once.
 
@@ -257,12 +257,14 @@ def read_from_file(
             - end_line (int | None): The 1-based line number to stop reading at (exclusive). Defaults to the end.
 
     Returns:
-        If a single file is read, returns its content as a string.
-        If multiple files are read, returns a dictionary mapping each file path to its content and other info.
+        If a single file is read, returns a dictionary with its content and metadata.
+        If multiple files are read, returns a dictionary mapping each file path to its content and metadata, or an error string.
     """
-    # Handle single file input
-    if not isinstance(file, list):
-        file_config = file
+    is_list = isinstance(file, list)
+    files = file if is_list else [file]
+
+    results = {}
+    for file_config in files:
         path = file_config["path"]
         start_line = file_config.get("start_line")
         end_line = file_config.get("end_line")
@@ -270,70 +272,42 @@ def read_from_file(
             abs_path = os.path.abspath(os.path.expanduser(path))
             if not os.path.exists(abs_path):
                 raise FileNotFoundError(f"File not found: {path}")
+
             content = read_file_with_line_numbers(abs_path)
             lines = content.splitlines()
             total_lines = len(lines)
-            # Adjust line indices (convert from 1-based to 0-based)
+
             start_idx = (start_line - 1) if start_line is not None else 0
             end_idx = end_line if end_line is not None else total_lines
-            # Validate indices
+
             if start_idx < 0:
                 start_idx = 0
             if end_idx > total_lines:
                 end_idx = total_lines
             if start_idx > end_idx:
                 start_idx = end_idx
-            # Select the lines for the result
+
             selected_lines = lines[start_idx:end_idx]
             content_result = "\n".join(selected_lines)
-            return {
+
+            results[path] = {
                 "path": path,
                 "content": content_result,
                 "start_line": start_idx + 1,
                 "end_line": end_idx,
                 "total_lines": total_lines,
             }
-        except (OSError, IOError) as e:
-            raise OSError(f"Error reading file {path}: {e}")
         except Exception as e:
-            raise RuntimeError(f"Unexpected error reading file {path}: {e}")
-
-    # Handle list of files input
-    results = {}
-    for file_config in file:
-        path = file_config["path"]
-        start_line = file_config.get("start_line")
-        end_line = file_config.get("end_line")
-        try:
-            abs_path = os.path.abspath(os.path.expanduser(path))
-            if not os.path.exists(abs_path):
-                raise FileNotFoundError(f"File not found: {path}")
-            content = read_file_with_line_numbers(abs_path)
-            lines = content.splitlines()
-            total_lines = len(lines)
-            # Adjust line indices (convert from 1-based to 0-based)
-            start_idx = (start_line - 1) if start_line is not None else 0
-            end_idx = end_line if end_line is not None else total_lines
-            # Validate indices
-            if start_idx < 0:
-                start_idx = 0
-            if end_idx > total_lines:
-                end_idx = total_lines
-            if start_idx > end_idx:
-                start_idx = end_idx
-            # Select the lines for the result
-            selected_lines = lines[start_idx:end_idx]
-            content_result = "\n".join(selected_lines)
-            results[path] = {
-                "path": path,
-                "content": content_result,
-                "start_line": start_idx + 1,  # Convert back to 1-based for output
-                "end_line": end_idx,  # end_idx is already exclusive upper bound
-                "total_lines": total_lines,
-            }
-        except Exception as e:
+            if not is_list:
+                if isinstance(e, (OSError, IOError)):
+                    raise OSError(f"Error reading file {path}: {e}") from e
+                raise RuntimeError(f"Unexpected error reading file {path}: {e}") from e
             results[path] = f"Error reading file: {e}"
-    return results
+
+    if is_list:
+        return results
+
+    return results[files[0]["path"]]
 
 
 def write_to_file(

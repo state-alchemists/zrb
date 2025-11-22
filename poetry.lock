@@ -1295,14 +1295,14 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "genai-prices"
-version = "0.0.35"
+version = "0.0.44"
 description = "Calculate prices for calling LLM inference APIs."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "genai_prices-0.0.35-py3-none-any.whl", hash = "sha256:4e53f19ffe4151074bf7e60f2dd1a0b65593b4c4a9134149bd940e3e77467db2"},
-    {file = "genai_prices-0.0.35.tar.gz", hash = "sha256:79b1cdfeef9a0ee7b2895781c3b2beafd22a0aec76a8864aab8aa6ff6013a9e3"},
+    {file = "genai_prices-0.0.44-py3-none-any.whl", hash = "sha256:668debbd3d670f0e46af4f5bd0ce815a74847ee8d62d292ee33319ada3733009"},
+    {file = "genai_prices-0.0.44.tar.gz", hash = "sha256:605f81d223d5775c543de548f42deb6ec7e7e5539388f33c5149df2b087f8b6b"},
 ]
 
 [package.dependencies]
@@ -1339,14 +1339,14 @@ urllib3 = ["packaging", "urllib3"]
 
 [[package]]
 name = "google-genai"
-version = "1.47.0"
+version = "1.52.0"
 description = "GenAI Python SDK"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "google_genai-1.47.0-py3-none-any.whl", hash = "sha256:e3851237556cbdec96007d8028b4b1f2425cdc5c099a8dc36b72a57e42821b60"},
-    {file = "google_genai-1.47.0.tar.gz", hash = "sha256:ecece00d0a04e6739ea76cc8dad82ec9593d9380aaabef078990e60574e5bf59"},
+    {file = "google_genai-1.52.0-py3-none-any.whl", hash = "sha256:c8352b9f065ae14b9322b949c7debab8562982f03bf71d44130cd2b798c20743"},
+    {file = "google_genai-1.52.0.tar.gz", hash = "sha256:a74e8a4b3025f23aa98d6a0f84783119012ca6c336fd68f73c5d2b11465d7fc5"},
 ]
 
 [package.dependencies]
@@ -1360,7 +1360,7 @@ typing-extensions = ">=4.11.0,<5.0.0"
 websockets = ">=13.0.0,<15.1.0"
 
 [package.extras]
-aiohttp = ["aiohttp (<4.0.0)"]
+aiohttp = ["aiohttp (<3.13.3)"]
 local-tokenizer = ["protobuf", "sentencepiece (>=0.2.0)"]
 
 [[package]]
@@ -2800,14 +2800,14 @@ sympy = "*"
 
 [[package]]
 name = "openai"
-version = "2.6.1"
+version = "2.8.1"
 description = "The official Python library for the openai API"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "openai-2.6.1-py3-none-any.whl", hash = "sha256:904e4b5254a8416746a2f05649594fa41b19d799843cd134dac86167e094edef"},
-    {file = "openai-2.6.1.tar.gz", hash = "sha256:27ae704d190615fca0c0fc2b796a38f8b5879645a3a52c9c453b23f97141bb49"},
+    {file = "openai-2.8.1-py3-none-any.whl", hash = "sha256:c6c3b5a04994734386e8dad3c00a393f56d3b68a27cd2e8acae91a59e4122463"},
+    {file = "openai-2.8.1.tar.gz", hash = "sha256:cb1b79eef6e809f6da326a7ef6038719e35aa944c42d081807bfa1be8060f15f"},
 ]
 
 [package.dependencies]
@@ -3522,33 +3522,33 @@ timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "1.12.0"
+version = "1.22.0"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai_slim-1.12.0-py3-none-any.whl", hash = "sha256:3007c93e4c0b28f6bd87ebe0eec3cc27b2c7639a26d806ab09d9a6944ec5872a"},
-    {file = "pydantic_ai_slim-1.12.0.tar.gz", hash = "sha256:384ebbe6237146a806e636ce4c578917d73050da86c3a7a450d45b1563840569"},
+    {file = "pydantic_ai_slim-1.22.0-py3-none-any.whl", hash = "sha256:9c2b0504daf3cfd4c06c2454ebf3011b6e08cf05cb18460f2a97c258b8cead6a"},
+    {file = "pydantic_ai_slim-1.22.0.tar.gz", hash = "sha256:0c962bac44ea81bd731e787e07106ebc49dc1ea9c842b131a5adec0e869aad37"},
 ]
 
 [package.dependencies]
 anthropic = {version = ">=0.70.0", optional = true, markers = "extra == \"anthropic\""}
-boto3 = {version = ">=1.39.0", optional = true, markers = "extra == \"bedrock\""}
+boto3 = {version = ">=1.40.14", optional = true, markers = "extra == \"bedrock\""}
 cohere = {version = ">=5.18.0", optional = true, markers = "platform_system != \"Emscripten\" and extra == \"cohere\""}
 exceptiongroup = {version = "*", markers = "python_version < \"3.11\""}
-genai-prices = ">=0.0.35"
+genai-prices = ">=0.0.40"
 google-auth = {version = ">=2.36.0", optional = true, markers = "extra == \"vertexai\""}
-google-genai = {version = ">=1.46.0", optional = true, markers = "extra == \"google\""}
+google-genai = {version = ">=1.51.0", optional = true, markers = "extra == \"google\""}
 griffe = ">=1.3.2"
 groq = {version = ">=0.25.0", optional = true, markers = "extra == \"groq\""}
 httpx = ">=0.27"
 huggingface-hub = {version = ">=0.33.5", extras = ["inference"], optional = true, markers = "extra == \"huggingface\""}
 mistralai = {version = ">=1.9.10", optional = true, markers = "extra == \"mistral\""}
-openai = {version = ">=1.107.2", optional = true, markers = "extra == \"openai\""}
+openai = {version = ">=2.8.0", optional = true, markers = "extra == \"openai\" and extra == \"openrouter\""}
 opentelemetry-api = ">=1.28.0"
 pydantic = ">=2.10"
-pydantic-graph = "1.12.0"
+pydantic-graph = "1.22.0"
 requests = {version = ">=2.32.2", optional = true, markers = "extra == \"vertexai\""}
 typing-inspection = ">=0.4.0"
 
@@ -3556,29 +3556,30 @@ typing-inspection = ">=0.4.0"
 a2a = ["fasta2a (>=0.4.1)"]
 ag-ui = ["ag-ui-protocol (>=0.1.8)", "starlette (>=0.45.3)"]
 anthropic = ["anthropic (>=0.70.0)"]
-bedrock = ["boto3 (>=1.39.0)"]
+bedrock = ["boto3 (>=1.40.14)"]
 cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "pyperclip (>=1.9.0)", "rich (>=13)"]
 cohere = ["cohere (>=5.18.0) ; platform_system != \"Emscripten\""]
 dbos = ["dbos (>=1.14.0)"]
 duckduckgo = ["ddgs (>=9.0.0)"]
-evals = ["pydantic-evals (==1.12.0)"]
+evals = ["pydantic-evals (==1.22.0)"]
 fastmcp = ["fastmcp (>=2.12.0)"]
-google = ["google-genai (>=1.46.0)"]
+google = ["google-genai (>=1.51.0)"]
 groq = ["groq (>=0.25.0)"]
 huggingface = ["huggingface-hub[inference] (>=0.33.5)"]
 logfire = ["logfire[httpx] (>=3.14.1)"]
-mcp = ["mcp (>=1.12.3)"]
+mcp = ["mcp (>=1.18.0)"]
 mistral = ["mistralai (>=1.9.10)"]
 openai = ["openai (>=1.107.2)"]
+openrouter = ["openai (>=2.8.0)"]
 outlines-llamacpp = ["outlines[llamacpp] (>=1.0.0,<1.3.0)"]
-outlines-mlxlm = ["outlines[mlxlm] (>=1.0.0,<1.3.0) ; sys_platform != \"darwin\" or platform_machine != \"x86_64\""]
+outlines-mlxlm = ["outlines[mlxlm] (>=1.0.0,<1.3.0) ; platform_system == \"Darwin\" and platform_machine == \"arm64\""]
 outlines-sglang = ["outlines[sglang] (>=1.0.0,<1.3.0)", "pillow"]
 outlines-transformers = ["outlines[transformers] (>=1.0.0,<1.3.0) ; sys_platform != \"darwin\" or platform_machine != \"x86_64\"", "pillow", "torch ; sys_platform != \"darwin\" or platform_machine != \"x86_64\"", "transformers (>=4.0.0)"]
 outlines-vllm-offline = ["outlines (>=1.0.0,<1.3.0)", "torch ; sys_platform != \"darwin\" or platform_machine != \"x86_64\"", "vllm ; python_version < \"3.12\" and (sys_platform != \"darwin\" or platform_machine != \"x86_64\")"]
 prefect = ["prefect (>=3.4.21)"]
 retries = ["tenacity (>=8.2.3)"]
 tavily = ["tavily-python (>=0.5.0)"]
-temporal = ["temporalio (==1.18.2)"]
+temporal = ["temporalio (==1.19.0)"]
 ui = ["starlette (>=0.45.3)"]
 vertexai = ["google-auth (>=2.36.0)", "requests (>=2.32.2)"]
 
@@ -3714,14 +3715,14 @@ typing-extensions = ">=4.14.1"
 
 [[package]]
 name = "pydantic-graph"
-version = "1.12.0"
+version = "1.22.0"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_graph-1.12.0-py3-none-any.whl", hash = "sha256:6ea55fa40c4494935400dc820d414a409210baf61371062910b16385141adcc0"},
-    {file = "pydantic_graph-1.12.0.tar.gz", hash = "sha256:75e50ac72a2e974cc126f950738f2d9dc65026d343133331e9d3574e1e7b2931"},
+    {file = "pydantic_graph-1.22.0-py3-none-any.whl", hash = "sha256:388c2153fddd7a7f7befcca24ff520fe29b26ac01b5ebc49051a4dcd7198226b"},
+    {file = "pydantic_graph-1.22.0.tar.gz", hash = "sha256:cc3d396e27f6a664211ed5ebacb205e6f1e2e42f1ca21846a587e3b52b438fe8"},
 ]
 
 [package.dependencies]
@@ -5704,4 +5705,4 @@ rag = ["chromadb"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10.0,<4.0.0"
-content-hash = "d1b09936fdd828df21d7a95d020cc8fa1414fe7689cbadd53dd03abf8749c9cc"
+content-hash = "72ee079e832f8595397a2254f778c05fbc4c5563196ad37062120d17dc007e2d"
