@@ -11,7 +11,7 @@ This diagram illustrates the detailed workflow when you run a task.
 ```mermaid
 graph TD
     subgraph A["Step 1: Initiation"]
-        A1(zrb my-task --input="val") --> A2{CLI Runner};
+        A1("zrb my-task --input=val") --> A2{CLI Runner};
     end
 
     subgraph B["Step 2: Session Setup"]
@@ -22,7 +22,7 @@ graph TD
     end
 
     subgraph C["Step 3: Task Execution"]
-        B1 --> C1{task.run()};
+        B1 --> C1{"task.run()"};
         C1 --> C2{For each 'upstream' task};
         C2 --> C3(Run upstream task);
         C3 --> C2;
