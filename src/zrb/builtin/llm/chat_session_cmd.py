@@ -94,14 +94,17 @@ def run_cli_command(ctx: AnyContext, user_input: str) -> None:
     )
     ctx.print(
         render_markdown(
-            "\n".join(
-                [
-                    make_markdown_section("📤 Stdout", result.stdout, as_code=True),
-                    make_markdown_section("🚫 Stderr", result.stderr, as_code=True),
-                    make_markdown_section(
-                        "🎯 Return code", f"Return Code: {result.returncode}"
-                    ),
-                ]
+            make_markdown_section(
+                f"`{command}`",
+                "\n".join(
+                    [
+                        make_markdown_section("📤 Stdout", result.stdout, as_code=True),
+                        make_markdown_section("🚫 Stderr", result.stderr, as_code=True),
+                        make_markdown_section(
+                            "🎯 Return code", f"Return Code: {result.returncode}"
+                        ),
+                    ]
+                ),
             )
         ),
         plain=True,

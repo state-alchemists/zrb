@@ -12,9 +12,9 @@ from zrb.context.any_context import AnyContext
 from zrb.util.file import read_file, read_file_with_line_numbers, write_file
 
 if sys.version_info >= (3, 12):
-    from typing import TypedDict
+    from typing import NotRequired, TypedDict
 else:
-    from typing_extensions import TypedDict
+    from typing_extensions import NotRequired, TypedDict
 
 
 class FileToRead(TypedDict):
@@ -28,8 +28,8 @@ class FileToRead(TypedDict):
     """
 
     path: str
-    start_line: int | None
-    end_line: int | None
+    start_line: NotRequired[int | None]
+    end_line: NotRequired[int | None]
 
 
 class FileToWrite(TypedDict):
@@ -266,8 +266,8 @@ def read_from_file(
     results = {}
     for file_config in files:
         path = file_config["path"]
-        start_line = file_config.get("start_line")
-        end_line = file_config.get("end_line")
+        start_line = file_config.get("start_line", None)
+        end_line = file_config.get("end_line", None)
         try:
             abs_path = os.path.abspath(os.path.expanduser(path))
             if not os.path.exists(abs_path):

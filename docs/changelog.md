@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.3
+
+- **Improvement**
+  - Use `NotRequired` to make the `TypedDict`'s property on file tools fully optional.
+  - Introduce `ShellCommandResult` `TypedDict`
+  - Improve `/run` command output.
+
+
 # 1.21.2
 
 - **Update dependencies**: pydantic-ai-slim `1.22.0`.

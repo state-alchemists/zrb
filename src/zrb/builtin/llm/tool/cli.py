@@ -1,8 +1,28 @@
 import subprocess
-from typing import Any
+import sys
+
+if sys.version_info >= (3, 12):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 
-def run_shell_command(command: str) -> dict[str, Any]:
+class ShellCommandResult(TypedDict):
+    """
+    Result of shell command execution
+
+    Attributes:
+        return_code: The return code, 0 indicating no error
+        stdout: Standard output
+        stderr: Standard error
+    """
+
+    return_code: int
+    stdout: str
+    stderr: str
+
+
+def run_shell_command(command: str) -> ShellCommandResult:
     """
     Execute a non-interactive shell command on the user's local machine.
 
