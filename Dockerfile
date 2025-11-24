@@ -1,32 +1,33 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim-bookworm AS normal
 
-# Build arguments
-ARG DIND=false
-ARG CI_TOOLS=true
-
-RUN apt-get update && apt-get install -y --no-install-recommends g++
-
-# Install system dependencies (Docker + CI tools if needed)
-RUN if [ "$CI_TOOLS" = "true" ]; then \
-    apt-get install -y --no-install-recommends git curl wget jq unzip rsync openssh-client; \
-fi
-
-# Install Poetry and Python dependencies
-RUN pip install poetry && \
-    poetry config virtualenvs.create false
-
+# set workdir
 WORKDIR /zrb-bin
 
-# Copy the rest of the application
+# install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends g++ && rm -rf /var/lib/apt/lists/*
+
+# install ci-tools
+ARG CI_TOOLS=true
+RUN if [ "$CI_TOOLS" = "true" ]; then \
+    apt-get update && apt-get install -y --no-install-recommends git curl wget jq unzip rsync openssh-client && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# install poetry
+RUN pip install poetry
+RUN poetry config virtualenvs.create false
+
+# copy app source
 COPY . .
 RUN poetry install --without dev
 
 WORKDIR /zrb-home
 
-RUN if [ "$DIND" = "true" ]; then \
-    apt-get install -y --no-install-recommends docker.io; \
-fi
-
-RUN rm -rf /var/lib/apt/lists/*
-
 CMD ["zrb", "server", "start"]
+
+
+#
+# ===== DIND image =====
+#
+FROM normal AS dind
+
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io && rm -rf /var/lib/apt/lists/*
