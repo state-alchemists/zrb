@@ -1,5 +1,10 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.5
+
+- **Changed**: Tools docstring has been updated to be more verbose.
+
+
 # 1.21.4
 
 - **Added: Write mode**
