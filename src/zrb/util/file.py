@@ -1,5 +1,6 @@
 import os
 import re
+from typing import Literal
 
 
 def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
@@ -80,12 +81,17 @@ def read_dir(dir_path: str) -> list[str]:
     return [f for f in os.listdir(os.path.abspath(os.path.expanduser(dir_path)))]
 
 
-def write_file(file_path: str, content: str | list[str]):
+def write_file(
+    file_path: str,
+    content: str | list[str],
+    mode: Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"] = "w"
+):
     """Writes content to a file.
 
     Args:
         file_path: The path to the file.
         content: The content to write, either a string or a list of strings.
+        mode: Writing mode (by default "w")
     """
     if isinstance(content, list):
         content = "\n".join([line for line in content if line is not None])
@@ -98,5 +104,5 @@ def write_file(file_path: str, content: str | list[str]):
     content = content.rstrip("\n")
     if should_add_eol:
         content += "\n"
-    with open(abs_file_path, "w") as f:
+    with open(abs_file_path, mode) as f:
         f.write(content)
