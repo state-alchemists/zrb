@@ -47,8 +47,6 @@ class FileToWrite(TypedDict):
     mode: NotRequired[Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"]]
 
 
-
-
 class Replacement(TypedDict):
     """
     Configuration for a single text replacement operation.

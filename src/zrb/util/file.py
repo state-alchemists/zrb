@@ -84,7 +84,7 @@ def read_dir(dir_path: str) -> list[str]:
 def write_file(
     file_path: str,
     content: str | list[str],
-    mode: Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"] = "w"
+    mode: Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"] = "w",
 ):
     """Writes content to a file.
 
