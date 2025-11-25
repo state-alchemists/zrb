@@ -26,11 +26,17 @@ def run_shell_command(command: str) -> ShellCommandResult:
     """
     Execute a non-interactive shell command on the user's local machine.
 
-    **Security Warning:** This tool executes commands with user-level permissions. Before using commands that modify the file system or system state (e.g., `git`, `npm`, `pip`, `docker`), you MUST explain the command and its potential impact, and then ask for user confirmation.
+    **CRITICAL: SECURITY WARNING**
+    This tool executes commands with user-level permissions. Before using commands that modify the file system or system state (e.g., `git`, `npm`, `pip`, `docker`), you MUST explain the command and its potential impact, and then ask for user confirmation.
 
-    This is a powerful tool for interacting with the command line, running scripts, and managing processes.
+    **IMPORTANT:**
+    - This is a non-interactive shell. Do not run commands that require user input.
+    - Long-running processes or servers should be run in the background (e.g., `python -m http.server &`).
 
-    **Note:** Long-running processes or servers should be run in the background (e.g., `python -m http.server &`).
+    **Example:**
+    ```python
+    run_shell_command(command='ls -l')
+    ```
 
     Args:
         command (str): The exact shell command to be executed.

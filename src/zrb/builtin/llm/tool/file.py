@@ -253,7 +253,7 @@ def read_from_file(
 
     Args:
         file (FileToRead | list[FileToRead]): A single file configuration or a list of them.
-            Each `FileToRead` should have:
+            Each `FileToRead` object should have:
             - path (str): The path to the file to read.
             - start_line (int | None): The 1-based line number to start reading from. Defaults to the beginning.
             - end_line (int | None): The 1-based line number to stop reading at (exclusive). Defaults to the end.
@@ -316,18 +316,56 @@ def write_to_file(
     file: FileToWrite | list[FileToWrite],
 ) -> str | dict[str, Any]:
     """
-    Write content to a file. Can overwrite, append, or create exclusively.
+    Writes content to a file. Can overwrite, append, or create exclusively.
 
-    **WARNING:** The default mode 'w' is a destructive operation that overwrites the entire file.
-    Use mode 'a' to append or 'x' to create a file only if it does not exist.
-    For targeted changes within a file, use `replace_in_file` instead.
+    This tool is for writing content to one or more files. You can specify the mode for each file:
+    - 'w': Overwrite the file if it exists, or create it. (Default)
+    - 'a': Append to the file if it exists, or create it.
+    - 'x': Create a new file, but fail if it already exists.
+
+    For targeted changes within a file, it is better to use `replace_in_file`.
+
+    **CRITICAL:**
+    - You MUST use the `file` parameter to pass a `FileToWrite` object (for a single file) or a list of `FileToWrite` objects (for multiple files).
+    - Do NOT pass `path`, `content`, or `mode` as top-level arguments to the tool.
+
+    **Examples:**
+
+    *Example 1: Writing to a single file (overwrite)*
+    ```python
+    write_to_file(file={'path': 'path/to/file.txt', 'content': 'Hello, world!'})
+    ```
+
+    *Example 2: Appending to a single file*
+    ```python
+    # Note the '\n' to ensure the content starts on a new line.
+    write_to_file(file={'path': 'path/to/file.txt', 'content': '\nAnother line.', 'mode': 'a'})
+    ```
+
+    *Example 3: Writing to multiple files with different modes*
+    ```python
+    write_to_file(file=[
+        {'path': 'file1.txt', 'content': 'Content for file 1'},
+        {'path': 'file2.txt', 'content': 'Appended content for file 2.', 'mode': 'a'}
+    ])
+    ```
+
+    *Example 4: Writing large content in chunks*
+    ```python
+    # First call to create and write the first chunk
+    write_to_file(file={'path': 'large.txt', 'content': 'This is the first chunk...'})
+    # Subsequent calls to append the remaining chunks
+    write_to_file(file={'path': 'large.txt', 'content': 'This is the second chunk...', 'mode': 'a'})
+    ```
 
     Args:
         file (FileToWrite | list[FileToWrite]): A single file configuration or a list of them.
-            Each `FileToWrite` should have:
+            Each `FileToWrite` object must have:
             - path (str): The path of the file to write to.
             - content (str): The content to write.
-            - mode (str, optional): 'w' to overwrite (default), 'a' to append, 'x' to create exclusively.
+              **CRITICAL: The content for each file MUST NOT exceed 4000 characters.**
+              If your content is larger, you MUST split it into chunks and make multiple calls to this tool as shown in Example 4.
+            - mode (str, optional): 'w' (default), 'a', or 'x'.
 
     Returns:
         If a single file is written, returns a success message.
@@ -466,13 +504,41 @@ def replace_in_file(
     file: FileReplacement | list[FileReplacement],
 ) -> str | dict[str, Any]:
     """
-    Replace the first occurrence of one or more strings in a file.
+    Replaces the first occurrence of one or more strings in a file.
 
-    **CRITICAL:** `old_string` must be an exact match of the file content, including whitespace and newlines. Always use `read_from_file` first to get the exact text block.
+    This tool is for making targeted replacements in one or more files.
+
+    **CRITICAL:**
+    - You MUST use the `file` parameter to pass a `FileReplacement` object (for a single file) or a list of `FileReplacement` objects (for multiple files).
+    - `old_string` MUST be an exact, literal match of the file content, including all whitespace, indentation, and newlines. Use `read_from_file` first to get the precise text block to replace.
+
+    **Examples:**
+
+    *Example 1: Replacing content in a single file*
+    ```python
+    replace_in_file(file={
+        'path': 'path/to/file.txt',
+        'replacements': [{'old_string': 'hello', 'new_string': 'goodbye'}]
+    })
+    ```
+
+    *Example 2: Replacing content in multiple files*
+    ```python
+    replace_in_file(file=[
+        {
+            'path': 'file1.txt',
+            'replacements': [{'old_string': 'foo', 'new_string': 'bar'}]
+        },
+        {
+            'path': 'file2.txt',
+            'replacements': [{'old_string': 'old', 'new_string': 'new'}]
+        }
+    ])
+    ```
 
     Args:
-        file_replacement (FileReplacement | list[FileReplacement]): A single or multiple file replacement configurations.
-            Each `FileReplacement` should have:
+        file (FileReplacement | list[FileReplacement]): A single or multiple file replacement configurations.
+            Each `FileReplacement` object must have:
             - path (str): The path of the file to modify.
             - replacements (list[Replacement]): A list of replacement operations.
                 Each `Replacement` should have:

@@ -57,20 +57,22 @@ async def analyze_repo(
     summarization_token_threshold: int | None = None,
 ) -> str:
     """
-    Analyze a code repository or directory to answer a specific query.
+    Analyzes a code repository or directory to answer a specific query.
 
     This tool recursively reads files, extracts relevant information using a sub-agent, and then summarizes that information to provide a comprehensive answer. It is ideal for understanding large codebases, generating architectural summaries, or creating documentation.
 
-    **CRITICAL:** The quality of your analysis depends entirely on the quality of your query. Vague queries will result in poor results.
+    **CRITICAL: The quality of your analysis depends entirely on the quality of your query.** Vague queries will result in poor, useless results.
+
+    **IMPORTANT:** This tool can be slow and expensive on large repositories. Use it judiciously.
 
     Args:
         path (str): The path to the directory or repository to analyze.
         query (str): A clear and specific question or goal for the analysis.
-            - Good: "Understand the database schema by analyzing all the .sql files."
-            - Good: "Create a summary of all API endpoints defined in the 'api' directory."
-            - Bad: "Analyze the repo."
-        extensions (list[str], optional): File extensions to include. Defaults to a comprehensive list of common code and text file extensions.
-        exclude_patterns (list[str], optional): Glob patterns to exclude from the analysis. Defaults to common temporary and build artifact patterns.
+            - Good Example: "Understand the database schema by analyzing all the .sql files."
+            - Good Example: "Create a summary of all API endpoints defined in the 'api' directory by looking at the controller files."
+            - Bad Example: "Analyze the repo."
+        extensions (list[str], optional): File extensions to include (e.g., `['py', 'md']`). Defaults to a comprehensive list of common code and text file extensions.
+        exclude_patterns (list[str], optional): Glob patterns to exclude from the analysis (e.g., `['*test.py', 'tmp/*']`). Defaults to common temporary and build artifact patterns.
         extraction_token_threshold (int, optional): The token limit for the extraction sub-agent.
         summarization_token_threshold (int, optional): The token limit for the summarization sub-agent.
 

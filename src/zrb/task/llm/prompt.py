@@ -137,11 +137,13 @@ def get_workflow_prompt(
         )
     if len(active_workflow_prompts) > 0:
         active_workflow_prompts = [
-            "> These workflows are automatically loaded, You DON'T NEED to load them.",
+            "> **IMPORTANT** The following workflows are automatically loaded, You DON'T NEED to load them.",
+            "",
         ] + active_workflow_prompts
     if len(available_workflow_prompts) > 0:
         available_workflow_prompts = [
-            "> You should load the following workflows using `load_workflow` tool.",
+            "> **IMPORTANT** You should load the following workflows using `load_workflow` tool.",
+            "",
         ] + available_workflow_prompts
     return "\n".join(
         [
