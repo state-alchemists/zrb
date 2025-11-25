@@ -3,7 +3,7 @@ import json
 import os
 import re
 import sys
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.config.config import CFG
@@ -37,12 +37,14 @@ class FileToWrite(TypedDict):
     Configuration for writing content to a file.
 
     Attributes:
-        path (str): Absolute or relative path where file will be written
-        content (str): Content to write to the file (overwrites existing content)
+        path (str): Absolute or relative path where file will be written.
+        content (str): Content to write. CRITICAL: For JSON, ensure all special characters in this string are properly escaped.
+        mode (str): Mode for writing: 'w' (overwrite, default), 'a' (append), 'x' (create exclusively).
     """
 
     path: str
     content: str
+    mode: NotRequired[Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"]]
 
 
 class Replacement(TypedDict):
@@ -314,15 +316,18 @@ def write_to_file(
     file: FileToWrite | list[FileToWrite],
 ) -> str | dict[str, Any]:
     """
-    Write content to a file, completely overwriting it if it exists. Creates parent directories if needed.
+    Write content to a file. Can overwrite, append, or create exclusively.
 
-    **WARNING:** This is a destructive operation. For targeted changes, use `replace_in_file`.
+    **WARNING:** The default mode 'w' is a destructive operation that overwrites the entire file.
+    Use mode 'a' to append or 'x' to create a file only if it does not exist.
+    For targeted changes within a file, use `replace_in_file` instead.
 
     Args:
         file (FileToWrite | list[FileToWrite]): A single file configuration or a list of them.
             Each `FileToWrite` should have:
             - path (str): The path of the file to write to.
             - content (str): The content to write.
+            - mode (str, optional): 'w' to overwrite (default), 'a' to append, 'x' to create exclusively.
 
     Returns:
         If a single file is written, returns a success message.
@@ -336,12 +341,11 @@ def write_to_file(
     for file_config in files:
         path = file_config["path"]
         content = file_config["content"]
+        mode = file_config.get("mode", "w")
         try:
             abs_path = os.path.abspath(os.path.expanduser(path))
-            directory = os.path.dirname(abs_path)
-            if directory and not os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
-            write_file(abs_path, content)
+            # The underlying utility creates the directory, so we don't need to do it here.
+            write_file(abs_path, content, mode=mode)
             success.append(path)
         except Exception as e:
             errors[path] = f"Error writing file: {e}"
@@ -354,7 +358,7 @@ def write_to_file(
             raise RuntimeError(
                 f"Error writing file {file['path']}: {errors[file['path']]}"
             )
-        return f"Successfully wrote to file: {file['path']}"
+        return f"Successfully wrote to file: {file['path']} in mode '{file.get('mode', 'w')}'"
 
 
 def search_files(

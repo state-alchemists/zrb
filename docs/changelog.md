@@ -1,5 +1,11 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.4
+
+- **Added: Write mode**
+  - Add write mode to `write_to_file` so that when the LLM failed to write to file, it can break down the content to smaller pieces and write with `a` (append) mode.
+
+
 # 1.21.3
 
 - **Improvement**
