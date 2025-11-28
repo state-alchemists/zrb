@@ -487,12 +487,10 @@ def replace_in_file(
 
     Examples:
     # Replace ALL occurrences
-    replace_in_file(
-        file=[
-            {'path': 'file.txt', 'old_text': 'foo', 'new_text': 'bar'},
-            {'path': 'file.txt', 'old_text': 'baz', 'new_text': 'qux'}
-        ]
-    )
+    replace_in_file(file=[
+        {'path': 'file.txt', 'old_text': 'foo', 'new_text': 'bar'},
+        {'path': 'file.txt', 'old_text': 'baz', 'new_text': 'qux'}
+    ])
 
     # Replace ONLY the first occurrence
     replace_in_file(
