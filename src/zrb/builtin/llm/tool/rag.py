@@ -45,22 +45,31 @@ def create_rag_from_directory(
     openai_embedding_model: str | None = None,
 ):
     """
-    Create a powerful RAG (Retrieval-Augmented Generation) tool for querying a local knowledge base.
+    Create a powerful RAG (Retrieval-Augmented Generation) tool for querying a local
+    knowledge base.
 
-    This factory function generates a tool that performs semantic search over a directory of documents. It automatically indexes the documents into a vector database (ChromaDB) and keeps it updated as files change.
+    This factory function generates a tool that performs semantic search over a directory of
+    documents. It automatically indexes the documents into a vector database (ChromaDB) and
+    keeps it updated as files change.
 
-    The generated tool is ideal for answering questions based on a specific set of documents, such as project documentation or internal wikis.
+    The generated tool is ideal for answering questions based on a specific set of documents,
+    such as project documentation or internal wikis.
 
     Args:
         tool_name (str): The name for the generated RAG tool (e.g., "search_project_docs").
-        tool_description (str): A clear description of what the tool does and when to use it. This is what the LLM will see.
-        document_dir_path (str, optional): The path to the directory containing the documents to be indexed.
-        vector_db_path (str, optional): The path where the ChromaDB vector database will be stored.
-        vector_db_collection (str, optional): The name of the collection within the vector database.
+        tool_description (str): A clear description of what the tool does and when to use it.
+            This is what the LLM will see.
+        document_dir_path (str, optional): The path to the directory containing the documents
+            to be indexed.
+        vector_db_path (str, optional): The path where the ChromaDB vector database will be
+            stored.
+        vector_db_collection (str, optional): The name of the collection within the vector
+            database.
         chunk_size (int, optional): The size of text chunks for embedding.
         overlap (int, optional): The overlap between text chunks.
         max_result_count (int, optional): The maximum number of search results to return.
-        file_reader (list[RAGFileReader], optional): A list of custom file readers for specific file types.
+        file_reader (list[RAGFileReader], optional): A list of custom file readers for
+            specific file types.
         openai_api_key (str, optional): Your OpenAI API key for generating embeddings.
         openai_base_url (str, optional): An optional base URL for the OpenAI API.
         openai_embedding_model (str, optional): The embedding model to use.

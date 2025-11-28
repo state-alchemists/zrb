@@ -30,21 +30,27 @@ def create_sub_agent_tool(
     """
     Create a tool that is another AI agent, capable of handling complex, multi-step sub-tasks.
 
-    This factory function generates a tool that, when used, spins up a temporary, specialized AI agent. This "sub-agent" has its own system prompt, tools, and context, allowing it to focus on accomplishing a specific task without being distracted by the main conversation.
+    This factory function generates a tool that, when used, spins up a temporary, specialized
+    AI agent. This "sub-agent" has its own system prompt, tools, and context, allowing it to
+    focus on accomplishing a specific task without being distracted by the main conversation.
 
     This is ideal for delegating complex tasks like analyzing a file or a repository.
 
     Args:
         tool_name (str): The name for the generated sub-agent tool.
-        tool_description (str): A clear description of the sub-agent's purpose and when to use it. This is what the LLM will see.
-        system_prompt (str, optional): The system prompt that will guide the sub-agent's behavior.
+        tool_description (str): A clear description of the sub-agent's purpose and when to
+            use it. This is what the LLM will see.
+        system_prompt (str, optional): The system prompt that will guide the sub-agent's
+            behavior.
         model (str | Model, optional): The language model the sub-agent will use.
         model_settings (ModelSettings, optional): Specific settings for the sub-agent's model.
-        tools (list, optional): A list of tools that will be exclusively available to the sub-agent.
+        tools (list, optional): A list of tools that will be exclusively available to the
+            sub-agent.
         toolsets (list, optional): A list of Toolsets for the sub-agent.
 
     Returns:
-        An asynchronous function that serves as the sub-agent tool. When called, it runs the sub-agent with a given query and returns its final result.
+        An asynchronous function that serves as the sub-agent tool. When called, it runs the
+        sub-agent with a given query and returns its final result.
     """
 
     async def run_sub_agent(ctx: AnyContext, query: str) -> dict[str, Any]:

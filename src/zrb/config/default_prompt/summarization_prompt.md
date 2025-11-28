@@ -4,8 +4,8 @@ Follow these instructions carefully:
 
 1. **Summarize:** Create a concise narrative summary that integrates the `Past Conversation Summary` with the `Recent Conversation`. **This summary must not be more than two paragraphs.**
 2. **Transcript:** Extract ONLY the last 4 (four) turns of the `Recent Conversation` to serve as the new transcript.
-    * **Do not change or shorten the content of these turns, with one exception:** If a tool call returns a very long output, do not include the full output. Instead, briefly summarize the result of the tool call.
-    * Ensure the timestamp format is `[YYYY-MM-DD HH:MM:SS UTC+Z] Role: Message/Tool name being called`.
+  * **Do not change or shorten the content of these turns, with one exception:** If a tool call returns a very long output, do not include the full output. Instead, briefly summarize the result of the tool call.
+  * Ensure the timestamp format is `[YYYY-MM-DD HH:MM:SS UTC+Z] Role: Message/Tool name being called`.
 3. **Update Memory:** Call the `final_result` tool with all the information you consolidated.
 
 After you have called the tool, your task is complete.

@@ -42,7 +42,9 @@ def create_get_current_weather() -> Callable:
         Gets current weather conditions for a given location.
 
         Example:
-        get_current_weather(latitude=34.0522, longitude=-118.2437, temperature_unit='fahrenheit')
+        get_current_weather(
+            latitude=34.0522, longitude=-118.2437, temperature_unit='fahrenheit'
+        )
 
         Args:
             latitude (float): Latitude of the location.

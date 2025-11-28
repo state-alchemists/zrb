@@ -26,7 +26,8 @@ def run_shell_command(command: str) -> ShellCommandResult:
     """
     Executes a non-interactive shell command on the user's machine.
 
-    CRITICAL: This tool runs with user-level permissions. Explain commands that modify the system (e.g., `git`, `pip`) and ask for confirmation.
+    CRITICAL: This tool runs with user-level permissions. Explain commands that modify
+        the system (e.g., `git`, `pip`) and ask for confirmation.
     IMPORTANT: Long-running processes should be run in the background (e.g., `command &`).
 
     Example:

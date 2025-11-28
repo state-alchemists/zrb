@@ -59,11 +59,16 @@ async def analyze_repo(
     """
     Analyzes a code repository or directory to answer a specific query.
 
-    CRITICAL: The quality of analysis depends entirely on the query. Vague queries yield poor results.
+    CRITICAL: The quality of analysis depends entirely on the query. Vague queries yield poor
+        results.
     IMPORTANT: This tool can be slow and expensive on large repositories. Use judiciously.
 
     Example:
-    analyze_repo(path='src/my_project', query='Summarize the main functionalities by analyzing Python files.', extensions=['py'])
+    analyze_repo(
+        path='src/my_project',
+        query='Summarize the main functionalities by analyzing Python files.',
+        extensions=['py']
+    )
 
     Args:
         ctx (AnyContext): The execution context.

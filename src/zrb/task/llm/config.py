@@ -7,7 +7,6 @@ if TYPE_CHECKING:
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
 
 
@@ -69,7 +68,7 @@ def get_model_api_key(
 ) -> str | None:
     """Gets the model API key, rendering if configured."""
     api_key = get_attr(ctx, model_api_key_attr, None, auto_render=render_model_api_key)
-    if api_key is None and llm_config.default_api_key is not None:
+    if api_key is None and llm_config.default_model_api_key is not None:
         return llm_config.default_model_api_key
     if isinstance(api_key, str) or api_key is None:
         return api_key
@@ -78,7 +77,7 @@ def get_model_api_key(
 
 def get_model(
     ctx: AnyContext,
-    model_attr: "Callable[[AnyContext], Model | str | fstring] | Model | None",
+    model_attr: "Callable[[AnyContext], Model | str | fstring] | Model | str | None",
     render_model: bool,
     model_base_url_attr: StrAttr | None = None,
     render_model_base_url: bool = True,

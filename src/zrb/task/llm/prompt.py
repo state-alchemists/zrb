@@ -232,7 +232,7 @@ def _get_workflow_prompt(
                 (
                     workflow.content
                     if select_active_workflow
-                    else f"Workflow name: {workflow_name}"
+                    else f"Workflow name: {workflow_name}\n{workflow.description}"
                 ),
             )
             for workflow_name, workflow in selected_workflows.items()

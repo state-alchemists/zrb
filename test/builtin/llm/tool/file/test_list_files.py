@@ -30,13 +30,14 @@ def test_list_files_non_recursive(temp_dir):
     create_file(os.path.join(temp_dir, "subdir", "file2.txt"))
     os.makedirs(os.path.join(temp_dir, ".hiddendir"))
 
-    # Default: non-recursive, exclude hidden
-    data = list_files(path=temp_dir, recursive=False, include_hidden=False)
-    assert sorted(data["files"]) == ["file1.txt", "subdir"]
+    # Default: depth=1 (top-level only), exclude hidden
+    # Note: New behavior is files only (like recursive=True was)
+    data = list_files(path=temp_dir, depth=1, include_hidden=False)
+    assert sorted(data["files"]) == ["file1.txt"]
 
-    # Non-recursive, include hidden
-    data = list_files(path=temp_dir, recursive=False, include_hidden=True)
-    assert sorted(data["files"]) == [".hiddendir", ".hiddenfile", "file1.txt", "subdir"]
+    # Depth=1, include hidden
+    data = list_files(path=temp_dir, depth=1, include_hidden=True)
+    assert sorted(data["files"]) == [".hiddenfile", "file1.txt"]
 
 
 def test_list_files_recursive(temp_dir):
@@ -48,8 +49,8 @@ def test_list_files_recursive(temp_dir):
     os.makedirs(os.path.join(temp_dir, ".hiddendir"))
     create_file(os.path.join(temp_dir, ".hiddendir", "file3.txt"))
 
-    # Recursive, exclude hidden
-    data = list_files(path=temp_dir, recursive=True, include_hidden=False)
+    # Recursive (depth=3), exclude hidden
+    data = list_files(path=temp_dir, depth=3, include_hidden=False)
     # Note: os.path.join creates OS-specific paths
     expected = sorted(
         [
@@ -59,8 +60,8 @@ def test_list_files_recursive(temp_dir):
     )
     assert sorted(data["files"]) == expected
 
-    # Recursive, include hidden
-    data = list_files(path=temp_dir, recursive=True, include_hidden=True)
+    # Recursive (depth=3), include hidden
+    data = list_files(path=temp_dir, depth=3, include_hidden=True)
     expected = sorted(
         [
             ".hiddenfile",
@@ -82,8 +83,8 @@ def test_list_files_exclusions(temp_dir):
     create_file(os.path.join(temp_dir, "subdir", "data.txt"))
     create_file(os.path.join(temp_dir, "subdir", "another.log"))
 
-    # Default exclusions (recursive) - node_modules should be excluded, .log should NOT
-    data = list_files(path=temp_dir, recursive=True, include_hidden=False)
+    # Default exclusions (recursive, depth=3) - node_modules should be excluded, .log should NOT
+    data = list_files(path=temp_dir, depth=3, include_hidden=False)
     expected = sorted(
         [
             "file1.txt",
@@ -98,8 +99,8 @@ def test_list_files_exclusions(temp_dir):
     actual = sorted([f for f in data["files"] if not _is_hidden(f)])  # Use the helper
     assert actual == expected
 
-    # Custom exclusions (recursive)
-    data = list_files(path=temp_dir, recursive=True, excluded_patterns=["*.txt"])
+    # Custom exclusions (recursive, depth=3)
+    data = list_files(path=temp_dir, depth=3, excluded_patterns=["*.txt"])
     expected = sorted(
         [
             "file.log",  # Default exclusions not applied here
@@ -115,8 +116,8 @@ def test_list_files_exclusions(temp_dir):
     actual = sorted([f for f in data["files"] if not f.startswith(".")])
     assert actual == expected
 
-    # Exclude specific dir (non-recursive)
-    data = list_files(path=temp_dir, recursive=False, excluded_patterns=["subdir"])
+    # Exclude specific dir (recursive, depth=3)
+    data = list_files(path=temp_dir, depth=3, excluded_patterns=["subdir"])
     expected = sorted(
         [
             "file.log",  # Default exclusions not applied here
@@ -126,6 +127,12 @@ def test_list_files_exclusions(temp_dir):
     )
     # Filter out potential OS-specific hidden files if any created in temp
     actual = sorted([f for f in data["files"] if not f.startswith(".")])
+    # node_modules/lib.js IS included because we didn't exclude node_modules, only subdir
+    # Wait, expected list above includes "node_modules" (directory) in my manual trace?
+    # No, list_files only returns files now.
+    # So expected should contain os.path.join("node_modules", "lib.js")
+
+    expected = sorted(["file.log", "file1.txt", os.path.join("node_modules", "lib.js")])
     assert actual == expected
 
 

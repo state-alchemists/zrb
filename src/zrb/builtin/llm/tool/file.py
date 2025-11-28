@@ -23,7 +23,8 @@ class FileToRead(TypedDict):
 
     Attributes:
         path (str): Absolute or relative path to the file
-        start_line (int | None): Starting line number (1-based, inclusive). If None, reads from beginning.
+        start_line (int | None): Starting line number (1-based, inclusive).
+            If None, reads from beginning.
         end_line (int | None): Ending line number (1-based, exclusive). If None, reads to end.
     """
 
@@ -38,8 +39,10 @@ class FileToWrite(TypedDict):
 
     Attributes:
         path (str): Absolute or relative path where file will be written.
-        content (str): Content to write. CRITICAL: For JSON, ensure all special characters in this string are properly escaped.
-        mode (str): Mode for writing: 'w' (overwrite, default), 'a' (append), 'x' (create exclusively).
+        content (str): Content to write. CRITICAL: For JSON, ensure all special characters
+            in this string are properly escaped.
+        mode (str): Mode for writing:
+            'w' (overwrite, default), 'a' (append), 'x' (create exclusively).
     """
 
     path: str
@@ -138,20 +141,21 @@ DEFAULT_EXCLUDED_PATTERNS = [
 
 def list_files(
     path: str = ".",
-    recursive: bool = True,
     include_hidden: bool = False,
+    depth: int = 3,
     excluded_patterns: Optional[list[str]] = None,
 ) -> dict[str, list[str]]:
     """
-    Lists files and directories recursively or non-recursively.
+    Lists files recursively up to a specified depth.
 
     Example:
-    list_files(path='src', recursive=True, include_hidden=False)
+    list_files(path='src', include_hidden=False, depth=2)
 
     Args:
         path (str): Directory path. Defaults to current directory.
-        recursive (bool): List recursively. Defaults to True.
         include_hidden (bool): Include hidden files. Defaults to False.
+        depth (int): Maximum depth to traverse. Defaults to 3.
+            Minimum depth is 1 (current directory only).
         excluded_patterns (list[str]): Glob patterns to exclude.
 
     Returns:
@@ -169,50 +173,31 @@ def list_files(
         if excluded_patterns is not None
         else DEFAULT_EXCLUDED_PATTERNS
     )
+    if depth <= 0:
+        depth = 1
     try:
-        if recursive:
-            for root, dirs, files in os.walk(abs_path, topdown=True):
-                # Filter directories in-place
-                dirs[:] = [
-                    d
-                    for d in dirs
-                    if (include_hidden or not _is_hidden(d))
-                    and not is_excluded(d, patterns_to_exclude)
-                ]
-                # Process files
-                for filename in files:
-                    if (include_hidden or not _is_hidden(filename)) and not is_excluded(
-                        filename, patterns_to_exclude
-                    ):
-                        full_path = os.path.join(root, filename)
-                        # Check rel path for patterns like '**/node_modules/*'
-                        rel_full_path = os.path.relpath(full_path, abs_path)
-                        is_rel_path_excluded = is_excluded(
-                            rel_full_path, patterns_to_exclude
-                        )
-                        if not is_rel_path_excluded:
-                            all_files.append(full_path)
-        else:
-            # Non-recursive listing (top-level only)
-            for item in os.listdir(abs_path):
-                full_path = os.path.join(abs_path, item)
-                # Include both files and directories if not recursive
-                if (include_hidden or not _is_hidden(item)) and not is_excluded(
-                    item, patterns_to_exclude
+        initial_depth = abs_path.rstrip(os.sep).count(os.sep)
+        for root, dirs, files in os.walk(abs_path, topdown=True):
+            current_depth = root.rstrip(os.sep).count(os.sep) - initial_depth
+            if current_depth >= depth - 1:
+                del dirs[:]
+            dirs[:] = [
+                d
+                for d in dirs
+                if (include_hidden or not _is_hidden(d))
+                and not is_excluded(d, patterns_to_exclude)
+            ]
+
+            for filename in files:
+                if (include_hidden or not _is_hidden(filename)) and not is_excluded(
+                    filename, patterns_to_exclude
                 ):
-                    all_files.append(full_path)
-        # Return paths relative to the original path requested
-        try:
-            rel_files = [os.path.relpath(f, abs_path) for f in all_files]
-            return {"files": sorted(rel_files)}
-        except (
-            ValueError
-        ) as e:  # Handle case where path is '.' and abs_path is CWD root
-            if "path is on mount '" in str(e) and "' which is not on mount '" in str(e):
-                # If paths are on different mounts, just use absolute paths
-                rel_files = all_files
-                return {"files": sorted(rel_files)}
-            raise
+                    full_path = os.path.join(root, filename)
+                    rel_full_path = os.path.relpath(full_path, abs_path)
+                    if not is_excluded(rel_full_path, patterns_to_exclude):
+                        all_files.append(rel_full_path)
+        return {"files": sorted(all_files)}
+
     except (OSError, IOError) as e:
         raise OSError(f"Error listing files in {path}: {e}")
     except Exception as e:
@@ -327,11 +312,15 @@ def write_to_file(
     file: FileToWrite | list[FileToWrite],
 ) -> str | dict[str, Any]:
     """
-    Writes content to one or more files, with options for overwrite, append, or exclusive creation.
+    Writes content to one or more files, with options for overwrite, append, or exclusive
+    creation.
 
-    CRITICAL: The content for each file MUST NOT exceed 4000 characters. If your content is larger,
-    you MUST split it into chunks and make multiple calls to this tool. The first call should use
-    'w' mode, and subsequent calls for the same file should use 'a' mode.
+    **CRITICAL:**
+    - The content for each file MUST NOT exceed 4000 characters.
+    - If your content is larger, you MUST split it into chunks and make multiple calls to this
+      tool.
+        - The first call should use 'w' mode.
+        - Then subsequent calls for the same file should use 'a' mode.
 
     Examples:
     # Overwrite 'file.txt' with initial content
@@ -492,20 +481,33 @@ def replace_in_file(
     """
     Replaces exact string occurrences in one or more files.
 
-    CRITICAL: `old_string` must match file content exactly (including whitespace, newlines).
+    CRITICAL: `old_string` MUST match file content EXACTLY (including whitespace, newlines).
+    If you are unsure about the exact content, read the file first.
 
     Examples:
     # Single file replacement
-    replace_in_file(file={'path': 'path/to/file.txt', 'replacements': [{'old_string': 'old', 'new_string': 'new'}]})
+    replace_in_file(
+        file={
+            'path': 'path/to/file.txt',
+            'replacements': [{'old_string': 'old', 'new_string': 'new'}]
+        }
+    )
 
     # Multiple file replacements
     replace_in_file(file=[
-        {'path': 'path/to/file1.txt', 'replacements': [{'old_string': 'foo', 'new_string': 'bar'}]},
-        {'path': 'path/to/file2.txt', 'replacements': [{'old_string': 'old', 'new_string': 'new'}]}
+        {
+            'path': 'path/to/file1.txt',
+            'replacements': [{'old_string': 'foo', 'new_string': 'bar'}]
+        },
+        {
+            'path': 'path/to/file2.txt',
+            'replacements': [{'old_string': 'old', 'new_string': 'new'}]
+        }
     ])
 
     Args:
-        file (FileReplacement | list[FileReplacement]): A single file configuration or a list of them.
+        file (FileReplacement | list[FileReplacement]): A single file configuration
+            or a list of them.
 
     Returns:
         Success message for single file, or dict with success/errors for multiple files.
@@ -576,7 +578,12 @@ async def analyze_file(
     file_content = read_file(abs_path)
     _analyze_file = create_sub_agent_tool(
         tool_name="analyze_file",
-        tool_description="Analyze file content using LLM sub-agent for complex questions about code structure, documentation quality, or file-specific analysis. Use for questions that require understanding beyond simple text reading.",
+        tool_description=(
+            "Analyze file content using LLM sub-agent "
+            "for complex questions about code structure, documentation quality, or "
+            "file-specific analysis. Use for questions that require understanding beyond "
+            "simple text reading."
+        ),
         system_prompt=CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
     )

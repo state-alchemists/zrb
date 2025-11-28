@@ -1,5 +1,14 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.7
+
+- **Changed**: `list_files` tool has been simplified and improved.
+  - Removed `recursive` parameter.
+  - Added `depth` parameter (default: 3).
+  - `depth=0` lists immediate children (files and folders), similar to `ls`.
+  - `depth > 0` lists files recursively up to the specified depth.
+  - Negative depth values are clamped to 1.
+
 # 1.21.6
 
 - **Refactor**: Significant refactoring of prompt construction logic and related utilities.
