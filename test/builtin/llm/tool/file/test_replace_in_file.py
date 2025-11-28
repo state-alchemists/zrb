@@ -23,7 +23,7 @@ def test_replace_in_file_success(temp_dir):
     result = replace_in_file(
         file={
             "path": file_path,
-            "replacements": [{"old_string": "Hello world", "new_string": "Hello ZRB"}],
+            "replacement": [{"old_string": "Hello world", "new_string": "Hello ZRB"}],
         }
     )
 
@@ -43,9 +43,7 @@ def test_replace_in_file_not_found(temp_dir):
         replace_in_file(
             file={
                 "path": file_path,
-                "replacements": [
-                    {"old_string": "Not found", "new_string": "Hello ZRB"}
-                ],
+                "replacement": [{"old_string": "Not found", "new_string": "Hello ZRB"}],
             }
         )
     assert "old_string not found in file" in str(excinfo.value)
@@ -57,7 +55,7 @@ def test_replace_in_file_file_not_found(temp_dir):
         replace_in_file(
             file={
                 "path": file_path,
-                "replacements": [
+                "replacement": [
                     {"old_string": "Hello world", "new_string": "Hello ZRB"}
                 ],
             }
