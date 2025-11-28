@@ -58,5 +58,5 @@ def make_markdown_section(header: str, content: str, as_code: bool = False) -> s
         if longest_backtick_sequence >= fence_len:
             fence_len = longest_backtick_sequence + 1
         fence = "`" * fence_len
-        return f"# {header}\n{fence}\n{content.rstrip()}\n{fence}\n"
-    return f"# {header}\n{demote_markdown_headers(content.rstrip())}\n"
+        return f"# {header}\n{fence}\n{content.strip()}\n{fence}\n"
+    return f"# {header}\n{demote_markdown_headers(content.strip())}\n"

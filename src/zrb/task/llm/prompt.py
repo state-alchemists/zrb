@@ -2,14 +2,13 @@ import os
 import platform
 import re
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_context.config import llm_context_config
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
-from zrb.task.llm.workflow import get_available_workflows
+from zrb.task.llm.workflow import LLMWorkflow, get_available_workflows
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
 from zrb.util.file import read_dir, read_file_with_line_numbers
 from zrb.util.markdown import make_markdown_section
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
 
 
-def get_persona(
+def _get_persona(
     ctx: AnyContext,
     persona_attr: StrAttr | None,
     render_persona: bool,
@@ -35,7 +34,7 @@ def get_persona(
     return llm_config.default_persona or ""
 
 
-def get_base_system_prompt(
+def _get_base_system_prompt(
     ctx: AnyContext,
     system_prompt_attr: StrAttr | None,
     render_system_prompt: bool,
@@ -52,7 +51,7 @@ def get_base_system_prompt(
     return llm_config.default_system_prompt or ""
 
 
-def get_special_instruction_prompt(
+def _get_special_instruction_prompt(
     ctx: AnyContext,
     special_instruction_prompt_attr: StrAttr | None,
     render_spcecial_instruction_prompt: bool,
@@ -69,7 +68,7 @@ def get_special_instruction_prompt(
     return llm_config.default_special_instruction_prompt
 
 
-def get_workflow_names(
+def _get_active_workflow_names(
     ctx: AnyContext,
     workflows_attr: StrListAttr | None,
     render_workflows: bool,
@@ -85,74 +84,23 @@ def get_workflow_names(
     return []
 
 
-def get_project_context_prompt() -> str:
-    context_dict = llm_context_config.get_contexts()
-    context_prompts = []
-    for context_path, context in context_dict.items():
-        context_prompts.append(
-            make_markdown_section(
-                header=f"Context at `{context_path}`", content=context
-            )
-        )
-    return "\n".join(context_prompts)
-
-
-def get_workflow_prompt(
-    ctx: AnyContext,
-    workflows_attr: StrListAttr | None,
-    render_workflows: bool,
-    user_message: str,
+def _get_workflow_prompt(
+    available_workflows: dict[str, LLMWorkflow],
+    active_workflow_names: list[str] | set[str],
+    select_active_workflow: bool,
 ) -> str:
-    available_workflows = get_available_workflows()
-    active_workflow_names = set(
-        get_workflow_names(ctx, workflows_attr, render_workflows)
-    )
-    active_workflow_prompts = []
-    available_workflow_prompts = []
-    for workflow_name, workflow in available_workflows.items():
-        if workflow_name in active_workflow_names:
-            active_workflow_prompts.append(
-                make_markdown_section(
-                    workflow.name.capitalize(),
-                    "\n".join(
-                        [
-                            f"> Workflow Name: `{workflow.name}`",
-                            f"> Workflow Location: `{workflow.path}`",
-                            workflow.content,
-                        ]
-                    ),
-                )
-            )
-            continue
-        available_workflow_prompts.append(
-            make_markdown_section(
-                workflow.name.capitalize(),
-                "\n".join(
-                    [
-                        f"> Workflow Name: `{workflow.name}`",
-                        f"> Description: {workflow.description}",
-                    ]
-                ),
-            )
-        )
-    if len(active_workflow_prompts) > 0:
-        active_workflow_prompts = [
-            "> **IMPORTANT** The following workflows are automatically loaded, You DON'T NEED to load them.",
-            "",
-        ] + active_workflow_prompts
-    if len(available_workflow_prompts) > 0:
-        available_workflow_prompts = [
-            "> **IMPORTANT** You should load the following workflows using `load_workflow` tool.",
-            "",
-        ] + available_workflow_prompts
+    selected_workflows = {
+        workflow_name: available_workflows[workflow_name]
+        for workflow_name in available_workflows
+        if (workflow_name in active_workflow_names) == select_active_workflow
+    }
     return "\n".join(
         [
             make_markdown_section(
-                "💡 Active Workflows", "\n".join(active_workflow_prompts)
-            ),
-            make_markdown_section(
-                "🗂️ Available Workflows", "\n".join(available_workflow_prompts)
-            ),
+                workflow_name.capitalize(),
+                workflow.content if select_active_workflow else workflow.description,
+            )
+            for workflow_name, workflow in selected_workflows.items()
         ]
     )
 
@@ -204,17 +152,23 @@ def _construct_system_prompt(
     render_workflows: bool = False,
     conversation_history: ConversationHistory | None = None,
 ) -> str:
-    persona = get_persona(ctx, persona_attr, render_persona)
-    base_system_prompt = get_base_system_prompt(
+    persona = _get_persona(ctx, persona_attr, render_persona)
+    base_system_prompt = _get_base_system_prompt(
         ctx, system_prompt_attr, render_system_prompt
     )
-    special_instruction_prompt = get_special_instruction_prompt(
+    special_instruction_prompt = _get_special_instruction_prompt(
         ctx, special_instruction_prompt_attr, render_special_instruction_prompt
     )
-    workflow_prompt = get_workflow_prompt(
-        ctx, workflows_attr, render_workflows, user_message
+    available_workflows = get_available_workflows()
+    active_workflow_names = set(
+        _get_active_workflow_names(ctx, workflows_attr, render_workflows)
     )
-    project_context_prompt = get_project_context_prompt()
+    active_workflow_prompt = _get_workflow_prompt(
+        available_workflows, active_workflow_names, True
+    )
+    inactive_workflow_prompt = _get_workflow_prompt(
+        available_workflows, active_workflow_names, False
+    )
     if conversation_history is None:
         conversation_history = ConversationHistory()
     current_directory = os.getcwd()
@@ -224,8 +178,16 @@ def _construct_system_prompt(
         [
             persona,
             base_system_prompt,
-            make_markdown_section("📝 SPECIAL INSTRUCTION", special_instruction_prompt),
-            make_markdown_section("🛠️ WORKFLOWS", workflow_prompt),
+            make_markdown_section(
+                "📝 SPECIAL INSTRUCTION",
+                "\n".join(
+                    [
+                        special_instruction_prompt,
+                        active_workflow_prompt,
+                    ]
+                ),
+            ),
+            make_markdown_section("🛠️ AVAILABLE WORKFLOWS", inactive_workflow_prompt),
             make_markdown_section(
                 "📚 CONTEXT",
                 "\n".join(
@@ -240,31 +202,40 @@ def _construct_system_prompt(
                                     f"- Current Time: {iso_date}",
                                     "---",
                                     "Directory Tree (depth=2):",
-                                    "---",
                                     directory_tree,
+                                    "---",
                                 ]
                             ),
                         ),
                         make_markdown_section(
-                            "🧠 Long Term Context",
+                            "🧠 Long Term Note",
                             conversation_history.long_term_note,
                         ),
                         make_markdown_section(
-                            "📜 Narrative Summary",
-                            conversation_history.past_conversation_summary,
+                            "📝 Contextual Note",
+                            conversation_history.contextual_note,
                         ),
                         make_markdown_section(
-                            "📄 File/Directory Content",
+                            "📄 Apendixes",
                             apendixes,
-                        ),
-                        make_markdown_section(
-                            "📝 Project Context", project_context_prompt
                         ),
                     ]
                 ),
             ),
             make_markdown_section(
-                "💬 CONVERSATION", conversation_history.past_conversation_transcript
+                "💬 PAST CONVERSATION",
+                "\n".join(
+                    [
+                        make_markdown_section(
+                            "Narrative Summary",
+                            conversation_history.past_conversation_summary,
+                        ),
+                        make_markdown_section(
+                            "Past Transcript",
+                            conversation_history.past_conversation_transcript,
+                        ),
+                    ]
+                ),
             ),
         ]
     )

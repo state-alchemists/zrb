@@ -96,20 +96,6 @@ class LLMContextConfig:
                         )
         return workflows
 
-    def get_contexts(self, cwd: str | None = None) -> dict[str, str]:
-        """Gathers all context for a given path."""
-        if cwd is None:
-            cwd = os.getcwd()
-        all_sections = self._get_all_sections(cwd)
-        contexts: dict[str, str] = {}
-        # Iterate from closest to farthest
-        for context_path, sections in all_sections:
-            for key, value in sections.items():
-                if key.lower().strip() == "context":
-                    if context_path not in contexts:
-                        contexts[context_path] = value
-        return contexts
-
     def _format_context_path_for_writing(
         self,
         path_to_write: str,

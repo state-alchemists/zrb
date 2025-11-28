@@ -28,7 +28,7 @@ def test_write_to_file_create_new(temp_dir):
     content = "Hello World"
     result = write_to_file(file={"path": file_path, "content": content})
 
-    assert result == f"Successfully wrote to file: {file_path}"
+    assert result == f"Successfully wrote to file: {file_path} in mode 'w'"
     assert os.path.exists(file_path)
     with open(file_path, "r") as f:
         assert f.read() == content
@@ -43,7 +43,7 @@ def test_write_to_file_overwrite_existing(temp_dir):
 
     result = write_to_file(file={"path": file_path, "content": new_content})
 
-    assert result == f"Successfully wrote to file: {file_path}"
+    assert result == f"Successfully wrote to file: {file_path} in mode 'w'"
     with open(file_path, "r") as f:
         assert f.read() == new_content
 
@@ -55,7 +55,7 @@ def test_write_to_file_create_subdir(temp_dir):
 
     result = write_to_file(file={"path": file_path, "content": content})
 
-    assert result == f"Successfully wrote to file: {file_path}"
+    assert result == f"Successfully wrote to file: {file_path} in mode 'w'"
     assert os.path.exists(file_path)
     with open(file_path, "r") as f:
         assert f.read() == content
@@ -68,7 +68,7 @@ def test_write_to_file_empty_content(temp_dir):
 
     result = write_to_file(file={"path": file_path, "content": content})
 
-    assert result == f"Successfully wrote to file: {file_path}"
+    assert result == f"Successfully wrote to file: {file_path} in mode 'w'"
     assert os.path.exists(file_path)
     with open(file_path, "r") as f:
         assert f.read() == ""

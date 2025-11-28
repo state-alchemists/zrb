@@ -377,39 +377,6 @@ def test_write_note_overwrites_existing_section(mock_config_os, mock_open):
 
 @mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
 @mock.patch("zrb.config.llm_context.config.os")
-def test_get_contexts(mock_config_os, mock_open):
-    # Setup mocks
-    mock_config_os.path.expanduser.side_effect = lambda p: p.replace("~", "/home/user")
-    mock_config_os.path.abspath.side_effect = os.path.abspath
-    mock_config_os.path.join.side_effect = os.path.join
-    mock_config_os.path.dirname.side_effect = os.path.dirname
-    mock_config_os.path.exists.side_effect = mock_exists_side_effect
-    mock_open.side_effect = mock_open_side_effect
-    mock_config_os.getcwd.return_value = "/home/user/project/sub"
-
-    # Setup file system
-    home_config_path = f"/home/user/{CFG.LLM_CONTEXT_FILE}"
-    project_config_path = f"/home/user/project/{CFG.LLM_CONTEXT_FILE}"
-    sub_config_path = f"/home/user/project/sub/{CFG.LLM_CONTEXT_FILE}"
-    setup_fs(
-        {
-            home_config_path: "# Context\n\nThis is the home context.",
-            project_config_path: "# Context\n\nThis is the project context.",
-            sub_config_path: "# Note: .\n\nThis is a note in sub.",
-        }
-    )
-
-    config = LLMContextConfig()
-    contexts = config.get_contexts()
-
-    assert contexts == {
-        "/home/user": "This is the home context.",
-        "/home/user/project": "This is the project context.",
-    }
-
-
-@mock.patch("zrb.config.llm_context.config.open", new_callable=mock.mock_open)
-@mock.patch("zrb.config.llm_context.config.os")
 def test_get_notes_with_cwd(mock_config_os, mock_open):
     # Setup mocks
     mock_config_os.path.expanduser.side_effect = lambda p: p.replace("~", "/home/user")

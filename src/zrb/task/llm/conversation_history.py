@@ -7,7 +7,6 @@ from typing import Any
 from zrb.attr.type import StrAttr
 from zrb.config.llm_context.config import llm_context_config
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.typing import ListOfDict
 from zrb.util.attr import get_str_attr
