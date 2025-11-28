@@ -24,25 +24,19 @@ class ShellCommandResult(TypedDict):
 
 def run_shell_command(command: str) -> ShellCommandResult:
     """
-    Execute a non-interactive shell command on the user's local machine.
+    Executes a non-interactive shell command on the user's machine.
 
-    **CRITICAL: SECURITY WARNING**
-    This tool executes commands with user-level permissions. Before using commands that modify the file system or system state (e.g., `git`, `npm`, `pip`, `docker`), you MUST explain the command and its potential impact, and then ask for user confirmation.
+    CRITICAL: This tool runs with user-level permissions. Explain commands that modify the system (e.g., `git`, `pip`) and ask for confirmation.
+    IMPORTANT: Long-running processes should be run in the background (e.g., `command &`).
 
-    **IMPORTANT:**
-    - This is a non-interactive shell. Do not run commands that require user input.
-    - Long-running processes or servers should be run in the background (e.g., `python -m http.server &`).
-
-    **Example:**
-    ```python
+    Example:
     run_shell_command(command='ls -l')
-    ```
 
     Args:
         command (str): The exact shell command to be executed.
 
     Returns:
-        A dictionary containing the `return_code` (integer), `stdout` (string), and `stderr` (string) of the command execution.
+        dict: return_code, stdout, and stderr.
     """
     result = subprocess.run(
         command,

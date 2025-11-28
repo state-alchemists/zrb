@@ -143,16 +143,19 @@ def list_files(
     excluded_patterns: Optional[list[str]] = None,
 ) -> dict[str, list[str]]:
     """
-    List files and directories in a given path, with options for recursive listing, including hidden files, and excluding patterns.
+    Lists files and directories recursively or non-recursively.
+
+    Example:
+    list_files(path='src', recursive=True, include_hidden=False)
 
     Args:
-        path (str): The directory path to list. Defaults to the current directory.
-        recursive (bool): If True, lists files recursively. Defaults to True.
-        include_hidden (bool): If True, includes hidden files (dotfiles). Defaults to False.
-        excluded_patterns (Optional[list[str]]): A list of glob patterns to exclude. Uses sensible defaults if None.
+        path (str): Directory path. Defaults to current directory.
+        recursive (bool): List recursively. Defaults to True.
+        include_hidden (bool): Include hidden files. Defaults to False.
+        excluded_patterns (list[str]): Glob patterns to exclude.
 
     Returns:
-        A dictionary with a 'files' key containing a sorted list of relative file paths.
+        dict: {'files': [relative_paths]}
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -249,18 +252,26 @@ def read_from_file(
     file: FileToRead | list[FileToRead],
 ) -> dict[str, Any]:
     """
-    Read the content of a file or a specific range of lines. Can also read multiple files at once.
+    Reads content from one or more files, optionally specifying line ranges.
+
+    Examples:
+    # Read entire content of a single file
+    read_from_file(file={'path': 'path/to/file.txt'})
+
+    # Read specific lines from a file
+    read_from_file(file={'path': 'path/to/large_file.log', 'start_line': 100, 'end_line': 150})
+
+    # Read multiple files
+    read_from_file(file=[
+        {'path': 'path/to/file1.txt'},
+        {'path': 'path/to/file2.txt', 'start_line': 1, 'end_line': 5}
+    ])
 
     Args:
         file (FileToRead | list[FileToRead]): A single file configuration or a list of them.
-            Each `FileToRead` object should have:
-            - path (str): The path to the file to read.
-            - start_line (int | None): The 1-based line number to start reading from. Defaults to the beginning.
-            - end_line (int | None): The 1-based line number to stop reading at (exclusive). Defaults to the end.
 
     Returns:
-        If a single file is read, returns a dictionary with its content and metadata.
-        If multiple files are read, returns a dictionary mapping each file path to its content and metadata, or an error string.
+        dict: Content and metadata for a single file, or a dict of results for multiple files.
     """
     is_list = isinstance(file, list)
     files = file if is_list else [file]
@@ -316,60 +327,30 @@ def write_to_file(
     file: FileToWrite | list[FileToWrite],
 ) -> str | dict[str, Any]:
     """
-    Writes content to a file. Can overwrite, append, or create exclusively.
+    Writes content to one or more files, with options for overwrite, append, or exclusive creation.
 
-    This tool is for writing content to one or more files. You can specify the mode for each file:
-    - 'w': Overwrite the file if it exists, or create it. (Default)
-    - 'a': Append to the file if it exists, or create it.
-    - 'x': Create a new file, but fail if it already exists.
+    CRITICAL: The content for each file MUST NOT exceed 4000 characters. If your content is larger,
+    you MUST split it into chunks and make multiple calls to this tool. The first call should use
+    'w' mode, and subsequent calls for the same file should use 'a' mode.
 
-    For targeted changes within a file, it is better to use `replace_in_file`.
+    Examples:
+    # Overwrite 'file.txt' with initial content
+    write_to_file(file={'path': 'path/to/file.txt', 'content': 'Initial content.'})
 
-    **CRITICAL:**
-    - You MUST use the `file` parameter to pass a `FileToWrite` object (for a single file) or a list of `FileToWrite` objects (for multiple files).
-    - Do NOT pass `path`, `content`, or `mode` as top-level arguments to the tool.
+    # Append a second chunk to 'file.txt' (note the newline for separate lines)
+    write_to_file(file={'path': 'path/to/file.txt', 'content': '\nSecond chunk.', 'mode': 'a'})
 
-    **Examples:**
-
-    *Example 1: Writing to a single file (overwrite)*
-    ```python
-    write_to_file(file={'path': 'path/to/file.txt', 'content': 'Hello, world!'})
-    ```
-
-    *Example 2: Appending to a single file*
-    ```python
-    # Note the '\n' to ensure the content starts on a new line.
-    write_to_file(file={'path': 'path/to/file.txt', 'content': '\nAnother line.', 'mode': 'a'})
-    ```
-
-    *Example 3: Writing to multiple files with different modes*
-    ```python
+    # Write to multiple files
     write_to_file(file=[
-        {'path': 'file1.txt', 'content': 'Content for file 1'},
-        {'path': 'file2.txt', 'content': 'Appended content for file 2.', 'mode': 'a'}
+        {'path': 'path/to/file1.txt', 'content': 'Content for file 1'},
+        {'path': 'path/to/file2.txt', 'content': 'Content for file 2', 'mode': 'w'}
     ])
-    ```
-
-    *Example 4: Writing large content in chunks*
-    ```python
-    # First call to create and write the first chunk
-    write_to_file(file={'path': 'large.txt', 'content': 'This is the first chunk...'})
-    # Subsequent calls to append the remaining chunks
-    write_to_file(file={'path': 'large.txt', 'content': 'This is the second chunk...', 'mode': 'a'})
-    ```
 
     Args:
         file (FileToWrite | list[FileToWrite]): A single file configuration or a list of them.
-            Each `FileToWrite` object must have:
-            - path (str): The path of the file to write to.
-            - content (str): The content to write.
-              **CRITICAL: The content for each file MUST NOT exceed 4000 characters.**
-              If your content is larger, you MUST split it into chunks and make multiple calls to this tool as shown in Example 4.
-            - mode (str, optional): 'w' (default), 'a', or 'x'.
 
     Returns:
-        If a single file is written, returns a success message.
-        If multiple files are written, returns a dictionary with 'success' and 'errors' keys.
+        Success message for single file, or dict with success/errors for multiple files.
     """
     # Normalize to list
     files = file if isinstance(file, list) else [file]
@@ -406,16 +387,19 @@ def search_files(
     include_hidden: bool = True,
 ) -> dict[str, Any]:
     """
-    Search for a regular expression (regex) pattern in files within a given directory.
+    Searches for a regex pattern in files within a directory.
+
+    Example:
+    search_files(path='src', regex='class \\w+', file_pattern='*.py', include_hidden=False)
 
     Args:
-        path (str): The directory path to search in.
-        regex (str): The regular expression pattern to search for.
-        file_pattern (Optional[str]): A glob pattern to filter files (e.g., "*.py", "*.md").
-        include_hidden (bool): If True, searches hidden files. Defaults to True.
+        path (str): Directory to search.
+        regex (str): Regex pattern.
+        file_pattern (str): Glob pattern filter.
+        include_hidden (bool): Include hidden files.
 
     Returns:
-        A dictionary containing a 'summary' of the search and a 'results' list with matches per file.
+        dict: Summary and list of matches.
     """
     try:
         pattern = re.compile(regex)
@@ -470,7 +454,9 @@ def search_files(
 
 
 def _get_file_matches(
-    file_path: str, pattern: re.Pattern, context_lines: int = 2
+    file_path: str,
+    pattern: re.Pattern,
+    context_lines: int = 2,
 ) -> list[dict[str, Any]]:
     """Search for regex matches in a file with context."""
     try:
@@ -504,50 +490,25 @@ def replace_in_file(
     file: FileReplacement | list[FileReplacement],
 ) -> str | dict[str, Any]:
     """
-    Replaces the first occurrence of one or more strings in a file.
+    Replaces exact string occurrences in one or more files.
 
-    This tool is for making targeted replacements in one or more files.
+    CRITICAL: `old_string` must match file content exactly (including whitespace, newlines).
 
-    **CRITICAL:**
-    - You MUST use the `file` parameter to pass a `FileReplacement` object (for a single file) or a list of `FileReplacement` objects (for multiple files).
-    - `old_string` MUST be an exact, literal match of the file content, including all whitespace, indentation, and newlines. Use `read_from_file` first to get the precise text block to replace.
+    Examples:
+    # Single file replacement
+    replace_in_file(file={'path': 'path/to/file.txt', 'replacements': [{'old_string': 'old', 'new_string': 'new'}]})
 
-    **Examples:**
-
-    *Example 1: Replacing content in a single file*
-    ```python
-    replace_in_file(file={
-        'path': 'path/to/file.txt',
-        'replacements': [{'old_string': 'hello', 'new_string': 'goodbye'}]
-    })
-    ```
-
-    *Example 2: Replacing content in multiple files*
-    ```python
+    # Multiple file replacements
     replace_in_file(file=[
-        {
-            'path': 'file1.txt',
-            'replacements': [{'old_string': 'foo', 'new_string': 'bar'}]
-        },
-        {
-            'path': 'file2.txt',
-            'replacements': [{'old_string': 'old', 'new_string': 'new'}]
-        }
+        {'path': 'path/to/file1.txt', 'replacements': [{'old_string': 'foo', 'new_string': 'bar'}]},
+        {'path': 'path/to/file2.txt', 'replacements': [{'old_string': 'old', 'new_string': 'new'}]}
     ])
-    ```
 
     Args:
-        file (FileReplacement | list[FileReplacement]): A single or multiple file replacement configurations.
-            Each `FileReplacement` object must have:
-            - path (str): The path of the file to modify.
-            - replacements (list[Replacement]): A list of replacement operations.
-                Each `Replacement` should have:
-                - old_string (str): The exact string to be replaced.
-                - new_string (str): The new string to insert.
+        file (FileReplacement | list[FileReplacement]): A single file configuration or a list of them.
 
     Returns:
-        If a single file is modified, returns a success message.
-        If multiple files are modified, returns a dictionary with 'success' and 'errors' keys.
+        Success message for single file, or dict with success/errors for multiple files.
     """
     # Normalize to list
     file_replacements = file if isinstance(file, list) else [file]
@@ -593,18 +554,19 @@ async def analyze_file(
     ctx: AnyContext, path: str, query: str, token_limit: int | None = None
 ) -> dict[str, Any]:
     """
-    Perform a high-level, goal-oriented analysis of a single file to answer a specific query.
+    Analyzes a file using a sub-agent for complex questions.
 
-    Uses a sub-agent for complex questions about code structure, documentation quality, or other file-specific analysis.
+    Example:
+    analyze_file(path='src/main.py', query='Summarize the main function.')
 
     Args:
         ctx (AnyContext): The execution context.
         path (str): The path to the file to analyze.
-        query (str): A specific analysis query with clear guidelines.
-        token_limit (int | None): The maximum number of tokens for the analysis. Uses a default if None.
+        query (str): A specific analysis query with clear guidelines and necessary information.
+        token_limit (int | None): Max tokens.
 
     Returns:
-        A dictionary containing the analysis results from the sub-agent.
+        Analysis results.
     """
     if token_limit is None:
         token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_LIMIT

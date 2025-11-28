@@ -9,13 +9,13 @@ def create_get_current_location() -> Callable:
 
     def get_current_location() -> dict[str, float]:
         """
-        Get the user's current geographical location (latitude and longitude) based on their IP address.
+        Gets the user's current geographical location (latitude and longitude).
 
-        Use when a user asks "Where am I?" or has a query that requires their current location.
+        Example:
+        get_current_location() # Returns {'lat': 48.8584, 'lon': 2.2945}
 
         Returns:
-            dict[str, float]: A dictionary containing 'lat' and 'lon' keys.
-                Example: {"lat": 48.8584, "lon": 2.2945}
+            dict: Dictionary with 'lat' and 'lon' keys.
         """
         import requests
 
@@ -39,17 +39,18 @@ def create_get_current_weather() -> Callable:
         temperature_unit: Literal["celsius", "fahrenheit"],
     ) -> dict[str, Any]:
         """
-        Get the current weather conditions for a given latitude and longitude.
+        Gets current weather conditions for a given location.
 
-        Use when a user asks about the weather. If the location is not provided, use `get_current_location` first.
+        Example:
+        get_current_weather(latitude=34.0522, longitude=-118.2437, temperature_unit='fahrenheit')
 
         Args:
-            latitude (float): The latitude of the location.
-            longitude (float): The longitude of the location.
-            temperature_unit (Literal["celsius", "fahrenheit"]): The desired unit for the temperature reading.
+            latitude (float): Latitude of the location.
+            longitude (float): Longitude of the location.
+            temperature_unit (Literal): 'celsius' or 'fahrenheit'.
 
         Returns:
-            dict[str, Any]: A dictionary containing detailed weather data, including temperature, wind speed, and a weather code.
+            dict: Detailed weather data.
         """
         import requests
 

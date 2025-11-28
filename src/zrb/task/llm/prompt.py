@@ -85,7 +85,6 @@ def _construct_system_prompt(
         conversation_history = ConversationHistory()
     current_directory = os.getcwd()
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
-    directory_tree = _generate_directory_tree(current_directory, max_depth=2)
     return "\n".join(
         [
             persona,
@@ -112,10 +111,6 @@ def _construct_system_prompt(
                                     f"- Python Version: {platform.python_version()}",
                                     f"- Current Directory: {current_directory}",
                                     f"- Current Time: {iso_date}",
-                                    "---",
-                                    "Directory Tree (depth=2):",
-                                    directory_tree,
-                                    "---",
                                 ]
                             ),
                         ),
@@ -234,58 +229,11 @@ def _get_workflow_prompt(
         [
             make_markdown_section(
                 workflow_name.capitalize(),
-                workflow.content if select_active_workflow else "\n".join(
-                    [
-                        f"Workflow name: {workflow_name}",
-                        workflow.description,
-                    ]
-                )
+                workflow.content if select_active_workflow else f"Workflow name: {workflow_name}"
             )
             for workflow_name, workflow in selected_workflows.items()
         ]
     )
-
-
-def _generate_directory_tree(
-    dir_path: str,
-    max_depth: int = 2,
-    max_children: int = 10,
-    include_hidden: bool = False,
-) -> str:
-    """
-    Generates a string representation of a directory tree, pure Python.
-    """
-    tree_lines = []
-
-    def recurse(path: str, depth: int, prefix: str):
-        if depth > max_depth:
-            return
-        try:
-            entries = sorted(
-                [e for e in os.scandir(path)],
-                key=lambda e: e.name,
-            )
-        except FileNotFoundError:
-            return
-        child_count = 0
-        entry_count = len(entries)
-        for i, entry in enumerate(entries):
-            if not include_hidden and entry.name.startswith("."):
-                continue
-            if child_count >= max_children:
-                tree_lines.append(f"{prefix}└─... (more)")
-                break
-            is_last = i == entry_count - 1
-            connector = "└─" if is_last else "├─"
-            tree_lines.append(f"{prefix}{connector}{entry.name}")
-            if entry.is_dir():
-                new_prefix = prefix + ("  " if is_last else "│ ")
-                recurse(entry.path, depth + 1, new_prefix)
-            child_count += 1
-
-    tree_lines.append(os.path.basename(dir_path))
-    recurse(dir_path, 1, "")
-    return "\n".join(tree_lines)
 
 
 def _get_user_message_prompt(user_message: str) -> tuple[str, str]:

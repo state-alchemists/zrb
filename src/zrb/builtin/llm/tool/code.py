@@ -59,25 +59,23 @@ async def analyze_repo(
     """
     Analyzes a code repository or directory to answer a specific query.
 
-    This tool recursively reads files, extracts relevant information using a sub-agent, and then summarizes that information to provide a comprehensive answer. It is ideal for understanding large codebases, generating architectural summaries, or creating documentation.
+    CRITICAL: The quality of analysis depends entirely on the query. Vague queries yield poor results.
+    IMPORTANT: This tool can be slow and expensive on large repositories. Use judiciously.
 
-    **CRITICAL: The quality of your analysis depends entirely on the quality of your query.** Vague queries will result in poor, useless results.
-
-    **IMPORTANT:** This tool can be slow and expensive on large repositories. Use it judiciously.
+    Example:
+    analyze_repo(path='src/my_project', query='Summarize the main functionalities by analyzing Python files.', extensions=['py'])
 
     Args:
-        path (str): The path to the directory or repository to analyze.
-        query (str): A clear and specific question or goal for the analysis.
-            - Good Example: "Understand the database schema by analyzing all the .sql files."
-            - Good Example: "Create a summary of all API endpoints defined in the 'api' directory by looking at the controller files."
-            - Bad Example: "Analyze the repo."
-        extensions (list[str], optional): File extensions to include (e.g., `['py', 'md']`). Defaults to a comprehensive list of common code and text file extensions.
-        exclude_patterns (list[str], optional): Glob patterns to exclude from the analysis (e.g., `['*test.py', 'tmp/*']`). Defaults to common temporary and build artifact patterns.
-        extraction_token_threshold (int, optional): The token limit for the extraction sub-agent.
-        summarization_token_threshold (int, optional): The token limit for the summarization sub-agent.
+        ctx (AnyContext): The execution context.
+        path (str): Path to the directory or repository.
+        query (str): Clear and specific analysis question or goal.
+        extensions (list[str], optional): File extensions to include.
+        exclude_patterns (list[str], optional): Glob patterns to exclude.
+        extraction_token_threshold (int, optional): Token limit for extraction sub-agent.
+        summarization_token_threshold (int, optional): Token limit for summarization sub-agent.
 
     Returns:
-        A detailed, markdown-formatted analysis and summary that directly addresses the query.
+        str: Detailed, markdown-formatted analysis and summary.
     """
     if extraction_token_threshold is None:
         extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
