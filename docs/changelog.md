@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.8
+
+- **Improved**: Make `replace_in_file` documentation more clear.
+
 # 1.21.7
 
 - **Changed**: `list_files` tool has been simplified and improved.

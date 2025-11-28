@@ -67,7 +67,7 @@ class FileReplacement(TypedDict):
     """Represents a file replacement operation with path and one or more replacements."""
 
     path: str
-    replacements: list[Replacement]
+    replacement: list[Replacement] | Replacement
 
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -481,36 +481,48 @@ def replace_in_file(
     """
     Replaces exact string occurrences in one or more files.
 
-    CRITICAL: `old_string` MUST match file content EXACTLY (including whitespace, newlines).
-    If you are unsure about the exact content, read the file first.
+    **CRITICAL INSTRUCTIONS:**
+    1. `old_string` MUST match the file content EXACTLY (including whitespace,
+      newlines).
+    2. **KEEP `old_string` MINIMAL:** Do NOT include the entire file or huge
+      blocks of text.
+      Only include the specific lines you want to change, plus 2-3 lines of
+      unique context before and after to ensure uniqueness.
+      *Reason:* Large `old_string` consumes output tokens and causes the tool
+      call to fail (EOF).
+    3. Use the `replacement` key (singular), which also accepts a list of
+      replacements.
 
     Examples:
     # Single file replacement
     replace_in_file(
         file={
             'path': 'path/to/file.txt',
-            'replacements': [{'old_string': 'old', 'new_string': 'new'}]
+            'replacement': {'old_string': 'old', 'new_string': 'new'}
         }
     )
 
-    # Multiple file replacements
-    replace_in_file(file=[
-        {
-            'path': 'path/to/file1.txt',
-            'replacements': [{'old_string': 'foo', 'new_string': 'bar'}]
-        },
-        {
-            'path': 'path/to/file2.txt',
-            'replacements': [{'old_string': 'old', 'new_string': 'new'}]
+    # Multiple replacements in one file
+    replace_in_file(
+        file={
+            'path': 'path/to/file.txt',
+            'replacement': [
+                {
+                    'old_string': 'context\\ntarget\\ncontext',
+                    'new_string': 'context\\nNEW\\ncontext'
+                },
+                {'old_string': 'foo', 'new_string': 'bar'}
+            ]
         }
-    ])
+    )
 
     Args:
-        file (FileReplacement | list[FileReplacement]): A single file configuration
-            or a list of them.
+        file (FileReplacement | list[FileReplacement]): A single file
+            configuration or a list of them.
 
     Returns:
-        Success message for single file, or dict with success/errors for multiple files.
+        Success message for single file, or dict with success/errors for
+        multiple files.
     """
     # Normalize to list
     file_replacements = file if isinstance(file, list) else [file]
@@ -518,7 +530,9 @@ def replace_in_file(
     errors = {}
     for file_replacement_config in file_replacements:
         path = file_replacement_config["path"]
-        replacements = file_replacement_config["replacements"]
+        replacements = file_replacement_config["replacement"]
+        if isinstance(replacements, dict):
+            replacements = [replacements]
         try:
             abs_path = os.path.abspath(os.path.expanduser(path))
             if not os.path.exists(abs_path):
@@ -545,11 +559,13 @@ def replace_in_file(
     if isinstance(file, list):
         return {"success": success, "errors": errors}
     else:
+        file_path = file["path"]
         if errors:
+            error_message = errors[file["path"]]
             raise RuntimeError(
-                f"Error applying replacement to {file['path']}: {errors[file['path']]}"
+                f"Error applying replacement to {file_path}: {error_message}"
             )
-        return f"Successfully applied replacement(s) to {file['path']}"
+        return f"Successfully applied replacement(s) to {file_path}"
 
 
 async def analyze_file(
@@ -564,7 +580,8 @@ async def analyze_file(
     Args:
         ctx (AnyContext): The execution context.
         path (str): The path to the file to analyze.
-        query (str): A specific analysis query with clear guidelines and necessary information.
+        query (str): A specific analysis query with clear guidelines and
+            necessary information.
         token_limit (int | None): Max tokens.
 
     Returns:
@@ -580,9 +597,9 @@ async def analyze_file(
         tool_name="analyze_file",
         tool_description=(
             "Analyze file content using LLM sub-agent "
-            "for complex questions about code structure, documentation quality, or "
-            "file-specific analysis. Use for questions that require understanding beyond "
-            "simple text reading."
+            "for complex questions about code structure, documentation "
+            "quality, or file-specific analysis. Use for questions that "
+            "require understanding beyond simple text reading."
         ),
         system_prompt=CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
