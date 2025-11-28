@@ -1,5 +1,21 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.6
+
+- **Refactor**: Significant refactoring of prompt construction logic and related utilities.
+  - Added `get_contexts` method in `src/zrb/config/llm_context/config.py`.
+  - Refactored prompt construction logic in `src/zrb/task/llm/prompt.py` for persona, system prompts, special instructions, and workflows.
+  - Minor adjustments to `src/zrb/util/markdown.py` for markdown section content stripping.
+- **Improved**: Docstring verbosity for LLM tools.
+  - Docstrings updated across `src/zrb/builtin/llm/tool/api.py`, `src/zrb/builtin/llm/tool/cli.py`, `src/zrb/builtin/llm/tool/code.py`, `src/zrb/builtin/llm/tool/file.py`, `src/zrb/builtin/llm/tool/note.py`, `src/zrb/builtin/llm/tool/web.py`.
+- **Updated dependencies**:
+  - `pydantic-ai-slim` `~1.24.0`
+  - `requests` `^2.32.5`
+  - `tiktoken` `^0.12.0`
+  - `markdownify` `^1.2.2`
+  - `playwright` `^1.56.0` (optional)
+  - `chromadb` `^1.3.5` (optional)
+
 # 1.21.5
 
 - **Changed**: Tools docstring has been updated to be more verbose.
