@@ -17,94 +17,6 @@ if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
 
 
-def _get_persona(
-    ctx: AnyContext,
-    persona_attr: StrAttr | None,
-    render_persona: bool,
-) -> str:
-    """Gets the persona, prioritizing task-specific, then default."""
-    persona = get_attr(
-        ctx,
-        persona_attr,
-        None,
-        auto_render=render_persona,
-    )
-    if persona is not None:
-        return persona
-    return llm_config.default_persona or ""
-
-
-def _get_base_system_prompt(
-    ctx: AnyContext,
-    system_prompt_attr: StrAttr | None,
-    render_system_prompt: bool,
-) -> str:
-    """Gets the base system prompt, prioritizing task-specific, then default."""
-    system_prompt = get_attr(
-        ctx,
-        system_prompt_attr,
-        None,
-        auto_render=render_system_prompt,
-    )
-    if system_prompt is not None:
-        return system_prompt
-    return llm_config.default_system_prompt or ""
-
-
-def _get_special_instruction_prompt(
-    ctx: AnyContext,
-    special_instruction_prompt_attr: StrAttr | None,
-    render_spcecial_instruction_prompt: bool,
-) -> str:
-    """Gets the special instruction prompt, prioritizing task-specific, then default."""
-    special_instruction = get_attr(
-        ctx,
-        special_instruction_prompt_attr,
-        None,
-        auto_render=render_spcecial_instruction_prompt,
-    )
-    if special_instruction is not None:
-        return special_instruction
-    return llm_config.default_special_instruction_prompt
-
-
-def _get_active_workflow_names(
-    ctx: AnyContext,
-    workflows_attr: StrListAttr | None,
-    render_workflows: bool,
-) -> list[str]:
-    """Gets the workflows, prioritizing task-specific, then default."""
-    raw_workflows = get_str_list_attr(
-        ctx,
-        [] if workflows_attr is None else workflows_attr,
-        auto_render=render_workflows,
-    )
-    if raw_workflows is not None and len(raw_workflows) > 0:
-        return [w.strip().lower() for w in raw_workflows if w.strip() != ""]
-    return []
-
-
-def _get_workflow_prompt(
-    available_workflows: dict[str, LLMWorkflow],
-    active_workflow_names: list[str] | set[str],
-    select_active_workflow: bool,
-) -> str:
-    selected_workflows = {
-        workflow_name: available_workflows[workflow_name]
-        for workflow_name in available_workflows
-        if (workflow_name in active_workflow_names) == select_active_workflow
-    }
-    return "\n".join(
-        [
-            make_markdown_section(
-                workflow_name.capitalize(),
-                workflow.content if select_active_workflow else workflow.description,
-            )
-            for workflow_name, workflow in selected_workflows.items()
-        ]
-    )
-
-
 def get_system_and_user_prompt(
     ctx: AnyContext,
     user_message: str,
@@ -237,6 +149,99 @@ def _construct_system_prompt(
                     ]
                 ),
             ),
+        ]
+    )
+
+
+def _get_persona(
+    ctx: AnyContext,
+    persona_attr: StrAttr | None,
+    render_persona: bool,
+) -> str:
+    """Gets the persona, prioritizing task-specific, then default."""
+    persona = get_attr(
+        ctx,
+        persona_attr,
+        None,
+        auto_render=render_persona,
+    )
+    if persona is not None:
+        return persona
+    return llm_config.default_persona or ""
+
+
+def _get_base_system_prompt(
+    ctx: AnyContext,
+    system_prompt_attr: StrAttr | None,
+    render_system_prompt: bool,
+) -> str:
+    """Gets the base system prompt, prioritizing task-specific, then default."""
+    system_prompt = get_attr(
+        ctx,
+        system_prompt_attr,
+        None,
+        auto_render=render_system_prompt,
+    )
+    if system_prompt is not None:
+        return system_prompt
+    return llm_config.default_system_prompt or ""
+
+
+def _get_special_instruction_prompt(
+    ctx: AnyContext,
+    special_instruction_prompt_attr: StrAttr | None,
+    render_spcecial_instruction_prompt: bool,
+) -> str:
+    """Gets the special instruction prompt, prioritizing task-specific, then default."""
+    special_instruction = get_attr(
+        ctx,
+        special_instruction_prompt_attr,
+        None,
+        auto_render=render_spcecial_instruction_prompt,
+    )
+    if special_instruction is not None:
+        return special_instruction
+    return llm_config.default_special_instruction_prompt
+
+
+def _get_active_workflow_names(
+    ctx: AnyContext,
+    workflows_attr: StrListAttr | None,
+    render_workflows: bool,
+) -> list[str]:
+    """Gets the workflows, prioritizing task-specific, then default."""
+    raw_workflows = get_str_list_attr(
+        ctx,
+        [] if workflows_attr is None else workflows_attr,
+        auto_render=render_workflows,
+    )
+    if raw_workflows is not None and len(raw_workflows) > 0:
+        return [w.strip().lower() for w in raw_workflows if w.strip() != ""]
+    return []
+
+
+def _get_workflow_prompt(
+    available_workflows: dict[str, LLMWorkflow],
+    active_workflow_names: list[str] | set[str],
+    select_active_workflow: bool,
+) -> str:
+    selected_workflows = {
+        workflow_name: available_workflows[workflow_name]
+        for workflow_name in available_workflows
+        if (workflow_name in active_workflow_names) == select_active_workflow
+    }
+    return "\n".join(
+        [
+            make_markdown_section(
+                workflow_name.capitalize(),
+                workflow.content if select_active_workflow else "\n".join(
+                    [
+                        f"Workflow name: {workflow_name}",
+                        workflow.description,
+                    ]
+                )
+            )
+            for workflow_name, workflow in selected_workflows.items()
         ]
     )
 
