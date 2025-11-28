@@ -1,5 +1,14 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.9
+
+- **Refactor**: Major improvement to `replace_in_file` tool:
+  - Simplified API: Removed nested `replacement` structure, now uses flat `old_text` and `new_text` parameters
+  - Added `count` parameter to control how many occurrences to replace (default: -1 for all)
+  - Improved performance by grouping replacements by file path to minimize I/O operations
+  - Enhanced documentation with clearer examples and usage patterns
+  - Updated all tests to reflect the new API
+
 # 1.21.8
 
 - **Improved**: Make `replace_in_file` documentation more clear.

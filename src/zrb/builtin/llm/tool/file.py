@@ -50,24 +50,21 @@ class FileToWrite(TypedDict):
     mode: NotRequired[Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"]]
 
 
-class Replacement(TypedDict):
+class FileReplacement(TypedDict):
     """
-    Configuration for a single text replacement operation.
+    Configuration for a single text replacement operation in a file.
 
     Attributes:
-        old_string (str): Exact text to find and replace (must match file content exactly)
-        new_string (str): New text to replace with
+        path (str): Absolute or relative path to the file
+        old_text (str): Exact text to find and replace (must match file content exactly)
+        new_text (str): New text to replace with
+        count (int): Optional. Number of occurrences to replace. Defaults to -1 (all).
     """
 
-    old_string: str
-    new_string: str
-
-
-class FileReplacement(TypedDict):
-    """Represents a file replacement operation with path and one or more replacements."""
-
     path: str
-    replacement: list[Replacement] | Replacement
+    old_text: str
+    new_text: str
+    count: NotRequired[int]
 
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -479,74 +476,71 @@ def replace_in_file(
     file: FileReplacement | list[FileReplacement],
 ) -> str | dict[str, Any]:
     """
-    Replaces exact string occurrences in one or more files.
+    Replaces exact text in files.
 
     **CRITICAL INSTRUCTIONS:**
-    1. `old_string` MUST match the file content EXACTLY (including whitespace,
-      newlines).
-    2. **KEEP `old_string` MINIMAL:** Do NOT include the entire file or huge
-      blocks of text.
-      Only include the specific lines you want to change, plus 2-3 lines of
-      unique context before and after to ensure uniqueness.
-      *Reason:* Large `old_string` consumes output tokens and causes the tool
-      call to fail (EOF).
-    3. Use the `replacement` key (singular), which also accepts a list of
-      replacements.
+    1. **READ FIRST:** Use `read_file` to get exact content. Do not guess.
+    2. **EXACT MATCH:** `old_text` must match file content EXACTLY (whitespace, newlines).
+    3. **MINIMAL CONTEXT:** Keep `old_text` small (target lines + 2-3 context lines).
+       Large strings cause errors.
+    4. **DEFAULT:** Replaces **ALL** occurrences. Set `count=1` for first occurrence only.
 
     Examples:
-    # Single file replacement
+    # Replace ALL occurrences
     replace_in_file(
-        file={
-            'path': 'path/to/file.txt',
-            'replacement': {'old_string': 'old', 'new_string': 'new'}
-        }
+        file=[
+            {'path': 'file.txt', 'old_text': 'foo', 'new_text': 'bar'},
+            {'path': 'file.txt', 'old_text': 'baz', 'new_text': 'qux'}
+        ]
     )
 
-    # Multiple replacements in one file
+    # Replace ONLY the first occurrence
+    replace_in_file(
+        file={'path': 'file.txt', 'old_text': 'foo', 'new_text': 'bar', 'count': 1}
+    )
+
+    # Replace code block (include context for safety)
     replace_in_file(
         file={
-            'path': 'path/to/file.txt',
-            'replacement': [
-                {
-                    'old_string': 'context\\ntarget\\ncontext',
-                    'new_string': 'context\\nNEW\\ncontext'
-                },
-                {'old_string': 'foo', 'new_string': 'bar'}
-            ]
+            'path': 'app.py',
+            'old_text': '    def old_fn():\n        pass',
+            'new_text': '    def new_fn():\n        pass'
         }
     )
 
     Args:
-        file (FileReplacement | list[FileReplacement]): A single file
-            configuration or a list of them.
+        file: Single replacement config or list of them.
 
     Returns:
-        Success message for single file, or dict with success/errors for
-        multiple files.
+        Success message or error dict.
     """
     # Normalize to list
     file_replacements = file if isinstance(file, list) else [file]
+    # Group replacements by file path to minimize file I/O
+    replacements_by_path = {}
+    for r in file_replacements:
+        path = r["path"]
+        if path not in replacements_by_path:
+            replacements_by_path[path] = []
+        replacements_by_path[path].append(r)
     success = []
     errors = {}
-    for file_replacement_config in file_replacements:
-        path = file_replacement_config["path"]
-        replacements = file_replacement_config["replacement"]
-        if isinstance(replacements, dict):
-            replacements = [replacements]
+    for path, replacements in replacements_by_path.items():
         try:
             abs_path = os.path.abspath(os.path.expanduser(path))
             if not os.path.exists(abs_path):
                 raise FileNotFoundError(f"File not found: {path}")
             content = read_file(abs_path)
             original_content = content
-            # Apply all replacements
+            # Apply all replacements for this file
             for replacement in replacements:
-                old_string = replacement["old_string"]
-                new_string = replacement["new_string"]
-                if old_string not in content:
-                    raise ValueError(f"old_string not found in file: {path}")
-                # Replace first occurrence only (maintains current behavior)
-                content = content.replace(old_string, new_string, 1)
+                old_text = replacement["old_text"]
+                new_text = replacement["new_text"]
+                count = replacement.get("count", -1)
+                if old_text not in content:
+                    raise ValueError(f"old_text not found in file: {path}")
+                # Replace occurrences
+                content = content.replace(old_text, new_text, count)
             # Only write if content actually changed
             if content != original_content:
                 write_file(abs_path, content)
@@ -558,14 +552,11 @@ def replace_in_file(
     # Return appropriate response based on input type
     if isinstance(file, list):
         return {"success": success, "errors": errors}
-    else:
-        file_path = file["path"]
-        if errors:
-            error_message = errors[file["path"]]
-            raise RuntimeError(
-                f"Error applying replacement to {file_path}: {error_message}"
-            )
-        return f"Successfully applied replacement(s) to {file_path}"
+    path = file["path"]
+    if errors:
+        error_message = errors[path]
+        raise RuntimeError(f"Error applying replacement to {path}: {error_message}")
+    return f"Successfully applied replacement(s) to {path}"
 
 
 async def analyze_file(
