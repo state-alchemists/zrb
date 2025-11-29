@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.10
+
+- **Updated dependencies**: `pydantic-ai-slim` `~1.25.1`
+
 # 1.21.9
 
 - **Refactor**: Major improvement to `replace_in_file` tool:
