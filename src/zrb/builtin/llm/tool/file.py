@@ -312,12 +312,13 @@ def write_to_file(
     Writes content to one or more files, with options for overwrite, append, or exclusive
     creation.
 
-    **CRITICAL:**
-    - The content for each file MUST NOT exceed 4000 characters.
-    - If your content is larger, you MUST split it into chunks and make multiple calls to this
-      tool.
-        - The first call should use 'w' mode.
-        - Then subsequent calls for the same file should use 'a' mode.
+    **CRITICAL - PREVENT JSON ERRORS:**
+    1. **ESCAPING:** Do NOT double-escape quotes.
+       - CORRECT: "content": "He said \"Hello\""
+       - WRONG:   "content": "He said \\"Hello\\""  <-- This breaks JSON parsing!
+    2. **SIZE LIMIT:** Content MUST NOT exceed 4000 characters.
+       - Exceeding this causes truncation and EOF errors.
+       - Split larger content into multiple sequential calls (first 'w', then 'a').
 
     Examples:
     # Overwrite 'file.txt' with initial content
@@ -481,9 +482,10 @@ def replace_in_file(
     **CRITICAL INSTRUCTIONS:**
     1. **READ FIRST:** Use `read_file` to get exact content. Do not guess.
     2. **EXACT MATCH:** `old_text` must match file content EXACTLY (whitespace, newlines).
-    3. **MINIMAL CONTEXT:** Keep `old_text` small (target lines + 2-3 context lines).
-       Large strings cause errors.
-    4. **DEFAULT:** Replaces **ALL** occurrences. Set `count=1` for first occurrence only.
+    3. **ESCAPING:** Do NOT double-escape quotes in `new_text`. Use `\"`, not `\\"`.
+    4. **SIZE LIMIT:** `new_text` MUST NOT exceed 4000 chars to avoid truncation/EOF errors.
+    5. **MINIMAL CONTEXT:** Keep `old_text` small (target lines + 2-3 context lines).
+    6. **DEFAULT:** Replaces **ALL** occurrences. Set `count=1` for first occurrence only.
 
     Examples:
     # Replace ALL occurrences

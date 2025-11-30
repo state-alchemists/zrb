@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.11
+
+- **Improved**: Update tool docstring for `write_to_file` and `replace_in_file` ensuring no double escape character.
+
 # 1.21.10
 
 - **Updated dependencies**: `pydantic-ai-slim` `~1.25.1`
