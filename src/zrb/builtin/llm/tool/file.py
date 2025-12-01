@@ -324,7 +324,7 @@ def write_to_file(
     # Overwrite 'file.txt' with initial content
     write_to_file(file={'path': 'path/to/file.txt', 'content': 'Initial content.'})
 
-    # Append a second chunk to 'file.txt' (note the newline for separate lines)
+    # Append a second chunk to 'file.txt' (note the newline at the beginning of the content)
     write_to_file(file={'path': 'path/to/file.txt', 'content': '\nSecond chunk.', 'mode': 'a'})
 
     # Write to multiple files
