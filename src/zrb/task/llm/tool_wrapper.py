@@ -217,7 +217,7 @@ def _get_edited_kwargs(
     old_val_str = yaml_dump(kwargs, key)
     if val_str == "":
         val_str = edit_text(
-            prompt_message=f"# {key}",
+            prompt_message=f"# {key}" if key != "" else "",
             value=old_val_str,
             editor=CFG.DEFAULT_EDITOR,
             extension=".yaml",

@@ -34,6 +34,7 @@ def yaml_dump(obj: Any, key: str = "") -> str:
         allow_unicode=True,
         sort_keys=False,
         explicit_end=False,
+        width=float("inf"),
     )
     if not isinstance(obj_to_dump, (dict, list)):
         # PyYAML appends '...\n' (document-end) for top-level scalars.
