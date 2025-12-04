@@ -74,9 +74,11 @@ def get_str_attr(
         str: The string attribute value.
     """
     val = get_attr(ctx, attr, default, auto_render)
-    if not isinstance(val, str):
-        return str(val)
-    return val
+    if isinstance(val, str):
+        return val
+    if val is None:
+        return ""
+    return str(val)
 
 
 def get_bool_attr(

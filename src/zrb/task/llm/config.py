@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 
-from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.llm_config import LLMConfig, llm_config
 from zrb.context.any_context import AnyContext
 from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
@@ -12,7 +12,9 @@ from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
 
 def get_yolo_mode(
     ctx: AnyContext,
-    yolo_mode_attr: BoolAttr | StrListAttr | None = None,
+    yolo_mode_attr: (
+        Callable[[AnyContext], list[str] | bool | None] | StrListAttr | BoolAttr | None
+    ) = None,
     render_yolo_mode: bool = True,
 ) -> bool | list[str]:
     if yolo_mode_attr is None:
@@ -77,11 +79,11 @@ def get_model_api_key(
 
 def get_model(
     ctx: AnyContext,
-    model_attr: "Callable[[AnyContext], Model | str | fstring] | Model | str | None",
+    model_attr: "Callable[[AnyContext], Model | str | None] | Model | str | None",
     render_model: bool,
-    model_base_url_attr: StrAttr | None = None,
+    model_base_url_attr: "Callable[[AnyContext], Model | str | None] | Model | str | None",
     render_model_base_url: bool = True,
-    model_api_key_attr: StrAttr | None = None,
+    model_api_key_attr: "Callable[[AnyContext], Model | str | None] | Model | str | None" = None,
     render_model_api_key: bool = True,
     is_small_model: bool = False,
 ) -> "str | Model":

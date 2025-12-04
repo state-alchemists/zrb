@@ -3,12 +3,12 @@ import os
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.context.any_shared_context import AnySharedContext
+from zrb.context.any_context import AnyContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.util.file import read_file, write_file
 
 
-def read_chat_conversation(ctx: AnySharedContext) -> dict[str, Any] | list | None:
+def read_chat_conversation(ctx: AnyContext) -> dict[str, Any] | list | None:
     """Reads conversation history from the session file.
     Returns the raw dictionary or list loaded from JSON, or None if not found/empty.
     The LLMTask will handle parsing this into ConversationHistory.
@@ -51,10 +51,10 @@ def read_chat_conversation(ctx: AnySharedContext) -> dict[str, Any] | list | Non
         return None
 
 
-def write_chat_conversation(ctx: AnySharedContext, history_data: ConversationHistory):
+def write_chat_conversation(ctx: AnyContext, history_data: ConversationHistory):
     """Writes the conversation history data (including context) to a session file."""
     os.makedirs(CFG.LLM_HISTORY_DIR, exist_ok=True)
-    current_session_name = ctx.session.name
+    current_session_name = ctx.session.name if ctx.session is not None else None
     if not current_session_name:
         ctx.log_warning("Cannot write history: Session name is empty.")
         return

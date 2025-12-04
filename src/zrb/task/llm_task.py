@@ -50,11 +50,11 @@ class LLMTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        model: "Callable[[AnyContext], Model | str | fstring] | Model | None" = None,
+        model: "Callable[[AnyContext], Model | str | fstring | None] | Model | None" = None,
         render_model: bool = True,
-        model_base_url: StrAttr | None = None,
+        model_base_url: "Callable[[AnyContext], str | None] | str | None" = None,
         render_model_base_url: bool = True,
-        model_api_key: StrAttr | None = None,
+        model_api_key: "Callable[[AnyContext], str | None] | str | None" = None,
         render_model_api_key: bool = True,
         model_settings: (
             "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
@@ -70,16 +70,16 @@ class LLMTask(BaseTask):
         small_model_settings: (
             "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
         ) = None,
-        persona: StrAttr | None = None,
+        persona: "Callable[[AnyContext], str | None] | str | None" = None,
         render_persona: bool = False,
-        system_prompt: StrAttr | None = None,
+        system_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
         render_system_prompt: bool = False,
-        special_instruction_prompt: StrAttr | None = None,
+        special_instruction_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
         render_special_instruction_prompt: bool = False,
         workflows: StrListAttr | None = None,
         render_workflows: bool = True,
         message: StrAttr | None = None,
-        attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,
+        attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
         render_message: bool = True,
         tools: (
             list["ToolOrCallable"] | Callable[[AnyContext], list["ToolOrCallable"]]
@@ -112,11 +112,14 @@ class LLMTask(BaseTask):
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
-        yolo_mode: StrListAttr | BoolAttr | None = None,
-        render_yolo_mode: bool = True,
-        readiness_check: (
-            list[AnyTask] | AnyTask | None | Callable[[AnyContext], None]
+        yolo_mode: (
+            Callable[[AnyContext], list[str] | bool | None]
+            | StrListAttr
+            | BoolAttr
+            | None
         ) = None,
+        render_yolo_mode: bool = True,
+        readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float = 5,
         readiness_failure_threshold: int = 1,
