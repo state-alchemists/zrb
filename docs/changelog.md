@@ -1,5 +1,16 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.12
+
+- **Updated dependencies**: `mcp` `1.22.0` → `1.23.1`
+- **Fixed typing**: Improved type annotations for `StrAttr`, `BoolAttr`, `IntAttr`, `FloatAttr` to accept `None` return values from callables
+- **Refactored**: Updated `read_chat_conversation` and `write_chat_conversation` functions to use `AnyContext` instead of `AnySharedContext` for better type consistency
+- **Improved documentation**: Enhanced `write_to_file` docstring for better clarity on append mode usage
+- **Enhanced workflow prompts**: Updated coding workflow description and prompt construction logic
+- **Improved YAML editing**: Added `width=float("inf")` parameter to `yaml_dump` function for better formatting
+- **Fixed text editing**: Enhanced `edit_text` function to properly handle empty prompt messages
+- **Enhanced LLM task configuration**: Updated type annotations for `model_base_url`, `model_api_key`, `persona`, `system_prompt`, `special_instruction_prompt`, and `yolo_mode` parameters
+
 # 1.21.11
 
 - **Improved**: Update tool docstring for `write_to_file` and `replace_in_file` ensuring no double escape character.
