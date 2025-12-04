@@ -5,10 +5,12 @@ from zrb.config.llm_context.config import llm_context_config
 
 def read_long_term_note() -> str:
     """
-    Reads the global long-term note, shared across all projects and conversations.
+    Retrieves the GLOBAL long-term memory shared across ALL sessions and projects.
+
+    CRITICAL: Consult this first for user preferences, facts, and cross-project context.
 
     Returns:
-        str: The content of the long-term note.
+        str: The current global note content.
     """
     contexts = llm_context_config.get_notes()
     return contexts.get("/", "")
@@ -16,28 +18,37 @@ def read_long_term_note() -> str:
 
 def write_long_term_note(content: str) -> str:
     """
-    Writes or overwrites the global long-term note.
-    Use to remember key user preferences, goals, or facts relevant across all projects.
+    Persists CRITICAL facts to the GLOBAL long-term memory.
+
+    USE EAGERLY to save:
+    - User preferences (e.g., "I prefer Python", "No unit tests").
+    - Important facts (e.g., "My API key is in .env").
+    - Cross-project goals.
+
+    WARNING: This OVERWRITES the entire global note. Always read first.
 
     Args:
-        content (str): The information to save (overwrites entire note).
+        content (str): The text to strictly memorize.
 
     Returns:
-        str: A confirmation message.
+        str: Confirmation message.
     """
     llm_context_config.write_note(content, "/")
-    return "Long term note saved"
+    return "Global long-term note saved."
 
 
 def read_contextual_note(path: str | None = None) -> str:
     """
-    Reads a contextual note for a specific file or directory.
+    Retrieves LOCAL memory specific to a file or directory path.
+
+    Use to recall project-specific architecture, code summaries, or past decisions
+    relevant to the current working location.
 
     Args:
-        path (str | None): The file or directory path. Defaults to current working directory.
+        path (str | None): Target file/dir. Defaults to current working directory (CWD).
 
     Returns:
-        str: The content of the contextual note.
+        str: The local note content for the path.
     """
     if path is None:
         path = os.getcwd()
@@ -48,17 +59,23 @@ def read_contextual_note(path: str | None = None) -> str:
 
 def write_contextual_note(content: str, path: str | None = None) -> str:
     """
-    Writes or overwrites a note for a specific file or directory.
-    Use to save findings, summaries, or conclusions about a part of the project.
+    Persists LOCAL facts specific to a file or directory.
+
+    USE EAGERLY to save:
+    - Architectural patterns for this module.
+    - Summaries of large files or directories.
+    - Specific guidelines for this project area.
+
+    WARNING: This OVERWRITES the note for the specific path. Always read first.
 
     Args:
-        content (str): The information to save (overwrites any existing note).
-        path (str | None): The file or directory path. Defaults to current working directory.
+        content (str): The text to memorize for this location.
+        path (str | None): Target file/dir. Defaults to CWD.
 
     Returns:
-        str: A confirmation message.
+        str: Confirmation message.
     """
     if path is None:
         path = os.getcwd()
     llm_context_config.write_note(content, path)
-    return f"Contextual note saved to {path}"
+    return f"Contextual note saved for: {path}"
