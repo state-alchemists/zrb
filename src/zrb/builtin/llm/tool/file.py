@@ -185,6 +185,7 @@ def read_from_file(
     read_from_file(file={'path': 'path/to/file.txt'})
 
     # Read specific lines from a file
+    # The content will be returned with line numbers in the format: "LINE_NUMBER | line content"
     read_from_file(file={'path': 'path/to/large_file.log', 'start_line': 100, 'end_line': 150})
 
     # Read multiple files
@@ -198,7 +199,7 @@ def read_from_file(
 
     Returns:
         dict: Content and metadata for a single file, or a dict of results for multiple files.
-            Returned content contains line number.
+        The `content` field in the returned dictionary will have line numbers in the format: "LINE_NUMBER | line content"
     """
     is_list = isinstance(file, list)
     files = file if is_list else [file]

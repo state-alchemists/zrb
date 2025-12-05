@@ -70,6 +70,7 @@ def edit_replacement(
     os.remove(new_file_name)
     if edited_new_content == new_content:
         return replacement, False
+    # TODO: Optimize
     return {
         "path": path,
         "old_text": original_content,

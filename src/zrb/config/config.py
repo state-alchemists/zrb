@@ -69,7 +69,7 @@ class Config:
         if editor == "nvim":
             return "nvim -d {old} {new}"
         if editor == "code":
-            return "code --diff --wait {old} {new}"
+            return "code --diff {old} {new} --wait"
         if editor == "hx":
             return "hx --diff {old} {new}"
         return "vimdiff {old} {new}"
