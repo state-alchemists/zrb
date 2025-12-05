@@ -1,5 +1,16 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.13
+
+- **Feature: Interactive File Replacement Editor**: Introduced new `edit_replacement()` function that allows users to interactively edit file replacements using diff tools (nvim, code, hx, vimdiff)
+- **Feature: Enhanced Note Tool Documentation**: Completely revamped note tool prompts with clearer guidance on when to use long-term vs contextual notes and warnings about overwriting
+- **Refactored: File Tool Architecture**: Extracted `FileToRead`, `FileToWrite`, and `FileReplacement` TypedDict definitions into separate `file_tool_model.py` module for better maintainability
+- **Configuration: Diff Editor Support**: Added `DEFAULT_DIFF_EDIT_COMMAND_TPL` configuration with support for multiple editors and customizable diff commands
+- **Improved: File Replacement Validation**: Added `is_single_path_replacement()` checker function to validate replacement operations
+- **Enhanced: Tool Wrapper Integration**: Updated tool wrapper to support interactive editing of file replacement parameters
+- **Documentation: Read From File Metadata**: Enhanced `read_from_file` documentation to clarify line number formatting in returned content
+- **Optimization: Dependency Cleanup**: Removed unnecessary platform-specific wheel files from poetry.lock
+
 # 1.21.12
 
 - **Updated dependencies**: `mcp` `1.22.0` → `1.23.1`

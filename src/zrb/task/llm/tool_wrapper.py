@@ -10,6 +10,7 @@ from zrb.config.config import CFG
 from zrb.config.llm_rate_limitter import llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.error import ToolExecutionError
+from zrb.task.llm.file_replacement import edit_replacement, is_single_path_replacement
 from zrb.util.callable import get_callable_name
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import (
@@ -214,6 +215,15 @@ def _get_edited_kwargs(
         key_parts = key.split(".")
         if len(key_parts) > 0 and key_parts[0] not in kwargs:
             return kwargs, True
+    # Handle replacement edit
+    if len(kwargs) == 1:
+        kwarg_key = list(kwargs.keys())[0]
+        if is_single_path_replacement(kwargs[kwarg_key]) and (
+            key == "" or key == kwarg_key
+        ):
+            kwargs[kwarg_key], edited = edit_replacement(kwargs[kwarg_key])
+            return kwargs, True
+    # Handle other kind of edit
     old_val_str = yaml_dump(kwargs, key)
     if val_str == "":
         val_str = edit_text(

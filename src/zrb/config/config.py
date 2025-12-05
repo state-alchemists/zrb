@@ -61,6 +61,20 @@ class Config:
         return self._getenv("EDITOR", "nano")
 
     @property
+    def DEFAULT_DIFF_EDIT_COMMAND_TPL(self) -> str:
+        return self._getenv("DIFF_EDIT_COMMAND", self._get_default_diff_edit_command())
+
+    def _get_default_diff_edit_command(self) -> str:
+        editor = self.DEFAULT_EDITOR
+        if editor == "nvim":
+            return "nvim -d {old} {new}"
+        if editor == "code":
+            return "code --diff {old} {new} --wait"
+        if editor == "hx":
+            return "hx --diff {old} {new}"
+        return "vimdiff {old} {new}"
+
+    @property
     def INIT_MODULES(self) -> list[str]:
         init_modules_str = self._getenv("INIT_MODULES", "")
         if init_modules_str != "":
