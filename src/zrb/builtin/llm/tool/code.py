@@ -170,7 +170,6 @@ async def _extract_info(
         else:
             content_buffer.append(file_obj)
             current_token_count += llm_rate_limitter.count_token(file_str)
-
     # Process any remaining content in the buffer
     if content_buffer:
         prompt = json.dumps(_create_extract_info_prompt(query, content_buffer))

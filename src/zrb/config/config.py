@@ -66,13 +66,31 @@ class Config:
 
     def _get_default_diff_edit_command(self) -> str:
         editor = self.DEFAULT_EDITOR
-        if editor == "nvim":
-            return "nvim -d {old} {new}"
-        if editor == "code":
-            return "code --diff {old} {new} --wait"
-        if editor == "hx":
-            return "hx --diff {old} {new}"
-        return "vimdiff {old} {new}"
+        if editor in [
+            "code",
+            "vscode",
+            "vscodium",
+            "windsurf",
+            "cursor",
+            "zed",
+            "zeditor",
+            "agy",
+        ]:
+            return f"{editor} --wait --diff {{old}} {{new}}"
+        if editor == "emacs":
+            return "emacs --eval '(ediff-files \"{old}\" \"{new}\")'"
+        if editor in ["nvim", "vim"]:
+            return (
+                f"{editor} -d {{old}} {{new}} "
+                "-i NONE "
+                '-c "wincmd h | set readonly | wincmd l" '
+                '-c "highlight DiffAdd cterm=bold ctermbg=22 guibg=#005f00 | highlight DiffChange cterm=bold ctermbg=24 guibg=#005f87 | highlight DiffText ctermbg=21 guibg=#0000af | highlight DiffDelete ctermbg=52 guibg=#5f0000" '  # noqa
+                '-c "set showtabline=2 | set tabline=[Instructions]\\ :wqa(save\\ &\\ quit)\\ \\|\\ i/esc(toggle\\ edit\\ mode)" '  # noqa
+                '-c "wincmd h | setlocal statusline=OLD\\ FILE" '
+                '-c "wincmd l | setlocal statusline=%#StatusBold#NEW\\ FILE\\ :wqa(save\\ &\\ quit)\\ \\|\\ i/esc(toggle\\ edit\\ mode)" '  # noqa
+                '-c "autocmd BufWritePost * wqa"'
+            )
+        return 'vimdiff {old} {new} +"setlocal ro" +"wincmd l" +"autocmd BufWritePost <buffer> qa"'  # noqa
 
     @property
     def INIT_MODULES(self) -> list[str]:
@@ -349,7 +367,7 @@ class Config:
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
-        return float(self._getenv("LLM_THROTTLE_SLEEP", "1.0"))
+        return float(self._getenv("LLM_THROTTLE_SLEEP", "5.0"))
 
     @property
     def LLM_YOLO_MODE(self) -> bool | list[str]:

@@ -240,7 +240,6 @@ async def _run_single_agent_iteration(
         await rate_limitter.throttle(agent_payload, callback)
     else:
         await llm_rate_limitter.throttle(agent_payload, callback)
-
     user_prompt_with_attachments = [user_prompt] + attachments
     async with agent:
         async with agent.iter(
