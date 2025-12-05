@@ -218,7 +218,9 @@ def _get_edited_kwargs(
     # Handle replacement edit
     if len(kwargs) == 1:
         kwarg_key = list(kwargs.keys())[0]
-        if is_single_path_replacement(kwargs[kwarg_key]) and (key == "" or key == kwarg_key):
+        if is_single_path_replacement(kwargs[kwarg_key]) and (
+            key == "" or key == kwarg_key
+        ):
             kwargs[kwarg_key], edited = edit_replacement(kwargs[kwarg_key])
             return kwargs, True
     # Handle other kind of edit

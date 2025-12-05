@@ -2,8 +2,8 @@ import os
 import shlex
 import subprocess
 import tempfile
-
 from typing import Any
+
 from zrb.config.config import CFG
 from zrb.task.llm.file_tool_model import FileReplacement
 from zrb.util.file import read_file
@@ -11,7 +11,9 @@ from zrb.util.file import read_file
 
 def is_single_path_replacement(param: Any):
     if isinstance(param, dict):
-        return _dict_has_exact_keys(param, {"path", "old_text", "new_text"}) or _dict_has_exact_keys(param, {"path", "old_text", "new_text", "count"})
+        return _dict_has_exact_keys(
+            param, {"path", "old_text", "new_text"}
+        ) or _dict_has_exact_keys(param, {"path", "old_text", "new_text", "count"})
     if isinstance(param, list):
         current_path = None
         for single_replacement in param:
