@@ -142,7 +142,17 @@ class LLMRateLimiter:
         # Check per-request token limit
         if tokens > self.max_tokens_per_request:
             raise ValueError(
-                f"Request exceeds max_tokens_per_request ({self.max_tokens_per_request})."
+                (
+                    "Request exceeds max_tokens_per_request "
+                    "({tokens} > {self.max_tokens_per_request})."
+                )
+            )
+        if tokens > self.max_tokens_per_minute:
+            raise ValueError(
+                (
+                    "Request exceeds max_tokens_per_minute "
+                    "({tokens} > {self.max_tokens_per_minute})."
+                )
             )
         # Wait if over per-minute request or token limit
         while (

@@ -78,7 +78,7 @@ class Config:
         ]:
             return f"{editor} --wait --diff {{old}} {{new}}"
         if editor == "emacs":
-            return "emacs --eval '(ediff-files \"{old}\" \"{new}\")'"
+            return 'emacs --eval \'(ediff-files "{old}" "{new}")\''
         if editor in ["nvim", "vim"]:
             return (
                 f"{editor} -d {{old}} {{new}} "
@@ -383,19 +383,41 @@ class Config:
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return int(self._getenv("LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000"))
+        threshold = int(
+            self._getenv("LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000")
+        )
+        return self._limit_token_threshold(threshold)
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
-        return int(self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "100000"))
+        threshold = int(
+            self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "50000")
+        )
+        return self._limit_token_threshold(threshold)
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return int(self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "20000"))
+        threshold = int(
+            self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "20000")
+        )
+        min(
+            threshold,
+            self.LLM_MAX_TOKENS_PER_MINUTE // 2,
+            self.LLM_MAX_TOKENS_PER_REQUEST // 2,
+        )
+        return self._limit_token_threshold(threshold)
 
     @property
     def LLM_FILE_ANALYSIS_TOKEN_LIMIT(self) -> int:
-        return int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_LIMIT", "100000"))
+        threshold = int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_LIMIT", "50000"))
+        return self._limit_token_threshold(threshold)
+
+    def _limit_token_threshold(self, threshold: int) -> int:
+        return min(
+            threshold,
+            self.LLM_MAX_TOKENS_PER_MINUTE // 2,
+            self.LLM_MAX_TOKENS_PER_REQUEST // 2,
+        )
 
     @property
     def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:

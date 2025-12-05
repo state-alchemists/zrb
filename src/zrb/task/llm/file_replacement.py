@@ -121,7 +121,7 @@ def _generate_optimized_replacements(
 
 def _group_opcodes_into_hunks(opcodes, merge_threshold=200):
     """
-    Groups opcodes into hunks. 
+    Groups opcodes into hunks.
     'equal' blocks smaller than merge_threshold are treated as context (glue) within a hunk.
     """
     hunks = []
@@ -146,9 +146,9 @@ def _create_replacement_from_hunk(
     path: str, original_content: str, edited_content: str, hunk: list
 ) -> FileReplacement | None:
     # Trim leading/trailing 'equal' opcodes
-    while hunk and hunk[0][0] == 'equal':
+    while hunk and hunk[0][0] == "equal":
         hunk.pop(0)
-    while hunk and hunk[-1][0] == 'equal':
+    while hunk and hunk[-1][0] == "equal":
         hunk.pop()
     if not hunk:
         return None
@@ -162,9 +162,7 @@ def _create_replacement_from_hunk(
     if base_old_text == base_new_text:
         return None
     # Expand context
-    start, end = _expand_context_for_uniqueness(
-        original_content, i_start, i_end
-    )
+    start, end = _expand_context_for_uniqueness(original_content, i_start, i_end)
     start, end = _expand_to_word_boundary(original_content, start, end)
     final_old_text = original_content[start:end]
     # Reconstruct new text
@@ -181,7 +179,9 @@ def _create_replacement_from_hunk(
     }
 
 
-def _expand_context_for_uniqueness(content: str, start: int, end: int) -> tuple[int, int]:
+def _expand_context_for_uniqueness(
+    content: str, start: int, end: int
+) -> tuple[int, int]:
     """Expands the range [start, end] until the substring content[start:end] is unique."""
     while content.count(content[start:end]) > 1:
         if start == 0 and end == len(content):
@@ -195,8 +195,10 @@ def _expand_context_for_uniqueness(content: str, start: int, end: int) -> tuple[
 
 def _expand_to_word_boundary(content: str, start: int, end: int) -> tuple[int, int]:
     """Expands the range [start, end] outwards to the nearest whitespace boundaries."""
+
     def is_boundary(char):
         return char.isspace()
+
     while start > 0 and not is_boundary(content[start - 1]):
         start -= 1
     while end < len(content) and not is_boundary(content[end]):
