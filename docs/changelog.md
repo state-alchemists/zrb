@@ -1,5 +1,23 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.15
+
+- **Enhanced: Interactive File Replacement Editor**: Major refactoring of `edit_replacement()` function with improved user experience:
+  - Added `difflib` integration for smarter diff generation
+  - Implemented optimized replacement generation based on user edits
+  - Added context expansion and word boundary detection for better replacement accuracy
+  - New helper functions: `_apply_initial_replacements()`, `_open_diff_editor()`, `_generate_optimized_replacements()`, `_group_opcodes_into_hunks()`, `_create_replacement_from_hunk()`, `_expand_context_for_uniqueness()`, `_expand_to_word_boundary()`
+- **Enhanced: Diff Editor Support**: Expanded `_get_default_diff_edit_command()` with support for more editors:
+  - Added support for code, vscode, vscodium, windsurf, cursor, zed, zeditor, agy, emacs
+  - Enhanced vim/nvim configuration with syntax highlighting and on-screen instructions
+  - Improved editor integration with better command templates
+- **Configuration: Rate Limiting Improvements**:
+  - Changed default `LLM_THROTTLE_SLEEP` from 1.0 to 5.0 seconds for better rate limit compliance
+  - Added `_limit_token_threshold()` method to automatically limit token thresholds based on rate limits
+  - Updated token threshold configurations (`LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`, `LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`, `LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`, `LLM_FILE_ANALYSIS_TOKEN_LIMIT`) to use new limiting method
+- **Improved: Error Messages**: Enhanced LLM rate limiter error messages to show actual token counts for better debugging
+- **Dependencies**: Updated poetry.lock with new wheel files for greenlet and onnxruntime
+
 # 1.21.14
 
 - **Fix** When there are multiple replacements and user type `edit` without actually change the content, the new replacement only contains the last replacement.

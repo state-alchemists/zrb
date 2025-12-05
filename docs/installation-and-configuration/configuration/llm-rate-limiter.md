@@ -24,7 +24,7 @@ llm_config.llm_rate_limitter.set_max_tokens_per_request(50000)
 llm_config.llm_rate_limitter.set_max_tokens_per_tool_call_result(30000)
 
 # Set the throttle sleep duration
-llm_config.llm_rate_limitter.set_throttle_sleep(1.0)
+llm_config.llm_rate_limitter.set_throttle_sleep(5.0)
 
 # Set the token counter function
 llm_config.llm_rate_limitter.set_token_counter_fn(lambda x: len(x.split()))

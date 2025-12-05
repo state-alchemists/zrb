@@ -119,6 +119,15 @@ if MY_EDITOR != "":
     * Default: `nano`
     * Possible values: Any installed text editor
 
+* `DIFF_EDIT_COMMAND`: Template command for diff-based file editing. Used by interactive file replacement tools.
+    * Default: Automatically generated based on `ZRB_EDITOR` with support for:
+      - Visual Studio Code variants: `code`, `vscode`, `vscodium`, `windsurf`, `cursor`, `zed`, `zeditor`, `agy`
+      - `emacs`: Uses ediff-files command
+      - `nvim`/`vim`: Enhanced configuration with syntax highlighting and instructions
+      - Other editors: Uses `vimdiff` as fallback
+    * Template variables: `{old}` (path to old file), `{new}` (path to new file)
+    * Possible values: Any command template with `{old}` and `{new}` placeholders
+
 * `ZRB_INIT_MODULES`: Colon-separated list of modules to initialize.
     * Default: Empty
     * Possible values: Any valid module paths separated by colons
@@ -291,15 +300,15 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: Any valid extraction prompt string
 
 * `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT`: Token limit for repository analysis extraction.
-    * Default: `35000`
+    * Default: `50000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT`: Token limit for repository analysis summarization.
-    * Default: `35000`
+    * Default: `20000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`: Token limit for file analysis.
-    * Default: `35000`
+    * Default: `50000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`: Interactive system prompt for LLM.
@@ -395,7 +404,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: Any positive integer
 
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
-    * Default: `1.0`
+    * Default: `5.0`
     * Possible values: Any positive float
 
 * `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
