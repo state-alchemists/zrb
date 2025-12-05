@@ -44,7 +44,7 @@ isort = "^7.0.0"
 libcst = "^1.8.6"
 beautifulsoup4 = "^4.14.2"
 pdfplumber = "^0.11.7"
-fastapi = {extras = ["standard"], version = "^0.116.1"}
+fastapi = {extras = ["standard"], version = "^0.123.9"}
 python-jose = {extras = ["cryptography"], version = "^3.5.0"}
 ulid-py = "^1.1.0"
 psutil = "^7.0.0"

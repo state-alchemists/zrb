@@ -194,6 +194,18 @@ typing-extensions = ">=4.12"
 tz = ["tzdata"]
 
 [[package]]
+name = "annotated-doc"
+version = "0.0.4"
+description = "Document parameters, class attributes, return types, and variables inline, with Annotated."
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320"},
+    {file = "annotated_doc-0.0.4.tar.gz", hash = "sha256:fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4"},
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 description = "Reusable constraint types to use with typing.Annotated"
@@ -1173,31 +1185,32 @@ tests = ["pytest"]
 
 [[package]]
 name = "fastapi"
-version = "0.116.2"
+version = "0.123.9"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "fastapi-0.116.2-py3-none-any.whl", hash = "sha256:c3a7a8fb830b05f7e087d920e0d786ca1fc9892eb4e9a84b227be4c1bc7569db"},
-    {file = "fastapi-0.116.2.tar.gz", hash = "sha256:231a6af2fe21cfa2c32730170ad8514985fc250bec16c9b242d3b94c835ef529"},
+    {file = "fastapi-0.123.9-py3-none-any.whl", hash = "sha256:f54c69f23db14bd3dbcdfaf3fdce0483ca5f499512380c8e379a70cda30aa920"},
+    {file = "fastapi-0.123.9.tar.gz", hash = "sha256:ab33d672d8e1cc6e0b49777eb73c32ccf20761011f5ca16755889ab406fd1de0"},
 ]
 
 [package.dependencies]
+annotated-doc = ">=0.0.2"
 email-validator = {version = ">=2.0.0", optional = true, markers = "extra == \"standard\""}
 fastapi-cli = {version = ">=0.0.8", extras = ["standard"], optional = true, markers = "extra == \"standard\""}
-httpx = {version = ">=0.23.0", optional = true, markers = "extra == \"standard\""}
+httpx = {version = ">=0.23.0,<1.0.0", optional = true, markers = "extra == \"standard\""}
 jinja2 = {version = ">=3.1.5", optional = true, markers = "extra == \"standard\""}
 pydantic = ">=1.7.4,<1.8 || >1.8,<1.8.1 || >1.8.1,<2.0.0 || >2.0.0,<2.0.1 || >2.0.1,<2.1.0 || >2.1.0,<3.0.0"
 python-multipart = {version = ">=0.0.18", optional = true, markers = "extra == \"standard\""}
-starlette = ">=0.40.0,<0.49.0"
+starlette = ">=0.40.0,<0.51.0"
 typing-extensions = ">=4.8.0"
 uvicorn = {version = ">=0.12.0", extras = ["standard"], optional = true, markers = "extra == \"standard\""}
 
 [package.extras]
-all = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.8)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)", "jinja2 (>=3.1.5)", "orjson (>=3.2.1)", "pydantic-extra-types (>=2.0.0)", "pydantic-settings (>=2.0.0)", "python-multipart (>=0.0.18)", "pyyaml (>=5.3.1)", "ujson (>=4.0.1,!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0)", "uvicorn[standard] (>=0.12.0)"]
-standard = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.8)", "httpx (>=0.23.0)", "jinja2 (>=3.1.5)", "python-multipart (>=0.0.18)", "uvicorn[standard] (>=0.12.0)"]
-standard-no-fastapi-cloud-cli = ["email-validator (>=2.0.0)", "fastapi-cli[standard-no-fastapi-cloud-cli] (>=0.0.8)", "httpx (>=0.23.0)", "jinja2 (>=3.1.5)", "python-multipart (>=0.0.18)", "uvicorn[standard] (>=0.12.0)"]
+all = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.8)", "httpx (>=0.23.0,<1.0.0)", "itsdangerous (>=1.1.0)", "jinja2 (>=3.1.5)", "orjson (>=3.2.1)", "pydantic-extra-types (>=2.0.0)", "pydantic-settings (>=2.0.0)", "python-multipart (>=0.0.18)", "pyyaml (>=5.3.1)", "ujson (>=4.0.1,!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0)", "uvicorn[standard] (>=0.12.0)"]
+standard = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.8)", "httpx (>=0.23.0,<1.0.0)", "jinja2 (>=3.1.5)", "python-multipart (>=0.0.18)", "uvicorn[standard] (>=0.12.0)"]
+standard-no-fastapi-cloud-cli = ["email-validator (>=2.0.0)", "fastapi-cli[standard-no-fastapi-cloud-cli] (>=0.0.8)", "httpx (>=0.23.0,<1.0.0)", "jinja2 (>=3.1.5)", "python-multipart (>=0.0.18)", "uvicorn[standard] (>=0.12.0)"]
 
 [[package]]
 name = "fastapi-cli"
@@ -5751,14 +5764,14 @@ uvicorn = ["uvicorn (>=0.34.0)"]
 
 [[package]]
 name = "starlette"
-version = "0.48.0"
+version = "0.50.0"
 description = "The little ASGI library that shines."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "starlette-0.48.0-py3-none-any.whl", hash = "sha256:0764ca97b097582558ecb498132ed0c7d942f233f365b86ba37770e026510659"},
-    {file = "starlette-0.48.0.tar.gz", hash = "sha256:7e8cee469a8ab2352911528110ce9088fdc6a37d9876926e73da7ce4aa4c7a46"},
+    {file = "starlette-0.50.0-py3-none-any.whl", hash = "sha256:9e5391843ec9b6e472eed1365a78c8098cfceb7a74bfd4d6b1c0c0095efb3bca"},
+    {file = "starlette-0.50.0.tar.gz", hash = "sha256:a2a17b22203254bcbc2e1f926d2d55f3f9497f769416b3190768befe598fa3ca"},
 ]
 
 [package.dependencies]
@@ -6541,4 +6554,4 @@ vertexai = ["google-auth"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<4.0.0"
-content-hash = "6a9cd1e211423d71278d555e082745450ee264ce487243bd9075f8fa32debddf"
+content-hash = "5495791424e3f58145db84ca1073fa4fbfdbb9e955cd58b2a300ed30e5f1c34e"
