@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.14
+
+- **Fix** When there are multiple replacements and user type `edit` without actually change the content, the new replacement only contains the last replacement.
+
 # 1.21.13
 
 - **Feature: Interactive File Replacement Editor**: Introduced new `edit_replacement()` function that allows users to interactively edit file replacements using diff tools (nvim, code, hx, vimdiff)

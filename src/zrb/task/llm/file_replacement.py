@@ -48,10 +48,10 @@ def edit_replacement(
     _, extension = os.path.splitext(path)
     # Get supposed-to-be new content
     new_content = original_content
-    for replacement in replacement_list:
-        old_text = replacement["old_text"]
-        new_text = replacement["new_text"]
-        count = replacement.get("count", -1)
+    for single_replacement in replacement_list:
+        old_text = single_replacement["old_text"]
+        new_text = single_replacement["new_text"]
+        count = single_replacement.get("count", -1)
         new_content = new_content.replace(old_text, new_text, count)
     if diff_edit_command_tpl is None:
         diff_edit_command_tpl = CFG.DEFAULT_DIFF_EDIT_COMMAND_TPL
