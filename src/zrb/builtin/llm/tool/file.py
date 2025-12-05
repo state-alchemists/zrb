@@ -198,6 +198,7 @@ def read_from_file(
 
     Returns:
         dict: Content and metadata for a single file, or a dict of results for multiple files.
+            Returned content contains line number.
     """
     is_list = isinstance(file, list)
     files = file if is_list else [file]

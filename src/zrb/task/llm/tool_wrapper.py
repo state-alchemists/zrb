@@ -214,6 +214,15 @@ def _get_edited_kwargs(
         key_parts = key.split(".")
         if len(key_parts) > 0 and key_parts[0] not in kwargs:
             return kwargs, True
+
+    # TODO: test ====
+    # from zrb.task.llm.file_replacement import edit_replacement, is_single_path_replacement
+    # from zrb.config.config import CFG
+    # if key == "" and "file" in kwargs and len(kwargs) == 1 and is_single_path_replacement(kwargs["file"]):
+    #     kwargs["file"], edited = edit_replacement(kwargs["file"])
+    #     return kwargs, edited
+    # TODO: end of test ====
+
     old_val_str = yaml_dump(kwargs, key)
     if val_str == "":
         val_str = edit_text(
