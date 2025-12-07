@@ -230,7 +230,11 @@ def _get_workflow_prompt(
             make_markdown_section(
                 workflow_name.capitalize(),
                 (
-                    f"Workflow location: {workflow.path}\n{workflow.content}"
+                    (
+                        "> Workflow status: Automatically Loaded/Activated.\n"
+                        f"> Workflow location: `{workflow.path}`\n"
+                        "{workflow.content}"
+                    )
                     if select_active_workflow
                     else f"Workflow name: {workflow_name}\n{workflow.description}"
                 ),
