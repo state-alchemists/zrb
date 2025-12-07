@@ -1,5 +1,14 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.16
+
+- **Enhanced: Note Tool Documentation**: Improved documentation for long-term and contextual note tools:
+  - Added "User information (e.g., user name, user email address)" and "Anything that will be useful for future interaction across projects" to `write_long_term_note` usage guidelines
+  - Updated `write_contextual_note` with clearer terminology: "Architectural patterns for this project/directory" and "Anything related to this directory that will be useful for future interaction"
+- **Improved: Workflow Prompt Formatting**: Enhanced workflow display in prompts with better formatting:
+  - Added "Workflow status: Automatically Loaded/Activated" indicator
+  - Improved workflow location display with backticks for better readability
+
 # 1.21.15
 
 - **Enhanced: Interactive File Replacement Editor**: Major refactoring of `edit_replacement()` function with improved user experience:
