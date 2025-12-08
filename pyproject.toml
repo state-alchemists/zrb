@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "1.21.16"
+version = "1.21.17"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -50,7 +50,7 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = "~1.25.1"
+pydantic-ai-slim = "~1.27.0"
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
 openai = ">=2.8.0"  # From openrouter dependency
