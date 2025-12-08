@@ -37,7 +37,7 @@ def create_agent_instance(
     yolo_mode: bool | list[str] | None = None,
 ) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
-    from pydantic_ai import Agent, RunContext, Tool
+    from pydantic_ai import Agent, ModelMessage, ModelRequest, RunContext, Tool
     from pydantic_ai.tools import GenerateToolJsonSchema
     from pydantic_ai.toolsets import ToolsetTool, WrapperToolset
 
@@ -47,13 +47,17 @@ def create_agent_instance(
         yolo_mode: bool | list[str]
 
         async def call_tool(
-            self, name: str, tool_args: dict, ctx: RunContext, tool: ToolsetTool[None]
+            self,
+            name: str,
+            tool_args: dict,
+            run_ctx: RunContext,
+            tool: ToolsetTool[None],
         ) -> Any:
             # The `tool` object is passed in. Use it for inspection.
             # Define a temporary function that performs the actual tool call.
             async def execute_delegated_tool_call(**params):
                 # Pass all arguments down the chain.
-                return await self.wrapped.call_tool(name, tool_args, ctx, tool)
+                return await self.wrapped.call_tool(name, tool_args, run_ctx, tool)
 
             # For the confirmation UI, make our temporary function look like the real one.
             try:
@@ -103,6 +107,16 @@ def create_agent_instance(
         for toolset in toolsets
     ]
     # Return Agent
+
+    # TODO: just for debug
+    def filter_responses(messages: list[ModelMessage]) -> list[ModelMessage]:
+        last_index = len(messages) - 1
+        for idx, message in enumerate(messages):
+            if idx < last_index and isinstance(message, ModelRequest):
+                message.instructions = None
+            ctx.log_debug(f">>> {idx} {message}\n\n")
+        return messages
+
     return Agent[None, Any](
         model=model,
         output_type=output_type,
@@ -111,6 +125,7 @@ def create_agent_instance(
         toolsets=wrapped_toolsets,
         model_settings=model_settings,
         retries=retries,
+        history_processors=[filter_responses],
     )
 
 
