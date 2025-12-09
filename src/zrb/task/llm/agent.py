@@ -1,12 +1,13 @@
+import dataclasses
 import inspect
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.llm_config import llm_config
 from zrb.config.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.error import extract_api_error_details
 from zrb.task.llm.print_node import print_node
 from zrb.task.llm.tool_wrapper import wrap_func, wrap_tool
@@ -16,7 +17,12 @@ from zrb.util.cli.style import stylize_faint
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.agent import AgentRun
-    from pydantic_ai.messages import UserContent
+    from pydantic_ai.messages import (
+        ModelMessage,
+        ModelRequest,
+        ModelResponse,
+        UserContent,
+    )
     from pydantic_ai.models import Model
     from pydantic_ai.output import OutputDataT, OutputSpec
     from pydantic_ai.settings import ModelSettings
@@ -35,9 +41,10 @@ def create_agent_instance(
     toolsets: list["AbstractToolset[None]"] = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
+    max_history: int | None = 10,
 ) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
-    from pydantic_ai import Agent, ModelMessage, ModelRequest, RunContext, Tool
+    from pydantic_ai import Agent, RunContext, Tool
     from pydantic_ai.tools import GenerateToolJsonSchema
     from pydantic_ai.toolsets import ToolsetTool, WrapperToolset
 
@@ -50,14 +57,14 @@ def create_agent_instance(
             self,
             name: str,
             tool_args: dict,
-            run_ctx: RunContext,
+            ctx: RunContext,
             tool: ToolsetTool[None],
         ) -> Any:
             # The `tool` object is passed in. Use it for inspection.
             # Define a temporary function that performs the actual tool call.
             async def execute_delegated_tool_call(**params):
                 # Pass all arguments down the chain.
-                return await self.wrapped.call_tool(name, tool_args, run_ctx, tool)
+                return await self.wrapped.call_tool(name, tool_args, ctx, tool)
 
             # For the confirmation UI, make our temporary function look like the real one.
             try:
@@ -108,15 +115,6 @@ def create_agent_instance(
     ]
     # Return Agent
 
-    # TODO: just for debug
-    def filter_responses(messages: list[ModelMessage]) -> list[ModelMessage]:
-        last_index = len(messages) - 1
-        for idx, message in enumerate(messages):
-            if idx < last_index and isinstance(message, ModelRequest):
-                message.instructions = None
-            ctx.log_debug(f">>> {idx} {message}\n\n")
-        return messages
-
     return Agent[None, Any](
         model=model,
         output_type=output_type,
@@ -125,8 +123,117 @@ def create_agent_instance(
         toolsets=wrapped_toolsets,
         model_settings=model_settings,
         retries=retries,
-        history_processors=[filter_responses],
+        history_processors=[_create_history_processor(ctx, max_history)],
     )
+
+
+def _create_history_processor(
+    ctx: AnyContext, max_history: int | None
+) -> Callable[[list["ModelMessage"]], list["ModelMessage"]]:
+    from pydantic_ai.messages import (
+        ModelMessage,
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+
+    def messages_to_text(messages: list[ModelMessage]) -> str:
+        text_parts = []
+        for msg in messages:
+            if isinstance(msg, ModelRequest):
+                for part in msg.parts:
+                    if isinstance(part, UserPromptPart):
+                        if isinstance(part.content, str):
+                            text_parts.append(f"User: {part.content}")
+            elif isinstance(msg, ModelResponse):
+                for part in msg.parts:
+                    if isinstance(part, TextPart):
+                        text_parts.append(f"Model: {part.content}")
+        return "\n".join(text_parts)
+
+    async def summarize_text(text: str) -> str:
+        from pydantic_ai import Agent
+
+        if not text.strip():
+            return ""
+
+        agent = Agent(
+            model=llm_config.default_small_model,
+            system_prompt="Summarize the following conversation history concisely.",
+        )
+        try:
+            result = await agent.run(text)
+            return result.data
+        except Exception as e:
+            ctx.log_warning(f"Failed to summarize history: {e}")
+            return ""
+
+    async def history_processor(
+        messages: list[ModelMessage],
+    ) -> list[ModelMessage]:
+        if max_history is None or not messages:
+            compacted_messages = messages
+        else:
+            n = len(messages)
+            if n <= max_history:
+                compacted_messages = messages
+            else:
+                # 1. Determine safe split point
+                start_idx = n - max_history
+                while start_idx > 0:
+                    msg = messages[start_idx]
+                    if isinstance(msg, ModelRequest):
+                        has_tool_return = any(
+                            isinstance(p, ToolReturnPart) for p in msg.parts
+                        )
+                        if has_tool_return:
+                            start_idx -= 1
+                            continue
+                    break
+
+                # 2. Summarize the truncated part
+                if start_idx > 0:
+                    messages_to_summarize = messages[:start_idx]
+                    kept_messages = messages[start_idx:]
+
+                    ctx.log_debug(
+                        f"Compacting history: summarizing first {start_idx} messages, "
+                        f"keeping last {len(kept_messages)}."
+                    )
+
+                    text_to_summarize = messages_to_text(messages_to_summarize)
+                    summary = await summarize_text(text_to_summarize)
+
+                    if summary:
+                        summary_message = ModelRequest(
+                            parts=[
+                                UserPromptPart(
+                                    content=f"Previous conversation summary: {summary}"
+                                )
+                            ]
+                        )
+                        compacted_messages = [summary_message] + kept_messages
+                    else:
+                        compacted_messages = kept_messages
+                else:
+                    compacted_messages = messages
+
+        # 3. Instruction Deduplication
+        processed_messages = []
+        last_index = len(compacted_messages) - 1
+        for idx, message in enumerate(compacted_messages):
+            if idx < last_index and isinstance(message, ModelRequest):
+                if message.instructions:
+                    # Use dataclasses.replace to safely copy and modify
+                    message = dataclasses.replace(message, instructions=None)
+
+            ctx.log_debug(f">>> {idx} {message}\n\n")
+            processed_messages.append(message)
+        return processed_messages
+
+    return history_processor
 
 
 def get_agent(
@@ -143,6 +250,7 @@ def get_agent(
     additional_toolsets: "list[AbstractToolset[None] | str]" = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
+    max_history: int | None = None,
 ) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
     # Get tools for agent
@@ -165,6 +273,7 @@ def get_agent(
         model_settings=model_settings,
         retries=retries,
         yolo_mode=yolo_mode,
+        max_history=max_history,
     )
 
 
