@@ -1,7 +1,6 @@
 import json
 import os
 from collections.abc import Callable
-from copy import deepcopy
 from typing import Any
 
 from zrb.attr.type import StrAttr
@@ -56,7 +55,10 @@ def get_history_file(
 
 async def _read_from_source(
     ctx: AnyContext,
-    reader: Callable[[AnyContext], dict[str, Any] | list | None] | None,
+    reader: (
+        Callable[[AnyContext], ConversationHistory | dict[str, Any] | list | None]
+        | None
+    ),
     file_path: str | None,
 ) -> "ConversationHistory | None":
     # Priority 1: Reader function
@@ -163,28 +165,6 @@ async def write_conversation_history(
     )
     if history_file != "":
         write_file(history_file, json.dumps(history_data.to_dict(), indent=2))
-
-
-def replace_system_prompt_in_history(
-    history_list: ListOfDict, replacement: str = "<main LLM system prompt>"
-) -> ListOfDict:
-    """
-    Returns a new history list where any part with part_kind 'system-prompt'
-    has its 'content' replaced with the given replacement string.
-    Args:
-        history: List of history items (each item is a dict with a 'parts' list).
-        replacement: The string to use in place of system-prompt content.
-
-    Returns:
-        A deep-copied list of history items with system-prompt content replaced.
-    """
-    new_history = deepcopy(history_list)
-    for item in new_history:
-        parts = item.get("parts", [])
-        for part in parts:
-            if part.get("part_kind") == "system-prompt":
-                part["content"] = replacement
-    return new_history
 
 
 def count_part_in_history_list(history_list: ListOfDict) -> int:

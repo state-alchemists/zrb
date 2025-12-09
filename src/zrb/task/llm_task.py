@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr, StrListAttr, fstring
-from zrb.config.llm_rate_limitter import LLMRateLimiter
+from zrb.config.llm_rate_limitter import LLMRateLimitter
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -22,6 +22,7 @@ from zrb.task.llm.conversation_history import (
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_summarization import maybe_summarize_history
+from zrb.task.llm.message_processor import create_message_length_warning_injector
 from zrb.task.llm.prompt import (
     get_attachments,
     get_summarization_system_prompt,
@@ -108,7 +109,7 @@ class LLMTask(BaseTask):
         render_summarization_prompt: bool = False,
         history_summarization_token_threshold: IntAttr | None = None,
         render_history_summarization_token_threshold: bool = True,
-        rate_limitter: LLMRateLimiter | None = None,
+        rate_limitter: LLMRateLimitter | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -292,6 +293,17 @@ class LLMTask(BaseTask):
             toolsets_attr=self._toolsets,
             additional_toolsets=self._additional_toolsets,
             yolo_mode=yolo_mode,
+            history_processors=[
+                create_message_length_warning_injector(
+                    warning=(
+                        "SYSTEM WARNING: Almost run out of token, "
+                        "If the task is not completed, "
+                        "let's conclude with all findings/information/progress/todo list "
+                        "and continue the task in the new session."
+                    ),
+                    rate_limitter=self._rate_limitter,
+                )
+            ],
         )
         # 4. Run the agent iteration and save the results/history
         result = await self._execute_agent(

@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from zrb.config.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
+from zrb.config.llm_rate_limitter import LLMRateLimitter, llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.error import extract_api_error_details
@@ -15,7 +15,7 @@ from zrb.util.cli.style import stylize_faint
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
-    from pydantic_ai.agent import AgentRun
+    from pydantic_ai.agent import AgentRun, HistoryProcessor
     from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
     from pydantic_ai.output import OutputDataT, OutputSpec
@@ -31,10 +31,11 @@ def create_agent_instance(
     output_type: "OutputSpec[OutputDataT]" = str,
     system_prompt: str = "",
     model_settings: "ModelSettings | None" = None,
-    tools: "list[ToolOrCallable]" = [],
+    tools: list["ToolOrCallable"] = [],
     toolsets: list["AbstractToolset[None]"] = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
+    history_processors: list["HistoryProcessor"] | None = None,
 ) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, RunContext, Tool
@@ -111,6 +112,7 @@ def create_agent_instance(
         toolsets=wrapped_toolsets,
         model_settings=model_settings,
         retries=retries,
+        history_processors=history_processors,
     )
 
 
@@ -128,6 +130,7 @@ def get_agent(
     additional_toolsets: "list[AbstractToolset[None] | str]" = [],
     retries: int = 3,
     yolo_mode: bool | list[str] | None = None,
+    history_processors: list["HistoryProcessor"] | None = None,
 ) -> "Agent":
     """Retrieves the configured Agent instance or creates one if necessary."""
     # Get tools for agent
@@ -150,6 +153,7 @@ def get_agent(
         model_settings=model_settings,
         retries=retries,
         yolo_mode=yolo_mode,
+        history_processors=history_processors,
     )
 
 
@@ -178,7 +182,7 @@ async def run_agent_iteration(
     user_prompt: str,
     attachments: "list[UserContent] | None" = None,
     history_list: ListOfDict | None = None,
-    rate_limitter: LLMRateLimiter | None = None,
+    rate_limitter: LLMRateLimitter | None = None,
     max_retry: int = 2,
     log_indent_level: int = 0,
 ) -> "AgentRun":
@@ -226,7 +230,7 @@ async def _run_single_agent_iteration(
     user_prompt: str,
     attachments: "list[UserContent]",
     history_list: ListOfDict,
-    rate_limitter: LLMRateLimiter,
+    rate_limitter: LLMRateLimitter,
     log_indent_level: int,
 ) -> "AgentRun":
     from openai import APIError
