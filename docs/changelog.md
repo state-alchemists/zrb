@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.17
+
+- **Updated Dependency**: Update Pydantic AI to 1.27.0
+
 # 1.21.16
 
 - **Enhanced: Note Tool Documentation**: Improved documentation for long-term and contextual note tools:
