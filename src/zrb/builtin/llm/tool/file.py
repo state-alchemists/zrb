@@ -531,7 +531,7 @@ async def analyze_file(
         Analysis results.
     """
     if token_limit is None:
-        token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_LIMIT
+        token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")
