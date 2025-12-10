@@ -50,7 +50,7 @@ def create_long_message_warning_injector(
                 rate_limitter.max_tokens_per_request,
                 rate_limitter.max_tokens_per_minute,
             )
-            * 0.75
+            * 0.8
         )
 
     def inject_long_message_warning(
