@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.llm_rate_limitter import LLMRateLimitter, llm_rate_limitter
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.error import extract_api_error_details
 from zrb.task.llm.print_node import print_node
 from zrb.task.llm.tool_wrapper import wrap_func, wrap_tool

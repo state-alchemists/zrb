@@ -36,22 +36,14 @@ def get_long_message_token_threshold(
 
 def create_long_message_warning_injector(
     long_message_warning_prompt: str,
-    rate_limitter: LLMRateLimitter | None = None,
-    threshold: int | None = None,
+    rate_limitter: LLMRateLimitter | None,
+    threshold: int,
 ) -> Callable[[list["ModelMessage"]], list["ModelMessage"]]:
     from pydantic_ai import ModelMessage, ModelRequest
     from pydantic_ai.messages import ModelMessagesTypeAdapter, UserPromptPart
 
     if rate_limitter is None:
         rate_limitter = default_llm_rate_limitter
-    if threshold is None:
-        threshold = round(
-            min(
-                rate_limitter.max_tokens_per_request,
-                rate_limitter.max_tokens_per_minute,
-            )
-            * 0.8
-        )
 
     def inject_long_message_warning(
         messages: list[ModelMessage],
