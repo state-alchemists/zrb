@@ -4,15 +4,15 @@ from typing import TYPE_CHECKING
 
 from zrb.attr.type import BoolAttr, IntAttr
 from zrb.config.llm_config import llm_config
-from zrb.config.llm_rate_limitter import LLMRateLimiter, llm_rate_limitter
+from zrb.config.llm_rate_limitter import LLMRateLimitter
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.task.llm.conversation_history import (
     count_part_in_history_list,
     inject_conversation_history_notes,
-    replace_system_prompt_in_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
+from zrb.task.llm.history_list import count_token_in_history_list
 from zrb.task.llm.history_summarization_tool import (
     create_history_summarization_tool,
 )
@@ -25,12 +25,6 @@ from zrb.util.truncate import truncate_str
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
-
-
-def _count_token_in_history(history_list: ListOfDict) -> int:
-    """Counts the total number of tokens in a conversation history list."""
-    text_to_count = json.dumps(history_list)
-    return llm_rate_limitter.count_token(text_to_count)
 
 
 def get_history_summarization_token_threshold(
@@ -61,6 +55,7 @@ def should_summarize_history(
     render_summarize_history: bool,
     history_summarization_token_threshold_attr: IntAttr | None,
     render_history_summarization_token_threshold: bool,
+    rate_limitter: LLMRateLimitter | None = None,
 ) -> bool:
     """Determines if history summarization should occur based on token length and config."""
     history_part_count = count_part_in_history_list(history_list)
@@ -71,7 +66,7 @@ def should_summarize_history(
         history_summarization_token_threshold_attr,
         render_history_summarization_token_threshold,
     )
-    history_token_count = _count_token_in_history(history_list)
+    history_token_count = count_token_in_history_list(history_list, rate_limitter)
     if (
         summarization_token_threshold == -1
         or summarization_token_threshold > history_token_count
@@ -91,7 +86,7 @@ async def summarize_history(
     settings: "ModelSettings | None",
     system_prompt: str,
     conversation_history: ConversationHistory,
-    rate_limitter: LLMRateLimiter | None = None,
+    rate_limitter: LLMRateLimitter | None = None,
     retries: int = 3,
 ) -> ConversationHistory:
     """Runs an LLM call to update the conversation summary."""
@@ -171,20 +166,21 @@ async def maybe_summarize_history(
     model: "str | Model | None",
     model_settings: "ModelSettings | None",
     summarization_prompt: str,
-    rate_limitter: LLMRateLimiter | None = None,
+    rate_limitter: LLMRateLimitter | None = None,
 ) -> ConversationHistory:
     """Summarizes history and updates context if enabled and threshold met."""
-    shorten_history = replace_system_prompt_in_history(conversation_history.history)
+    history_list = conversation_history.history
     if should_summarize_history(
         ctx,
-        shorten_history,
+        history_list,
         should_summarize_history_attr,
         render_summarize_history,
         history_summarization_token_threshold_attr,
         render_history_summarization_token_threshold,
+        rate_limitter,
     ):
         original_history = conversation_history.history
-        conversation_history.history = shorten_history
+        conversation_history.history = history_list
         conversation_history = await summarize_history(
             ctx=ctx,
             model=model,

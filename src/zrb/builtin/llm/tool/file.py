@@ -181,6 +181,7 @@ def read_from_file(
     Reads content from one or more files, optionally specifying line ranges.
 
     Examples:
+    ```
     # Read entire content of a single file
     read_from_file(file={'path': 'path/to/file.txt'})
 
@@ -193,6 +194,7 @@ def read_from_file(
         {'path': 'path/to/file1.txt'},
         {'path': 'path/to/file2.txt', 'start_line': 1, 'end_line': 5}
     ])
+    ```
 
     Args:
         file (FileToRead | list[FileToRead]): A single file configuration or a list of them.
@@ -267,6 +269,7 @@ def write_to_file(
        - Split larger content into multiple sequential calls (first 'w', then 'a').
 
     Examples:
+    ```
     # Overwrite 'file.txt' with initial content
     write_to_file(file={'path': 'path/to/file.txt', 'content': 'Initial content.'})
 
@@ -278,6 +281,7 @@ def write_to_file(
         {'path': 'path/to/file1.txt', 'content': 'Content for file 1'},
         {'path': 'path/to/file2.txt', 'content': 'Content for file 2', 'mode': 'w'}
     ])
+    ```
 
     Args:
         file (FileToWrite | list[FileToWrite]): A single file configuration or a list of them.
@@ -434,6 +438,7 @@ def replace_in_file(
     6. **DEFAULT:** Replaces **ALL** occurrences. Set `count=1` for first occurrence only.
 
     Examples:
+    ```
     # Replace ALL occurrences
     replace_in_file(file=[
         {'path': 'file.txt', 'old_text': 'foo', 'new_text': 'bar'},
@@ -453,6 +458,7 @@ def replace_in_file(
             'new_text': '    def new_fn():\n        pass'
         }
     )
+    ```
 
     Args:
         file: Single replacement config or list of them.
@@ -525,7 +531,7 @@ async def analyze_file(
         Analysis results.
     """
     if token_limit is None:
-        token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_LIMIT
+        token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")

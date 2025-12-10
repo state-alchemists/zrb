@@ -28,8 +28,13 @@ class Config:
     def ENV_PREFIX(self) -> str:
         return os.getenv("_ZRB_ENV_PREFIX", "ZRB")
 
-    def _getenv(self, env_name: str, default: str = "") -> str:
-        return os.getenv(f"{self.ENV_PREFIX}_{env_name}", default)
+    def _getenv(self, env_name: str | list[str], default: str = "") -> str:
+        env_name_list = env_name if isinstance(env_name, list) else [env_name]
+        for env_name in env_name_list:
+            value = os.getenv(f"{self.ENV_PREFIX}_{env_name}", None)
+            if value is not None:
+                return value
+        return default
 
     def _get_internal_default_prompt(self, name: str) -> str:
         if name not in self.__internal_default_prompt:
@@ -319,7 +324,9 @@ class Config:
     @property
     def LLM_BUILTIN_WORKFLOW_PATHS(self) -> list[str]:
         """Get a list of additional builtin workflow paths from environment variables."""
-        builtin_workflow_paths_str = self._getenv("LLM_BUILTIN_WORKFLOW_PATHS", "")
+        builtin_workflow_paths_str = self._getenv(
+            ["LLM_BUILTIN_WORFKLOW_PATH", "LLM_BUILTIN_WORKFLOW_PATHS"], ""
+        )
         if builtin_workflow_paths_str != "":
             return [
                 path.strip()
@@ -339,12 +346,21 @@ class Config:
         return None if value == "" else value
 
     @property
+    def LLM_LONG_MESSAGE_WARNING_PROMPT(self) -> str | None:
+        value = self._getenv("LLM_LONG_MESSAGE_WARNING_PROMPT")
+        return None if value == "" else value
+
+    @property
     def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
         """
         Maximum number of LLM requests allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
         """
-        return int(self._getenv("LLM_MAX_REQUESTS_PER_MINUTE", "60"))
+        return int(
+            self._getenv(
+                ["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"], "60"
+            )
+        )
 
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
@@ -352,17 +368,33 @@ class Config:
         Maximum number of LLM tokens allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
         """
-        return int(self._getenv("LLM_MAX_TOKENS_PER_MINUTE", "100000"))
+        return int(
+            self._getenv(
+                ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"], "100000"
+            )
+        )
 
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
-        return int(self._getenv("LLM_MAX_TOKENS_PER_REQUEST", "100000"))
+        return int(
+            self._getenv(
+                ["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"], "100000"
+            )
+        )
 
     @property
     def LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT(self) -> int:
         """Maximum number of tokens allowed per tool call result."""
-        return int(self._getenv("LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT", "75000"))
+        return int(
+            self._getenv(
+                [
+                    "LLM_MAX_TOKEN_PER_TOOL_CALL_RESULT",
+                    "LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT",
+                ],
+                "75000",
+            )
+        )
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
@@ -384,39 +416,41 @@ class Config:
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv("LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "20000")
+            self._getenv("LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
         )
         return self._limit_token_threshold(threshold)
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "50000")
+            self._getenv("LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD", "75000")
         )
         return self._limit_token_threshold(threshold)
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "20000")
-        )
-        min(
-            threshold,
-            self.LLM_MAX_TOKENS_PER_MINUTE // 2,
-            self.LLM_MAX_TOKENS_PER_REQUEST // 2,
+            self._getenv("LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
         )
         return self._limit_token_threshold(threshold)
 
     @property
-    def LLM_FILE_ANALYSIS_TOKEN_LIMIT(self) -> int:
-        threshold = int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_LIMIT", "50000"))
+    def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self) -> int:
+        threshold = int(self._getenv("LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", "75000"))
+        return self._limit_token_threshold(threshold)
+
+    @property
+    def LLM_LONG_MESSAGE_TOKEN_THRESHOLD(self) -> int:
+        threshold = int(self._getenv("LLM_LONG_MESSAGE_TOKEN_THRESHOLD", "75000"))
         return self._limit_token_threshold(threshold)
 
     def _limit_token_threshold(self, threshold: int) -> int:
-        return min(
-            threshold,
-            self.LLM_MAX_TOKENS_PER_MINUTE // 2,
-            self.LLM_MAX_TOKENS_PER_REQUEST // 2,
+        return round(
+            min(
+                threshold,
+                self.LLM_MAX_TOKENS_PER_MINUTE * 0.75,
+                self.LLM_MAX_TOKENS_PER_REQUEST * 0.75,
+            )
         )
 
     @property

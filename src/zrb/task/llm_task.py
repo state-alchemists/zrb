@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr, StrListAttr, fstring
-from zrb.config.llm_rate_limitter import LLMRateLimiter
+from zrb.config.llm_rate_limitter import LLMRateLimitter
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -22,8 +22,13 @@ from zrb.task.llm.conversation_history import (
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_summarization import maybe_summarize_history
+from zrb.task.llm.long_message_warning import (
+    create_long_message_warning_injector,
+    get_long_message_token_threshold,
+)
 from zrb.task.llm.prompt import (
     get_attachments,
+    get_long_message_warning_prompt,
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
@@ -104,11 +109,15 @@ class LLMTask(BaseTask):
         render_history_file: bool = True,
         summarize_history: BoolAttr | None = None,
         render_summarize_history: bool = True,
-        summarization_prompt: StrAttr | None = None,
+        summarization_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
         render_summarization_prompt: bool = False,
         history_summarization_token_threshold: IntAttr | None = None,
         render_history_summarization_token_threshold: bool = True,
-        rate_limitter: LLMRateLimiter | None = None,
+        long_message_warning_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
+        render_long_message_warning_prompt: bool = False,
+        long_message_token_threshold: IntAttr | None = None,
+        render_long_message_token_threshold: bool = True,
+        rate_limitter: LLMRateLimitter | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -198,6 +207,10 @@ class LLMTask(BaseTask):
         self._render_history_summarization_token_threshold = (
             render_history_summarization_token_threshold
         )
+        self._long_message_warning_prompt = long_message_warning_prompt
+        self._render_long_message_warning_prompt = render_long_message_warning_prompt
+        self._long_message_token_threshold = long_message_token_threshold
+        self._render_long_message_token_threshold = render_long_message_token_threshold
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
         self._yolo_mode = yolo_mode
@@ -254,6 +267,16 @@ class LLMTask(BaseTask):
             summarization_prompt_attr=self._summarization_prompt,
             render_summarization_prompt=self._render_summarization_prompt,
         )
+        long_message_warning_prompt = get_long_message_warning_prompt(
+            ctx=ctx,
+            long_message_warning_prompt_attr=self._long_message_warning_prompt,
+            render_long_message_warning_prompt=self._render_long_message_warning_prompt,
+        )
+        long_message_token_threshold = get_long_message_token_threshold(
+            ctx=ctx,
+            long_message_token_threshold_attr=self._long_message_token_threshold,
+            render_long_message_token_threshold=self._render_long_message_token_threshold,
+        )
         user_message = get_user_message(ctx, self._message, self._render_message)
         attachments = get_attachments(ctx, self._attachment)
         # 1. Prepare initial state (read history from previous session)
@@ -292,6 +315,13 @@ class LLMTask(BaseTask):
             toolsets_attr=self._toolsets,
             additional_toolsets=self._additional_toolsets,
             yolo_mode=yolo_mode,
+            history_processors=[
+                create_long_message_warning_injector(
+                    long_message_warning_prompt=long_message_warning_prompt,
+                    rate_limitter=self._rate_limitter,
+                    threshold=long_message_token_threshold,
+                )
+            ],
         )
         # 4. Run the agent iteration and save the results/history
         result = await self._execute_agent(

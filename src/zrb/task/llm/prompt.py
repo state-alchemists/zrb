@@ -318,6 +318,23 @@ def get_summarization_system_prompt(
     return llm_config.default_summarization_prompt
 
 
+def get_long_message_warning_prompt(
+    ctx: AnyContext,
+    long_message_warning_prompt_attr: StrAttr | None,
+    render_long_message_warning_prompt: bool,
+) -> str:
+    """Gets the long message warning prompt, rendering if configured and handling defaults."""
+    long_message_warning_prompt = get_attr(
+        ctx,
+        long_message_warning_prompt_attr,
+        None,
+        auto_render=render_long_message_warning_prompt,
+    )
+    if long_message_warning_prompt is not None:
+        return long_message_warning_prompt
+    return llm_config.default_long_message_warning_prompt
+
+
 def get_attachments(
     ctx: AnyContext,
     attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa

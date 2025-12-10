@@ -7,7 +7,7 @@ from typing import Any, Callable
 from zrb.config.config import CFG
 
 
-class LLMRateLimiter:
+class LLMRateLimitter:
     """
     Helper class to enforce LLM API rate limits and throttling.
     Tracks requests and tokens in a rolling 60-second window.
@@ -178,4 +178,4 @@ class LLMRateLimiter:
             return f"{prompt}"
 
 
-llm_rate_limitter = LLMRateLimiter()
+llm_rate_limitter = LLMRateLimitter()
