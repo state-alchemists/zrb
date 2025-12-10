@@ -285,7 +285,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 
 * `ZRB_LLM_BUILTIN_WORKFLOW_PATHS`: Colon-separated list of paths to custom workflow directories.
     * Default: Empty
-    * Possible values: Any valid directory paths separated by colons
+    * Possible values: Any valid directory paths separated by colons (also accepts `ZRB_LLM_BUILTIN_WORFKLOW_PATH`)
 
 * `ZRB_LLM_YOLO_MODE`: Whether to skip tool execution confirmation.
     * Default: `false`
@@ -299,17 +299,17 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid extraction prompt string
 
-* `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT`: Token limit for repository analysis extraction.
-    * Default: `50000`
+* `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
+    * Default: `75000`
     * Possible values: Any positive integer
 
-* `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT`: Token limit for repository analysis summarization.
-    * Default: `20000`
+* `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for repository analysis summarization.
+    * Default: `30000`
     * Possible values: Any positive integer
 
-* `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`: Token limit for file analysis.
-    * Default: `50000`
-    * Possible values: Any positive integer
+* `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD`: Token threshold for file analysis.
+    * Default: `75000`
+    * Possible values: Any positive integer (previously `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`)
 
 * `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`: Interactive system prompt for LLM.
     * Default: None
@@ -326,6 +326,14 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 * `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
     * Default: `~/.zrb-llm-history`
     * Possible values: Any valid directory path
+
+* `ZRB_LLM_LONG_MESSAGE_WARNING_PROMPT`: Prompt for warning about long messages.
+    * Default: None
+    * Possible values: Any valid prompt string
+
+* `ZRB_LLM_LONG_MESSAGE_TOKEN_THRESHOLD`: Token threshold for long message warning.
+    * Default: `75000`
+    * Possible values: Any positive integer
 
 * `ZRB_LLM_ALLOW_ANALYZE_REPO`: Whether to allow LLM to analyze repository.
     * Default: `1` (true)
@@ -384,24 +392,24 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
-    * Default: `20000`
+    * Default: `30000`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
-    * Default: `15`
-    * Possible values: Any positive integer
+    * Default: `60`
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_REQUEST_PER_MINUTE`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
     * Default: `100000`
-    * Possible values: Any positive integer
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_MINUTE`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
-    * Default: `50000`
-    * Possible values: Any positive integer
+    * Default: `100000`
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_REQUEST`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT`: Maximum number of tokens allowed per tool call result.
     * Default: `75000`
-    * Possible values: Any positive integer
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_TOOL_CALL_RESULT`)
 
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
     * Default: `5.0`

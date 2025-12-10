@@ -1,5 +1,22 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.18
+
+- **Feature: Long Message Warning**:
+  - Implemented a mechanism to inject a warning message when the conversation history approaches the token limit.
+  - Added new configuration options:
+    - `ZRB_LLM_LONG_MESSAGE_WARNING_PROMPT`: Sets the warning message.
+    - `ZRB_LLM_LONG_MESSAGE_TOKEN_THRESHOLD`: Sets the token threshold to trigger the warning.
+- **Improved: LLM Configuration**:
+  - Environment variables for LLM rate limiting and token thresholds now accept both singular and plural forms (e.g., `ZRB_LLM_MAX_REQUEST_PER_MINUTE` and `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`).
+  - Renamed `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT` to `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` for consistency.
+- **Refactor: History Processing**:
+  - Introduced `history_processors` to the LLM agent, allowing for more flexible modification of the conversation history.
+  - The long message warning is implemented as a history processor.
+  - Removed the `replace_system_prompt_in_history` function in favor of the new history processor system.
+- **Refactor**: Renamed `LLMRateLimiter` to `LLMRateLimitter` for consistency.
+- **Docs**: Added code block examples to docstrings for `read_from_file`, `write_to_file`, and `replace_in_file` tools.
+
 # 1.21.17
 
 - **Updated Dependency**: Update Pydantic AI to 1.27.0

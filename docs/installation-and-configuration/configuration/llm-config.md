@@ -73,6 +73,16 @@ llm_config.set_persona(
 - **Type**: `int`
 - **Environment Variable**: `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`
 
+### `default_long_message_warning_prompt`
+- **Description**: The prompt to display when the conversation history is approaching the token limit.
+- **Type**: `str`
+- **Environment Variable**: `ZRB_LLM_LONG_MESSAGE_WARNING_PROMPT`
+
+### `default_long_message_token_threshold`
+- **Description**: The token threshold to trigger the long message warning.
+- **Type**: `int`
+- **Environment Variable**: `ZRB_LLM_LONG_MESSAGE_TOKEN_THRESHOLD`
+
 ### `default_yolo_mode`
 - **Description**: Whether to start in YOLO mode (tool execution without confirmation).
 - **Type**: `bool`
