@@ -39,18 +39,15 @@ def create_long_message_warning_injector(
     rate_limitter: LLMRateLimitter | None,
     threshold: int,
 ) -> Callable[[list["ModelMessage"]], list["ModelMessage"]]:
-    from pydantic_ai import ModelMessage, ModelRequest, RunContext
+    from pydantic_ai import ModelMessage, ModelRequest
     from pydantic_ai.messages import ModelMessagesTypeAdapter, UserPromptPart
 
     if rate_limitter is None:
         rate_limitter = default_llm_rate_limitter
 
     def inject_long_message_warning(
-        run_ctx: RunContext[None],
         messages: list[ModelMessage],
     ) -> list[ModelMessage]:
-        # TODO: Use this https://ai.pydantic.dev/message-history/#runcontext-parameter
-        # print("TODO REMOVE THIS >>", run_ctx.usage.total_tokens)
         history_list: list[dict[str, Any]] = json.loads(
             ModelMessagesTypeAdapter.dump_json(messages)
         )  # noqa
