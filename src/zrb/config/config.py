@@ -413,7 +413,7 @@ class Config:
         threshold = int(
             self._getenv(
                 "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.75))
+                str(self._get_max_threshold(0.75)),
             )
         )
         return self._limit_token_threshold(threshold, 0.75)
@@ -423,7 +423,7 @@ class Config:
         threshold = int(
             self._getenv(
                 "LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.75))
+                str(self._get_max_threshold(0.75)),
             )
         )
         return self._limit_token_threshold(threshold, 0.75)
@@ -433,7 +433,7 @@ class Config:
         threshold = int(
             self._getenv(
                 "LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.5))
+                str(self._get_max_threshold(0.5)),
             )
         )
         return self._limit_token_threshold(threshold, 0.5)
@@ -442,8 +442,7 @@ class Config:
     def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
             self._getenv(
-                "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.5))
+                "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", str(self._get_max_threshold(0.5))
             )
         )
         return self._limit_token_threshold(threshold, 0.5)
@@ -452,10 +451,10 @@ class Config:
         return min(threshold, self._get_max_threshold(factor))
 
     def _get_max_threshold(self, factor: float = 0.75) -> int:
-        return round(factor * min(
-            self.LLM_MAX_TOKENS_PER_MINUTE,
-            self.LLM_MAX_TOKENS_PER_REQUEST
-        ))
+        return round(
+            factor
+            * min(self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST)
+        )
 
     @property
     def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:

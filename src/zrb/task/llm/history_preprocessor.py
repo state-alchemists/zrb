@@ -76,7 +76,9 @@ def create_history_processor(
     ) -> list[ModelMessage]:
         # See: https://ai.pydantic.dev/message-history/#runcontext-parameter
         total_token = run_ctx.usage.total_tokens
-        ctx.log_info(f"TOTAL TOKEN {total_token} of {history_summarization_token_threshold}")
+        ctx.log_info(
+            f"TOTAL TOKEN {total_token} of {history_summarization_token_threshold}"
+        )
         if total_token < history_summarization_token_threshold or len(messages) == 1:
             return messages
         history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
