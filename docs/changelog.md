@@ -1,5 +1,20 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.19
+
+- **Refactor: History Summarization**:
+  - Overhauled the history summarization mechanism to be a seamless "history processor" injected into the agent execution.
+  - Summarization now occurs automatically *before* the main agent processes a request if the token threshold is reached, ensuring context is preserved without interrupting the workflow.
+  - Simplified the `ConversationHistory` structure by removing distinct `past_conversation_summary` and `transcript` fields in favor of a unified history list approach.
+- **Improved: Dynamic Token Thresholds**:
+  - Token thresholds for history summarization and repository analysis now default to a safe percentage (75% or 50%) of the model's maximum context window if not explicitly configured.
+  - This prevents hardcoded defaults (like 30k or 75k) from causing errors on models with smaller context windows.
+- **Removed: Long Message Warning**:
+  - Removed the "Long Message Warning" feature and its associated configurations (`ZRB_LLM_LONG_MESSAGE_WARNING_PROMPT`, `ZRB_LLM_LONG_MESSAGE_TOKEN_THRESHOLD`).
+  - The improved automatic summarization renders this manual warning redundant.
+- **Dependencies**:
+  - Updated `greenlet` and `onnxruntime` dependencies (via `poetry.lock`).
+
 # 1.21.18
 
 - **Feature: Long Message Warning**:
