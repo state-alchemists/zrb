@@ -1,7 +1,6 @@
 from zrb.attr.type import IntAttr
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
-from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.util.attr import get_int_attr
 
 

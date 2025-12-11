@@ -10,15 +10,11 @@ class ConversationHistory:
 
     def __init__(
         self,
-        past_conversation_summary: str = "",
-        past_conversation_transcript: str = "",
         history: ListOfDict | None = None,
         contextual_note: str | None = None,
         long_term_note: str | None = None,
         project_path: str | None = None,
     ):
-        self.past_conversation_transcript = past_conversation_transcript
-        self.past_conversation_summary = past_conversation_summary
         self.history = history if history is not None else []
         self.contextual_note = contextual_note if contextual_note is not None else ""
         self.long_term_note = long_term_note if long_term_note is not None else ""
@@ -26,8 +22,6 @@ class ConversationHistory:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "past_conversation_summary": self.past_conversation_summary,
-            "past_conversation_transcript": self.past_conversation_transcript,
             "history": self.history,
             "contextual_note": self.contextual_note,
             "long_term_note": self.long_term_note,
@@ -46,10 +40,6 @@ class ConversationHistory:
             if isinstance(data, dict):
                 # This handles both the new format and the old {'context': ..., 'history': ...}
                 return cls(
-                    past_conversation_summary=data.get("past_conversation_summary", ""),
-                    past_conversation_transcript=data.get(
-                        "past_conversation_transcript", ""
-                    ),
                     history=data.get("history", data.get("messages", [])),
                     contextual_note=data.get("contextual_note", ""),
                     long_term_note=data.get("long_term_note", ""),

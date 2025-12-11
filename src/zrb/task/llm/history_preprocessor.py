@@ -27,7 +27,7 @@ class SingleMessage(TypedDict):
     Attributes:
         role: Either AI, User, Tool Result
         time: yyyy-mm-dd HH:mm:ss
-        content: The content of the message
+        content: The content of the message (summarize if too long)
     """
 
     role: str
@@ -76,7 +76,8 @@ def create_history_processor(
     ) -> list[ModelMessage]:
         # See: https://ai.pydantic.dev/message-history/#runcontext-parameter
         total_token = run_ctx.usage.total_tokens
-        if total_token < history_summarization_token_threshold:
+        ctx.log_info(f"TOTAL TOKEN {total_token} of {history_summarization_token_threshold}")
+        if total_token < history_summarization_token_threshold or len(messages) == 1:
             return messages
         history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
         history_list_without_instruction = [
@@ -92,43 +93,39 @@ def create_history_processor(
             model_settings=summarization_model_settings,
             retries=retries,
         )
-        for _ in range(retries):
-            try:
-                ctx.print(stylize_faint("  📝 Rollup Conversation"), plain=True)
-                summary_run = await run_agent_iteration(
-                    ctx=ctx,
-                    agent=summarization_agent,
-                    user_prompt=summarization_message,
-                    attachments=[],
-                    history_list=[],
-                    rate_limitter=rate_limitter,
-                    log_indent_level=2,
+        try:
+            ctx.print(stylize_faint("  📝 Rollup Conversation"), plain=True)
+            summary_run = await run_agent_iteration(
+                ctx=ctx,
+                agent=summarization_agent,
+                user_prompt=summarization_message,
+                attachments=[],
+                history_list=[],
+                rate_limitter=rate_limitter,
+                log_indent_level=2,
+            )
+            if summary_run and summary_run.result and summary_run.result.output:
+                usage = summary_run.result.usage()
+                ctx.print(
+                    stylize_faint(f"  📝 Rollup Conversation Token: {usage}"),
+                    plain=True,
                 )
-                if summary_run and summary_run.result and summary_run.result.output:
-                    usage = summary_run.result.usage()
-                    ctx.print(
-                        stylize_faint(f"  📝 Rollup Conversation Token: {usage}"),
-                        plain=True,
+                ctx.print(plain=True)
+                ctx.log_info("History summarized and updated.")
+                condensed_message = (
+                    "**SYSTEM INFO** Here is the summary of past conversation: "
+                    f"{json.dumps(summary_run.result.output)}"
+                )
+                return [
+                    ModelRequest(
+                        instructions=system_prompt,
+                        parts=[UserPromptPart(condensed_message)],
                     )
-                    ctx.print(plain=True)
-                    ctx.log_info("History summarized and updated.")
-                    return [
-                        ModelRequest(
-                            instructions=system_prompt,
-                            parts=[
-                                UserPromptPart(
-                                    (
-                                        "**SYSTEM INFO** Here is the summary of past conversation: "
-                                        f"{json.dumps(summary_run.result.output)}"
-                                    )
-                                )
-                            ],
-                        )
-                    ]
-                ctx.log_warning("History summarization failed or returned no data.")
-            except BaseException as e:
-                ctx.log_warning(f"Error during history summarization: {e}")
-                traceback.print_exc()
+                ]
+            ctx.log_warning("History summarization failed or returned no data.")
+        except BaseException as e:
+            ctx.log_warning(f"Error during history summarization: {e}")
+            traceback.print_exc()
         return messages
 
     return inject_history_processor

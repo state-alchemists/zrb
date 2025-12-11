@@ -25,7 +25,6 @@ from zrb.task.llm.history_preprocessor import create_history_processor
 from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
     get_attachments,
-    get_long_message_warning_prompt,
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
@@ -110,10 +109,6 @@ class LLMTask(BaseTask):
         render_summarization_prompt: bool = False,
         history_summarization_token_threshold: IntAttr | None = None,
         render_history_summarization_token_threshold: bool = True,
-        long_message_warning_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
-        render_long_message_warning_prompt: bool = False,
-        long_message_token_threshold: IntAttr | None = None,
-        render_long_message_token_threshold: bool = True,
         rate_limitter: LLMRateLimitter | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
@@ -204,10 +199,6 @@ class LLMTask(BaseTask):
         self._render_history_summarization_token_threshold = (
             render_history_summarization_token_threshold
         )
-        self._long_message_warning_prompt = long_message_warning_prompt
-        self._render_long_message_warning_prompt = render_long_message_warning_prompt
-        self._long_message_token_threshold = long_message_token_threshold
-        self._render_long_message_token_threshold = render_long_message_token_threshold
         self._max_call_iteration = max_call_iteration
         self._conversation_context = conversation_context
         self._yolo_mode = yolo_mode
@@ -263,11 +254,6 @@ class LLMTask(BaseTask):
             ctx=ctx,
             summarization_prompt_attr=self._summarization_prompt,
             render_summarization_prompt=self._render_summarization_prompt,
-        )
-        long_message_warning_prompt = get_long_message_warning_prompt(
-            ctx=ctx,
-            long_message_warning_prompt_attr=self._long_message_warning_prompt,
-            render_long_message_warning_prompt=self._render_long_message_warning_prompt,
         )
         user_message = get_user_message(ctx, self._message, self._render_message)
         attachments = get_attachments(ctx, self._attachment)
@@ -331,6 +317,8 @@ class LLMTask(BaseTask):
                     summarization_model_settings=small_model_settings,
                     summarization_system_prompt=summarization_prompt,
                     history_summarization_token_threshold=summarization_token_threshold,
+                    rate_limitter=self._rate_limitter,
+                    retries=3,
                 ),
             ],
         )

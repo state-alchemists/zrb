@@ -327,14 +327,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `~/.zrb-llm-history`
     * Possible values: Any valid directory path
 
-* `ZRB_LLM_LONG_MESSAGE_WARNING_PROMPT`: Prompt for warning about long messages.
-    * Default: None
-    * Possible values: Any valid prompt string
-
-* `ZRB_LLM_LONG_MESSAGE_TOKEN_THRESHOLD`: Token threshold for long message warning.
-    * Default: `75000`
-    * Possible values: Any positive integer
-
 * `ZRB_LLM_ALLOW_ANALYZE_REPO`: Whether to allow LLM to analyze repository.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
