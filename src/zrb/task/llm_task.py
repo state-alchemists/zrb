@@ -21,11 +21,8 @@ from zrb.task.llm.conversation_history import (
     write_conversation_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
-from zrb.task.llm.history_summarization import maybe_summarize_history
-from zrb.task.llm.long_message_warning import (
-    create_long_message_warning_injector,
-    get_long_message_token_threshold,
-)
+from zrb.task.llm.history_preprocessor import create_history_processor
+from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
     get_attachments,
     get_long_message_warning_prompt,
@@ -272,11 +269,6 @@ class LLMTask(BaseTask):
             long_message_warning_prompt_attr=self._long_message_warning_prompt,
             render_long_message_warning_prompt=self._render_long_message_warning_prompt,
         )
-        long_message_token_threshold = get_long_message_token_threshold(
-            ctx=ctx,
-            long_message_token_threshold_attr=self._long_message_token_threshold,
-            render_long_message_token_threshold=self._render_long_message_token_threshold,
-        )
         user_message = get_user_message(ctx, self._message, self._render_message)
         attachments = get_attachments(ctx, self._attachment)
         # 1. Prepare initial state (read history from previous session)
@@ -302,9 +294,25 @@ class LLMTask(BaseTask):
             render_workflows=self._render_workflows,
             conversation_history=conversation_history,
         )
+        # 3. Summarization
+        small_model = get_model(
+            ctx=ctx,
+            model_attr=self._small_model,
+            render_model=self._render_small_model,
+            model_base_url_attr=self._small_model_base_url,
+            render_model_base_url=self._render_small_model_base_url,
+            model_api_key_attr=self._small_model_api_key,
+            render_model_api_key=self._render_small_model_api_key,
+        )
+        small_model_settings = get_model_settings(ctx, self._small_model_settings)
+        summarization_token_threshold = get_history_summarization_token_threshold(
+            ctx,
+            self._history_summarization_token_threshold,
+            self._render_history_summarization_token_threshold,
+        )
+        # 4. Get the agent instance
         ctx.log_debug(f"SYSTEM PROMPT:\n{system_prompt}")
         ctx.log_debug(f"USER PROMPT:\n{user_prompt}")
-        # 3. Get the agent instance
         agent = get_agent(
             ctx=ctx,
             model=model,
@@ -316,47 +324,23 @@ class LLMTask(BaseTask):
             additional_toolsets=self._additional_toolsets,
             yolo_mode=yolo_mode,
             history_processors=[
-                create_long_message_warning_injector(
-                    long_message_warning_prompt=long_message_warning_prompt,
-                    rate_limitter=self._rate_limitter,
-                    threshold=long_message_token_threshold,
-                )
+                create_history_processor(
+                    ctx=ctx,
+                    system_prompt=system_prompt,
+                    summarization_model=small_model,
+                    summarization_model_settings=small_model_settings,
+                    summarization_system_prompt=summarization_prompt,
+                    history_summarization_token_threshold=summarization_token_threshold,
+                ),
             ],
         )
-        # 4. Run the agent iteration and save the results/history
+        # 5. Run the agent iteration and save the results/history
         result = await self._execute_agent(
             ctx=ctx,
             agent=agent,
             user_prompt=user_prompt,
             attachments=attachments,
             conversation_history=conversation_history,
-        )
-        # 5. Summarize
-        small_model = get_model(
-            ctx=ctx,
-            model_attr=self._small_model,
-            render_model=self._render_small_model,
-            model_base_url_attr=self._small_model_base_url,
-            render_model_base_url=self._render_small_model_base_url,
-            model_api_key_attr=self._small_model_api_key,
-            render_model_api_key=self._render_small_model_api_key,
-        )
-        small_model_settings = get_model_settings(ctx, self._small_model_settings)
-        conversation_history = await maybe_summarize_history(
-            ctx=ctx,
-            conversation_history=conversation_history,
-            should_summarize_history_attr=self._should_summarize_history,
-            render_summarize_history=self._render_summarize_history,
-            history_summarization_token_threshold_attr=(
-                self._history_summarization_token_threshold
-            ),
-            render_history_summarization_token_threshold=(
-                self._render_history_summarization_token_threshold
-            ),
-            model=small_model,
-            model_settings=small_model_settings,
-            summarization_prompt=summarization_prompt,
-            rate_limitter=self._rate_limitter,
         )
         # 6. Write conversation history
         await write_conversation_history(
