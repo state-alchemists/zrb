@@ -129,21 +129,6 @@ def _construct_system_prompt(
                     ]
                 ),
             ),
-            make_markdown_section(
-                "💬 PAST CONVERSATION",
-                "\n".join(
-                    [
-                        make_markdown_section(
-                            "Narrative Summary",
-                            conversation_history.past_conversation_summary,
-                        ),
-                        make_markdown_section(
-                            "Past Transcript",
-                            conversation_history.past_conversation_transcript,
-                        ),
-                    ]
-                ),
-            ),
         ]
     )
 
@@ -316,23 +301,6 @@ def get_summarization_system_prompt(
     if summarization_prompt is not None:
         return summarization_prompt
     return llm_config.default_summarization_prompt
-
-
-def get_long_message_warning_prompt(
-    ctx: AnyContext,
-    long_message_warning_prompt_attr: StrAttr | None,
-    render_long_message_warning_prompt: bool,
-) -> str:
-    """Gets the long message warning prompt, rendering if configured and handling defaults."""
-    long_message_warning_prompt = get_attr(
-        ctx,
-        long_message_warning_prompt_attr,
-        None,
-        auto_render=render_long_message_warning_prompt,
-    )
-    if long_message_warning_prompt is not None:
-        return long_message_warning_prompt
-    return llm_config.default_long_message_warning_prompt
 
 
 def get_attachments(

@@ -77,11 +77,6 @@ llm_config.llm_rate_limitter.set_token_counter_fn(lambda x: len(x.split()))
 - **Type**: `int`
 - **Environment Variable**: `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` (previously `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`)
 
-### `long_message_token_threshold`
-- **Description**: The token threshold to trigger the long message warning.
-- **Type**: `int`
-- **Environment Variable**: `ZRB_LLM_LONG_MESSAGE_TOKEN_THRESHOLD`
-
 ### `token_counter_fn`
 - **Description**: A function that counts the number of tokens in a given prompt.
 - **Type**: `Callable[[str], int]`

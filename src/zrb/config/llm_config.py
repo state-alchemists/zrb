@@ -25,8 +25,6 @@ class LLMConfig:
         default_summarization_prompt: str | None = None,
         default_summarize_history: bool | None = None,
         default_history_summarization_token_threshold: int | None = None,
-        default_long_message_warning_prompt: int | None = None,
-        default_long_message_token_threshold: int | None = None,
         default_workflows: list[str] | None = None,
         default_model: "Model | None" = None,
         default_model_settings: "ModelSettings | None" = None,
@@ -54,10 +52,6 @@ class LLMConfig:
         self._default_summarize_history = default_summarize_history
         self._default_history_summarization_token_threshold = (
             default_history_summarization_token_threshold
-        )
-        self._default_long_message_warning_prompt = default_long_message_warning_prompt
-        self._default_long_message_token_threshold = (
-            default_long_message_token_threshold
         )
         self._default_workflows = default_workflows
         self._default_model = default_model
@@ -219,14 +213,6 @@ class LLMConfig:
         )
 
     @property
-    def default_long_message_warning_prompt(self) -> str:
-        return self._get_property(
-            self._default_long_message_warning_prompt,
-            CFG.LLM_LONG_MESSAGE_WARNING_PROMPT,
-            lambda: self._get_internal_default_prompt("long_message_warning_prompt"),
-        )
-
-    @property
     def default_model(self) -> "Model | str":
         if self._default_model is not None:
             return self._default_model
@@ -260,14 +246,6 @@ class LLMConfig:
         return self._get_property(
             self._default_history_summarization_token_threshold,
             CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
-            lambda: 1000,
-        )
-
-    @property
-    def default_long_message_token_threshold(self) -> int:
-        return self._get_property(
-            self._default_long_message_token_threshold,
-            CFG.LLM_LONG_MESSAGE_TOKEN_THRESHOLD,
             lambda: 1000,
         )
 
