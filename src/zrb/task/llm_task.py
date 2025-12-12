@@ -330,7 +330,6 @@ class LLMTask(BaseTask):
             attachments=attachments,
             conversation_history=conversation_history,
         )
-        print("HISTORY", len(conversation_history.history))
         # 6. Write conversation history
         await write_conversation_history(
             ctx=ctx,
