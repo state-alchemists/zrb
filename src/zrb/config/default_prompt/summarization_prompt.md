@@ -11,7 +11,7 @@ Your only task is to call the `save_conversation_summary` tool **once** with the
 
 2. **transcript**: A list of the most recent messages (the last 3-6 turns) to preserve exact context.
   * **Format:** A list of objects, each with:
-    * `role`: "user", "model", "system", or "tool".
+    * `role`: "User", "AI", "Tool Call", or "Tool Result".
     * `time`: The timestamp string (e.g., "YYYY-MM-DD HH:MM:SS").
     * `content`: The text content of the message.
   * **Content Rules:**

@@ -4,6 +4,7 @@ import traceback
 from typing import TYPE_CHECKING, Callable, Coroutine
 
 from zrb.config.llm_rate_limitter import LLMRateLimitter
+from zrb.config.llm_rate_limitter import llm_rate_limitter as default_llm_rate_limitter
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import run_agent_iteration
 from zrb.util.cli.style import stylize_faint
@@ -25,7 +26,7 @@ class SingleMessage(TypedDict):
     SingleConversation
 
     Attributes:
-        role: Either AI, User, Tool Result
+        role: Either AI, User, Tool Call, or Tool Result
         time: yyyy-mm-dd HH:mm:ss
         content: The content of the message (summarize if too long)
     """
@@ -70,24 +71,31 @@ def create_history_processor(
     from pydantic_ai import Agent, ModelMessage, ModelRequest, RunContext
     from pydantic_ai.messages import ModelMessagesTypeAdapter, UserPromptPart
 
-    async def inject_history_processor(
-        run_ctx: RunContext[None],
-        messages: list[ModelMessage],
-    ) -> list[ModelMessage]:
-        # See: https://ai.pydantic.dev/message-history/#runcontext-parameter
-        total_token = run_ctx.usage.total_tokens
-        ctx.log_info(
-            f"TOTAL TOKEN {total_token} of {history_summarization_token_threshold}"
-        )
-        if total_token < history_summarization_token_threshold or len(messages) == 1:
-            return messages
+    if rate_limitter is None:
+        rate_limitter = default_llm_rate_limitter
+
+    async def inject_history_processor(messages: list[ModelMessage],) -> list[ModelMessage]:
         history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
         history_list_without_instruction = [
             {key: history[key] for key in history if key != "instructions"}
             for history in history_list
         ]
-        history_json = json.dumps(history_list_without_instruction)
-        summarization_message = f"Summarize the following conversation: {history_json}"
+        history_json_str = json.dumps(history_list_without_instruction)
+        # Estimate token usage
+        # Note: Pydantic ai has run context https://ai.pydantic.dev/message-history/#runcontext-parameter
+        # But we cannot use run_ctx.usage.total_tokens because total token keep increasing even after summariztion.
+        estimated_token_usage = rate_limitter.count_token(history_json_str + json.dumps({"instructions": system_prompt}))
+        ctx.print(
+            stylize_faint(
+                f"  Estimated token usage/summarization threshold: {estimated_token_usage}/{history_summarization_token_threshold}"
+            ),
+            plain=True,
+        )
+        ctx.print(stylize_faint(f"  Message length: {len(messages)}"), plain=True)
+        if estimated_token_usage < history_summarization_token_threshold or len(messages) == 1:
+            return messages
+
+        summarization_message = f"Summarize the following conversation: {history_json_str}"
         summarization_agent = Agent[None, ConversationSummary](
             model=summarization_model,
             output_type=save_conversation_summary,

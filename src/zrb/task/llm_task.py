@@ -21,7 +21,7 @@ from zrb.task.llm.conversation_history import (
     write_conversation_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
-from zrb.task.llm.history_preprocessor import create_history_processor
+from zrb.task.llm.history_processor import create_history_processor
 from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
     get_attachments,
@@ -330,6 +330,7 @@ class LLMTask(BaseTask):
             attachments=attachments,
             conversation_history=conversation_history,
         )
+        print("HISTORY", len(conversation_history.history))
         # 6. Write conversation history
         await write_conversation_history(
             ctx=ctx,

@@ -423,10 +423,10 @@ class Config:
         threshold = int(
             self._getenv(
                 "LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.75)),
+                str(self._get_max_threshold(0.5)),
             )
         )
-        return self._limit_token_threshold(threshold, 0.75)
+        return self._limit_token_threshold(threshold, 0.5)
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
