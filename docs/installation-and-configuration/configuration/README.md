@@ -300,15 +300,15 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: Any valid extraction prompt string
 
 * `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
-    * Default: `75000`
+    * Default: 50% of the model's maximum context window.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for repository analysis summarization.
-    * Default: `30000`
+    * Default: 75% of the model's maximum context window.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD`: Token threshold for file analysis.
-    * Default: `75000`
+    * Default: 75% of the model's maximum context window.
     * Possible values: Any positive integer (previously `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`)
 
 * `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`: Interactive system prompt for LLM.
@@ -384,7 +384,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
-    * Default: `30000`
+    * Default: 75% of the model's maximum context window.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.

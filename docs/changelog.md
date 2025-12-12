@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.20
+
+- **Refactor: LLM Sub-agent Tool**: The sub-agent tool now returns a raw result instead of a dictionary, simplifying its usage.
+- **Fix: LLM Rate Limiter**: Improved error messages in the LLM rate limiter for better debugging.
+- **Fix: Repository Analysis**: Adjusted the token threshold for repository analysis to `0.5` to avoid hitting token limits.
+- **Refactor: History Processing**: Renamed `history_preprocessor` to `history_processor` and enhanced the history summarization logic for better performance and accuracy.
+- **Dependencies**: Updated `poetry.lock` with the latest package versions.
+
 # 1.21.19
 
 - **Refactor: History Summarization**:
