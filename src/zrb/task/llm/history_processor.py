@@ -97,10 +97,7 @@ def create_summarize_history_processor(
         _print_request_info(
             ctx, estimated_token_usage, summarization_token_threshold, messages
         )
-        if (
-            estimated_token_usage < summarization_token_threshold
-            or len(messages) == 1
-        ):
+        if estimated_token_usage < summarization_token_threshold or len(messages) == 1:
             return messages
         summarization_message = (
             f"Summarize the following conversation: {history_json_str}"

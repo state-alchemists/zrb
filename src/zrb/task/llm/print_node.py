@@ -109,12 +109,15 @@ async def print_node(
                             result_content = event.result.content
                             print_func(
                                 _format_content(
-                                    f"{call_id} | Return {result_content}", log_indent_level
+                                    f"{call_id} | Return {result_content}",
+                                    log_indent_level,
                                 )
                             )
                         else:
                             print_func(
-                                _format_content(f"{call_id} | Executed", log_indent_level)
+                                _format_content(
+                                    f"{call_id} | Executed", log_indent_level
+                                )
                             )
         except UnexpectedModelBehavior as e:
             print_func("")  # ensure newline consistency
