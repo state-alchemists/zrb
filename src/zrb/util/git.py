@@ -131,7 +131,7 @@ async def get_branches(
         Exception: If the git command returns a non-zero exit code.
     """
     cmd_result, exit_code = await run_command(
-        cmd=["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cmd=["git", "branch"],
         cwd=repo_dir,
         print_method=print_method,
     )
@@ -160,7 +160,7 @@ async def delete_branch(
         Exception: If the git command returns a non-zero exit code.
     """
     cmd_result, exit_code = await run_command(
-        cmd=["git", "branch", "-D", branch_name],
+        cmd=["git", "branch", "-d", branch_name],
         cwd=repo_dir,
         print_method=print_method,
     )

@@ -82,6 +82,12 @@ async def get_git_diff(ctx: AnyContext):
 
 @make_task(
     name="prune-local-git-branches",
+    input=StrInput(
+        name="preserved-branch",
+        description="Branches to be preserved",
+        prompt="Branches to be preserved, comma separated",
+        default="master,main,dev,develop",
+    ),
     description="🧹 Prune local branches",
     group=git_branch_group,
     alias="prune",
@@ -93,8 +99,13 @@ async def prune_local_branches(ctx: AnyContext):
     branches = await get_branches(repo_dir, print_method=ctx.print)
     ctx.print(stylize_faint("Get current branch"))
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
+    preserved_branches = [
+        branch.strip()
+        for branch in ctx.input.preserved_branch.split(" ")
+        if branch.strip() != ""
+    ]
     for branch in branches:
-        if branch == current_branch or branch == "main" or branch == "master":
+        if branch == current_branch or branch in preserved_branches:
             continue
         ctx.print(stylize_faint(f"Removing local branch: {branch}"))
         try:
