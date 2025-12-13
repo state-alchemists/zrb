@@ -16,7 +16,6 @@ else:
 
 
 if TYPE_CHECKING:
-    from pydantic_ai import ModelMessage, RunContext
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 

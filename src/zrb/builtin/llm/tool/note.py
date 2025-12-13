@@ -20,7 +20,7 @@ def write_long_term_note(content: str) -> str:
     """
     Persists CRITICAL facts to the GLOBAL long-term memory.
 
-    USE EAGERLY to save:
+    USE EAGERLY to save or update:
     - User preferences (e.g., "I prefer Python", "No unit tests").
     - User information (e.g., user name, user email address).
     - Important facts (e.g., "My API key is in .env").
@@ -63,7 +63,7 @@ def write_contextual_note(content: str, path: str | None = None) -> str:
     """
     Persists LOCAL facts specific to a file or directory.
 
-    USE EAGERLY to save:
+    USE EAGERLY to save or update:
     - Architectural patterns for this project/directory.
     - Summaries of large files or directories.
     - Specific guidelines for this project.
