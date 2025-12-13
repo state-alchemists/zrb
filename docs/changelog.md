@@ -1,5 +1,30 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.21
+
+- **Enhanced: Git Branch Pruning**:
+  - Added `preserved-branch` input parameter to `prune-local-git-branches` task, allowing users to specify which branches to preserve (default: "master,main,dev,develop").
+  - Changed from hardcoded preservation of `main`/`master` to configurable preserved branches for more flexibility.
+  - Updated `delete_branch` to use `git branch -d` (safe delete) instead of `-D` (force delete) for safer branch deletion.
+- **Improved: LLM History Processing**:
+  - Fixed history summarization token estimation to include all message content (no longer strips "instructions" field).
+  - Enhanced logging with clearer token usage and threshold information display.
+  - Updated agent to use `UsageLimits(request_limit=None)` to avoid artificial request limits during history summarization.
+- **Updated: System Prompts**:
+  - Refined interactive and standard system prompts for better clarity and professionalism.
+  - Changed from "You are an expert interactive AI agent" to "This is an interactive session" for more neutral tone.
+  - Changed from "You are an expert AI agent" to "This is a single request session" for consistency.
+- **Enhanced: Note Tool Documentation**:
+  - Updated `write_long_term_note` and `write_contextual_note` docstrings for better clarity.
+  - Changed "USE EAGERLY to save" to "USE EAGERLY to save or update" to emphasize update capability.
+- **Fixed: Configuration Variable Names**:
+  - Corrected environment variable names in tests (e.g., `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT` → `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD`).
+- **Dependencies**:
+  - Updated `pydantic-ai-slim` from `~1.27.0` to `~1.32.0`.
+  - Updated `openai` from `>=2.8.0` to `>=2.11.0`.
+  - Updated `pydantic-graph` from `1.27.0` to `1.32.0`.
+  - Added new wheel files for `greenlet` and `onnxruntime` packages.
+
 # 1.21.20
 
 - **Refactor: LLM Sub-agent Tool**: The sub-agent tool now returns a raw result instead of a dictionary, simplifying its usage.
