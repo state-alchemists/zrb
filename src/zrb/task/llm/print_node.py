@@ -2,6 +2,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_faint
 
 
@@ -104,12 +105,17 @@ async def print_node(
                         and event.tool_call_id
                     ):
                         call_id = event.tool_call_id
-                        result_content = event.result.content
-                        print_func(
-                            _format_content(
-                                f"{call_id} | {result_content}", log_indent_level
+                        if CFG.LLM_SHOW_TOOL_CALL_RESULT:
+                            result_content = event.result.content
+                            print_func(
+                                _format_content(
+                                    f"{call_id} | Return {result_content}", log_indent_level
+                                )
                             )
-                        )
+                        else:
+                            print_func(
+                                _format_content(f"{call_id} | Executed", log_indent_level)
+                            )
         except UnexpectedModelBehavior as e:
             print_func("")  # ensure newline consistency
             print_func(

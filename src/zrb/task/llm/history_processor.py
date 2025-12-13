@@ -3,10 +3,11 @@ import sys
 import traceback
 from typing import TYPE_CHECKING, Callable, Coroutine
 
+from zrb.config.llm_config import llm_config
 from zrb.config.llm_rate_limitter import LLMRateLimitter
 from zrb.config.llm_rate_limitter import llm_rate_limitter as default_llm_rate_limitter
 from zrb.context.any_context import AnyContext
-from zrb.task.llm.agent import run_agent_iteration
+from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.util.cli.style import stylize_faint
 
 if sys.version_info >= (3, 12):
@@ -16,6 +17,7 @@ else:
 
 
 if TYPE_CHECKING:
+    from pydantic_ai import ModelMessage
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
 
@@ -55,23 +57,33 @@ def save_conversation_summary(conversation_summary: ConversationSummary):
     return conversation_summary
 
 
-def create_history_processor(
+def create_summarize_history_processor(
     ctx: AnyContext,
     system_prompt: str,
-    summarization_model: "Model | str | None",
-    summarization_model_settings: "ModelSettings | None",
-    summarization_system_prompt: str,
-    history_summarization_token_threshold: int,
     rate_limitter: LLMRateLimitter | None = None,
-    retries: int = 3,
+    summarization_model: "Model | str | None" = None,
+    summarization_model_settings: "ModelSettings | None" = None,
+    summarization_system_prompt: str | None = None,
+    summarization_token_threshold: int | None = None,
+    summarization_retries: int = 2,
 ) -> Callable[[list["ModelMessage"]], Coroutine[None, None, list["ModelMessage"]]]:
     from pydantic_ai import Agent, ModelMessage, ModelRequest
     from pydantic_ai.messages import ModelMessagesTypeAdapter, UserPromptPart
 
     if rate_limitter is None:
         rate_limitter = default_llm_rate_limitter
+    if summarization_model is None:
+        summarization_model = llm_config.default_small_model
+    if summarization_model_settings is None:
+        summarization_model_settings = llm_config.default_small_model_settings
+    if summarization_system_prompt is None:
+        summarization_system_prompt = llm_config.default_summarization_prompt
+    if summarization_token_threshold is None:
+        summarization_token_threshold = (
+            llm_config.default_history_summarization_token_threshold
+        )
 
-    async def inject_history_processor(
+    async def maybe_summarize_history(
         messages: list[ModelMessage],
     ) -> list[ModelMessage]:
         history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
@@ -83,10 +95,10 @@ def create_history_processor(
         # even after summariztion.
         estimated_token_usage = rate_limitter.count_token(history_json_str)
         _print_request_info(
-            ctx, estimated_token_usage, history_summarization_token_threshold, messages
+            ctx, estimated_token_usage, summarization_token_threshold, messages
         )
         if (
-            estimated_token_usage < history_summarization_token_threshold
+            estimated_token_usage < summarization_token_threshold
             or len(messages) == 1
         ):
             return messages
@@ -96,12 +108,13 @@ def create_history_processor(
         summarization_agent = Agent[None, ConversationSummary](
             model=summarization_model,
             output_type=save_conversation_summary,
-            system_prompt=summarization_system_prompt,
+            instructions=summarization_system_prompt,
             model_settings=summarization_model_settings,
-            retries=retries,
+            retries=summarization_retries,
+            tools=[save_conversation_summary],
         )
         try:
-            _print_info(ctx, "📝 Rollup Conversation")
+            _print_info(ctx, "📝 Rollup Conversation", 2)
             summary_run = await run_agent_iteration(
                 ctx=ctx,
                 agent=summarization_agent,
@@ -113,7 +126,7 @@ def create_history_processor(
             )
             if summary_run and summary_run.result and summary_run.result.output:
                 usage = summary_run.result.usage()
-                _print_info(ctx, f"📝 Rollup Conversation Token: {usage}")
+                _print_info(ctx, f"📝 Rollup Conversation Token: {usage}", 2)
                 ctx.print(plain=True)
                 ctx.log_info("History summarized and updated.")
                 condensed_message = (
@@ -132,7 +145,7 @@ def create_history_processor(
             traceback.print_exc()
         return messages
 
-    return inject_history_processor
+    return maybe_summarize_history
 
 
 def _print_request_info(
@@ -141,12 +154,11 @@ def _print_request_info(
     summarization_token_threshold: int,
     messages: list["ModelMessage"],
 ):
-    _print_info(ctx, f"   Estimated new request token usage: {estimated_token_usage}")
-    _print_info(
-        ctx, f"   Summarization token threshold:     {summarization_token_threshold}"
-    )
-    _print_info(ctx, f"   History length:                    {len(messages)}")
+    _print_info(ctx, f"Current request token (estimated): {estimated_token_usage}")
+    _print_info(ctx, f"Summarization token threshold: {summarization_token_threshold}")
+    _print_info(ctx, f"History length: {len(messages)}")
 
 
-def _print_info(ctx: AnyContext, text: str):
-    ctx.print(stylize_faint(f"  {text}"), plain=True)
+def _print_info(ctx: AnyContext, text: str, log_indent_level: int = 0):
+    log_prefix = (2 * (log_indent_level + 1)) * " "
+    ctx.print(stylize_faint(f"{log_prefix}{text}"), plain=True)
