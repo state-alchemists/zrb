@@ -346,6 +346,10 @@ class Config:
         return None if value == "" else value
 
     @property
+    def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
+        return to_boolean(self._getenv("LLM_SHOW_TOOL_CALL_RESULT", "false"))
+
+    @property
     def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
         """
         Maximum number of LLM requests allowed per minute.

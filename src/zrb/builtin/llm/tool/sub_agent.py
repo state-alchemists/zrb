@@ -3,12 +3,14 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Coroutine
 
 from zrb.context.any_context import AnyContext
-from zrb.task.llm.agent import create_agent_instance, run_agent_iteration
+from zrb.task.llm.agent import create_agent_instance
+from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.prompt import get_system_and_user_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
+    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.toolsets import AbstractToolset
@@ -25,6 +27,7 @@ def create_sub_agent_tool(
     tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[None]"] = [],
     yolo_mode: bool | list[str] | None = None,
+    history_processors: list["HistoryProcessor"] | None = None,
     log_indent_level: int = 2,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, Any]]:
     """
@@ -92,6 +95,7 @@ def create_sub_agent_tool(
             tools=tools,
             toolsets=toolsets,
             yolo_mode=yolo_mode,
+            history_processors=history_processors,
         )
 
         sub_agent_run = None
