@@ -394,21 +394,21 @@ def test_llm_history_summarization_token_threshold(monkeypatch):
 
 
 def test_llm_repo_analysis_extraction_token_threshold(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_LIMIT", "40000")
+    monkeypatch.setenv("ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD", "40000")
     config = Config()
     assert config.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD == 40000
 
 
 def test_llm_repo_analysis_summarization_token_threshold(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_LIMIT", "40000")
+    monkeypatch.setenv("ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD", "40000")
     config = Config()
     assert config.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD == 40000
 
 
-def test_llm_file_analysis_token_limit(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT", "40000")
+def test_llm_file_analysis_token_threshold(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", "40000")
     config = Config()
-    assert config.LLM_FILE_ANALYSIS_TOKEN_LIMIT == 40000
+    assert config.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD == 40000
 
 
 def test_llm_file_extractor_system_prompt(monkeypatch):

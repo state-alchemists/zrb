@@ -14,7 +14,8 @@ from zrb.util.cli.style import stylize_faint
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
-    from pydantic_ai.agent import AgentRun, HistoryProcessor
+    from pydantic_ai._agent_graph import HistoryProcessor
+    from pydantic_ai.agent import AgentRun
     from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
     from pydantic_ai.output import OutputDataT, OutputSpec
@@ -233,6 +234,7 @@ async def _run_single_agent_iteration(
     log_indent_level: int,
 ) -> "AgentRun":
     from openai import APIError
+    from pydantic_ai import UsageLimits
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
     agent_payload = _estimate_request_payload(
@@ -248,6 +250,7 @@ async def _run_single_agent_iteration(
         async with agent.iter(
             user_prompt=user_prompt_with_attachments,
             message_history=ModelMessagesTypeAdapter.validate_python(history_list),
+            usage_limits=UsageLimits(request_limit=None),  # We don't want limit
         ) as agent_run:
             async for node in agent_run:
                 # Each node represents a step in the agent's execution

@@ -50,10 +50,10 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = "~1.27.0"
+pydantic-ai-slim = "~1.32.0"
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
-openai = ">=2.8.0"  # From openrouter dependency
+openai = ">=2.11.0"
 prompt-toolkit = ">=3"
 rich = ">=13"
 mcp = ">1.18.0"

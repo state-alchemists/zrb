@@ -65,10 +65,8 @@ def create_history_processor(
     history_summarization_token_threshold: int,
     rate_limitter: LLMRateLimitter | None = None,
     retries: int = 3,
-) -> Callable[
-    ["RunContext", list["ModelMessage"]], Coroutine[None, None, list["ModelMessage"]]
-]:
-    from pydantic_ai import Agent, ModelMessage, ModelRequest, RunContext
+) -> Callable[[list["ModelMessage"]], Coroutine[None, None, list["ModelMessage"]]]:
+    from pydantic_ai import Agent, ModelMessage, ModelRequest
     from pydantic_ai.messages import ModelMessagesTypeAdapter, UserPromptPart
 
     if rate_limitter is None:
@@ -78,30 +76,21 @@ def create_history_processor(
         messages: list[ModelMessage],
     ) -> list[ModelMessage]:
         history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
-        history_list_without_instruction = [
-            {key: history[key] for key in history if key != "instructions"}
-            for history in history_list
-        ]
-        history_json_str = json.dumps(history_list_without_instruction)
+        history_json_str = json.dumps(history_list)
         # Estimate token usage
-        # Note: Pydantic ai has run context https://ai.pydantic.dev/message-history/#runcontext-parameter
-        # But we cannot use run_ctx.usage.total_tokens because total token keep increasing even after summariztion.
-        estimated_token_usage = rate_limitter.count_token(
-            history_json_str + json.dumps({"instructions": system_prompt})
+        # Note: Pydantic ai has run context parameter
+        # (https://ai.pydantic.dev/message-history/#runcontext-parameter)
+        # But we cannot use run_ctx.usage.total_tokens because total token keep increasing
+        # even after summariztion.
+        estimated_token_usage = rate_limitter.count_token(history_json_str)
+        _print_request_info(
+            ctx, estimated_token_usage, history_summarization_token_threshold, messages
         )
-        ctx.print(
-            stylize_faint(
-                f"  Estimated token usage/summarization threshold: {estimated_token_usage}/{history_summarization_token_threshold}"
-            ),
-            plain=True,
-        )
-        ctx.print(stylize_faint(f"  Message length: {len(messages)}"), plain=True)
         if (
             estimated_token_usage < history_summarization_token_threshold
             or len(messages) == 1
         ):
             return messages
-
         summarization_message = (
             f"Summarize the following conversation: {history_json_str}"
         )
@@ -113,7 +102,7 @@ def create_history_processor(
             retries=retries,
         )
         try:
-            ctx.print(stylize_faint("  📝 Rollup Conversation"), plain=True)
+            _print_info(ctx, "📝 Rollup Conversation")
             summary_run = await run_agent_iteration(
                 ctx=ctx,
                 agent=summarization_agent,
@@ -125,10 +114,7 @@ def create_history_processor(
             )
             if summary_run and summary_run.result and summary_run.result.output:
                 usage = summary_run.result.usage()
-                ctx.print(
-                    stylize_faint(f"  📝 Rollup Conversation Token: {usage}"),
-                    plain=True,
-                )
+                _print_info(ctx, f"📝 Rollup Conversation Token: {usage}")
                 ctx.print(plain=True)
                 ctx.log_info("History summarized and updated.")
                 condensed_message = (
@@ -148,3 +134,20 @@ def create_history_processor(
         return messages
 
     return inject_history_processor
+
+
+def _print_request_info(
+    ctx: AnyContext,
+    estimated_token_usage: int,
+    summarization_token_threshold: int,
+    messages: list["ModelMessage"],
+):
+    _print_info(ctx, f"   Estimated new request token usage: {estimated_token_usage}")
+    _print_info(
+        ctx, f"   Summarization token threshold:     {summarization_token_threshold}"
+    )
+    _print_info(ctx, f"   History length:                    {len(messages)}")
+
+
+def _print_info(ctx: AnyContext, text: str):
+    ctx.print(stylize_faint(f"  {text}"), plain=True)

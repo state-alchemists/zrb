@@ -297,8 +297,8 @@ class LLMTask(BaseTask):
             self._render_history_summarization_token_threshold,
         )
         # 4. Get the agent instance
-        ctx.log_debug(f"SYSTEM PROMPT:\n{system_prompt}")
-        ctx.log_debug(f"USER PROMPT:\n{user_prompt}")
+        ctx.log_info(f"SYSTEM PROMPT:\n{system_prompt}")
+        ctx.log_info(f"USER PROMPT:\n{user_prompt}")
         agent = get_agent(
             ctx=ctx,
             model=model,
