@@ -135,6 +135,7 @@ async def test_prune_local_branches_deletes_non_protected(
         "fix-b",
     ]
     mock_get_current_branch.return_value = "current-branch"
+    mock_context.input.preserved_branch = "master,main,dev,develop"
 
     # Get the task object
     prune_task = git_module.prune_local_branches
@@ -183,6 +184,7 @@ async def test_prune_local_branches_handles_delete_error(
     """Test prune_local_branches logs error if deletion fails."""
     mock_get_branches.return_value = ["main", "feature-a"]
     mock_get_current_branch.return_value = "main"
+    mock_context.input.preserved_branch = "master,main,dev,develop"
 
     # Get the task object
     prune_task = git_module.prune_local_branches

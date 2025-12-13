@@ -101,7 +101,7 @@ async def prune_local_branches(ctx: AnyContext):
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
     preserved_branches = [
         branch.strip()
-        for branch in ctx.input.preserved_branch.split(" ")
+        for branch in ctx.input.preserved_branch.split(",")
         if branch.strip() != ""
     ]
     for branch in branches:
