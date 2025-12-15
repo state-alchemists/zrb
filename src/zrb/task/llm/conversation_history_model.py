@@ -41,12 +41,11 @@ class ConversationHistory:
             if isinstance(data, cls):
                 return data  # Already a valid instance
             if isinstance(data, dict):
-                # This handles both the new format and the old {'context': ..., 'history': ...}
                 return cls(
                     history=data.get("history", data.get("messages", [])),
                     contextual_note=data.get("contextual_note", ""),
                     long_term_note=data.get("long_term_note", ""),
-                    subagent_history=data.get("subagent_messages", {}),
+                    subagent_history=data.get("subagent_history", {}),
                 )
             elif isinstance(data, list):
                 # Handle very old format (just a list) - wrap it
