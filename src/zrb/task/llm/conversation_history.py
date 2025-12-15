@@ -12,6 +12,14 @@ from zrb.util.attr import get_str_attr
 from zrb.util.file import read_file, write_file
 from zrb.util.markdown import make_markdown_section
 from zrb.util.run import run_async
+from zrb.xcom.xcom import Xcom
+
+
+def inject_subagent_conversation_history(
+    ctx: AnyContext, conversation_history: ConversationHistory
+):
+    for xcom_name, subagent_messages in conversation_history.subagent_history:
+        ctx.xcom[xcom_name] = Xcom(subagent_messages)
 
 
 def inject_conversation_history_notes(conversation_history: ConversationHistory):

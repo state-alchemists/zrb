@@ -14,17 +14,20 @@ class ConversationHistory:
         contextual_note: str | None = None,
         long_term_note: str | None = None,
         project_path: str | None = None,
+        subagent_history: dict[str, ListOfDict] | None = None,
     ):
         self.history = history if history is not None else []
         self.contextual_note = contextual_note if contextual_note is not None else ""
         self.long_term_note = long_term_note if long_term_note is not None else ""
         self.project_path = project_path if project_path is not None else os.getcwd()
+        self.subagent_history = subagent_history if subagent_history is not None else {}
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "history": self.history,
             "contextual_note": self.contextual_note,
             "long_term_note": self.long_term_note,
+            "subagent_history": self.subagent_history,
         }
 
     def model_dump_json(self, indent: int = 2) -> str:
@@ -43,6 +46,7 @@ class ConversationHistory:
                     history=data.get("history", data.get("messages", [])),
                     contextual_note=data.get("contextual_note", ""),
                     long_term_note=data.get("long_term_note", ""),
+                    subagent_history=data.get("subagent_messages", {}),
                 )
             elif isinstance(data, list):
                 # Handle very old format (just a list) - wrap it

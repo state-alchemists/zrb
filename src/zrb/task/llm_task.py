@@ -18,11 +18,11 @@ from zrb.task.llm.config import (
 )
 from zrb.task.llm.conversation_history import (
     inject_conversation_history_notes,
+    inject_subagent_conversation_history,
     read_conversation_history,
     write_conversation_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
-from zrb.task.llm.history_processor import create_summarize_history_processor
 from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
     get_attachments,
@@ -267,6 +267,7 @@ class LLMTask(BaseTask):
             conversation_history_attr=self._conversation_history,
         )
         inject_conversation_history_notes(conversation_history)
+        inject_subagent_conversation_history(ctx, conversation_history)
         # 2. Get system prompt and user prompt
         system_prompt, user_prompt = get_system_and_user_prompt(
             ctx=ctx,
