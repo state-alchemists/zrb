@@ -15,11 +15,34 @@ from zrb.util.run import run_async
 from zrb.xcom.xcom import Xcom
 
 
-def inject_subagent_conversation_history(
+def _get_global_subagent_messages_xcom(ctx: AnyContext) -> Xcom:
+    if "_global_subagents" not in ctx.xcom:
+        ctx.xcom["_global_subagents"] = Xcom([{}])
+    if not isinstance(ctx.xcom["_global_subagents"], Xcom):
+        raise ValueError("ctx.xcom._global_subagents must be an Xcom")
+    return ctx.xcom["_global_subagents"]
+
+
+def inject_subagent_history_into_ctx(
     ctx: AnyContext, conversation_history: ConversationHistory
 ):
-    for xcom_name, subagent_messages in conversation_history.subagent_history:
-        ctx.xcom[xcom_name] = Xcom(subagent_messages)
+    subagent_messages_xcom = _get_global_subagent_messages_xcom(ctx)
+    existing_subagent_history = subagent_messages_xcom.get({})
+    subagent_messages_xcom.set(
+        {**existing_subagent_history, **conversation_history.subagent_history}
+    )
+
+
+def set_ctx_subagent_history(ctx: AnyContext, subagent_name: str, messages: ListOfDict):
+    subagent_messages_xcom = _get_global_subagent_messages_xcom(ctx)
+    subagent_history = subagent_messages_xcom.get({})
+    subagent_history[subagent_name] = messages
+    subagent_messages_xcom.set(subagent_history)
+
+
+def get_subagent_histories_from_ctx(ctx: AnyContext) -> dict[str, ListOfDict]:
+    subagent_messsages_xcom = _get_global_subagent_messages_xcom(ctx)
+    return subagent_messsages_xcom.get({})
 
 
 def inject_conversation_history_notes(conversation_history: ConversationHistory):

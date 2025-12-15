@@ -8,7 +8,10 @@ from zrb.task.llm.agent import create_agent_instance
 from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.prompt import get_system_and_user_prompt
-from zrb.xcom.xcom import Xcom
+from zrb.task.llm.subagent_conversation_history import (
+    get_ctx_subagent_history,
+    set_ctx_subagent_history,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
@@ -31,7 +34,7 @@ def create_sub_agent_tool(
     yolo_mode: bool | list[str] | None = None,
     history_processors: list["HistoryProcessor"] | None = None,
     log_indent_level: int = 2,
-    xcom_history_key: str | None = None,
+    agent_name: str | None = None,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, Any]]:
     """
     Create a tool that is another AI agent, capable of handling complex, multi-step sub-tasks.
@@ -58,21 +61,13 @@ def create_sub_agent_tool(
         An asynchronous function that serves as the sub-agent tool. When called, it runs the
         sub-agent with a given query and returns its final result.
     """
-    if xcom_history_key is None:
-        xcom_history_key = f"{tool_name}_agent_history"
+    if agent_name is None:
+        agent_name = f"{tool_name}_agent"
 
     async def run_sub_agent(ctx: AnyContext, query: str) -> Any:
         """
         Runs the sub-agent with the given query.
         """
-        if xcom_history_key not in ctx.xcom:
-            ctx.xcom[xcom_history_key] = Xcom([])
-        conversation_history_xcom: Xcom = ctx.xcom[xcom_history_key]
-        history_list = (
-            []
-            if len(conversation_history_xcom) == 0
-            else conversation_history_xcom.peek()
-        )
         # Resolve parameters, falling back to llm_config defaults if None
         resolved_model = get_model(
             ctx=ctx,
@@ -88,7 +83,6 @@ def create_sub_agent_tool(
             ctx=ctx,
             model_settings_attr=model_settings,
         )
-
         if system_prompt is None:
             resolved_system_prompt, query = get_system_and_user_prompt(
                 ctx=ctx,
@@ -110,10 +104,9 @@ def create_sub_agent_tool(
             yolo_mode=yolo_mode,
             history_processors=history_processors,
         )
-
         sub_agent_run = None
         # Run the sub-agent iteration
-        # Start with an empty history for the sub-agent
+        history_list = get_ctx_subagent_history(ctx, agent_name)
         sub_agent_run = await run_agent_iteration(
             ctx=ctx,
             agent=sub_agent_agent,
@@ -122,14 +115,12 @@ def create_sub_agent_tool(
             history_list=history_list,
             log_indent_level=log_indent_level,
         )
-
         # Return the sub-agent's final message content
         if sub_agent_run and sub_agent_run.result:
             # Return the final message content
-            new_history_list = json.loads(sub_agent_run.result.all_messages_json())
-            if len(conversation_history_xcom) > 0:
-                conversation_history_xcom.pop()
-                conversation_history_xcom.push(new_history_list)
+            set_ctx_subagent_history(
+                ctx, agent_name, json.loads(sub_agent_run.result.all_messages_json())
+            )
             return sub_agent_run.result.output
         ctx.log_warning("Sub-agent run did not produce a result.")
         raise ValueError(f"{tool_name} not returning any result")

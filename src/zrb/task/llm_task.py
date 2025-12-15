@@ -18,7 +18,6 @@ from zrb.task.llm.config import (
 )
 from zrb.task.llm.conversation_history import (
     inject_conversation_history_notes,
-    inject_subagent_conversation_history,
     read_conversation_history,
     write_conversation_history,
 )
@@ -29,6 +28,10 @@ from zrb.task.llm.prompt import (
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
+)
+from zrb.task.llm.subagent_conversation_history import (
+    extract_subagent_conversation_history_from_ctx,
+    inject_subagent_conversation_history_into_ctx,
 )
 from zrb.task.llm.workflow import load_workflow
 from zrb.util.cli.style import stylize_faint
@@ -267,7 +270,7 @@ class LLMTask(BaseTask):
             conversation_history_attr=self._conversation_history,
         )
         inject_conversation_history_notes(conversation_history)
-        inject_subagent_conversation_history(ctx, conversation_history)
+        inject_subagent_conversation_history_into_ctx(ctx, conversation_history)
         # 2. Get system prompt and user prompt
         system_prompt, user_prompt = get_system_and_user_prompt(
             ctx=ctx,
@@ -328,6 +331,9 @@ class LLMTask(BaseTask):
             conversation_history=conversation_history,
         )
         # 6. Write conversation history
+        conversation_history.subagent_history = (
+            extract_subagent_conversation_history_from_ctx(ctx)
+        )
         await write_conversation_history(
             ctx=ctx,
             history_data=conversation_history,
