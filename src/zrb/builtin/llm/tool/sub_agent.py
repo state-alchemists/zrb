@@ -1,14 +1,21 @@
+import json
 from collections.abc import Callable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Coroutine
 
 from zrb.context.any_context import AnyContext
-from zrb.task.llm.agent import create_agent_instance, run_agent_iteration
+from zrb.task.llm.agent import create_agent_instance
+from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.prompt import get_system_and_user_prompt
+from zrb.task.llm.subagent_conversation_history import (
+    get_ctx_subagent_history,
+    set_ctx_subagent_history,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool
+    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.toolsets import AbstractToolset
@@ -25,7 +32,9 @@ def create_sub_agent_tool(
     tools: "list[ToolOrCallable]" = [],
     toolsets: list["AbstractToolset[None]"] = [],
     yolo_mode: bool | list[str] | None = None,
+    history_processors: list["HistoryProcessor"] | None = None,
     log_indent_level: int = 2,
+    agent_name: str | None = None,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, Any]]:
     """
     Create a tool that is another AI agent, capable of handling complex, multi-step sub-tasks.
@@ -52,6 +61,8 @@ def create_sub_agent_tool(
         An asynchronous function that serves as the sub-agent tool. When called, it runs the
         sub-agent with a given query and returns its final result.
     """
+    if agent_name is None:
+        agent_name = f"{tool_name}_agent"
 
     async def run_sub_agent(ctx: AnyContext, query: str) -> Any:
         """
@@ -72,7 +83,6 @@ def create_sub_agent_tool(
             ctx=ctx,
             model_settings_attr=model_settings,
         )
-
         if system_prompt is None:
             resolved_system_prompt, query = get_system_and_user_prompt(
                 ctx=ctx,
@@ -92,23 +102,25 @@ def create_sub_agent_tool(
             tools=tools,
             toolsets=toolsets,
             yolo_mode=yolo_mode,
+            history_processors=history_processors,
         )
-
         sub_agent_run = None
         # Run the sub-agent iteration
-        # Start with an empty history for the sub-agent
+        history_list = get_ctx_subagent_history(ctx, agent_name)
         sub_agent_run = await run_agent_iteration(
             ctx=ctx,
             agent=sub_agent_agent,
             user_prompt=query,
             attachments=[],
-            history_list=[],
+            history_list=history_list,
             log_indent_level=log_indent_level,
         )
-
         # Return the sub-agent's final message content
         if sub_agent_run and sub_agent_run.result:
             # Return the final message content
+            set_ctx_subagent_history(
+                ctx, agent_name, json.loads(sub_agent_run.result.all_messages_json())
+            )
             return sub_agent_run.result.output
         ctx.log_warning("Sub-agent run did not produce a result.")
         raise ValueError(f"{tool_name} not returning any result")

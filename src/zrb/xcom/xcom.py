@@ -34,6 +34,16 @@ class Xcom(deque):
         else:
             raise IndexError("Xcom is empty")
 
+    def get(self, default_value: Any = None) -> Any:
+        if len(self) > 0:
+            return self[0]
+        return default_value
+
+    def set(self, new_value: Any):
+        self.push(new_value)
+        while len(self) > 1:
+            self.pop()
+
     def add_push_callback(self, callback: Callable[[], Any]):
         if not hasattr(self, "push_callbacks"):
             self.push_callbacks: list[Callable[[], Any]] = []

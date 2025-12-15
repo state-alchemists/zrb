@@ -9,7 +9,8 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.task.llm.agent import get_agent, run_agent_iteration
+from zrb.task.llm.agent import get_agent
+from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.task.llm.config import (
     get_model,
     get_model_settings,
@@ -21,13 +22,16 @@ from zrb.task.llm.conversation_history import (
     write_conversation_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
-from zrb.task.llm.history_processor import create_history_processor
 from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
     get_attachments,
     get_summarization_system_prompt,
     get_system_and_user_prompt,
     get_user_message,
+)
+from zrb.task.llm.subagent_conversation_history import (
+    extract_subagent_conversation_history_from_ctx,
+    inject_subagent_conversation_history_into_ctx,
 )
 from zrb.task.llm.workflow import load_workflow
 from zrb.util.cli.style import stylize_faint
@@ -266,6 +270,7 @@ class LLMTask(BaseTask):
             conversation_history_attr=self._conversation_history,
         )
         inject_conversation_history_notes(conversation_history)
+        inject_subagent_conversation_history_into_ctx(ctx, conversation_history)
         # 2. Get system prompt and user prompt
         system_prompt, user_prompt = get_system_and_user_prompt(
             ctx=ctx,
@@ -302,6 +307,7 @@ class LLMTask(BaseTask):
         agent = get_agent(
             ctx=ctx,
             model=model,
+            rate_limitter=self._rate_limitter,
             system_prompt=system_prompt,
             model_settings=model_settings,
             tools_attr=self._tools,
@@ -309,18 +315,12 @@ class LLMTask(BaseTask):
             toolsets_attr=self._toolsets,
             additional_toolsets=self._additional_toolsets,
             yolo_mode=yolo_mode,
-            history_processors=[
-                create_history_processor(
-                    ctx=ctx,
-                    system_prompt=system_prompt,
-                    summarization_model=small_model,
-                    summarization_model_settings=small_model_settings,
-                    summarization_system_prompt=summarization_prompt,
-                    history_summarization_token_threshold=summarization_token_threshold,
-                    rate_limitter=self._rate_limitter,
-                    retries=3,
-                ),
-            ],
+            summarization_model=small_model,
+            summarization_model_settings=small_model_settings,
+            summarization_system_prompt=summarization_prompt,
+            summarization_retries=2,  # TODO: make this a property
+            summarization_token_threshold=summarization_token_threshold,
+            history_processors=[],  # TODO: make this a property
         )
         # 5. Run the agent iteration and save the results/history
         result = await self._execute_agent(
@@ -331,6 +331,9 @@ class LLMTask(BaseTask):
             conversation_history=conversation_history,
         )
         # 6. Write conversation history
+        conversation_history.subagent_history = (
+            extract_subagent_conversation_history_from_ctx(ctx)
+        )
         await write_conversation_history(
             ctx=ctx,
             history_data=conversation_history,
