@@ -40,9 +40,9 @@ class Xcom(deque):
         return default_value
 
     def set(self, new_value: Any):
-        if len(self) > 0:
-            self.pop()
         self.push(new_value)
+        while len(self) > 1:
+            self.pop()
 
     def add_push_callback(self, callback: Callable[[], Any]):
         if not hasattr(self, "push_callbacks"):
