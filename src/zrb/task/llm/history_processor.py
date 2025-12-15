@@ -108,7 +108,6 @@ def create_summarize_history_processor(
             instructions=summarization_system_prompt,
             model_settings=summarization_model_settings,
             retries=summarization_retries,
-            tools=[save_conversation_summary],
         )
         try:
             _print_info(ctx, "📝 Rollup Conversation", 2)

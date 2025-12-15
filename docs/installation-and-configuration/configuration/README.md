@@ -291,6 +291,10 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `false`
     * Possible values: `true`, `false`
 
+* `ZRB_LLM_SHOW_TOOL_CALL_RESULT`: Whether to display tool call results.
+    * Default: `false`
+    * Possible values: `true`, `false`
+
 * `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
     * Default: None
     * Possible values: Any valid system prompt string

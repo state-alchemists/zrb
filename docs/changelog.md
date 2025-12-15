@@ -1,5 +1,35 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.22
+
+- **Enhanced: Sub-agent History Persistence**:
+  - Sub-agents now maintain conversation history across invocations, enabling multi-step workflows with memory.
+  - Added `agent_name` parameter to `create_sub_agent_tool()` for named history tracking.
+  - Introduced `history_processors` parameter to support custom history processing in sub-agents.
+  - Sub-agent history is stored in Xcom and persists across the main agent's conversation.
+- **Refactored: Agent Architecture**:
+  - Extracted `run_agent_iteration()` and related functions into new `agent_runner.py` module for better separation of concerns.
+  - `create_agent_instance()` and `get_agent()` now accept `rate_limitter` parameter for fine-grained rate control.
+  - Enhanced agent creation with summarization parameters: `summarization_model`, `summarization_model_settings`, `summarization_system_prompt`, `summarization_retries`, `summarization_token_threshold`.
+- **Improved: History Summarization Configuration**:
+  - Renamed `create_history_processor()` to `create_summarize_history_processor()` for clarity.
+  - Summarization now uses default values from `llm_config` when parameters are not provided.
+  - Enhanced logging with better indentation and clearer token usage information.
+- **New Configuration: Tool Call Result Display**:
+  - Added `LLM_SHOW_TOOL_CALL_RESULT` environment variable (default: `false`) to control whether tool call results are displayed.
+  - When disabled, tool calls show "Executed" instead of the full result content, reducing output clutter.
+- **Enhanced: Xcom Utility Methods**:
+  - Added `get()` and `set()` methods to `Xcom` class for simpler value retrieval and assignment.
+  - `get()` returns a default value when Xcom is empty, preventing `IndexError`.
+  - `set()` pushes a new value and maintains single-item deque behavior.
+- **Updated: Conversation History Model**:
+  - Added `subagent_history` field to `ConversationHistory` to persist sub-agent conversations.
+  - Enhanced serialization/deserialization to handle the new subagent history field.
+- **Improved: Sub-agent Tool Integration**:
+  - Sub-agents now properly integrate with the main agent's history summarization system.
+  - Added `inject_subagent_conversation_history_into_ctx()` and `extract_subagent_conversation_history_from_ctx()` functions for seamless history management.
+  - Sub-agent tools can now participate in the conversation history saved to `ZRB.md`.
+
 # 1.21.21
 
 - **Enhanced: Git Branch Pruning**:
