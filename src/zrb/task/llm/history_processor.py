@@ -99,9 +99,18 @@ def create_summarize_history_processor(
         )
         if estimated_token_usage < summarization_token_threshold or len(messages) == 1:
             return messages
-        summarization_message = (
-            f"Summarize the following conversation: {history_json_str}"
+        history_list_without_instruction = [
+            {
+                key: obj[key]
+                for key in obj
+                if index == len(history_list) - 1 or key != "instructions"
+            }
+            for index, obj in enumerate(history_list)
+        ]
+        history_json_str_without_instruction = json.dumps(
+            history_list_without_instruction
         )
+        summarization_message = f"Summarize the following conversation: {history_json_str_without_instruction}"
         summarization_agent = Agent[None, ConversationSummary](
             model=summarization_model,
             output_type=save_conversation_summary,
