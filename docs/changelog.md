@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.23
+
+- **Improved: History Summarization Accuracy**:
+  - Enhanced history summarization by removing "instructions" field from all but the latest message in the conversation history.
+  - This prevents outdated or conflicting instructions from being included in the summarization process, improving the accuracy and relevance of conversation summaries.
+  - The change ensures that only the most recent instructions are considered when creating summaries, while preserving the core content of all messages.
+
 # 1.21.22
 
 - **Enhanced: Sub-agent History Persistence**:
