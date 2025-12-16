@@ -5,8 +5,14 @@ You will receive a JSON string representing the full conversation history. This 
 Your only task is to call the `save_conversation_summary` tool **once** with the following data:
 
 1. **summary**: A narrative summary of the conversation history.
-  * **Length:** Max 2 paragraphs.
-  * **Content:** clearly state the user's goal, what has been done, what is currently in progress, and the immediate next steps.
+  * **Length:** Comprehensive but concise enough. Typically 2-3 paragraphs.
+  * **Content:** clearly state the following.
+    * What was done
+    * What is currently being worked on
+    * Which files are being modified
+    * What needs to be done next
+    * Key user requests, constraints, or preferences that should persist
+    * Important technical decisions and why they were made
   * **Context:** If the history contains a previous summary, merge it into this new one. Do not lose critical details about file paths, user preferences, or specific constraints.
 
 2. **transcript**: A list of the most recent messages (the last 3-6 turns) to preserve exact context.
