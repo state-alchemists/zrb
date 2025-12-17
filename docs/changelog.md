@@ -1,5 +1,17 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.24
+
+- **Improved: History Summarization to Prevent Re-attempts**:
+  - Enhanced summarization prompt with clearer instructions to prevent the main LLM from redoing completed work.
+  - Added emphasis on using clear, factual language and avoiding verbatim quotes in summaries.
+  - Focus summaries on user goals and next actions (open threads or pending steps) rather than completed work.
+  - Updated timestamp format in transcript to ISO standard (yyyy-mm-ddTHH:MM:SSZ).
+- **Simplified: History Processor Implementation**:
+  - Removed markdown formatting functions from history processor for cleaner code.
+  - Simplified condensed message format to use JSON directly instead of markdown sections.
+  - Cleaned up imports and removed unused dependencies.
+
 # 1.21.23
 
 - **Improved: History Summarization Accuracy**:
