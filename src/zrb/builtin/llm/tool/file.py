@@ -128,7 +128,6 @@ def list_files(
                 if (include_hidden or not _is_hidden(d))
                 and not is_excluded(d, patterns_to_exclude)
             ]
-
             for filename in files:
                 if (include_hidden or not _is_hidden(filename)) and not is_excluded(
                     filename, patterns_to_exclude
@@ -512,7 +511,7 @@ def replace_in_file(
 
 
 async def analyze_file(
-    ctx: AnyContext, path: str, query: str, token_limit: int | None = None
+    ctx: AnyContext, path: str, query: str, token_threshold: int | None = None
 ) -> dict[str, Any]:
     """
     Analyzes a file using a sub-agent for complex questions.
@@ -525,13 +524,13 @@ async def analyze_file(
         path (str): The path to the file to analyze.
         query (str): A specific analysis query with clear guidelines and
             necessary information.
-        token_limit (int | None): Max tokens.
+        token_threshold (int | None): Max tokens.
 
     Returns:
         Analysis results.
     """
-    if token_limit is None:
-        token_limit = CFG.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
+    if token_threshold is None:
+        token_threshold = CFG.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"File not found: {path}")
@@ -546,12 +545,16 @@ async def analyze_file(
         ),
         system_prompt=CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT,
         tools=[read_from_file, search_files],
+        auto_summarize=False,
+        remember_history=False,
     )
     payload = json.dumps(
         {
             "instruction": query,
             "file_path": abs_path,
-            "file_content": llm_rate_limitter.clip_prompt(file_content, token_limit),
+            "file_content": llm_rate_limitter.clip_prompt(
+                file_content, token_threshold
+            ),
         }
     )
     return await _analyze_file(ctx, payload)

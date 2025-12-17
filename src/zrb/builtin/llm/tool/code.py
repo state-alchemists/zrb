@@ -150,6 +150,8 @@ async def _extract_info(
         tool_name="extract",
         tool_description="extract",
         system_prompt=CFG.LLM_REPO_EXTRACTOR_SYSTEM_PROMPT,
+        auto_summarize=False,
+        remember_history=False,
     )
     extracted_infos = []
     content_buffer = []
@@ -198,6 +200,8 @@ async def _summarize_info(
         tool_name="extract",
         tool_description="extract",
         system_prompt=CFG.LLM_REPO_SUMMARIZER_SYSTEM_PROMPT,
+        auto_summarize=False,
+        remember_history=False,
     )
     summarized_infos = []
     content_buffer = ""

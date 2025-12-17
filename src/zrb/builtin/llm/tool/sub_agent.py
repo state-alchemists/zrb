@@ -35,6 +35,8 @@ def create_sub_agent_tool(
     history_processors: list["HistoryProcessor"] | None = None,
     log_indent_level: int = 2,
     agent_name: str | None = None,
+    auto_summarize: bool = True,
+    remember_history: bool = True,
 ) -> Callable[[AnyContext, str], Coroutine[Any, Any, Any]]:
     """
     Create a tool that is another AI agent, capable of handling complex, multi-step sub-tasks.
@@ -103,10 +105,13 @@ def create_sub_agent_tool(
             toolsets=toolsets,
             yolo_mode=yolo_mode,
             history_processors=history_processors,
+            auto_summarize=auto_summarize,
         )
         sub_agent_run = None
         # Run the sub-agent iteration
-        history_list = get_ctx_subagent_history(ctx, agent_name)
+        history_list = (
+            get_ctx_subagent_history(ctx, agent_name) if remember_history else []
+        )
         sub_agent_run = await run_agent_iteration(
             ctx=ctx,
             agent=sub_agent_agent,
@@ -118,9 +123,12 @@ def create_sub_agent_tool(
         # Return the sub-agent's final message content
         if sub_agent_run and sub_agent_run.result:
             # Return the final message content
-            set_ctx_subagent_history(
-                ctx, agent_name, json.loads(sub_agent_run.result.all_messages_json())
-            )
+            if remember_history:
+                set_ctx_subagent_history(
+                    ctx,
+                    agent_name,
+                    json.loads(sub_agent_run.result.all_messages_json()),
+                )
             return sub_agent_run.result.output
         ctx.log_warning("Sub-agent run did not produce a result.")
         raise ValueError(f"{tool_name} not returning any result")

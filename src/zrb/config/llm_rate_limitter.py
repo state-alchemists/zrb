@@ -129,7 +129,7 @@ class LLMRateLimitter:
     async def throttle(
         self,
         prompt: Any,
-        throttle_notif_callback: Callable | None = None,
+        throttle_notif_callback: Callable[[str], Any] | None = None,
     ):
         now = time.time()
         str_prompt = self._prompt_to_str(prompt)
@@ -160,7 +160,16 @@ class LLMRateLimitter:
             or sum(t for _, t in self.token_times) + tokens > self.max_tokens_per_minute
         ):
             if throttle_notif_callback is not None:
-                throttle_notif_callback()
+                if len(self.request_times) >= self.max_requests_per_minute:
+                    rpm = len(self.request_times)
+                    throttle_notif_callback(
+                        f"Max request per minute exceeded: {rpm} of {self.max_requests_per_minute}"
+                    )
+                else:
+                    tpm = sum(t for _, t in self.token_times) + tokens
+                    throttle_notif_callback(
+                        f"Max token per minute exceeded: {tpm} of {self.max_tokens_per_minute}"
+                    )
             await asyncio.sleep(self.throttle_sleep)
             now = time.time()
             while self.request_times and now - self.request_times[0] > 60:
