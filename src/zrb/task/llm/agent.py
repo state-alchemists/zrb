@@ -36,6 +36,7 @@ def create_agent_instance(
     summarization_retries: int = 2,
     summarization_token_threshold: int | None = None,
     history_processors: list["HistoryProcessor"] | None = None,
+    auto_summarize: bool = True,
 ) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
     from pydantic_ai import Agent, RunContext, Tool
@@ -104,20 +105,20 @@ def create_agent_instance(
         for toolset in toolsets
     ]
     # Create History processor with summarizer
-    history_processors_and_summarizer = [
-        create_summarize_history_processor(
-            ctx=ctx,
-            system_prompt=system_prompt,
-            rate_limitter=rate_limitter,
-            summarization_model=summarization_model,
-            summarization_model_settings=summarization_model_settings,
-            summarization_system_prompt=summarization_system_prompt,
-            summarization_token_threshold=summarization_token_threshold,
-            summarization_retries=summarization_retries,
-        )
-    ]
-    if history_processors is not None:
-        history_processors_and_summarizer += history_processors
+    history_processors = [] if history_processors is None else history_processors
+    if auto_summarize:
+        history_processors += [
+            create_summarize_history_processor(
+                ctx=ctx,
+                system_prompt=system_prompt,
+                rate_limitter=rate_limitter,
+                summarization_model=summarization_model,
+                summarization_model_settings=summarization_model_settings,
+                summarization_system_prompt=summarization_system_prompt,
+                summarization_token_threshold=summarization_token_threshold,
+                summarization_retries=summarization_retries,
+            )
+        ]
     # Return Agent
     return Agent[None, Any](
         model=model,
@@ -127,7 +128,7 @@ def create_agent_instance(
         toolsets=wrapped_toolsets,
         model_settings=model_settings,
         retries=retries,
-        history_processors=history_processors_and_summarizer,
+        history_processors=history_processors,
     )
 
 

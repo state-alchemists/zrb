@@ -44,10 +44,10 @@ For Retrieval-Augmented Generation (RAG), use the following:
 `zrb` provides built-in support for summarization to manage large conversation histories efficiently. This feature is enabled by default with the following configurations:
 
 #### Summarization
-- **Trigger**: When the conversation history exceeds the token threshold (`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`, default: 3000), the system automatically summarizes the history.
+- **Trigger**: When the conversation history exceeds the token threshold (`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`, default: 60% of the model's maximum context window), the system automatically summarizes the history.
 - **Default Prompt**: The summarization prompt is designed to condense the conversation while retaining key details.
 - **Configuration**:
-  - **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: Sets the token threshold for triggering summarization (default: 3000).
+  - **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: Sets the token threshold for triggering summarization (default: 60% of the model's maximum context window).
   - **`ZRB_LLM_SUMMARIZATION_PROMPT`**: Overrides the default summarization prompt if provided.
 
 #### Workflow
@@ -115,7 +115,7 @@ ZRB_LLM_MAX_REQUESTS_PER_MINUTE=60
 ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 
 # Summarization and Context Enrichment
-ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=3000
+# ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=48000  # Example: 60% of 80k context window
 ```
 
 ## Interacting with LLM
@@ -134,4 +134,3 @@ zrb llm chat "How is the current weather at my current location?"
 - Ensure all required environment variables are set before running `zrb`.
 - For providers like OpenAI and OpenRouter, the `ZRB_LLM_BASE_URL` is typically fixed. For self-hosted or custom endpoints, adjust this value accordingly.
 - Refer to the provider’s documentation for the latest model names and API endpoints.
-
