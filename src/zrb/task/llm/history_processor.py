@@ -29,7 +29,7 @@ class SingleMessage(TypedDict):
 
     Attributes:
         role: Either AI, User, Tool Call, or Tool Result
-        time: yyyy-mm-dd HH:mm:ss
+        time: yyyy-mm-ddTHH:MM:SSZ:
         content: The content of the message (summarize if too long)
     """
 
