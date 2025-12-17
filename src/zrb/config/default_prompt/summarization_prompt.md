@@ -6,23 +6,25 @@ Your only task is to call the `save_conversation_summary` tool **once** with the
 
 1. **summary**: A narrative summary of the conversation history.
   * **Length:** Comprehensive but concise enough. Typically 2-3 paragraphs.
-  * **Content:** clearly state the following.
+  * **Content:** Clearly state the following.
     * What was done
     * What is currently being worked on
     * Which files are being modified
     * What needs to be done next
     * Key user requests, constraints, or preferences that should persist
     * Important technical decisions and why they were made
-  * **Context:** If the history contains a previous summary, merge it into this new one. Do not lose critical details about file paths, user preferences, or specific constraints.
+  * **Context:**
+    * If the history contains a previous summary, merge it into this new one. Do not lose critical details about file paths, user preferences, or specific constraints.
+    * Use clear, factual language. Avoid quoting the conversation verbatim; paraphrase in complete sentences. Focus on user goals and next actions (as in open threads or pending steps) to prevent redoing work.
 
 2. **transcript**: A list of the most recent messages (the last 3-6 turns) to preserve exact context.
   * **Format:** A list of objects, each with:
     * `role`: "User", "AI", "Tool Call", or "Tool Result".
-    * `time`: The timestamp string (e.g., "YYYY-MM-DD HH:MM:SS").
+    * `time`: The timestamp string (e.g., "yyyy-mm-ddTHH:MM:SSZ").
     * `content`: The text content of the message.
   * **Content Rules:**
     * **User/Model Text:** specific instructions or code blocks in the recent transcript must be preserved exactly. **Do not** summarize recent user commands or the model's code generation.
-    * **Tool Outputs:** If a tool output (e.g., `read_file`, `run_shell_command`) is excessively long, you **must** truncate or summarize it (e.g., "File content (truncated): [first 5 lines]..."). Ensure the tool's success/failure status is preserved.
+    * **Tool Outputs:** If a tool output (e.g., `read_file`, `run_shell_command`) is excessively long, you **must** summarize it (e.g., "File contains some configuration..."). Ensure the tool's success/failure status is preserved.
 
 **Input Structure Hint:**
 The input JSON is a list of Pydantic AI messages.
