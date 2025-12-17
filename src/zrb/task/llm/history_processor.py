@@ -1,7 +1,7 @@
 import json
 import sys
 import traceback
-from typing import TYPE_CHECKING, Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
 from zrb.config.llm_config import llm_config
 from zrb.config.llm_rate_limitter import LLMRateLimitter
@@ -9,6 +9,7 @@ from zrb.config.llm_rate_limitter import llm_rate_limitter as default_llm_rate_l
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.util.cli.style import stylize_faint
+from zrb.util.markdown import make_markdown_section
 
 if sys.version_info >= (3, 12):
     from typing import TypedDict
@@ -134,9 +135,19 @@ def create_summarize_history_processor(
                 _print_info(ctx, f"📝 Rollup Conversation Token: {usage}", 2)
                 ctx.print(plain=True)
                 ctx.log_info("History summarized and updated.")
-                condensed_message = (
-                    "**SYSTEM INFO** Here is the summary of past conversation: "
-                    f"{json.dumps(summary_run.result.output)}"
+                condensed_message = make_markdown_section(
+                    header="Past Conversation",
+                    content="\n".join(
+                        [
+                            make_markdown_section(
+                                "Summary", _extract_summary(summary_run.result.output)
+                            ),
+                            make_markdown_section(
+                                "Past Trancript",
+                                _extract_transcript(summary_run.result.output),
+                            ),
+                        ]
+                    ),
                 )
                 return [
                     ModelRequest(
@@ -167,3 +178,29 @@ def _print_request_info(
 def _print_info(ctx: AnyContext, text: str, log_indent_level: int = 0):
     log_prefix = (2 * (log_indent_level + 1)) * " "
     ctx.print(stylize_faint(f"{log_prefix}{text}"), plain=True)
+
+
+def _extract_summary(summary_result_output: dict[str, Any] | str) -> str:
+    summary = (
+        summary_result_output.get("summary", "")
+        if isinstance(summary_result_output, dict)
+        else ""
+    )
+    return summary
+
+
+def _extract_transcript(summary_result_output: dict[str, Any] | str) -> str:
+    transcript_list = (
+        summary_result_output.get("transcript", [])
+        if isinstance(summary_result_output, dict)
+        else []
+    )
+    transcript_list = [] if not isinstance(transcript_list, list) else transcript_list
+    return "\n".join(_format_transcript_message(message) for message in transcript_list)
+
+
+def _format_transcript_message(message: dict[str, str]) -> str:
+    role = message.get("role", "Message")
+    time = message.get("time", "<unknown>")
+    content = message.get("content", "<empty>")
+    return f"{role} ({time}): {content}"
