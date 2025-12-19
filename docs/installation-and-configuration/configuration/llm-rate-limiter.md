@@ -18,10 +18,10 @@ llm_config.llm_rate_limitter.set_max_requests_per_minute(15)
 llm_config.llm_rate_limitter.set_max_tokens_per_minute(100000)
 
 # Set the maximum number of tokens per request
-llm_config.llm_rate_limitter.set_max_tokens_per_request(50000)
+llm_config.llm_rate_limitter.set_max_tokens_per_request(120000)
 
 # Set the maximum number of tokens per tool call result
-llm_config.llm_rate_limitter.set_max_tokens_per_tool_call_result(30000)
+llm_config.llm_rate_limitter.set_max_tokens_per_tool_call_result(48000)  # 40% of min(100000, 120000)
 
 # Set the throttle sleep duration
 llm_config.llm_rate_limitter.set_throttle_sleep(5.0)

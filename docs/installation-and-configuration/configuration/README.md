@@ -304,15 +304,15 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: Any valid extraction prompt string
 
 * `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
-    * Default: 50% of the model's maximum context window.
+    * Default: 40% of the model's maximum context window.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for repository analysis summarization.
-    * Default: 75% of the model's maximum context window.
+    * Default: 40% of the model's maximum context window.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD`: Token threshold for file analysis.
-    * Default: 75% of the model's maximum context window.
+    * Default: 40% of the model's maximum context window.
     * Possible values: Any positive integer (previously `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`)
 
 * `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`: Interactive system prompt for LLM.
@@ -388,7 +388,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
-    * Default: 75% of the model's maximum context window.
+    * Default: 60% of the model's maximum context window.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
@@ -400,11 +400,11 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_MINUTE`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
-    * Default: `100000`
+    * Default: `120000`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_REQUEST`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT`: Maximum number of tokens allowed per tool call result.
-    * Default: `75000`
+    * Default: 40% of `min(ZRB_LLM_MAX_TOKENS_PER_MINUTE, ZRB_LLM_MAX_TOKENS_PER_REQUEST)`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_TOOL_CALL_RESULT`)
 
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.

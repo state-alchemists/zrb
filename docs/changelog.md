@@ -1,5 +1,46 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.25
+
+- **Enhanced: Sub-agent Configuration Control**:
+  - Added `auto_summarize` and `remember_history` parameters to `create_sub_agent_tool()` for fine-grained control over sub-agent behavior.
+  - Sub-agents can now be configured to skip automatic history summarization when not needed.
+  - History persistence can be disabled for sub-agents that don't require conversation memory.
+- **Improved: Token Threshold Management**:
+  - Updated default token threshold factors for better resource utilization:
+    - History summarization: 0.75 → 0.6
+    - Repository analysis extraction/summarization: 0.5 → 0.4
+    - File analysis: 0.5 → 0.4
+  - Tool call result threshold now dynamically calculated as 40% of max tokens per request.
+- **Enhanced: Rate Limiter Notifications**:
+  - Added detailed throttle notifications showing whether RPM (requests per minute) or TPM (tokens per minute) limits were exceeded.
+  - Notifications now include actual vs. limit counts for better debugging (e.g., "Max request per minute exceeded: 16 of 15").
+- **Refactored: Agent Creation Parameters**:
+  - Added `auto_summarize` parameter to `create_agent_instance()` to control automatic history summarization.
+  - History summarization processor is now conditionally added based on this parameter.
+- **Fixed: Parameter Naming Consistency**:
+  - Renamed `token_limit` parameter to `token_threshold` in `analyze_file()` function for consistency with other functions.
+  - Updated all references to use the new parameter name.
+
+# 1.21.24
+
+- **Improved: History Summarization to Prevent Re-attempts**:
+  - Enhanced summarization prompt with clearer instructions to prevent the main LLM from redoing completed work.
+  - Added emphasis on using clear, factual language and avoiding verbatim quotes in summaries.
+  - Focus summaries on user goals and next actions (open threads or pending steps) rather than completed work.
+  - Updated timestamp format in transcript to ISO standard (yyyy-mm-ddTHH:MM:SSZ).
+- **Simplified: History Processor Implementation**:
+  - Removed markdown formatting functions from history processor for cleaner code.
+  - Simplified condensed message format to use JSON directly instead of markdown sections.
+  - Cleaned up imports and removed unused dependencies.
+
+# 1.21.23
+
+- **Improved: History Summarization Accuracy**:
+  - Enhanced history summarization by removing "instructions" field from all but the latest message in the conversation history.
+  - This prevents outdated or conflicting instructions from being included in the summarization process, improving the accuracy and relevance of conversation summaries.
+  - The change ensures that only the most recent instructions are considered when creating summaries, while preserving the core content of all messages.
+
 # 1.21.22
 
 - **Enhanced: Sub-agent History Persistence**:
